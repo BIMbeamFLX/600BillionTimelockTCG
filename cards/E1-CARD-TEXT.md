@@ -51,7 +51,7 @@ Commit: generate 1 Bitcoin.
   
 **Character:** FLX
 
-Broadcast  
+Broadcast<br>
 FLX stays unlocked after attacking.
 
 **Simple Guide:** Can usually be blocked only by another Broadcaster. Lets a committed card become usable again.
@@ -124,7 +124,7 @@ Keys Avatars get +1 Action and +1 Resilience.
 **Protocol — Attachment** · Cost **S** · Rare
 
 
-Attach to Wall  
+Attach to Wall<br>
 Attached Wall can attack as though it didn't have Firewall.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -190,7 +190,7 @@ Mesh (Any Avatars with Mesh, and up to one without, can attack in a band. Bands 
 **Protocol — Attachment** · Cost **S** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar has Shielded from Keys. This effect doesn't remove this Attachment.
 
 **Simple Guide:** Resists the named affinity.
@@ -207,7 +207,7 @@ Attached Avatar has Shielded from Keys. This effect doesn't remove this Attachme
 **Zap** · Cost **S** · Rare
 
 
-Play this card on the Queue only during clash before blockers are declared.  
+Play this card on the Queue only during clash before blockers are declared.<br>
 Target Avatar defending player controls can block any number of Avatars this turn. It blocks each attacking Avatar this turn if able.
 
 **Simple Guide:** Play this while other cards wait on the Queue to make a timely response.
@@ -224,7 +224,7 @@ Target Avatar defending player controls can block any number of Avatars this tur
 **Protocol — Attachment** · Cost **SS** · Rare
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 S: attached Avatar gets +1 Action and +1 Resilience until end of turn.
 
 **Simple Guide:** Makes an Avatar stronger.
@@ -241,7 +241,7 @@ S: attached Avatar gets +1 Action and +1 Resilience until end of turn.
 **Protocol — Attachment** · Cost **S** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar has Shielded from Timelock. This effect doesn't remove this Attachment.
 
 **Simple Guide:** Resists the named affinity.
@@ -338,7 +338,7 @@ Unlocked Avatars you control get +0 Action and +2 Resilience.
 **Protocol — Attachment** · Cost **S** · Uncommon
 
 
-Attach to Resource  
+Attach to Resource<br>
 Attached Resource has indestructible and can't be attached by other Attachments.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -355,7 +355,7 @@ Attached Resource has indestructible and can't be attached by other Attachments.
 **Protocol** · Cost **2SS** · Uncommon
 
 
-At the beginning of your Maintenance, archive this Protocol unless you pay SS.  
+At the beginning of your Maintenance, archive this Protocol unless you pay SS.<br>
 All Power Resources are Signal Resource.
 
 **Simple Guide:** Moves a card into an Archive.
@@ -420,7 +420,7 @@ Decommission target Hardware or Protocol.
 **Protocol — Attachment** · Cost **SSS** · Rare
 
 
-Attach to Resource  
+Attach to Resource<br>
 Attached Resource has "At the beginning of your Maintenance, you may pay SS. If you do, you gain 1 Uptime."
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -437,7 +437,7 @@ Attached Resource has "At the beginning of your Maintenance, you may pay SS. If 
 **Protocol — Attachment** · Cost **S** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar has Shielded from Bitcoin. This effect doesn't remove this Attachment.
 
 **Simple Guide:** Resists the named affinity.
@@ -470,8 +470,8 @@ Prevent the next X damage that would be dealt to any target this turn. Until end
 **Zap** · Cost **S** · Common
 
 
-Choose one —  
-• Target player gains 3 Uptime.  
+Choose one —<br>
+• Target player gains 3 Uptime.<br>
 • Prevent the next 3 damage that would be dealt to any target this turn.
 
 **Simple Guide:** Deals or redirects damage.
@@ -488,8 +488,8 @@ Choose one —
 **Protocol — Attachment** · Cost **S** · Common
 
 
-Attach to Avatar  
-Attached Avatar gets +0 Action and +2 Resilience.  
+Attach to Avatar<br>
+Attached Avatar gets +0 Action and +2 Resilience.<br>
 S: attached Avatar gets +0 Action and +1 Resilience until end of turn.
 
 **Simple Guide:** Makes an Avatar stronger.
@@ -506,7 +506,7 @@ S: attached Avatar gets +0 Action and +1 Resilience until end of turn.
 **Protocol — Attachment** · Cost **S** · Common
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar gets +1 Action and +2 Resilience.
 
 **Simple Guide:** Makes an Avatar stronger.
@@ -555,7 +555,7 @@ At the beginning of each player's Maintenance, this Protocol deals damage to tha
 **Protocol — Attachment** · Cost **S** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar has First Strike.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -624,7 +624,7 @@ No special ability.
   
 **Character:** AJ
 
-0: The next 1 damage that would be dealt to this Avatar this turn is dealt to its owner instead. Only this Avatar's owner may activate this ability.  
+0: The next 1 damage that would be dealt to this Avatar this turn is dealt to its owner instead. Only this Avatar's owner may activate this ability.<br>
 When this Avatar is decommissioned, its owner loses half their Uptime, rounded up.
 
 **Simple Guide:** Deals or redirects damage. Removes a card from the Network.
@@ -657,7 +657,7 @@ Target card on the Queue or Network card becomes Signal. (Resource symbols on th
 **Protocol — Attachment** · Cost **S** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar has Shielded from Power. This effect doesn't remove this Attachment.
 
 **Simple Guide:** Resists the named affinity.
@@ -790,7 +790,7 @@ As long as this Avatar is unlocked, all damage that would be dealt to you by unb
   
 **Character:** Sat
 
-Firewall (This Avatar can't attack.)  
+Firewall (This Avatar can't attack.)<br>
 Broadcast
 
 **Simple Guide:** Can usually be blocked only by another Broadcaster.
@@ -808,7 +808,7 @@ Broadcast
   
 **Character:** Morgs
 
-First Strike (This Avatar deals clash damage before Avatars without First Strike.)  
+First Strike (This Avatar deals clash damage before Avatars without First Strike.)<br>
 Shielded from Keys (This Avatar can't be blocked, targeted, dealt damage, or attached by anything Keys.)
 
 **Simple Guide:** Deals or redirects damage. Resists the named affinity.
@@ -825,7 +825,7 @@ Shielded from Keys (This Avatar can't be blocked, targeted, dealt damage, or att
 **Protocol — Attachment** · Cost **S** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar has Shielded from Signal. This effect doesn't remove this Attachment.
 
 **Simple Guide:** Resists the named affinity.
@@ -893,7 +893,7 @@ Target player moves the top three cards of their Stack into their Wallet.
 **Protocol — Attachment** · Cost **3T** · Uncommon
 
 
-Attach to Hardware  
+Attach to Hardware<br>
 As long as attached Hardware isn't an Avatar, it's an Hardware Avatar with Action and Resilience each equal to its total resource cost.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -910,8 +910,8 @@ As long as attached Hardware isn't an Avatar, it's an Hardware Avatar with Actio
 **Zap** · Cost **T** · Common
 
 
-Choose one —  
-• marker target Power card on the Queue.  
+Choose one —<br>
+• marker target Power card on the Queue.<br>
 • decommission target Power Network card.
 
 **Simple Guide:** Removes a card from the Network.
@@ -961,7 +961,7 @@ You may have this Avatar enter as a copy of any Avatar on the Network.
 **Protocol — Attachment** · Cost **2TT** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 You control attached Avatar.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -1010,7 +1010,7 @@ Invalidate target card on the Queue.
 **Protocol — Attachment** · Cost **1T** · Common
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 When attached Avatar is decommissioned, this Attachment deals damage equal to that Avatar's Resilience to the Avatar's controller.
 
 **Simple Guide:** Deals or redirects damage. Removes a card from the Network.
@@ -1043,7 +1043,7 @@ Target player activates a Resource ability of each Resource they control. Then t
 **Protocol — Attachment** · Cost **2T** · Uncommon
 
 
-Attach to Protocol  
+Attach to Protocol<br>
 At the beginning of the Maintenance of attached Protocol's controller, this Attachment deals 1 damage to that player.
 
 **Simple Guide:** Deals or redirects damage.
@@ -1060,7 +1060,7 @@ At the beginning of the Maintenance of attached Protocol's controller, this Atta
 **Protocol — Attachment** · Cost **T** · Common
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar has Broadcast.
 
 **Simple Guide:** Can usually be blocked only by another Broadcaster.
@@ -1077,7 +1077,7 @@ Attached Avatar has Broadcast.
 **Protocol — Attachment** · Cost **TT** · Common
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar can't be blocked except by Walls.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -1210,7 +1210,7 @@ No special ability.
   
 **Character:** Snick
 
-Broadcast  
+Broadcast<br>
 At the beginning of your Maintenance, archive this Avatar unless you pay T.
 
 **Simple Guide:** Moves a card into an Archive. Can usually be blocked only by another Broadcaster.
@@ -1227,8 +1227,8 @@ At the beginning of your Maintenance, archive this Avatar unless you pay T.
 **Protocol — Attachment** · Cost **TT** · Common
 
 
-Attach to Resource  
-As this Attachment enters, choose a basic Resource type.  
+Attach to Resource<br>
+As this Attachment enters, choose a basic Resource type.<br>
 Attached Resource is the chosen type.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -1263,8 +1263,8 @@ Broadcast
   
 **Character:** Darren
 
-This Avatar can't attack unless defending player controls an Timelock Resource.  
-Commit: This Avatar deals 1 damage to any target.  
+This Avatar can't attack unless defending player controls an Timelock Resource.<br>
+Commit: This Avatar deals 1 damage to any target.<br>
 When you control no Timelock Resources, archive this Avatar.
 
 **Simple Guide:** Deals or redirects damage. Moves a card into an Archive.
@@ -1281,7 +1281,7 @@ When you control no Timelock Resources, archive this Avatar.
 **Protocol — Attachment** · Cost **1T** · Common
 
 
-Attach to Protocol  
+Attach to Protocol<br>
 At the beginning of the Maintenance of attached Protocol's controller, that player may pay any amount of Resource. This Attachment deals 2 damage to that player. Prevent X of that damage, where X is the amount of Resource that player paid this way.
 
 **Simple Guide:** Deals or redirects damage.
@@ -1347,7 +1347,7 @@ Cognitive Surge deals 4 damage to any target and 2 damage to you.
 **Protocol — Attachment** · Cost **1T** · Common
 
 
-Attach to Resource  
+Attach to Resource<br>
 Whenever attached Resource becomes committed, this Attachment deals 2 damage to that Resource's controller.
 
 **Simple Guide:** Deals or redirects damage.
@@ -1365,7 +1365,7 @@ Whenever attached Resource becomes committed, this Attachment deals 2 damage to 
   
 **Character:** Benarc
 
-This Avatar can't attack unless defending player controls an Timelock Resource.  
+This Avatar can't attack unless defending player controls an Timelock Resource.<br>
 When you control no Timelock Resources, archive this Avatar.
 
 **Simple Guide:** Moves a card into an Archive.
@@ -1382,8 +1382,8 @@ When you control no Timelock Resources, archive this Avatar.
 **Zap** · Cost **T** · Uncommon
 
 
-Play this card on the Queue only during an opponent's turn, before attackers are declared.  
-Avatars the active player controls attack this turn if able.  
+Play this card on the Queue only during an opponent's turn, before attackers are declared.<br>
+Avatars the active player controls attack this turn if able.<br>
 At the beginning of the next end step, decommission all non-Wall Avatars that player controls that didn't attack this turn. Ignore this effect for each Avatar the player didn't control continuously since the beginning of the turn.
 
 **Simple Guide:** Removes a card from the Network.
@@ -1432,7 +1432,7 @@ Invalidate target card on the Queue with total resource cost X. (For example, if
 **Protocol** · Cost **1T** · Rare
 
 
-Players skip their unlock steps.  
+Players skip their unlock steps.<br>
 At the beginning of your Maintenance, archive this Protocol unless you pay T.
 
 **Simple Guide:** Moves a card into an Archive. Lets a committed card become usable again.
@@ -1449,7 +1449,7 @@ At the beginning of your Maintenance, archive this Protocol unless you pay T.
 **Protocol — Attachment** · Cost **2TT** · Uncommon
 
 
-Attach to Hardware  
+Attach to Hardware<br>
 You control attached Hardware.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -1581,7 +1581,7 @@ Firewall, Broadcast (This Avatar can't attack, and it can block Avatars with Bro
   
 **Character:** Tal
 
-Firewall (This Avatar can't attack.)  
+Firewall (This Avatar can't attack.)<br>
 T: This Avatar gets +1 Action and +0 Resilience until end of turn.
 
 **Simple Guide:** Makes an Avatar stronger.
@@ -1617,8 +1617,8 @@ No special ability.
 **Protocol — Attachment** · Cost **1K** · Uncommon
 
 
-Attach to Avatar card in an Archive  
-When this Attachment enters, if it's on the Network, it loses "Attach to Avatar card in an Archive" and gains "Attach to Avatar put onto the Network with this Attachment." Return attached Avatar card to the Network under your control and attach this Attachment to it. When this Attachment leaves the Network, that Avatar's controller archives it.  
+Attach to Avatar card in an Archive<br>
+When this Attachment enters, if it's on the Network, it loses "Attach to Avatar card in an Archive" and gains "Attach to Avatar put onto the Network with this Attachment." Return attached Avatar card to the Network under your control and attach this Attachment to it. When this Attachment leaves the Network, that Avatar's controller archives it.<br>
 Attached Avatar gets -1 Action and -0 Resilience.
 
 **Simple Guide:** Moves a card into an Archive.
@@ -1636,7 +1636,7 @@ Attached Avatar gets -1 Action and -0 Resilience.
   
 **Character:** DNI
 
-First Strike (This Avatar deals clash damage before Avatars without First Strike.)  
+First Strike (This Avatar deals clash damage before Avatars without First Strike.)<br>
 Shielded from Signal (This Avatar can't be blocked, targeted, dealt damage, or attached by anything Signal.)
 
 **Simple Guide:** Deals or redirects damage. Resists the named affinity.
@@ -1686,7 +1686,7 @@ Stake module — Add the top card of your Stack to the Stake. Discard your Walle
 **Protocol — Attachment** · Cost **2KK** · Uncommon
 
 
-Attach to Resource  
+Attach to Resource<br>
 At the beginning of the Maintenance of attached Resource's controller, this Attachment deals 1 damage to that player.
 
 **Simple Guide:** Deals or redirects damage.
@@ -1784,7 +1784,7 @@ Stake module — Each player may add the top card of their Stack to the Stake. I
   
 **Character:** NC
 
-Commit: decommission target Resource.  
+Commit: decommission target Resource.<br>
 At the beginning of your Maintenance, unless you pay KKK, commit this Avatar and archive a Resource of an opponent's choice.
 
 **Simple Guide:** Removes a card from the Network. Moves a card into an Archive.
@@ -1850,7 +1850,7 @@ K: Reboot this Avatar. (The next time this Avatar would be decommissioned this t
 **Protocol — Attachment** · Cost **K** · Uncommon
 
 
-Attach to Resource  
+Attach to Resource<br>
 Attached Resource is a Keys Resource.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -1867,7 +1867,7 @@ Attached Resource is a Keys Resource.
 **Protocol — Attachment** · Cost **KK** · Common
 
 
-Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)  
+Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)<br>
 Attached Avatar has fear. (It can't be blocked except by Hardware Avatars and/or Keys Avatars.)
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -1901,7 +1901,7 @@ K: This Avatar gets +1 Action and +1 Resilience until end of turn.
 **Protocol** · Cost **2K** · Uncommon
 
 
-Signal cards on the Queue cost 3 more to play.  
+Signal cards on the Queue cost 3 more to play.<br>
 Activated abilities of Signal Protocols cost 3 more to activate.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -1935,7 +1935,7 @@ Target Avatar gets +X/+0 until end of turn.
   
 **Character:** Gadaj
 
-Broadcast  
+Broadcast<br>
 Whenever this Avatar deals damage to an opponent, that player discards a card at random.
 
 **Simple Guide:** Reduces the options in an opponent's Wallet. Deals or redirects damage.
@@ -1952,10 +1952,10 @@ Whenever this Avatar deals damage to an opponent, that player discards a card at
 **Protocol** · Cost **KKKK** · Rare
 
 
-As this Protocol enters, you lose Uptime equal to your Uptime.  
-You don't lose the game for having 0 or less Uptime.  
-If you would gain Uptime, draw that many cards instead.  
-Whenever you're dealt damage, archive that many non-proxy Network cards. If you can't, you lose the game.  
+As this Protocol enters, you lose Uptime equal to your Uptime.<br>
+You don't lose the game for having 0 or less Uptime.<br>
+If you would gain Uptime, draw that many cards instead.<br>
+Whenever you're dealt damage, archive that many non-proxy Network cards. If you can't, you lose the game.<br>
 When this Protocol is put into an Archive from the Network, you lose the game.
 
 **Simple Guide:** Puts more cards in your Wallet. Deals or redirects damage.
@@ -1973,7 +1973,7 @@ When this Protocol is put into an Archive from the Network, you lose the game.
   
 **Character:** DNI
 
-Broadcast, Overflow  
+Broadcast, Overflow<br>
 At the beginning of your Maintenance, archive an Avatar other than this Avatar. If you can't, this Avatar deals 7 damage to you.
 
 **Simple Guide:** Deals or redirects damage. Moves a card into an Archive.
@@ -2007,7 +2007,7 @@ Randomly choose X cards from target player's Wallet; that player discards them.
   
 **Character:** Nind
 
-Haste  
+Haste<br>
 At the beginning of your Maintenance, if this card is in your Archive with three or more Avatar cards above it, you may put this card onto the Network.
 
 **Simple Guide:** Moves a card into an Archive.
@@ -2042,7 +2042,7 @@ Commit: Choose target non-Wall Avatar the active player has controlled continuou
   
 **Character:** Proton
 
-Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)  
+Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)<br>
 Proton, Keyed Nightmare's Action and Resilience are each equal to the number of Keys Resources you control.
 
 **Simple Guide:** Can usually be blocked only by another Broadcaster.
@@ -2059,9 +2059,9 @@ Proton, Keyed Nightmare's Action and Resilience are each equal to the number of 
 **Protocol — Attachment** · Cost **K** · Common
 
 
-Attach to Avatar  
-When this Attachment enters, commit attached Avatar.  
-Attached Avatar doesn't unlock during its controller's unlock step.  
+Attach to Avatar<br>
+When this Attachment enters, commit attached Avatar.<br>
+Attached Avatar doesn't unlock during its controller's unlock step.<br>
 At the beginning of the Maintenance of attached Avatar's controller, that player may pay 4. If the player does, unlock the Avatar.
 
 **Simple Guide:** Lets a committed card become usable again.
@@ -2078,7 +2078,7 @@ At the beginning of the Maintenance of attached Avatar's controller, that player
 **Protocol** · Cost **2KK** · Common
 
 
-At the beginning of the end step, if no Avatars are on the Network, archive this Protocol.  
+At the beginning of the end step, if no Avatars are on the Network, archive this Protocol.<br>
 K: This Protocol deals 1 damage to each Avatar and each player.
 
 **Simple Guide:** Deals or redirects damage. Moves a card into an Archive.
@@ -2145,7 +2145,7 @@ Commit: decommission target committed Avatar.
 **Zap** · Cost **K** · Uncommon
 
 
-As an additional cost to play this card on the Queue, archive an Avatar.  
+As an additional cost to play this card on the Queue, archive an Avatar.<br>
 Generate that many Keys Resources, equal to the archived Avatar's total resource cost.
 
 **Simple Guide:** Moves a card into an Archive. Generates extra Resources for larger plays.
@@ -2180,7 +2180,7 @@ No special ability.
   
 **Character:** Nind
 
-At the beginning of each end step, put a corpse marker on this Avatar for each Avatar that died this turn.  
+At the beginning of each end step, put a corpse marker on this Avatar for each Avatar that died this turn.<br>
 Remove a corpse marker from this Avatar: Reboot this Avatar.
 
 **Simple Guide:** Can keep an Avatar in the Network after damage.
@@ -2198,7 +2198,7 @@ Remove a corpse marker from this Avatar: Reboot this Avatar.
   
 **Character:** DNI
 
-Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)  
+Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)<br>
 Whenever an Avatar dealt damage by this Avatar this turn is decommissioned, put a +1/+1 marker on this Avatar.
 
 **Simple Guide:** Deals or redirects damage. Removes a card from the Network.
@@ -2263,7 +2263,7 @@ Decommission target nonartifact, nonblack Avatar. It can't be regenerated.
 **Protocol — Attachment** · Cost **K** · Common
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar gets +2 Action and +1 Resilience.
 
 **Simple Guide:** Makes an Avatar stronger.
@@ -2281,7 +2281,7 @@ Attached Avatar gets +2 Action and +1 Resilience.
   
 **Character:** BlackCoffee
 
-Firewall (This Avatar can't attack.)  
+Firewall (This Avatar can't attack.)<br>
 K: Reboot this Avatar. (The next time this Avatar would be decommissioned this turn, instead commit it, remove it from clash, and heal all damage on it.)
 
 **Simple Guide:** Deals or redirects damage. Removes a card from the Network.
@@ -2298,7 +2298,7 @@ K: Reboot this Avatar. (The next time this Avatar would be decommissioned this t
 **Protocol — Attachment** · Cost **KK** · Rare
 
 
-Attach to Hardware  
+Attach to Hardware<br>
 At the beginning of the Maintenance of attached Hardware's controller, this Attachment deals 1 damage to that player.
 
 **Simple Guide:** Deals or redirects damage.
@@ -2315,7 +2315,7 @@ At the beginning of the Maintenance of attached Hardware's controller, this Atta
 **Protocol — Attachment** · Cost **K** · Common
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar gets -2 Action and -1 Resilience.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -2333,7 +2333,7 @@ Attached Avatar gets -2 Action and -1 Resilience.
   
 **Character:** Proton
 
-Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)  
+Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)<br>
 K: Reboot this Avatar. (The next time this Avatar would be decommissioned this turn, instead commit it, remove it from clash, and heal all damage on it.)
 
 **Simple Guide:** Deals or redirects damage. Removes a card from the Network.
@@ -2367,7 +2367,7 @@ Look at an opponent's Wallet and choose a card they can play. You control that p
   
 **Character:** Gadaj
 
-Other Zombie Avatars have Backchannel—Keys. (They can't be blocked as long as defending player controls a Keys Resource.)  
+Other Zombie Avatars have Backchannel—Keys. (They can't be blocked as long as defending player controls a Keys Resource.)<br>
 Other Zombies have "K: Reboot this Network card."
 
 **Simple Guide:** Can keep an Avatar in the Network after damage. Can slip past players using the named Resource.
@@ -2386,7 +2386,7 @@ Other Zombies have "K: Reboot this Network card."
 **Protocol — Attachment** · Cost **P** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar has Backchannel—Action. (It can't be blocked as long as defending player controls a Power Resource.)
 
 **Simple Guide:** Can slip past players using the named Resource.
@@ -2436,7 +2436,7 @@ Final Settlement deals X damage to any target. If it's an Avatar, it can't be re
   
 **Character:** MadMunky
 
-Broadcast  
+Broadcast<br>
 P: This Avatar gets +1 Action and +0 Resilience until end of turn. If this ability has been activated four or more times this turn, archive this Avatar at the beginning of the next end step.
 
 **Simple Guide:** Moves a card into an Archive. Can usually be blocked only by another Broadcaster.
@@ -2504,7 +2504,7 @@ No special ability.
 **Protocol — Attachment** · Cost **P** · Common
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 When this Attachment enters, if attached Avatar has Broadcast, this Attachment deals 2 damage to that Avatar and this Attachment gains "attached Avatar loses Broadcast."
 
 **Simple Guide:** Deals or redirects damage. Can usually be blocked only by another Broadcaster.
@@ -2537,7 +2537,7 @@ Hashquake deals X damage to each Avatar without Broadcast and each player.
 **Zap** · Cost **P** · Common
 
 
-Play this card on the Queue only during the declare blockers step.  
+Play this card on the Queue only during the declare blockers step.<br>
 Remove target Avatar defending player controls from clash. Avatars it was blocking that had become blocked by only that Avatar this clash become unblocked. You may have it block an attacking Avatar of your choice.
 
 **Simple Guide:** Play this while other cards wait on the Queue to make a timely response.
@@ -2571,7 +2571,7 @@ No special ability.
 **Operation** · Cost **XP** · Common
 
 
-This card on the Queue costs 1 more to play for each target beyond the first.  
+This card on the Queue costs 1 more to play for each target beyond the first.<br>
 Power Burst deals X damage divided evenly, rounded down, among any number of targets.
 
 **Simple Guide:** Deals or redirects damage.
@@ -2588,7 +2588,7 @@ Power Burst deals X damage divided evenly, rounded down, among any number of tar
 **Protocol — Attachment** · Cost **P** · Common
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 P: attached Avatar gets +1 Action and +0 Resilience until end of turn.
 
 **Simple Guide:** Makes an Avatar stronger.
@@ -2672,7 +2672,7 @@ Other Goblins get +1 Action and +1 Resilience and have Backchannel—Action.
   
 **Character:** Rootzoll
 
-Broadcast  
+Broadcast<br>
 P: This Avatar gets +0 Action and +1 Resilience until end of turn.
 
 **Simple Guide:** Can usually be blocked only by another Broadcaster. Makes an Avatar stronger.
@@ -2888,8 +2888,8 @@ Whenever one or more Avatars you control attack, each defending player divides a
 **Zap** · Cost **P** · Common
 
 
-Choose one —  
-• marker target Timelock card on the Queue.  
+Choose one —<br>
+• marker target Timelock card on the Queue.<br>
 • decommission target Timelock Network card.
 
 **Simple Guide:** Removes a card from the Network.
@@ -2924,9 +2924,9 @@ Broadcast
   
 **Character:** Toni China
 
-This Avatar enters with X +1/+1 markers on it.  
-For each 1 damage that would be dealt to this Avatar, if it has a +1/+1 marker on it, remove a +1/+1 marker from it and prevent that 1 damage.  
-P: Prevent the next 1 damage that would be dealt to this Avatar this turn.  
+This Avatar enters with X +1/+1 markers on it.<br>
+For each 1 damage that would be dealt to this Avatar, if it has a +1/+1 marker on it, remove a +1/+1 marker from it and prevent that 1 damage.<br>
+P: Prevent the next 1 damage that would be dealt to this Avatar this turn.<br>
 PPP: Put a +1/+1 marker on this Avatar. Activate only during your Maintenance.
 
 **Simple Guide:** Deals or redirects damage.
@@ -2944,7 +2944,7 @@ PPP: Put a +1/+1 marker on this Avatar. Activate only during your Maintenance.
   
 **Character:** Essex
 
-This Avatar gets +1 Action and +1 Resilience as long as you control a Keys Resource.  
+This Avatar gets +1 Action and +1 Resilience as long as you control a Keys Resource.<br>
 K: Reboot this Avatar.
 
 **Simple Guide:** Can keep an Avatar in the Network after damage. Makes an Avatar stronger.
@@ -2978,7 +2978,7 @@ Decommission target Hardware.
   
 **Character:** MadMunky
 
-Broadcast  
+Broadcast<br>
 P: This Avatar gets +1 Action and +0 Resilience until end of turn.
 
 **Simple Guide:** Can usually be blocked only by another Broadcaster. Makes an Avatar stronger.
@@ -3061,7 +3061,7 @@ Decommission target Wall. It can't be regenerated.
   
 **Character:** Rootzoll, Leon
 
-Overflow  
+Overflow<br>
 This Avatar can block an additional Avatar each clash.
 
 **Simple Guide:** Can push excess clash damage through to Uptime.
@@ -3096,7 +3096,7 @@ P: Reboot this Avatar.
   
 **Character:** Toni China
 
-Firewall (This Avatar can't attack.)  
+Firewall (This Avatar can't attack.)<br>
 P: This Avatar gets +1 Action and +0 Resilience until end of turn.
 
 **Simple Guide:** Makes an Avatar stronger.
@@ -3148,7 +3148,7 @@ Each player discards their Wallet, then draws seven cards.
 **Protocol — Attachment** · Cost **1B** · Rare
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 Attached Avatar gets +X/+Y, where X is half the number of Bitcoin Resources you control, rounded down, and Y is half the number of Bitcoin Resources you control, rounded up.
 
 **Simple Guide:** Makes an Avatar stronger.
@@ -3165,7 +3165,7 @@ Attached Avatar gets +X/+Y, where X is half the number of Bitcoin Resources you 
 **Zap** · Cost **B** · Uncommon
 
 
-Play this card on the Queue only before the clash damage step.  
+Play this card on the Queue only before the clash damage step.<br>
 Target Avatar gains Overflow and gets +X/+0 until end of turn, where X is its Action. At the beginning of the next end step, decommission that Avatar if it attacked this turn.
 
 **Simple Guide:** Deals or redirects damage. Removes a card from the Network.
@@ -3183,7 +3183,7 @@ Target Avatar gains Overflow and gets +X/+0 until end of turn, where X is its Ac
   
 **Character:** Shillie
 
-Broadcast  
+Broadcast<br>
 Commit: generate 1 Resource of any affinity.
 
 **Simple Guide:** Can usually be blocked only by another Broadcaster. Generates extra Resources for larger plays.
@@ -3233,7 +3233,7 @@ Until end of turn, any time you could activate a Resource ability, you may pay 1
   
 **Character:** Mtoshi
 
-Broadcast  
+Broadcast<br>
 Whenever this Avatar blocks or becomes blocked by a non-Wall Avatar, decommission that Avatar at end of clash.
 
 **Simple Guide:** Removes a card from the Network. Can usually be blocked only by another Broadcaster.
@@ -3284,7 +3284,7 @@ First Strike — deals clash damage before Avatars without First Strike.
 **Protocol** · Cost **B** · Rare
 
 
-You may play any number of Resources on each of your turns.  
+You may play any number of Resources on each of your turns.<br>
 Whenever you play a Resource, if it wasn't the first Resource you played this turn, this Protocol deals 1 damage to you.
 
 **Simple Guide:** Deals or redirects damage.
@@ -3318,7 +3318,7 @@ Prevent all clash damage that would be dealt this turn.
   
 **Character:** Arbadacarba
 
-Overflow (This Avatar can deal excess clash damage to the player it's attacking.)  
+Overflow (This Avatar can deal excess clash damage to the player it's attacking.)<br>
 At the beginning of your Maintenance, this Avatar deals 8 damage to you unless you pay BBBB.
 
 **Simple Guide:** Deals or redirects damage. Can push excess clash damage through to Uptime.
@@ -3353,7 +3353,7 @@ Whenever this Avatar is dealt damage, put a +1/+1 marker on it.
   
 **Character:** Longy
 
-As long as Longy, Resource Sovereign isn't attacking, its Action and Resilience are each equal to the number of Bitcoin Resources you control. As long as Longy, Resource Sovereign is attacking, its Action and Resilience are each equal to the number of Bitcoin Resources defending player controls.  
+As long as Longy, Resource Sovereign isn't attacking, its Action and Resilience are each equal to the number of Bitcoin Resources you control. As long as Longy, Resource Sovereign is attacking, its Action and Resilience are each equal to the number of Bitcoin Resources defending player controls.<br>
 Commit: Target Resource becomes a Bitcoin Resource until this Avatar leaves the Network.
 
 **Simple Guide:** Uses committing as the cost for a repeatable effect.
@@ -3452,8 +3452,8 @@ Decommission target Resource.
 **Protocol — Attachment** · Cost **B** · Uncommon
 
 
-Attach to Avatar  
-Attached Avatar can attack as though it had haste.  
+Attach to Avatar<br>
+Attached Avatar can attack as though it had haste.<br>
 0: unlock attached Avatar. Activate only during your turn and only once each turn.
 
 **Simple Guide:** Lets a committed card become usable again.
@@ -3487,7 +3487,7 @@ No special ability.
 **Protocol — Attachment** · Cost **1BB** · Rare
 
 
-Attach to Resource  
+Attach to Resource<br>
 When attached Resource becomes committed, decommission it. That Resource's controller may attach this Attachment to a Resource of their choice.
 
 **Simple Guide:** Removes a card from the Network.
@@ -3553,8 +3553,8 @@ Target card on the Queue or Network card becomes Bitcoin. (Resource symbols on t
 **Protocol — Attachment** · Cost **B** · Rare
 
 
-Attach to Hardware  
-Whenever you're dealt damage, put that many vitality markers on this Attachment.  
+Attach to Hardware<br>
+Whenever you're dealt damage, put that many vitality markers on this Attachment.<br>
 At the beginning of your Maintenance, you may remove a vitality marker from this Attachment. If you do, you gain 1 Uptime.
 
 **Simple Guide:** Deals or redirects damage.
@@ -3604,7 +3604,7 @@ Commit: generate 1 Bitcoin Resource.
 **Protocol — Attachment** · Cost **1BB** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 All Avatars able to block attached Avatar do so.
 
 **Simple Guide:** Deploy this Protocol to change how the Network behaves over time.
@@ -3637,7 +3637,7 @@ Look at the top three cards of target player's Stack, then put them back in any 
 **Protocol — Attachment** · Cost **1B** · Common
 
 
-Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)  
+Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)<br>
 B: Reboot attached Avatar. (The next time that Avatar would be decommissioned this turn, instead commit it, remove it from clash, and heal all damage on it.)
 
 **Simple Guide:** Deals or redirects damage. Removes a card from the Network.
@@ -3804,7 +3804,7 @@ Whenever you play a Protocol card on the Queue, you may draw a card.
   
 **Character:** Longy
 
-Firewall (This Avatar can't attack.)  
+Firewall (This Avatar can't attack.)<br>
 B: Reboot this Avatar.
 
 **Simple Guide:** Can keep an Avatar in the Network after damage.
@@ -3855,7 +3855,7 @@ Firewall (This Avatar can't attack.)
 **Protocol — Attachment** · Cost **2B** · Uncommon
 
 
-Attach to Avatar  
+Attach to Avatar<br>
 At the beginning of the Maintenance of attached Avatar's controller, this Attachment deals 1 damage to that player.
 
 **Simple Guide:** Deals or redirects damage.
@@ -3889,7 +3889,7 @@ Overflow
 **Protocol — Attachment** · Cost **B** · Rare
 
 
-Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)  
+Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)<br>
 Attached Avatar gets +0 Action and +2 Resilience and has Broadcast Guard. (It can block Avatars with Broadcast.)
 
 **Simple Guide:** Can usually be blocked only by another Broadcaster. Makes an Avatar stronger.
@@ -3906,7 +3906,7 @@ Attached Avatar gets +0 Action and +2 Resilience and has Broadcast Guard. (It ca
 **Protocol — Attachment** · Cost **B** · Common
 
 
-Attach to Resource  
+Attach to Resource<br>
 Whenever attached Resource is committed for Resource, its controller generates 1 additional Bitcoin Resource.
 
 **Simple Guide:** Generates extra Resources for larger plays.
@@ -3941,8 +3941,8 @@ Whenever a Resource enters, this Hardware deals 2 damage to that Resource's cont
 **Hardware** · Cost **3** · Uncommon
 
 
-This Hardware doesn't unlock during your unlock step.  
-Commit: generate 3 neutral Resources.  
+This Hardware doesn't unlock during your unlock step.<br>
+Commit: generate 3 neutral Resources.<br>
 3: unlock this Hardware.
 
 **Simple Guide:** Generates extra Resources for larger plays. Lets a committed card become usable again.
@@ -3959,7 +3959,7 @@ Commit: generate 3 neutral Resources.
 **Hardware** · Cost **1** · Uncommon
 
 
-As this Hardware enters, choose an opponent.  
+As this Hardware enters, choose an opponent.<br>
 At the beginning of the chosen player's Maintenance, this Hardware deals X damage to that player, where X is the number of cards in their Wallet minus 4.
 
 **Simple Guide:** Deals or redirects damage.
@@ -4009,8 +4009,8 @@ Toss module — Commit: toss Chaos Kernel from at least one card-height above th
   
 **Character:** Cuddy
 
-This Avatar enters with seven +1/+0 markers on it.  
-At end of clash, if this Avatar attacked or blocked this clash, remove a +1/+0 marker from it.  
+This Avatar enters with seven +1/+0 markers on it.<br>
+At end of clash, if this Avatar attacked or blocked this clash, remove a +1/+0 marker from it.<br>
 X, Commit: Put up to X +1/+0 markers on this Avatar. This ability can't cause the total number of +1/+0 markers on this Avatar to be greater than seven. Activate only during your Maintenance.
 
 **Simple Guide:** Uses committing as the cost for a repeatable effect.
@@ -4075,15 +4075,15 @@ Whenever a player play a Timelock card on the Queue, you may pay 1. If you do, y
 **Hardware** · Cost **4** · Rare
 
 
-2, Commit: Put a mire marker on target non-Keys Resource Resource. That Resource is a Keys Resource for as long as it has a mire marker on it. Activate only during your Maintenance.  
-When this Hardware is put into an Archive from the Network, at the beginning of each of your upkeeps for the rest of the game, remove all mire markers from a Resource that a mire marker was put onto with this Hardware but that a mire marker has not been removed from with this Hardware.
+2, Commit: put a mire marker on target non-Keys Resource. It is a Keys Resource while it has a mire marker. Use only during your Maintenance.<br>
+If Resource Tombstone moves from the Network to an Archive, then at the beginning of each of your Maintenance steps for the rest of the game, choose a Resource that still has a mire marker placed by Resource Tombstone and remove all those markers from it.
 
 **Simple Guide:** Moves a card into an Archive.
 
 **Protocol Note:** Open specifications make protocol behavior reviewable and reusable.  
 **Primary source:** https://github.com/nostr-protocol/nips
 
-**Art direction:** A practical open-source device visualizes “2, Commit: Put a mire marker on target non-Keys Resource Resource. That Resource is a Keys Resource for as long as it has a mire marker on it. Activate only during your Maintenance” without characters.
+**Art direction:** A practical open-source device visualizes “2, Commit: put a mire marker on target non-Keys Resource. It is a Keys Resource while it has a mire marker. Use only during your Maintenance” without characters.
 
 ---
 
@@ -4140,7 +4140,7 @@ Whenever a Resource is put into an Archive from the Network, this Hardware deals
 **Hardware** · Cost **4** · Rare
 
 
-Power Avatars get +1 Action and +1 Resilience.  
+Power Avatars get +1 Action and +1 Resilience.<br>
 Whenever a Power Resource is committed for Resource, its controller generates 1 additional Power Resource.
 
 **Simple Guide:** Generates extra Resources for larger plays.
@@ -4318,7 +4318,7 @@ Whenever a player play a Signal card on the Queue, you may pay 1. If you do, you
   
 **Character:** FLX
 
-This Avatar attacks each clash if able.  
+This Avatar attacks each clash if able.<br>
 This Avatar can't be blocked by Walls.
 
 **Simple Guide:** Deploy this Avatar to defend your Uptime or pressure an opponent.
@@ -4351,7 +4351,7 @@ All Keys Resources are 1/1 Keys Avatars that are still Resources.
 **Hardware** · Cost **1** · Uncommon
 
 
-You have no maximum Wallet size.  
+You have no maximum Wallet size.<br>
 If an effect causes you to discard a card, discard it, but you may put it on top of your Stack instead of into your Archive.
 
 **Simple Guide:** Reduces the options in an opponent's Wallet. Moves a card into an Archive.
@@ -4369,7 +4369,7 @@ If an effect causes you to discard a card, discard it, but you may put it on top
   
 **Character:** MHB
 
-Firewall (This Avatar can't attack.)  
+Firewall (This Avatar can't attack.)<br>
 1: Reboot this Avatar.
 
 **Simple Guide:** Can keep an Avatar in the Network after damage.
@@ -4386,9 +4386,9 @@ Firewall (This Avatar can't attack.)
 **Hardware** · Cost **1** · Rare
 
 
-This Hardware doesn't unlock during your unlock step.  
-At the beginning of your Maintenance, you may pay 4. If you do, unlock this Hardware.  
-At the beginning of your draw step, if this Hardware is committed, it deals 1 damage to you.  
+This Hardware doesn't unlock during your unlock step.<br>
+At the beginning of your Maintenance, you may pay 4. If you do, unlock this Hardware.<br>
+At the beginning of your draw step, if this Hardware is committed, it deals 1 damage to you.<br>
 Commit: generate 3 neutral Resources.
 
 **Simple Guide:** Puts more cards in your Wallet. Deals or redirects damage.
@@ -4501,7 +4501,7 @@ Commit: generate 1 Timelock Resource.
 **Hardware** · Cost **4** · Rare
 
 
-This Hardware enters committed.  
+This Hardware enters committed.<br>
 1, Commit: decommission all Hardware, Avatars, and Protocols.
 
 **Simple Guide:** Removes a card from the Network.

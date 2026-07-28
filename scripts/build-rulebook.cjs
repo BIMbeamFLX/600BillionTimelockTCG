@@ -214,6 +214,7 @@ function renderWebsite() {
     }
     .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 30px; }
     .pill {
+      display: inline-block;
       padding: 8px 12px;
       color: var(--black);
       background: var(--purple);
@@ -222,6 +223,8 @@ function renderWebsite() {
       letter-spacing: .09em;
       text-transform: uppercase;
     }
+    a.pill { text-decoration: none; }
+    a.pill:hover { background: var(--orange); }
     article { min-width: 0; padding-top: 20px; }
     article > p:first-child {
       margin-top: 0;
@@ -420,6 +423,7 @@ function renderWebsite() {
           <span class="pill">20 Uptime</span>
           <span class="pill">40+ cards</span>
           <span class="pill">Classic profile</span>
+          <a class="pill" href="cards.html">Browse all 295 cards →</a>
         </div>
       </div>
     </div>

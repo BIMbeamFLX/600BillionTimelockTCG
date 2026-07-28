@@ -1,0 +1,5324 @@
+{
+  "phase": "final-card-faces",
+  "layout_version": "600B-E1-card-v1",
+  "card_count": 295,
+  "card_size": [
+    750,
+    1050
+  ],
+  "overflow_count": 0,
+  "overflow_ids": [],
+  "card_back": "600B-Timelock-card-back.jpg",
+  "files": [
+    {
+      "id": "E1-001",
+      "name": "Genesis Lotus",
+      "file": "Genesis Lotus.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3613c7f6a224c46bcbd99fc2f8af5ee0a63ff5a53d837ffa037b0e5a2bc3ce6a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-002",
+      "name": "Satoshi Orchard",
+      "file": "Satoshi Orchard.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ff02725e617d194c4466cb403e5ed1feb326a41a73d51bf7597f13083befaacb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-003",
+      "name": "FLX, Culture Curator",
+      "file": "FLX, Culture Curator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "af1e4e1d41cb1409605a6c266ef75dd51470f6eaad698ecb22197f2d856c7904",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-004",
+      "name": "Zap",
+      "file": "Zap.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "fe333a46b745b96b0caca7d658acff1ac030a4b640cea0d5be66d1d62813486c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-005",
+      "name": "Next Block",
+      "file": "Next Block.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "77c9fa1438dac7101e1ce28fbca2d275a18d39102b1e55f0448c451bd2349d81",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-006",
+      "name": "Multisig Quorum",
+      "file": "Multisig Quorum.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b7d8d5acbc9fe1121790ccf910bb70c110578b1a0f698bf5644903f897aad566",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-007",
+      "name": "Firmware for Firewalls",
+      "file": "Firmware for Firewalls.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c94f26d68ac2318ea74feb16d51ad7c91b432361de9d45372040975444043973",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-008",
+      "name": "Grid Reset",
+      "file": "Grid Reset.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bfc2f1a282dc194eb50c4b168f3e13d173e2cf33512dcc3b24b0bb0f199bc593",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-009",
+      "name": "Fair State",
+      "file": "Fair State.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5700da08d1375b4ad9aa9728870184bf82ad604bddba8529891bdcc779898d71",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-010",
+      "name": "Cuddy, Signal Organizer",
+      "file": "Cuddy, Signal Organizer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6ad39594a9e038bf53a260daf92bd71eb06bada0c57a335e5af8d7044b7fc1c3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-011",
+      "name": "Keys Shield",
+      "file": "Keys Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "afe9c6a2ff80db51415d7b1f7e41d65975f1de91a01a934a71bbd0c03590c90e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-012",
+      "name": "Last Broadcast",
+      "file": "Last Broadcast.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9e5e918f90acff50445e291f76b171c4ef51c52835f17be31c282be35bdb6a2d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-013",
+      "name": "Shared Uptime",
+      "file": "Shared Uptime.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7c66cfe51b2e1d486251df15934850bc21ae786d090c7698b7630540099a5acb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-014",
+      "name": "Timelock Shield",
+      "file": "Timelock Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5eeb09af67d278c3fda2b9533e040039032a514afd1ff53b9dc29f5bdd8c14cd",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-015",
+      "name": "Local Citadel",
+      "file": "Local Citadel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ec32dfb953ed6da2a2bf84217909b7b442be8dd60cb5875ac129ded708338cd9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-016",
+      "name": "Timelock Protection Circuit",
+      "file": "Timelock Protection Circuit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cf1ca0f600e848c886fbc8a3fc6f65939dcbc94a88c6140b4f4e2a84dda61814",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-017",
+      "name": "Bitcoin Protection Circuit",
+      "file": "Bitcoin Protection Circuit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "65ef1569709762a0d778b03f2c80826c85b4b5ff6f5d5faf2f89a82d0638d867",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-018",
+      "name": "Power Protection Circuit",
+      "file": "Power Protection Circuit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e0bf7a0166f2d4f5cb499e01476b3647e2e42b9ab53e57a57e1a065fce317f5f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-019",
+      "name": "Signal Protection Circuit",
+      "file": "Signal Protection Circuit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "dfc8a46ff0ef2c6ee4cad06d22332da27efdf5925c4f7f9d39e4b5efca52eb84",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-020",
+      "name": "Hardened Resource",
+      "file": "Hardened Resource.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "06b915ccc0a861e6849432a5e0a5bd89bf6a183a0fce4c1382065531e14198ab",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-021",
+      "name": "Grid Conversion",
+      "file": "Grid Conversion.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d226e5d20200ecf7c5f2f52bb80b41df284bd08af72b5c74032200c8c224325a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-022",
+      "name": "Public Goods Drive",
+      "file": "Public Goods Drive.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f685d1d3b40de60ae847ec7c62e557be08bdd0e8346f5b52d9442cf995c958a6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-023",
+      "name": "Emergency Reboot",
+      "file": "Emergency Reboot.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "841df2404727aac31a7bf5e5d7802b210a8923c9543865348240f303e773fb39",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-024",
+      "name": "Protocol Cleanup",
+      "file": "Protocol Cleanup.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3f829849b3c55e4d089698e2b050e4e9d7fe91d4813f84513b4d0eeabf94c76f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-025",
+      "name": "Home Miner",
+      "file": "Home Miner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2c4d3fbdc989acc1125e672a2a38c07382f8fc6a4b109a461662f56cdfe6feaf",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-026",
+      "name": "Bitcoin Shield",
+      "file": "Bitcoin Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8dd7845c08f878529b62afb6fda9e4ac9c876ef833ee67994123dd99fb19d610",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-027",
+      "name": "Guardian Signal",
+      "file": "Guardian Signal.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b674fa5425b34e4b13a390a544b3210e7680a05015d1fb746e8b3c9a26be4b90",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-028",
+      "name": "Repair Packet",
+      "file": "Repair Packet.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e491f6c7942354ed56f12f6c5553f81affa3acfe0f0686aaf523b16a21e07c5e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-029",
+      "name": "Hardened Identity",
+      "file": "Hardened Identity.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a62364d3674a26180980ee5f035b0cd4c849aa3c75374b07920ad0e43697b755",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-030",
+      "name": "Community Strength",
+      "file": "Community Strength.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bff7426284aa454ccd6d70c71d648efad24c28d1eebd8c06ca13e7e212fac7e6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-031",
+      "name": "Offline Sanctuary",
+      "file": "Offline Sanctuary.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "766a9a3e906ab48e0b3b3ffcca6cea6b1fcadb5c49eae56df8f5b2cea84caef7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-032",
+      "name": "Consequence Ledger",
+      "file": "Consequence Ledger.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0fbc5782d206b20bbd6808c790c889546985b88f66003a7f2c88d379ecde1db9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-033",
+      "name": "Fast Path",
+      "file": "Fast Path.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c6c3ac29ad6461eda04e5350a4eaa9fb6ae04e3e5bf90dcbc7e416262b8d856e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-034",
+      "name": "Sat, Relay Rider",
+      "file": "Sat, Relay Rider.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "dcda89db5d0f0ea0f5ba7c78b15839e653188e0ecf350e3cfd0d000f88745ff2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-035",
+      "name": "MHB, Keys Auditor",
+      "file": "MHB, Keys Auditor.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cd373ebadb356685fe6291d490937bfc3b1650302a436bdbe7e41e7fd2fcd399",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-036",
+      "name": "Morgs, Friendly Fork",
+      "file": "Morgs, Friendly Fork.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cedddd0f670ee2abf94a114f45d76027eeb28f7ba3907f5d7d039c3b009559d8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-037",
+      "name": "AJ, Uptime Anchor",
+      "file": "AJ, Uptime Anchor.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "45b4aa56a1c94e0c339202ddc8b174ba5076ab9d8a7f588d96450a429fb258e2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-038",
+      "name": "Signal Rewrite",
+      "file": "Signal Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8ed28ea0d0c28a14dcbd05ae7eab032e5af89725d46f31353ffce57fffd5be33",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-039",
+      "name": "Power Shield",
+      "file": "Power Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d944196816f5a9130912f9a65832ebcda9174d5d4cb91885dd0f1a35c4927cdf",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-040",
+      "name": "Archive Restore",
+      "file": "Archive Restore.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7eb6e05912a495699ff22a3853b61313bd19a9856aefdd992b253c93b39ce837",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-041",
+      "name": "Damage Refund",
+      "file": "Damage Refund.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "afd0f3ac70902d765036a8de6f5a6fc82acaebdc4c683c8fc78f3e44d929f028",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-042",
+      "name": "Courage Under Load",
+      "file": "Courage Under Load.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3518904e9fb86b0533d870faeacddb7820f2b44999d291e7ad6be3277aba01c9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-043",
+      "name": "AJ, First Responder",
+      "file": "AJ, First Responder.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ff54617c1680f3c3ce757654c6847f9df16c56a11f8a2f7cfffc4d38e796ecc4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-044",
+      "name": "Cuddy, Fast Starter",
+      "file": "Cuddy, Fast Starter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "063e294df8052325cc0417cc575d8bed9dc1a9f36b3698e60192f1e25465160f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-045",
+      "name": "Peaceful Exit",
+      "file": "Peaceful Exit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "210a21b1b189bd4b6ec823169310d2f02e3f342121e64ba3f989f5e1733c7bec",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-046",
+      "name": "MHB, Community Shield",
+      "file": "MHB, Community Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5b77b5fb5cec0c064e04fb621cb1f4b1079b36f49bb0d7b2f716b14eac37d9ee",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-047",
+      "name": "Sat, Blade Firewall",
+      "file": "Sat, Blade Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6e512119db18d5f863ce5ffa26888d84a12fdd2ec4ba27165503c9a12b1c3753",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-048",
+      "name": "Morgs, Signal Knight",
+      "file": "Morgs, Signal Knight.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e859f9542a00755899b2d63128b7f54b80ac1e52d740a892710cf56132043777",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-049",
+      "name": "Signal Shield",
+      "file": "Signal Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e388fc928deb00679e25633fa1a0437b16f3d71c33dc4e5e6bdfbc048253acf9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-050",
+      "name": "Clean Slate",
+      "file": "Clean Slate.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "76b1c3e4a8352bb5197ca75a852e562221048291cf08dc9a2feb97ca5662bb4c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-051",
+      "name": "Michael1011, Packet Shaper",
+      "file": "Michael1011, Packet Shaper.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d5b2636dc7dae1f51975cc4781ad0d22d732c02552d4beac4b9f883674b12444",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-052",
+      "name": "First Memory",
+      "file": "First Memory.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6f64044935a229cf12745c35b455387f8d2f0249eb6424ba7a5d137cef6ff3f4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-053",
+      "name": "Boot Hardware",
+      "file": "Boot Hardware.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "223ab3bd7bc94aae7cd514f2a0dcaf8ddb9dad3d497ba63526d294c47662e346",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-054",
+      "name": "Power Invalidation",
+      "file": "Power Invalidation.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ef5737bbb4751cd98b39c5aad7d2a5ea3569d0044cc15c233567dedca05da771",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-055",
+      "name": "Query Burst",
+      "file": "Query Burst.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "34c927284fbda05ba29931361104fe0669613d5567f0ab02ad4e1f89e26d68a9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-056",
+      "name": "Benarc, Mirror Client",
+      "file": "Benarc, Mirror Client.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "faeae0fa1ac6c30aab96fc47e5dfee811dee753f3765eaf86b26c952ae8d98bb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-057",
+      "name": "Remote Control",
+      "file": "Remote Control.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5bbada2b2b1cb70ea897c3cb506360d98840471eb2ae65a97532e1f6062dcb01",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-058",
+      "name": "Hardware Clone",
+      "file": "Hardware Clone.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "409784a9bc7b9908d9a0da64f00ec305123fcb51a3c90c16d54954fe54fc4176",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-059",
+      "name": "Invalid Signature",
+      "file": "Invalid Signature.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f41d680104b779a55ced80a6bbdcb0f1b146da29f045ceb5118ad90d68aa83b8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-060",
+      "name": "Exit Fee",
+      "file": "Exit Fee.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b95a4f1b548442dde23aa3d82afe01af0d17bf74257c24ac80ce82583b9e57bb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-061",
+      "name": "Buffer Drain",
+      "file": "Buffer Drain.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "aeedce108a6daa5cb38aeac7983d33e0b90aa8ebe4377e6d16aa0c5332fd7468",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-062",
+      "name": "Relay Feedback",
+      "file": "Relay Feedback.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bd181a1ecf0cceedf47f2f92538975f22add1156e10531b5c41333f32c627955",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-063",
+      "name": "Broadcast Upgrade",
+      "file": "Broadcast Upgrade.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f971e7fe774df05e66303db90b30b8507a134913fc8b60b290b19aa072c39d68",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-064",
+      "name": "Hidden Route",
+      "file": "Hidden Route.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ed149f6b41c89a6f8c23ed887f36574170045caba6d75f4144ffad622e651652",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-065",
+      "name": "Quick Uplink",
+      "file": "Quick Uplink.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b50c77992e503c91a189026c562297dd52508da647de73789cc172e7194cc803",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-066",
+      "name": "Resource Tap",
+      "file": "Resource Tap.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e86f6ab3d07d1a6d7b620fd01a8f494c7168ab30d0ef3b31e8585d23966a5756",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-067",
+      "name": "Tal, Relay Captain",
+      "file": "Tal, Relay Captain.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "88de4688627ead7e1dbaecfd248857f6cfe3c036ec9f7bdb3228965d64f83afe",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-068",
+      "name": "Resource Rewrite",
+      "file": "Resource Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c9dfb44c5035540e0ebe201eee402337d1b37812fcd50fc674b394e79d5950bf",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-069",
+      "name": "Jedai, Protocol Architect",
+      "file": "Jedai, Protocol Architect.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4028e602694781d9ca223a05a69be9cf282aabfc99190d58df650cd944f8d2a0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-070",
+      "name": "Buffer Lock",
+      "file": "Buffer Lock.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "411f37c3d9fca99b3b23dd7e8edb35163b6ed4859bc702799c5e35769de85fda",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-071",
+      "name": "Darren, Channel Operator",
+      "file": "Darren, Channel Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c40a1209ae7b849ef05a1c5e3a22c149de0bda9d6e2ea23a7224aa8dadeab454",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-072",
+      "name": "Snick, Phantom Process",
+      "file": "Snick, Phantom Process.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3a27672a4ac0c8b92acbcffd08d3e6aee398a9e3762c595709fa84b2cbf886c3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-073",
+      "name": "Resource Reclassification",
+      "file": "Resource Reclassification.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8b636e10eb090c467d85f1bb13e42d3f497f2c7c2550a69535fde8c24f49e607",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-074",
+      "name": "Tal, Ghost Router",
+      "file": "Tal, Ghost Router.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bae320d416b057954f16dcd46a5bcf3e4628cf162ac564de925b3b17a244519e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-075",
+      "name": "Darren, Channel Raider",
+      "file": "Darren, Channel Raider.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f7f78a035edf2e78c15b9bb96a5d48f01cfb8125063fb2e08f79db6a0aba8de6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-076",
+      "name": "Maintenance Leak",
+      "file": "Maintenance Leak.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a439a6431e83e0dcf090585c4b69ee01c725ee3b87ddf48f8cd9c7ee7bc83f35",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-077",
+      "name": "Fee Spike",
+      "file": "Fee Spike.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9e15445946a13069829f8cfd8976c073158a47aba04de034681aa25bd3502380",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-078",
+      "name": "Michael1011, Debugger",
+      "file": "Michael1011, Debugger.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "63a7d20bd183c4f85ca44af5b6de2934ed71d7d8eca000d1b889bc6d3929c30d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-079",
+      "name": "Cognitive Surge",
+      "file": "Cognitive Surge.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bedcc0dbbfd2814743da3685ab301b33235a7a79f4202226463003ca443e4108",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-080",
+      "name": "Hot Resource",
+      "file": "Hot Resource.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9df0f728927a5e0494ad8451234db18cbfeecdaf3cbbf79713ffb5c565babb4a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-081",
+      "name": "Benarc, Deep Channel",
+      "file": "Benarc, Deep Channel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5bc6fcdacfd2a549482bf59d738f8739d8d018591f7415bf2cfbd6f90e5561f6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-082",
+      "name": "Call to Relay",
+      "file": "Call to Relay.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "fb2452e4408ab7111cc74d6c45891582947a859a7c18c83cbbbf739c15aaa897",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-083",
+      "name": "Affinity Rewrite",
+      "file": "Affinity Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "057572a7dfdf345e42497e1815c595a707d60a536360e89b88cf086df9506200",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-084",
+      "name": "Queue Filter",
+      "file": "Queue Filter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9f900899d3cb750021d2d7a99dda40b438930cfbb03c0ab9bb46799e156741fe",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-085",
+      "name": "Consensus Pause",
+      "file": "Consensus Pause.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e692563ff799136478d0c9dce7a2a2ee59979ff1d55e967cfbd4c614445cec37",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-086",
+      "name": "Remote Hardware Control",
+      "file": "Remote Hardware Control.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "12cb4f13a3b9153fa1cf4452369788f9107c553243170054b1e25fe7540f7118",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-087",
+      "name": "Timelock Rewrite",
+      "file": "Timelock Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d9b368157b9422bc0345bd1b1dde7b9bc29537961c802f30b5aefc14f8f789e2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-088",
+      "name": "State Reset",
+      "file": "State Reset.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0dbaf8c81cbe55e47164b6fa46d65c454cb44c03009a5214379ea6abea783a62",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-089",
+      "name": "Toggle State",
+      "file": "Toggle State.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2a85c759b4cceafbb9ce5f26e6886ec8ae1d3723e8d4a75c9497086f27968c54",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-090",
+      "name": "Return to Wallet",
+      "file": "Return to Wallet.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "291c20d43f67be6793107e2b57330c4cf0c514a4623d29067b30e172c4674ede",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-091",
+      "name": "Jedai, Adaptive Client",
+      "file": "Jedai, Adaptive Client.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "87ba1c3bac80b26c471c28ee7795bbc36e5eec97edd68d00b75c3235e523c48c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-092",
+      "name": "Grid Eruption",
+      "file": "Grid Eruption.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "52c62e6df18ed44c95325b7c75286d025e2589de2cc77ef70ebc272e67a4ba1a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-093",
+      "name": "Snick, Airgap Firewall",
+      "file": "Snick, Airgap Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "993dcda058a798694b20994288dc52483fa75e081b3c647a7ba395392a56abab",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-094",
+      "name": "Tal, Liquid Firewall",
+      "file": "Tal, Liquid Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ee10521d09a62ebe0e33f075ea1bc0680bab4263e30ff436a3a0236dd4209c10",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-095",
+      "name": "Darren, Flow Controller",
+      "file": "Darren, Flow Controller.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "03fbab7a6aaee3c79c0cf9340fc8f16794f562301f029dd99359e1c29b465dc8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-096",
+      "name": "Archive Boot",
+      "file": "Archive Boot.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d5819c4d654045e28856e0d48ac9a31baa0f6fe9a6f4b9c0e6a6fdbb33d95a76",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-097",
+      "name": "DNI, Sovereign Knight",
+      "file": "DNI, Sovereign Knight.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5beb691ebdc305b37f3693f968c62b99aff44620e560e718204646ac9c6ff82c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-098",
+      "name": "Nind, Backchannel Walker",
+      "file": "Nind, Backchannel Walker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4ad0e4fb6eb187945c239de449bdfa2a44d2c7b13a311cf988d544caf0f94ee1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-099",
+      "name": "Stake Contract",
+      "file": "Stake Contract.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3314edd1f75e94a0f1ebfd78b29e0ae62823f57369d427d0d03a7e1ad2b83c18",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-100",
+      "name": "Leaking Key Vault",
+      "file": "Leaking Key Vault.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7d90031d08aa3ffe7e8ec5d169bee0d41f84fd016d669e2a70d2d5a209b10379",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-101",
+      "name": "Proof of Work",
+      "file": "Proof of Work.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0d57b4ee9d7caeecacf319bae054b158270d46549129eeb111d0489afd941bf5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-102",
+      "name": "Stake Swap",
+      "file": "Stake Swap.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d91fcbeab2b37e6e7e149bdc01834d7ec4f432effb10ce085f0950528ce301bf",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-103",
+      "name": "Bitcoin Gatekeeper",
+      "file": "Bitcoin Gatekeeper.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "afc08944216aa03776688b499b9cdf0b359d7af53451329afd152bd6c622b13b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-104",
+      "name": "Keys Rewrite",
+      "file": "Keys Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8913b49b939bd5c4a50f50d2172ecd113fa0f299c8a99ef93483b24868b92125",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-105",
+      "name": "Stake Arbitration",
+      "file": "Stake Arbitration.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "efade22ff2cbc244e71853967d0d97c4f8bb4a62181e1de31afcdecb20804a19",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-106",
+      "name": "NC, Resource Reclaimer",
+      "file": "NC, Resource Reclaimer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9e102d76a657f16a674c801f34c02ddd8f39eb2634479d2c668bb222a7354c17",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-107",
+      "name": "Deep Search",
+      "file": "Deep Search.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4ea5e6fccc13720dee60b25925f70fc1a11279c224d41a86b3cfc475479f6783",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-108",
+      "name": "Uptime Channel",
+      "file": "Uptime Channel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "08b54ff75a79ece1e4361169a2320b95d3657dd8640bc13fd4a82a3a2c62c0be",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-109",
+      "name": "BlackCoffee, Reboot Crew",
+      "file": "BlackCoffee, Reboot Crew.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e91b2974a0faba932e3a44d59d874e8773ed9e4ebe0ec2b2da4a9ff441a6889f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-110",
+      "name": "Resource Corruption",
+      "file": "Resource Corruption.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3a35399d149198ca06f52b1c6004533060deb28472621c48041aeb990f70f183",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-111",
+      "name": "Onion Route",
+      "file": "Onion Route.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "21197361b465cc097ec9e8134bd1f4dfae267176ea584a0cc019b13a26e2f664",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-112",
+      "name": "Proton, Cold Signer",
+      "file": "Proton, Cold Signer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "df97364feb32fc2320b349b8fdb98205028bf5cc0458e69e281c860d88d047c1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-113",
+      "name": "Signal Tax",
+      "file": "Signal Tax.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f6cd33ff0cace003e128a377288c60b8e2736378a699c12337de3b3cc8699aca",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-114",
+      "name": "Burst Signature",
+      "file": "Burst Signature.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cb5bd549ca47dc654fca9f1de72e3a9eb7fb74ed096dc06c1becc19fe3ba81c5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-115",
+      "name": "Gadaj, Wallet Whisperer",
+      "file": "Gadaj, Wallet Whisperer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e2d571bb0a0795bf00ad62aec2f89c36bd6e79edf9ddf4bc23f281965c7702a0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-116",
+      "name": "Sovereign Mode",
+      "file": "Sovereign Mode.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "98d0231af9e2275288b350ff03a9803356b850549a0e7301a0eef64140975d2a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-117",
+      "name": "DNI, Self-Custody Giant",
+      "file": "DNI, Self-Custody Giant.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0600787e3623162aed15d06e97e4bbfe41ec06e7528f0156a3e75ae000484584",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-118",
+      "name": "Wallet Scramble",
+      "file": "Wallet Scramble.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5e0b40fd770723ffb7a83660e057a110be6fd99f7017d28e95ce54dcb370b3af",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-119",
+      "name": "Nind, Archive Returner",
+      "file": "Nind, Archive Returner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2a43244ec4606fb27bbc254e812eb8a37a16a3b6dce981404c738d9def17b45b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-120",
+      "name": "NC, Forced Signal",
+      "file": "NC, Forced Signal.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4602a87a1da5c935ea5eabfe576a9041bf28ebe9c5610eb89fbbe8931de7a3eb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-121",
+      "name": "Proton, Keyed Nightmare",
+      "file": "Proton, Keyed Nightmare.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "063d30663c3197ad38a3445d6773caba8b0f3ec140373ab828ce2027bf584070",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-122",
+      "name": "Locked Process",
+      "file": "Locked Process.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "345420df8ecf4db82540b119d964de1db69f018d8ff37aea11464e39a7886b18",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-123",
+      "name": "Broadcast Storm",
+      "file": "Broadcast Storm.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "13b8fb4c6842a9010e5dc2188e07c20fef649621781f48001007246a397a7527",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-124",
+      "name": "BlackCoffee, Shared Secret Swarm",
+      "file": "BlackCoffee, Shared Secret Swarm.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "02cc4caeee5c11d06f60fec0b0558c64b1fa3a78ad497e2714e2bce7f328a57c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-125",
+      "name": "Restore Backup",
+      "file": "Restore Backup.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b2c1e67518c71f1fb2bb106a545fcfb51faa27ecd312fbfabd7c0136fe19e743",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-126",
+      "name": "Gadaj, Commit Auditor",
+      "file": "Gadaj, Commit Auditor.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "fe3ea7de4553a71200f9fe576502b7ae39ee5960fff1d20ff579156e7af26ade",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-127",
+      "name": "Convert Uptime",
+      "file": "Convert Uptime.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5344567ea8b66dd0728dfe3982e5116af7c2bb0828d4be4cc2b19889a63d8203",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-128",
+      "name": "NC, Offline Operator",
+      "file": "NC, Offline Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "33c0df23e8eceda9f91715fe8ba19f6a2fc29c5b6986991bc6c6ecf213600146",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-129",
+      "name": "Nind, Archive Collector",
+      "file": "Nind, Archive Collector.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9c8ec50c11f1657aaed976082a654b29970f11f25ae4f3d09c776a0441340591",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-130",
+      "name": "DNI, Sovereign Accumulator",
+      "file": "DNI, Sovereign Accumulator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c0115c1e22599b887990abe40128c5fe7d328dd2042ca0c43a0a0a8631cac6e9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-131",
+      "name": "State Mirror",
+      "file": "State Mirror.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4d9195dfaed2ae93eda8612446e159d0f839f6c8396e060c848b9dc45b889b45",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-132",
+      "name": "Resource Sink",
+      "file": "Resource Sink.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "15a80fd8f96c25b9a75db14a08685b0eef628fa5f1fa68ca3ed1f6563b0e0959",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-133",
+      "name": "Hard Shutdown",
+      "file": "Hard Shutdown.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "fe9bad0cdeacc6e6cfac412f1da0228224f25e60b9908710b6186079088f7623",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-134",
+      "name": "Sovereign Strength",
+      "file": "Sovereign Strength.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8c5d52580fc8ecf703da1eb94bcf3a7a0d871b69ba134b58cf338b0b6d92320a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-135",
+      "name": "BlackCoffee, Backup Firewall",
+      "file": "BlackCoffee, Backup Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "831ea7cae65d1224832394731e7edf48728c4c5899316da73faff11204d66683",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-136",
+      "name": "Hardware Leak",
+      "file": "Hardware Leak.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "46ad479918fb810617ef72e91b06df2cda3e3ab860606c7bcdb74fa808fe8d0a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-137",
+      "name": "Reduced Permissions",
+      "file": "Reduced Permissions.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7852576dca2b5c7561aaecbe5ef8d0fb5fd497fb1588a02acdca51492561c756",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-138",
+      "name": "Proton, Ephemeral Signer",
+      "file": "Proton, Ephemeral Signer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9f9752e24c5f6e7a186a98bc5e84847eeddaf94b6d7e4572459efe9b3fde28ba",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-139",
+      "name": "Remote Command",
+      "file": "Remote Command.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e943fa97e2a02e430afe345102603974a761a81a56dcfcb5b909e6d535ae3725",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-140",
+      "name": "Gadaj, Archive Maintainer",
+      "file": "Gadaj, Archive Maintainer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "474d462ba1ae6268482fa1f95686c5dc4ccd544a493753cdf6e86d0f96c1136f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-141",
+      "name": "Tunneling Patch",
+      "file": "Tunneling Patch.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6c01e593de17038da760a50e76b1540d9a924ba2adb4d56d89f8ecfad35b513a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-142",
+      "name": "Power Rewrite",
+      "file": "Power Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9ba9056319323a7351853e70c0fd872d2e6f9581bef19ce23ea0f42bc14cca90",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-143",
+      "name": "Final Settlement",
+      "file": "Final Settlement.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ebd8c192dc537bd8ba570da93868d1ba08bcba8abbc125fc5eb37fe4e1343c4a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-144",
+      "name": "MadMunky, Young Overclocker",
+      "file": "MadMunky, Young Overclocker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e1654462554f672f1547759daec66b7250eec3b106b1e19cc34083415be9ed00",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-145",
+      "name": "Rootzoll, Hardware Breaker",
+      "file": "Rootzoll, Hardware Breaker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ae5820a832615d91df2f57d874a9ec27a63ce4df861ff9d02b0f640e309b7e09",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-146",
+      "name": "Bam, Tunnel Builder",
+      "file": "Bam, Tunnel Builder.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "509203b4ac4979d2b668a3eafe904b3f06fcc9237388c6c2362431df24c5172d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-147",
+      "name": "Leon, Grid Stabilizer",
+      "file": "Leon, Grid Stabilizer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1ee183a88f809ca3306afcbcefdc77183bfca70c1534ea2c99e00bbd45b995c6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-148",
+      "name": "Grounded Signal",
+      "file": "Grounded Signal.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8810e13157dc594496dbc866c460f02e8970d94260f4e6683e70deab7f8f7ad4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-149",
+      "name": "Hashquake",
+      "file": "Hashquake.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "fb9da194a0abc6030cb026ab3b6bc08d943d421571428884eb36740ddb6accd1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-150",
+      "name": "Route Misdirection",
+      "file": "Route Misdirection.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "62aab5cbf50b3d108da05b768170c20c10140762e51ba39de17554a9bccd0a00",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-151",
+      "name": "Essex, Thermal Operator",
+      "file": "Essex, Thermal Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b2df68822c70e12598f1753e0cc8bf2d5eef61e1a9e7afaea7e01db11819f11e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-152",
+      "name": "Power Burst",
+      "file": "Power Burst.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a7b6c949b72fa15f03dbb72fbea8d05ed1f2064b20c4161816cbe8fb5881abb6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-153",
+      "name": "Overclock",
+      "file": "Overclock.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "39ab3e933389725737bb0afefa90108d7de0ccd5dcb6be9120e83dbd0f60103d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-154",
+      "name": "Signal Outage",
+      "file": "Signal Outage.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "791b75a28dfe675b254f5def851af2a8be82417abb10593bb0c5063e87ff9a03",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-155",
+      "name": "Process Fork",
+      "file": "Process Fork.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ccd3620d1cf4b6608f30c4d7071a983aa585fb27d64ac1b04de39d95d9d65d59",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-156",
+      "name": "Toni China, Hot-Air Relay",
+      "file": "Toni China, Hot-Air Relay.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b993c29ce06f73f0bbb2113c05ef43451a146a888dd4fc019dee1bd0b9dfef7c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-157",
+      "name": "MadMunky, Chaos Coordinator",
+      "file": "MadMunky, Chaos Coordinator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4ab3fa496cbc47a0de02c76c4a78f0477af111d34cc3dadc6fbe347e01d41191",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-158",
+      "name": "Rootzoll, Stone Sentinel",
+      "file": "Rootzoll, Stone Sentinel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f498159084af02574af4cdb7abc418fa9b67a654596a184bd45ceb9e329a7a6f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-159",
+      "name": "Leon, Shift Worker",
+      "file": "Leon, Shift Worker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "07a86272c87e13d5fbb6b737594866c6159ee531740dd9579b568dcf3adefd01",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-160",
+      "name": "Bam, Heavy Lifter",
+      "file": "Bam, Heavy Lifter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "de6f5a01078867574c72c45e13a569bd7cdefc0b017e86720e7529ce94952b00",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-161",
+      "name": "Essex, Bull Runner",
+      "file": "Essex, Bull Runner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1b46b1c8509b7d28ed2028af1c2cbc98a68bc97d0c7b6f19f981ec9d3a10e783",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-162",
+      "name": "Toni China, Rough Miner",
+      "file": "Toni China, Rough Miner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "595746cfda116ff4cfcc55dba77ce04c50a3132137748c01c12d0a38418847d1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-163",
+      "name": "Rootzoll, Crew Multiplier",
+      "file": "Rootzoll, Crew Multiplier.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5c72f9e735277714b379d05e31c27e6583b104ede48402c553103ef62ba5b7a9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-164",
+      "name": "Grid Amplifier",
+      "file": "Grid Amplifier.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9de0fa353982d073cb09aab3fefb6bf3f8affc39febeed407ff7d0b36c3b5a31",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-165",
+      "name": "Hot Grid",
+      "file": "Hot Grid.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "475f4de6c83338f67d8e1c6500456e1ee3ca7300706bf46cb854c5eb6c1d9a7d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-166",
+      "name": "MadMunky, Meme Raider",
+      "file": "MadMunky, Meme Raider.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4fae27e1aef50b2fff559bd0e340927a84ae3af35339eba2f5d935969f3de6de",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-167",
+      "name": "Bam, Power Artillery",
+      "file": "Bam, Power Artillery.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "be32a840072b674938333593c0fc4c4c2756f2626f544f277e11f45d3530c9ba",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-168",
+      "name": "Miner Rally",
+      "file": "Miner Rally.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5c6c1c1fc9613eb4c7615a5ed9f9c84b5fd24177a6f71a0b376c93a1a79a3a2c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-169",
+      "name": "Idle Grid Penalty",
+      "file": "Idle Grid Penalty.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5356d0e8fcf357199c7fdcfc52dae046a76d4093d7a0c8e650afbc739b248553",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-170",
+      "name": "Split Route",
+      "file": "Split Route.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a42cbd8277b7f5079cafcd3a22ecd1a4e29195c83cfef81476a2ef0d8b7b2e89",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-171",
+      "name": "Timelock Invalidation",
+      "file": "Timelock Invalidation.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "23d0124ebf7c9e2ce9418ea7a2d268499afbdd83a0b867d595181ec8e0461c85",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-172",
+      "name": "Leon, High Relay Rider",
+      "file": "Leon, High Relay Rider.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b54df1c66e89bc6750e742f69c7390f93e0abb1f30f9e4e203ee770db9c1e59b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-173",
+      "name": "Toni China, Multihead Miner",
+      "file": "Toni China, Multihead Miner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e8c011c24c6565ee28cdfacec357c7e26f7fb53034ab05fe4c9c840954f9d12b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 19,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-174",
+      "name": "Essex, Grid Rebooter",
+      "file": "Essex, Grid Rebooter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "add564a31652bf65ca3be8a626b177e07aed24d69362bc478e34eaa9922a2a0d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-175",
+      "name": "Hardware Shatter",
+      "file": "Hardware Shatter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b827c060413b9478b3618943afe825f2bbfc40450819c2d01ee21d08060591c1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-176",
+      "name": "MadMunky, Hashrate Dragon",
+      "file": "MadMunky, Hashrate Dragon.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2e02602917a5541c4461934ad9f7f97d500b5a0a55a4e06d075a1f58918adada",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-177",
+      "name": "Thermal Throttle",
+      "file": "Thermal Throttle.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d1d0f21c999a09c5f9645006b176002bc51a9aa3064805155cafdfea4d387507",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-178",
+      "name": "Bam, Launch Engineer",
+      "file": "Bam, Launch Engineer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "954f57d95c49e508e0b61b7fc2275fe6b6326419ef584fa12d4138ce84eaae15",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-179",
+      "name": "Resource Cut",
+      "file": "Resource Cut.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f0dd433162d932f26fe9dd897e5d6806fc3edd0043aa742b3384976ff0564fab",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-180",
+      "name": "Firewall Tunnel",
+      "file": "Firewall Tunnel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b89d3b97613338758966baa832098da9e65065fa1eadf438784f934be4deaa91",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-181",
+      "name": "Rootzoll & Leon, Dual Operator",
+      "file": "Rootzoll & Leon, Dual Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b084068cc94b8b7baa9c4a92162f2bf820d5306fb677f9b3f5f017669c5c7ae2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-182",
+      "name": "Essex, Resilient Operator",
+      "file": "Essex, Resilient Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9d052ae9d9301c4a715a5d59b7a9df9bc893240d71c97adb71ec158a6067ddce",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-183",
+      "name": "Toni China, Thermal Firewall",
+      "file": "Toni China, Thermal Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cbca71b613dbbb2bf22fcc0b4764f12989d3e4037af3c01a124bcc704ee3f551",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-184",
+      "name": "Rootzoll, Stone Firewall",
+      "file": "Rootzoll, Stone Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "696bf76df9d17f0753ceffd6cfd8f952fd2215031cdb7e3d377ef5b14076dda3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-185",
+      "name": "Freedom Market",
+      "file": "Freedom Market.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7905aaf7592d9a4e03803d75f3ee9d99e79c275fe10255fb16f9188677fcabdd",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-186",
+      "name": "Hashrate Aura",
+      "file": "Hashrate Aura.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e6148fcd6bf58b7c26a27c2a1012063dcc0e871e70dd836236d3de5d35267e80",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-187",
+      "name": "Committed Growth",
+      "file": "Committed Growth.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3299f9805cf43c5cff8e24dae203d3192e5978e091b4a2f1926f247c5cc50735",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-188",
+      "name": "Shillie, Multisource Scout",
+      "file": "Shillie, Multisource Scout.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5d92257d66def288f30adb4994bb4992b5d6556d5dca8062496522f8f4a3a450",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-189",
+      "name": "Obfuscated Formation",
+      "file": "Obfuscated Formation.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1da6c7624c657e2a6ef359f2f751642ff2842ae6ad4e8ae55a01f7838cd3753a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-190",
+      "name": "Human Hashrate",
+      "file": "Human Hashrate.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "03adb987fb46ce0cc5a4b3cdc862eb1cf600e87586713555064a675469302f4b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-191",
+      "name": "Mtoshi, Deathtouch Courier",
+      "file": "Mtoshi, Deathtouch Courier.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f2587957ffdfff2d390b5e07921dc8a44b7c53deaef294450c2b26b47deb0713",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-192",
+      "name": "Longy, Deep Node",
+      "file": "Longy, Deep Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bacb34138753a3193b497e3d1f52fe2d0676bf4f379f02a3c0a63908d6ad8a77",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-193",
+      "name": "Tobo, First-Strike Archer",
+      "file": "Tobo, First-Strike Archer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5f7e37783d3cf8804584001b31a697b8e1e68f7a0927eb38adbf1c4e72a0341d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-194",
+      "name": "Fast Channel",
+      "file": "Fast Channel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "541dea9af8b11a7b87adb90e347ff5c3957750de9c29eef815bf1c1960c1a98b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-195",
+      "name": "Quiet Block",
+      "file": "Quiet Block.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8040d5b034f8ea0d5c4d4e958c64ac84303e714a5d77db5a431fe12956314648",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-196",
+      "name": "Arbadacarba, Natural Hashrate",
+      "file": "Arbadacarba, Natural Hashrate.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3b4774139f4710bfd1e0105a0fdc4aa25ed430744072404a718c7e3812c14d29",
+      "metrics": {
+        "title_size": 30,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-197",
+      "name": "BK, Feedback Grower",
+      "file": "BK, Feedback Grower.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "88b110f31a9194762be0260e8cdce1ee415b36c74913d070587d8138d1ea4215",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-198",
+      "name": "Longy, Resource Sovereign",
+      "file": "Longy, Resource Sovereign.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9a0dd68d187065fe6b18f8a2718180723e5a8ee0f097aa14ff718ba9c059c444",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-199",
+      "name": "Number Go Up",
+      "file": "Number Go Up.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f3fa5a5e8b942992673b2340a41836864a177cff8f83eb004e8b68f6a8cfb472",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-200",
+      "name": "Shillie, Mesh Sentinel",
+      "file": "Shillie, Mesh Sentinel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c1b8ff01647db8f932317f64d287833c43606cd6960b3c2a09068ff40fbf64e1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-201",
+      "name": "BK, Bear Market Builder",
+      "file": "BK, Bear Market Builder.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d0ae6eda5115444fec74dbd411d713ffdd4dae7e60ddc27a202a219c7c37a573",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-202",
+      "name": "Network Storm",
+      "file": "Network Storm.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2861d220e1aaf4870e968653112e738bb3f54f5315548e681611124a199ace1e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-203",
+      "name": "Resource Freeze",
+      "file": "Resource Freeze.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "32239994c857b8b4908be7ddc8ff70d49f073aed8212e66862418adb12c18432",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-204",
+      "name": "Instant Boot",
+      "file": "Instant Boot.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "61ff4e161761d87f2617785c35a9ae9e3350089c16b8b0bb85a8642d7551a19e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-205",
+      "name": "Mtoshi, Rooted Node",
+      "file": "Mtoshi, Rooted Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "256ae11a02583078974f2bf4ac82b1f64949ed0d2711ca3e1dc297a886613c5c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-206",
+      "name": "Migrating Workload",
+      "file": "Migrating Workload.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f00ab8eea00edd249a9e224fad52b5bad7e96ee18e5311e8b47d9ca1b1c2829e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-207",
+      "name": "Tobo, Resource Unlocker",
+      "file": "Tobo, Resource Unlocker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7d898337812a497a26b4d9adc0ff51d855ece8d00cf4789adc3950e4afeeb485",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-208",
+      "name": "Keys Invalidation",
+      "file": "Keys Invalidation.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4256ea0dda37930f0c101e9280c6f7cfa51ef083677a577e2815e77e1a10ab08",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-209",
+      "name": "Bitcoin Rewrite",
+      "file": "Bitcoin Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6ff4c6d7612928562e28b1a28837bdc90ff0f19577855747235537d8bf3855b5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-210",
+      "name": "Living Hardware",
+      "file": "Living Hardware.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "592e3b15cac90d4d4e88073630846c1c05c93866a5ad39ac69edb86dd0c790e4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-211",
+      "name": "Resource Awakening",
+      "file": "Resource Awakening.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6c91340aa8f788277155da1ce291af4ad80ada378b97926c50cf4544c62f04d7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-212",
+      "name": "Arbadacarba, Grid Steward",
+      "file": "Arbadacarba, Grid Steward.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bdde46a0ba2e9c757c4d408988ce6e12b7b2dfbef3a4c11bed0cb601abd292a1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-213",
+      "name": "Attention Market",
+      "file": "Attention Market.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8f0c1bcf43f85a4844443a03da65161d23d4b11dfee72303a997b0cb6480f353",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-214",
+      "name": "Topology Scan",
+      "file": "Topology Scan.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "43136da7908a84f5f9ecf388425490b269cc621005d30442a2a40bc840173d27",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-215",
+      "name": "Reboot Protocol",
+      "file": "Reboot Protocol.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "62df7c8780c182824d71743bc37774bea8cacd453748bf0633a6bbab216ff80a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-216",
+      "name": "Recovery Phrase",
+      "file": "Recovery Phrase.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3e8cde66a0be22106e64663b0c859c0a14d850651faa38491b0a2cea58385cb7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-217",
+      "name": "Shillie, Tiny Broadcaster",
+      "file": "Shillie, Tiny Broadcaster.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5e120bf169ab5a1c82cd7323fdba6214f2a0b1797c931be9ecf87cd602b78450",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-218",
+      "name": "Tobo, Bitcoin Backchanneler",
+      "file": "Tobo, Bitcoin Backchanneler.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c11f5145b8506904308d18a761dea44aeb8a652ba951bb7e916a4e88003febe6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-219",
+      "name": "Uptime Stream",
+      "file": "Uptime Stream.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7d5d0edd8dcd248489d2103e9458a916a0942413e962148078654fcaea7e9332",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-220",
+      "name": "Mtoshi, Finality Keeper",
+      "file": "Mtoshi, Finality Keeper.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7f3cfbce2459e35cbe9c7611072820bb93f770bfd4612251f9193648ccb210fc",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-221",
+      "name": "BK, Mesh Pack",
+      "file": "BK, Mesh Pack.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "66b67474894317d39082e75e32aaae1e08408dc4078b39319b2b98fd7ba71cd3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-222",
+      "name": "Protocol Reset",
+      "file": "Protocol Reset.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7127ddd3b9efe10817f15c96c3fa5570cb8e81eb8e6f4d5fa929ea0b4fb30a88",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-223",
+      "name": "Timelock Outage",
+      "file": "Timelock Outage.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2d521ec033eeef2e9fa986119b7ac0c740e032dbc33489ce33cf34fb6b3f9242",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-224",
+      "name": "Arbadacarba, Protocol Gardener",
+      "file": "Arbadacarba, Protocol Gardener.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ee5eddc11739354456f740a885c9d568d0ad3f6adfd9264c41dbd81f56e8162b",
+      "metrics": {
+        "title_size": 37,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-225",
+      "name": "Longy, Thorn Firewall",
+      "file": "Longy, Thorn Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "78a4cd2b5dd50e5ab2df3280a4f4df85539edbfb8ba074242f1b4b083252b90a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-226",
+      "name": "Shillie, Cold Firewall",
+      "file": "Shillie, Cold Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5f9b5575f95060d51b0c7c65bf37e3c32a5b12477813f07707cc8c99d88ee78d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-227",
+      "name": "Tobo, Wooden Firewall",
+      "file": "Tobo, Wooden Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "219998f05216ea2bd8d0b334a72ba7bf62cae3cbe035e9a01c89bfaa8cd995fb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-228",
+      "name": "Restless Client",
+      "file": "Restless Client.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "47df3fa7d3e72f082d220c320c8ebd2011646d0993301d5891a8651aee061a99",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-229",
+      "name": "BK, Heavy Settler",
+      "file": "BK, Heavy Settler.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "eeea8b0581066122cfbfb0972fe2fd5aebecd089d864bae544864c028775dfaa",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-230",
+      "name": "Mesh Upgrade",
+      "file": "Mesh Upgrade.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "69e270d17d0d90760f39c6042bb83f9aa95d4b0dd9465c5c404828329929d3f4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-231",
+      "name": "Yield Router",
+      "file": "Yield Router.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2481ab3a475d80ef6ad4dde2091a6fb784a8c52de86f4b86eb11107203824e02",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-232",
+      "name": "Entry Fee Device",
+      "file": "Entry Fee Device.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4055ed589c1bb8e65c83887740141b01b84205ceec10ac7fb2843dc18941e117",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-233",
+      "name": "Basalt Battery",
+      "file": "Basalt Battery.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "81f04af460d920606ef3bd270545d140c447bdce383636be998e9c97f3061c05",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-234",
+      "name": "Wallet Pressure",
+      "file": "Wallet Pressure.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "924fa8d504d5accd5cf3aa45bc9e8ce367868133ac9c166ef52a82f6c885e7a6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-235",
+      "name": "Resource Prism",
+      "file": "Resource Prism.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6fd119c0ad256c25068ddc176bd5943944c07171e5ef302ed4bc80aa2b6e702c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-236",
+      "name": "Chaos Kernel",
+      "file": "Chaos Kernel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "69ed4802bc6447a60fa8686262ce7f66951d8202d8872387c63ad73661028f23",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-237",
+      "name": "Cuddy, Clockwork Node",
+      "file": "Cuddy, Clockwork Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7bbc351e2810314dc0a9b874700d6d0e39d4063937c546c4df1bfb950013f179",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-238",
+      "name": "Damage Limiter",
+      "file": "Damage Limiter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "52454648940ec8b22602746577144fa96b40350d5a07d8f59409a5ae3ebedb75",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-239",
+      "name": "Uptime Clock",
+      "file": "Uptime Clock.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7f30e3f4860bea067541c5d41d0b3a91e851609ef8f7a6fb0feaa56b967cbbd6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-240",
+      "name": "Timelock Receiver",
+      "file": "Timelock Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cb071decf2d7b66a139c9fa9fd0fc9e99c4057ea57cedf11d02c227ac9bd46b0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-241",
+      "name": "Resource Tombstone",
+      "file": "Resource Tombstone.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "76138d93e637c6217710a3b894458a475401cbe5264d403a8ef2c78855484453",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-242",
+      "name": "Resource Exit Sensor",
+      "file": "Resource Exit Sensor.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "84e8dc3edfa1b85b3f1158f386c5b213c1985157e7bbd17a9b57bf05144861f5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-243",
+      "name": "Wallet Scrubber",
+      "file": "Wallet Scrubber.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "41f5ea61e85db3c448719b72bc2d79e1bd1dbce8b886ce26198d9ab568e366eb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-244",
+      "name": "Damage Firewall",
+      "file": "Damage Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a39c80c32a371410a3a708ac5ea8dea2ddc7e8693b930821e368b52f3410c2f5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-245",
+      "name": "Hashrate Gauntlet",
+      "file": "Hashrate Gauntlet.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b26d1a5c53696e752bf7684a75752b6e48fcaa113e81cfc867635932d761a402",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-246",
+      "name": "Public Wallet Viewer",
+      "file": "Public Wallet Viewer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f92a88892e1002e57a99baeb7b75234d51ad455ca675ba9ba54158dbfcc1c269",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-247",
+      "name": "Mesh Router",
+      "file": "Mesh Router.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6eb1fd8e6b61b9cba4672f8d17b2b1c2a600163ba822ef9b339b0d73939cc35b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-248",
+      "name": "Open Feed",
+      "file": "Open Feed.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0c646e92b97bfa81dd70085ead94375a177b18e8606d75a569cdf988c628e423",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-249",
+      "name": "Cold Storage Controller",
+      "file": "Cold Storage Controller.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0e60dc20a3f47ea02ccab9b142fd40910e741a3e54aec86cc5e9a597d144585b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-250",
+      "name": "Identity Mask",
+      "file": "Identity Mask.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1bd1b7c1c5fb78eaebbdac9351d9cf1b7dfda5df0f8b6f50ab7124932dc5f925",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-251",
+      "name": "Power Receiver",
+      "file": "Power Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "efb975caddcd6f42eb6e15217e4925305d20fe8a15ae4fed383a583bde604397",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-252",
+      "name": "Signal Receiver",
+      "file": "Signal Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "00f13a7b3f1e3da901a01141e4311c332bfc7994c8996ca81dd3978a247d35fc",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-253",
+      "name": "Damage Router",
+      "file": "Damage Router.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d6be1ee5577883f0256ba8e5afbee06cdffa90c07e38a10af511ceff48a48ce8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-254",
+      "name": "Hot Wallet Statue",
+      "file": "Hot Wallet Statue.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0b97ff516db8d2dec917cc32a351ea935bba5d76ce2d90420841e378cdb9bfc9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-255",
+      "name": "Genesis Archive",
+      "file": "Genesis Archive.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "326089785d90046fca7ccaeeee1daaaffecb946a3183ad7c118a1700cb5bc198",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-256",
+      "name": "FLX, Unstoppable Rig",
+      "file": "FLX, Unstoppable Rig.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "836ad745a2f7cdd0f2f020a8a96dfb8fd771e5ee9f6109036db952763cc4bc2a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-257",
+      "name": "Keyed Resource Bell",
+      "file": "Keyed Resource Bell.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3dde86908585ca2941688a94408cdb084c46632705ba17a90f78ca678f9c0065",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-258",
+      "name": "Memory Palace",
+      "file": "Memory Palace.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0b79ce62b5a5e1b410a88a72e8917ac6bbbb531b1abd963e8e5c804e1efde38b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-259",
+      "name": "MHB, Living Firewall",
+      "file": "MHB, Living Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "47be4e5f112903ded2f42c8a9e84f160200f574a20eb1537bba5d73cdd70b030",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-260",
+      "name": "Boost Converter",
+      "file": "Boost Converter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f307f4440a0bba593eaeebbaeb02364aefec27aeb1a2942713b03ddbcad5d001",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-261",
+      "name": "Low-Power Mode",
+      "file": "Low-Power Mode.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cee8e8d18e3d229f69077f0e083a30abdcff5874aaf577d7236504a7e6b0a3d9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-262",
+      "name": "Bitcoin Seed",
+      "file": "Bitcoin Seed.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "69b9fc133abd07609187f8f2db5dbe8f1d4f85716f5831d1b64c18c5c33c1fb5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-263",
+      "name": "Keys Shard",
+      "file": "Keys Shard.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6cf2ee4b13538a01ba5a20fa96962f77c280c3a68dd1dbfe08346a8603fa54e7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-264",
+      "name": "Signal Beacon",
+      "file": "Signal Beacon.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0508473bd40a188831c7d425f571b2587e717878dc7734890f2a94c68b3063a4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-265",
+      "name": "Power Cell",
+      "file": "Power Cell.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "29a1836a36be5e0b473cedf86528e6e189a85ffdd8640bef93717bcf0d6f8dc6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-266",
+      "name": "Timelock Crystal",
+      "file": "Timelock Crystal.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "89e5732c008087728f25a80a69d97e2e366281f1a0f97c15e7f03d200395aee5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-267",
+      "name": "Network Reset Disk",
+      "file": "Network Reset Disk.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0a9b5aedb1df5bbe7dee75ff8d2a15423a06f1cedbd8c1d7f2e4198e50b4fe96",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-268",
+      "name": "Michael1011, Obsidian Node",
+      "file": "Michael1011, Obsidian Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8c0424cd6fc906eac3f45473f657b308da10e26a0f83bb6fc5c64773357babe3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-269",
+      "name": "Fault Injector",
+      "file": "Fault Injector.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bd78f21ac3cf74270f9349d667e3d9b11b980c75e7540545ddf57533b4dfcdea",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-270",
+      "name": "Genesis Ring",
+      "file": "Genesis Ring.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7023121aa1e0e0b8c934e166aa289e9e99cf1766cd43d82e1af2e3577f1948a7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-271",
+      "name": "Archive Listener",
+      "file": "Archive Listener.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7e4feaece24fe74b04f8151b83a2ef5827c56e8c62adaebc7e79482bc5dacf4e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-272",
+      "name": "Resource Converter",
+      "file": "Resource Converter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e23431a4f83b80404de0d5628750c857745fc66785ce1158fe5b2d1ead0f1f84",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-273",
+      "name": "Swarm Node",
+      "file": "Swarm Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e6e4f9357f42cae413db0d8e400728068836676015cb0668e076373153736219",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-274",
+      "name": "Keys Receiver",
+      "file": "Keys Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "37a918cbe82c87e67598a384e1e75be8aae71806c213ed2ef09028a6b0e98e69",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-275",
+      "name": "Timelock Vault",
+      "file": "Timelock Vault.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "01f8a5bf6cb3007b1c38e0bc529203c12940e42dd3c669213bd158e76b6b5268",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-276",
+      "name": "Difficulty Winter",
+      "file": "Difficulty Winter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a34427ee937a317451fc7a312faa4b1061f4f11751e12045eb828f95b51a82e9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-277",
+      "name": "Bitcoin Receiver",
+      "file": "Bitcoin Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c23d3a270034c4695ac48873fa2659e3c5016a44247ada4aac9f5f9c95e6dccc",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-278",
+      "name": "Power–Keys Junction",
+      "file": "Power–Keys Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1583536d7c0ed5d02be07f49f36fd700ba0a6e6bca3597d7d60770798689b185",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-279",
+      "name": "Keys–Bitcoin Junction",
+      "file": "Keys–Bitcoin Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ca42736d3690e1142639480490a0d809b8471a8f47425befbf402807c7b15294",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-280",
+      "name": "Power–Signal Junction",
+      "file": "Power–Signal Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "318ca82cc0ef5f7e52c4f08577033c59c7a2f6c7fb7197847d4cd1d1ea5fb44a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-281",
+      "name": "Bitcoin–Signal Junction",
+      "file": "Bitcoin–Signal Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d69c4ded3926a549bf358411e9380f5c1a3d59afc855e913135c67d6dd710d40",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-282",
+      "name": "Signal–Keys Junction",
+      "file": "Signal–Keys Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b5adeca9b60fe39bd794799db3be27f013bca872f4187a6b8687ff1aa62758a0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-283",
+      "name": "Power–Bitcoin Junction",
+      "file": "Power–Bitcoin Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "14e59f74581e2ee9c35f3bbce8cfc304adc00391eefbf7ea9e1c8cce95f61903",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-284",
+      "name": "Bitcoin–Timelock Junction",
+      "file": "Bitcoin–Timelock Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4b48701c80895d73371c54e9430e4b4a819a71b4cfbc5724c028b2171c214139",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-285",
+      "name": "Signal–Timelock Junction",
+      "file": "Signal–Timelock Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "519682f06080d8ac832b95c78c6ff9c5decfc5f6214a430601335de57acfeed0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-286",
+      "name": "Timelock–Keys Junction",
+      "file": "Timelock–Keys Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8db753e0bf47daa9040ab97f79c79174998f0f1ae75b2dc92d4e970e32cfab3c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-287",
+      "name": "Signal Commons — Sunrise",
+      "file": "Signal Commons — Sunrise.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "79fadd52b6c6398cd652a0830b3f3ac513d2a712bfd33bfd6ae3dc4f5ae67b1f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-288",
+      "name": "Signal Commons — Rooftop",
+      "file": "Signal Commons — Rooftop.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1bec3341aea51d2d78a6dede84c78c1b2d7eeb070b66c92308622c8ab8482b0d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-289",
+      "name": "Timelock Channel — Dawn",
+      "file": "Timelock Channel — Dawn.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "44b6cc6d7e1ddebb4fb07462cfa4baf5c89ec9149f289c3d208a5b0c95150e7a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-290",
+      "name": "Timelock Channel — Midnight",
+      "file": "Timelock Channel — Midnight.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a0d277e4a83c8756c28ab5f5d433fd889ed67b07c6dd1d4c943af768fc6aa994",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-291",
+      "name": "Key Vault — Workshop",
+      "file": "Key Vault — Workshop.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "fc3c8d0e5aba01df7eedb6e6a70731bde8e37f2a8ba1002bef7d1c7ebfdd1768",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-292",
+      "name": "Key Vault — Cold Room",
+      "file": "Key Vault — Cold Room.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "508ae6a5ccec1a359fd387e2b602df9c79c9f4b01ebc220c5a2dc6834d6a3ff2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-293",
+      "name": "Power Plant — Solar",
+      "file": "Power Plant — Solar.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e7dca144129245a811013406565fde835e158004e244840ad595fa85e06f9b77",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-294",
+      "name": "Power Plant — Hydro",
+      "file": "Power Plant — Hydro.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2d66976e0060d254a47e4a91841736b27eeb7c5c66ba0c5f4ae4fcbbcde1bf01",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-295",
+      "name": "Satoshi Orchard — Commons",
+      "file": "Satoshi Orchard — Commons.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1b859be3e9ff7ac9a6d66cf82b6fae7255e28d17d1e898aef3f114b03dbbab93",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "guide_size": 18,
+        "note_size": 17,
+        "overflow": false
+      },
+      "status": "card-locked"
+    }
+  ]
+}

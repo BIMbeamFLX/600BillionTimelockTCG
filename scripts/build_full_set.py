@@ -427,6 +427,14 @@ RULE_OVERRIDES = {
         "Toss module — Commit: toss Chaos Kernel from at least one card-height above "
         "the Network. Archive each non-proxy card it touches, then archive Chaos Kernel."
     ),
+    240: (
+        "2, Commit: put a mire marker on target non-Keys Resource. It is a Keys "
+        "Resource while it has a mire marker. Use only during your Maintenance.\n"
+        "If Resource Tombstone moves from the Network to an Archive, then at the "
+        "beginning of each of your Maintenance steps for the rest of the game, choose "
+        "a Resource that still has a mire marker placed by Resource Tombstone and "
+        "remove all those markers from it."
+    ),
     249: (
         "X: deploy an Avatar from your Wallet face down as a 2/2 neutral Avatar. "
         "Turn it face up when it would deal or receive damage, or become committed. "
@@ -1405,7 +1413,7 @@ def write_catalog(path: Path, cards: list[CardRecord]) -> None:
                 f"**{card.type_line}** · Cost **{cost}** · {card.rarity.title()}{stats}",
                 character,
                 "",
-                card.rules_text.replace("\n", "  \n"),
+                card.rules_text.replace("\n", "<br>\n"),
                 "",
                 f"**Simple Guide:** {card.help_text}",
                 "",

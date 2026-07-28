@@ -10,7 +10,7 @@ Open `index.html` to read the designed rulebook.
 ```text
 art/
   brand/       official 600B identity assets
-  cards/       rendered card faces (built after the standalone art phase)
+  cards/final/ 295 rendered card faces, shared back and readability manifest
   fonts/       local open-source display fonts
   illustrations/ 295 text-free E1 artwork plates plus verified manifest
   qa/          labeled contact sheets for visual review
@@ -27,6 +27,9 @@ rules/
   research-sources.md
 scripts/
   build_full_set.py
+  build_artwork.py
+  build_cards.py
+  build_gallery.py
   build-rulebook.cjs
 index.html
 ```
@@ -82,6 +85,22 @@ assets; every other illustration explicitly remains character-free.
 
 The output is `art/illustrations/E1-001.jpg` through `E1-295.jpg`. The JSON manifest
 contains dimensions and SHA-256 checksums; `art/qa/` contains 12 labeled contact sheets.
+
+## Final cards and website gallery
+
+The final layout uses an orange outer frame, black art core, purple structure, centered
+Resource icons and a lightweight pale text field with black rules text. Simple Guides
+and Protocol Notes are visibly marked as non-rules content. Dynamic typography keeps
+all 295 cards readable with zero overflows.
+
+```bash
+.venv/Scripts/python scripts/build_cards.py
+.venv/Scripts/python scripts/build_gallery.py
+```
+
+Open `cards.html` for the searchable, filterable complete-set gallery. `index.html`
+links to it from the rulebook hero. The shared card back is
+`art/cards/final/600B-Timelock-card-back.jpg`.
 
 ## Cockatrice playtesting
 

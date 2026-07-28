@@ -1,192 +1,493 @@
-"""Build cards.html — a card gallery with full-card images and complete card text.
-
-Each card shows its current in-game graphic (finished art from art/cards/ when present,
-otherwise the generated placeholder) next to its full rules-facing text, with search and
-affinity filters. Static output, local assets only.
-
-Usage:
-    python scripts/build_gallery.py
-"""
+"""Build the standalone website gallery for all 295 final card faces."""
 
 from __future__ import annotations
 
-import html
-import logging
+import argparse
+import hashlib
+import json
+import sqlite3
 from pathlib import Path
-
-from build_placeholders import ACCENTS, NEUTRAL, affinity_letters
-from build_set import Card, load_cards
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-OUT_PATH = REPO_ROOT / "cards.html"
-
-AFFINITY_NAMES = {
-    "P": "Power",
-    "B": "Bitcoin",
-    "K": "Keys",
-    "S": "Signal",
-    "T": "Timelock",
-}
-
-log = logging.getLogger("build_gallery")
+from typing import Any
 
 
-def image_path(card: Card) -> str:
-    """Finished art wins over the placeholder render."""
-    for ext in (".png", ".jpg", ".jpeg"):
-        if (REPO_ROOT / "art" / "cards" / f"{card.name}{ext}").is_file():
-            return f"art/cards/{card.name}{ext}"
-    return f"art/cards/placeholders/{card.name}.png"
+def gallery_records(
+    cards: list[dict[str, Any]],
+    manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Join public card data with final image filenames."""
+    files = {item["id"]: item["file"] for item in manifest["files"]}
+    return [
+        {
+            "id": card["id"],
+            "name": card["name"],
+            "type": card["card_type"],
+            "typeLine": card["type_line"],
+            "affinity": card["affinity"] or ["Neutral"],
+            "cost": card["cost"] or "—",
+            "stats": card["action_resilience"],
+            "file": files[card["id"]],
+            "help": card["help_text"],
+            "note": card["protocol_note"],
+            "source": card["protocol_source"],
+        }
+        for card in cards
+    ]
 
 
-def card_article(card: Card) -> str:
-    """One gallery entry: image plus full text panel."""
-    letters = affinity_letters(card) or "N"
-    accent = ACCENTS.get(letters[0], NEUTRAL)
-    haystack = html.escape(
-        f"{card.name} {card.type_line} {card.text} {card.rarity}".lower(), quote=True
-    )
-    cost = html.escape(card.cost) if card.cost else "—"
-    ar = f'<p class="ar">{html.escape(card.ar)}</p>' if card.ar else ""
-    text = (
-        f'<p class="rules">{html.escape(card.text)}</p>'
-        if card.text
-        else '<p class="rules empty">(no rules text yet)</p>'
-    )
-    return f"""
-<article class="card" data-affinity="{letters}" data-search="{haystack}" style="--accent:{accent}">
-  <img src="{html.escape(image_path(card), quote=True)}" alt="{html.escape(card.name, quote=True)}" loading="lazy">
-  <div class="meta">
-    <h2>{html.escape(card.name)}</h2>
-    <p class="line">Cost <strong>{cost}</strong> · {html.escape(card.type_line)} · {html.escape(card.rarity)}</p>
-    {text}
-    {ar}
-  </div>
-</article>"""
-
-
-def build_page(cards: list[Card]) -> str:
-    """Assemble the full gallery page."""
-    chips = ['<button class="chip active" data-filter="all">All</button>']
-    for letter, name in AFFINITY_NAMES.items():
-        chips.append(
-            f'<button class="chip" data-filter="{letter}" style="--accent:{ACCENTS[letter]}">'
-            f"{name}</button>"
+def record_site_decision(db_path: Path, records: list[dict[str, Any]]) -> None:
+    """Record the gallery build before writing the website artifact."""
+    payload = json.dumps(records, sort_keys=True, ensure_ascii=False).encode()
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS site_builds (
+                artifact TEXT PRIMARY KEY,
+                input_fingerprint TEXT NOT NULL,
+                record_count INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                updated_by TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
         )
-    chips.append(
-        f'<button class="chip" data-filter="N" style="--accent:{NEUTRAL}">Neutral</button>'
-    )
-    articles = "\n".join(card_article(c) for c in cards)
+        connection.execute(
+            """
+            INSERT OR REPLACE INTO site_builds (
+                artifact, input_fingerprint, record_count, status, updated_by
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "cards.html",
+                hashlib.sha256(payload).hexdigest(),
+                len(records),
+                "planned",
+                "auto:codex:e1-gallery",
+            ),
+        )
+        connection.commit()
+
+
+def render_html(records: list[dict[str, Any]]) -> str:
+    """Render a dependency-free filterable card gallery."""
+    data = json.dumps(records, ensure_ascii=False).replace("</", "<\\/")
     return f"""<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>600B Timelock TCG — E1 Card Gallery</title>
-<style>
-@font-face {{
-  font-family: "Anton";
-  src: url("art/fonts/Anton-Regular.ttf") format("truetype");
-  font-display: swap;
-}}
-* {{ box-sizing: border-box; margin: 0; }}
-body {{
-  background: #000;
-  color: #FFF7EC;
-  font-family: system-ui, sans-serif;
-  padding: 24px clamp(16px, 4vw, 48px) 64px;
-}}
-header {{ display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }}
-header img {{ height: 64px; }}
-h1 {{ font-family: Anton, sans-serif; font-size: clamp(26px, 4vw, 40px); letter-spacing: 1px; }}
-h1 span {{ color: #F7931A; }}
-header p {{ color: #8A8F98; width: 100%; }}
-.controls {{ display: flex; gap: 12px; flex-wrap: wrap; margin: 24px 0; align-items: center; }}
-#search {{
-  background: #111; color: #FFF7EC; border: 1px solid #2A2A2A; border-radius: 10px;
-  padding: 10px 16px; font-size: 16px; min-width: min(340px, 100%);
-}}
-#search:focus {{ outline: 2px solid #F7931A; }}
-.chip {{
-  --accent: #F7931A;
-  background: #111; color: #FFF7EC; border: 2px solid var(--accent);
-  border-radius: 999px; padding: 6px 16px; font-size: 14px; cursor: pointer;
-}}
-.chip.active {{ background: var(--accent); color: #000; font-weight: 700; }}
-.grid {{
-  display: grid; gap: 24px;
-  grid-template-columns: repeat(auto-fill, minmax(min(460px, 100%), 1fr));
-}}
-.card {{
-  display: flex; gap: 16px; background: #111; border: 1px solid #2A2A2A;
-  border-left: 4px solid var(--accent); border-radius: 14px; padding: 16px;
-}}
-.card img {{ width: 200px; max-width: 40%; height: auto; border-radius: 10px; flex-shrink: 0; }}
-.card h2 {{ font-family: Anton, sans-serif; font-size: 22px; letter-spacing: .5px; }}
-.card .line {{ color: #8A8F98; font-size: 14px; margin: 6px 0 12px; }}
-.card .rules {{ font-size: 15px; line-height: 1.5; }}
-.card .rules.empty {{ color: #8A8F98; font-style: italic; }}
-.card .ar {{
-  margin-top: 12px; font-family: Anton, sans-serif; font-size: 20px; color: var(--accent);
-}}
-.card.hidden {{ display: none; }}
-#count {{ color: #8A8F98; margin-bottom: 16px; }}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <meta name="description" content="Browse all 295 cards in 600B Timelock TCG Edition One.">
+  <title>600B Timelock TCG — Edition One Cards</title>
+  <style>
+    @font-face {{
+      font-family: Anton600;
+      src: url("art/fonts/Anton-Regular.ttf") format("truetype");
+      font-display: swap;
+    }}
+    :root {{
+      --orange: #ff6a00;
+      --purple: #b991e4;
+      --purple-deep: #7447b8;
+      --black: #09080b;
+      --soot: #111014;
+      --panel: #19151f;
+      --cream: #fff7ec;
+      --muted: #c7bbcc;
+      --line: rgba(185,145,228,.27);
+    }}
+    * {{ box-sizing: border-box; }}
+    html {{ color-scheme: dark; background: var(--black); }}
+    body {{
+      margin: 0;
+      color: var(--cream);
+      background:
+        radial-gradient(circle at 18% 0, rgba(255,106,0,.15), transparent 28rem),
+        radial-gradient(circle at 90% 8%, rgba(116,71,184,.22), transparent 32rem),
+        var(--black);
+      font: 16px/1.5 Arial, sans-serif;
+    }}
+    a {{ color: var(--orange); }}
+    button, input, select {{ font: inherit; }}
+    .masthead {{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 14px clamp(18px, 4vw, 58px);
+      background: rgba(9,8,11,.88);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(18px);
+    }}
+    .masthead img {{ width: 52px; height: 52px; }}
+    .brand {{ margin-right: auto; }}
+    .brand strong {{
+      display: block;
+      font: 25px/1 Anton600, Impact, sans-serif;
+      letter-spacing: .025em;
+    }}
+    .brand span {{
+      color: var(--purple);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }}
+    .masthead a {{
+      padding: 8px 11px;
+      color: var(--cream);
+      border: 1px solid var(--purple-deep);
+      text-decoration: none;
+      text-transform: uppercase;
+      font: 13px/1 Anton600, Impact, sans-serif;
+      letter-spacing: .06em;
+    }}
+    .hero {{
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: clamp(58px, 9vw, 116px) clamp(18px, 4vw, 58px) 36px;
+    }}
+    .eyebrow {{
+      color: var(--purple);
+      font-weight: 900;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }}
+    h1 {{
+      max-width: 930px;
+      margin: 10px 0 18px;
+      font: clamp(58px, 9vw, 126px)/.88 Anton600, Impact, sans-serif;
+      letter-spacing: -.025em;
+      text-transform: uppercase;
+    }}
+    h1 span {{ color: var(--orange); }}
+    .intro {{ max-width: 730px; color: var(--muted); font-size: 19px; }}
+    .counter {{
+      display: inline-block;
+      margin-top: 18px;
+      padding: 7px 10px;
+      color: var(--black);
+      background: var(--orange);
+      font-weight: 900;
+    }}
+    .controls {{
+      position: sticky;
+      top: 81px;
+      z-index: 9;
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      gap: 13px;
+      max-width: 1480px;
+      margin: 0 auto 28px;
+      padding: 14px clamp(18px, 4vw, 58px);
+      background: linear-gradient(180deg, rgba(9,8,11,.97), rgba(9,8,11,.89));
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px);
+    }}
+    .search, select {{
+      min-height: 44px;
+      padding: 10px 13px;
+      color: var(--cream);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      outline: none;
+    }}
+    .search:focus, select:focus {{ border-color: var(--orange); }}
+    .chips {{
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }}
+    .chip {{
+      padding: 7px 10px;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }}
+    .chip:hover, .chip.active {{
+      color: var(--black);
+      background: var(--purple);
+      border-color: var(--purple);
+    }}
+    .gallery {{
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+      gap: clamp(14px, 2vw, 28px);
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 0 clamp(18px, 4vw, 58px) 110px;
+    }}
+    .card-button {{
+      position: relative;
+      display: block;
+      width: 100%;
+      padding: 0;
+      overflow: hidden;
+      color: inherit;
+      background: #000;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 16px 44px rgba(0,0,0,.36);
+      transition: transform .16s ease, border-color .16s ease;
+    }}
+    .card-button:hover, .card-button:focus-visible {{
+      z-index: 2;
+      border-color: var(--orange);
+      transform: translateY(-5px);
+      outline: none;
+    }}
+    .card-button img {{
+      display: block;
+      width: 100%;
+      aspect-ratio: 5 / 7;
+      object-fit: cover;
+    }}
+    .empty {{
+      grid-column: 1 / -1;
+      padding: 70px 20px;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      text-align: center;
+    }}
+    dialog {{
+      width: min(1020px, calc(100vw - 24px));
+      max-height: calc(100vh - 24px);
+      padding: 0;
+      overflow: auto;
+      color: var(--cream);
+      background: var(--soot);
+      border: 1px solid var(--purple-deep);
+      border-top: 7px solid var(--orange);
+      box-shadow: 0 30px 120px #000;
+    }}
+    dialog::backdrop {{ background: rgba(0,0,0,.82); backdrop-filter: blur(8px); }}
+    .modal-grid {{ display: grid; grid-template-columns: minmax(270px, 460px) 1fr; }}
+    .modal-grid > img {{ width: 100%; min-height: 100%; object-fit: cover; }}
+    .details {{ position: relative; padding: clamp(24px, 5vw, 52px); }}
+    .close {{
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 40px;
+      height: 40px;
+      color: var(--cream);
+      background: var(--black);
+      border: 1px solid var(--line);
+      cursor: pointer;
+      font-size: 23px;
+    }}
+    .modal-id {{ color: var(--orange); font-weight: 900; letter-spacing: .12em; }}
+    .details h2 {{
+      margin: 8px 44px 5px 0;
+      font: clamp(34px, 5vw, 62px)/.97 Anton600, Impact, sans-serif;
+    }}
+    .meta {{ color: var(--purple); font-weight: 800; }}
+    .detail-block {{ margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); }}
+    .detail-block strong {{
+      display: block;
+      margin-bottom: 8px;
+      color: var(--orange);
+      font: 18px/1 Anton600, Impact, sans-serif;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }}
+    .detail-block p {{ margin: 0; color: var(--muted); }}
+    @media (max-width: 720px) {{
+      .masthead {{ position: static; }}
+      .masthead .brand span {{ display: none; }}
+      .controls {{ top: 0; grid-template-columns: 1fr; }}
+      .controls select {{ width: 100%; }}
+      .modal-grid {{ grid-template-columns: 1fr; }}
+      .modal-grid > img {{ max-height: 72vh; object-fit: contain; background: #000; }}
+    }}
+    @media (prefers-reduced-motion: reduce) {{
+      * {{ scroll-behavior: auto !important; transition: none !important; }}
+    }}
+  </style>
 </head>
 <body>
-<header>
-  <img src="art/brand/600B-logo-primary.png" alt="600B logo">
-  <h1>600B TIMELOCK TCG — <span>E1 CARD GALLERY</span></h1>
-  <p>Work in progress · placeholder renders stand in until finished art lands in art/cards/ · <a href="index.html" style="color:#F7931A">rulebook</a></p>
-</header>
-<div class="controls">
-  <input id="search" type="search" placeholder="Search name, text, type…">
-  {"".join(chips)}
-</div>
-<p id="count"></p>
-<main class="grid">{articles}
-</main>
-<script>
-const cards = [...document.querySelectorAll(".card")];
-const chipsEls = [...document.querySelectorAll(".chip")];
-const search = document.getElementById("search");
-const count = document.getElementById("count");
-let affinity = "all";
+  <header class="masthead">
+    <img src="art/brand/600B-logo-primary.png" alt="600 000 000 000">
+    <div class="brand">
+      <strong>TIMELOCK TCG</strong>
+      <span>Edition One · Complete card set</span>
+    </div>
+    <a href="index.html">Rulebook</a>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="eyebrow">600 Billion · Text → Art → Card</div>
+      <h1>All 295 <span>Cards.</span></h1>
+      <p class="intro">A positive cypherpunk set about Bitcoin, Nostr and open systems.
+      Use the filters to explore the five affinities. Open a card for its beginner guide
+      and sourced Protocol Note.</p>
+      <span class="counter" id="counter">295 / 295</span>
+    </section>
+    <section class="controls" aria-label="Card filters">
+      <input class="search" id="search" type="search"
+        placeholder="Search name, type, affinity or ID…" autocomplete="off">
+      <select id="typeFilter" aria-label="Filter by card type">
+        <option value="">All card types</option>
+      </select>
+      <div class="chips" id="chips" aria-label="Filter by affinity"></div>
+    </section>
+    <section class="gallery" id="gallery" aria-live="polite"></section>
+  </main>
+  <dialog id="cardDialog">
+    <div class="modal-grid">
+      <img id="modalImage" alt="">
+      <div class="details">
+        <button class="close" id="closeDialog" aria-label="Close card details">×</button>
+        <div class="modal-id" id="modalId"></div>
+        <h2 id="modalName"></h2>
+        <div class="meta" id="modalMeta"></div>
+        <div class="detail-block">
+          <strong>Simple Guide · no rules effect</strong>
+          <p id="modalHelp"></p>
+        </div>
+        <div class="detail-block">
+          <strong>Protocol Note · no rules effect</strong>
+          <p id="modalNote"></p>
+          <p><a id="modalSource" target="_blank" rel="noreferrer">Open primary source ↗</a></p>
+        </div>
+      </div>
+    </div>
+  </dialog>
+  <script>
+    const cards = {data};
+    const gallery = document.getElementById("gallery");
+    const search = document.getElementById("search");
+    const typeFilter = document.getElementById("typeFilter");
+    const chips = document.getElementById("chips");
+    const counter = document.getElementById("counter");
+    const dialog = document.getElementById("cardDialog");
+    let affinity = "All";
 
-function apply() {{
-  const q = search.value.trim().toLowerCase();
-  let shown = 0;
-  for (const card of cards) {{
-    const okAffinity = affinity === "all" || card.dataset.affinity.includes(affinity);
-    const okText = !q || card.dataset.search.includes(q);
-    card.classList.toggle("hidden", !(okAffinity && okText));
-    if (okAffinity && okText) shown++;
-  }}
-  count.textContent = shown + " / " + cards.length + " cards";
-}}
+    const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock", "Neutral"];
+    for (const item of affinities) {{
+      const button = document.createElement("button");
+      button.className = "chip" + (item === "All" ? " active" : "");
+      button.textContent = item;
+      button.addEventListener("click", () => {{
+        affinity = item;
+        [...chips.children].forEach((chip) => chip.classList.toggle("active", chip === button));
+        render();
+      }});
+      chips.append(button);
+    }}
 
-for (const chip of chipsEls) {{
-  chip.addEventListener("click", () => {{
-    chipsEls.forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
-    affinity = chip.dataset.filter;
-    apply();
-  }});
-}}
-search.addEventListener("input", apply);
-apply();
-</script>
+    [...new Set(cards.map((card) => card.type))].sort().forEach((type) => {{
+      const option = document.createElement("option");
+      option.value = type;
+      option.textContent = type;
+      typeFilter.append(option);
+    }});
+
+    function imageUrl(file) {{
+      return "art/cards/final/" + encodeURIComponent(file);
+    }}
+
+    function openCard(card) {{
+      document.getElementById("modalImage").src = imageUrl(card.file);
+      document.getElementById("modalImage").alt = card.name + " card face";
+      document.getElementById("modalId").textContent = card.id;
+      document.getElementById("modalName").textContent = card.name;
+      document.getElementById("modalMeta").textContent =
+        card.typeLine + " · " + card.affinity.join(" / ") + " · Cost " + card.cost +
+        (card.stats ? " · " + card.stats : "");
+      document.getElementById("modalHelp").textContent = card.help;
+      document.getElementById("modalNote").textContent = card.note;
+      document.getElementById("modalSource").href = card.source;
+      dialog.showModal();
+    }}
+
+    function render() {{
+      const query = search.value.trim().toLowerCase();
+      const type = typeFilter.value;
+      const filtered = cards.filter((card) => {{
+        const searchable = [card.id, card.name, card.typeLine, ...card.affinity].join(" ").toLowerCase();
+        const affinityMatch = affinity === "All" ||
+          (affinity === "Neutral" ? card.affinity.includes("Neutral") : card.affinity.includes(affinity));
+        return (!query || searchable.includes(query)) && (!type || card.type === type) && affinityMatch;
+      }});
+      counter.textContent = filtered.length + " / " + cards.length;
+      gallery.replaceChildren();
+      if (!filtered.length) {{
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "No cards match these filters.";
+        gallery.append(empty);
+        return;
+      }}
+      const fragment = document.createDocumentFragment();
+      for (const card of filtered) {{
+        const button = document.createElement("button");
+        button.className = "card-button";
+        button.type = "button";
+        button.setAttribute("aria-label", "Open " + card.name);
+        const image = document.createElement("img");
+        image.src = imageUrl(card.file);
+        image.alt = card.name;
+        image.loading = "lazy";
+        image.decoding = "async";
+        button.append(image);
+        button.addEventListener("click", () => openCard(card));
+        fragment.append(button);
+      }}
+      gallery.append(fragment);
+    }}
+
+    search.addEventListener("input", render);
+    typeFilter.addEventListener("change", render);
+    document.getElementById("closeDialog").addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (event) => {{
+      if (event.target === dialog) dialog.close();
+    }});
+    render();
+  </script>
 </body>
 </html>
 """
 
 
 def main() -> None:
-    """Generate cards.html from cards.csv."""
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    cards = load_cards(REPO_ROOT / "cards" / "cards.csv")
-    OUT_PATH.write_text(build_page(cards), encoding="utf-8")
-    log.info("wrote %s with %d cards", OUT_PATH, len(cards))
+    """Build cards.html from locked card data and card-face manifest."""
+    repo_root = Path(__file__).resolve().parents[1]
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--cards",
+        type=Path,
+        default=repo_root / "cards" / "e1-cards.json",
+    )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=repo_root / "art" / "cards" / "final" / "manifest.json",
+    )
+    parser.add_argument("--out", type=Path, default=repo_root / "cards.html")
+    parser.add_argument(
+        "--audit-db",
+        type=Path,
+        default=repo_root / ".audit" / "e1-design.sqlite",
+    )
+    args = parser.parse_args()
+
+    cards = json.loads(args.cards.read_text(encoding="utf-8"))["cards"]
+    manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    if len(cards) != 295 or manifest["card_count"] != 295:
+        raise ValueError("complete text and card locks are required for the gallery")
+    records = gallery_records(cards, manifest)
+    record_site_decision(args.audit_db, records)
+    args.out.write_text(render_html(records), encoding="utf-8")
+    print(f"wrote {args.out} with {len(records)} cards")
 
 
 if __name__ == "__main__":
