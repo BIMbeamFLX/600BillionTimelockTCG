@@ -183,10 +183,12 @@ def install(xml_path: Path, art_dir: Path) -> None:
     pics_custom = data_dir / "pics" / "CUSTOM"
     pics_custom.mkdir(parents=True, exist_ok=True)
     count = 0
-    for img in sorted(art_dir.iterdir()) if art_dir.is_dir() else []:
-        if img.suffix.lower() in ART_EXTENSIONS:
-            shutil.copy2(img, pics_custom / img.name)
-            count += 1
+    # Placeholders first; finished art in art_dir itself overwrites them.
+    for source in (art_dir / "placeholders", art_dir):
+        for img in sorted(source.iterdir()) if source.is_dir() else []:
+            if img.suffix.lower() in ART_EXTENSIONS:
+                shutil.copy2(img, pics_custom / img.name)
+                count += 1
     log.info("installed %d card images to %s", count, pics_custom)
 
 

@@ -47,14 +47,17 @@ Cards are authored as data in `cards/cards.csv` and compiled into a
 
 ```bash
 py -3.14 -m venv .venv
-.venv/Scripts/python -m pip install pytest ruff
+.venv/Scripts/python -m pip install pytest ruff pillow
+.venv/Scripts/python scripts/build_placeholders.py
 .venv/Scripts/python scripts/build_set.py --install
 ```
 
-`--install` copies the set XML into the local Cockatrice data folder and card images
-from `art/cards/` (named exactly like the card, e.g. `Power Surge.png`) into
-`pics/CUSTOM/`. Restart Cockatrice and the set `600B Timelock TCG — Edition One (600B)`
-appears in the deck editor.
+`build_placeholders.py` renders a branded placeholder face for every card into
+`art/cards/placeholders/`. `--install` copies the set XML plus card images into the
+local Cockatrice data folder: placeholders first, then finished art from `art/cards/`
+(named exactly like the card, e.g. `Power Surge.png`), so real art always wins.
+Restart Cockatrice and the set `600B Timelock TCG — Edition One (600B)` appears in the
+deck editor.
 
 CSV columns: `name, type, subtype, cost, ar, rarity, text`. Costs use affinity letters
 `P` Power, `B` Bitcoin, `K` Keys, `S` Signal, `T` Timelock plus digits for neutral, e.g.
