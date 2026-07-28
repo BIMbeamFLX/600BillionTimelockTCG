@@ -1,0 +1,12 @@
+{
+  "name": "tcg600nap",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build-rulebook.cjs"
+  },
+  "dependencies": {
+    "marked": "^17.0.5"
+  }
+}

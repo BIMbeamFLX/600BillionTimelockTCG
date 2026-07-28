@@ -1,54 +1,65 @@
-# TCG600nap
+# 600B Timelock TCG
 
-A custom trading card game built on Magic: The Gathering Alpha mechanics, played in
-[Cockatrice](https://cockatrice.github.io/). Cards are defined as data in a CSV; a small
-Python script generates the Cockatrice set XML.
+Website-first Edition One rulebook and art system for a positive cypherpunk trading card
+game about Bitcoin, Nostr and open systems.
 
-## Layout
+Open `index.html` to read the designed rulebook.
 
+## Structure
+
+```text
+art/
+  brand/       official 600B identity assets
+  cards/       card-system previews
+  fonts/       local open-source display fonts
+  resources/   Power, Bitcoin, Keys, Signal and Timelock icons
+  rulebook/    wide chapter banners
+rules/
+  600B-Timelock-TCG-Rulebook-E1.md
+  research-sources.md
+scripts/
+  build-rulebook.cjs
+index.html
 ```
-cards/cards.csv       # card definitions — edit this to add/change cards
-art/                  # card images, named exactly like the card (Spark Bolt.png)
-scripts/build_set.py  # CSV -> Cockatrice v4 XML generator
-dist/                 # generated XML (not committed)
-tests/                # pytest suite for the generator
-```
 
-## Workflow
-
-1. Edit `cards/cards.csv`. Columns:
-   - `name` — card name (must match the art filename)
-   - `maintype` — Creature / Instant / Sorcery / Artifact / Enchantment / Basic Land
-   - `subtype` — optional, e.g. `Goblin` (renders as `Creature — Goblin`)
-   - `manacost` — e.g. `1W`, `UU`, `4GG`; empty for lands
-   - `pt` — power/toughness for creatures, e.g. `2/1`
-   - `rarity` — common / uncommon / rare
-   - `text` — rules text; use `\n` for line breaks, `{T}`, `{W}` etc. for symbols
-2. Drop card images into `art/` as `<Card Name>.png` (or .jpg).
-3. Build and install into Cockatrice:
+## Build
 
 ```bash
-.venv/Scripts/python scripts/build_set.py --install
+npm install
+npm run build
 ```
 
-4. In Cockatrice: restart, then check **Card Database → Edit sets** — the set
-   `TCG600nap (T6N)` should be listed. Deck editor will show all cards.
+The generated website has no runtime dependency and uses only local assets.
 
-Without `--install` the XML is only written to `dist/01.tcg600nap.xml`; you can load it
-manually via **Card Database → Add custom sets/cards**.
+## Current rules profile
 
-## Development
+`E1.0-draft` supports the complete first-generation card-design envelope with original
+600B language: 20 Uptime, 40+ cards, five Resources, six card types, classic resource
+burn, combat, a deterministic Queue, and opt-in Stake and Toss adapters.
+
+The mechanics are a prototype research reference. Public lore, art, text, symbols,
+layout and terminology are original 600B work.
+
+## Cockatrice playtesting
+
+Cards are authored as data in `cards/cards.csv` and compiled into a
+[Cockatrice](https://cockatrice.github.io/) custom set for online playtests.
 
 ```bash
 py -3.14 -m venv .venv
 .venv/Scripts/python -m pip install pytest ruff
-.venv/Scripts/python -m pytest
-.venv/Scripts/python -m ruff check . && .venv/Scripts/python -m ruff format .
+.venv/Scripts/python scripts/build_set.py --install
 ```
 
-## Card design notes
+`--install` copies the set XML into the local Cockatrice data folder and card images
+from `art/cards/` (named exactly like the card, e.g. `Power Surge.png`) into
+`pics/CUSTOM/`. Restart Cockatrice and the set `600B Timelock TCG — Edition One (600B)`
+appears in the deck editor.
 
-Mechanics follow MTG Alpha-era rules (tap, five colors, creatures with power/toughness,
-instants/sorceries, first strike, flying, trample, haste). Game mechanics are not
-copyrightable, but WotC card names, rules text, and artwork are — all cards here use
-original names and art.
+CSV columns: `name, type, subtype, cost, ar, rarity, text`. Costs use affinity letters
+`P` Power, `B` Bitcoin, `K` Keys, `S` Signal, `T` Timelock plus digits for neutral, e.g.
+`4BB`. Inside the Cockatrice client the five affinities are mapped onto its five color
+slots (Signal=W, Timelock=U, Keys=B, Power=R, Bitcoin=G) as a render adapter only — all
+names and rules text stay 600B.
+
+Run the generator tests with `.venv/Scripts/python -m pytest`.

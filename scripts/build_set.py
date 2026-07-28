@@ -1,8 +1,13 @@
-"""Build a Cockatrice v4 custom set XML from cards/cards.csv.
+"""Build a Cockatrice v4 custom set XML for 600B Timelock TCG from cards/cards.csv.
+
+Cards are authored in E1 terms (Resources P/B/K/S/T, Avatars with Action/Resilience).
+For the Cockatrice client the five affinities are mapped onto its five color slots as a
+render adapter, following the E1 affinity-wheel adjacency: Signal=W, Timelock=U, Keys=B,
+Power=R, Bitcoin=G. Card names and rules text stay pure 600B.
 
 Usage:
-    python scripts/build_set.py              # writes dist/01.tcg600nap.xml
-    python scripts/build_set.py --install    # also copies XML + art into Cockatrice
+    python scripts/build_set.py              # writes dist/01.600b-e1.xml
+    python scripts/build_set.py --install    # also copies XML + card art into Cockatrice
 """
 
 from __future__ import annotations
@@ -16,12 +21,18 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
-SET_CODE = "T6N"
-SET_LONGNAME = "TCG600nap"
+SET_CODE = "600B"
+SET_LONGNAME = "600B Timelock TCG — Edition One"
 SET_TYPE = "Custom"
 RELEASE_DATE = "2026-07-28"
 
-COLOR_LETTERS = "WUBRG"
+# E1 affinity letter -> Cockatrice color slot (render adapter only).
+RESOURCE_TO_CLIENT = {"S": "W", "T": "U", "K": "B", "P": "R", "B": "G"}
+CLIENT_COLOR_ORDER = "WUBRG"
+
+# E1 card type -> Cockatrice table row (0 resources, 1 permanents, 2 avatars, 3 one-shots).
+TABLEROW_BY_TYPE = {"Resource": 0, "Avatar": 2, "Zap": 3, "Operation": 3}
+
 ART_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 
 log = logging.getLogger("build_set")
@@ -29,57 +40,60 @@ log = logging.getLogger("build_set")
 
 @dataclass
 class Card:
-    """One card row from cards.csv."""
+    """One card row from cards.csv, authored in 600B E1 terms."""
 
     name: str
-    maintype: str
+    cardtype: str
     subtype: str
-    manacost: str
-    pt: str
+    cost: str
+    ar: str
     rarity: str
     text: str
 
     @property
     def type_line(self) -> str:
-        """Full type line, e.g. 'Creature — Guardian'."""
+        """Full type line, e.g. 'Avatar — Firewall'."""
         if self.subtype:
-            return f"{self.maintype} — {self.subtype}"
-        return self.maintype
+            return f"{self.cardtype} — {self.subtype}"
+        return self.cardtype
 
     @property
-    def cmc(self) -> int:
-        """Converted mana cost: digits summed, each color letter counts 1, X counts 0."""
+    def total_cost(self) -> int:
+        """Total cost: digits summed, each affinity letter counts 1, X counts 0."""
         total = 0
         digits = ""
-        for ch in self.manacost:
+        for ch in self.cost:
             if ch.isdigit():
                 digits += ch
             else:
                 if digits:
                     total += int(digits)
                     digits = ""
-                if ch.upper() in COLOR_LETTERS:
+                if ch.upper() in RESOURCE_TO_CLIENT:
                     total += 1
         if digits:
             total += int(digits)
         return total
 
     @property
-    def colors(self) -> str:
-        """Color letters present in the mana cost, in WUBRG order."""
-        found = {ch.upper() for ch in self.manacost if ch.upper() in COLOR_LETTERS}
-        return "".join(c for c in COLOR_LETTERS if c in found)
+    def client_manacost(self) -> str:
+        """Cost string with affinity letters mapped to Cockatrice color letters."""
+        return "".join(RESOURCE_TO_CLIENT.get(ch.upper(), ch) for ch in self.cost)
+
+    @property
+    def client_colors(self) -> str:
+        """Mapped color letters present in the cost, in Cockatrice WUBRG order."""
+        found = {
+            RESOURCE_TO_CLIENT[ch.upper()]
+            for ch in self.cost
+            if ch.upper() in RESOURCE_TO_CLIENT
+        }
+        return "".join(c for c in CLIENT_COLOR_ORDER if c in found)
 
     @property
     def tablerow(self) -> int:
-        """Cockatrice table row: 0 lands, 1 other permanents, 2 creatures, 3 spells."""
-        if "Land" in self.maintype:
-            return 0
-        if self.maintype == "Creature":
-            return 2
-        if self.maintype in ("Instant", "Sorcery"):
-            return 3
-        return 1
+        """Cockatrice table row for this card type."""
+        return TABLEROW_BY_TYPE.get(self.cardtype, 1)
 
 
 def load_cards(csv_path: Path) -> list[Card]:
@@ -90,10 +104,10 @@ def load_cards(csv_path: Path) -> list[Card]:
             cards.append(
                 Card(
                     name=row["name"].strip(),
-                    maintype=row["maintype"].strip(),
+                    cardtype=row["type"].strip(),
                     subtype=row["subtype"].strip(),
-                    manacost=row["manacost"].strip(),
-                    pt=row["pt"].strip(),
+                    cost=row["cost"].strip(),
+                    ar=row["ar"].strip(),
                     rarity=row["rarity"].strip() or "common",
                     text=row["text"].strip().replace("\\n", "\n"),
                 )
@@ -122,15 +136,15 @@ def build_xml(cards: list[Card]) -> ET.ElementTree:
         ET.SubElement(prop, "layout").text = "normal"
         ET.SubElement(prop, "side").text = "front"
         ET.SubElement(prop, "type").text = card.type_line
-        ET.SubElement(prop, "maintype").text = card.maintype
-        if card.manacost:
-            ET.SubElement(prop, "manacost").text = card.manacost
-        ET.SubElement(prop, "cmc").text = str(card.cmc)
-        if card.colors:
-            ET.SubElement(prop, "colors").text = card.colors
-            ET.SubElement(prop, "coloridentity").text = card.colors
-        if card.pt:
-            ET.SubElement(prop, "pt").text = card.pt
+        ET.SubElement(prop, "maintype").text = card.cardtype
+        if card.cost:
+            ET.SubElement(prop, "manacost").text = card.client_manacost
+        ET.SubElement(prop, "cmc").text = str(card.total_cost)
+        if card.client_colors:
+            ET.SubElement(prop, "colors").text = card.client_colors
+            ET.SubElement(prop, "coloridentity").text = card.client_colors
+        if card.ar:
+            ET.SubElement(prop, "pt").text = card.ar
 
         ET.SubElement(card_el, "set", rarity=card.rarity).text = SET_CODE
         ET.SubElement(card_el, "tablerow").text = str(card.tablerow)
@@ -184,7 +198,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", type=Path, default=repo_root / "cards" / "cards.csv")
     parser.add_argument(
-        "--out", type=Path, default=repo_root / "dist" / "01.tcg600nap.xml"
+        "--out", type=Path, default=repo_root / "dist" / "01.600b-e1.xml"
     )
     parser.add_argument(
         "--install", action="store_true", help="copy into Cockatrice data dir"
@@ -196,7 +210,7 @@ def main() -> None:
     write_xml(build_xml(cards), args.out)
 
     if args.install:
-        install(args.out, repo_root / "art")
+        install(args.out, repo_root / "art" / "cards")
 
 
 if __name__ == "__main__":

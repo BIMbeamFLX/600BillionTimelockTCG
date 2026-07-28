@@ -1,17 +1,10 @@
 const fs = require("fs");
 const path = require("path");
-const sharp = require("sharp");
 const { marked } = require("marked");
 
 const ROOT = path.resolve(__dirname, "..");
-const OUTPUTS = ROOT;
-const ASSETS = path.join(ROOT, "art", "rulebook");
 const SOURCE_MD = path.join(ROOT, "rules", "600B-Timelock-TCG-Rulebook-E1.md");
 const OUTPUT_HTML = path.join(ROOT, "index.html");
-const CARD_ART = path.join(ROOT, "art", "illustrations", "e1");
-const ICONS = path.join(ROOT, "art", "resources");
-
-fs.mkdirSync(ASSETS, { recursive: true });
 
 const colors = {
   orange: "#F7931A",
@@ -32,151 +25,6 @@ function escapeXml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
-}
-
-function overlaySvg(kicker, title, options = {}) {
-  const align = options.align || "left";
-  const x = align === "right" ? 1512 : 88;
-  const anchor = align === "right" ? "end" : "start";
-  const gradient =
-    align === "right"
-      ? '<linearGradient id="shade" x1="1" x2="0"><stop offset="0" stop-color="#000" stop-opacity=".94"/><stop offset=".66" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>'
-      : '<linearGradient id="shade" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".94"/><stop offset=".66" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>';
-  return Buffer.from(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="480">
-      <defs>${gradient}</defs>
-      <rect width="1600" height="480" fill="url(#shade)"/>
-      <rect x="0" y="0" width="1600" height="9" fill="${colors.orange}"/>
-      <rect x="0" y="471" width="1600" height="9" fill="${colors.purpleDeep}"/>
-      <circle cx="${align === "right" ? 1510 : 90}" cy="92" r="9" fill="${colors.orange}"/>
-      <text x="${x}" y="118" text-anchor="${anchor}" fill="${colors.purple}"
-        font-family="Arial, sans-serif" font-size="30" font-weight="700"
-        letter-spacing="7">${escapeXml(kicker.toUpperCase())}</text>
-      <text x="${x}" y="205" text-anchor="${anchor}" fill="${colors.white}"
-        font-family="Impact, Arial Black, sans-serif" font-size="76"
-        letter-spacing="2">${escapeXml(title.toUpperCase())}</text>
-      <path d="M${align === "right" ? 1160 : 88} 244 H${align === "right" ? 1512 : 440}"
-        stroke="${colors.orange}" stroke-width="5"/>
-    </svg>
-  `);
-}
-
-async function artBanner(sourceName, targetName, kicker, title, options = {}) {
-  const source = path.join(CARD_ART, sourceName);
-  await sharp(source)
-    .resize(1600, 480, {
-      fit: "cover",
-      position: options.position || "attention",
-    })
-    .modulate({ saturation: 0.9, brightness: 0.82 })
-    .composite([{ input: overlaySvg(kicker, title, options), blend: "over" }])
-    .webp({ quality: 90, smartSubsample: true })
-    .toFile(path.join(ASSETS, targetName));
-}
-
-function svgData(filePath) {
-  return `data:image/svg+xml;base64,${fs.readFileSync(filePath).toString("base64")}`;
-}
-
-async function resourceBanner() {
-  const resources = [
-    ["POWER", "power.svg", colors.ember],
-    ["BITCOIN", "bitcoin.svg", "#F3C244"],
-    ["KEYS", "keys.svg", colors.purpleDeep],
-    ["SIGNAL", "signal.svg", colors.white],
-    ["TIMELOCK", "timelock.svg", colors.violet],
-  ];
-  const cells = resources
-    .map(([name, filename, accent], index) => {
-      const x = 180 + index * 310;
-      return `
-        <g transform="translate(${x} 64)">
-          <circle cx="0" cy="0" r="72" fill="#18151D" stroke="${accent}" stroke-width="3"/>
-          <image href="${svgData(path.join(ICONS, filename))}" x="-52" y="-52" width="104" height="104"/>
-          <text x="0" y="128" text-anchor="middle" fill="${colors.white}"
-            font-family="Impact, Arial Black, sans-serif" font-size="34"
-            letter-spacing="2">${name}</text>
-        </g>`;
-    })
-    .join("");
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="480">
-      <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#000000"/>
-          <stop offset=".55" stop-color="#16121B"/>
-          <stop offset="1" stop-color="#2B1735"/>
-        </linearGradient>
-        <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
-          <path d="M48 0H0V48" fill="none" stroke="#B991E4" stroke-opacity=".08"/>
-        </pattern>
-      </defs>
-      <rect width="1600" height="480" fill="url(#bg)"/>
-      <rect width="1600" height="480" fill="url(#grid)"/>
-      <rect width="1600" height="9" fill="${colors.orange}"/>
-      <rect y="471" width="1600" height="9" fill="${colors.purpleDeep}"/>
-      <text x="800" y="370" text-anchor="middle" fill="${colors.purple}"
-        font-family="Arial, sans-serif" font-size="25" font-weight="700"
-        letter-spacing="9">FIVE TOOLS · ONE NETWORK</text>
-      ${cells}
-    </svg>`;
-  fs.writeFileSync(path.join(ASSETS, "banner-02-five-resources.svg"), svg.trim());
-}
-
-async function abstractClashBanner() {
-  const nodesLeft = [
-    [210, 165],
-    [335, 245],
-    [220, 335],
-  ];
-  const nodesRight = [
-    [1390, 165],
-    [1265, 245],
-    [1380, 335],
-  ];
-  const nodeMarkup = (nodes, color) =>
-    nodes
-      .map(
-        ([x, y], i) => `
-          <g>
-            <circle cx="${x}" cy="${y}" r="${i === 1 ? 58 : 43}" fill="#111" stroke="${color}" stroke-width="5"/>
-            <path d="M${x - 18} ${y}H${x + 18}M${x} ${y - 18}V${y + 18}" stroke="#FFF7EC" stroke-width="5"/>
-          </g>`,
-      )
-      .join("");
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="480">
-      <defs>
-        <linearGradient id="bg" x1="0" x2="1">
-          <stop offset="0" stop-color="#2A1207"/>
-          <stop offset=".5" stop-color="#050506"/>
-          <stop offset="1" stop-color="#24132E"/>
-        </linearGradient>
-        <linearGradient id="route" x1="0" x2="1">
-          <stop offset="0" stop-color="${colors.orange}"/>
-          <stop offset=".5" stop-color="${colors.white}"/>
-          <stop offset="1" stop-color="${colors.purple}"/>
-        </linearGradient>
-        <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto">
-          <path d="M0 0L12 6L0 12Z" fill="${colors.purple}"/>
-        </marker>
-      </defs>
-      <rect width="1600" height="480" fill="url(#bg)"/>
-      <rect width="1600" height="9" fill="${colors.orange}"/>
-      <rect y="471" width="1600" height="9" fill="${colors.purpleDeep}"/>
-      ${nodeMarkup(nodesLeft, colors.orange)}
-      ${nodeMarkup(nodesRight, colors.purple)}
-      <path d="M410 245C610 90 990 90 1190 245" fill="none" stroke="url(#route)" stroke-width="11" marker-end="url(#arrow)"/>
-      <path d="M1190 282C990 430 610 430 410 282" fill="none" stroke="url(#route)" stroke-width="6" opacity=".62"/>
-      <circle cx="800" cy="245" r="88" fill="#000" stroke="${colors.white}" stroke-width="4"/>
-      <text x="800" y="232" text-anchor="middle" fill="${colors.orange}"
-        font-family="Impact, Arial Black, sans-serif" font-size="58">CLASH</text>
-      <text x="800" y="278" text-anchor="middle" fill="${colors.purple}"
-        font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="5">ACTION / RESILIENCE</text>
-    </svg>`;
-  await sharp(Buffer.from(svg))
-    .webp({ quality: 92 })
-    .toFile(path.join(ASSETS, "banner-05-clash.webp"));
 }
 
 function slugify(value) {

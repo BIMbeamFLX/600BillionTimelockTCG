@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Edition One rules for 600B Timelock TCG, a positive cypherpunk card game about Bitcoin, Nostr and open systems.">
+  <title>600B Timelock TCG — Edition One Rules</title>
+  <style>
+    @font-face {
+      font-family: "Anton600";
+      src: url("art/fonts/Anton-Regular.ttf") format("truetype");
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Alfa600";
+      src: url("art/fonts/AlfaSlabOne-Regular.ttf") format("truetype");
+      font-display: swap;
+    }
+    :root {
+      --orange: #F7931A;
+      --bright: #FFA733;
+      --ember: #FF6A00;
+      --purple: #B991E4;
+      --purple-deep: #7447B8;
+      --violet: #5E5ACB;
+      --black: #000000;
+      --soot: #111111;
+      --charcoal: #222222;
+      --white: #FFF7EC;
+      --muted: #c9bdcf;
+      --line: rgba(185,145,228,.28);
+      --content: 850px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--black); }
+    body {
+      margin: 0;
+      color: var(--white);
+      background:
+        radial-gradient(circle at 86% 10%, rgba(116,71,184,.16), transparent 30rem),
+        linear-gradient(180deg, #050506 0, #0d0b10 55%, #050506 100%);
+      font: 17px/1.68 "Trebuchet MS", Arial, sans-serif;
+    }
+    a { color: var(--bright); text-underline-offset: .2em; }
+    img { max-width: 100%; }
+    .page-shell {
+      display: grid;
+      grid-template-columns: 268px minmax(0, var(--content));
+      gap: 64px;
+      justify-content: center;
+      align-items: start;
+      padding: 0 28px 96px;
+    }
+    .toc {
+      position: sticky;
+      top: 22px;
+      max-height: calc(100vh - 44px);
+      overflow: auto;
+      margin-top: 38px;
+      padding: 18px 16px 22px;
+      background: rgba(17,17,17,.88);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--orange);
+      backdrop-filter: blur(16px);
+    }
+    .toc strong {
+      display: block;
+      margin: 0 0 11px;
+      color: var(--purple);
+      font: 24px/1 Anton600, Impact, sans-serif;
+      letter-spacing: .045em;
+      text-transform: uppercase;
+    }
+    .toc a {
+      display: block;
+      padding: 6px 8px;
+      color: #d9cede;
+      border-left: 2px solid transparent;
+      font-size: 12px;
+      line-height: 1.35;
+      text-decoration: none;
+    }
+    .toc a:hover, .toc a.active {
+      color: var(--white);
+      border-left-color: var(--orange);
+      background: rgba(185,145,228,.09);
+    }
+    .hero {
+      position: relative;
+      min-height: 510px;
+      margin: 0 0 36px;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(0,0,0,.98) 0, rgba(0,0,0,.78) 46%, rgba(0,0,0,.12) 78%),
+        url("art/rulebook/banner-01-build-the-network.webp") center/cover;
+      border-bottom: 1px solid var(--line);
+    }
+    .hero-inner {
+      width: min(1180px, calc(100% - 56px));
+      min-height: 510px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+    }
+    .hero-copy { max-width: 690px; padding: 56px 0; }
+    .brand-row { display: flex; align-items: center; gap: 18px; margin-bottom: 28px; }
+    .brand-row img { width: 76px; height: 76px; }
+    .brand-row span {
+      color: var(--purple);
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      max-width: 670px;
+      margin: 0;
+      color: var(--white);
+      font: clamp(58px, 8.5vw, 108px)/.92 Anton600, Impact, sans-serif;
+      letter-spacing: -.025em;
+      text-transform: uppercase;
+    }
+    .hero h1 em { display: block; color: var(--orange); font-style: normal; }
+    .hero p {
+      max-width: 610px;
+      margin: 26px 0 0;
+      color: #e6dfea;
+      font-size: clamp(18px, 2vw, 23px);
+    }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 30px; }
+    .pill {
+      padding: 8px 12px;
+      color: var(--black);
+      background: var(--purple);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    article { min-width: 0; padding-top: 20px; }
+    article > p:first-child {
+      margin-top: 0;
+      color: var(--purple);
+      font: 29px/1.24 Georgia, serif;
+    }
+    h2, h3, h4 { scroll-margin-top: 28px; }
+    h2 {
+      margin: 92px 0 24px;
+      color: var(--orange);
+      font: clamp(38px, 6vw, 64px)/1 Anton600, Impact, sans-serif;
+      letter-spacing: -.015em;
+      text-transform: uppercase;
+    }
+    h2::before {
+      content: "";
+      display: block;
+      width: 82px;
+      height: 6px;
+      margin-bottom: 17px;
+      background: linear-gradient(90deg, var(--orange), var(--purple));
+    }
+    h3 {
+      margin: 48px 0 11px;
+      color: var(--purple);
+      font: 29px/1.12 Anton600, Impact, sans-serif;
+      letter-spacing: .015em;
+      text-transform: uppercase;
+    }
+    h4 {
+      margin: 34px 0 8px;
+      color: var(--bright);
+      font-size: 18px;
+      letter-spacing: .035em;
+    }
+    p, li { color: #ded6e1; }
+    strong { color: var(--white); }
+    blockquote {
+      margin: 34px 0;
+      padding: 22px 26px;
+      color: var(--black);
+      background: var(--purple);
+      border-left: 8px solid var(--orange);
+    }
+    blockquote p { margin: 0; color: var(--black); font-weight: 700; }
+    table {
+      width: 100%;
+      margin: 24px 0 34px;
+      border-collapse: collapse;
+      background: rgba(17,17,17,.75);
+      font-size: 14px;
+    }
+    th, td {
+      padding: 13px 15px;
+      text-align: left;
+      vertical-align: top;
+      border: 1px solid var(--line);
+    }
+    th { color: var(--black); background: var(--purple); }
+    tr:nth-child(even) td { background: rgba(185,145,228,.04); }
+    ol, ul { padding-left: 1.4em; }
+    li + li { margin-top: .35em; }
+    code {
+      padding: .14em .34em;
+      color: var(--black);
+      background: var(--purple);
+      font: .9em "JetBrains Mono", Consolas, monospace;
+    }
+    hr {
+      height: 1px;
+      margin: 76px 0;
+      border: 0;
+      background: linear-gradient(90deg, transparent, var(--orange), var(--purple), transparent);
+    }
+    .rule-banner {
+      width: calc(100% + 80px);
+      margin: 68px 0 62px -40px;
+    }
+    .rule-banner img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 10 / 3;
+      object-fit: cover;
+      border: 1px solid var(--line);
+      box-shadow: 0 28px 90px rgba(0,0,0,.48);
+    }
+    .card-system-preview {
+      margin: 36px 0 54px;
+      padding: 12px;
+      background: #050506;
+      border: 1px solid var(--line);
+    }
+    .card-system-preview img { display: block; width: 100%; }
+    figcaption { padding: 11px 4px 2px; color: var(--muted); font-size: 12px; }
+    .resource-icon {
+      float: left;
+      width: 68px;
+      margin: 0 17px 8px 0;
+    }
+    .resource-icon img { display: block; width: 64px; height: 64px; }
+    .resource-icon + p { min-height: 72px; }
+    article h3[id="power"],
+    article h3[id="bitcoin"],
+    article h3[id="keys"],
+    article h3[id="signal"],
+    article h3[id="timelock"] {
+      clear: both;
+      padding-top: 8px;
+    }
+    .footer {
+      margin-top: 72px;
+      padding: 32px 0 60px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .mobile-index {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 11px 18px;
+      color: var(--black);
+      background: var(--purple);
+      font-weight: 900;
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    @media (max-width: 1050px) {
+      .page-shell { grid-template-columns: minmax(0, var(--content)); }
+      .toc { display: none; }
+      .mobile-index { display: block; }
+      .rule-banner { width: 100%; margin-left: 0; }
+    }
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      .page-shell { padding: 0 17px 72px; }
+      .hero { min-height: 600px; background-position: 67% center; }
+      .hero-inner { min-height: 600px; width: calc(100% - 34px); align-items: end; }
+      .hero-copy { padding: 160px 0 42px; }
+      .brand-row img { width: 58px; height: 58px; }
+      .brand-row span { font-size: 12px; }
+      .hero h1 { font-size: 58px; }
+      .hero p { font-size: 17px; }
+      h2 { margin-top: 72px; font-size: 42px; }
+      h3 { font-size: 25px; }
+      table { display: block; overflow-x: auto; white-space: normal; }
+      th, td { min-width: 150px; }
+      .rule-banner { margin: 50px 0; }
+      .rule-banner img { aspect-ratio: 16 / 7; }
+    }
+    @media print {
+      @page { size: A4; margin: 15mm 16mm 18mm; }
+      html, body { background: #fff; color: #000; }
+      body { font-size: 10pt; }
+      .hero {
+        min-height: 168mm;
+        break-after: page;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .hero-inner { min-height: 168mm; }
+      .mobile-index, .toc { display: none; }
+      .page-shell { display: block; padding: 0; }
+      article { max-width: none; }
+      article p, article li { color: #181818; }
+      h2 { margin-top: 16mm; color: #7b3d00; font-size: 29pt; break-after: avoid; }
+      h3 { color: #5f328c; font-size: 17pt; break-after: avoid; }
+      h4 { color: #9a4b00; break-after: avoid; }
+      table { background: #fff; break-inside: avoid; }
+      th { color: #000; background: #d4b5ed; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      td { color: #111; }
+      blockquote { background: #d4b5ed; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .rule-banner { width: 100%; margin: 12mm 0; break-inside: avoid; }
+      .rule-banner img { box-shadow: none; }
+      .card-system-preview { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+      .footer { color: #333; }
+    }
+  </style>
+</head>
+<body>
+  <a class="mobile-index" href="#fast-start">Jump to rules</a>
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <div class="brand-row">
+          <img src="art/brand/600B-logo-primary.png" alt="600 000 000 000">
+          <span>Timelock TCG · Edition One</span>
+        </div>
+        <h1>Build the <em>Network.</em></h1>
+        <p>A positive cypherpunk trading card game about Bitcoin, Nostr and the people who keep open systems alive.</p>
+        <div class="pills">
+          <span class="pill">2 players</span>
+          <span class="pill">20 Uptime</span>
+          <span class="pill">40+ cards</span>
+          <span class="pill">Classic profile</span>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="Rulebook chapters">
+      <strong>Rulebook E1</strong>
+      <a href="#1-fast-start">1. Fast start</a>
+<a href="#2-the-game-contract">2. The game contract</a>
+<a href="#3-what-is-on-a-card">3. What is on a card</a>
+<a href="#4-the-five-resources">4. The five Resources</a>
+<a href="#5-card-types">5. Card types</a>
+<a href="#6-zones">6. Zones</a>
+<a href="#7-building-a-stack">7. Building a Stack</a>
+<a href="#8-setting-up">8. Setting up</a>
+<a href="#9-turn-structure">9. Turn structure</a>
+<a href="#10-priority-and-the-queue">10. Priority and the Queue</a>
+<a href="#11-playing-cards-and-activating-abilities">11. Playing cards and activating abilities</a>
+<a href="#12-generating-and-spending-resources">12. Generating and spending Resources</a>
+<a href="#13-clash">13. Clash</a>
+<a href="#14-e1-keyword-glossary">14. E1 keyword glossary</a>
+<a href="#15-damage-prevention-and-decommissioning">15. Damage, prevention and decommissioning</a>
+<a href="#16-state-checks">16. State checks</a>
+<a href="#17-continuous-effects">17. Continuous effects</a>
+<a href="#18-tokens-counters-and-hidden-information">18. Tokens, counters and hidden information</a>
+<a href="#19-legacy-adapters">19. Legacy adapters</a>
+<a href="#20-card-specific-rulings">20. Card-specific rulings</a>
+<a href="#21-protocol-notes">21. Protocol notes</a>
+<a href="#22-quick-reference">22. Quick reference</a>
+<a href="#23-terminology-map">23. Terminology map</a>
+<a href="#24-e1-rules-lock">24. E1 rules lock</a>
+<a href="#25-originality-and-release-note">25. Originality and release note</a>
+    </nav>
+    <main>
+      <article><p><strong>Build the network. Protect your uptime. Make every action count.</strong></p>
+<p>Edition One is a two-player trading card game about open systems, resilient communities
+and positive cypherpunk culture. Players deploy Avatars, Hardware and Protocols, route
+fast Zaps, and commit five kinds of Resources to keep their side of the Network alive.</p>
+<p>The first rules profile deliberately preserves the strategic shape of first-generation
+dueling card games: 20 starting Uptime, seven cards in the opening Wallet, forty-card
+minimum Stacks, one Resource play each turn, classic resource burn and unrestricted card
+counts. Timing is expressed through one deterministic last-in-first-out Queue so the same
+rules can be enforced by a web app.</p>
+<blockquote>
+<p><strong>Edition One principle:</strong> cards can bend these rules. When a card and this rulebook
+disagree, the card wins for the specific thing it changes.</p>
+</blockquote>
+<figure class="rule-banner"><img src="art/rulebook/banner-01-build-the-network.webp" alt="FLX builds the Network" loading="lazy"></figure>
+<h2 id="1-fast-start">1. Fast start</h2>
+
+<p>You can learn the core loop in one page.</p>
+<ol>
+<li>Each player brings a Stack of at least 40 cards and begins at <strong>20 Uptime</strong>.</li>
+<li>Shuffle, then draw <strong>seven cards</strong> into your Wallet.</li>
+<li>Randomly choose the first player. The first player draws on turn one.</li>
+<li>On your turn, <strong>Unlock</strong>, handle <strong>Maintenance</strong>, then <strong>Draw</strong>.</li>
+<li>During Build, play up to <strong>one Resource</strong> from your Wallet.</li>
+<li>Commit Resources to generate Power, Bitcoin, Keys, Signal or Timelock.</li>
+<li>Spend those Resources to play Avatars, Hardware, Protocols and Operations.</li>
+<li>Attack with Avatars during Clash. Unblocked Avatars damage the opposing player.</li>
+<li>Play Zaps and activated abilities whenever you have priority.</li>
+<li>Win when the opponent reaches <strong>0 Uptime</strong> or cannot draw a required card.</li>
+</ol>
+<h3 id="the-table-in-one-glance">The table in one glance</h3>
+
+<table>
+<thead>
+<tr>
+<th>Your private information</th>
+<th>Shared information</th>
+<th>Completed information</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Stack — face-down draw pile</td>
+<td>Network — cards in play</td>
+<td>Archive — used and destroyed cards</td>
+</tr>
+<tr>
+<td>Wallet — cards in hand</td>
+<td>Queue — actions waiting to resolve</td>
+<td>Cold Storage — cards outside the game</td>
+</tr>
+</tbody></table>
+<h2 id="2-the-game-contract">2. The game contract</h2>
+
+<h3 id="2-1-players">2.1 Players</h3>
+
+<p>The E1 Classic Profile is written for exactly two players. A player may concede at any
+time. A concession takes effect immediately and cannot be answered.</p>
+<h3 id="2-2-the-objective">2.2 The objective</h3>
+
+<p>You win the game when any of these conditions is true:</p>
+<ul>
+<li>Your opponent has 0 or less Uptime.</li>
+<li>Your opponent must draw a card but their Stack is empty.</li>
+<li>A card says that you win.</li>
+<li>Your opponent concedes.</li>
+</ul>
+<p>If both players would lose during the same state check, the game is a draw.</p>
+<h3 id="2-3-uptime">2.3 Uptime</h3>
+
+<p>Each player begins with <strong>20 Uptime</strong>. Damage reduces Uptime. Healing or other effects may
+raise it above 20. Uptime is public information.</p>
+<h3 id="2-4-cards-over-rules">2.4 Cards over rules</h3>
+
+<p>A card changes only what it says it changes. Follow as much of an instruction as
+possible. The word <strong>cannot</strong> wins over <strong>can</strong> unless a card explicitly says otherwise.</p>
+<p>Protocol notes, flavor text, artist credits and collector information never affect play.</p>
+<h2 id="3-what-is-on-a-card">3. What is on a card</h2>
+
+<p>Every playable card has the following rules-facing fields.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Name</td>
+<td>The card&#39;s identity. Two cards with the same name are the same card for effects that check names.</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>Resources required to play the card.</td>
+</tr>
+<tr>
+<td>Type line</td>
+<td>One or more card types, followed by optional subtypes.</td>
+</tr>
+<tr>
+<td>Affinity</td>
+<td>Power, Bitcoin, Keys, Signal, Timelock or neutral.</td>
+</tr>
+<tr>
+<td>Rules</td>
+<td>Instructions and abilities that affect the game.</td>
+</tr>
+<tr>
+<td>Action / Resilience</td>
+<td>Combat values shown only on Avatars.</td>
+</tr>
+<tr>
+<td>Set code</td>
+<td>Edition and collector identity; no gameplay effect.</td>
+</tr>
+<tr>
+<td>Protocol note</td>
+<td>A factual learning note; no gameplay effect.</td>
+</tr>
+</tbody></table>
+<figure class="card-system-preview"><img src="art/cards/600B-E1-iconic-six-contact-sheet.png" alt="Edition One card-system examples" loading="lazy"><figcaption>First six E1 pipeline proofs. Rules text and educational notes are rendered separately from the art.</figcaption></figure>
+<h3 id="3-1-affinity">3.1 Affinity</h3>
+
+<p>A card&#39;s affinity is normally defined by the specific Resource symbols in its cost.
+A card with no specific Resource symbol is neutral. An effect may add, remove or change
+an affinity.</p>
+<h3 id="3-2-action-and-resilience">3.2 Action and Resilience</h3>
+
+<p>An Avatar&#39;s first stat is <strong>Action</strong>: the damage it deals in combat. Its second stat is
+<strong>Resilience</strong>: how much marked damage it can withstand during a turn.</p>
+<p>For example, a 4/4 Avatar has 4 Action and 4 Resilience.</p>
+<h3 id="3-3-owner-and-controller">3.3 Owner and controller</h3>
+
+<p>The owner of a card is the player who started the game with it. The controller is the
+player currently making its decisions. Cards begin under their owner&#39;s control, but
+effects can change control. Ownership never changes during a game.</p>
+<h2 id="4-the-five-resources">4. The five Resources</h2>
+
+<p>The five Resources are both spendable energy and philosophical affinities. None is good
+or evil. Each represents a useful tool with a characteristic strength and tradeoff.</p>
+<figure class="rule-banner"><img src="art/rulebook/banner-02-five-resources.svg" alt="The five 600B Resources" loading="lazy"></figure>
+<h3 id="power">Power</h3>
+
+<p class="resource-icon"><img src="art/resources/power.svg" alt="Power icon" loading="lazy"></p>
+<p>Energy, mining, speed and direct action. Power solves the immediate problem, sometimes at
+a cost.</p>
+<h3 id="bitcoin">Bitcoin</h3>
+
+<p class="resource-icon"><img src="art/resources/bitcoin.svg" alt="Bitcoin icon" loading="lazy"></p>
+<p>Scarcity, saving, settlement and resilient growth. Bitcoin compounds patient investment
+into durable advantage.</p>
+<h3 id="keys">Keys</h3>
+
+<p class="resource-icon"><img src="art/resources/keys.svg" alt="Keys icon" loading="lazy"></p>
+<p>Custody, privacy, signatures and deliberate risk. Keys trade comfort for agency and turn
+access into responsibility.</p>
+<h3 id="signal">Signal</h3>
+
+<p class="resource-icon"><img src="art/resources/signal.svg" alt="Signal icon" loading="lazy"></p>
+<p>Identity, culture, coordination and protection. Signal makes people legible to one
+another without requiring a central platform.</p>
+<h3 id="timelock">Timelock</h3>
+
+<p class="resource-icon"><img src="art/resources/timelock.svg" alt="Timelock icon" loading="lazy"></p>
+<p>Sequencing, planning, verification and control. Timelock delays the easy move to preserve
+the stronger move.</p>
+<h3 id="4-1-affinity-wheel">4.1 Affinity wheel</h3>
+
+<p>The E1 card pool preserves a five-part relationship wheel.</p>
+<table>
+<thead>
+<tr>
+<th>Affinity</th>
+<th>Natural allies</th>
+<th>Productive tensions</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Signal</td>
+<td>Timelock, Bitcoin</td>
+<td>Keys, Power</td>
+</tr>
+<tr>
+<td>Timelock</td>
+<td>Signal, Keys</td>
+<td>Power, Bitcoin</td>
+</tr>
+<tr>
+<td>Keys</td>
+<td>Timelock, Power</td>
+<td>Signal, Bitcoin</td>
+</tr>
+<tr>
+<td>Power</td>
+<td>Keys, Bitcoin</td>
+<td>Signal, Timelock</td>
+</tr>
+<tr>
+<td>Bitcoin</td>
+<td>Power, Signal</td>
+<td>Timelock, Keys</td>
+</tr>
+</tbody></table>
+<p>These relationships guide card design; they do not create a rule by themselves.</p>
+<h2 id="5-card-types">5. Card types</h2>
+
+<h3 id="5-1-resource">5.1 Resource</h3>
+
+<p>Resources enter the Network and normally generate one Resource of their subtype when
+committed. Playing a Resource is a special action, not an item on the Queue.</p>
+<p>You may play one Resource from your Wallet during either Build phase of your turn while
+the Queue is empty. An effect may allow additional Resource plays.</p>
+<h3 id="5-2-avatar">5.2 Avatar</h3>
+
+<p>Avatars are persistent Network cards with Action and Resilience. They can attack, block
+and use abilities.</p>
+<p>An Avatar has <strong>Boot Delay</strong> until its controller begins a turn with it under their
+control. While delayed, it cannot attack or pay a cost that requires it to Commit. It can
+block and use abilities that do not require committing.</p>
+<h3 id="5-3-hardware">5.3 Hardware</h3>
+
+<p>Hardware is a persistent Network card representing devices, tools and infrastructure.
+Hardware can have activated, triggered or static abilities.</p>
+<p>Hardware that is also an Avatar follows the rules for both types, including Boot Delay.</p>
+<h3 id="5-4-protocol">5.4 Protocol</h3>
+
+<p>Protocols are persistent Network cards that change the rules around them.</p>
+<p>A Protocol with the <strong>Attachment</strong> subtype enters attached to the object or player it
+targets. If its attachment becomes illegal or leaves the Network, the Protocol is moved
+to its owner&#39;s Archive during the next state check.</p>
+<h3 id="5-5-zap">5.5 Zap</h3>
+
+<p>A Zap is a fast one-time action. You may play one whenever you have priority. A Zap goes
+to the Queue, resolves once, then moves to its owner&#39;s Archive.</p>
+<h3 id="5-6-operation">5.6 Operation</h3>
+
+<p>An Operation is a planned one-time action. You may play one only during your own Build
+phase, while the Queue is empty and you have priority. It is archived after resolving.</p>
+<h3 id="5-7-multiple-types">5.7 Multiple types</h3>
+
+<p>A card may have more than one type. It follows the rules for all of them. If an effect
+removes one type, the card keeps its other types unless the effect says otherwise.</p>
+<h2 id="6-zones">6. Zones</h2>
+
+<p>Each game uses the following zones.</p>
+<table>
+<thead>
+<tr>
+<th>Zone</th>
+<th>Visibility</th>
+<th>What belongs there</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Stack</td>
+<td>Hidden</td>
+<td>Your face-down draw pile.</td>
+</tr>
+<tr>
+<td>Wallet</td>
+<td>Hidden to opponents</td>
+<td>Cards you can play from hand.</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>Public</td>
+<td>Resources, Avatars, Hardware and Protocols in play.</td>
+</tr>
+<tr>
+<td>Archive</td>
+<td>Public</td>
+<td>Discarded, used, invalidated and destroyed cards.</td>
+</tr>
+<tr>
+<td>Cold Storage</td>
+<td>Public unless an effect says otherwise</td>
+<td>Cards removed from normal play.</td>
+</tr>
+<tr>
+<td>Queue</td>
+<td>Public</td>
+<td>Zaps, played cards and abilities waiting to resolve.</td>
+</tr>
+<tr>
+<td>Stake</td>
+<td>Public</td>
+<td>Optional Legacy Stake cards.</td>
+</tr>
+</tbody></table>
+<p>The Network is shared, but control remains distinct. Players may arrange their own cards
+for readability; arrangement has no rules meaning unless a Legacy Toss effect explicitly
+says it does.</p>
+<h3 id="6-1-zone-changes">6.1 Zone changes</h3>
+
+<p>When a card changes zones, it becomes a new object with no memory of its previous
+existence, except where a rule or effect needs to identify the card that moved.</p>
+<p>Counters, marked damage and temporary effects do not follow a card into a new zone.
+Attachments do not follow unless an effect moves them too.</p>
+<h2 id="7-building-a-stack">7. Building a Stack</h2>
+
+<p>The E1 Classic Profile uses the original open deck-building shape.</p>
+<ul>
+<li>Minimum Stack size: <strong>40 cards</strong>.</li>
+<li>Maximum Stack size: none, but the player must be able to randomize it.</li>
+<li>Copy limit: none.</li>
+<li>Sideboard: none.</li>
+<li>Resource cards count toward the minimum.</li>
+<li>Cards marked for Stake or Toss modules are legal only when that module is enabled.</li>
+</ul>
+<p>This unrestricted profile is intentionally volatile. It exists to reproduce the original
+design envelope and to test the content pipeline, not to promise tournament balance.</p>
+<h3 id="recommended-first-decks">Recommended first decks</h3>
+
+<p>For readable prototype games, use 40 cards:</p>
+<ul>
+<li>16–18 Resources,</li>
+<li>12–16 Avatars,</li>
+<li>6–10 Zaps and Operations,</li>
+<li>4–8 Hardware and Protocols,</li>
+<li>one or two affinities.</li>
+</ul>
+<p>These are recommendations, not deck-building rules.</p>
+<h2 id="8-setting-up">8. Setting up</h2>
+
+<ol>
+<li>Agree on enabled Legacy modules. By default, both are off.</li>
+<li>Present and randomize each Stack.</li>
+<li>Randomly choose the first player. In a series, the previous game&#39;s loser goes first.</li>
+<li>Set both players to 20 Uptime.</li>
+<li>If Stake Mode is on, place Stake cards now.</li>
+<li>Each player draws seven cards into their Wallet.</li>
+<li>The first player begins. There is no mulligan in the Classic Profile.</li>
+</ol>
+<p>The first player draws a card during their first turn.</p>
+<figure class="rule-banner"><img src="art/rulebook/banner-03-timechain.webp" alt="The first block begins the sequence" loading="lazy"></figure>
+<h2 id="9-turn-structure">9. Turn structure</h2>
+
+<p>Every turn follows the same sequence.</p>
+<h3 id="9-1-open-phase">9.1 Open phase</h3>
+
+<h4 id="unlock-step">Unlock step</h4>
+
+<p>Unlock every card you control. No player receives priority during the Unlock step.</p>
+<h4 id="maintenance-step">Maintenance step</h4>
+
+<p>Resolve abilities that trigger at the start of the turn or during Maintenance. Then the
+active player receives priority.</p>
+<p>If multiple Maintenance costs apply, their controller chooses the order in which to
+handle them. A cost that is not paid causes the result printed on its card.</p>
+<h4 id="draw-step">Draw step</h4>
+
+<p>The active player draws one card. Triggered abilities are added to the Queue, then the
+active player receives priority.</p>
+<h3 id="9-2-build-i">9.2 Build I</h3>
+
+<p>The active player receives priority. They may play a Resource if they have not used their
+Resource play this turn. They may play Avatars, Hardware, Protocols and Operations while
+the Queue is empty. Both players may play Zaps and activate abilities when they receive
+priority.</p>
+<h3 id="9-3-clash-phase">9.3 Clash phase</h3>
+
+<p>The Clash phase has these steps:</p>
+<ol>
+<li>Start of Clash</li>
+<li>Declare attackers</li>
+<li>Declare blockers</li>
+<li>First Strike damage, if needed</li>
+<li>Regular damage</li>
+<li>End of Clash</li>
+</ol>
+<p>Players receive priority after turn-based actions in each step.</p>
+<h3 id="9-4-build-ii">9.4 Build II</h3>
+
+<p>Build II works like Build I. If the active player has not used their Resource play, they
+may use it now.</p>
+<h3 id="9-5-close-phase">9.5 Close phase</h3>
+
+<h4 id="end-step">End step</h4>
+
+<p>End-of-turn abilities trigger. Players receive priority.</p>
+<h4 id="cleanup-step">Cleanup step</h4>
+
+<p>The active player discards down to seven cards. All marked damage is removed from
+Avatars, and effects that last until end of turn expire.</p>
+<p>Normally no player receives priority during Cleanup. If a state check or triggered
+ability changes the game, players receive priority and another Cleanup step follows.</p>
+<h2 id="10-priority-and-the-queue">10. Priority and the Queue</h2>
+
+<p>The Queue makes responses deterministic in the web app.</p>
+<h3 id="10-1-priority">10.1 Priority</h3>
+
+<p>The active player receives priority first at the beginning of most steps and phases, and
+after an item resolves. A player with priority may:</p>
+<ul>
+<li>play a Zap,</li>
+<li>activate an ability,</li>
+<li>take a legal special action,</li>
+<li>or pass.</li>
+</ul>
+<p>If both players pass in succession while the Queue is empty, the game advances to the
+next step or phase.</p>
+<p>If both players pass in succession while the Queue contains items, the top item resolves.
+The active player then receives priority again.</p>
+<h3 id="10-2-last-in-first-out">10.2 Last in, first out</h3>
+
+<p>Items resolve one at a time, newest first. Adding an answer does not resolve the older
+item. Every player gets another chance to respond before the top item resolves.</p>
+<p><strong>Example</strong></p>
+<ol>
+<li>You play <strong>Zap</strong>, targeting an opposing Avatar.</li>
+<li>Your opponent plays <strong>Offline Backup</strong>, targeting that Avatar.</li>
+<li>Both players pass.</li>
+<li>Offline Backup resolves first.</li>
+<li>Both players receive priority again.</li>
+<li>Zap resolves if its target is still legal.</li>
+</ol>
+<h3 id="10-3-resource-abilities">10.3 Resource abilities</h3>
+
+<p>An ability whose only purpose is to generate Resources is a <strong>Resource ability</strong>. It
+resolves immediately and never enters the Queue. Players may use Resource abilities while
+paying a cost.</p>
+<h3 id="10-4-triggered-abilities">10.4 Triggered abilities</h3>
+
+<p>Triggered abilities begin with <strong>when</strong>, <strong>whenever</strong> or <strong>at</strong>. They trigger
+automatically. The next time state checks are complete, they are put on the Queue.</p>
+<p>If both players have triggers waiting, the active player places theirs on the Queue in
+any order, then the other player does the same. The non-active player&#39;s triggers will
+therefore resolve first.</p>
+<h3 id="10-5-static-abilities">10.5 Static abilities</h3>
+
+<p>Static abilities are continuously true while their source is in the correct zone. They
+do not use the Queue.</p>
+<h3 id="10-6-an-ability-survives-its-source">10.6 An ability survives its source</h3>
+
+<p>Once an activated or triggered ability is on the Queue, removing its source does not
+remove the ability. It resolves independently unless all its targets become illegal or
+another effect invalidates it.</p>
+<figure class="rule-banner"><img src="art/rulebook/banner-04-queue.webp" alt="Actions enter the Queue; answers resolve first" loading="lazy"></figure>
+<h2 id="11-playing-cards-and-activating-abilities">11. Playing cards and activating abilities</h2>
+
+<p>To play a card or activate an ability:</p>
+<ol>
+<li>Announce it and place the card or ability on the Queue.</li>
+<li>Choose modes, values of X, alternate costs and any optional additional costs.</li>
+<li>Choose legal targets.</li>
+<li>Choose required divisions or distributions.</li>
+<li>Determine the total cost.</li>
+<li>Activate Resource abilities if needed.</li>
+<li>Pay every cost in any order.</li>
+</ol>
+<p>Once payment is complete, choices and costs are locked. A player cannot partially pay,
+reverse the action or wait to see a response before finishing payment.</p>
+<h3 id="11-1-costs">11.1 Costs</h3>
+
+<p>A cost may include:</p>
+<ul>
+<li>specific Resources,</li>
+<li>neutral Resources,</li>
+<li>Commit,</li>
+<li>archiving a Network card you control,</li>
+<li>discarding from your Wallet,</li>
+<li>paying Uptime,</li>
+<li>or another instruction before a colon.</li>
+</ul>
+<p>A single object cannot pay the same cost twice. Archiving a card as a cost cannot be
+Rebooted.</p>
+<h3 id="11-2-targets">11.2 Targets</h3>
+
+<p>The word <strong>target</strong> creates a target. All targets must be legal when announced.</p>
+<p>When an item resolves:</p>
+<ul>
+<li>if every target is illegal, the entire item is invalidated by the rules;</li>
+<li>if at least one target is legal, it affects the legal targets and does as much of the
+remaining instruction as possible.</li>
+</ul>
+<p>An invalidated card goes to its owner&#39;s Archive. Its paid costs are not refunded.</p>
+<h3 id="11-3-modes-and-x">11.3 Modes and X</h3>
+
+<p>Choices written as “choose one” are modes and are selected when announced.</p>
+<p>If a cost contains X, its controller chooses X before calculating the total cost. Unless
+an effect says otherwise, every X on that item uses the chosen value.</p>
+<h3 id="11-4-resolving-network-cards">11.4 Resolving Network cards</h3>
+
+<p>When an Avatar, Hardware or Protocol resolves, it enters the Network under its
+controller&#39;s control. When a Zap or Operation resolves, follow its instructions in order,
+then move it to its owner&#39;s Archive.</p>
+<h2 id="12-generating-and-spending-resources">12. Generating and spending Resources</h2>
+
+<p>To generate a Resource, use an ability such as:</p>
+<blockquote>
+<p><strong>Commit: generate 1 Power.</strong></p>
+</blockquote>
+<p>Generated Resources enter your <strong>Buffer</strong>. Spend them to pay costs. Neutral costs may be
+paid with any Resource. A specific symbol must be paid with that matching Resource.</p>
+<h3 id="12-1-classic-resource-burn">12.1 Classic resource burn</h3>
+
+<p>Resources do not remain indefinitely.</p>
+<ul>
+<li>The Buffer empties at the end of each phase.</li>
+<li>The Buffer also empties when Clash begins and when Clash ends.</li>
+<li>For each unspent Resource removed this way, its controller loses 1 Uptime.</li>
+</ul>
+<p>This loss is <strong>resource burn</strong>. It is not damage and cannot be prevented by effects that
+prevent damage.</p>
+<h3 id="12-2-playing-a-resource-is-not-paying-a-cost">12.2 Playing a Resource is not paying a cost</h3>
+
+<p>Playing a Resource does not use the Queue and cannot be answered. After it enters the
+Network, the active player receives priority.</p>
+<h3 id="12-3-changing-resource-types">12.3 Changing Resource types</h3>
+
+<p>If an effect changes a Resource&#39;s subtype, it generates the Resource associated with its
+new subtype. Changing a subtype does not change the card&#39;s name, committed state or
+controller.</p>
+<h2 id="13-clash">13. Clash</h2>
+
+<figure class="rule-banner"><img src="art/rulebook/banner-05-clash.webp" alt="Every route has a defender" loading="lazy"></figure>
+<h3 id="13-1-declaring-attackers">13.1 Declaring attackers</h3>
+
+<p>The active player chooses any number of eligible Avatars and declares them as attackers
+at the same time.</p>
+<p>An Avatar cannot attack if it:</p>
+<ul>
+<li>is committed,</li>
+<li>has Boot Delay,</li>
+<li>is a Firewall,</li>
+<li>or is affected by a rule that prevents it from attacking.</li>
+</ul>
+<p>Declaring an Avatar as an attacker commits it unless an effect says otherwise.</p>
+<p>Attacks are directed at the opposing player. Avatars do not directly attack other
+Avatars; defenders choose blocks.</p>
+<h3 id="13-2-declaring-blockers">13.2 Declaring blockers</h3>
+
+<p>The defending player assigns eligible, unlocked Avatars as blockers.</p>
+<ul>
+<li>One Avatar normally blocks one attacker.</li>
+<li>Multiple Avatars may block the same attacker.</li>
+<li>A committed Avatar cannot block.</li>
+<li>Blocking does not Commit an Avatar.</li>
+</ul>
+<p>Once blocked, an attacker remains blocked for the rest of Clash even if every blocker
+leaves combat. An attacker with Overflow may still deal excess damage.</p>
+<h3 id="13-3-ordering-blockers">13.3 Ordering blockers</h3>
+
+<p>If one attacker is blocked by multiple Avatars, its controller orders those blockers.
+During each damage step, the attacker must assign at least lethal damage to the first
+blocker before assigning damage to the next.</p>
+<p>Lethal damage equals the blocker&#39;s Resilience minus damage already marked on it, adjusted
+for damage prevention or other applicable effects.</p>
+<h3 id="13-4-combat-damage">13.4 Combat damage</h3>
+
+<p>Each attacking and blocking Avatar deals damage equal to its Action.</p>
+<ul>
+<li>An unblocked attacker deals its damage to the defending player.</li>
+<li>A blocked attacker assigns damage to its blockers.</li>
+<li>Each blocker deals damage to the attacker it blocks.</li>
+<li>Combat damage in the same damage step is simultaneous.</li>
+</ul>
+<p>Combat damage does not use the Queue. Triggered abilities caused by that damage wait
+until the damage event and state checks are complete.</p>
+<h3 id="13-5-leaving-combat">13.5 Leaving combat</h3>
+
+<p>An Avatar leaves combat if it leaves the Network, changes controller, stops being an
+Avatar, or an effect explicitly removes it from combat.</p>
+<h2 id="14-e1-keyword-glossary">14. E1 keyword glossary</h2>
+
+<h3 id="broadcast">Broadcast</h3>
+
+<p>An Avatar with Broadcast can be blocked only by an Avatar with Broadcast. An Avatar with
+Broadcast may block an Avatar with or without Broadcast.</p>
+<h3 id="first-strike">First Strike</h3>
+
+<p>If an attacking or blocking Avatar has First Strike, Clash includes a First Strike damage
+step. Only Avatars with First Strike deal damage in that step. Surviving Avatars that did
+not deal First Strike damage deal damage in the regular damage step.</p>
+<h3 id="overflow">Overflow</h3>
+
+<p>When an Avatar with Overflow assigns combat damage through blockers, it may assign excess
+damage to the defending player after assigning lethal damage to every blocker in order.</p>
+<h3 id="mesh">Mesh</h3>
+
+<p>Mesh is the E1 name for the original group-combat mechanic.</p>
+<p><strong>Attacking mesh:</strong> As attackers are declared, any number of Avatars with Mesh plus up to
+one Avatar without Mesh may form a mesh. If any member is blocked, every member is
+blocked.</p>
+<p><strong>Damage routing:</strong> If one or more Avatars with Mesh are blocking or blocked in a combat
+group, the controller of those Mesh Avatars chooses how opposing combat damage is divided
+among the Avatars in that group.</p>
+<h3 id="backchannel-resource">Backchannel — [Resource]</h3>
+
+<p>An attacking Avatar with a named Backchannel cannot be blocked if the defending player
+controls a Resource with that subtype.</p>
+<p>Example: <strong>Backchannel — Timelock</strong> is active when the defender controls a Timelock
+Resource.</p>
+<h3 id="shielded-from-affinity">Shielded from [Affinity]</h3>
+
+<p>An object Shielded from an affinity:</p>
+<ul>
+<li>cannot be targeted by cards or abilities of that affinity;</li>
+<li>cannot be attached by Protocols of that affinity;</li>
+<li>cannot be blocked by Avatars of that affinity;</li>
+<li>and has damage from sources of that affinity prevented.</li>
+</ul>
+<p>Shielding does not stop untargeted rule changes, costs, or state checks.</p>
+<h3 id="reboot">Reboot</h3>
+
+<p>To Reboot an Avatar creates a replacement shield for the rest of the turn. The next time
+that Avatar would be decommissioned:</p>
+<ol>
+<li>it is not decommissioned;</li>
+<li>remove all damage from it;</li>
+<li>Commit it;</li>
+<li>remove it from combat;</li>
+<li>consume the Reboot shield.</li>
+</ol>
+<p>Reboot cannot replace archiving as a cost, sacrificing, Cold Storage, or being moved to
+the Archive for having 0 or less Resilience.</p>
+<h3 id="firewall">Firewall</h3>
+
+<p>Firewall is an Avatar subtype. A Firewall cannot attack. It may block normally.</p>
+<h2 id="15-damage-prevention-and-decommissioning">15. Damage, prevention and decommissioning</h2>
+
+<h3 id="15-1-damage-to-players">15.1 Damage to players</h3>
+
+<p>Damage to a player reduces that player&#39;s Uptime by the same amount.</p>
+<h3 id="15-2-damage-to-avatars">15.2 Damage to Avatars</h3>
+
+<p>Damage dealt to an Avatar is marked on it until Cleanup. Damage does not reduce printed
+Resilience, but an Avatar with marked damage equal to or greater than its current
+Resilience is decommissioned during the next state check.</p>
+<h3 id="15-3-decommission">15.3 Decommission</h3>
+
+<p>To <strong>decommission</strong> a Network card means to move it from the Network to its owner&#39;s
+Archive. A Reboot shield can replace decommissioning only when the object is an Avatar
+and the event is a destruction event.</p>
+<h3 id="15-4-archive">15.4 Archive</h3>
+
+<p>To <strong>archive</strong> a card means to move it to its owner&#39;s Archive. Archiving is broader than
+decommissioning. If a card is archived as a cost or by a direct archive instruction,
+Reboot does not apply.</p>
+<h3 id="15-5-prevention-and-redirection">15.5 Prevention and redirection</h3>
+
+<p>If multiple prevention or redirection effects could apply, the affected player or the
+controller of the affected object chooses one to apply. Re-evaluate the event and repeat
+until no effect applies.</p>
+<p>An effect that prevents “the next N damage” remains available until it has prevented N
+damage or its stated duration ends.</p>
+<h2 id="16-state-checks">16. State checks</h2>
+
+<p>State checks happen automatically before a player receives priority and after an item
+resolves. They do not use the Queue.</p>
+<p>Apply all applicable checks simultaneously, then repeat until the game is stable:</p>
+<ul>
+<li>A player with 0 or less Uptime loses.</li>
+<li>A player who failed to draw from an empty Stack loses.</li>
+<li>An Avatar with 0 or less Resilience is archived.</li>
+<li>An Avatar with lethal marked damage is decommissioned.</li>
+<li>An Attachment Protocol attached illegally is archived.</li>
+<li>A token outside the Network ceases to exist.</li>
+</ul>
+<p>Triggered abilities created during state checks wait until the checks are complete.</p>
+<h2 id="17-continuous-effects">17. Continuous effects</h2>
+
+<p>When multiple continuous effects change the same object, apply them in this order:</p>
+<ol>
+<li>copy effects;</li>
+<li>control changes;</li>
+<li>text changes;</li>
+<li>type and subtype changes;</li>
+<li>affinity changes;</li>
+<li>ability additions and removals;</li>
+<li>Action and Resilience settings, switches, modifiers and counters;</li>
+<li>all other continuous changes.</li>
+</ol>
+<p>Within one layer, apply dependencies first. Otherwise apply older effects before newer
+effects. If two effects begin simultaneously, the active player determines their
+timestamp order.</p>
+<h3 id="17-1-copying">17.1 Copying</h3>
+
+<p>A copy receives the original object&#39;s copiable characteristics, including name, cost,
+type line, affinity, printed rules and printed stats, plus other copy effects.</p>
+<p>It does not copy:</p>
+<ul>
+<li>marked damage,</li>
+<li>counters,</li>
+<li>attachments,</li>
+<li>controller,</li>
+<li>committed state,</li>
+<li>or temporary changes that are not themselves copy effects.</li>
+</ul>
+<h3 id="17-2-control-changes">17.2 Control changes</h3>
+
+<p>A control-changing effect does not Unlock a card and does not remove it from combat
+unless the rules say it leaves combat. An Avatar acquired this turn normally has Boot
+Delay under its new controller.</p>
+<p>When a controlled card leaves the Network, it goes to the appropriate zone of its owner.</p>
+<h2 id="18-tokens-counters-and-hidden-information">18. Tokens, counters and hidden information</h2>
+
+<h3 id="18-1-tokens">18.1 Tokens</h3>
+
+<p>A token is a game object created by an effect. The creating effect defines its
+characteristics. A token behaves like a Network card while on the Network, but it is not
+a card. If it enters any other zone, it ceases to exist during the next state check.</p>
+<h3 id="18-2-counters">18.2 Counters</h3>
+
+<p>Counters are markers placed on players or objects. Counters with the same name are
+interchangeable. A +1/+1 counter gives an Avatar +1 Action and +1 Resilience.</p>
+<p>Counters remain on an object until it leaves the Network or an effect removes them.</p>
+<h3 id="18-3-hidden-information">18.3 Hidden information</h3>
+
+<p>Players may count cards in any zone. They may not inspect hidden card faces unless an
+effect permits it. A player may reorder only a zone that an effect explicitly lets them
+reorder.</p>
+<p>When an effect reveals a card, it remains revealed only for the stated duration.</p>
+<h3 id="18-4-random-choices">18.4 Random choices</h3>
+
+<p>The web app performs random choices with a server-recorded seed and logs the eligible set
+and result. A random choice must be reproducible for audit without revealing unrelated
+hidden information during the game.</p>
+<figure class="rule-banner"><img src="art/rulebook/banner-06-protocol.webp" alt="Independent keys remove single points of failure" loading="lazy"></figure>
+<h2 id="19-legacy-adapters">19. Legacy adapters</h2>
+
+<p>The complete E1 card mapping includes two early-design categories that do not belong in a
+default online match. They are explicit opt-in modules.</p>
+<h3 id="19-1-stake-mode">19.1 Stake Mode</h3>
+
+<p>Stake Mode is off by default and never transfers real-world ownership.</p>
+<ol>
+<li>After randomizing, each player places the top card of their Stack face up in the Stake
+zone.</li>
+<li>Stake cards are outside the Stack unless an effect moves them.</li>
+<li>Cards that refer to the Stake zone work only in Stake Mode.</li>
+<li>The winner records one in-client Stake Point for the game.</li>
+<li>At the end of the game, every physical and digital card returns to its owner.</li>
+</ol>
+<p>No card, money, satoshis or other asset changes owner because of a match.</p>
+<h3 id="19-2-toss-effects">19.2 Toss effects</h3>
+
+<p>Toss effects are disabled in ranked or accessibility-first play.</p>
+<p><strong>Web adapter:</strong> the player chooses up to three legal Network cards controlled by one
+player. The game uses its recorded random seed to select one of them. The selected card
+is treated as hit. The source card defines what happens to a hit card.</p>
+<p><strong>Optional tabletop simulation:</strong> use the physical instruction printed on the card, agree
+on a clear table before play, and never stack or conceal cards to manipulate contact.</p>
+<h3 id="19-3-historical-timing-adapter">19.3 Historical timing adapter</h3>
+
+<p>Early cards that were once separated into fast and “faster than fast” classes are all
+Zaps in E1. They use the same Queue. Resource abilities remain the only actions that
+resolve immediately.</p>
+<h3 id="19-4-historical-hardware-adapter">19.4 Historical Hardware adapter</h3>
+
+<p>Old Hardware behavior maps as follows:</p>
+<ul>
+<li>an ability with Commit in its cost is usable once per Unlock;</li>
+<li>an ability without Commit may be repeated whenever its cost can be paid;</li>
+<li>a static Hardware ability remains active while the Hardware is on the Network,
+regardless of whether it is committed, unless its own text says otherwise.</li>
+</ul>
+<h2 id="20-card-specific-rulings">20. Card-specific rulings</h2>
+
+<p>The complete card set will include a versioned rules manifest. For each card it stores:</p>
+<ul>
+<li>stable card ID;</li>
+<li>visible original 600B rules text;</li>
+<li>machine-readable targets, costs and effects;</li>
+<li>any E1 erratum;</li>
+<li>enabled Legacy modules;</li>
+<li>tests for expected interactions.</li>
+</ul>
+<p>The visible card and rulebook explain play to people. The manifest removes ambiguity for
+the game engine. If they conflict in a prototype build, the published manifest version
+is authoritative and the card must be corrected in the next render.</p>
+<h2 id="21-protocol-notes">21. Protocol notes</h2>
+
+<p>Every E1 card may carry a short <strong>Protocol Note</strong>. It teaches one accurate Bitcoin, Nostr
+or cypherpunk idea connected to the card&#39;s mechanic.</p>
+<p>Protocol Notes:</p>
+<ul>
+<li>have no gameplay effect;</li>
+<li>use one factual claim;</li>
+<li>avoid investment language;</li>
+<li>avoid price predictions;</li>
+<li>distinguish Bitcoin settlement from Lightning routing;</li>
+<li>distinguish Nostr identities, events and relays;</li>
+<li>cite a source in the card database even when the citation is not printed.</li>
+</ul>
+<p>This is how the game educates: the mechanic creates the memory, and the note gives that
+memory a correct name.</p>
+<h2 id="22-quick-reference">22. Quick reference</h2>
+
+<h3 id="setup">Setup</h3>
+
+<p><code>40+ cards · 20 Uptime · draw 7 · no mulligan · first player draws</code></p>
+<h3 id="turn">Turn</h3>
+
+<p><code>Unlock → Maintenance → Draw → Build I → Clash → Build II → End → Cleanup</code></p>
+<h3 id="clash">Clash</h3>
+
+<p><code>Attackers → Blockers → First Strike → Regular damage → End</code></p>
+<h3 id="timing">Timing</h3>
+
+<p><code>Active player gets priority → act or pass → both pass → resolve Queue top</code></p>
+<h3 id="resource-boundary">Resource boundary</h3>
+
+<p><code>Buffer empties at phase end and at Clash boundaries → lose 1 Uptime per unused Resource</code></p>
+<h3 id="state-checks">State checks</h3>
+
+<p><code>0 Uptime · empty draw · 0 Resilience · lethal damage · illegal Attachment · escaped token</code></p>
+<h2 id="23-terminology-map">23. Terminology map</h2>
+
+<p>This table is for production and migration. Only the 600B term appears on final cards.</p>
+<table>
+<thead>
+<tr>
+<th>Generic TCG concept</th>
+<th>600B term</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>life</td>
+<td>Uptime</td>
+</tr>
+<tr>
+<td>deck / library</td>
+<td>Stack</td>
+</tr>
+<tr>
+<td>hand</td>
+<td>Wallet</td>
+</tr>
+<tr>
+<td>battlefield / in play</td>
+<td>Network</td>
+</tr>
+<tr>
+<td>graveyard</td>
+<td>Archive</td>
+</tr>
+<tr>
+<td>exile / removed from game</td>
+<td>Cold Storage</td>
+</tr>
+<tr>
+<td>resolution stack</td>
+<td>Queue</td>
+</tr>
+<tr>
+<td>mana pool</td>
+<td>Buffer</td>
+</tr>
+<tr>
+<td>mana / color</td>
+<td>Resource / affinity</td>
+</tr>
+<tr>
+<td>tap / untap</td>
+<td>Commit / Unlock</td>
+</tr>
+<tr>
+<td>land</td>
+<td>Resource</td>
+</tr>
+<tr>
+<td>creature</td>
+<td>Avatar</td>
+</tr>
+<tr>
+<td>artifact</td>
+<td>Hardware</td>
+</tr>
+<tr>
+<td>enchantment</td>
+<td>Protocol</td>
+</tr>
+<tr>
+<td>aura</td>
+<td>Attachment Protocol</td>
+</tr>
+<tr>
+<td>instant / interrupt</td>
+<td>Zap</td>
+</tr>
+<tr>
+<td>sorcery</td>
+<td>Operation</td>
+</tr>
+<tr>
+<td>power / toughness</td>
+<td>Action / Resilience</td>
+</tr>
+<tr>
+<td>destroy</td>
+<td>Decommission</td>
+</tr>
+<tr>
+<td>counter a spell</td>
+<td>Invalidate</td>
+</tr>
+<tr>
+<td>flying</td>
+<td>Broadcast</td>
+</tr>
+<tr>
+<td>banding</td>
+<td>Mesh</td>
+</tr>
+<tr>
+<td>trample</td>
+<td>Overflow</td>
+</tr>
+<tr>
+<td>landwalk</td>
+<td>Backchannel</td>
+</tr>
+<tr>
+<td>protection</td>
+<td>Shielded from</td>
+</tr>
+<tr>
+<td>regenerate</td>
+<td>Reboot</td>
+</tr>
+<tr>
+<td>wall</td>
+<td>Firewall</td>
+</tr>
+<tr>
+<td>summoning sickness</td>
+<td>Boot Delay</td>
+</tr>
+</tbody></table>
+<h2 id="24-e1-rules-lock">24. E1 rules lock</h2>
+
+<p>The following decisions are locked for the first full-set pipeline pass:</p>
+<ul>
+<li>two players;</li>
+<li>20 starting Uptime;</li>
+<li>seven-card opening Wallet;</li>
+<li>40-card minimum Stack;</li>
+<li>no copy limit;</li>
+<li>no sideboard;</li>
+<li>no mulligan;</li>
+<li>first player draws;</li>
+<li>one Resource play per turn;</li>
+<li>classic resource burn;</li>
+<li>one LIFO Queue for all Zaps and non-Resource abilities;</li>
+<li>six card types;</li>
+<li>five affinities;</li>
+<li>Stake and Toss as opt-in Legacy adapters;</li>
+<li>original 600B names, lore, artwork, rules phrasing, symbols and card frame.</li>
+</ul>
+<p>Any change to this list creates a new rules profile and requires a version bump.</p>
+<h2 id="25-originality-and-release-note">25. Originality and release note</h2>
+
+<p>600B Timelock TCG is an original prototype. Early collectible-card games are used as a
+mechanical research benchmark only.</p>
+<p>The project does not license or include third-party card names, card text, story,
+artwork, icons, logos, frame design or visual trade dress. All public terminology,
+writing, educational notes, lore, illustration and layout must be original to 600B.</p>
+<p>Before public or commercial distribution, obtain an independent intellectual-property
+review of the full card mapping, rules implementation and visual system. This paragraph
+is project guidance, not legal advice.</p>
+<hr>
+<p><strong>600 000 000 000</strong></p>
+<p><em>We stack. We build. We meme. We repeat.</em></p>
+<p>Rulebook version: <strong>E1.0-draft</strong><br>Rules language: <strong>English</strong><br>Website source: <strong>Markdown + standalone HTML</strong></p>
+</article>
+      <footer class="footer">
+        600B Timelock TCG · E1.0-draft · We stack. We build. We meme. We repeat.
+      </footer>
+    </main>
+  </div>
+  <script>
+    const links = [...document.querySelectorAll(".toc a")];
+    const sections = links.map((link) => document.querySelector(link.getAttribute("href"))).filter(Boolean);
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        links.forEach((link) => link.classList.toggle("active", link.getAttribute("href") === "#" + entry.target.id));
+      }
+    }, { rootMargin: "-18% 0px -72% 0px" });
+    sections.forEach((section) => observer.observe(section));
+  </script>
+</body>
+</html>
