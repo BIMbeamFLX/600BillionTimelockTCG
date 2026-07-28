@@ -25,9 +25,9 @@ def test_cost_tokens():
 
 def test_affinity_from_cost_and_resource_subtype():
     cards = {c.name: c for c in load_cards(CARDS_CSV)}
-    assert affinity_letters(cards["Power Surge"]) == "P"
-    assert affinity_letters(cards["Power Plant"]) == "P"
-    assert affinity_letters(cards["Backup Generator"]) == ""
+    assert affinity_letters(cards["Zap"]) == "P"
+    assert affinity_letters(cards["Power Plant — Solar"]) == "P"
+    assert affinity_letters(cards["Genesis Lotus"]) == ""
 
 
 def test_render_card_writes_png(tmp_path):

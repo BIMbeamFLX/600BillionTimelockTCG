@@ -91,6 +91,7 @@ Every playable card has the following rules-facing fields.
 | Rules | Instructions and abilities that affect the game. |
 | Action / Resilience | Combat values shown only on Avatars. |
 | Set code | Edition and collector identity; no gameplay effect. |
+| Simple Guide | A plain-language explanation of the card's practical job; no gameplay effect. |
 | Protocol note | A factual learning note; no gameplay effect. |
 
 ![Edition One card-system examples](600B-E1-iconic-six-contact-sheet.png)
@@ -559,8 +560,13 @@ Avatar, or an effect explicitly removes it from combat.
 
 ### Broadcast
 
-An Avatar with Broadcast can be blocked only by an Avatar with Broadcast. An Avatar with
-Broadcast may block an Avatar with or without Broadcast.
+An Avatar with Broadcast can be blocked only by an Avatar with Broadcast or **Broadcast
+Guard**. An Avatar with Broadcast may block an Avatar with or without Broadcast.
+
+### Broadcast Guard
+
+An Avatar with Broadcast Guard may block Avatars with Broadcast. Broadcast Guard does
+not make that Avatar a Broadcaster and does not change which Avatars can block it.
 
 ### First Strike
 
@@ -803,6 +809,10 @@ is authoritative and the card must be corrected in the next render.
 
 ## 21. Protocol notes
 
+Every card also has a short **Simple Guide** in the card database and website. It
+explains what the card usually accomplishes in ordinary language. A Simple Guide never
+adds, removes or overrides a rule; the formal Rules field remains authoritative.
+
 Every E1 card may carry a short **Protocol Note**. It teaches one accurate Bitcoin, Nostr
 or cypherpunk idea connected to the card's mechanic.
 
@@ -872,6 +882,7 @@ This table is for production and migration. Only the 600B term appears on final 
 | destroy | Decommission |
 | counter a spell | Invalidate |
 | flying | Broadcast |
+| reach | Broadcast Guard |
 | banding | Mesh |
 | trample | Overflow |
 | landwalk | Backchannel |

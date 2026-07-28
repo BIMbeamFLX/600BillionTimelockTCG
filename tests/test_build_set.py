@@ -40,7 +40,9 @@ def test_affinity_letters_map_to_client_colors():
 
 def test_tablerow_mapping():
     assert make_card(cardtype="Resource").tablerow == 0
+    assert make_card(cardtype="Basic Resource").tablerow == 0
     assert make_card(cardtype="Avatar").tablerow == 2
+    assert make_card(cardtype="Hardware Avatar").tablerow == 2
     assert make_card(cardtype="Zap").tablerow == 3
     assert make_card(cardtype="Operation").tablerow == 3
     assert make_card(cardtype="Hardware").tablerow == 1
@@ -54,11 +56,11 @@ def test_type_line_with_and_without_subtype():
 
 def test_load_cards_reads_sample_csv():
     cards = load_cards(CARDS_CSV)
-    assert len(cards) == 18
+    assert len(cards) == 295
     names = {c.name for c in cards}
-    assert "Power Surge" in names
-    assert "Power Plant" in names
-    assert "Full Archive Node" in names
+    assert "Genesis Lotus" in names
+    assert "Satoshi Orchard" in names
+    assert "FLX, Culture Curator" in names
 
 
 def test_build_xml_structure():
@@ -70,9 +72,7 @@ def test_build_xml_structure():
     assert root.find("sets/set/name").text == build_set.SET_CODE
     assert len(root.findall("cards/card")) == len(cards)
 
-    surge = next(
-        c for c in root.findall("cards/card") if c.find("name").text == "Power Surge"
-    )
+    surge = next(c for c in root.findall("cards/card") if c.find("name").text == "Zap")
     assert surge.find("prop/manacost").text == "R"
     assert surge.find("prop/cmc").text == "1"
     assert surge.find("prop/colors").text == "R"
@@ -81,9 +81,9 @@ def test_build_xml_structure():
     assert surge.find("set").get("rarity") == "common"
 
     resource = next(
-        c for c in root.findall("cards/card") if c.find("name").text == "Power Plant"
+        c for c in root.findall("cards/card") if c.find("name").text == "Satoshi Orchard"
     )
     assert resource.find("prop/manacost") is None
     assert resource.find("prop/colors") is None
-    assert resource.find("prop/type").text == "Resource — Power"
+    assert resource.find("prop/type").text == "Basic Resource — Bitcoin"
     assert resource.find("tablerow").text == "0"

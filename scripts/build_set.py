@@ -31,7 +31,14 @@ RESOURCE_TO_CLIENT = {"S": "W", "T": "U", "K": "B", "P": "R", "B": "G"}
 CLIENT_COLOR_ORDER = "WUBRG"
 
 # E1 card type -> Cockatrice table row (0 resources, 1 permanents, 2 avatars, 3 one-shots).
-TABLEROW_BY_TYPE = {"Resource": 0, "Avatar": 2, "Zap": 3, "Operation": 3}
+TABLEROW_BY_TYPE = {
+    "Resource": 0,
+    "Basic Resource": 0,
+    "Avatar": 2,
+    "Hardware Avatar": 2,
+    "Zap": 3,
+    "Operation": 3,
+}
 
 ART_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 

@@ -63,7 +63,7 @@ def font(name: str, size: int) -> ImageFont.FreeTypeFont:
 def affinity_letters(card: Card) -> str:
     """Affinity letters for a card: cost symbols, or Resource subtype, or empty."""
     letters = "".join(dict.fromkeys(ch for ch in card.cost.upper() if ch in ACCENTS))
-    if not letters and card.cardtype == "Resource":
+    if not letters and card.cardtype.endswith("Resource"):
         letter = SUBTYPE_TO_AFFINITY.get(card.subtype, "")
         letters = letter
     return letters

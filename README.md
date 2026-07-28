@@ -10,14 +10,20 @@ Open `index.html` to read the designed rulebook.
 ```text
 art/
   brand/       official 600B identity assets
-  cards/       card-system previews
+  cards/       rendered card faces (built after the standalone art phase)
   fonts/       local open-source display fonts
   resources/   Power, Bitcoin, Keys, Signal and Timelock icons
   rulebook/    wide chapter banners
+cards/
+  e1-cards.json          canonical 295-card text lock
+  E1-CARD-TEXT.md        human-readable editorial catalog
+  e1-text-lock-report.md consistency gate
+  cards.csv              Cockatrice adapter input
 rules/
   600B-Timelock-TCG-Rulebook-E1.md
   research-sources.md
 scripts/
+  build_full_set.py
   build-rulebook.cjs
 index.html
 ```
@@ -39,6 +45,26 @@ burn, combat, a deterministic Queue, and opt-in Stake and Toss adapters.
 
 The mechanics are a prototype research reference. Public lore, art, text, symbols,
 layout and terminology are original 600B work.
+
+## Edition One text lock
+
+Edition One contains **295 complete cards**. Every card has:
+
+- original 600B name and rules wording;
+- a short, non-rules **Simple Guide** for new players;
+- a concise educational **Protocol Note** with a primary source;
+- a standalone art direction and generation prompt;
+- a mechanic fingerprint for the ignored local SQLite audit trail.
+
+All 92 Avatar cards use only official characters from `join.600.wtf`. Historical
+reference data remains read-only and is never copied into this repository.
+
+```bash
+.venv/Scripts/python scripts/build_full_set.py --reference PATH/TO/reference.json
+```
+
+The builder records its decisions in `.audit/e1-design.sqlite` before it writes public
+artifacts. That local audit database is ignored by Git.
 
 ## Cockatrice playtesting
 
