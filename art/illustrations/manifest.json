@@ -1,0 +1,4630 @@
+{
+  "phase": "standalone-art",
+  "card_count": 295,
+  "required_size": [
+    768,
+    960
+  ],
+  "card_frames_included": false,
+  "files": [
+    {
+      "id": "E1-001",
+      "name": "Genesis Lotus",
+      "file": "E1-001.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9a0869847334103aa5a878b4cf33f8a403c4393f1788cbf513ad135afc4875b6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-002",
+      "name": "Satoshi Orchard",
+      "file": "E1-002.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9a586575581af5b65b1034efe43101d584f410f0340aa6b8ec70d19a2b46fb0e",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-003",
+      "name": "FLX, Culture Curator",
+      "file": "E1-003.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "flx_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "3c8cb3adb583cf907c806933f5313abd20518e859ce2b1aca581985902f5d286",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-004",
+      "name": "Zap",
+      "file": "E1-004.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d7bb1113efb11b155287057a2353d0eeae5373f888859097a0e24235fd486a15",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-005",
+      "name": "Next Block",
+      "file": "E1-005.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "bc61a302e14dadf20dd84fbfc5b1dbbed52fbb7de8b86fd623a97795707aa2a7",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-006",
+      "name": "Multisig Quorum",
+      "file": "E1-006.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "29435320311f8ab46408c07b7f38886971c2952daf86c3f91f06ae19da684057",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-007",
+      "name": "Firmware for Firewalls",
+      "file": "E1-007.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "367f974f44974f5de263c8eab9232aba7842b8350cf241f42464501bca640a22",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-008",
+      "name": "Grid Reset",
+      "file": "E1-008.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "7dd69970beeeea280f8459e358f399f2be51fa975633ab0b7558f575210c79df",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-009",
+      "name": "Fair State",
+      "file": "E1-009.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9fc13d4302c2ed5cc68b567441c235b12145643949749f9bc4c0cfb77f1e1407",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-010",
+      "name": "Cuddy, Signal Organizer",
+      "file": "E1-010.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "cuddy_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b134820e870ee8f10ee4e06a67a7cb3f48850f2d048a5817baa9d23cf019b1bb",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-011",
+      "name": "Keys Shield",
+      "file": "E1-011.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "5ad0f855bc62e0650c9862f29a36de5c553d9be061572b805eafa7356af8455d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-012",
+      "name": "Last Broadcast",
+      "file": "E1-012.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9ecc83b05c39c58871dd40dde376930904e915a55c052c5f7c8e593b459ae048",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-013",
+      "name": "Shared Uptime",
+      "file": "E1-013.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "74e2105e4c87a91e3faa0bfbcc88cbe51d72b59990b66da61fd016b0ac286fac",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-014",
+      "name": "Timelock Shield",
+      "file": "E1-014.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "cbad86b68c947128bba8c542a53dab8b8792abd283a2d274f02b115426d6fa01",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-015",
+      "name": "Local Citadel",
+      "file": "E1-015.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9103b0a628fc0d0deef3f4870bce16a064a983ac91b854a7c52bbaf170aee78b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-016",
+      "name": "Timelock Protection Circuit",
+      "file": "E1-016.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a9c1e6b57f575711e15ef01b83af2dee117cc3d9d3e0dde9135a9e4e694aab50",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-017",
+      "name": "Bitcoin Protection Circuit",
+      "file": "E1-017.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "243a9939ee07b044ece17f5a1555b7b29449ae58b2ade0d3b7f92b28c578cb93",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-018",
+      "name": "Power Protection Circuit",
+      "file": "E1-018.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "3a0727ea3d34cde7ac367f4af39b041636b2e9feba73b41e20c28fb26149701a",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-019",
+      "name": "Signal Protection Circuit",
+      "file": "E1-019.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9a3ada5be72522b1b7b9fa3374d3efb5b36f37d0dd92c7a82bf7dbb067c69bbb",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-020",
+      "name": "Hardened Resource",
+      "file": "E1-020.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "fc5c8fd2e9b9240013e11de1d31d5c115392c72c234e04b013521398c6172cf1",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-021",
+      "name": "Grid Conversion",
+      "file": "E1-021.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "6059b3a017361659f3c990289a75a06a807d3887a0ff8ec083034110aed6608b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-022",
+      "name": "Public Goods Drive",
+      "file": "E1-022.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d9c401c233ca58fa0bd26455ea8735dd4d8c36214efb0b359e8f03aa6e8bb6e3",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-023",
+      "name": "Emergency Reboot",
+      "file": "E1-023.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a0699c92158f8b60d66d3dc13774fa1f1f9bb8e52ba083dd96b24b75b59dc675",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-024",
+      "name": "Protocol Cleanup",
+      "file": "E1-024.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "8c4129178048959396fed6894e480e9c80c1a32e17a9d53175f7f5c3ffee8cc2",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-025",
+      "name": "Home Miner",
+      "file": "E1-025.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "df01d8e7a599db6a37db5e89cbd9c0c6cb1ba79fd436ac859b5b00e25b9fecc4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-026",
+      "name": "Bitcoin Shield",
+      "file": "E1-026.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "141d0c1e50f9c44a1fcdeb91d3b01d70fbae08de83300c34a41749f9461ba96d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-027",
+      "name": "Guardian Signal",
+      "file": "E1-027.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "74951aa03305613590531700c9ed75e986cef805eefbe2f47902ae8c5eac35b3",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-028",
+      "name": "Repair Packet",
+      "file": "E1-028.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0250f25a887a96f734683c26a68a17abfa131d57c155b7ae5e1bc14d56468b8c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-029",
+      "name": "Hardened Identity",
+      "file": "E1-029.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "310c7ecbf9f6f2f2a06ef9ce630472033eae8d057b13f002474de518bd2e413f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-030",
+      "name": "Community Strength",
+      "file": "E1-030.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9fe9117dbc1459a170670b62acd40c2b5423342b8b786a8432766d4f195ddb9b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-031",
+      "name": "Offline Sanctuary",
+      "file": "E1-031.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "675147ec4159ea181937e08d78a0851ab381b67213df553a900c333b4beab470",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-032",
+      "name": "Consequence Ledger",
+      "file": "E1-032.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f4c7327d24e40168e96b4e5b623d6a5db9751d32f769102356e221df404a6ce5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-033",
+      "name": "Fast Path",
+      "file": "E1-033.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1ed4c44731d3cff1846b3e3ea020480cc872f03ec370aa620b23df5a1207fcc9",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-034",
+      "name": "Sat, Relay Rider",
+      "file": "E1-034.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "sat_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "76569f8e9472bd0eef038d98600265dfacf6f93da81e9e7ce848c3af1da75426",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-035",
+      "name": "MHB, Keys Auditor",
+      "file": "E1-035.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "mhb_comcept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "80a18768c7791b927dbcbab11a123f0e0f7fbeff64f62c4c37ba5ebc12729f66",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-036",
+      "name": "Morgs, Friendly Fork",
+      "file": "E1-036.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "morgs_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "bdbd9f3c1b38fd05d2067c96e7705ef272b2e9bae429dc7481e33ae92a05142c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-037",
+      "name": "AJ, Uptime Anchor",
+      "file": "E1-037.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "aj_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2c12e5d88cd84965f009e78592ab44d33e1d7b2b5f4ff0c229ae9e9564714ca4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-038",
+      "name": "Signal Rewrite",
+      "file": "E1-038.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "094a4d63f84bade394024eb7b6524c26847dd24b2363c48112bd8b03e4494421",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-039",
+      "name": "Power Shield",
+      "file": "E1-039.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "51900d4d9cd4a649bf40cf7565926f91371d1bb39d614dfd6fffb9b118ba6918",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-040",
+      "name": "Archive Restore",
+      "file": "E1-040.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "885b592cf9db29177b1808f49bd57bb473de1db5ecdc7e20067744a8e0baa2b5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-041",
+      "name": "Damage Refund",
+      "file": "E1-041.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "7110099de1703cabdd32e650436dc477a50f328d8dd512017eb443b2e6b422d8",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-042",
+      "name": "Courage Under Load",
+      "file": "E1-042.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "687abe3080acdf814a5b0d6fc99bbc145e44d3a156bbace813de5484bd01e211",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-043",
+      "name": "AJ, First Responder",
+      "file": "E1-043.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "aj_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d154fcaf938a10e5451af55fe290adea285d66b25fe6245eac6d38a9f338738e",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-044",
+      "name": "Cuddy, Fast Starter",
+      "file": "E1-044.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "cuddy_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e38c5f53fd8ded259e7967c2272451e33b4459d871cd4e9e61731e332df2c1d4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-045",
+      "name": "Peaceful Exit",
+      "file": "E1-045.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "063a6587dbcdd3c3db564d8f772893d43a5840c2bee74174b5f0cd4aae0225f7",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-046",
+      "name": "MHB, Community Shield",
+      "file": "E1-046.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "mhb_comcept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f4bd9ee1cf837b43e746e8dd91984a188ba020c72e30cc8fd10a04b9ca62ac7d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-047",
+      "name": "Sat, Blade Firewall",
+      "file": "E1-047.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "sat_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0986122eff1c8abb47c218098276177aa230396e2c0447851bcd5b32aaa73c7f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-048",
+      "name": "Morgs, Signal Knight",
+      "file": "E1-048.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [
+        "morgs_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b8ae25f0e8f6ad29be06cf7451f1507058c28ac74311f370269660e98db04174",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-049",
+      "name": "Signal Shield",
+      "file": "E1-049.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "3086774b1bb9b81c0474870ecb1606dbc1b2d51a1c02ac09a2db874b45d428f8",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-050",
+      "name": "Clean Slate",
+      "file": "E1-050.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "12dd1b9f094fbf850abb84169c3ba65378d6d5f97b780f84cf58e3b032234360",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-051",
+      "name": "Michael1011, Packet Shaper",
+      "file": "E1-051.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "michael1011_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f5afbdb0648dba70358e61b5ee2322257665a4eba9f1cb390d6be6739870f1bc",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-052",
+      "name": "First Memory",
+      "file": "E1-052.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b4af4188904dbcd24dceb1935ee0bd5d62d398fd00be924ffb3b806879bd8f36",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-053",
+      "name": "Boot Hardware",
+      "file": "E1-053.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "531bdc35833d60be92bb15eeb5409d51984dd2f12e01bd272e65eb26db4a012f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-054",
+      "name": "Power Invalidation",
+      "file": "E1-054.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "40e4823633c254a8f52b5f987242213c65c559e7c408f4b8165f6bc3489a594c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-055",
+      "name": "Query Burst",
+      "file": "E1-055.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "922d3fa49a22cc0a2b3f9e5f931127b9a038a2706975d11dafc8e3a1944110b8",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-056",
+      "name": "Benarc, Mirror Client",
+      "file": "E1-056.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "benarc_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "45c5240fcf5298d1b44016f290927b20cd150fdd9e2c016be26d517d75aea3f7",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-057",
+      "name": "Remote Control",
+      "file": "E1-057.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "fa5f5f948732d9c74d6e0dced797feda1003e0964a366c17230f55a820af3cfc",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-058",
+      "name": "Hardware Clone",
+      "file": "E1-058.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "22c7ff0111e8f20d68d7b4f930515cacfbc4fe6de92dc878707379eef06be432",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-059",
+      "name": "Invalid Signature",
+      "file": "E1-059.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1add362812747eed76836fc7bf8ed19567a17a9d1e5532a1fad592abda5a54a3",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-060",
+      "name": "Exit Fee",
+      "file": "E1-060.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ef6ccecc3b4929da7b64ad3037fd2774f53e7492fe1011a9df8297892e3856f9",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-061",
+      "name": "Buffer Drain",
+      "file": "E1-061.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ccf10b890399b4ef4da0f7424d79d2871380bc588ee242516e2f83363f2cc536",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-062",
+      "name": "Relay Feedback",
+      "file": "E1-062.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b4242a4d96ee5fa01a6b8b178c951517214d07be93dcd3396fa458d0b1d142b9",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-063",
+      "name": "Broadcast Upgrade",
+      "file": "E1-063.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "798d308a48bb8922d5c52721666437ac47bad5cbf24d497dd8e36452f415dd4d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-064",
+      "name": "Hidden Route",
+      "file": "E1-064.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "bf2099e13decd80acd74d245cb1792760034018640143f52ab71cffed91b304f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-065",
+      "name": "Quick Uplink",
+      "file": "E1-065.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "93f7dbc662ea5a0384ee26b935d792a35b4db92d0492fc2a2aeb879158eb8818",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-066",
+      "name": "Resource Tap",
+      "file": "E1-066.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "7a805bcff53b19cc7c9aa1bb8d0d372cacfab35ad03c8e210eace03c53705d81",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-067",
+      "name": "Tal, Relay Captain",
+      "file": "E1-067.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "tal_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "247553d881e629881b44353ca25329c78a4299a26fabf261e99d6265dc337080",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-068",
+      "name": "Resource Rewrite",
+      "file": "E1-068.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "7543c186a80da0a9a95cec3a5494f7c94d4173c5bd453a5b0b5915af8892b22e",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-069",
+      "name": "Jedai, Protocol Architect",
+      "file": "E1-069.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "jedai_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b592fd2688563e7412e0c362817689e72825d9584b108b1cb6c99ec6ef04f53f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-070",
+      "name": "Buffer Lock",
+      "file": "E1-070.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "07e2b742e77ff8b8c6369c05d2e5d0d901b7c2d533a4c08cd24affb190ac4974",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-071",
+      "name": "Darren, Channel Operator",
+      "file": "E1-071.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "darren_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b72ca6e4efed117917e58b9e955d78e772344a70f9bccd344cbe7da608e58517",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-072",
+      "name": "Snick, Phantom Process",
+      "file": "E1-072.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "snick_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "389bd80120131dcb82d2fd3e2962ed8a584fe175f7f30a674c751cb85fbf89b5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-073",
+      "name": "Resource Reclassification",
+      "file": "E1-073.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "cb3a6045c8420c15b20e27c9499977df740069baf2520ad4f798376a5031d0e3",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-074",
+      "name": "Tal, Ghost Router",
+      "file": "E1-074.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "tal_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "06824d4fba680192029c8cfd5141a6940a995b554f1bbc9b1aa350d1b18794d4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-075",
+      "name": "Darren, Channel Raider",
+      "file": "E1-075.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "darren_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ee5b6d09fa51ec7cbe7d11bc8c2bba5fa9d34f9c915e857f2f982fa33338b68e",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-076",
+      "name": "Maintenance Leak",
+      "file": "E1-076.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9c4435582971470f96df394d06543cfbf6e93a167c9dd45ba51ccbf506c63087",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-077",
+      "name": "Fee Spike",
+      "file": "E1-077.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ee42c864ec79229cd7dae7571e7ba7fd57fb79977e58dcfc36ab9bff5a2e6ef8",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-078",
+      "name": "Michael1011, Debugger",
+      "file": "E1-078.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "michael1011_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b3d048764f00e50630e4dffaca678aee6fa0b24789d326f2d8d787684ab75acd",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-079",
+      "name": "Cognitive Surge",
+      "file": "E1-079.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c12fbd9ff2e3632714821cfba294eefcda03717de9c4d2bc43895d0fc3d35f17",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-080",
+      "name": "Hot Resource",
+      "file": "E1-080.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0e50335b6510f4e5dc0f3c2517253f0a57d0fb7bf1a3be0dc5afa28603dba058",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-081",
+      "name": "Benarc, Deep Channel",
+      "file": "E1-081.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "benarc_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "3dd4277861188cc4a406f876221118d719827bc855539b9b2d28c7554195bc85",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-082",
+      "name": "Call to Relay",
+      "file": "E1-082.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "5a5da87493fafe8ae86618c5e81a827141f76850b3cf58ddcf2029ca3df46926",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-083",
+      "name": "Affinity Rewrite",
+      "file": "E1-083.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "fac375c027cd4665c4946409841dcf2b998266f4f289bb40a0896399fc115246",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-084",
+      "name": "Queue Filter",
+      "file": "E1-084.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c4aa91c944a448c9a6fa42b93c670988afcc60e63df2c56761fd12a800fa6c18",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-085",
+      "name": "Consensus Pause",
+      "file": "E1-085.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "69fc8cba4f80c33f0be9fb43be1b167ac921a12b97494a6971995e4855c48044",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-086",
+      "name": "Remote Hardware Control",
+      "file": "E1-086.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c5298ab34d531ffd9ed6ab9531bf36f181956118484107cb5f492b2b153fd4ef",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-087",
+      "name": "Timelock Rewrite",
+      "file": "E1-087.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ca54492f40fdbc476a64df754d657c634dadaa34395dbdaeb8a7d9145ec52c46",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-088",
+      "name": "State Reset",
+      "file": "E1-088.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2143dc8d0de2e1df0f60a373cd4d1a5f8b00b8276b3d077131f8655e01e43bb4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-089",
+      "name": "Toggle State",
+      "file": "E1-089.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "5228ba70fb032b4ddfc6a9ba2d2847b2f7d310f68c3ca97cd37c048797edc5dc",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-090",
+      "name": "Return to Wallet",
+      "file": "E1-090.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f3f8b87810fd4e1354792dd15e0dc98709220dcad3f7a98ec2b44403d493bc61",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-091",
+      "name": "Jedai, Adaptive Client",
+      "file": "E1-091.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "jedai_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "710d10325cc2b2df5b3cf47c33e847c7feb9e3e86f543727e5b87f1ef5573fef",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-092",
+      "name": "Grid Eruption",
+      "file": "E1-092.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c6af5b931bb7b402f3a47f77263a6d690f04cc4ab1d87e859d6b1e73b517a3f4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-093",
+      "name": "Snick, Airgap Firewall",
+      "file": "E1-093.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "snick_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9e5296669ebce15dc49ec850893136fd11d9576e497417b674770082de253085",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-094",
+      "name": "Tal, Liquid Firewall",
+      "file": "E1-094.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "tal_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "5ba3e2e122b222c7ecb474c1b54b1cc2bad956dc4f1c107a940b6d6c6719f94f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-095",
+      "name": "Darren, Flow Controller",
+      "file": "E1-095.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [
+        "darren_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a80ac9686ccda2b343f84aba837ecac4b61ed4c7b4fb7cb45ea3183046083984",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-096",
+      "name": "Archive Boot",
+      "file": "E1-096.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "5024189d4fcf4cd4e8eddc0526cf8911c542bdfbca2d85895cd11a835758da3c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-097",
+      "name": "DNI, Sovereign Knight",
+      "file": "E1-097.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "dni_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9ff37e8cf9ab85f045da3ca8a83df2ffccbf5cf02c3cec07248ce8731c01e825",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-098",
+      "name": "Nind, Backchannel Walker",
+      "file": "E1-098.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "nind_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "cbdda7d9dc7fd1d3d46a42ea32c4552536cf3d3c70948533c7ea959b8b4f5c3d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-099",
+      "name": "Stake Contract",
+      "file": "E1-099.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ad4de01ee522c4e0585923ef61a739a76e2fd5caf7cbf0f47216b3452056e25f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-100",
+      "name": "Leaking Key Vault",
+      "file": "E1-100.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d77427f7c6155b7e96e1524cbfc247abe7718ab06253fd9aa609755fc0a9eebb",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-101",
+      "name": "Proof of Work",
+      "file": "E1-101.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "75f93d0060cd84da7ef9ffdec860084f31d71dd74d8732349008d59471fd4fe2",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-102",
+      "name": "Stake Swap",
+      "file": "E1-102.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "bc20aef92ada44164a37bfa46e090756ba5df08d20bf60843890ae249a852c33",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-103",
+      "name": "Bitcoin Gatekeeper",
+      "file": "E1-103.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e8a7100fc335e09dda3c0d67aa76f7c3b5a42256f0f2303b3729f36be46bee2b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-104",
+      "name": "Keys Rewrite",
+      "file": "E1-104.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "8689ffb714362b14d87cfefc47cd95a0d8103a530090bb1d0f4ada97f53d9f4e",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-105",
+      "name": "Stake Arbitration",
+      "file": "E1-105.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1768cea2a1b97494f0b9c2477fb4c4eafb87ff71ea6383e4aa3353d42b39181b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-106",
+      "name": "NC, Resource Reclaimer",
+      "file": "E1-106.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "nc_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "804ad9efbbc343784d145f8469de8897d5eb987fe676f5a4baa42435332df7de",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-107",
+      "name": "Deep Search",
+      "file": "E1-107.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "7b0080a4687aa040d7cf63fa448d784cb5b13210eb87d892248fa91220aec300",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-108",
+      "name": "Uptime Channel",
+      "file": "E1-108.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f826dbc3e54c514a3dfbc446ff15b0e09d9dae131d88fd7b89675ef5864894a5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-109",
+      "name": "BlackCoffee, Reboot Crew",
+      "file": "E1-109.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "blackcoffee_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "6e8cf3f83f0e51ad90c1f4f01512391085acbbb2d5e19c6d35d4a1cedf222d10",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-110",
+      "name": "Resource Corruption",
+      "file": "E1-110.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f8a28169e279f4706e699d2d34ab7e56a9b58d6c1c9a9a0831b5315ba1a96cfc",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-111",
+      "name": "Onion Route",
+      "file": "E1-111.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2038c60430740eff3a911c2ea578fe25eaf37d54dc18ab8bea109da3ea0b0d9a",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-112",
+      "name": "Proton, Cold Signer",
+      "file": "E1-112.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "proton_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "047f45bad77ece1e9baf3ff8cce971aad2775fb2d3610add138a71e1fcf6300e",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-113",
+      "name": "Signal Tax",
+      "file": "E1-113.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "4f3479521f32a6400599474cd9864d1564945cf6f8d28754af395ec369ff2c64",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-114",
+      "name": "Burst Signature",
+      "file": "E1-114.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "09a2729ac6e3a326d8ab4fa1c4b84c0918dbf6725b271aa7144c473209009d13",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-115",
+      "name": "Gadaj, Wallet Whisperer",
+      "file": "E1-115.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "gadaj_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c0ea6fb9bcccf04db81472858cf33ef90796648b8d38a32b479936a527ebeb48",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-116",
+      "name": "Sovereign Mode",
+      "file": "E1-116.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "75e88757e3ea377a13bd5c6820ef5935e335e5d38e7cc94df18e2a6d445dbf03",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-117",
+      "name": "DNI, Self-Custody Giant",
+      "file": "E1-117.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "dni_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f67bdec7f02e7a8b276c28aaedae2c4d83c769e322b159f3c7dffd6396884768",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-118",
+      "name": "Wallet Scramble",
+      "file": "E1-118.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "211264867c40a592a71c6a1f1f13b2acfec72d2bc4cdd634449ddc20a87ad8ef",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-119",
+      "name": "Nind, Archive Returner",
+      "file": "E1-119.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "nind_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "8f03c84b41006b69cb9fd2dd363ca200210e49a960f144601feb09423748566f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-120",
+      "name": "NC, Forced Signal",
+      "file": "E1-120.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "nc_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "85072f00f8e624f8011cba983c518a548269c5fb37655fb1976e02380d400504",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-121",
+      "name": "Proton, Keyed Nightmare",
+      "file": "E1-121.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "proton_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2476560cf79d3077f0e3711f1561829f93b8f3ad6f0c7d8cb8e62e07072aeeb7",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-122",
+      "name": "Locked Process",
+      "file": "E1-122.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "6f8ca5250804eb72fc489952218ca770d71f3d222172ac5eb1ff824713d7e1db",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-123",
+      "name": "Broadcast Storm",
+      "file": "E1-123.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b71fab959c68b4cd0f14719c6f94bc59848324264c4eb8e2e8b4b7b3de355918",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-124",
+      "name": "BlackCoffee, Shared Secret Swarm",
+      "file": "E1-124.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "blackcoffee_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "065f570018f461e72e8fe3b074b85c7811323747e98df4485915eb198132765b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-125",
+      "name": "Restore Backup",
+      "file": "E1-125.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "84bc997f1f7d4d03958a2b657b585acdb4d720107b174c09a5c082fd198d9470",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-126",
+      "name": "Gadaj, Commit Auditor",
+      "file": "E1-126.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "gadaj_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "6b4465804558e8529938b2b1d87641d7167c95f301c6674f20f3c147a8fd3351",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-127",
+      "name": "Convert Uptime",
+      "file": "E1-127.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d25f32cb5424cba2a7852ac28637f90acf6e2cc5d83ebe87fcf28f97d94449e4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-128",
+      "name": "NC, Offline Operator",
+      "file": "E1-128.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "nc_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0212baef485af3361511ee0d47a030e60598530021a719ca60baf3998a133273",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-129",
+      "name": "Nind, Archive Collector",
+      "file": "E1-129.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "nind_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c03b5ff6a6a5a602f4164102c7f4c104377560d03b915d2ff3333218ade8e211",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-130",
+      "name": "DNI, Sovereign Accumulator",
+      "file": "E1-130.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "dni_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "8f7f07865689f3824467090135a2bca593d5fc8c94ea75bef40fe0d157e68c11",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-131",
+      "name": "State Mirror",
+      "file": "E1-131.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a64893270758322f9e9a4d76a261d44ab28952dcf79d09229c807067de28c380",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-132",
+      "name": "Resource Sink",
+      "file": "E1-132.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f07f5a0d8483f36d878e54d2200766a9f35a5400f0f42fbcb8126127dfd3654b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-133",
+      "name": "Hard Shutdown",
+      "file": "E1-133.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "44b81c78b69935697a52bc682d18318067da3e7c374827cd723354bc9c006814",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-134",
+      "name": "Sovereign Strength",
+      "file": "E1-134.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ae0b05aaf62456c8abd267107632f9fbff273e584e01f6bcbdb16d441b00fd76",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-135",
+      "name": "BlackCoffee, Backup Firewall",
+      "file": "E1-135.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "blackcoffee_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "84e50551efdba6a85c8ce9898777f4aeefa6996ce64f15b2dd6f0664e9bfefb2",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-136",
+      "name": "Hardware Leak",
+      "file": "E1-136.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e01439cf4785863100efeddafd63fb34a38d215ba217fef722429c6a4816febb",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-137",
+      "name": "Reduced Permissions",
+      "file": "E1-137.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "572a8c561bdab2f1592b166bd7f1f66c1edcdeedeea1980c6827128751f853b7",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-138",
+      "name": "Proton, Ephemeral Signer",
+      "file": "E1-138.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "proton_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ed18cc1ab0c091df7508c7c51a3fc9c85a0322a67a5a436fa7187bb48b6e28b4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-139",
+      "name": "Remote Command",
+      "file": "E1-139.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d2da4359be3e2e28c38829580944e3017f94814f5ea48daaf8ecfefc81387ec6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-140",
+      "name": "Gadaj, Archive Maintainer",
+      "file": "E1-140.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [
+        "gadaj_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a0d872f2f0445d0ca52ff5a54e880a75345f111097ef36d535261e6b13af5ec4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-141",
+      "name": "Tunneling Patch",
+      "file": "E1-141.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ad8c9d5f4ff8b62ee2483bd209790292c729856fe82160857045dbdeedc51e85",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-142",
+      "name": "Power Rewrite",
+      "file": "E1-142.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "17c0b6d3a564630158746e4c1b090049c54993f40819192a1c66163806bac862",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-143",
+      "name": "Final Settlement",
+      "file": "E1-143.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1a3f7e1b512758bbbbef3aeda4b370c7210914d2fc51921452bc4e30cce11324",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-144",
+      "name": "MadMunky, Young Overclocker",
+      "file": "E1-144.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "madmunkey_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2860247c3e3d1cf6781743c7ed8e8fed16be5676c6f080a5a6b59c01176f2603",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-145",
+      "name": "Rootzoll, Hardware Breaker",
+      "file": "E1-145.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "rootzoll_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "5f2d1a8f6e6af9cb7fa46ab7e85190c5a306388cc1ae06c30e463350ded28434",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-146",
+      "name": "Bam, Tunnel Builder",
+      "file": "E1-146.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "bam_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "15b9f674d24ef213f91afdf6c43d3ec0c6eb35414a93d867626a6ee56263bffe",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-147",
+      "name": "Leon, Grid Stabilizer",
+      "file": "E1-147.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "leon.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "fd1fb7af397c4bf0d9cd7f87c7d60264adba7f1a90b27bee2e39bacfb3bacb0b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-148",
+      "name": "Grounded Signal",
+      "file": "E1-148.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "91a41b65bb6643f430758a38e9af66438c9b48b602cffdc1d6f80038ba92fd79",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-149",
+      "name": "Hashquake",
+      "file": "E1-149.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "10f9766de811f25592d5e8fc96e4ec055f8cb586455f5d969caed9eb4bc62c42",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-150",
+      "name": "Route Misdirection",
+      "file": "E1-150.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "610701925acaa3d3b22391a57836e02d9a5051fe7d4be13273f46ebb23f0f744",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-151",
+      "name": "Essex, Thermal Operator",
+      "file": "E1-151.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "essex_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0159ea3094decf6806cc338de27f479766a1296920267bdff9c99ad040dc900d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-152",
+      "name": "Power Burst",
+      "file": "E1-152.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f6b1291f25ea2be325e84ebd809a3e421573990880101a118e5b53b7cff93289",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-153",
+      "name": "Overclock",
+      "file": "E1-153.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f9057ca2b01add847b416bddf783b1a2ead48ac34d5229810e9a6faa7060dbc5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-154",
+      "name": "Signal Outage",
+      "file": "E1-154.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "16e2478f40467de7d7a8fc93e1fc8c0e4b0503ff353b812a05f7457439503e8d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-155",
+      "name": "Process Fork",
+      "file": "E1-155.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e8f49003437ee2e8786238830e6b50ff0e3a2710aa7a2f51e22c84190356671b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-156",
+      "name": "Toni China, Hot-Air Relay",
+      "file": "E1-156.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "tonichina_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "49d488aaa4874a90b2fff8788a37d0428d3c5150e738e578fb175aaa4073b0ec",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-157",
+      "name": "MadMunky, Chaos Coordinator",
+      "file": "E1-157.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "madmunkey_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a5fbfd48606f5906b8052494b5e541b186ad71c66930827c9e356707e9410754",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-158",
+      "name": "Rootzoll, Stone Sentinel",
+      "file": "E1-158.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "rootzoll_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "dfc7742b531dfc7de713df090ad98b8f2733e180fc8732a36a587f5460693daa",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-159",
+      "name": "Leon, Shift Worker",
+      "file": "E1-159.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "leon.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a713e7adc6326c25ec8c6b732179d97778c134d93a23fec7b215de4a58746f69",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-160",
+      "name": "Bam, Heavy Lifter",
+      "file": "E1-160.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "bam_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "713785778100283c9b1cbf8b68999dea95034a0cd816594d4b3489b3541d99a2",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-161",
+      "name": "Essex, Bull Runner",
+      "file": "E1-161.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "essex_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "8df3d411c7a8751337cdd80db42bcda811b5fd5d1a4d2ad350325a15026ea75c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-162",
+      "name": "Toni China, Rough Miner",
+      "file": "E1-162.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "tonichina_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "4ca4e96b38120f42a795bdaf85f7e3c3731c5c749b51b745dadca2360902e190",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-163",
+      "name": "Rootzoll, Crew Multiplier",
+      "file": "E1-163.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "rootzoll_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2822bbcf38f33991f8a7a7b4ed25b1586786a98a3f87fdbd001b4a64ddbf119f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-164",
+      "name": "Grid Amplifier",
+      "file": "E1-164.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "563046fb477f7fb99a8e558ee1568de6f117c74f75f0c5660c7cec92917268a4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-165",
+      "name": "Hot Grid",
+      "file": "E1-165.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "bffe963852cffbf48eb894d6b1e4646d54f0205d61fbc97ce7855ff3c69d3772",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-166",
+      "name": "MadMunky, Meme Raider",
+      "file": "E1-166.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "madmunkey_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "82f79d59ae1a0da1d5b04f2cf78a9d64496c62b30df2fb0d57315b9e983bf776",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-167",
+      "name": "Bam, Power Artillery",
+      "file": "E1-167.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "bam_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1d38785c088c671444f2e08254046098e25cb6021ec37368011a15d636f04465",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-168",
+      "name": "Miner Rally",
+      "file": "E1-168.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0d33b6c49570b6fc3076cad54d5229e1951973af17fc257ae911b5d5b8d669d3",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-169",
+      "name": "Idle Grid Penalty",
+      "file": "E1-169.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9466afd0a8032cc6130464508d267ef8ec77a774c922ad9ac7d7a3d320fedf40",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-170",
+      "name": "Split Route",
+      "file": "E1-170.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "deb73b077de201a3e78ae022f1fbbbe57bbc23e67885a5beb10b35bb129794e5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-171",
+      "name": "Timelock Invalidation",
+      "file": "E1-171.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f63b21302f0535517f01089bf98e9ada065aabda51d079c47dc241d4ba8924dc",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-172",
+      "name": "Leon, High Relay Rider",
+      "file": "E1-172.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "leon.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e7a506feefbd9c7450e6dc2cccfb28599afc2bc4c7b76125f0fafe00a423a495",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-173",
+      "name": "Toni China, Multihead Miner",
+      "file": "E1-173.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "tonichina_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d687ba6c8f6b1cdc2fbe3746739b6cd9cb9c77477bf62d1d3235e34ef53735a9",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-174",
+      "name": "Essex, Grid Rebooter",
+      "file": "E1-174.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "essex_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b73cefe1e3205accbf5903dd726efc5e7b7e080f8e747613924f9ece669f7b4c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-175",
+      "name": "Hardware Shatter",
+      "file": "E1-175.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "59e7e5d1a89f7eaa767a9d426c60c3332688d76009c01ea73e896cdcad54f171",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-176",
+      "name": "MadMunky, Hashrate Dragon",
+      "file": "E1-176.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "madmunkey_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a2924069b86f9bacb9b811ffdbfaf9f1642901700aab86e946a3994e19c0ae3b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-177",
+      "name": "Thermal Throttle",
+      "file": "E1-177.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b2604c270c49d90370813e6b12cdfae21328f03dc13bc439a58f5e14b1ec36ef",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-178",
+      "name": "Bam, Launch Engineer",
+      "file": "E1-178.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "bam_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1ab35beb766c89706c1519b768511cf528b62683506c0fff95064d3ff2194b4c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-179",
+      "name": "Resource Cut",
+      "file": "E1-179.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "af40895fd89c8074adbfae408790cc2157b8b53d7468003b892d26b59a15952c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-180",
+      "name": "Firewall Tunnel",
+      "file": "E1-180.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a6bfa938b1e4119105028c78f4cab4b6150612de75001ef3f396b04967c614af",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-181",
+      "name": "Rootzoll & Leon, Dual Operator",
+      "file": "E1-181.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "rootzoll_concept.png",
+        "leon.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a2a12703789ff2def17386b68bb39cc674010dc3b6a3105d60fc857709360010",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-182",
+      "name": "Essex, Resilient Operator",
+      "file": "E1-182.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "essex_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f0246fc64ca530c22bf37f07ef94728324e6df332068082fba0a98c6a36caf25",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-183",
+      "name": "Toni China, Thermal Firewall",
+      "file": "E1-183.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "tonichina_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "70caa90bca0689661ee0f70c6cc91b6813d1363ade64c25101335d63e8d2678d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-184",
+      "name": "Rootzoll, Stone Firewall",
+      "file": "E1-184.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [
+        "rootzoll_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1dfe7b9505b9707c32d819180fa9284462c03a1b0b4681631b63697d93ef05c6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-185",
+      "name": "Freedom Market",
+      "file": "E1-185.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "323a7a0f28375d2f48e303b205f7aba23b0b06d12c2937e61bceb6cd5ae4c985",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-186",
+      "name": "Hashrate Aura",
+      "file": "E1-186.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2772a957f0b52b54cd28e9c003a72684da9c271c908dcbc4a7f6c7e0e6603631",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-187",
+      "name": "Committed Growth",
+      "file": "E1-187.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e312d57416ef9718148d84a1b26b415fe9302f2d077c71d6022052f09d3ae23a",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-188",
+      "name": "Shillie, Multisource Scout",
+      "file": "E1-188.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "shillie_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1a57e1f070931994e4c10d3d046795539fb0384b86283f151993407f952b4606",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-189",
+      "name": "Obfuscated Formation",
+      "file": "E1-189.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c4281f96be25075af9bce5a9db0064f9d6e9cc53adb5399ec863f64d9a62a44c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-190",
+      "name": "Human Hashrate",
+      "file": "E1-190.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "78fd3934e8f32bc31944bd4e93f23d6a4833ec2edc470fd337b354704cff205a",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-191",
+      "name": "Mtoshi, Deathtouch Courier",
+      "file": "E1-191.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "mtoshi.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9e844a174c46c992cc60e66d557e417caa05a6910419aa1df7d02f81a7bb6b8a",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-192",
+      "name": "Longy, Deep Node",
+      "file": "E1-192.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "longy_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "352f120215dfd02b80cd547242037fe6dff09e6d72599008a8cdf6ce024af0e7",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-193",
+      "name": "Tobo, First-Strike Archer",
+      "file": "E1-193.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "tobo_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a9b0a526a5ba51b652c42b462141f507f9e1f1523dc3d8fbd562d0dcc19272a9",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-194",
+      "name": "Fast Channel",
+      "file": "E1-194.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "3820456d13551cc05343e1a82a950dbaf4e03089a985478f72b573b13785d9d6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-195",
+      "name": "Quiet Block",
+      "file": "E1-195.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "8f66e0bc192ee8f2cfa749ff35efbd320e2fadb5ebbca8ce18bc4009245d1e71",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-196",
+      "name": "Arbadacarba, Natural Hashrate",
+      "file": "E1-196.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "arbadacarba_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ef7608aea607f1e8de1bb4f26980941c207769b6c39823dfd6c442b9c2a76169",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-197",
+      "name": "BK, Feedback Grower",
+      "file": "E1-197.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "BK_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d89f65ec9085ff0a8de529c0f5728e49b174761f9f19a93dcd20d7772c444eda",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-198",
+      "name": "Longy, Resource Sovereign",
+      "file": "E1-198.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "longy_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "66b55c3e83bd10335d08885444b5c24ac9204754a506c315c3da467151da08c7",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-199",
+      "name": "Number Go Up",
+      "file": "E1-199.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "22ccc882c550e5ea3e37e126883650bcd077dfdf616db1f7b0e008523efe99b3",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-200",
+      "name": "Shillie, Mesh Sentinel",
+      "file": "E1-200.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "shillie_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1a21dc88563bb8dcf063a3da870ef1c9ce7a2b00fb7ba0be8fcb89535ffd6153",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-201",
+      "name": "BK, Bear Market Builder",
+      "file": "E1-201.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "BK_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0c72d161fad34898683838c7c2c9fd43babbcae807184b037cbedfe810600145",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-202",
+      "name": "Network Storm",
+      "file": "E1-202.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "29358d6ba0c4f71eb6bd6acff51d9f75455767ec2e14f28eb2958f51f837780f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-203",
+      "name": "Resource Freeze",
+      "file": "E1-203.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "541ba2a7a667b38259038b8c56e82b6c743e24319882213715a4c15b0f407661",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-204",
+      "name": "Instant Boot",
+      "file": "E1-204.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "92b59009d10d5ccd39ab66f5bb6a985e44d94d63d8d2201da24d19cc1aceb97a",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-205",
+      "name": "Mtoshi, Rooted Node",
+      "file": "E1-205.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "mtoshi.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "8289fc8ca2f7bbf9ee184463cccd38dfb8e234341e8033fdc50e888cf4eefad6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-206",
+      "name": "Migrating Workload",
+      "file": "E1-206.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0900f0c08965106bb8933b698910992346eebfb56c9c8b8dca14d3ae3746d7e5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-207",
+      "name": "Tobo, Resource Unlocker",
+      "file": "E1-207.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "tobo_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "bcdfc6f201ca82fe65f2c65a0f94a6aaf0f41274cee42ee0e3469d22b134f338",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-208",
+      "name": "Keys Invalidation",
+      "file": "E1-208.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "61a22518d287c168c142af25654b7cc061d5592851abb3e71a33f572309ba113",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-209",
+      "name": "Bitcoin Rewrite",
+      "file": "E1-209.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "4ddced82bde3e314f4cb99739b394eab39e6a639bdd7d5bea70e935396a42c0f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-210",
+      "name": "Living Hardware",
+      "file": "E1-210.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "4179419583b5fa4e73a1faffdaf8a31b9af6fb3885f0a003c47f88111fd9eb3b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-211",
+      "name": "Resource Awakening",
+      "file": "E1-211.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d5361dd6899854cd973e17bf2b883b4866169b2af10e30e95b876e6626550186",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-212",
+      "name": "Arbadacarba, Grid Steward",
+      "file": "E1-212.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "arbadacarba_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c33918b4f933111c5746933a5c9f465dfaee606a54c8913f0d36bf77e14a17ef",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-213",
+      "name": "Attention Market",
+      "file": "E1-213.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "1cd6c347d2b0250e375fbff8d169f92df16e221af93d6dd4980b316960a69dc4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-214",
+      "name": "Topology Scan",
+      "file": "E1-214.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "4dc7e2f709da5c520754a8dc3d172814d157b8eb22e92620d212ec28718917b5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-215",
+      "name": "Reboot Protocol",
+      "file": "E1-215.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "5e5b1d96e320caf45e9390371bc8e5a111f2b45f01c3e25211748fe000845e73",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-216",
+      "name": "Recovery Phrase",
+      "file": "E1-216.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b525863d865e1c3a4c8e277fecc6b9b8505544f92b23256e474633be64ba20aa",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-217",
+      "name": "Shillie, Tiny Broadcaster",
+      "file": "E1-217.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "shillie_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e24cb54764de27d44abd5ad7d6cce1d7b044aaf4be4147c04d33f1f303ca957e",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-218",
+      "name": "Tobo, Bitcoin Backchanneler",
+      "file": "E1-218.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "tobo_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a6fd6a5dbe4592aef88d0852217de922f0c85073e65eec90f2ef502a65223533",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-219",
+      "name": "Uptime Stream",
+      "file": "E1-219.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0b4da6c60a64bddf4975d4971ddc1aa0cf18c24459d375c2b5a1accea6c50302",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-220",
+      "name": "Mtoshi, Finality Keeper",
+      "file": "E1-220.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "mtoshi.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ba6afe9c556f40135cd682ab0bb51a52a26afdd944383c40caccc5ae3e4d763d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-221",
+      "name": "BK, Mesh Pack",
+      "file": "E1-221.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "BK_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "fae6abded20efcc6811b5e01711d96541b2d1e138e66696ca3f5282d0f50c9f5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-222",
+      "name": "Protocol Reset",
+      "file": "E1-222.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "40ce8680335bd5ad50f546c0c3df34a141dab1bcaf2be243b69d42b15c715468",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-223",
+      "name": "Timelock Outage",
+      "file": "E1-223.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b7fe27f9a220f6e23ba6483621c5c131a177eb2e284ac457ac00dad522040384",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-224",
+      "name": "Arbadacarba, Protocol Gardener",
+      "file": "E1-224.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "arbadacarba_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "01fc879f83b891774ea88bcfd5a0b2dc6f6c28b27073a564889bb7a71ebfa7f6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-225",
+      "name": "Longy, Thorn Firewall",
+      "file": "E1-225.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "longy_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "01cf2c883e91ad6522e96c71e1b707d64000306f448946aa4212a89a5060705b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-226",
+      "name": "Shillie, Cold Firewall",
+      "file": "E1-226.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "shillie_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "17e852c48f5b4ae6f7974f983280ab951de64c86a0ed7e45644a6c9ea390ae62",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-227",
+      "name": "Tobo, Wooden Firewall",
+      "file": "E1-227.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "tobo_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ba47018a9b09bc48b0d781a79883a2647d76d3be4cd1e6a2d2c1e04f01d8f2c5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-228",
+      "name": "Restless Client",
+      "file": "E1-228.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c83e9c1d83794230f61b30c90be8ce631796f611e1a8c1959392ea05174acc3e",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-229",
+      "name": "BK, Heavy Settler",
+      "file": "E1-229.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [
+        "BK_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e2a6ea3b4f47c69355327a8427312bff3da28440e1a10b95b9625028928c6883",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-230",
+      "name": "Mesh Upgrade",
+      "file": "E1-230.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d9b79fccb99023d533d1ac8ce1eb5c836274034295283d79addeefa686010c89",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-231",
+      "name": "Yield Router",
+      "file": "E1-231.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0811fc37f9ecdc62ad1b6d152d2bf104a35a0c8893cbcf36ae17b21ab2308cc0",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-232",
+      "name": "Entry Fee Device",
+      "file": "E1-232.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "428c4156c8dcd76d7c006b37653a545cb60a1236de0e9db6002f21a74b7f3d75",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-233",
+      "name": "Basalt Battery",
+      "file": "E1-233.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "50b084a6d4d7cc4b3ca852112af73fcfbae2439380da5410162f215d7948e003",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-234",
+      "name": "Wallet Pressure",
+      "file": "E1-234.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "290801afc6545da63352bb18749d1ca17d184b6fff690187534d21cd3441e5f7",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-235",
+      "name": "Resource Prism",
+      "file": "E1-235.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d578693ac7bbefbf14bf458259f7b10d322b364629350002b1c5cf0ee20b13e8",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-236",
+      "name": "Chaos Kernel",
+      "file": "E1-236.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0cb742a70f5c2f090012f016f51c6aa6e2239ca0d54fb0ea26654e477259faca",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-237",
+      "name": "Cuddy, Clockwork Node",
+      "file": "E1-237.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [
+        "cuddy_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "126b41a32eb3c6ac35f65e46f8ca08328245911fe03215dd9dd83451626aed4c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-238",
+      "name": "Damage Limiter",
+      "file": "E1-238.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "61336fcb618141e2f7a4a9c28dcad7d51165937cd6f55082af5e389c52e58540",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-239",
+      "name": "Uptime Clock",
+      "file": "E1-239.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "44457984dea7971f6186e09c87b9e0241e363413da09388544e3510e18903455",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-240",
+      "name": "Timelock Receiver",
+      "file": "E1-240.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "8b8f76206d1f2c54b7c1b925a4b5e4fa78603f5dfab590103f4dbab6c75fdba8",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-241",
+      "name": "Resource Tombstone",
+      "file": "E1-241.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "573e323e56de477396bb81c1f7fd175c9218d7e21eac88d1605d81f65c728796",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-242",
+      "name": "Resource Exit Sensor",
+      "file": "E1-242.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "83d80117cdcccdfb4242d21bb53db7189b844b2840c53af67836905971ddadd6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-243",
+      "name": "Wallet Scrubber",
+      "file": "E1-243.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "3d019fb9957ab2d7f62d18b00fcd597207df5455cda546f9b51c0efc028609b6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-244",
+      "name": "Damage Firewall",
+      "file": "E1-244.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "6080841e2e936b5189ec381c3fee659f445012140155841b44cbd6232e73ff55",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-245",
+      "name": "Hashrate Gauntlet",
+      "file": "E1-245.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "73be28906f705c4331c946262b6295e1ed0c9f317f687632e97aeb1db1a052e4",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-246",
+      "name": "Public Wallet Viewer",
+      "file": "E1-246.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0dcc2d7513615deec8e5df0681862e27731eda5e1ba0398006dd8e256c6cb11d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-247",
+      "name": "Mesh Router",
+      "file": "E1-247.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "5244fd32b218058dab81a30d27cd6f51aff814f4fe8118f88022a8dd6342c33f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-248",
+      "name": "Open Feed",
+      "file": "E1-248.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b846720ef916c06f2091d40499dc153f5cb0f11a4ef776313f4681acf5cc39cb",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-249",
+      "name": "Cold Storage Controller",
+      "file": "E1-249.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "6b52ab06bd842deb4e821c3d093a40f72e644082b59f0ee90c8c788e80bd7400",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-250",
+      "name": "Identity Mask",
+      "file": "E1-250.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "52e15035a057be5b7e1306ebaa52e7d09fbfb0c690ba77f1ca431ca3e150edcb",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-251",
+      "name": "Power Receiver",
+      "file": "E1-251.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f6e1aae248690ab30bc795d666bae068001738b9f58f663e4244089e5c9a6f76",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-252",
+      "name": "Signal Receiver",
+      "file": "E1-252.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b33a9d0776e02fa022438551911395a804049babc03f83bd2184ab36566c0f7b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-253",
+      "name": "Damage Router",
+      "file": "E1-253.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a6e00f53751e5741a3c750a0bdac32807ee2d7a95acfd9483c9b045956ed2884",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-254",
+      "name": "Hot Wallet Statue",
+      "file": "E1-254.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "ff1f84b87340cdd9640ad5f52523a561a7a7f42890a4ef5d1f8361ce8f808623",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-255",
+      "name": "Genesis Archive",
+      "file": "E1-255.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d608a4aa13856cb311f9cc5bffc591adf4774b2f7843bcd111f1357d4248fd93",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-256",
+      "name": "FLX, Unstoppable Rig",
+      "file": "E1-256.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [
+        "flx_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f7642e7376d5a272c3c0f13f5ddb03eb3542fd6e919fbaca3831237847814b78",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-257",
+      "name": "Keyed Resource Bell",
+      "file": "E1-257.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "f060dd8d3b309cb55849b9f1a37b6d003613c5e2f3deb18ed6274eb09605cac2",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-258",
+      "name": "Memory Palace",
+      "file": "E1-258.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a20c993a75d9e419ed4ca98cefaee96c0e88a32fe415d3d3e8c34147cc9280ca",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-259",
+      "name": "MHB, Living Firewall",
+      "file": "E1-259.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [
+        "mhb_comcept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "4647e294d94fbe815480afbd31e64a86bfffdc6aa2d80bc71b6b7effd0fd2efb",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-260",
+      "name": "Boost Converter",
+      "file": "E1-260.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "3acca000642cbf18686b733d06c773037cebb2652e31b310af8d1df52222ecf8",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-261",
+      "name": "Low-Power Mode",
+      "file": "E1-261.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c1b3844bbe7f9fc6d3c0b4a06b1229bcfb20fe2e7583fdc0d7e470e054601f16",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-262",
+      "name": "Bitcoin Seed",
+      "file": "E1-262.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2bfdd596c1141c811e236eaac040d477a38b3f4584e3e071b64ace7a128c8101",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-263",
+      "name": "Keys Shard",
+      "file": "E1-263.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b9a3476f436f67b699cd3a6da60bfda54023af0b03c21ff09e91e2961b58fc02",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-264",
+      "name": "Signal Beacon",
+      "file": "E1-264.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c79655078d6f46b4125a82f6a27fc9f049943df49ba868a9c75652a6fadb02f7",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-265",
+      "name": "Power Cell",
+      "file": "E1-265.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "58fa7228ef934541573343ab435c3c6e73f06215170a9ee55d6361183638be8d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-266",
+      "name": "Timelock Crystal",
+      "file": "E1-266.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "d4d0cb51ef594dbfaa66232b062f6dd1d4cf2f4f1d8535d9ea95681cb0cedaad",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-267",
+      "name": "Network Reset Disk",
+      "file": "E1-267.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "de2f2bc8403d5565bd7a60d6857e67627ea3fb82b891973fac57e4c1e2f93ee5",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-268",
+      "name": "Michael1011, Obsidian Node",
+      "file": "E1-268.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [
+        "michael1011_concept.png"
+      ],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "3a2ace7be5193b3c66913574c918c05c484c2710ea620034e9753a7c4691771c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-269",
+      "name": "Fault Injector",
+      "file": "E1-269.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2d3dea60f3aac232ab81e9b8e4074f11432afd019753987bffb8c9fccae83aad",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-270",
+      "name": "Genesis Ring",
+      "file": "E1-270.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "65c357e4c0fbede23f7b2eda51a0073bd6457a15481a4f141c01011a35596666",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-271",
+      "name": "Archive Listener",
+      "file": "E1-271.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "adfa432a0d7271494022bf6c3a2993fd9d6323ead0aeb76196adfcedda3fde8d",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-272",
+      "name": "Resource Converter",
+      "file": "E1-272.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "785cc75591252b978ae8a078c3d711432f0d51cef0facc6fbe7331a7cc396787",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-273",
+      "name": "Swarm Node",
+      "file": "E1-273.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e40099649a5719e4d141c45190a400eb7b401ce65fe1f71549fe75b6061b207b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-274",
+      "name": "Keys Receiver",
+      "file": "E1-274.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "70538f935c304825de8d2306c704c955523462564345548c6bf58b31f94fbfe2",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-275",
+      "name": "Timelock Vault",
+      "file": "E1-275.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "4fff93c42208d53f5014f521faa70e1795d0900be47365e312835a8d0eca8517",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-276",
+      "name": "Difficulty Winter",
+      "file": "E1-276.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "cdcdc2db0563c090ae9fe914d443b7f09abd62be62c0467c35b7b50aadd2430f",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-277",
+      "name": "Bitcoin Receiver",
+      "file": "E1-277.jpg",
+      "world_plates": [
+        "neutral.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "b158c4b74259ec5b5a12878ca8f9f5ab5463c70fbeae8953ab53ad9bd9243729",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-278",
+      "name": "Power–Keys Junction",
+      "file": "E1-278.jpg",
+      "world_plates": [
+        "keys.png",
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "904ddc3afa509ebba5d3b3bc9b7c82b2e5a58275e4340e0b0408d4f824e62c4b",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-279",
+      "name": "Keys–Bitcoin Junction",
+      "file": "E1-279.jpg",
+      "world_plates": [
+        "keys.png",
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "8dd45094f081df1a9a2d72b2cec3c494db6fe64393395c61915413995fb53d9c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-280",
+      "name": "Power–Signal Junction",
+      "file": "E1-280.jpg",
+      "world_plates": [
+        "signal.png",
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "9d13901ff1d6056401322d8d7a9f1f405764b2aadf746d184023a2c1e3b58be3",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-281",
+      "name": "Bitcoin–Signal Junction",
+      "file": "E1-281.jpg",
+      "world_plates": [
+        "signal.png",
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "094d0a5a32c3c55d106a46d8b61f16bf8740f2f5269a51511e9f061134039f53",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-282",
+      "name": "Signal–Keys Junction",
+      "file": "E1-282.jpg",
+      "world_plates": [
+        "signal.png",
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "db7794b2901385bbe365c9fcdbd544f6f8039ed96263c10b212a2ca6f3daeec9",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-283",
+      "name": "Power–Bitcoin Junction",
+      "file": "E1-283.jpg",
+      "world_plates": [
+        "power.png",
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "fa135662b88cfbe9b6097dbf24dd46a051e746027011973a8db75694dc0a4ddc",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-284",
+      "name": "Bitcoin–Timelock Junction",
+      "file": "E1-284.jpg",
+      "world_plates": [
+        "timelock.png",
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e95e1b763ebdd59e73a8d418a2be0a0648e3f92299742b579e811ea81d5d67cd",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-285",
+      "name": "Signal–Timelock Junction",
+      "file": "E1-285.jpg",
+      "world_plates": [
+        "signal.png",
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "e969a58fa8390343600dad0e4afdb8a00076a352b5cbd27cfaf30cbc2aa2835c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-286",
+      "name": "Timelock–Keys Junction",
+      "file": "E1-286.jpg",
+      "world_plates": [
+        "timelock.png",
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "0b58789cf396af1375faa069e98a3c3997d952eea4e12fe4c2d37485e1fb03be",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-287",
+      "name": "Signal Commons — Sunrise",
+      "file": "E1-287.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "c4ad8e353cdcc019947ddbc4d6a9e60fdb194cebf4ae12a2c8b2f25021abbb6a",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-288",
+      "name": "Signal Commons — Rooftop",
+      "file": "E1-288.jpg",
+      "world_plates": [
+        "signal.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "05077d8a46f5f00e833076f4b497ef356d97f23453a8cc1ee47717900cae88f6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-289",
+      "name": "Timelock Channel — Dawn",
+      "file": "E1-289.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "44e538789d701d2682c38763b22bb889f854aa5e812dc923e6da9eaeaa5b7da1",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-290",
+      "name": "Timelock Channel — Midnight",
+      "file": "E1-290.jpg",
+      "world_plates": [
+        "timelock.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "6ff4a818fd4bc83f2629d7f11c0d77c34181ef2fb160e7b46973db5d7422cf6c",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-291",
+      "name": "Key Vault — Workshop",
+      "file": "E1-291.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "3add48d6a2a4376022142b14d3cc18a5145b4daadbaca40a52ad8f8a8086d574",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-292",
+      "name": "Key Vault — Cold Room",
+      "file": "E1-292.jpg",
+      "world_plates": [
+        "keys.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "2d8c44b039157ab7391579183560941ffb3977ca4d232b3b22b7553bd1affce6",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-293",
+      "name": "Power Plant — Solar",
+      "file": "E1-293.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "47187c90c03a43d27c50f64bf867f3ced14e2678ee9fbc05ea39aba9c07ee5fa",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-294",
+      "name": "Power Plant — Hydro",
+      "file": "E1-294.jpg",
+      "world_plates": [
+        "power.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "109eef34f53091b2ff44f423e757c12abe66290e8fa6446818b207a6b0996e91",
+      "status": "art-locked"
+    },
+    {
+      "id": "E1-295",
+      "name": "Satoshi Orchard — Commons",
+      "file": "E1-295.jpg",
+      "world_plates": [
+        "bitcoin.png"
+      ],
+      "character_assets": [],
+      "size": [
+        768,
+        960
+      ],
+      "sha256": "a0366d466d551165a383064adeb7ab2fc0031706ac37fbdb5e6d2cdf9177cf1b",
+      "status": "art-locked"
+    }
+  ]
+}

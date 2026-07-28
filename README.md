@@ -12,8 +12,11 @@ art/
   brand/       official 600B identity assets
   cards/       rendered card faces (built after the standalone art phase)
   fonts/       local open-source display fonts
+  illustrations/ 295 text-free E1 artwork plates plus verified manifest
+  qa/          labeled contact sheets for visual review
   resources/   Power, Bitcoin, Keys, Signal and Timelock icons
   rulebook/    wide chapter banners
+  world-plates/ six generated affinity environments
 cards/
   e1-cards.json          canonical 295-card text lock
   E1-CARD-TEXT.md        human-readable editorial catalog
@@ -65,6 +68,20 @@ reference data remains read-only and is never copied into this repository.
 
 The builder records its decisions in `.audit/e1-design.sqlite` before it writes public
 artifacts. That local audit database is ignored by Git.
+
+## Standalone artwork lock
+
+Card art is built and reviewed before card faces. The six generated world plates contain
+no text or people. The 92 Avatar illustrations composite only official 600B full-body
+assets; every other illustration explicitly remains character-free.
+
+```bash
+.venv/Scripts/python scripts/build_artwork.py \
+  --character-assets PATH/TO/OFFICIAL/600B/assets/fullbody
+```
+
+The output is `art/illustrations/E1-001.jpg` through `E1-295.jpg`. The JSON manifest
+contains dimensions and SHA-256 checksums; `art/qa/` contains 12 labeled contact sheets.
 
 ## Cockatrice playtesting
 

@@ -9,3 +9,4 @@ Thumbs.db
 *.db
 *.sqlite
 .env
+.art-build.*.log
