@@ -97,9 +97,10 @@ Every playable card has the following rules-facing fields.
 
 ### 3.1 Affinity
 
-A card's affinity is normally defined by the specific Resource symbols in its cost.
-A card with no specific Resource symbol is neutral. An effect may add, remove or change
-an affinity.
+A non-Resource card's affinity is normally defined by the specific Resource symbols in
+its cost. A Resource card has the affinity of its Resource subtype. A card with neither
+a specific Resource symbol nor a Resource subtype is neutral. An effect may add, remove
+or change an affinity.
 
 ### 3.2 Action and Resilience
 
@@ -762,9 +763,10 @@ No card, money, satoshis or other asset changes owner because of a match.
 
 Toss effects are disabled in ranked or accessibility-first play.
 
-**Web adapter:** the player chooses up to three legal Network cards controlled by one
-player. The game uses its recorded random seed to select one of them. The selected card
-is treated as hit. The source card defines what happens to a hit card.
+**Web adapter:** the player chooses exactly three legal Network cards controlled by one
+player, or all of them if fewer than three are legal. The game uses its recorded random
+seed to select one of those cards. The selected card is treated as hit. The source card
+defines what happens to a hit card.
 
 **Optional tabletop simulation:** use the physical instruction printed on the card, agree
 on a clear table before play, and never stack or conceal cards to manipulate contact.
