@@ -4,9 +4,7 @@ from build_artwork import build_decisions, stable_seed, world_categories
 
 
 def test_stable_seed_uses_public_identity():
-    assert stable_seed("E1-001", "Genesis Lotus") == stable_seed(
-        "E1-001", "Genesis Lotus"
-    )
+    assert stable_seed("E1-001", "Genesis Lotus") == stable_seed("E1-001", "Genesis Lotus")
     assert stable_seed("E1-001", "Genesis Lotus") != stable_seed("E1-002", "Genesis Lotus")
 
 

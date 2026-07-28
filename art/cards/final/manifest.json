@@ -1,6 +1,6 @@
 {
   "phase": "final-card-faces",
-  "layout_version": "600B-E1-card-v1",
+  "layout_version": "600B-E1-card-v2",
   "card_count": 295,
   "card_size": [
     750,
@@ -18,12 +18,13 @@
         750,
         1050
       ],
-      "sha256": "3613c7f6a224c46bcbd99fc2f8af5ee0a63ff5a53d837ffa037b0e5a2bc3ce6a",
+      "sha256": "3919189ba353070a5808bf825ae6574fcbe42bb42bb17c1607bb2d580dec8ae0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -36,12 +37,13 @@
         750,
         1050
       ],
-      "sha256": "ff02725e617d194c4466cb403e5ed1feb326a41a73d51bf7597f13083befaacb",
+      "sha256": "55040bc22e4151876d4632eadd7e1eedbc79f9424414bd3d83299139134b101a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -54,12 +56,13 @@
         750,
         1050
       ],
-      "sha256": "af1e4e1d41cb1409605a6c266ef75dd51470f6eaad698ecb22197f2d856c7904",
+      "sha256": "a89f39685f7216142b06ac8317e6ecc78ce571dc5f55961327c02d1dbf205064",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -72,12 +75,13 @@
         750,
         1050
       ],
-      "sha256": "fe333a46b745b96b0caca7d658acff1ac030a4b640cea0d5be66d1d62813486c",
+      "sha256": "df3fd6d6901af06547b23f26041a7be9590da9e5d41f373e52b953853a268dc5",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -90,12 +94,13 @@
         750,
         1050
       ],
-      "sha256": "77c9fa1438dac7101e1ce28fbca2d275a18d39102b1e55f0448c451bd2349d81",
+      "sha256": "d7aa48d36b6ee71160656c134338815c60f149f970ef9e670f6a32299caea1ee",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -108,12 +113,13 @@
         750,
         1050
       ],
-      "sha256": "b7d8d5acbc9fe1121790ccf910bb70c110578b1a0f698bf5644903f897aad566",
+      "sha256": "5ccfa2e98fcb64e89cfd546c3f09f66698a56c8f32de772d7afb3adb602ee82c",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -126,12 +132,13 @@
         750,
         1050
       ],
-      "sha256": "c94f26d68ac2318ea74feb16d51ad7c91b432361de9d45372040975444043973",
+      "sha256": "de2df7451134e00996bdbe9967544db8c15a9813ec4c04a1a669934552f64b6a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -144,12 +151,13 @@
         750,
         1050
       ],
-      "sha256": "bfc2f1a282dc194eb50c4b168f3e13d173e2cf33512dcc3b24b0bb0f199bc593",
+      "sha256": "0e4db0d58792a3eac9ab813f7d9c7ea01a1402540f67bd94fb3d069cd0129f92",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -162,12 +170,13 @@
         750,
         1050
       ],
-      "sha256": "5700da08d1375b4ad9aa9728870184bf82ad604bddba8529891bdcc779898d71",
+      "sha256": "b5382fccf21e9f37845626cb137ffd0783df08f0a8c3b7625025e6f6b8bcfe70",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -180,12 +189,13 @@
         750,
         1050
       ],
-      "sha256": "6ad39594a9e038bf53a260daf92bd71eb06bada0c57a335e5af8d7044b7fc1c3",
+      "sha256": "eca1c3c5172bb232cdcaad8fca2603f8065f4b0a2ecea6574528f589462fc99b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -198,12 +208,13 @@
         750,
         1050
       ],
-      "sha256": "afe9c6a2ff80db51415d7b1f7e41d65975f1de91a01a934a71bbd0c03590c90e",
+      "sha256": "d061683fd4f277ffea2046780dceb15b7d0b6a3d10f523af2dd0f93909bb0bd2",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -216,12 +227,13 @@
         750,
         1050
       ],
-      "sha256": "9e5e918f90acff50445e291f76b171c4ef51c52835f17be31c282be35bdb6a2d",
+      "sha256": "85a6d398efdbe1b81082084b78670cdd1e051ca24373c5b9fb080a7215f334a6",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -234,12 +246,13 @@
         750,
         1050
       ],
-      "sha256": "7c66cfe51b2e1d486251df15934850bc21ae786d090c7698b7630540099a5acb",
+      "sha256": "54a617b3ed8ae0ec1f89d4e9082d50607485b8e9b76619f1a2d1c95a7f1bb3a9",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -252,12 +265,13 @@
         750,
         1050
       ],
-      "sha256": "5eeb09af67d278c3fda2b9533e040039032a514afd1ff53b9dc29f5bdd8c14cd",
+      "sha256": "bd9276eea543c5f475182b7e687d7c961d00175fc65bfb6aca8d3da9f1f73ea0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -270,12 +284,13 @@
         750,
         1050
       ],
-      "sha256": "ec32dfb953ed6da2a2bf84217909b7b442be8dd60cb5875ac129ded708338cd9",
+      "sha256": "ce170132cbdf268df0f179dcf51f7a200b362de560e0e6cf922babfc2a59f34f",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -288,12 +303,13 @@
         750,
         1050
       ],
-      "sha256": "cf1ca0f600e848c886fbc8a3fc6f65939dcbc94a88c6140b4f4e2a84dda61814",
+      "sha256": "9de949da3757fe3fa6f630243ecb5001a9c840869fd6a6168dbdcf64623b024d",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -306,12 +322,13 @@
         750,
         1050
       ],
-      "sha256": "65ef1569709762a0d778b03f2c80826c85b4b5ff6f5d5faf2f89a82d0638d867",
+      "sha256": "2d0c90a9d1d755e087a176d986ab4da6e72664d385dc7616abcc9f377c6e13c1",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -324,12 +341,13 @@
         750,
         1050
       ],
-      "sha256": "e0bf7a0166f2d4f5cb499e01476b3647e2e42b9ab53e57a57e1a065fce317f5f",
+      "sha256": "c1efbb276d78bfbae20164a01149cd6d88a3620e1b9f02a2ee792d3026164fb0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -342,12 +360,13 @@
         750,
         1050
       ],
-      "sha256": "dfc8a46ff0ef2c6ee4cad06d22332da27efdf5925c4f7f9d39e4b5efca52eb84",
+      "sha256": "ec2fd4528686054f9990c0b4dfb13502539e90cb3f3e5b101fae936f859144b4",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -360,12 +379,13 @@
         750,
         1050
       ],
-      "sha256": "06b915ccc0a861e6849432a5e0a5bd89bf6a183a0fce4c1382065531e14198ab",
+      "sha256": "97dab26fd9a29af97223d43b543b514bd6cc1b93fb3142516a180b2eec933cd4",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -378,12 +398,13 @@
         750,
         1050
       ],
-      "sha256": "d226e5d20200ecf7c5f2f52bb80b41df284bd08af72b5c74032200c8c224325a",
+      "sha256": "0b9685268180c929053df621412213d46535d25f1ddc393fe62108050c9ea200",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -396,12 +417,13 @@
         750,
         1050
       ],
-      "sha256": "f685d1d3b40de60ae847ec7c62e557be08bdd0e8346f5b52d9442cf995c958a6",
+      "sha256": "ca38053d48fbc1d110646b15b814dfa38346cd81998c060d5585cf537ee0eb74",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -414,12 +436,13 @@
         750,
         1050
       ],
-      "sha256": "841df2404727aac31a7bf5e5d7802b210a8923c9543865348240f303e773fb39",
+      "sha256": "f60273314efaadb1807ab2b9313fbc9b37d672bf99f68e2c75f2ffebb9e4d7f8",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -432,12 +455,13 @@
         750,
         1050
       ],
-      "sha256": "3f829849b3c55e4d089698e2b050e4e9d7fe91d4813f84513b4d0eeabf94c76f",
+      "sha256": "98da7dc9e7699b5a336ce05b13b5419cd895bca379e8196b8137433c119284b5",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -450,12 +474,13 @@
         750,
         1050
       ],
-      "sha256": "2c4d3fbdc989acc1125e672a2a38c07382f8fc6a4b109a461662f56cdfe6feaf",
+      "sha256": "d4ee5228bb1e0b196d150eb2dbe80db12ecf61a6dfe3344fe1378b55b11ed2f9",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -468,12 +493,13 @@
         750,
         1050
       ],
-      "sha256": "8dd7845c08f878529b62afb6fda9e4ac9c876ef833ee67994123dd99fb19d610",
+      "sha256": "1461d1432ed59f999d2fb6ec085e10683e41b87e913bc4dd9bb1f481778e854d",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -486,12 +512,13 @@
         750,
         1050
       ],
-      "sha256": "b674fa5425b34e4b13a390a544b3210e7680a05015d1fb746e8b3c9a26be4b90",
+      "sha256": "7bd538e8cc52a4b31ae9b0b603a57f76a0096b3d21f61e2535654db698d4a63d",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -504,12 +531,13 @@
         750,
         1050
       ],
-      "sha256": "e491f6c7942354ed56f12f6c5553f81affa3acfe0f0686aaf523b16a21e07c5e",
+      "sha256": "ac3b9f3f4ef018ededb682d393ef98caa612d7a565f7051074a2aa07add25ba2",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -522,12 +550,13 @@
         750,
         1050
       ],
-      "sha256": "a62364d3674a26180980ee5f035b0cd4c849aa3c75374b07920ad0e43697b755",
+      "sha256": "a2a17ca438f880fcce348d2300b83fe00c47f856e2563a0f84140b512a8ee4fc",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -540,12 +569,13 @@
         750,
         1050
       ],
-      "sha256": "bff7426284aa454ccd6d70c71d648efad24c28d1eebd8c06ca13e7e212fac7e6",
+      "sha256": "b2776a33e6bef6087a61283e2dda4923a43a63931fcf36732a1c3beb0d203cfd",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -558,12 +588,13 @@
         750,
         1050
       ],
-      "sha256": "766a9a3e906ab48e0b3b3ffcca6cea6b1fcadb5c49eae56df8f5b2cea84caef7",
+      "sha256": "07a592e6313a78fd14844aeb6f804424fd45e66bfdae8089c8f72373eb82e921",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -576,12 +607,13 @@
         750,
         1050
       ],
-      "sha256": "0fbc5782d206b20bbd6808c790c889546985b88f66003a7f2c88d379ecde1db9",
+      "sha256": "347841b4a2ffb10fce0d05db20516d62e2a110e6a3df4cc45a237a2f4fbba5d1",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -594,12 +626,13 @@
         750,
         1050
       ],
-      "sha256": "c6c3ac29ad6461eda04e5350a4eaa9fb6ae04e3e5bf90dcbc7e416262b8d856e",
+      "sha256": "b064b198ffb961abb699f0a6607cf883cf186b4ced9ed80d7eecd1d635c1261b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -612,12 +645,13 @@
         750,
         1050
       ],
-      "sha256": "dcda89db5d0f0ea0f5ba7c78b15839e653188e0ecf350e3cfd0d000f88745ff2",
+      "sha256": "21cab5fcbefa9bf177eeb2c6831ee6014848b2ffa86f9dc9bad7df27f4fb4db0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -630,12 +664,13 @@
         750,
         1050
       ],
-      "sha256": "cd373ebadb356685fe6291d490937bfc3b1650302a436bdbe7e41e7fd2fcd399",
+      "sha256": "8f7e01d7140733b333090e7a99fcdb8460da270e37a089002eb0125849b13382",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -648,12 +683,13 @@
         750,
         1050
       ],
-      "sha256": "cedddd0f670ee2abf94a114f45d76027eeb28f7ba3907f5d7d039c3b009559d8",
+      "sha256": "69eddc30597a09398a30a3f32dc4e05866ce5fa7230d18977e2a346ce4941f94",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -666,12 +702,13 @@
         750,
         1050
       ],
-      "sha256": "45b4aa56a1c94e0c339202ddc8b174ba5076ab9d8a7f588d96450a429fb258e2",
+      "sha256": "db9f640215e4448114572fcfcf083d2233444379233a19bf05ff5823983416f4",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -684,12 +721,13 @@
         750,
         1050
       ],
-      "sha256": "8ed28ea0d0c28a14dcbd05ae7eab032e5af89725d46f31353ffce57fffd5be33",
+      "sha256": "42c0ac74f04b9893f0428d96fddcc8f9da78e8ffa1e6e998a5f2d9284dd20976",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -702,12 +740,13 @@
         750,
         1050
       ],
-      "sha256": "d944196816f5a9130912f9a65832ebcda9174d5d4cb91885dd0f1a35c4927cdf",
+      "sha256": "b22e00a68b650b51b9962917d3e8b063a4eeb4263d5e04ea2f64724715973523",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -720,12 +759,13 @@
         750,
         1050
       ],
-      "sha256": "7eb6e05912a495699ff22a3853b61313bd19a9856aefdd992b253c93b39ce837",
+      "sha256": "210bc5fd966714d4428c60aab3ee8b273c8cd2cb0b2f224da0a6ccbd48588dec",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -738,12 +778,13 @@
         750,
         1050
       ],
-      "sha256": "afd0f3ac70902d765036a8de6f5a6fc82acaebdc4c683c8fc78f3e44d929f028",
+      "sha256": "f8ac404d4a15eab122ee2f0ccb7ee06e66e141de7d989aae6b11ced5a31201eb",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -756,12 +797,13 @@
         750,
         1050
       ],
-      "sha256": "3518904e9fb86b0533d870faeacddb7820f2b44999d291e7ad6be3277aba01c9",
+      "sha256": "94daf91611132f9c0ef36b5934d4874e817aeeabc8bc645e7099d746da7be17e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -774,12 +816,13 @@
         750,
         1050
       ],
-      "sha256": "ff54617c1680f3c3ce757654c6847f9df16c56a11f8a2f7cfffc4d38e796ecc4",
+      "sha256": "79ac54d00565e1a4cfb303dc9911f3e866ea2b6261f7aa0077868a097a7eff14",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -792,12 +835,13 @@
         750,
         1050
       ],
-      "sha256": "063e294df8052325cc0417cc575d8bed9dc1a9f36b3698e60192f1e25465160f",
+      "sha256": "b238ce7478aa0e60ac289badf5a35c4d07ef0863ed2c5932d45d646ba15d2bd3",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -810,12 +854,13 @@
         750,
         1050
       ],
-      "sha256": "210a21b1b189bd4b6ec823169310d2f02e3f342121e64ba3f989f5e1733c7bec",
+      "sha256": "24521ed6df9e6c5055658fcd95a434173cf494bbcb02a17717548fb2aaf4ccd6",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -828,12 +873,13 @@
         750,
         1050
       ],
-      "sha256": "5b77b5fb5cec0c064e04fb621cb1f4b1079b36f49bb0d7b2f716b14eac37d9ee",
+      "sha256": "bd0eb9f1836e424cf0f5e0b3b7f7f57bcc2ccb2e49b0315fd9f375310dbc6aad",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -846,12 +892,13 @@
         750,
         1050
       ],
-      "sha256": "6e512119db18d5f863ce5ffa26888d84a12fdd2ec4ba27165503c9a12b1c3753",
+      "sha256": "8cce82aa6f254bc9f28a25f9d449ab8dc94dfa767e4ece9fa262a4cb14516c34",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -864,12 +911,13 @@
         750,
         1050
       ],
-      "sha256": "e859f9542a00755899b2d63128b7f54b80ac1e52d740a892710cf56132043777",
+      "sha256": "ad2fcf27f34570dbe018a507a5292b90b7031794ec66c2c203da81a09e9ef056",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -882,12 +930,13 @@
         750,
         1050
       ],
-      "sha256": "e388fc928deb00679e25633fa1a0437b16f3d71c33dc4e5e6bdfbc048253acf9",
+      "sha256": "108c77df3015bde7af69098402b1d0ddd1d1a688a6cd13f264e494a9f3149d6f",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -900,12 +949,13 @@
         750,
         1050
       ],
-      "sha256": "76b1c3e4a8352bb5197ca75a852e562221048291cf08dc9a2feb97ca5662bb4c",
+      "sha256": "6d556749a14e8c538e47b962032469393def7cb944e36bf37a7183515ce38bd5",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -918,12 +968,13 @@
         750,
         1050
       ],
-      "sha256": "d5b2636dc7dae1f51975cc4781ad0d22d732c02552d4beac4b9f883674b12444",
+      "sha256": "3c220417d1d9f71daddbb6ac10f5e776cb96389ce621b875cd942791bc72bfb1",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -936,12 +987,13 @@
         750,
         1050
       ],
-      "sha256": "6f64044935a229cf12745c35b455387f8d2f0249eb6424ba7a5d137cef6ff3f4",
+      "sha256": "05361bb3b6baa87bc836dd438dabd6c9eb7f6041ed805a9a4ce31f0836674f86",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -954,12 +1006,13 @@
         750,
         1050
       ],
-      "sha256": "223ab3bd7bc94aae7cd514f2a0dcaf8ddb9dad3d497ba63526d294c47662e346",
+      "sha256": "b816d16b9ece8784d727199ca197afecd2d3a77c9c8cd4dc644854c2e2dbf004",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -972,12 +1025,13 @@
         750,
         1050
       ],
-      "sha256": "ef5737bbb4751cd98b39c5aad7d2a5ea3569d0044cc15c233567dedca05da771",
+      "sha256": "57a1212488ed91b228af1d22d213772bdb3769e5a60a97c099f724d9b19a8507",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -990,12 +1044,13 @@
         750,
         1050
       ],
-      "sha256": "34c927284fbda05ba29931361104fe0669613d5567f0ab02ad4e1f89e26d68a9",
+      "sha256": "e666c576a45cf1833c020cf143ee522d7fe16152813d5507d41be2d271c1cefe",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1008,12 +1063,13 @@
         750,
         1050
       ],
-      "sha256": "faeae0fa1ac6c30aab96fc47e5dfee811dee753f3765eaf86b26c952ae8d98bb",
+      "sha256": "f831428699e2ea7af17493777bdf2f6853bea7b05f804c5c5e7a66453764f1b3",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1026,12 +1082,13 @@
         750,
         1050
       ],
-      "sha256": "5bbada2b2b1cb70ea897c3cb506360d98840471eb2ae65a97532e1f6062dcb01",
+      "sha256": "c1949c41efc8ed8356cb3a030c36a210c5775f21ad0de605903cc95efedc11d2",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1044,12 +1101,13 @@
         750,
         1050
       ],
-      "sha256": "409784a9bc7b9908d9a0da64f00ec305123fcb51a3c90c16d54954fe54fc4176",
+      "sha256": "7d3be7a7aeae3814d4e35fde8c5f752dc6112288931ea2f85b984f3dcf789dd2",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1062,12 +1120,13 @@
         750,
         1050
       ],
-      "sha256": "f41d680104b779a55ced80a6bbdcb0f1b146da29f045ceb5118ad90d68aa83b8",
+      "sha256": "dc9766bb125b7e61985eafcd4bc89adb16ecf4c234c8e59f4634ff01b2e8ccfc",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1080,12 +1139,13 @@
         750,
         1050
       ],
-      "sha256": "b95a4f1b548442dde23aa3d82afe01af0d17bf74257c24ac80ce82583b9e57bb",
+      "sha256": "2f2920989e3477214c052d44c081f0015fda0a56d2999eb16b763d15b896496c",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 21,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1098,12 +1158,13 @@
         750,
         1050
       ],
-      "sha256": "aeedce108a6daa5cb38aeac7983d33e0b90aa8ebe4377e6d16aa0c5332fd7468",
+      "sha256": "ffc4dce6f5da29abfba009a42b7fc6aa87bf1dd7f9cc1fa594f8188ec8d45acc",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1116,12 +1177,13 @@
         750,
         1050
       ],
-      "sha256": "bd181a1ecf0cceedf47f2f92538975f22add1156e10531b5c41333f32c627955",
+      "sha256": "970a7eefb3480ceb8e156695acd6b0eecf635911a3097902121cd88ca1b18099",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1134,12 +1196,13 @@
         750,
         1050
       ],
-      "sha256": "f971e7fe774df05e66303db90b30b8507a134913fc8b60b290b19aa072c39d68",
+      "sha256": "f12c3903850d883d6fe7b1794a08548892759f8136f37bdc3f0293d71aace79a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1152,12 +1215,13 @@
         750,
         1050
       ],
-      "sha256": "ed149f6b41c89a6f8c23ed887f36574170045caba6d75f4144ffad622e651652",
+      "sha256": "db96f498d0999f6de69a02e257ed95ce993dc24e088588c9ea6b614718d2e46f",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1170,12 +1234,13 @@
         750,
         1050
       ],
-      "sha256": "b50c77992e503c91a189026c562297dd52508da647de73789cc172e7194cc803",
+      "sha256": "da10b82e7bfd38bfe935f7bfdb70c0310ad2c2c6d5a1ca4989b0dcc5ae8031bf",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1188,12 +1253,13 @@
         750,
         1050
       ],
-      "sha256": "e86f6ab3d07d1a6d7b620fd01a8f494c7168ab30d0ef3b31e8585d23966a5756",
+      "sha256": "d706c5c7a16ca0a49413f85e2a830536614a2f291745578cdcaf47a152be0971",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1206,12 +1272,13 @@
         750,
         1050
       ],
-      "sha256": "88de4688627ead7e1dbaecfd248857f6cfe3c036ec9f7bdb3228965d64f83afe",
+      "sha256": "868d2c4f234bba3cb73fc24858a07b0afebe539d28cda1462a6ea3f6d7a59870",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1224,12 +1291,13 @@
         750,
         1050
       ],
-      "sha256": "c9dfb44c5035540e0ebe201eee402337d1b37812fcd50fc674b394e79d5950bf",
+      "sha256": "a22bddf5deba3d3ecd6e1236e1002725e54a5d234647e21d63663ab42d408b68",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1242,12 +1310,13 @@
         750,
         1050
       ],
-      "sha256": "4028e602694781d9ca223a05a69be9cf282aabfc99190d58df650cd944f8d2a0",
+      "sha256": "ea5076ed9e46731a856684eba99e8cf81df197f64b9bcb9991d3d2742ec6a26a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1260,12 +1329,13 @@
         750,
         1050
       ],
-      "sha256": "411f37c3d9fca99b3b23dd7e8edb35163b6ed4859bc702799c5e35769de85fda",
+      "sha256": "46d63d3fedd559a3dd51b9be9866dc772888e402eadce6e8a25820493fe43721",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1278,12 +1348,13 @@
         750,
         1050
       ],
-      "sha256": "c40a1209ae7b849ef05a1c5e3a22c149de0bda9d6e2ea23a7224aa8dadeab454",
+      "sha256": "1fa4053d31ef96318ce7092040ed1a29c8f45bd517533acb1800530ee28d6924",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1296,12 +1367,13 @@
         750,
         1050
       ],
-      "sha256": "3a27672a4ac0c8b92acbcffd08d3e6aee398a9e3762c595709fa84b2cbf886c3",
+      "sha256": "279a63d2084aa8d15aea29a46c474be2be14588ff4819923b351c7d76d2c4173",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1314,12 +1386,13 @@
         750,
         1050
       ],
-      "sha256": "8b636e10eb090c467d85f1bb13e42d3f497f2c7c2550a69535fde8c24f49e607",
+      "sha256": "844612b378d7ba2c91f63902fb5078690703791623d41059d50626c8becdabae",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1332,12 +1405,13 @@
         750,
         1050
       ],
-      "sha256": "bae320d416b057954f16dcd46a5bcf3e4628cf162ac564de925b3b17a244519e",
+      "sha256": "3cbdfc73a55489a6fc16ea3b6d8d9446151f07faa12aadb93e82e3eb9d9bdee6",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1350,12 +1424,13 @@
         750,
         1050
       ],
-      "sha256": "f7f78a035edf2e78c15b9bb96a5d48f01cfb8125063fb2e08f79db6a0aba8de6",
+      "sha256": "e42cd2029f6d7aaba7be52664dec967c0e61c3c12384d0950e262e2b248ff63f",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1368,12 +1443,13 @@
         750,
         1050
       ],
-      "sha256": "a439a6431e83e0dcf090585c4b69ee01c725ee3b87ddf48f8cd9c7ee7bc83f35",
+      "sha256": "24217d1b32e586f9d85a32380913844b138dee006aa0f3d0af4a694c125949ca",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1386,12 +1462,13 @@
         750,
         1050
       ],
-      "sha256": "9e15445946a13069829f8cfd8976c073158a47aba04de034681aa25bd3502380",
+      "sha256": "acd4d1832b3947bca6cbba61f48ec3fc5386584dbafa0cd97427ea8203b273ff",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1404,12 +1481,13 @@
         750,
         1050
       ],
-      "sha256": "63a7d20bd183c4f85ca44af5b6de2934ed71d7d8eca000d1b889bc6d3929c30d",
+      "sha256": "1134d9f0a1ed83238bc1cb06d8834839ee542470dbfb3221ce449a8d14cc46bd",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1422,12 +1500,13 @@
         750,
         1050
       ],
-      "sha256": "bedcc0dbbfd2814743da3685ab301b33235a7a79f4202226463003ca443e4108",
+      "sha256": "cc9a192b90186104336936a3b246804912736cbcc64237e7421a6e945d75bde3",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1440,12 +1519,13 @@
         750,
         1050
       ],
-      "sha256": "9df0f728927a5e0494ad8451234db18cbfeecdaf3cbbf79713ffb5c565babb4a",
+      "sha256": "aab24da66c137316cbb7adcc87eeafb567a848cf46c54329f5448e1d2bd23c0e",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1458,12 +1538,13 @@
         750,
         1050
       ],
-      "sha256": "5bc6fcdacfd2a549482bf59d738f8739d8d018591f7415bf2cfbd6f90e5561f6",
+      "sha256": "bb8abab6090a74cf3e7f23a8389626ff8ba436670ffec70f67bc5791034f640e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1476,12 +1557,13 @@
         750,
         1050
       ],
-      "sha256": "fb2452e4408ab7111cc74d6c45891582947a859a7c18c83cbbbf739c15aaa897",
+      "sha256": "1c0d1709c1fb643f9c07ec692ea011e4c4b7b0c5a64ad9903d6760e84096e4af",
       "metrics": {
         "title_size": 38,
         "rules_size": 22,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1494,12 +1576,13 @@
         750,
         1050
       ],
-      "sha256": "057572a7dfdf345e42497e1815c595a707d60a536360e89b88cf086df9506200",
+      "sha256": "0370285d66e04929a3e885a600a76210e6511d4fc7f21f268bca68e6c981f2ba",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 16,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1512,12 +1595,13 @@
         750,
         1050
       ],
-      "sha256": "9f900899d3cb750021d2d7a99dda40b438930cfbb03c0ab9bb46799e156741fe",
+      "sha256": "bb1f759ada18d4c6e275b85cc36c9d13b22371c22c798052eae196f9fece9bc7",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1530,12 +1614,13 @@
         750,
         1050
       ],
-      "sha256": "e692563ff799136478d0c9dce7a2a2ee59979ff1d55e967cfbd4c614445cec37",
+      "sha256": "da23ce9307c109a29c78009c388dd8432a8e7535811480bd7dfcd194d905a2c2",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1548,12 +1633,13 @@
         750,
         1050
       ],
-      "sha256": "12cb4f13a3b9153fa1cf4452369788f9107c553243170054b1e25fe7540f7118",
+      "sha256": "c726379791c3975a3cfb152a44ac9a0031c56019b5c9bbb0e6df98452f3a4157",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1566,12 +1652,13 @@
         750,
         1050
       ],
-      "sha256": "d9b368157b9422bc0345bd1b1dde7b9bc29537961c802f30b5aefc14f8f789e2",
+      "sha256": "c7eed099891e2b0db0961859eb30b82a02cc1b09192de50a3719890a5566148a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1584,12 +1671,13 @@
         750,
         1050
       ],
-      "sha256": "0dbaf8c81cbe55e47164b6fa46d65c454cb44c03009a5214379ea6abea783a62",
+      "sha256": "6bdab121d1bcdc54784ea01af12c94cea9d6990e643a34267f19800b7095aeab",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1602,12 +1690,13 @@
         750,
         1050
       ],
-      "sha256": "2a85c759b4cceafbb9ce5f26e6886ec8ae1d3723e8d4a75c9497086f27968c54",
+      "sha256": "c8df0038ef0ea32fae41114181abf0c0bfde8aee2dbbb19dedc3016ac4ed60b1",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1620,12 +1709,13 @@
         750,
         1050
       ],
-      "sha256": "291c20d43f67be6793107e2b57330c4cf0c514a4623d29067b30e172c4674ede",
+      "sha256": "9eb17bade09c7cb54ba2c1c3ff453bcb0c5030b0ab492ec361b54a712c4e21ea",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1638,12 +1728,13 @@
         750,
         1050
       ],
-      "sha256": "87ba1c3bac80b26c471c28ee7795bbc36e5eec97edd68d00b75c3235e523c48c",
+      "sha256": "e1cea879411a3818bf9677f75236372c13b0225183f941c21e76b4b30276662d",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1656,12 +1747,13 @@
         750,
         1050
       ],
-      "sha256": "52c62e6df18ed44c95325b7c75286d025e2589de2cc77ef70ebc272e67a4ba1a",
+      "sha256": "ed33097b4c5c85a5dedb80c585f4f6bb88557f85aa97cb8dc3b58cd029c155ab",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1674,12 +1766,13 @@
         750,
         1050
       ],
-      "sha256": "993dcda058a798694b20994288dc52483fa75e081b3c647a7ba395392a56abab",
+      "sha256": "96b35c037194cf9660f4f9810c6780865ca382854fe898b564b0de8c456675df",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1692,12 +1785,13 @@
         750,
         1050
       ],
-      "sha256": "ee10521d09a62ebe0e33f075ea1bc0680bab4263e30ff436a3a0236dd4209c10",
+      "sha256": "5ac0c66963feacee10338a5e6f33753fbb6e6d269523c0b288eb518112cf219c",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1710,12 +1804,13 @@
         750,
         1050
       ],
-      "sha256": "03fbab7a6aaee3c79c0cf9340fc8f16794f562301f029dd99359e1c29b465dc8",
+      "sha256": "89ed9b0f91bf3aa0faf4542539a67eef742125ddd0a2b1804d3aefd7f928cddc",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1728,12 +1823,13 @@
         750,
         1050
       ],
-      "sha256": "d5819c4d654045e28856e0d48ac9a31baa0f6fe9a6f4b9c0e6a6fdbb33d95a76",
+      "sha256": "fed0c919b1c4c7af12d6720cd09012b413fa7a35cf0f8c67a3f82a622acd3d9e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 20,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1746,12 +1842,13 @@
         750,
         1050
       ],
-      "sha256": "5beb691ebdc305b37f3693f968c62b99aff44620e560e718204646ac9c6ff82c",
+      "sha256": "b118a0d5444e40ba305f933c3d090ce231472c4fe4ae49085820485983d73077",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1764,12 +1861,13 @@
         750,
         1050
       ],
-      "sha256": "4ad0e4fb6eb187945c239de449bdfa2a44d2c7b13a311cf988d544caf0f94ee1",
+      "sha256": "b333ce7dd7bf54c9556876449a2921a5d1944397758a02cfea034be68d0cd81e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1782,12 +1880,13 @@
         750,
         1050
       ],
-      "sha256": "3314edd1f75e94a0f1ebfd78b29e0ae62823f57369d427d0d03a7e1ad2b83c18",
+      "sha256": "8a31d41f7df65640901bf08ec7af88d726a738d93b939f4aeea8c9cbd952d081",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1800,12 +1899,13 @@
         750,
         1050
       ],
-      "sha256": "7d90031d08aa3ffe7e8ec5d169bee0d41f84fd016d669e2a70d2d5a209b10379",
+      "sha256": "e28510aba51687a22bcb3e9ffcdf8470b977fe6038899c46984a10e2f13713fc",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1818,12 +1918,13 @@
         750,
         1050
       ],
-      "sha256": "0d57b4ee9d7caeecacf319bae054b158270d46549129eeb111d0489afd941bf5",
+      "sha256": "5fdf2c2b278abd03942e17209a0232d35ec1e4c13956dbed2d180c8210123bbf",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1836,12 +1937,13 @@
         750,
         1050
       ],
-      "sha256": "d91fcbeab2b37e6e7e149bdc01834d7ec4f432effb10ce085f0950528ce301bf",
+      "sha256": "77863ddf8b9d2bfb41e3e97997ad80e16f976f162a7b281adab82044a8b179f3",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1854,12 +1956,13 @@
         750,
         1050
       ],
-      "sha256": "afc08944216aa03776688b499b9cdf0b359d7af53451329afd152bd6c622b13b",
+      "sha256": "0830cff63b164fd6eaf8e975c2fe09af44b85b49509e5041f832b3f72bfb9222",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1872,12 +1975,13 @@
         750,
         1050
       ],
-      "sha256": "8913b49b939bd5c4a50f50d2172ecd113fa0f299c8a99ef93483b24868b92125",
+      "sha256": "7059a3ab1f09b6f39789bb5ca15545004555c43a1d962c16ed4775568199a254",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1890,12 +1994,13 @@
         750,
         1050
       ],
-      "sha256": "efade22ff2cbc244e71853967d0d97c4f8bb4a62181e1de31afcdecb20804a19",
+      "sha256": "985e3ab4ba80422a2e7ff8fbc0d02837338aac47e803e84b5d8cb199610b28e2",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1908,12 +2013,13 @@
         750,
         1050
       ],
-      "sha256": "9e102d76a657f16a674c801f34c02ddd8f39eb2634479d2c668bb222a7354c17",
+      "sha256": "ef74619ce82f874cae7fe382b1de91d3daa72069bad555acf65963699f1a9065",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1926,12 +2032,13 @@
         750,
         1050
       ],
-      "sha256": "4ea5e6fccc13720dee60b25925f70fc1a11279c224d41a86b3cfc475479f6783",
+      "sha256": "39f6e405b3503ba63a49305e3a461fe251a763f9f7fe9784cf753d4378ace284",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1944,12 +2051,13 @@
         750,
         1050
       ],
-      "sha256": "08b54ff75a79ece1e4361169a2320b95d3657dd8640bc13fd4a82a3a2c62c0be",
+      "sha256": "a361b69f8f150dea01901b14be7d038760f37e979dc7ec20993032731b2ffbd2",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1962,12 +2070,13 @@
         750,
         1050
       ],
-      "sha256": "e91b2974a0faba932e3a44d59d874e8773ed9e4ebe0ec2b2da4a9ff441a6889f",
+      "sha256": "7450d763e6969b41c668938d0d608ff70c0ec042e65be7d9aa439d2c6db1db19",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 27,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1980,12 +2089,13 @@
         750,
         1050
       ],
-      "sha256": "3a35399d149198ca06f52b1c6004533060deb28472621c48041aeb990f70f183",
+      "sha256": "b5e651b51baa37691acd1ca161f0ecb08c9320cb15b99c8f74ef3f01e9364925",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -1998,12 +2108,13 @@
         750,
         1050
       ],
-      "sha256": "21197361b465cc097ec9e8134bd1f4dfae267176ea584a0cc019b13a26e2f664",
+      "sha256": "55e0e49380677506669d7a0e8d6554e2b62d8b6eece5b6ca6f155de821a85a72",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 15,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2016,12 +2127,13 @@
         750,
         1050
       ],
-      "sha256": "df97364feb32fc2320b349b8fdb98205028bf5cc0458e69e281c860d88d047c1",
+      "sha256": "9225f9f58f6b7cee3681bc4f77c2575452e1ce5f54aeb2aafd6f19a8f5affd87",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2034,12 +2146,13 @@
         750,
         1050
       ],
-      "sha256": "f6cd33ff0cace003e128a377288c60b8e2736378a699c12337de3b3cc8699aca",
+      "sha256": "db6b9cf5e2e96de103a41dd5cdcd53016aa9fc70a26846468d7066728ad78792",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2052,12 +2165,13 @@
         750,
         1050
       ],
-      "sha256": "cb5bd549ca47dc654fca9f1de72e3a9eb7fb74ed096dc06c1becc19fe3ba81c5",
+      "sha256": "128b5216fc585b39359bec214b96928a97ef405cfedf338f95610141194bcf4e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2070,12 +2184,13 @@
         750,
         1050
       ],
-      "sha256": "e2d571bb0a0795bf00ad62aec2f89c36bd6e79edf9ddf4bc23f281965c7702a0",
+      "sha256": "e207c664de4b4bbf2aeaa016ef508ab1b87f6e489cdcaf2107c82f6080180ce0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2088,12 +2203,13 @@
         750,
         1050
       ],
-      "sha256": "98d0231af9e2275288b350ff03a9803356b850549a0e7301a0eef64140975d2a",
+      "sha256": "8a2c855743f69724bed80144a7b337a56bf84e8e644ec1083d487cb5bf0c436b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 22,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2106,12 +2222,13 @@
         750,
         1050
       ],
-      "sha256": "0600787e3623162aed15d06e97e4bbfe41ec06e7528f0156a3e75ae000484584",
+      "sha256": "bf1c3b7dcea5bd68b43f473dd6f6e5f2a587ce4b0e802e5ac26ca02c75102139",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2124,12 +2241,13 @@
         750,
         1050
       ],
-      "sha256": "5e0b40fd770723ffb7a83660e057a110be6fd99f7017d28e95ce54dcb370b3af",
+      "sha256": "cde40886f927b0aa5e48b5dbe3aae32f69a878d0a8d1f67b675ba37b88fb436c",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2142,12 +2260,13 @@
         750,
         1050
       ],
-      "sha256": "2a43244ec4606fb27bbc254e812eb8a37a16a3b6dce981404c738d9def17b45b",
+      "sha256": "bc506c50e3c80583ec85685c9812b406a69140d4cd305a2fc1ba85331ea4670a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2160,12 +2279,13 @@
         750,
         1050
       ],
-      "sha256": "4602a87a1da5c935ea5eabfe576a9041bf28ebe9c5610eb89fbbe8931de7a3eb",
+      "sha256": "4c78b6978f2a01042e82f8723ecb2ad5e4981243a1b570433e261f04801c6857",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2178,12 +2298,13 @@
         750,
         1050
       ],
-      "sha256": "063d30663c3197ad38a3445d6773caba8b0f3ec140373ab828ce2027bf584070",
+      "sha256": "4421bf8358f4b50d9b64471a30896a8fbf06314f16b0043e9e27b6d5d94c6533",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 19,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2196,12 +2317,13 @@
         750,
         1050
       ],
-      "sha256": "345420df8ecf4db82540b119d964de1db69f018d8ff37aea11464e39a7886b18",
+      "sha256": "0f02e53ac54d7e8988b65e482fb41d5fc8d68f07520b7bdf0f7ecd7d15bd45d9",
       "metrics": {
         "title_size": 38,
-        "rules_size": 22,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2214,12 +2336,13 @@
         750,
         1050
       ],
-      "sha256": "13b8fb4c6842a9010e5dc2188e07c20fef649621781f48001007246a397a7527",
+      "sha256": "b70015971a19db944cb5ab207388d2cb8b4b99b5569cec20e8b2f531a7d9eb4d",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2232,12 +2355,13 @@
         750,
         1050
       ],
-      "sha256": "02cc4caeee5c11d06f60fec0b0558c64b1fa3a78ad497e2714e2bce7f328a57c",
+      "sha256": "e6fbfe4085238adca714d327f1fa8c87d4208bdc94b4c3e5d7351e33d83774e2",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2250,12 +2374,13 @@
         750,
         1050
       ],
-      "sha256": "b2c1e67518c71f1fb2bb106a545fcfb51faa27ecd312fbfabd7c0136fe19e743",
+      "sha256": "df8efcba5c11fdeb667381814352a7800679627ef21b5c64c75d2f085890e1f8",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2268,12 +2393,13 @@
         750,
         1050
       ],
-      "sha256": "fe3ea7de4553a71200f9fe576502b7ae39ee5960fff1d20ff579156e7af26ade",
+      "sha256": "1d2f7101c6085444150495108c6db54d50e7d07b33d3753198a75d2178167fa5",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2286,12 +2412,13 @@
         750,
         1050
       ],
-      "sha256": "5344567ea8b66dd0728dfe3982e5116af7c2bb0828d4be4cc2b19889a63d8203",
+      "sha256": "c83dafa679b01ae39ae351d5033ab7695d6361e0359e0c208c6dd9d77003870b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2304,12 +2431,13 @@
         750,
         1050
       ],
-      "sha256": "33c0df23e8eceda9f91715fe8ba19f6a2fc29c5b6986991bc6c6ecf213600146",
+      "sha256": "bc0ba97c1ce0ebc71f3e86dee12ee13019cae7904b7e7a82d2c35ada5e00678c",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2322,12 +2450,13 @@
         750,
         1050
       ],
-      "sha256": "9c8ec50c11f1657aaed976082a654b29970f11f25ae4f3d09c776a0441340591",
+      "sha256": "badc88e5d5f6a4e2078000ab9e46b7a3da689619a74ed697abb26278c75c3f40",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2340,12 +2469,13 @@
         750,
         1050
       ],
-      "sha256": "c0115c1e22599b887990abe40128c5fe7d328dd2042ca0c43a0a0a8631cac6e9",
+      "sha256": "3fc91ca3d35003bd2b0c9ee60d84ab7a690de732308ef626f41d2a7edcd28991",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 19,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2358,12 +2488,13 @@
         750,
         1050
       ],
-      "sha256": "4d9195dfaed2ae93eda8612446e159d0f839f6c8396e060c848b9dc45b889b45",
+      "sha256": "aa89af535a8a3c7067a6755a233e5cafc06b0f32f887c58768a0e69011889926",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2376,12 +2507,13 @@
         750,
         1050
       ],
-      "sha256": "15a80fd8f96c25b9a75db14a08685b0eef628fa5f1fa68ca3ed1f6563b0e0959",
+      "sha256": "a81fb03cf5da81adfa7159e1ed4218ac9958eae43f4971602d02ec1825441d68",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2394,12 +2526,13 @@
         750,
         1050
       ],
-      "sha256": "fe9bad0cdeacc6e6cfac412f1da0228224f25e60b9908710b6186079088f7623",
+      "sha256": "495ba0ababd18df3a6131ae52b3e5073dffff51106052597507021403c63d0be",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2412,12 +2545,13 @@
         750,
         1050
       ],
-      "sha256": "8c5d52580fc8ecf703da1eb94bcf3a7a0d871b69ba134b58cf338b0b6d92320a",
+      "sha256": "fc2d5d805a4433d70375707fac011e2579a32b1ebbfc865ceb370b1866cea3ac",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2430,12 +2564,13 @@
         750,
         1050
       ],
-      "sha256": "831ea7cae65d1224832394731e7edf48728c4c5899316da73faff11204d66683",
+      "sha256": "47f8f0177d7be3a600f51508fbe97121e71550b140eabd22884d6ecb424c54ff",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2448,12 +2583,13 @@
         750,
         1050
       ],
-      "sha256": "46ad479918fb810617ef72e91b06df2cda3e3ab860606c7bcdb74fa808fe8d0a",
+      "sha256": "946d7c46e08a37054242e2300186039a3fe5bf7a3a158ad59a1c11a52d0335c0",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2466,12 +2602,13 @@
         750,
         1050
       ],
-      "sha256": "7852576dca2b5c7561aaecbe5ef8d0fb5fd497fb1588a02acdca51492561c756",
+      "sha256": "86f0d4e6b8d634e70c7a138ea29f9831a09ec00237708b5fb75b41dbba8d52a5",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2484,12 +2621,13 @@
         750,
         1050
       ],
-      "sha256": "9f9752e24c5f6e7a186a98bc5e84847eeddaf94b6d7e4572459efe9b3fde28ba",
+      "sha256": "47135866225ddd6d05ec5b0c012acb406a24077e4fdf754c4abf763ce3fe4ef7",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2502,12 +2640,13 @@
         750,
         1050
       ],
-      "sha256": "e943fa97e2a02e430afe345102603974a761a81a56dcfcb5b909e6d535ae3725",
+      "sha256": "c65a89ec6e82dba428c3142bebfe566e618f443f3bca30bcc2d5eb0675eb0ef0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2520,12 +2659,13 @@
         750,
         1050
       ],
-      "sha256": "474d462ba1ae6268482fa1f95686c5dc4ccd544a493753cdf6e86d0f96c1136f",
+      "sha256": "cd6e87d5b23e593bb8f673f25279335c1f94eae4efd96d2d39dbd8fca5c4d35a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2538,12 +2678,13 @@
         750,
         1050
       ],
-      "sha256": "6c01e593de17038da760a50e76b1540d9a924ba2adb4d56d89f8ecfad35b513a",
+      "sha256": "08edde16b219baa39e28f98e2b9c7b993557cdd4794a7e150fe2796dc1f0205e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2556,12 +2697,13 @@
         750,
         1050
       ],
-      "sha256": "9ba9056319323a7351853e70c0fd872d2e6f9581bef19ce23ea0f42bc14cca90",
+      "sha256": "5d3573774347d8a4985432de045c923575332fb987ffc668224ed6e2afe338ee",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2574,12 +2716,13 @@
         750,
         1050
       ],
-      "sha256": "ebd8c192dc537bd8ba570da93868d1ba08bcba8abbc125fc5eb37fe4e1343c4a",
+      "sha256": "a3146ac6176935a7bbc8f8c147429c1d880dcc3f6b277f694e3d5015342a7925",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2592,12 +2735,13 @@
         750,
         1050
       ],
-      "sha256": "e1654462554f672f1547759daec66b7250eec3b106b1e19cc34083415be9ed00",
+      "sha256": "9d488c6f3ff35de852559b3cf53335dfe4fa78289eb3881c5f318261b75f28ae",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2610,12 +2754,13 @@
         750,
         1050
       ],
-      "sha256": "ae5820a832615d91df2f57d874a9ec27a63ce4df861ff9d02b0f640e309b7e09",
+      "sha256": "d98d9901caf10957545de4548c0fef76046602dc701e73bcf794627bdd8e5219",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2628,12 +2773,13 @@
         750,
         1050
       ],
-      "sha256": "509203b4ac4979d2b668a3eafe904b3f06fcc9237388c6c2362431df24c5172d",
+      "sha256": "7dcba6de0c79665793c7480cedcce8e0a3ab6b2f829125d4237374671e45dc0b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2646,12 +2792,13 @@
         750,
         1050
       ],
-      "sha256": "1ee183a88f809ca3306afcbcefdc77183bfca70c1534ea2c99e00bbd45b995c6",
+      "sha256": "78c8f66aaaac5048890664352d80aca93ece411e110a5fd7db92262a677de414",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2664,12 +2811,13 @@
         750,
         1050
       ],
-      "sha256": "8810e13157dc594496dbc866c460f02e8970d94260f4e6683e70deab7f8f7ad4",
+      "sha256": "d92d3a80fbbfd6011a18d04ee8ab665731ae1de8ce59e11f743bed950dd77764",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 16,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2682,12 +2830,13 @@
         750,
         1050
       ],
-      "sha256": "fb9da194a0abc6030cb026ab3b6bc08d943d421571428884eb36740ddb6accd1",
+      "sha256": "237548d9a14ec8ff846c45f68170a494ebcd46996cc4b5c5d1782a0e4c01b601",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2700,12 +2849,13 @@
         750,
         1050
       ],
-      "sha256": "62aab5cbf50b3d108da05b768170c20c10140762e51ba39de17554a9bccd0a00",
+      "sha256": "df8b44e61badafae40553c13106193b482c8404a20a2ba4562327447bf6a6963",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 27,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2718,12 +2868,13 @@
         750,
         1050
       ],
-      "sha256": "b2df68822c70e12598f1753e0cc8bf2d5eef61e1a9e7afaea7e01db11819f11e",
+      "sha256": "0a604dfea594475e593c03b956d856f42ccb2c6ab8bcef349594e9059ef3c3f6",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2736,12 +2887,13 @@
         750,
         1050
       ],
-      "sha256": "a7b6c949b72fa15f03dbb72fbea8d05ed1f2064b20c4161816cbe8fb5881abb6",
+      "sha256": "0c73e96ecfc5a470e93f8d78cc7c8444d1cb07b817c6bc97f024098fa897995a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2754,12 +2906,13 @@
         750,
         1050
       ],
-      "sha256": "39ab3e933389725737bb0afefa90108d7de0ccd5dcb6be9120e83dbd0f60103d",
+      "sha256": "e57991b4aea29508ff0ba05d99a26abb067a8429d1277d00489964e2ea7454d8",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2772,12 +2925,13 @@
         750,
         1050
       ],
-      "sha256": "791b75a28dfe675b254f5def851af2a8be82417abb10593bb0c5063e87ff9a03",
+      "sha256": "82e570b34a6f92acc06d9e121af15dea8bfcbadd8d140482ea967175952e3af4",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2790,12 +2944,13 @@
         750,
         1050
       ],
-      "sha256": "ccd3620d1cf4b6608f30c4d7071a983aa585fb27d64ac1b04de39d95d9d65d59",
+      "sha256": "d726ed671b641a08ca79b57ab08f04d22405d809e3a72e09a0190397332115c3",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2808,12 +2963,13 @@
         750,
         1050
       ],
-      "sha256": "b993c29ce06f73f0bbb2113c05ef43451a146a888dd4fc019dee1bd0b9dfef7c",
+      "sha256": "a6f852e3dd669bfaf84253dafd865e6dd056dc21b0d639630e9350b3aa6ce758",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2826,12 +2982,13 @@
         750,
         1050
       ],
-      "sha256": "4ab3fa496cbc47a0de02c76c4a78f0477af111d34cc3dadc6fbe347e01d41191",
+      "sha256": "1020a2b4572087291bc31d651275b497c0a6efe8cd230e817b3d6bcba601c214",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2844,12 +3001,13 @@
         750,
         1050
       ],
-      "sha256": "f498159084af02574af4cdb7abc418fa9b67a654596a184bd45ceb9e329a7a6f",
+      "sha256": "a4245b270a09f6ebb95b7ed3f55610480d3a60d2afab54b7d64311fa51a0f2b1",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2862,12 +3020,13 @@
         750,
         1050
       ],
-      "sha256": "07a86272c87e13d5fbb6b737594866c6159ee531740dd9579b568dcf3adefd01",
+      "sha256": "afd00a92ab40cb1b0ae6fbb225aa3f723d062c19f9385d251db30a9749aafcbf",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2880,12 +3039,13 @@
         750,
         1050
       ],
-      "sha256": "de6f5a01078867574c72c45e13a569bd7cdefc0b017e86720e7529ce94952b00",
+      "sha256": "be68be375154fec7177c56a6325b5ff8d56a11cfe4abec12398a7861f56c1ab5",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2898,12 +3058,13 @@
         750,
         1050
       ],
-      "sha256": "1b46b1c8509b7d28ed2028af1c2cbc98a68bc97d0c7b6f19f981ec9d3a10e783",
+      "sha256": "a6c80bd7aeeafe63431c97b6dc1f4210aead8e0a2d583c502c778692bc08addb",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2916,12 +3077,13 @@
         750,
         1050
       ],
-      "sha256": "595746cfda116ff4cfcc55dba77ce04c50a3132137748c01c12d0a38418847d1",
+      "sha256": "da9e0c8e44b330212e55198d39be8e723c5b7905adefe0d6b12c2c49c0b81e57",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2934,12 +3096,13 @@
         750,
         1050
       ],
-      "sha256": "5c72f9e735277714b379d05e31c27e6583b104ede48402c553103ef62ba5b7a9",
+      "sha256": "0618b3d8257e0701ab7d788aad0846ac86b3e57d3f5a5e2d7b0615985cc9a00b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2952,12 +3115,13 @@
         750,
         1050
       ],
-      "sha256": "9de0fa353982d073cb09aab3fefb6bf3f8affc39febeed407ff7d0b36c3b5a31",
+      "sha256": "01edf1ab31891897583034e4b28f0d10a84f57ef2f7ee0aaca5f9bce7ecc605a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2970,12 +3134,13 @@
         750,
         1050
       ],
-      "sha256": "475f4de6c83338f67d8e1c6500456e1ee3ca7300706bf46cb854c5eb6c1d9a7d",
+      "sha256": "d3477763dc0dac7681cf18f4169c7ea330a878c1ccb24adf2605b646740edd0b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -2988,12 +3153,13 @@
         750,
         1050
       ],
-      "sha256": "4fae27e1aef50b2fff559bd0e340927a84ae3af35339eba2f5d935969f3de6de",
+      "sha256": "8a035bb2317ff38096c0ef1b1e5f508adeda025a5d62c75a38147856dce02c0c",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3006,12 +3172,13 @@
         750,
         1050
       ],
-      "sha256": "be32a840072b674938333593c0fc4c4c2756f2626f544f277e11f45d3530c9ba",
+      "sha256": "fe36233c2e4b663cd44cf5f28deca778c94f25ef1b15f162e88b890105740235",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3024,12 +3191,13 @@
         750,
         1050
       ],
-      "sha256": "5c6c1c1fc9613eb4c7615a5ed9f9c84b5fd24177a6f71a0b376c93a1a79a3a2c",
+      "sha256": "22c31a5f998a5afb7f85611abd2e9c44be4270631094aff113f5a4aaceb2a4ac",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3042,12 +3210,13 @@
         750,
         1050
       ],
-      "sha256": "5356d0e8fcf357199c7fdcfc52dae046a76d4093d7a0c8e650afbc739b248553",
+      "sha256": "fa08a5eed8ff7970c43f030edb3d11c6e0ccb3a2457bead01133330f5df83936",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3060,12 +3229,13 @@
         750,
         1050
       ],
-      "sha256": "a42cbd8277b7f5079cafcd3a22ecd1a4e29195c83cfef81476a2ef0d8b7b2e89",
+      "sha256": "a47783e08e79e3af53518fbd62dc9816b306353960b0a85d98277f2280a39c46",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3078,12 +3248,13 @@
         750,
         1050
       ],
-      "sha256": "23d0124ebf7c9e2ce9418ea7a2d268499afbdd83a0b867d595181ec8e0461c85",
+      "sha256": "fb8757a80aa6c974da340bc1a043eb893aa5808c4e1eeadf229f7fb7df26013d",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3096,12 +3267,13 @@
         750,
         1050
       ],
-      "sha256": "b54df1c66e89bc6750e742f69c7390f93e0abb1f30f9e4e203ee770db9c1e59b",
+      "sha256": "f737fd0563064763002dde84d4ce73847827f31ee3a123c3c4545d410c386837",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3114,12 +3286,13 @@
         750,
         1050
       ],
-      "sha256": "e8c011c24c6565ee28cdfacec357c7e26f7fb53034ab05fe4c9c840954f9d12b",
+      "sha256": "0bf32af6b980f603e440e19dd55c1cb7fe81327b4149ea239fc171f960ca3da9",
       "metrics": {
         "title_size": 38,
-        "rules_size": 19,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3132,12 +3305,13 @@
         750,
         1050
       ],
-      "sha256": "add564a31652bf65ca3be8a626b177e07aed24d69362bc478e34eaa9922a2a0d",
+      "sha256": "bc6ee6db6b90f314ee554ee691c6bd61aacce5611b36a9421818ed0d40e11873",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3150,12 +3324,13 @@
         750,
         1050
       ],
-      "sha256": "b827c060413b9478b3618943afe825f2bbfc40450819c2d01ee21d08060591c1",
+      "sha256": "020f915c7ce3f0eb645be2bb8afc3afdeb83942835baf7e6367553ed3edfb4a0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3168,12 +3343,13 @@
         750,
         1050
       ],
-      "sha256": "2e02602917a5541c4461934ad9f7f97d500b5a0a55a4e06d075a1f58918adada",
+      "sha256": "d3fc06e32a0b023bafbe83928266c8bd05368b4abdc7eb6cba65afbeda79fd12",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3186,12 +3362,13 @@
         750,
         1050
       ],
-      "sha256": "d1d0f21c999a09c5f9645006b176002bc51a9aa3064805155cafdfea4d387507",
+      "sha256": "c0f80938e33da1ceb9b8c4462315d380708b99c40b80a447c39d26b69d3d0523",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3204,12 +3381,13 @@
         750,
         1050
       ],
-      "sha256": "954f57d95c49e508e0b61b7fc2275fe6b6326419ef584fa12d4138ce84eaae15",
+      "sha256": "7a3ee22392271bb14168fc3b0e89236b0286a9a1c1e4b25fdf9cf0e73a481af5",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3222,12 +3400,13 @@
         750,
         1050
       ],
-      "sha256": "f0dd433162d932f26fe9dd897e5d6806fc3edd0043aa742b3384976ff0564fab",
+      "sha256": "3e5dbf62736c66d8a281b4777b478e2442bdf25ee9e10d074fb28595310f42dd",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3240,12 +3419,13 @@
         750,
         1050
       ],
-      "sha256": "b89d3b97613338758966baa832098da9e65065fa1eadf438784f934be4deaa91",
+      "sha256": "e859bb94d018ea1deb8f4f4f7d6784bec3c644498fb6207c559e13d927fa2eb5",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3258,12 +3438,13 @@
         750,
         1050
       ],
-      "sha256": "b084068cc94b8b7baa9c4a92162f2bf820d5306fb677f9b3f5f017669c5c7ae2",
+      "sha256": "988b2c536b6fb1fce39379568129c12f77b80ed5c8c05bb860a83cd79ac8c25a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3276,12 +3457,13 @@
         750,
         1050
       ],
-      "sha256": "9d052ae9d9301c4a715a5d59b7a9df9bc893240d71c97adb71ec158a6067ddce",
+      "sha256": "39b1557535ce0dfae79c40ab6d58e9af79231235c7fa1a725c8d29ef531a87e4",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3294,12 +3476,13 @@
         750,
         1050
       ],
-      "sha256": "cbca71b613dbbb2bf22fcc0b4764f12989d3e4037af3c01a124bcc704ee3f551",
+      "sha256": "4e601c3f6ce9b296a192033dfaca865e9fdc5b335079fda8a8d0dd2934e0aabe",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3312,12 +3495,13 @@
         750,
         1050
       ],
-      "sha256": "696bf76df9d17f0753ceffd6cfd8f952fd2215031cdb7e3d377ef5b14076dda3",
+      "sha256": "80c617ddb26ee4dabad15b994da65aa6778e77bb6e915d3535be7fdabc44a78d",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3330,12 +3514,13 @@
         750,
         1050
       ],
-      "sha256": "7905aaf7592d9a4e03803d75f3ee9d99e79c275fe10255fb16f9188677fcabdd",
+      "sha256": "e46abb63dcd802941b00af81a0becc7136760616ee651b54a78e777e85455ca7",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3348,12 +3533,13 @@
         750,
         1050
       ],
-      "sha256": "e6148fcd6bf58b7c26a27c2a1012063dcc0e871e70dd836236d3de5d35267e80",
+      "sha256": "4972bc9494c6f397355bf72921a3b154faa12f8f919e4184c082e418af897066",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 16,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3366,12 +3552,13 @@
         750,
         1050
       ],
-      "sha256": "3299f9805cf43c5cff8e24dae203d3192e5978e091b4a2f1926f247c5cc50735",
+      "sha256": "962ecd3084d114d329f9fd9a9815e3f34146a8a79f14323c7a6276d3356ee091",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 16,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3384,12 +3571,13 @@
         750,
         1050
       ],
-      "sha256": "5d92257d66def288f30adb4994bb4992b5d6556d5dca8062496522f8f4a3a450",
+      "sha256": "6d7621d76610cda14e80d1b4f605d69c39f7298745c55f2eb0a83f16496eca6e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3402,12 +3590,13 @@
         750,
         1050
       ],
-      "sha256": "1da6c7624c657e2a6ef359f2f751642ff2842ae6ad4e8ae55a01f7838cd3753a",
+      "sha256": "cde6450bda0e33f3f71c6a7d105632cc0c35144b2ee0bda7fd2665b492c99b80",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3420,12 +3609,13 @@
         750,
         1050
       ],
-      "sha256": "03adb987fb46ce0cc5a4b3cdc862eb1cf600e87586713555064a675469302f4b",
+      "sha256": "750190d814295f6ef9d6a3b25ed523cb971ab898885f0f5cbf592bf593dbdc6c",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3438,12 +3628,13 @@
         750,
         1050
       ],
-      "sha256": "f2587957ffdfff2d390b5e07921dc8a44b7c53deaef294450c2b26b47deb0713",
+      "sha256": "724faa0ec879c3f136e59690ab70e83dbe27427164c76c8e3897b4af38625b40",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3456,12 +3647,13 @@
         750,
         1050
       ],
-      "sha256": "bacb34138753a3193b497e3d1f52fe2d0676bf4f379f02a3c0a63908d6ad8a77",
+      "sha256": "78ac9ddeef96d5d0bfdcb092689477b94a888c5fa1bf3a51dcc1a8c3e8164f4e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3474,12 +3666,13 @@
         750,
         1050
       ],
-      "sha256": "5f7e37783d3cf8804584001b31a697b8e1e68f7a0927eb38adbf1c4e72a0341d",
+      "sha256": "4b3f9c2705e059b1e1faf4fc73149188fcf77dc61c837adf9df4c18dea429f09",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3492,12 +3685,13 @@
         750,
         1050
       ],
-      "sha256": "541dea9af8b11a7b87adb90e347ff5c3957750de9c29eef815bf1c1960c1a98b",
+      "sha256": "a100e7a6897067d285128ec2fc6e3baed7107a58bb5b95243dc7fa2d7fcb2e3e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3510,12 +3704,13 @@
         750,
         1050
       ],
-      "sha256": "8040d5b034f8ea0d5c4d4e958c64ac84303e714a5d77db5a431fe12956314648",
+      "sha256": "3b6fbaa616a22d525b3f41697da3a9995ea69fc5f4ed41f79333431c1b0e85c1",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3528,12 +3723,13 @@
         750,
         1050
       ],
-      "sha256": "3b4774139f4710bfd1e0105a0fdc4aa25ed430744072404a718c7e3812c14d29",
+      "sha256": "60aa0ddb4fd19b56b2137e48578eb96d68de4fdb5b208804222b22b68de754cd",
       "metrics": {
         "title_size": 30,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3546,12 +3742,13 @@
         750,
         1050
       ],
-      "sha256": "88b110f31a9194762be0260e8cdce1ee415b36c74913d070587d8138d1ea4215",
+      "sha256": "082017e60811737e675c5ed233b85a54cbfe07bcb6fac510e4254610a35a30cf",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3564,12 +3761,13 @@
         750,
         1050
       ],
-      "sha256": "9a0dd68d187065fe6b18f8a2718180723e5a8ee0f097aa14ff718ba9c059c444",
+      "sha256": "62384e50857a3a31d87b52e966fe22a43242e2cd410cd67abdaea7a797f6bfcd",
       "metrics": {
         "title_size": 38,
-        "rules_size": 22,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 25,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3582,12 +3780,13 @@
         750,
         1050
       ],
-      "sha256": "f3fa5a5e8b942992673b2340a41836864a177cff8f83eb004e8b68f6a8cfb472",
+      "sha256": "024a95ad23a9e6bb9afab888db3d8481db3172de7a6cefe1c6832d5f04152f11",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3600,12 +3799,13 @@
         750,
         1050
       ],
-      "sha256": "c1b8ff01647db8f932317f64d287833c43606cd6960b3c2a09068ff40fbf64e1",
+      "sha256": "9f00884b2e8e8352f89130d9f796b93eeb6332c661c9ce5f52f99a13e4e23829",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3618,12 +3818,13 @@
         750,
         1050
       ],
-      "sha256": "d0ae6eda5115444fec74dbd411d713ffdd4dae7e60ddc27a202a219c7c37a573",
+      "sha256": "54617fcde68dd50e474342ee110167df8008aa47a58804d9962d460df8a8fa73",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3636,12 +3837,13 @@
         750,
         1050
       ],
-      "sha256": "2861d220e1aaf4870e968653112e738bb3f54f5315548e681611124a199ace1e",
+      "sha256": "05da5c2ad296735be7c1ac16c4a5775b8426feafef635443668903fecd095d80",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3654,12 +3856,13 @@
         750,
         1050
       ],
-      "sha256": "32239994c857b8b4908be7ddc8ff70d49f073aed8212e66862418adb12c18432",
+      "sha256": "ff958cd07c26117a1f07953898871db645e3e3cdf19d0e73486c98ac989f8d10",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3672,12 +3875,13 @@
         750,
         1050
       ],
-      "sha256": "61ff4e161761d87f2617785c35a9ae9e3350089c16b8b0bb85a8642d7551a19e",
+      "sha256": "1e85f49d63364e942939b78def1e20611056078b6b1414dcec9738135830d420",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3690,12 +3894,13 @@
         750,
         1050
       ],
-      "sha256": "256ae11a02583078974f2bf4ac82b1f64949ed0d2711ca3e1dc297a886613c5c",
+      "sha256": "b8da41e90d8b4ab58a79e9fdfa0114202e0be71a11da95d4bb9d53704553477d",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3708,12 +3913,13 @@
         750,
         1050
       ],
-      "sha256": "f00ab8eea00edd249a9e224fad52b5bad7e96ee18e5311e8b47d9ca1b1c2829e",
+      "sha256": "a0e4a56f2e91e6af05e2dc024dd09a71a5dc6a3e9334426cf2262a5adaa4cbda",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3726,12 +3932,13 @@
         750,
         1050
       ],
-      "sha256": "7d898337812a497a26b4d9adc0ff51d855ece8d00cf4789adc3950e4afeeb485",
+      "sha256": "04a77f9fcf54fd6a5de0be5c4319d7b140bd2e2b5301869d09b8653d71df7f6e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3744,12 +3951,13 @@
         750,
         1050
       ],
-      "sha256": "4256ea0dda37930f0c101e9280c6f7cfa51ef083677a577e2815e77e1a10ab08",
+      "sha256": "b8a2ea49cfd2eb211b28a6b568bac6bedfa3918c9d04111f35008a18066353fd",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3762,12 +3970,13 @@
         750,
         1050
       ],
-      "sha256": "6ff4c6d7612928562e28b1a28837bdc90ff0f19577855747235537d8bf3855b5",
+      "sha256": "f8e790c10ae57cd2695ab42ba47f57d22818b1773512de8c7f327bd860efd815",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3780,12 +3989,13 @@
         750,
         1050
       ],
-      "sha256": "592e3b15cac90d4d4e88073630846c1c05c93866a5ad39ac69edb86dd0c790e4",
+      "sha256": "2f7624a013272d894010dd58b0f783b53dd0963e8fec483869a4fcd26d9a2568",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3798,12 +4008,13 @@
         750,
         1050
       ],
-      "sha256": "6c91340aa8f788277155da1ce291af4ad80ada378b97926c50cf4544c62f04d7",
+      "sha256": "09e193455277310936eef38f89bb75d2d60fbc89ba5bbc30c591f26c3b8abb94",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3816,12 +4027,13 @@
         750,
         1050
       ],
-      "sha256": "bdde46a0ba2e9c757c4d408988ce6e12b7b2dfbef3a4c11bed0cb601abd292a1",
+      "sha256": "597ed45ab7fb159cd771c579c5d56f59719e9b38aa2b1363015c81fe22471deb",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3834,12 +4046,13 @@
         750,
         1050
       ],
-      "sha256": "8f0c1bcf43f85a4844443a03da65161d23d4b11dfee72303a997b0cb6480f353",
+      "sha256": "0dc17956e00a7a3ba97e4acecbe6ebffc8d35df0f4763a7d2ea1baba4a22baff",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3852,12 +4065,13 @@
         750,
         1050
       ],
-      "sha256": "43136da7908a84f5f9ecf388425490b269cc621005d30442a2a40bc840173d27",
+      "sha256": "60ea3843ae329544a0fed7cb81bda26cb06937521758a3d602da00c105054009",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3870,12 +4084,13 @@
         750,
         1050
       ],
-      "sha256": "62df7c8780c182824d71743bc37774bea8cacd453748bf0633a6bbab216ff80a",
+      "sha256": "9b7f73eff924a7d9aa2c6479f580f03fad3ed6078a7214de07ae59f9068f326f",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3888,12 +4103,13 @@
         750,
         1050
       ],
-      "sha256": "3e8cde66a0be22106e64663b0c859c0a14d850651faa38491b0a2cea58385cb7",
+      "sha256": "826917615894d2d8167976c4201071ce9a580e0c59d8a120788af0933ab2e4d3",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3906,12 +4122,13 @@
         750,
         1050
       ],
-      "sha256": "5e120bf169ab5a1c82cd7323fdba6214f2a0b1797c931be9ecf87cd602b78450",
+      "sha256": "a885e7574058292aec17f0f529d0d3726bce42f676340b468e36e9c3a79dde04",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3924,12 +4141,13 @@
         750,
         1050
       ],
-      "sha256": "c11f5145b8506904308d18a761dea44aeb8a652ba951bb7e916a4e88003febe6",
+      "sha256": "005a6927241229f87d78405de135ccecf13295788b085a5e21bed634b5c9c661",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3942,12 +4160,13 @@
         750,
         1050
       ],
-      "sha256": "7d5d0edd8dcd248489d2103e9458a916a0942413e962148078654fcaea7e9332",
+      "sha256": "1ddd5d96b20eedb4c4c5796fea0922e3314f61dbca27619df8dd2e9c3b09a737",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3960,12 +4179,13 @@
         750,
         1050
       ],
-      "sha256": "7f3cfbce2459e35cbe9c7611072820bb93f770bfd4612251f9193648ccb210fc",
+      "sha256": "905893963bc1d6f677cce5122f0bb6e5c2539ab599406e959ab465978f398124",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3978,12 +4198,13 @@
         750,
         1050
       ],
-      "sha256": "66b67474894317d39082e75e32aaae1e08408dc4078b39319b2b98fd7ba71cd3",
+      "sha256": "b1476d51035b38acbe372ac48c56cf3b52f48062a3dd9e31dfbe69defe908b3f",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -3996,12 +4217,13 @@
         750,
         1050
       ],
-      "sha256": "7127ddd3b9efe10817f15c96c3fa5570cb8e81eb8e6f4d5fa929ea0b4fb30a88",
+      "sha256": "cc964eb41af6b1063822570d007405adb5c765e4348b56d7ddb280680c38c7bc",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4014,12 +4236,13 @@
         750,
         1050
       ],
-      "sha256": "2d521ec033eeef2e9fa986119b7ac0c740e032dbc33489ce33cf34fb6b3f9242",
+      "sha256": "6d13a9523499f5d307c3278d43b09524b70e8833e128cd5b174e328863010914",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4032,12 +4255,13 @@
         750,
         1050
       ],
-      "sha256": "ee5eddc11739354456f740a885c9d568d0ad3f6adfd9264c41dbd81f56e8162b",
+      "sha256": "8d5a336aeb74416fd61e947afd912afd69e76e0a0fd2e960efe4c28c807fdf1a",
       "metrics": {
         "title_size": 37,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4050,12 +4274,13 @@
         750,
         1050
       ],
-      "sha256": "78a4cd2b5dd50e5ab2df3280a4f4df85539edbfb8ba074242f1b4b083252b90a",
+      "sha256": "590e169a060113987d8640e5fdfe95801326f7bf64384e08c5e3cd941d382635",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4068,12 +4293,13 @@
         750,
         1050
       ],
-      "sha256": "5f9b5575f95060d51b0c7c65bf37e3c32a5b12477813f07707cc8c99d88ee78d",
+      "sha256": "acb71bcf562aef048e1daadcce8d011ff9f04dea9cf36c1cbcb88eb2bfb356f4",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4086,12 +4312,13 @@
         750,
         1050
       ],
-      "sha256": "219998f05216ea2bd8d0b334a72ba7bf62cae3cbe035e9a01c89bfaa8cd995fb",
+      "sha256": "64849b827f1ad022383cc81c13c4d51817afa216798049b94f12623cc303d17b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4104,12 +4331,13 @@
         750,
         1050
       ],
-      "sha256": "47df3fa7d3e72f082d220c320c8ebd2011646d0993301d5891a8651aee061a99",
+      "sha256": "05cc04e1b8e1588ca3eb157a08f0cd858f80a9c3dbdb3030954ff4599fdbd0f9",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4122,12 +4350,13 @@
         750,
         1050
       ],
-      "sha256": "eeea8b0581066122cfbfb0972fe2fd5aebecd089d864bae544864c028775dfaa",
+      "sha256": "20436bd21cb56c6cc40c1eaf9bd935fe29fe35b78e3582cfaab6b28eeac84dac",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4140,12 +4369,13 @@
         750,
         1050
       ],
-      "sha256": "69e270d17d0d90760f39c6042bb83f9aa95d4b0dd9465c5c404828329929d3f4",
+      "sha256": "c1fae0881679aa2a5e72b1f9a215c3cc287525200764fba8b9b3e1113ac0120b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4158,12 +4388,13 @@
         750,
         1050
       ],
-      "sha256": "2481ab3a475d80ef6ad4dde2091a6fb784a8c52de86f4b86eb11107203824e02",
+      "sha256": "58c74127f25c693c0eca6d6119d33f29fd933e1b147b15f931778d8da1d46c23",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4176,12 +4407,13 @@
         750,
         1050
       ],
-      "sha256": "4055ed589c1bb8e65c83887740141b01b84205ceec10ac7fb2843dc18941e117",
+      "sha256": "3372980512124f2024c9641767206dfe8128240784fc4636f9a63882f4221cd7",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4194,12 +4426,13 @@
         750,
         1050
       ],
-      "sha256": "81f04af460d920606ef3bd270545d140c447bdce383636be998e9c97f3061c05",
+      "sha256": "8ccac1c975f42071395c945256b93a72e49ef68cb0aea904a04959ecec2f4df0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4212,12 +4445,13 @@
         750,
         1050
       ],
-      "sha256": "924fa8d504d5accd5cf3aa45bc9e8ce367868133ac9c166ef52a82f6c885e7a6",
+      "sha256": "658c6a9a62353669bc614d50f140e4c7babe3d5d512773b7953d60c85b3af4cf",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4230,12 +4464,13 @@
         750,
         1050
       ],
-      "sha256": "6fd119c0ad256c25068ddc176bd5943944c07171e5ef302ed4bc80aa2b6e702c",
+      "sha256": "41159a719d943b182271f9321b5216de718f64a7682d0baf367f92bf757f13d1",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4248,12 +4483,13 @@
         750,
         1050
       ],
-      "sha256": "69ed4802bc6447a60fa8686262ce7f66951d8202d8872387c63ad73661028f23",
+      "sha256": "a9dd236d8cb7cf9216fd781a895e5b7d2ef8805782688501d0a07d9e2128022b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4266,12 +4502,13 @@
         750,
         1050
       ],
-      "sha256": "7bbc351e2810314dc0a9b874700d6d0e39d4063937c546c4df1bfb950013f179",
+      "sha256": "9d848bb363aada71cabcd896a6c3d4e247401ebaa04dd42fb4017b76df783578",
       "metrics": {
         "title_size": 38,
-        "rules_size": 22,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4284,12 +4521,13 @@
         750,
         1050
       ],
-      "sha256": "52454648940ec8b22602746577144fa96b40350d5a07d8f59409a5ae3ebedb75",
+      "sha256": "863f49cc3ad2e877a5910f36818e1aac01168a3c7b9280c6bcb45a43cf262383",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4302,12 +4540,13 @@
         750,
         1050
       ],
-      "sha256": "7f30e3f4860bea067541c5d41d0b3a91e851609ef8f7a6fb0feaa56b967cbbd6",
+      "sha256": "8a251118ef448058dd05570ea6644c06d30846f952cf172c7f3b01ff0fc0cdc9",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4320,12 +4559,13 @@
         750,
         1050
       ],
-      "sha256": "cb071decf2d7b66a139c9fa9fd0fc9e99c4057ea57cedf11d02c227ac9bd46b0",
+      "sha256": "e1f91ab248468bff593b1a5b890f97691f5735ae0dfe9f4da5d62309e1c9f4d6",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4338,12 +4578,13 @@
         750,
         1050
       ],
-      "sha256": "76138d93e637c6217710a3b894458a475401cbe5264d403a8ef2c78855484453",
+      "sha256": "bdba64f36483bcb49c8c029e9f43d1dab60413b6b82ff53964e3fa286b077795",
       "metrics": {
         "title_size": 38,
-        "rules_size": 20,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4356,12 +4597,13 @@
         750,
         1050
       ],
-      "sha256": "84e8dc3edfa1b85b3f1158f386c5b213c1985157e7bbd17a9b57bf05144861f5",
+      "sha256": "67e60fbf90d77fdd6f6b0e2d1ce4f77a9e1476a58aabc9ca8e41010a692dd302",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4374,12 +4616,13 @@
         750,
         1050
       ],
-      "sha256": "41f5ea61e85db3c448719b72bc2d79e1bd1dbce8b886ce26198d9ab568e366eb",
+      "sha256": "8f430d1da0b248af417ff05ea6d7b6a702b5ead4313f4b2ea46d0bcb924337d8",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4392,12 +4635,13 @@
         750,
         1050
       ],
-      "sha256": "a39c80c32a371410a3a708ac5ea8dea2ddc7e8693b930821e368b52f3410c2f5",
+      "sha256": "687557af07edb7e16d77e7078eaa080d6c8a2a913a904da1019d12dc74aca186",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4410,12 +4654,13 @@
         750,
         1050
       ],
-      "sha256": "b26d1a5c53696e752bf7684a75752b6e48fcaa113e81cfc867635932d761a402",
+      "sha256": "ec764fcffca99d872f898438d1bdf45549c4d09bcd86f8ba87c8dfa54e07023c",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 25,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4428,12 +4673,13 @@
         750,
         1050
       ],
-      "sha256": "f92a88892e1002e57a99baeb7b75234d51ad455ca675ba9ba54158dbfcc1c269",
+      "sha256": "e725b3d2409f37b0665d48f2355b3e34c9c43dad18b18ddf4dbbaa88774bf550",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4446,12 +4692,13 @@
         750,
         1050
       ],
-      "sha256": "6eb1fd8e6b61b9cba4672f8d17b2b1c2a600163ba822ef9b339b0d73939cc35b",
+      "sha256": "5930f4b5a22b1a7ecef464d81cfa9dd56d25af0a91ffb27611f88f8e79801057",
       "metrics": {
         "title_size": 38,
-        "rules_size": 22,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4464,12 +4711,13 @@
         750,
         1050
       ],
-      "sha256": "0c646e92b97bfa81dd70085ead94375a177b18e8606d75a569cdf988c628e423",
+      "sha256": "fd274886fb9f40b30035ce186ca331203e3ace22b20fb89112676409fad178d8",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4482,12 +4730,13 @@
         750,
         1050
       ],
-      "sha256": "0e60dc20a3f47ea02ccab9b142fd40910e741a3e54aec86cc5e9a597d144585b",
+      "sha256": "b3ba77696194a7d55ac976829dcda659a3ae15b4074e540db3fefadbfe334257",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4500,12 +4749,13 @@
         750,
         1050
       ],
-      "sha256": "1bd1b7c1c5fb78eaebbdac9351d9cf1b7dfda5df0f8b6f50ab7124932dc5f925",
+      "sha256": "2cfbf121ddea9561dcbf37c0579131e32c74b3a3e3cb84931043f05ab1f23a6b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4518,12 +4768,13 @@
         750,
         1050
       ],
-      "sha256": "efb975caddcd6f42eb6e15217e4925305d20fe8a15ae4fed383a583bde604397",
+      "sha256": "d10ff21c6ff8584dde3e64169b79952f927d7075edd42500e97a4416c5bafab0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4536,12 +4787,13 @@
         750,
         1050
       ],
-      "sha256": "00f13a7b3f1e3da901a01141e4311c332bfc7994c8996ca81dd3978a247d35fc",
+      "sha256": "fa3c6410cdf1837af9088ac750dc4b4f4479a84d444f93a9909ff6e3536fe407",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4554,12 +4806,13 @@
         750,
         1050
       ],
-      "sha256": "d6be1ee5577883f0256ba8e5afbee06cdffa90c07e38a10af511ceff48a48ce8",
+      "sha256": "3ca84ebb60f83a0d6820d9f0fea465f784359a780bba9c2eea844851fdffa347",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4572,12 +4825,13 @@
         750,
         1050
       ],
-      "sha256": "0b97ff516db8d2dec917cc32a351ea935bba5d76ce2d90420841e378cdb9bfc9",
+      "sha256": "9d8e27b97844c3a7bc02e5ece4e6bf732e8d4b0318de829423517c3e51eb73c6",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4590,12 +4844,13 @@
         750,
         1050
       ],
-      "sha256": "326089785d90046fca7ccaeeee1daaaffecb946a3183ad7c118a1700cb5bc198",
+      "sha256": "c8a925ae62349ecb8fdc9a09d78e97dd3e764808b37f9a74cd2ed30f89490729",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4608,12 +4863,13 @@
         750,
         1050
       ],
-      "sha256": "836ad745a2f7cdd0f2f020a8a96dfb8fd771e5ee9f6109036db952763cc4bc2a",
+      "sha256": "1e93b41599c9dae08e5a07561daf271b184a2bd7f48dcc671f310bb838eaf405",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4626,12 +4882,13 @@
         750,
         1050
       ],
-      "sha256": "3dde86908585ca2941688a94408cdb084c46632705ba17a90f78ca678f9c0065",
+      "sha256": "f03b60532d3b0b0b29c2c9748609fc712cfe6cd7692703dd7005b727193bdbe5",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4644,12 +4901,13 @@
         750,
         1050
       ],
-      "sha256": "0b79ce62b5a5e1b410a88a72e8917ac6bbbb531b1abd963e8e5c804e1efde38b",
+      "sha256": "32657fa30df7bcffabb318c3c4ef90507c395db837a0c408ffc0220235cf9d99",
       "metrics": {
         "title_size": 38,
         "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4662,12 +4920,13 @@
         750,
         1050
       ],
-      "sha256": "47be4e5f112903ded2f42c8a9e84f160200f574a20eb1537bba5d73cdd70b030",
+      "sha256": "1997402de294a546b242fbdeb34c5e29c3f296c1b146fa43caf234315841590b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4680,12 +4939,13 @@
         750,
         1050
       ],
-      "sha256": "f307f4440a0bba593eaeebbaeb02364aefec27aeb1a2942713b03ddbcad5d001",
+      "sha256": "fe6ee7fec33a2c46eb2f9f42cbb60dab71ef1c6ac30f5086f390354ddac5da68",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4698,12 +4958,13 @@
         750,
         1050
       ],
-      "sha256": "cee8e8d18e3d229f69077f0e083a30abdcff5874aaf577d7236504a7e6b0a3d9",
+      "sha256": "c5a3290e73e15796265e8764dd0be9f346049340e66dab8a509bc53e2d5fbdb3",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4716,12 +4977,13 @@
         750,
         1050
       ],
-      "sha256": "69b9fc133abd07609187f8f2db5dbe8f1d4f85716f5831d1b64c18c5c33c1fb5",
+      "sha256": "c1d0905a07a0f967fd473f3ec555ccb5db614d12dfde99fc3bc06c2e3b87f57e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4734,12 +4996,13 @@
         750,
         1050
       ],
-      "sha256": "6cf2ee4b13538a01ba5a20fa96962f77c280c3a68dd1dbfe08346a8603fa54e7",
+      "sha256": "b611962c9ac781552eff645adffec1927d034a1898c8d139ca2a4202498c7a21",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4752,12 +5015,13 @@
         750,
         1050
       ],
-      "sha256": "0508473bd40a188831c7d425f571b2587e717878dc7734890f2a94c68b3063a4",
+      "sha256": "353cb3c6c41f44d0ce38a8380321d8dc1b395e144ba1bdf7f4025a76be140c88",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4770,12 +5034,13 @@
         750,
         1050
       ],
-      "sha256": "29a1836a36be5e0b473cedf86528e6e189a85ffdd8640bef93717bcf0d6f8dc6",
+      "sha256": "bf8a263b4ca7fc297bc8f2d239c1e2dfdb1d1bbd9bec246da80d8335ac98dbe3",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4788,12 +5053,13 @@
         750,
         1050
       ],
-      "sha256": "89e5732c008087728f25a80a69d97e2e366281f1a0f97c15e7f03d200395aee5",
+      "sha256": "b217ba2705af9db2eeb8f25c9d5b63b552d6da4597c43b6db399c383f606dc13",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4806,12 +5072,13 @@
         750,
         1050
       ],
-      "sha256": "0a9b5aedb1df5bbe7dee75ff8d2a15423a06f1cedbd8c1d7f2e4198e50b4fe96",
+      "sha256": "60241372fbe3bf62427e14b5201ecdcd67446d8c3e74f863d2f2079503a74551",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4824,12 +5091,13 @@
         750,
         1050
       ],
-      "sha256": "8c0424cd6fc906eac3f45473f657b308da10e26a0f83bb6fc5c64773357babe3",
+      "sha256": "4b8fbabbed464ddf4ed4c4e00c133da9c2f89d31fa6de82e25d2241bd3c9b834",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4842,12 +5110,13 @@
         750,
         1050
       ],
-      "sha256": "bd78f21ac3cf74270f9349d667e3d9b11b980c75e7540545ddf57533b4dfcdea",
+      "sha256": "28ababffa778a93b1d3dd7c411705a396fe32f577e9a1ac4d014dae8b994f541",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4860,12 +5129,13 @@
         750,
         1050
       ],
-      "sha256": "7023121aa1e0e0b8c934e166aa289e9e99cf1766cd43d82e1af2e3577f1948a7",
+      "sha256": "1c261af45e7c089a23efc71134628e8328b22ecc15c434d718e63de119f610c2",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4878,12 +5148,13 @@
         750,
         1050
       ],
-      "sha256": "7e4feaece24fe74b04f8151b83a2ef5827c56e8c62adaebc7e79482bc5dacf4e",
+      "sha256": "b68764dafb7b7653efb865ecd5b40fa5d1ffc87bb5bb580145585f33e0cb7da0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4896,12 +5167,13 @@
         750,
         1050
       ],
-      "sha256": "e23431a4f83b80404de0d5628750c857745fc66785ce1158fe5b2d1ead0f1f84",
+      "sha256": "f21ca45ddded4d3eeb5889ca082888196a2f89c2c0d11c058fa568c3b5f6487e",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4914,12 +5186,13 @@
         750,
         1050
       ],
-      "sha256": "e6e4f9357f42cae413db0d8e400728068836676015cb0668e076373153736219",
+      "sha256": "8c6c40eff5f2402881b06005f914760cb0e5af3bd0d2678bd1b8f7b80d0c3387",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4932,12 +5205,13 @@
         750,
         1050
       ],
-      "sha256": "37a918cbe82c87e67598a384e1e75be8aae71806c213ed2ef09028a6b0e98e69",
+      "sha256": "f979eb275bd89ee2eb8e5031900a77e0a4cb92c5d186178ec420768358e708ab",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4950,12 +5224,13 @@
         750,
         1050
       ],
-      "sha256": "01f8a5bf6cb3007b1c38e0bc529203c12940e42dd3c669213bd158e76b6b5268",
+      "sha256": "faca827abc93744ed40f4e15d895b0d71abb907f48150795d5bb4963d397d357",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4968,12 +5243,13 @@
         750,
         1050
       ],
-      "sha256": "a34427ee937a317451fc7a312faa4b1061f4f11751e12045eb828f95b51a82e9",
+      "sha256": "ce37d9c8f2f7a0225f6eaa0e15c2aba19c7b244f16f9598c6d5d341e616ed671",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -4986,12 +5262,13 @@
         750,
         1050
       ],
-      "sha256": "c23d3a270034c4695ac48873fa2659e3c5016a44247ada4aac9f5f9c95e6dccc",
+      "sha256": "41d0cb9f69d3479dd7cba68b11a13d92340b93b099045613b94ef8ca9c71e8b0",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5004,12 +5281,13 @@
         750,
         1050
       ],
-      "sha256": "1583536d7c0ed5d02be07f49f36fd700ba0a6e6bca3597d7d60770798689b185",
+      "sha256": "7fcc5e64f7676e2cbcfed52766f2c49f5ba6ccec8a56297f6a9e7139792d2a38",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5022,12 +5300,13 @@
         750,
         1050
       ],
-      "sha256": "ca42736d3690e1142639480490a0d809b8471a8f47425befbf402807c7b15294",
+      "sha256": "2e3980252392e4df08bfaf20418c7212af8117399762c6767bf0a28b80a7561c",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5040,12 +5319,13 @@
         750,
         1050
       ],
-      "sha256": "318ca82cc0ef5f7e52c4f08577033c59c7a2f6c7fb7197847d4cd1d1ea5fb44a",
+      "sha256": "78470bb4126b76f25261e92606ab6a969de9bd9e2bf3a607fd8eba9959116ac9",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5058,12 +5338,13 @@
         750,
         1050
       ],
-      "sha256": "d69c4ded3926a549bf358411e9380f5c1a3d59afc855e913135c67d6dd710d40",
+      "sha256": "17bfbe75cc89791a7df8b2ec575b0cd2d559d2532b1cf0819dbf4ddc233c8442",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5076,12 +5357,13 @@
         750,
         1050
       ],
-      "sha256": "b5adeca9b60fe39bd794799db3be27f013bca872f4187a6b8687ff1aa62758a0",
+      "sha256": "a303698ebdbf00b2ba1a88392bdfd155dfc419058a8b1fa595032e05a951a264",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5094,12 +5376,13 @@
         750,
         1050
       ],
-      "sha256": "14e59f74581e2ee9c35f3bbce8cfc304adc00391eefbf7ea9e1c8cce95f61903",
+      "sha256": "598f427a8b085db75ed17d1cef4e33c650fdc2a6988f4f0d93ef127cc1154490",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5112,12 +5395,13 @@
         750,
         1050
       ],
-      "sha256": "4b48701c80895d73371c54e9430e4b4a819a71b4cfbc5724c028b2171c214139",
+      "sha256": "82b8b5ee4d2c1c8b9a81d9b6ad0de6cbd1d9cc4a9379cca67c2f3fc16c8f9023",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5130,12 +5414,13 @@
         750,
         1050
       ],
-      "sha256": "519682f06080d8ac832b95c78c6ff9c5decfc5f6214a430601335de57acfeed0",
+      "sha256": "d9fd4546832474ed229f68d088cbf27407d1cd6d17261014d73c248373dd08d8",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5148,12 +5433,13 @@
         750,
         1050
       ],
-      "sha256": "8db753e0bf47daa9040ab97f79c79174998f0f1ae75b2dc92d4e970e32cfab3c",
+      "sha256": "886d0cc834810b3650fdf8567414fa9652920794a1d78f3ec72550bbade57fec",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5166,12 +5452,13 @@
         750,
         1050
       ],
-      "sha256": "79fadd52b6c6398cd652a0830b3f3ac513d2a712bfd33bfd6ae3dc4f5ae67b1f",
+      "sha256": "b1fb177b80375b30fd813b94768ab86461077dd1f3a8a8e5c024ff956950373a",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5184,12 +5471,13 @@
         750,
         1050
       ],
-      "sha256": "1bec3341aea51d2d78a6dede84c78c1b2d7eeb070b66c92308622c8ab8482b0d",
+      "sha256": "7ca3b498a1b66453db956d93f8b7a14f6d588545f7de01faf6a3e250fa7bd177",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5202,12 +5490,13 @@
         750,
         1050
       ],
-      "sha256": "44b6cc6d7e1ddebb4fb07462cfa4baf5c89ec9149f289c3d208a5b0c95150e7a",
+      "sha256": "974dbd27aa999934d877be0cec9a9e209677c57e22a785b2b850e24eb1ab9d1b",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5220,12 +5509,13 @@
         750,
         1050
       ],
-      "sha256": "a0d277e4a83c8756c28ab5f5d433fd889ed67b07c6dd1d4c943af768fc6aa994",
+      "sha256": "43ed34183731913ac283e45dbee2d882fbb82720951b88e11cedd5c795b416aa",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5238,12 +5528,13 @@
         750,
         1050
       ],
-      "sha256": "fc3c8d0e5aba01df7eedb6e6a70731bde8e37f2a8ba1002bef7d1c7ebfdd1768",
+      "sha256": "d461f74f92768a0e2b5c50749b01f13bc730461c784bd28fda73bd25c85a21dc",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5256,12 +5547,13 @@
         750,
         1050
       ],
-      "sha256": "508ae6a5ccec1a359fd387e2b602df9c79c9f4b01ebc220c5a2dc6834d6a3ff2",
+      "sha256": "afcea52814238f434307bfd9633d264ba7fed01a712eed88fdbc883d7c02781f",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5274,12 +5566,13 @@
         750,
         1050
       ],
-      "sha256": "e7dca144129245a811013406565fde835e158004e244840ad595fa85e06f9b77",
+      "sha256": "8d9c54f6e3a08b9ce400afc1ed3a4fed9d4e6c433a7c798e19c90823125f4ce3",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5292,12 +5585,13 @@
         750,
         1050
       ],
-      "sha256": "2d66976e0060d254a47e4a91841736b27eeb7c5c66ba0c5f4ae4fcbbcde1bf01",
+      "sha256": "4c47d589991c62707d445088ba3e5c446cd6ca6d8a150af27e1a2c5bc9532a6f",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"
@@ -5310,12 +5604,13 @@
         750,
         1050
       ],
-      "sha256": "1b859be3e9ff7ac9a6d66cf82b6fae7255e28d17d1e898aef3f114b03dbbab93",
+      "sha256": "4dd06d76a598870f7ae46fcf5c2fdf11ecd06fd0ec77fe7ceb096d8bd57df876",
       "metrics": {
         "title_size": 38,
-        "rules_size": 24,
-        "guide_size": 18,
-        "note_size": 17,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
         "overflow": false
       },
       "status": "card-locked"

@@ -144,9 +144,7 @@ def render_card(card: Card, out_path: Path) -> None:
     cx = 710 - 16 - 26
     for token in reversed(tokens):
         if token.isdigit():
-            draw.ellipse(
-                (cx - 26, 52, cx + 26, 104), fill=SOOT, outline=NEUTRAL, width=4
-            )
+            draw.ellipse((cx - 26, 52, cx + 26, 104), fill=SOOT, outline=NEUTRAL, width=4)
             draw.text(
                 (cx, 78),
                 token,
@@ -160,9 +158,7 @@ def render_card(card: Card, out_path: Path) -> None:
     name_max_w = cx + 34 - 56 - 8
     size = 44
     while (
-        size > 22
-        and draw.textlength(card.name, font=font("Anton-Regular.ttf", size))
-        > name_max_w
+        size > 22 and draw.textlength(card.name, font=font("Anton-Regular.ttf", size)) > name_max_w
     ):
         size -= 2
     draw.text(
@@ -174,9 +170,7 @@ def render_card(card: Card, out_path: Path) -> None:
     )
 
     # Art panel with a large affinity emblem.
-    draw.rounded_rectangle(
-        (48, 132, 702, 570), radius=12, fill=PANEL, outline=LINE, width=2
-    )
+    draw.rounded_rectangle((48, 132, 702, 570), radius=12, fill=PANEL, outline=LINE, width=2)
     letters = affinity_letters(card)
     if len(letters) <= 1:
         draw_affinity_circle(draw, (375, 330), 95, letters[:1])
@@ -204,9 +198,7 @@ def render_card(card: Card, out_path: Path) -> None:
     )
 
     # Rules text.
-    draw.rounded_rectangle(
-        (48, 670, 702, 940), radius=10, fill=INK, outline=LINE, width=2
-    )
+    draw.rounded_rectangle((48, 670, 702, 940), radius=10, fill=INK, outline=LINE, width=2)
     if card.text:
         body = font("body", 30)
         y = 700

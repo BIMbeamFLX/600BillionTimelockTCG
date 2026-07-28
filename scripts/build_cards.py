@@ -2,7 +2,8 @@
 
 The layout is purpose-built for the 600B cypherpunk identity: orange outer frame,
 black art core, purple structure, centered resource symbols and a light rules field
-with black body text. Simple Guides and Protocol Notes remain visually subordinate.
+with black body text. Learning notes, canon and prompt data stay in the game metadata
+instead of appearing on the collectible card face.
 
 Usage:
     python scripts/build_cards.py
@@ -28,7 +29,7 @@ log = logging.getLogger("build_cards")
 
 CARD_WIDTH = 750
 CARD_HEIGHT = 1050
-LAYOUT_VERSION = "600B-E1-card-v1"
+LAYOUT_VERSION = "600B-E1-card-v2"
 
 ORANGE = (255, 106, 0)
 PURPLE = (116, 71, 184)
@@ -56,8 +57,9 @@ class RenderMetrics:
 
     title_size: int
     rules_size: int
-    guide_size: int
-    note_size: int
+    rules_lines: int
+    flavor_size: int
+    flavor_lines: int
     overflow: bool
 
 
@@ -70,6 +72,11 @@ def body_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     """Load the Windows body font used for highly readable rules text."""
     filename = "arialbd.ttf" if bold else "arial.ttf"
     return ImageFont.truetype(filename, size)
+
+
+def flavor_font(size: int) -> ImageFont.FreeTypeFont:
+    """Load the italic collectible-copy face."""
+    return ImageFont.truetype("ariali.ttf", size)
 
 
 def parse_cost(cost: str) -> list[str]:
@@ -323,17 +330,40 @@ def fit_text(
     maximum: int,
     minimum: int,
     line_gap: int = 3,
+    max_lines: int | None = None,
 ) -> tuple[ImageFont.FreeTypeFont, list[str], int, bool]:
     """Fit one text block and report whether the minimum size still overflows."""
     for size in range(maximum, minimum - 1, -1):
         text_font = body_font(size)
         lines = wrap_text(draw, text, text_font, max_width)
         line_height = size + line_gap
-        if len(lines) * line_height <= max_height:
+        line_count_fits = max_lines is None or len(lines) <= max_lines
+        if line_count_fits and len(lines) * line_height <= max_height:
             return text_font, lines, line_height, False
     text_font = body_font(minimum)
     lines = wrap_text(draw, text, text_font, max_width)
-    return text_font, lines, minimum + line_gap, len(lines) * (minimum + line_gap) > max_height
+    height_overflow = len(lines) * (minimum + line_gap) > max_height
+    line_overflow = max_lines is not None and len(lines) > max_lines
+    return text_font, lines, minimum + line_gap, height_overflow or line_overflow
+
+
+def fit_flavor_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    max_width: int,
+    maximum: int = 19,
+    minimum: int = 13,
+) -> tuple[ImageFont.FreeTypeFont, list[str], int, bool]:
+    """Fit a short flavor quote into at most two lines."""
+    quoted = f"“{text}”"
+    for size in range(maximum, minimum - 1, -1):
+        text_font = flavor_font(size)
+        lines = wrap_text(draw, quoted, text_font, max_width)
+        if len(lines) <= 2:
+            return text_font, lines, size + 5, False
+    text_font = flavor_font(minimum)
+    lines = wrap_text(draw, quoted, text_font, max_width)
+    return text_font, lines, minimum + 5, len(lines) > 2
 
 
 def draw_lines(
@@ -370,6 +400,7 @@ def rounded_paste(
     source: Image.Image,
     box: tuple[int, int, int, int],
     radius: int,
+    centering: tuple[float, float] = (0.5, 0.5),
 ) -> None:
     """Paste an image through a clean rounded mask."""
     left, top, right, bottom = box
@@ -377,6 +408,7 @@ def rounded_paste(
         source.convert("RGB"),
         (right - left, bottom - top),
         method=Image.Resampling.LANCZOS,
+        centering=centering,
     )
     mask = Image.new("L", fitted.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle(
@@ -459,7 +491,7 @@ def draw_stats(
 ) -> None:
     """Draw a combined centered Action/Resilience module."""
     action, resilience = stats.split("/", maxsplit=1)
-    left, top, right, bottom = 558, 523, 714, 607
+    left, top, right, bottom = 558, 547, 714, 615
     draw.rounded_rectangle(
         (left, top, right, bottom),
         radius=20,
@@ -467,13 +499,17 @@ def draw_stats(
         outline=ORANGE,
         width=4,
     )
-    draw.line(((left + right) // 2, top + 11, (left + right) // 2, bottom - 11), fill=PURPLE, width=2)
+    draw.line(
+        ((left + right) // 2, top + 11, (left + right) // 2, bottom - 11),
+        fill=PURPLE,
+        width=2,
+    )
     number_font = font(display_font, 37)
     label_font = font(display_font, 12)
-    draw.text((597, 552), action, font=number_font, fill=CREAM, anchor="mm")
-    draw.text((675, 552), resilience, font=number_font, fill=CREAM, anchor="mm")
-    draw.text((597, 588), "ACTION", font=label_font, fill=ORANGE, anchor="mm")
-    draw.text((675, 588), "RESILIENCE", font=label_font, fill=ULTRAVIOLET, anchor="mm")
+    draw.text((597, 568), action, font=number_font, fill=CREAM, anchor="mm")
+    draw.text((675, 568), resilience, font=number_font, fill=CREAM, anchor="mm")
+    draw.text((597, 600), "ACTION", font=label_font, fill=ORANGE, anchor="mm")
+    draw.text((675, 600), "RESILIENCE", font=label_font, fill=ULTRAVIOLET, anchor="mm")
 
 
 def draw_card(
@@ -498,69 +534,80 @@ def draw_card(
     title_font, title_size = fit_title(draw, card["name"], display_font, max_title_width)
     draw.text((50, 66), card["name"], font=title_font, fill=CREAM, anchor="lm")
 
-    art_box = (36, 110, 714, 557)
-    rounded_paste(canvas, artwork, art_box, radius=20)
-    draw.rounded_rectangle(art_box, radius=20, outline=accent, width=4)
-    draw.line((44, 548, 706, 548), fill=ORANGE, width=2)
+    # The artwork sits inside a deliberate black mat instead of touching the UI.
+    # This keeps generated scenes collectible and prevents accidental edge clutter.
+    art_mat = (36, 116, 714, 536)
+    art_box = (48, 128, 702, 524)
+    draw.rounded_rectangle(art_mat, radius=22, fill=BLACK, outline=ORANGE, width=4)
+    draw.rounded_rectangle((42, 122, 708, 530), radius=18, outline=PURPLE, width=2)
+    art_centering = (0.5, 0.0) if "Avatar" in card["card_type"] else (0.5, 0.5)
+    rounded_paste(canvas, artwork, art_box, radius=14, centering=art_centering)
+    draw.rounded_rectangle(art_box, radius=14, outline=accent, width=2)
 
-    draw.rounded_rectangle((36, 554, 714, 619), radius=18, fill=(31, 24, 42))
-    draw.rectangle((36, 584, 714, 619), fill=(31, 24, 42))
-    draw.line((36, 616, 714, 616), fill=accent, width=3)
-    draw_type_badge(draw, (61, 583), card["card_type"], accent)
+    draw.rounded_rectangle((36, 544, 714, 621), radius=18, fill=(31, 24, 42))
+    draw.rectangle((36, 580, 714, 621), fill=(31, 24, 42))
+    draw.line((36, 618, 714, 618), fill=accent, width=3)
+    draw_type_badge(draw, (61, 582), card["card_type"], accent)
     type_font = font(display_font, 24)
     type_line = card["type_line"].upper()
-    draw.text((90, 583), type_line, font=type_font, fill=CREAM, anchor="lm")
+    draw.text((90, 582), type_line, font=type_font, fill=CREAM, anchor="lm")
     if card["action_resilience"]:
         draw_stats(draw, card["action_resilience"], display_font)
 
-    draw.rounded_rectangle((36, 610, 714, 993), radius=18, fill=PANEL)
-    draw.rectangle((36, 632, 714, 972), fill=PANEL)
-    draw.line((48, 622, 702, 622), fill=PURPLE, width=2)
+    draw.rounded_rectangle((36, 630, 714, 966), radius=18, fill=PANEL)
+    draw.rectangle((36, 650, 714, 946), fill=PANEL)
+    draw.line((48, 642, 702, 642), fill=PURPLE, width=2)
     x = 56
     max_width = 638
     label_font = font(display_font, 13)
 
-    draw.text((x, 632), "RULES", font=label_font, fill=PURPLE)
+    draw.text((x, 655), "PLAY", font=label_font, fill=PURPLE)
     rules_font, rules_lines, rules_height, rules_overflow = fit_text(
         draw,
         card["rules_text"],
         max_width,
-        176,
-        maximum=24,
-        minimum=12,
+        150,
+        maximum=28,
+        minimum=14,
+        line_gap=6,
+        max_lines=3,
     )
-    draw_lines(draw, rules_lines, (x, 651), rules_font, rules_height, INK)
+    draw_lines(draw, rules_lines, (x, 681), rules_font, rules_height, INK)
 
-    draw.line((56, 833, 694, 833), fill=(199, 185, 214), width=1)
-    draw.text((x, 841), "SIMPLE GUIDE · NO RULES EFFECT", font=label_font, fill=PURPLE)
-    guide_font, guide_lines, guide_height, guide_overflow = fit_text(
+    draw.line((56, 816, 694, 816), fill=(199, 185, 214), width=1)
+    flavor_text_font, flavor_lines, flavor_height, flavor_overflow = fit_flavor_text(
         draw,
-        card["help_text"],
-        max_width,
-        48,
-        maximum=18,
-        minimum=13,
+        card["flavor_text"],
+        600,
     )
-    draw_lines(draw, guide_lines, (x, 859), guide_font, guide_height, MUTED)
-
-    draw.line((56, 912, 694, 912), fill=(199, 185, 214), width=1)
-    draw.text((x, 920), "PROTOCOL NOTE · NO RULES EFFECT", font=label_font, fill=PURPLE)
-    note_font, note_lines, note_height, note_overflow = fit_text(
+    draw_lines(
         draw,
-        card["protocol_note"],
-        max_width,
-        43,
-        maximum=17,
-        minimum=12,
+        flavor_lines,
+        (74, 838),
+        flavor_text_font,
+        flavor_height,
+        MUTED,
     )
-    draw_lines(draw, note_lines, (x, 938), note_font, note_height, INK)
 
-    draw.rectangle((36, 982, 714, 1014), fill=BLACK)
+    # Educational notes, canon and art-generation data remain in the game UI.
+    draw.line((56, 918, 694, 918), fill=(199, 185, 214), width=1)
+    rarity_font = font(display_font, 13)
+    draw.text((56, 938), card["rarity"].upper(), font=rarity_font, fill=MUTED)
+    affinity_label = " + ".join(card["affinity"]).upper() or "OPEN"
+    draw.text((694, 938), affinity_label, font=rarity_font, fill=PURPLE, anchor="ra")
+
+    draw.rectangle((36, 975, 714, 1014), fill=BLACK)
     mini_logo = ImageOps.contain(logo.convert("RGBA"), (27, 27), Image.Resampling.LANCZOS)
-    canvas.paste(mini_logo, (48, 984), mini_logo)
+    canvas.paste(mini_logo, (48, 981), mini_logo)
     footer_font = font(display_font, 15)
-    draw.text((86, 999), "600 BILLION · TIMELOCK TCG", font=footer_font, fill=CREAM, anchor="lm")
-    draw.text((698, 999), card["id"], font=footer_font, fill=ORANGE, anchor="rm")
+    draw.text(
+        (86, 995),
+        "600 BILLION · TIMELOCK TCG",
+        font=footer_font,
+        fill=CREAM,
+        anchor="lm",
+    )
+    draw.text((698, 995), card["id"], font=footer_font, fill=ORANGE, anchor="rm")
 
     # Small cyberpunk corner cuts keep the frame directional without visual weight.
     draw.line((29, 82, 52, 29), fill=ORANGE, width=3)
@@ -569,9 +616,10 @@ def draw_card(
     return canvas, RenderMetrics(
         title_size=title_size,
         rules_size=rules_font.size,
-        guide_size=guide_font.size,
-        note_size=note_font.size,
-        overflow=rules_overflow or guide_overflow or note_overflow,
+        rules_lines=len(rules_lines),
+        flavor_size=flavor_text_font.size,
+        flavor_lines=len(flavor_lines),
+        overflow=rules_overflow or flavor_overflow,
     )
 
 
@@ -623,8 +671,20 @@ def draw_card_back(
     canvas.paste(mark, (center[0] - mark.width // 2, center[1] - 165), mark)
     title_font = font(display_font, 43)
     small_font = font(display_font, 22)
-    draw.text((center[0], center[1] + 115), "TIMELOCK TCG", font=title_font, fill=CREAM, anchor="mm")
-    draw.text((center[0], center[1] + 160), "EDITION ONE", font=small_font, fill=ORANGE, anchor="mm")
+    draw.text(
+        (center[0], center[1] + 115),
+        "TIMELOCK TCG",
+        font=title_font,
+        fill=CREAM,
+        anchor="mm",
+    )
+    draw.text(
+        (center[0], center[1] + 160),
+        "EDITION ONE",
+        font=small_font,
+        fill=ORANGE,
+        anchor="mm",
+    )
 
     icon_radius = 27
     orbit_radius = 268
@@ -684,9 +744,11 @@ def record_card_decisions(
                 (
                     card["name"],
                     card["type_line"],
+                    card["cost"],
+                    card["action_resilience"],
                     card["rules_text"],
-                    card["help_text"],
-                    card["protocol_note"],
+                    card["flavor_text"],
+                    card["rarity"],
                 )
             )
             rows.append(
@@ -776,8 +838,9 @@ def write_manifest(
                 "metrics": {
                     "title_size": card_metrics.title_size,
                     "rules_size": card_metrics.rules_size,
-                    "guide_size": card_metrics.guide_size,
-                    "note_size": card_metrics.note_size,
+                    "rules_lines": card_metrics.rules_lines,
+                    "flavor_size": card_metrics.flavor_size,
+                    "flavor_lines": card_metrics.flavor_lines,
                     "overflow": card_metrics.overflow,
                 },
                 "status": "card-locked" if not card_metrics.overflow else "needs-review",

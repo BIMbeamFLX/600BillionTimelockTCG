@@ -2,8 +2,11 @@
 
 - Version: `E1.0-text-lock`
 - Cards checked: **295**
-- Official-character Avatar cards: **92**
-- Errors: **0**
+- Flavor lines: **295**
+- Repeated full flavor lines: **0**
+- Visible face text: **rules + collectible flavor only**
+- Hidden metadata: **Simple Guide + Protocol Note + sources + prompts**
+- Rule layout: **maximum 3 lines**
 - Gate: **PASS — READY FOR IMAGE PHASE**
 
 ## Card-type counts
@@ -17,24 +20,10 @@
 - Resource: 9
 - Zap: 43
 
-## Affinity counts
-
-- Bitcoin: 48
-- Keys: 48
-- Neutral / Multi: 56
-- Power: 48
-- Signal: 47
-- Timelock: 48
-
 ## Checks
 
 - 295 complete records and unique public IDs
-- six iconic demo-card IDs preserved
-- original public card names
-- no exact source rules prose
-- consistent 600B zones, verbs and keywords
-- beginner-friendly Simple Guide on every card
-- every Avatar tied to official join.600.wtf character assets
-- non-Avatar art prompts explicitly exclude people
-- concise educational note plus primary source on every card
-- image generation blocked until this gate passes
+- short bullish flavor copy on every card
+- no learning explanation printed on card faces
+- every Avatar tied to official join.600.wtf identity references
+- image generation blocked until the art-prompt gate passes

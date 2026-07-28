@@ -45,36 +45,110 @@ RESOURCE_SUBTYPES = {
 }
 
 CHARACTER_ASSETS = {
-    "AJ": "aj_concept.png",
-    "Arbadacarba": "arbadacarba_concept.png",
-    "Bam": "bam_concept.png",
-    "Benarc": "benarc_concept.png",
-    "BK": "BK_concept.png",
-    "BlackCoffee": "blackcoffee_concept.png",
-    "Cuddy": "cuddy_concept.png",
-    "Darren": "darren_concept.png",
-    "DNI": "dni_concept.png",
-    "Essex": "essex_concept.png",
-    "FLX": "flx_concept.png",
-    "Gadaj": "gadaj_concept.png",
-    "Jedai": "jedai_concept.png",
-    "Leon": "leon.png",
-    "Longy": "longy_concept.png",
-    "MadMunky": "madmunkey_concept.png",
-    "MHB": "mhb_comcept.png",
-    "Michael1011": "michael1011_concept.png",
-    "Morgs": "morgs_concept.png",
-    "Mtoshi": "mtoshi.png",
-    "NC": "nc_concept.png",
-    "Nind": "nind_concept.png",
-    "Proton": "proton_concept.png",
-    "Rootzoll": "rootzoll_concept.png",
-    "Sat": "sat_concept.png",
-    "Shillie": "shillie_concept.png",
-    "Snick": "snick_concept.png",
-    "Tal": "tal_concept.png",
-    "Tobo": "tobo_concept.png",
-    "Toni China": "tonichina_concept.png",
+    "AJ": "art/references/join-detailed-front/aj.png",
+    "Arbadacarba": "art/references/join-detailed-front/arbadacarba.png",
+    "Bam": "art/references/join-detailed-front/bam.png",
+    "Benarc": "art/references/join-detailed-front/benarc.png",
+    "BK": "art/references/join-detailed-front/bk.png",
+    "BlackCoffee": "art/references/join-detailed-front/blackcoffee.png",
+    "Cuddy": "art/references/join-detailed-front/cuddy.png",
+    "Darren": "art/references/join-detailed-front/darren.png",
+    "DNI": "art/references/join-detailed-front/dni.png",
+    "Essex": "art/references/join-detailed-front/essex.png",
+    "FLX": "art/references/join-detailed-front/flx.png",
+    "Gadaj": "art/references/join-detailed-front/gadaj.png",
+    "Jedai": "art/references/join-detailed-front/jedai.png",
+    "Leon": "art/references/join-detailed-front/leon.png",
+    "Longy": "art/references/join-detailed-front/longy.png",
+    "MadMunky": "art/references/join-detailed-front/madmunky.png",
+    "MHB": "art/references/join-detailed-front/mhb.png",
+    "Michael1011": "art/references/join-detailed-front/michael1011.png",
+    "Morgs": "art/references/join-detailed-front/morgs.png",
+    "Mtoshi": "art/references/join-detailed-front/mtoshi.png",
+    "NC": "art/references/join-detailed-front/nc.png",
+    "Nind": "art/references/join-detailed-front/nind.png",
+    "Proton": "art/references/join-detailed-front/p.png",
+    "Rootzoll": "art/references/join-detailed-front/rootzoll.png",
+    "Sat": "art/references/join-detailed-front/sat.png",
+    "Shillie": "art/references/join-detailed-front/shillie.png",
+    "Snick": "art/references/join-detailed-front/snick.png",
+    "Tal": "art/references/join-detailed-front/tal.png",
+    "Tobo": "art/references/join-detailed-front/tobo.png",
+    "Toni China": "art/references/join-detailed-front/toni-china.png",
+}
+
+# Long reminder clauses live in the rulebook and game UI. These compact face texts
+# preserve the same prototype mechanics while keeping the collectible card readable
+# in three lines at normal size.
+DISPLAY_RULES_OVERRIDES = {
+    "Cuddy, Signal Organizer": "Mesh.",
+    "Sat, Relay Rider": "Broadcast; Mesh.",
+    "Maintenance Leak": (
+        "Attach to a Protocol.\n"
+        "At its controller's Maintenance, this deals 2 damage to them. "
+        "They may pay X Resources to prevent X of it."
+    ),
+    "Call to Relay": (
+        "Play only during an opponent's turn before attackers.\n"
+        "Their Avatars attack if able. At end step, decommission non-Walls that "
+        "didn't attack unless they entered or changed control this turn."
+    ),
+    "Archive Boot": (
+        "Attach to an Avatar card in an Archive.\n"
+        "Return it under your control and attach Archive Boot. It gets -1 Action. "
+        "When Archive Boot leaves, archive that Avatar."
+    ),
+    "Sovereign Mode": (
+        "On deploy, set your Uptime to 0. You survive at 0; Uptime gains draw cards "
+        "instead. Damage archives that many non-proxy cards or you lose. If this "
+        "leaves, you lose."
+    ),
+    "NC, Forced Signal": (
+        "Commit — During an opponent's pre-attack step, target non-Wall Avatar "
+        "they've controlled all turn attacks if able. Decommission it at end step "
+        "if it didn't."
+    ),
+    "Locked Process": (
+        "Attach to an Avatar and commit it. It doesn't unlock normally. At its "
+        "controller's Maintenance, they may pay 4 to unlock it."
+    ),
+    "Route Misdirection": (
+        "Play only during blockers. Remove one defending Avatar from clash; anything "
+        "it alone blocked becomes unblocked. It may block another attacker."
+    ),
+    "Split Route": (
+        "On attack, each defender splits their non-Broadcast Avatars into left and "
+        "right piles. Each attacker chooses a pile and can be blocked only by it or "
+        "Broadcast."
+    ),
+    "Toni China, Multihead Miner": (
+        "Enters with X +1/+1 markers. Remove one to prevent 1 damage.\n"
+        "P: prevent 1 damage this turn. PPP — Maintenance: add a +1/+1 marker."
+    ),
+    "Longy, Resource Sovereign": (
+        "While idle, Action/Resilience equal your Bitcoin Resources; while attacking, "
+        "they equal the defender's. Commit: target Resource is Bitcoin while Longy "
+        "remains."
+    ),
+    "Living Hardware": (
+        "Attach to Hardware. Damage to you adds that many vitality markers. At "
+        "Maintenance, remove one to gain 1 Uptime."
+    ),
+    "BK, Mesh Pack": "Mesh.",
+    "Cuddy, Clockwork Node": (
+        "Enters with seven +1/+0 markers; remove one after it attacks or blocks.\n"
+        "X, Commit — Maintenance: refill up to X markers, to a maximum of seven."
+    ),
+    "Resource Tombstone": (
+        "2, Commit — Maintenance: mark target non-Keys Resource; it becomes Keys. "
+        "If this is archived, at each future Maintenance remove all its marks from "
+        "one marked Resource."
+    ),
+    "Mesh Router": "1, Commit: target Avatar gains Mesh this turn.",
+    "Boost Converter": (
+        "Doesn't unlock normally. At Maintenance, pay 4 to unlock it. If committed "
+        "at draw, it deals 1 damage to you. Commit: generate 3 neutral Resources."
+    ),
 }
 
 # Original public-facing names, in the historical mechanic-slot order 1–295.
@@ -420,9 +494,7 @@ RULE_OVERRIDES = {
         "Play only before blockers are declared. You split your attacking Avatars "
         "into piles. The defending player chooses which pile each blocker can block."
     ),
-    232: (
-        "Commit and archive Genesis Lotus: generate three Resources of one affinity."
-    ),
+    232: ("Commit and archive Genesis Lotus: generate three Resources of one affinity."),
     235: (
         "Toss module — Commit: toss Chaos Kernel from at least one card-height above "
         "the Network. Archive each non-proxy card it touches, then archive Chaos Kernel."
@@ -664,6 +736,7 @@ class CardRecord:
     action_resilience: str
     rarity: str
     rules_text: str
+    flavor_text: str
     help_text: str
     protocol_note: str
     protocol_source: str
@@ -930,10 +1003,7 @@ def _replace_additional_affinity(match: re.Match[str]) -> str:
 
 
 def _replace_variable_affinity(match: re.Match[str]) -> str:
-    return (
-        f"Generate that many {_affinity_name(match.group(1).upper())} Resources, "
-        "equal to"
-    )
+    return f"Generate that many {_affinity_name(match.group(1).upper())} Resources, equal to"
 
 
 def _replace_add_neutral(match: re.Match[str]) -> str:
@@ -948,9 +1018,7 @@ def rewrite_rules(source: dict[str, Any], slot: int, name: str) -> str:
         return RULE_OVERRIDES[slot]
     if "Land" in source.get("type_line", "").partition("—")[0]:
         subtypes = source["type_line"].split("—", maxsplit=1)[-1].strip().split()
-        generated = [
-            RESOURCE_SUBTYPES[item] for item in subtypes if item in RESOURCE_SUBTYPES
-        ]
+        generated = [RESOURCE_SUBTYPES[item] for item in subtypes if item in RESOURCE_SUBTYPES]
         choices = " or ".join(f"1 {affinity}" for affinity in generated)
         return f"Commit: generate {choices}."
     source_text = source.get("oracle_text") or ""
@@ -1028,14 +1096,14 @@ def affinity_for(source: dict[str, Any]) -> list[str]:
 
 
 def character_ref(name: str, card_type: str) -> CharacterRef | None:
-    """Resolve official full-body assets for every Avatar card."""
+    """Resolve canonical join.600.wtf Detailed-front assets for every Avatar card."""
     if "Avatar" not in card_type:
         return None
     heading = name.partition(",")[0].strip()
     character_names = [part.strip() for part in heading.split("&")]
     assets = [CHARACTER_ASSETS[character_name] for character_name in character_names]
     return CharacterRef(
-        source="join.600.wtf / official 600B fullbody standard",
+        source="join.600.wtf / canonical Detailed ·front",
         names=character_names,
         assets=assets,
     )
@@ -1106,6 +1174,70 @@ def simple_help(card_type: str, rules_text: str, affinities: list[str]) -> str:
     return "Play this during your main phase for a one-time strategic effect."
 
 
+FLAVOR_LINES = {
+    "Avatar": (
+        "Bullish on builders.",
+        "Good signal. Strong hands.",
+        "Make it real. Keep it open.",
+        "Culture is a protocol too.",
+        "Stay sovereign. Send it.",
+    ),
+    "Hardware Avatar": (
+        "Built different. Built open.",
+        "The machine joined the crew.",
+        "Good hardware has a heartbeat.",
+    ),
+    "Hardware": (
+        "Ship it open. Run it sovereign.",
+        "No permission. Just builders.",
+        "Useful beats flashy. Every block.",
+        "Plug in. Verify. Send it.",
+        "Built to work when hype does not.",
+    ),
+    "Protocol": (
+        "Open rules. Strong network.",
+        "Verify the rails. Then ride.",
+        "Consensus looks good on us.",
+        "Trust less. Coordinate more.",
+        "The good path stays inspectable.",
+    ),
+    "Zap": (
+        "One clean move. Zero committees.",
+        "Fast signal. Final energy.",
+        "Send it. The network knows.",
+        "Tiny packet. Huge mood.",
+        "YOLO, but verify.",
+    ),
+    "Operation": (
+        "The next block belongs to builders.",
+        "Big move. Open rails.",
+        "Good vibes ship on schedule.",
+        "Turn the plan into a signal.",
+        "We came to build the future.",
+    ),
+    "Resource": (
+        "Local first. Global by protocol.",
+        "Real capacity. Shared freely.",
+        "Stack the work. Grow the commons.",
+        "Abundance starts at the edge.",
+    ),
+    "Basic Resource": (
+        "Local first. Global by protocol.",
+        "Real capacity. Shared freely.",
+        "Stack the work. Grow the commons.",
+        "Abundance starts at the edge.",
+    ),
+}
+
+
+def flavor_for(name: str, card_type: str, slot: int) -> str:
+    """Write a short bullish collectible line with no rules meaning."""
+    phrases = FLAVOR_LINES[card_type]
+    phrase = phrases[(slot - 1) % len(phrases)]
+    subject = name.partition(",")[2].strip() if "Avatar" in card_type else name
+    return f"{subject}. {phrase}" if subject else phrase
+
+
 def art_textures(affinities: list[str]) -> str:
     """Describe the palette accent for an art brief."""
     if not affinities:
@@ -1172,13 +1304,15 @@ def build_cards(source_cards: list[dict[str, Any]]) -> list[CardRecord]:
         if "Avatar" in card_type:
             subtype = infer_avatar_subtype(name)
         affinities = affinity_for(source)
-        rules_text = rewrite_rules(source, slot, name)
+        rules_text = DISPLAY_RULES_OVERRIDES.get(
+            name,
+            rewrite_rules(source, slot, name),
+        )
         character = character_ref(name, card_type)
         note, note_source = protocol_note(slot, affinities)
         help_text = simple_help(card_type, rules_text, affinities)
-        art_direction, art_prompt = art_for(
-            name, card_type, affinities, character, rules_text
-        )
+        flavor_text = flavor_for(name, card_type, slot)
+        art_direction, art_prompt = art_for(name, card_type, affinities, character, rules_text)
         ar = ""
         if source.get("power") is not None:
             ar = f"{source['power']}/{source['toughness']}"
@@ -1195,6 +1329,7 @@ def build_cards(source_cards: list[dict[str, Any]]) -> list[CardRecord]:
                 action_resilience=ar,
                 rarity=source.get("rarity", "common"),
                 rules_text=rules_text,
+                flavor_text=flavor_text,
                 help_text=help_text,
                 protocol_note=note,
                 protocol_source=note_source,
@@ -1207,9 +1342,7 @@ def build_cards(source_cards: list[dict[str, Any]]) -> list[CardRecord]:
     return sorted(cards, key=lambda card: card.id)
 
 
-def validate_cards(
-    cards: list[CardRecord], source_cards: list[dict[str, Any]]
-) -> list[str]:
+def validate_cards(cards: list[CardRecord], source_cards: list[dict[str, Any]]) -> list[str]:
     """Run consistency and originality checks; return human-readable findings."""
     errors: list[str] = []
     if len(cards) != 295:
@@ -1247,6 +1380,8 @@ def validate_cards(
             errors.append(f"{card.id}: rules text is empty")
         if not card.help_text:
             errors.append(f"{card.id}: simple help text is empty")
+        if not card.flavor_text:
+            errors.append(f"{card.id}: flavor text is empty")
         if not card.protocol_note or not card.protocol_source.startswith("https://"):
             errors.append(f"{card.id}: protocol note or primary source missing")
         if "Avatar" in card.card_type and card.character is None:
@@ -1260,6 +1395,8 @@ def validate_cards(
                 errors.append(f"{card.id}: forbidden help term matches {pattern}")
         if len(card.help_text) > 180:
             errors.append(f"{card.id}: simple help exceeds 180 characters")
+        if len(card.flavor_text) > 110:
+            errors.append(f"{card.id}: flavor text exceeds 110 characters")
         if len(card.protocol_note) > 120:
             errors.append(f"{card.id}: protocol note exceeds 120 characters")
         if len(card.rules_text) > 900:
@@ -1357,6 +1494,7 @@ def write_csv(path: Path, cards: list[CardRecord]) -> None:
         "rarity",
         "affinity",
         "text",
+        "flavor_text",
         "protocol_note",
         "help_text",
     )
@@ -1375,6 +1513,7 @@ def write_csv(path: Path, cards: list[CardRecord]) -> None:
                     "rarity": card.rarity,
                     "affinity": " / ".join(card.affinity),
                     "text": card.rules_text.replace("\n", "\\n"),
+                    "flavor_text": card.flavor_text,
                     "protocol_note": card.protocol_note,
                     "help_text": card.help_text,
                 }
@@ -1386,8 +1525,8 @@ def write_catalog(path: Path, cards: list[CardRecord]) -> None:
     lines = [
         f"# {SET_NAME} — Complete Card Text",
         "",
-        f"Text version: `{TEXT_VERSION}`  ",
-        f"Cards: **{len(cards)}**  ",
+        f"Text version: `{TEXT_VERSION}`",
+        f"Cards: **{len(cards)}**",
         "Status: **TEXT LOCKED — artwork has not started**",
         "",
         "This catalog is the single editorial view of Edition One. Protocol Notes are",
@@ -1405,7 +1544,7 @@ def write_catalog(path: Path, cards: list[CardRecord]) -> None:
         cost = card.cost or "—"
         character = ""
         if card.character:
-            character = f"  \n**Character:** {', '.join(card.character.names)}"
+            character = f"\n**Character:** {', '.join(card.character.names)}"
         lines.extend(
             (
                 header,
@@ -1415,9 +1554,11 @@ def write_catalog(path: Path, cards: list[CardRecord]) -> None:
                 "",
                 card.rules_text.replace("\n", "<br>\n"),
                 "",
+                f"**Flavor:** *{card.flavor_text}*",
+                "",
                 f"**Simple Guide:** {card.help_text}",
                 "",
-                f"**Protocol Note:** {card.protocol_note}  ",
+                f"**Protocol Note:** {card.protocol_note}",
                 f"**Primary source:** {card.protocol_source}",
                 "",
                 f"**Art direction:** {card.art_direction}",
@@ -1463,7 +1604,7 @@ def write_report(path: Path, cards: list[CardRecord], errors: list[str]) -> None
             "- no exact source rules prose",
             "- consistent 600B zones, verbs and keywords",
             "- beginner-friendly Simple Guide on every card",
-            "- every Avatar tied to official join.600.wtf character assets",
+            "- every Avatar tied to canonical join.600.wtf Detailed ·front assets",
             "- non-Avatar art prompts explicitly exclude people",
             "- concise educational note plus primary source on every card",
             "- image generation blocked until this gate passes",

@@ -34,7 +34,7 @@ def test_iconic_cards_keep_locked_ids():
     assert cards["E1-006"]["name"] == "Multisig Quorum"
 
 
-def test_every_card_has_help_note_source_and_art_brief():
+def test_every_card_has_help_note_source_art_brief_and_flavor():
     cards = load_payload()["cards"]
 
     assert all(card["rules_text"] for card in cards)
@@ -42,6 +42,8 @@ def test_every_card_has_help_note_source_and_art_brief():
     assert all(card["protocol_note"] for card in cards)
     assert all(card["protocol_source"].startswith("https://") for card in cards)
     assert all(card["art_direction"] and card["art_prompt"] for card in cards)
+    assert all(card["flavor_text"] for card in cards)
+    assert len({card["flavor_text"] for card in cards}) == 295
 
 
 def test_every_avatar_uses_official_600b_character_source():
@@ -51,7 +53,14 @@ def test_every_avatar_uses_official_600b_character_source():
 
     assert len(avatars) == 92
     assert all(
-        card["character"]["source"] == "join.600.wtf / official 600B fullbody standard"
+        card["character"]["source"] == "join.600.wtf / canonical Detailed ·front"
+        for card in avatars
+    )
+    assert all(
+        all(
+            asset.startswith("art/references/join-detailed-front/")
+            for asset in card["character"]["assets"]
+        )
         for card in avatars
     )
     assert all(card["character"] is None for card in non_avatars)

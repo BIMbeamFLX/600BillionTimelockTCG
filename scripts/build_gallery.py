@@ -413,10 +413,17 @@ def render_html(records: list[dict[str, Any]]) -> str:
       const query = search.value.trim().toLowerCase();
       const type = typeFilter.value;
       const filtered = cards.filter((card) => {{
-        const searchable = [card.id, card.name, card.typeLine, ...card.affinity].join(" ").toLowerCase();
+        const searchable =
+          [card.id, card.name, card.typeLine, ...card.affinity].join(" ").toLowerCase();
         const affinityMatch = affinity === "All" ||
-          (affinity === "Neutral" ? card.affinity.includes("Neutral") : card.affinity.includes(affinity));
-        return (!query || searchable.includes(query)) && (!type || card.type === type) && affinityMatch;
+          (affinity === "Neutral"
+            ? card.affinity.includes("Neutral")
+            : card.affinity.includes(affinity));
+        return (
+          (!query || searchable.includes(query)) &&
+          (!type || card.type === type) &&
+          affinityMatch
+        );
       }});
       counter.textContent = filtered.length + " / " + cards.length;
       gallery.replaceChildren();

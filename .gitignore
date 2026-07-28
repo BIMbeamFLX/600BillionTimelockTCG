@@ -1,5 +1,6 @@
 node_modules/
 .venv/
+.venv312/
 dist/
 __pycache__/
 .ruff_cache/
@@ -10,3 +11,6 @@ Thumbs.db
 *.sqlite
 .env
 .art-build.*.log
+.audit/
+art/generated/
+art/references/join-detailed-front/

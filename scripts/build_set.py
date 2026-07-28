@@ -91,9 +91,7 @@ class Card:
     def client_colors(self) -> str:
         """Mapped color letters present in the cost, in Cockatrice WUBRG order."""
         found = {
-            RESOURCE_TO_CLIENT[ch.upper()]
-            for ch in self.cost
-            if ch.upper() in RESOURCE_TO_CLIENT
+            RESOURCE_TO_CLIENT[ch.upper()] for ch in self.cost if ch.upper() in RESOURCE_TO_CLIENT
         }
         return "".join(c for c in CLIENT_COLOR_ORDER if c in found)
 
@@ -177,9 +175,7 @@ def install(xml_path: Path, art_dir: Path) -> None:
     """Copy the set XML and card art into the local Cockatrice data directory."""
     data_dir = cockatrice_data_dir()
     if not data_dir.is_dir():
-        log.warning(
-            "Cockatrice data dir not found at %s — is Cockatrice installed?", data_dir
-        )
+        log.warning("Cockatrice data dir not found at %s — is Cockatrice installed?", data_dir)
         return
 
     customsets = data_dir / "customsets"
@@ -206,12 +202,8 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", type=Path, default=repo_root / "cards" / "cards.csv")
-    parser.add_argument(
-        "--out", type=Path, default=repo_root / "dist" / "01.600b-e1.xml"
-    )
-    parser.add_argument(
-        "--install", action="store_true", help="copy into Cockatrice data dir"
-    )
+    parser.add_argument("--out", type=Path, default=repo_root / "dist" / "01.600b-e1.xml")
+    parser.add_argument("--install", action="store_true", help="copy into Cockatrice data dir")
     args = parser.parse_args()
 
     cards = load_cards(args.csv)
