@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="480">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#000000"/>
+          <stop offset=".55" stop-color="#16121B"/>
+          <stop offset="1" stop-color="#2B1735"/>
+        </linearGradient>
+        <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+          <path d="M48 0H0V48" fill="none" stroke="#B991E4" stroke-opacity=".08"/>
+        </pattern>
+      </defs>
+      <rect width="1600" height="480" fill="url(#bg)"/>
+      <rect width="1600" height="480" fill="url(#grid)"/>
+      <rect width="1600" height="9" fill="#F7931A"/>
+      <rect y="471" width="1600" height="9" fill="#7447B8"/>
+      <text x="800" y="370" text-anchor="middle" fill="#B991E4"
+        font-family="Arial, sans-serif" font-size="25" font-weight="700"
+        letter-spacing="9">FIVE TOOLS · ONE NETWORK</text>
+      
+        <g transform="translate(180 64)">
+          <circle cx="0" cy="0" r="72" fill="#18151D" stroke="#FF6A00" stroke-width="3"/>
+          <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIj4KICA8dGl0bGUgaWQ9InRpdGxlIj5Qb3dlciByZXNvdXJjZTwvdGl0bGU+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMjgiIGZpbGw9IiMxMTExMTEiIHN0cm9rZT0iI0ZGNkEwMCIgc3Ryb2tlLXdpZHRoPSI0Ii8+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLjUgLjU1KSI+CiAgICA8cGF0aCBmaWxsPSIjRkZGN0VDIiBkPSJNMzUuMyA4IDE3LjggMzUuMWgxMS40TDI1LjkgNTYgNDYuMiAyNy41SDM0LjRMMzUuMyA4WiIvPgogIDwvZz4KPC9zdmc+Cg==" x="-52" y="-52" width="104" height="104"/>
+          <text x="0" y="128" text-anchor="middle" fill="#FFF7EC"
+            font-family="Impact, Arial Black, sans-serif" font-size="34"
+            letter-spacing="2">POWER</text>
+        </g>
+        <g transform="translate(490 64)">
+          <circle cx="0" cy="0" r="72" fill="#18151D" stroke="#F3C244" stroke-width="3"/>
+          <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIj4KICA8dGl0bGUgaWQ9InRpdGxlIj5CaXRjb2luIHJlc291cmNlPC90aXRsZT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIyOCIgZmlsbD0iIzExMTExMSIgc3Ryb2tlPSIjRjNDMjQ0IiBzdHJva2Utd2lkdGg9IjQiLz4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMy4yIC0uNykiPgogICAgPHBhdGggZmlsbD0iI0ZGRjdFQyIgZD0iTTIzIDE1aDE0LjJjOC4xIDAgMTIuOCAzLjggMTIuOCAxMC4yIDAgNC4xLTIuMiA3LjItNi4yIDguOCA1IDEuNCA3LjcgNC43IDcuNyA5LjVDNTEuNSA1MSA0NiA1NSAzNyA1NUgyM1YxNVptOCA3djloNS4yYzQgMCA1LjgtMS40IDUuOC00LjYgMC0zLTEuOS00LjQtNS44LTQuNEgzMVptMCAxNnYxMGg2YzQuNCAwIDYuNC0xLjcgNi40LTUgMC0zLjQtMi4yLTUtNi41LTVIMzFaIi8+CiAgICA8cmVjdCB4PSIyOCIgeT0iMTAiIHdpZHRoPSI0IiBoZWlnaHQ9IjkiIHJ4PSIyIiBmaWxsPSIjRkZGN0VDIi8+CiAgICA8cmVjdCB4PSIzNiIgeT0iMTAiIHdpZHRoPSI0IiBoZWlnaHQ9IjkiIHJ4PSIyIiBmaWxsPSIjRkZGN0VDIi8+CiAgICA8cmVjdCB4PSIyOCIgeT0iNTEiIHdpZHRoPSI0IiBoZWlnaHQ9IjUiIHJ4PSIyIiBmaWxsPSIjRkZGN0VDIi8+CiAgICA8cmVjdCB4PSIzNiIgeT0iNTEiIHdpZHRoPSI0IiBoZWlnaHQ9IjUiIHJ4PSIyIiBmaWxsPSIjRkZGN0VDIi8+CiAgPC9nPgo8L3N2Zz4K" x="-52" y="-52" width="104" height="104"/>
+          <text x="0" y="128" text-anchor="middle" fill="#FFF7EC"
+            font-family="Impact, Arial Black, sans-serif" font-size="34"
+            letter-spacing="2">BITCOIN</text>
+        </g>
+        <g transform="translate(800 64)">
+          <circle cx="0" cy="0" r="72" fill="#18151D" stroke="#7447B8" stroke-width="3"/>
+          <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIj4KICA8dGl0bGUgaWQ9InRpdGxlIj5LZXlzIHJlc291cmNlPC90aXRsZT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIyOCIgZmlsbD0iIzExMTExMSIgc3Ryb2tlPSIjNzQ0N0I4IiBzdHJva2Utd2lkdGg9IjQiLz4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSguOCAtMS4yKSI+CiAgICA8cGF0aCBkPSJNMjAgMzdhMTEgMTEgMCAxIDEgMTAuMi0xNS4yTDUzIDQ0LjZWNTJoLTd2LTVoLTZ2LTVoLTYuNmwtMy4yLTMuMkExMSAxMSAwIDAgMSAyMCAzN1oiCiAgICAgICAgICBmaWxsPSJub25lIiBzdHJva2U9IiNGRkY3RUMiIHN0cm9rZS13aWR0aD0iNSIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogICAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyNiIgcj0iMy41IiBmaWxsPSIjRkZGN0VDIi8+CiAgPC9nPgo8L3N2Zz4K" x="-52" y="-52" width="104" height="104"/>
+          <text x="0" y="128" text-anchor="middle" fill="#FFF7EC"
+            font-family="Impact, Arial Black, sans-serif" font-size="34"
+            letter-spacing="2">KEYS</text>
+        </g>
+        <g transform="translate(1110 64)">
+          <circle cx="0" cy="0" r="72" fill="#18151D" stroke="#FFF7EC" stroke-width="3"/>
+          <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIj4KICA8dGl0bGUgaWQ9InRpdGxlIj5TaWduYWwgcmVzb3VyY2U8L3RpdGxlPgogIDxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjI4IiBmaWxsPSIjMTExMTExIiBzdHJva2U9IiNGRkY3RUMiIHN0cm9rZS13aWR0aD0iNCIvPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAgNS4yKSI+CiAgICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjQzIiByPSI0IiBmaWxsPSIjRkZGN0VDIi8+CiAgICA8cGF0aCBkPSJNMjIgMzVhMTQgMTQgMCAwIDEgMjAgME0xNSAyOGEyNCAyNCAwIDAgMSAzNCAwTTkgMjBhMzMgMzMgMCAwIDEgNDYgMCIKICAgICAgICAgIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0ZGRjdFQyIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8L2c+Cjwvc3ZnPgo=" x="-52" y="-52" width="104" height="104"/>
+          <text x="0" y="128" text-anchor="middle" fill="#FFF7EC"
+            font-family="Impact, Arial Black, sans-serif" font-size="34"
+            letter-spacing="2">SIGNAL</text>
+        </g>
+        <g transform="translate(1420 64)">
+          <circle cx="0" cy="0" r="72" fill="#18151D" stroke="#5E5ACB" stroke-width="3"/>
+          <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIj4KICA8dGl0bGUgaWQ9InRpdGxlIj5UaW1lbG9jayByZXNvdXJjZTwvdGl0bGU+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMjgiIGZpbGw9IiMxMTExMTEiIHN0cm9rZT0iIzVFNUFDQiIgc3Ryb2tlLXdpZHRoPSI0Ii8+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCAuMykiPgogICAgPHBhdGggZD0iTTIwIDI5di02YzAtNy4yIDUuNC0xMyAxMi0xM3MxMiA1LjggMTIgMTN2NiIgZmlsbD0ibm9uZSIKICAgICAgICAgIHN0cm9rZT0iI0ZGRjdFQyIgc3Ryb2tlLXdpZHRoPSI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICAgIDxyZWN0IHg9IjE1IiB5PSIyNyIgd2lkdGg9IjM0IiBoZWlnaHQ9IjI3IiByeD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGN0VDIiBzdHJva2Utd2lkdGg9IjUiLz4KICAgIDxjaXJjbGUgY3g9IjMyIiBjeT0iNDAuNSIgcj0iOCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGN0VDIiBzdHJva2Utd2lkdGg9IjMiLz4KICAgIDxwYXRoIGQ9Ik0zMiAzNXY2bDQgMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGN0VDIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDwvZz4KPC9zdmc+Cg==" x="-52" y="-52" width="104" height="104"/>
+          <text x="0" y="128" text-anchor="middle" fill="#FFF7EC"
+            font-family="Impact, Arial Black, sans-serif" font-size="34"
+            letter-spacing="2">TIMELOCK</text>
+        </g>
+    </svg>

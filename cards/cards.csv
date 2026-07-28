@@ -1,0 +1,17 @@
+name,maintype,subtype,manacost,pt,rarity,text
+Dawn Sentinel,Creature,Guardian,1W,1/3,common,First strike
+Purifying Light,Instant,,2W,,common,Destroy target artifact or enchantment.
+Deny,Instant,,UU,,uncommon,Counter target spell.
+Cloud Skimmer,Creature,Spirit,2U,2/2,common,Flying
+Thought Leech,Sorcery,,1B,,common,Target player discards two cards.
+Night Prowler,Creature,Rogue,2B,3/1,common,
+Spark Bolt,Instant,,R,,common,Spark Bolt deals 3 damage to any target.
+Ember Brawler,Creature,Warrior,1R,2/1,common,Haste
+Wild Surge,Instant,,G,,common,Target creature gets +3/+3 until end of turn.
+Moss Colossus,Creature,Elemental,4GG,6/5,rare,Trample
+Dream Ring,Artifact,,1,,rare,{T}: Add {C}{C}.
+Sunfield,Basic Land,,,,common,{T}: Add {W}.
+Deepwater,Basic Land,,,,common,{T}: Add {U}.
+Mireground,Basic Land,,,,common,{T}: Add {B}.
+Cinder Peak,Basic Land,,,,common,{T}: Add {R}.
+Wildgrove,Basic Land,,,,common,{T}: Add {G}.
