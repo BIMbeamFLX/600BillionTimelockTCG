@@ -65,4 +65,9 @@ CSV columns: `name, type, subtype, cost, ar, rarity, text`. Costs use affinity l
 slots (Signal=W, Timelock=U, Keys=B, Power=R, Bitcoin=G) as a render adapter only — all
 names and rules text stay 600B.
 
+`scripts/build_gallery.py` generates `cards.html` — a gallery of every card's full-card
+image (the same graphics used in game) with its complete text, search and affinity
+filters. Serve the repo root with any static server, e.g.
+`.venv/Scripts/python -m http.server 8600`, then open `/cards.html`.
+
 Run the generator tests with `.venv/Scripts/python -m pytest`.

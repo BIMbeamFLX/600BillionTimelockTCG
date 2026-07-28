@@ -4,14 +4,14 @@ Satoshi Stash,Resource,Bitcoin,,,common,Commit: generate 1 Bitcoin.
 Key Vault,Resource,Keys,,,common,Commit: generate 1 Keys.
 Relay Tower,Resource,Signal,,,common,Commit: generate 1 Signal.
 Block Clock,Resource,Timelock,,,common,Commit: generate 1 Timelock.
-Node Runner,Avatar,Operator,1S,1/3,common,First Strike
-Drone Relay,Avatar,Drone,2T,2/2,common,Broadcast
-Ghost Client,Avatar,Client,2K,3/1,common,
+Node Runner,Avatar,Operator,1S,1/3,common,First Strike (This Avatar deals combat damage before Avatars without First Strike.)
+Drone Relay,Avatar,Drone,2T,2/2,common,Broadcast (This Avatar can be blocked only by Avatars with Broadcast.)
+Ghost Client,Avatar,Client,2K,3/1,common,Backchannel — Keys (This Avatar cannot be blocked while the defending player controls a Keys Resource.)
 Overclocked Miner,Avatar,Miner,1P,2/1,common,
-Full Archive Node,Avatar,Node,4BB,6/5,rare,Overflow
-Firewall Daemon,Avatar,Firewall,1T,0/4,common,
+Full Archive Node,Avatar,Node,4BB,6/5,rare,Overflow (This Avatar may assign excess combat damage to the defending player after assigning lethal damage to all blockers.)
+Firewall Daemon,Avatar,Firewall,1T,0/4,common,(Firewalls cannot attack. They may block normally.)
 Power Surge,Zap,,P,,common,Power Surge deals 3 damage to any target.
-Verification Check,Zap,,TT,,uncommon,Invalidate target card on the Queue.
+Verification Check,Zap,,TT,,uncommon,Invalidate target card on the Queue. (Its paid costs are not refunded.)
 Number Go Up,Zap,,B,,common,Target Avatar gets +3/+3 until end of turn.
 Seed Phrase Leak,Operation,,1K,,common,Target player discards two cards.
 Community Cleanup,Operation,,2S,,common,Decommission target Hardware or Protocol.
