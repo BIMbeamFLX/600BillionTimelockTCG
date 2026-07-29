@@ -1,4 +1,4 @@
-"""Add deterministic bullish flavor text to the current Edition One text lock."""
+"""Apply the audit-first Edition One editorial and terminology lock."""
 
 from __future__ import annotations
 
@@ -11,42 +11,55 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from build_full_set import flavor_for
+from e1_editorial import (
+    apply_editorial_copy,
+    validate_catalog_shape,
+    validate_editorial_copy,
+)
 
 log = logging.getLogger("lock_flavor_text")
 
 
 def record_decisions(db_path: Path, cards: list[dict[str, Any]]) -> None:
-    """Record every flavor line before public card data is updated."""
+    """Record the complete editorial revision before public data is updated."""
     with sqlite3.connect(db_path) as connection:
         connection.executescript(
             """
-            CREATE TABLE IF NOT EXISTS flavor_text_decisions (
-                card_id TEXT PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS e1_editorial_card_decisions (
+                card_id TEXT NOT NULL,
+                revision TEXT NOT NULL,
                 public_name TEXT NOT NULL,
+                rules_text TEXT NOT NULL,
                 flavor_text TEXT NOT NULL,
+                protocol_note TEXT NOT NULL,
+                protocol_source TEXT NOT NULL,
                 status TEXT NOT NULL,
                 reason TEXT NOT NULL,
                 updated_by TEXT NOT NULL,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (card_id, revision)
             );
-            DELETE FROM flavor_text_decisions;
             """
         )
         connection.executemany(
             """
-            INSERT INTO flavor_text_decisions (
-                card_id, public_name, flavor_text, status, reason, updated_by
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO e1_editorial_card_decisions (
+                card_id, revision, public_name, rules_text, flavor_text,
+                protocol_note, protocol_source, status, reason, updated_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
                     card["id"],
+                    "e1-fix-pass-2026-07-29",
                     card["name"],
+                    card["rules_text"],
                     card["flavor_text"],
+                    card["protocol_note"],
+                    card["protocol_source"],
                     "text-locked",
-                    "short collectible copy; no rules or educational effect",
-                    "auto:codex:e1-flavor",
+                    "approved E1 terminology, flavor and educational-note fix pass",
+                    "auto:codex:e1-editorial",
                 )
                 for card in cards
             ],
@@ -144,16 +157,19 @@ def write_catalog(path: Path, payload: dict[str, Any]) -> None:
 
 
 def write_report(path: Path, cards: list[dict[str, Any]]) -> None:
-    """Write the flavor consistency result."""
+    """Write the complete editorial consistency result."""
     duplicate_count = len(cards) - len({card["flavor_text"] for card in cards})
+    note_counts = Counter(card["protocol_note"] for card in cards)
     type_counts = Counter(card["card_type"] for card in cards)
     lines = [
         "# Edition One Text-Lock Consistency Report",
         "",
-        "- Version: `E1.0-text-lock`",
+        "- Version: `E1.0-text-lock-r1`",
         f"- Cards checked: **{len(cards)}**",
         f"- Flavor lines: **{len(cards)}**",
         f"- Repeated full flavor lines: **{duplicate_count}**",
+        f"- Unique Protocol Notes: **{len(note_counts)}**",
+        f"- Maximum exact Protocol Note reuse: **{max(note_counts.values())}**",
         "- Visible face text: **rules + collectible flavor only**",
         "- Hidden metadata: **Simple Guide + Protocol Note + sources + prompts**",
         "- Rule layout: **maximum 3 lines**",
@@ -169,7 +185,10 @@ def write_report(path: Path, cards: list[dict[str, Any]]) -> None:
             "## Checks",
             "",
             "- 295 complete records and unique public IDs",
-            "- short bullish flavor copy on every card",
+            "- original free-form flavor copy on every card",
+            "- no repeated flavor tail above two uses",
+            "- no exact Protocol Note above two uses",
+            "- canonical E1 reminder and terminology vocabulary",
             "- no learning explanation printed on card faces",
             "- every Avatar tied to official join.600.wtf identity references",
             "- image generation blocked until the art-prompt gate passes",
@@ -180,7 +199,7 @@ def write_report(path: Path, cards: list[dict[str, Any]]) -> None:
 
 
 def main() -> None:
-    """Lock flavor in JSON, CSV, Markdown and the local audit trail."""
+    """Lock editorial copy in JSON, CSV, Markdown and the local audit trail."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     repo_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
@@ -198,14 +217,14 @@ def main() -> None:
 
     payload = json.loads(args.cards.read_text(encoding="utf-8"))
     cards = payload["cards"]
-    for card in cards:
-        card["flavor_text"] = flavor_for(
-            card["name"],
-            card["card_type"],
-            card["source_slot"],
-        )
-    if not all(card["flavor_text"] and len(card["flavor_text"]) <= 110 for card in cards):
-        raise ValueError("flavor lock failed length or completeness check")
+    apply_editorial_copy(cards)
+    findings = validate_catalog_shape() + validate_editorial_copy(cards)
+    if findings:
+        raise ValueError("editorial lock failed:\n" + "\n".join(findings))
+    payload["set"]["text_version"] = "E1.0-text-lock-r1"
+    payload["set"]["creative_direction"] = (
+        "Educational and funny positive-cypherpunk stories about Bitcoin, Nostr and open systems."
+    )
 
     record_decisions(args.audit_db, cards)
     args.cards.write_text(
@@ -215,7 +234,7 @@ def main() -> None:
     write_csv(repo_root / "cards" / "cards.csv", cards)
     write_catalog(repo_root / "cards" / "E1-CARD-TEXT.md", payload)
     write_report(repo_root / "cards" / "e1-text-lock-report.md", cards)
-    log.info("flavor lock passed: %d collectible lines", len(cards))
+    log.info("editorial lock passed: %d cards, audit recorded before public writes", len(cards))
 
 
 if __name__ == "__main__":

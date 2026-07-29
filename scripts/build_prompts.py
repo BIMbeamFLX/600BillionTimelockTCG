@@ -15,6 +15,7 @@ import hashlib
 import json
 import logging
 import re
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -59,7 +60,7 @@ MOTIFS = [
     (r"\bReboot\b", "a rig reassembling itself mid-fall, seams re-knitting"),
     (r"\bBroadcast\b", "airborne above rooftop antennas, signal wake trailing"),
     (r"\bOverflow\b", "energy surging past a barricade that could not hold it"),
-    (r"\bBackchannel\b", "a hidden side tunnel glowing behind an unsuspecting wall"),
+    (r"\bBackchannel\b", "a hidden side tunnel glowing behind a sealed bulkhead"),
     (r"\bShielded from\b", "a translucent shell shrugging off colored sparks"),
     (r"\bFirst Strike\b", "the strike landing before the dust has moved"),
     (r"\bMesh\b", "many small units linking into one load-bearing lattice"),
@@ -151,11 +152,55 @@ def build_prompt(card: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def record_prompt_decisions(records: list[dict[str, Any]]) -> None:
+    """Record the prompts-v2 lock before updating its public catalog."""
+    db_path = REPO_ROOT / ".audit" / "e1-design.sqlite"
+    with sqlite3.connect(db_path) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS art_prompt_v2_decisions (
+                card_id TEXT NOT NULL,
+                prompt_version TEXT NOT NULL,
+                public_name TEXT NOT NULL,
+                deterministic_seed INTEGER NOT NULL,
+                prompt_sha256 TEXT NOT NULL,
+                status TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                updated_by TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (card_id, prompt_version)
+            );
+            """
+        )
+        connection.executemany(
+            """
+            INSERT OR REPLACE INTO art_prompt_v2_decisions (
+                card_id, prompt_version, public_name, deterministic_seed,
+                prompt_sha256, status, reason, updated_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    record["id"],
+                    "prompts-v2",
+                    record["name"],
+                    record["seed"],
+                    hashlib.sha256(record["prompt"].encode()).hexdigest(),
+                    "prompt-locked",
+                    "future educational-and-funny art regeneration catalog",
+                    "auto:codex:e1-prompts-v2",
+                )
+                for record in records
+            ],
+        )
+
+
 def main() -> None:
     """Generate prompts for all cards and report variety stats."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     data = json.loads((REPO_ROOT / "cards" / "e1-cards.json").read_text(encoding="utf-8"))
     records = [build_prompt(c) for c in data["cards"]]
+    record_prompt_decisions(records)
     OUT_PATH.write_text(
         json.dumps({"version": "prompts-v2", "prompts": records}, indent=1, ensure_ascii=False),
         encoding="utf-8",

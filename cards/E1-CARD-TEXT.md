@@ -1,6 +1,6 @@
 # 600B Timelock TCG — Edition One Complete Card Text
 
-Text version: `E1.0-text-lock`
+Text version: `E1.0-text-lock-r1`
 Cards: **295**
 Status: **TEXT + FLAVOR LOCKED**
 
@@ -14,14 +14,14 @@ Protocol Notes, sources and art prompts remain digital game metadata.
 **Hardware** · Cost **0** · Rare
 
 
-Commit and archive Genesis Lotus: generate three Resources of one affinity.
+Commit and archive Genesis Lotus: generate 3 Resources of one affinity.
 
-**Flavor:** *Genesis Lotus. No permission. Just builders.*
+**Flavor:** *The manual had three pages, and Genesis Lotus used all of them as coasters.*
 
 **Simple Guide · metadata:** Moves a card into an Archive. Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Lightning payments use onion routing to limit who learns the full path.
-**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
+**Protocol Note · metadata:** The Bitcoin whitepaper describes peer-to-peer electronic cash without a trusted third party.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** A practical open-source device visualizes “Commit and archive Genesis Lotus: generate three Resources of one affinity” without characters.
 
@@ -36,12 +36,12 @@ Commit and archive Genesis Lotus: generate three Resources of one affinity.
 
 Commit: generate 1 Bitcoin.
 
-**Flavor:** *Satoshi Orchard. Real capacity. Shared freely.*
+**Flavor:** *Useful capacity grows wherever Satoshi Orchard gets a clean connection.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Bitcoin.
 
-**Protocol Note · metadata:** Taproot combines Schnorr signatures with flexible spending conditions.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+**Protocol Note · metadata:** A UTXO is an unspent transaction output available to a later input.
+**Primary source:** https://developer.bitcoin.org/devguide/transactions.html
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Bitcoin” without characters.
 
@@ -58,12 +58,12 @@ Commit: generate 1 Bitcoin.
 Broadcast<br>
 FLX stays unlocked after attacking.
 
-**Flavor:** *Culture Curator. Culture is a protocol too.*
+**Flavor:** *The status page calmed down as soon as Culture Curator picked up a wrench.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster. Lets a committed card become usable again.
 
-**Protocol Note · metadata:** NIP-05 links a human-readable internet identifier to a Nostr public key.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
+**Protocol Note · metadata:** NIP-01 events carry an id, pubkey, timestamp, kind, tags, content and signature.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** FLX turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -78,12 +78,12 @@ FLX stays unlocked after attacking.
 
 Zap deals 3 damage to any target.
 
-**Flavor:** *Zap. One clean move. Zero committees.*
+**Flavor:** *Latency rehearsed an excuse, but Zap had already resolved.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** A valid block must satisfy both proof-of-work and consensus rules.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html
+**Protocol Note · metadata:** Bitcoin proof of work searches for a block-header hash below a target.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** A precise burst of network action visualizes “Zap deals 3 damage to any target” without characters.
 
@@ -98,12 +98,12 @@ Zap deals 3 damage to any target.
 
 After this turn, take one additional turn.
 
-**Flavor:** *Next Block. Good vibes ship on schedule.*
+**Flavor:** *The plan left the whiteboard and returned wearing Next Block.*
 
 **Simple Guide · metadata:** Gives you another full turn after this one.
 
-**Protocol Note · metadata:** Lightning uses timelocks so outdated channel states can be challenged.
-**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
+**Protocol Note · metadata:** BIP-65 makes CHECKLOCKTIMEVERIFY enforce an absolute locktime.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “After this turn, take one additional turn” without characters.
 
@@ -118,12 +118,12 @@ After this turn, take one additional turn.
 
 Keys Avatars get +1 Action and +1 Resilience.
 
-**Flavor:** *Multisig Quorum. Consensus looks good on us.*
+**Flavor:** *The fine print became infrastructure when Multisig Quorum entered the Network.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** BIP-39 encodes wallet backup entropy as a mnemonic sentence.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+**Protocol Note · metadata:** BIP-32 extended keys combine key material with a 32-byte chain code.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Keys Avatars get +1 Action and +1 Resilience” without characters.
 
@@ -136,17 +136,17 @@ Keys Avatars get +1 Action and +1 Resilience.
 **Protocol — Attachment** · Cost **S** · Rare
 
 
-Attach to Wall<br>
-Attached Wall can attack as though it didn't have Firewall.
+Attach to Firewall<br>
+Attached Firewall can attack as though it didn't have Firewall.
 
-**Flavor:** *Firmware for Firewalls. Open rules. Strong network.*
+**Flavor:** *Every rule has an edge case; Firmware for Firewalls packed it a lunch.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Nostr events are signed data; relays distribute them without owning identity.
+**Protocol Note · metadata:** NIP-01 events carry an id, pubkey, timestamp, kind, tags, content and signature.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
-**Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Wall” without characters.
+**Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Firewall” without characters.
 
 ---
 
@@ -157,11 +157,11 @@ Attached Wall can attack as though it didn't have Firewall.
 
 Decommission all Resources.
 
-**Flavor:** *Grid Reset. Big move. Open rails.*
+**Flavor:** *Every checklist box stood a little straighter for Grid Reset.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** A Nostr public key identifies an account across compatible clients.
+**Protocol Note · metadata:** NIP-01 hashes a canonical event serialization to produce its event id.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** A coordinated network-wide event visualizes “Decommission all Resources” without characters.
@@ -175,12 +175,12 @@ Decommission all Resources.
 
 Each player chooses a number of Resources they control equal to the number of Resources controlled by the player who controls the fewest, then archives the rest. Players discard cards and archive Avatars the same way.
 
-**Flavor:** *Fair State. Good vibes ship on schedule.*
+**Flavor:** *The long route became the useful route after Fair State.*
 
 **Simple Guide · metadata:** Reduces the options in an opponent's Wallet. Moves a card into an Archive.
 
-**Protocol Note · metadata:** NIP-05 links a human-readable internet identifier to a Nostr public key.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
+**Protocol Note · metadata:** NIP-01 hashes a canonical event serialization to produce its event id.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** A coordinated network-wide event visualizes “Each player chooses a number of Resources they control equal to the number of Resources controlled by the player who controls the fewest, then archives the rest. Players discard cards and archive Avatars the same way” without characters.
 
@@ -194,12 +194,12 @@ Each player chooses a number of Resources they control equal to the number of Re
 
 Mesh.
 
-**Flavor:** *Signal Organizer. Culture is a protocol too.*
+**Flavor:** *Nobody assigned the incident; it simply looked nervous around Signal Organizer.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Can coordinate with other Mesh Avatars during clashes.
 
-**Protocol Note · metadata:** NIP-57 defines Lightning zaps as signed value signals around Nostr events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/57.md
+**Protocol Note · metadata:** NIP-01 signs an event id so clients can verify the publisher.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** Cuddy turns “Mesh (Any Avatars with Mesh, and up to one without, can attack in a band. Bands are blocked as a group. If any Avatars with Mesh you control are blocking or being blocked by an Avatar, you divide that Avatar's clash damage, not its controller, among any of the Avatars it's being blocked by or is blocking.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -213,11 +213,11 @@ Mesh.
 Attach to Avatar<br>
 Attached Avatar has Shielded from Keys. This effect doesn't remove this Attachment.
 
-**Flavor:** *Keys Shield. The good path stays inspectable.*
+**Flavor:** *The whiteboard stopped arguing after Keys Shield drew the final arrow.*
 
 **Simple Guide · metadata:** Resists the named affinity.
 
-**Protocol Note · metadata:** Nostr clients can use many relays, reducing dependence on one operator.
+**Protocol Note · metadata:** NIP-01 signs an event id so clients can verify the publisher.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
@@ -232,12 +232,12 @@ Attached Avatar has Shielded from Keys. This effect doesn't remove this Attachme
 Play this card on the Queue only during clash before blockers are declared.<br>
 Target Avatar defending player controls can block any number of Avatars this turn. It blocks each attacking Avatar this turn if able.
 
-**Flavor:** *Last Broadcast. One clean move. Zero committees.*
+**Flavor:** *The Queue blinked once and found Last Broadcast at the front.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** NIP-25 expresses reactions as portable signed events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/25.md
+**Protocol Note · metadata:** A NIP-01 REQ message opens a filtered relay subscription.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** A precise burst of network action visualizes “Play this card on the Queue only during clash before blockers are declared” without characters.
 
@@ -251,11 +251,11 @@ Target Avatar defending player controls can block any number of Avatars this tur
 Attach to Avatar<br>
 S: attached Avatar gets +1 Action and +1 Resilience until end of turn.
 
-**Flavor:** *Shared Uptime. Verify the rails. Then ride.*
+**Flavor:** *A handshake became a habit wherever Shared Uptime was deployed.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Nostr events are signed data; relays distribute them without owning identity.
+**Protocol Note · metadata:** A NIP-01 REQ message opens a filtered relay subscription.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
@@ -270,11 +270,11 @@ S: attached Avatar gets +1 Action and +1 Resilience until end of turn.
 Attach to Avatar<br>
 Attached Avatar has Shielded from Timelock. This effect doesn't remove this Attachment.
 
-**Flavor:** *Timelock Shield. Consensus looks good on us.*
+**Flavor:** *No committee survived contact with the clarity of Timelock Shield.*
 
 **Simple Guide · metadata:** Resists the named affinity.
 
-**Protocol Note · metadata:** A Nostr public key identifies an account across compatible clients.
+**Protocol Note · metadata:** A NIP-01 CLOSE message ends a relay subscription.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
@@ -288,12 +288,12 @@ Attached Avatar has Shielded from Timelock. This effect doesn't remove this Atta
 
 Unlocked Avatars you control get +0 Action and +2 Resilience.
 
-**Flavor:** *Local Citadel. Trust less. Coordinate more.*
+**Flavor:** *The Network called it policy; Local Citadel called it Tuesday.*
 
 **Simple Guide · metadata:** Lets a committed card become usable again.
 
-**Protocol Note · metadata:** NIP-05 links a human-readable internet identifier to a Nostr public key.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
+**Protocol Note · metadata:** A NIP-01 CLOSE message ends a relay subscription.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Unlocked Avatars you control get +0 Action and +2 Resilience” without characters.
 
@@ -306,12 +306,12 @@ Unlocked Avatars you control get +0 Action and +2 Resilience.
 
 1: The next time a Timelock source of your choice would deal damage to you this turn, prevent that damage.
 
-**Flavor:** *Timelock Protection Circuit. The good path stays inspectable.*
+**Flavor:** *One tidy invariant followed Timelock Protection Circuit into every messy room.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** NIP-57 defines Lightning zaps as signed value signals around Nostr events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/57.md
+**Protocol Note · metadata:** NIP-01 EOSE tells a client that stored events for a subscription were sent.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “1: The next time a Timelock source of your choice would deal damage to you this turn, prevent that damage” without characters.
 
@@ -324,11 +324,11 @@ Unlocked Avatars you control get +0 Action and +2 Resilience.
 
 1: The next time a Bitcoin source of your choice would deal damage to you this turn, prevent that damage.
 
-**Flavor:** *Bitcoin Protection Circuit. Open rules. Strong network.*
+**Flavor:** *The loophole closed itself after reading Bitcoin Protection Circuit.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Nostr clients can use many relays, reducing dependence on one operator.
+**Protocol Note · metadata:** NIP-01 EOSE tells a client that stored events for a subscription were sent.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “1: The next time a Bitcoin source of your choice would deal damage to you this turn, prevent that damage” without characters.
@@ -342,12 +342,12 @@ Unlocked Avatars you control get +0 Action and +2 Resilience.
 
 1: The next time a Power source of your choice would deal damage to you this turn, prevent that damage.
 
-**Flavor:** *Power Protection Circuit. Verify the rails. Then ride.*
+**Flavor:** *A thousand opinions became one testable rule inside Power Protection Circuit.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** NIP-25 expresses reactions as portable signed events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/25.md
+**Protocol Note · metadata:** NIP-01 uses kind 0 for replaceable user metadata.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “1: The next time a Power source of your choice would deal damage to you this turn, prevent that damage” without characters.
 
@@ -360,11 +360,11 @@ Unlocked Avatars you control get +0 Action and +2 Resilience.
 
 1: The next time a Signal source of your choice would deal damage to you this turn, prevent that damage.
 
-**Flavor:** *Signal Protection Circuit. Consensus looks good on us.*
+**Flavor:** *The boring path became the reliable path under Signal Protection Circuit.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Nostr events are signed data; relays distribute them without owning identity.
+**Protocol Note · metadata:** NIP-01 uses kind 0 for replaceable user metadata.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “1: The next time a Signal source of your choice would deal damage to you this turn, prevent that damage” without characters.
@@ -379,11 +379,11 @@ Unlocked Avatars you control get +0 Action and +2 Resilience.
 Attach to Resource<br>
 Attached Resource has indestructible and can't be attached by other Attachments.
 
-**Flavor:** *Hardened Resource. Trust less. Coordinate more.*
+**Flavor:** *Everyone brought assumptions, but Hardened Resource brought a specification.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** A Nostr public key identifies an account across compatible clients.
+**Protocol Note · metadata:** NIP-01 uses kind 1 for short text notes.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Resource” without characters.
@@ -398,12 +398,12 @@ Attached Resource has indestructible and can't be attached by other Attachments.
 At the beginning of your Maintenance, archive this Protocol unless you pay SS.<br>
 All Power Resources are Signal Resource.
 
-**Flavor:** *Grid Conversion. The good path stays inspectable.*
+**Flavor:** *The exception asked for permission before approaching Grid Conversion.*
 
 **Simple Guide · metadata:** Moves a card into an Archive.
 
-**Protocol Note · metadata:** NIP-05 links a human-readable internet identifier to a Nostr public key.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
+**Protocol Note · metadata:** NIP-01 uses kind 1 for short text notes.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “At the beginning of your Maintenance, archive this Protocol unless you pay SS” without characters.
 
@@ -416,12 +416,12 @@ All Power Resources are Signal Resource.
 
 Signal Avatars get +1 Action and +1 Resilience.
 
-**Flavor:** *Public Goods Drive. Open rules. Strong network.*
+**Flavor:** *A sticky note achieved consensus and grew into Public Goods Drive.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** NIP-57 defines Lightning zaps as signed value signals around Nostr events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/57.md
+**Protocol Note · metadata:** NIP-02 stores a follow list in a signed kind 3 event.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/02.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Signal Avatars get +1 Action and +1 Resilience” without characters.
 
@@ -434,12 +434,12 @@ Signal Avatars get +1 Action and +1 Resilience.
 
 Reboot target Avatar.
 
-**Flavor:** *Emergency Reboot. Fast signal. Final energy.*
+**Flavor:** *A tiny packet made a very large entrance as Emergency Reboot.*
 
 **Simple Guide · metadata:** Can keep an Avatar in the Network after damage.
 
-**Protocol Note · metadata:** Nostr clients can use many relays, reducing dependence on one operator.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-02 stores a follow list in a signed kind 3 event.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/02.md
 
 **Art direction:** A precise burst of network action visualizes “Reboot target Avatar” without characters.
 
@@ -452,12 +452,12 @@ Reboot target Avatar.
 
 Decommission target Hardware or Protocol.
 
-**Flavor:** *Protocol Cleanup. Send it. The network knows.*
+**Flavor:** *The response window was brief and exactly long enough for Protocol Cleanup.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** NIP-25 expresses reactions as portable signed events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/25.md
+**Protocol Note · metadata:** NIP-05 resolves an internet identifier through .well-known/nostr.json.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
 
 **Art direction:** A precise burst of network action visualizes “Decommission target Hardware or Protocol” without characters.
 
@@ -471,12 +471,12 @@ Decommission target Hardware or Protocol.
 Attach to Resource<br>
 Attached Resource has "At the beginning of your Maintenance, you may pay SS. If you do, you gain 1 Uptime."
 
-**Flavor:** *Home Miner. Trust less. Coordinate more.*
+**Flavor:** *Nothing says romance like deterministic behavior from Home Miner.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Nostr events are signed data; relays distribute them without owning identity.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-05 resolves an internet identifier through .well-known/nostr.json.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Resource” without characters.
 
@@ -490,12 +490,12 @@ Attached Resource has "At the beginning of your Maintenance, you may pay SS. If 
 Attach to Avatar<br>
 Attached Avatar has Shielded from Bitcoin. This effect doesn't remove this Attachment.
 
-**Flavor:** *Bitcoin Shield. The good path stays inspectable.*
+**Flavor:** *The meeting ended early because Bitcoin Shield had executable minutes.*
 
 **Simple Guide · metadata:** Resists the named affinity.
 
-**Protocol Note · metadata:** A Nostr public key identifies an account across compatible clients.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-09 uses a signed kind 5 event to request deletion of earlier events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/09.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -508,12 +508,12 @@ Attached Avatar has Shielded from Bitcoin. This effect doesn't remove this Attac
 
 Prevent the next X damage that would be dealt to any target this turn. Until end of turn, you may pay 1 any time you could play an Zap. If you do, prevent the next 1 damage that would be dealt to that Network card or player this turn.
 
-**Flavor:** *Guardian Signal. One clean move. Zero committees.*
+**Flavor:** *No one heard the starter pistol; they only saw Guardian Signal.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** NIP-05 links a human-readable internet identifier to a Nostr public key.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
+**Protocol Note · metadata:** NIP-09 uses a signed kind 5 event to request deletion of earlier events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/09.md
 
 **Art direction:** A precise burst of network action visualizes “Prevent the next X damage that would be dealt to any target this turn. Until end of turn, you may pay 1 any time you could play an Zap. If you do, prevent the next 1 damage that would be dealt to that Network card or player this turn” without characters.
 
@@ -528,12 +528,12 @@ Choose one —<br>
 • Target player gains 3 Uptime.<br>
 • Prevent the next 3 damage that would be dealt to any target this turn.
 
-**Flavor:** *Repair Packet. Fast signal. Final energy.*
+**Flavor:** *The bug requested more time, which Repair Packet politely denied.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** NIP-57 defines Lightning zaps as signed value signals around Nostr events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/57.md
+**Protocol Note · metadata:** NIP-10 uses event and pubkey tags to describe note threads.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/10.md
 
 **Art direction:** A precise burst of network action visualizes “Choose one —” without characters.
 
@@ -548,12 +548,12 @@ Attach to Avatar<br>
 Attached Avatar gets +0 Action and +2 Resilience.<br>
 S: attached Avatar gets +0 Action and +1 Resilience until end of turn.
 
-**Flavor:** *Hardened Identity. Consensus looks good on us.*
+**Flavor:** *The Network slept better once Hardened Identity checked the locks.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Nostr clients can use many relays, reducing dependence on one operator.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-10 uses event and pubkey tags to describe note threads.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/10.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -567,12 +567,12 @@ S: attached Avatar gets +0 Action and +1 Resilience until end of turn.
 Attach to Avatar<br>
 Attached Avatar gets +1 Action and +2 Resilience.
 
-**Flavor:** *Community Strength. Trust less. Coordinate more.*
+**Flavor:** *The fine print became infrastructure when Community Strength entered the Network.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** NIP-25 expresses reactions as portable signed events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/25.md
+**Protocol Note · metadata:** NIP-11 lets a relay publish an informational JSON document over HTTP.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/11.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -585,12 +585,12 @@ Attached Avatar gets +1 Action and +2 Resilience.
 
 If you would draw a card during your draw step, instead you may skip that draw. If you do, until your next turn, you can't be attacked except by Avatars with Broadcast and/or Backchannel—Timelock.
 
-**Flavor:** *Offline Sanctuary. The good path stays inspectable.*
+**Flavor:** *Every rule has an edge case; Offline Sanctuary packed it a lunch.*
 
 **Simple Guide · metadata:** Puts more cards in your Wallet. Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Nostr events are signed data; relays distribute them without owning identity.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-11 lets a relay publish an informational JSON document over HTTP.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/11.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “If you would draw a card during your draw step, instead you may skip that draw. If you do, until your next turn, you can't be attacked except by Avatars with Broadcast and/or Backchannel—Timelock” without characters.
 
@@ -603,12 +603,12 @@ If you would draw a card during your draw step, instead you may skip that draw. 
 
 At the beginning of each player's Maintenance, this Protocol deals damage to that player equal to the number of Keys Resources they control.
 
-**Flavor:** *Consequence Ledger. Open rules. Strong network.*
+**Flavor:** *The whiteboard stopped arguing after Consequence Ledger drew the final arrow.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** A Nostr public key identifies an account across compatible clients.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-13 places a nonce and target difficulty in an event tag for proof of work.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/13.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “At the beginning of each player's Maintenance, this Protocol deals damage to that player equal to the number of Keys Resources they control” without characters.
 
@@ -622,12 +622,12 @@ At the beginning of each player's Maintenance, this Protocol deals damage to tha
 Attach to Avatar<br>
 Attached Avatar has First Strike.
 
-**Flavor:** *Fast Path. Verify the rails. Then ride.*
+**Flavor:** *A handshake became a habit wherever Fast Path was deployed.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** NIP-05 links a human-readable internet identifier to a Nostr public key.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
+**Protocol Note · metadata:** NIP-13 places a nonce and target difficulty in an event tag for proof of work.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/13.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -641,12 +641,12 @@ Attached Avatar has First Strike.
 
 Broadcast; Mesh.
 
-**Flavor:** *Relay Rider. Make it real. Keep it open.*
+**Flavor:** *A second opinion arrived wearing Relay Rider's tool belt.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** NIP-57 defines Lightning zaps as signed value signals around Nostr events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/57.md
+**Protocol Note · metadata:** NIP-19 gives Nostr keys and event references bech32 encodings.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
 
 **Art direction:** Sat turns “Broadcast; Mesh (Any Avatars with Mesh, and up to one without, can attack in a band. Bands are blocked as a group. If any Avatars with Mesh you control are blocking or being blocked by an Avatar, you divide that Avatar's clash damage, not its controller, among any of the Avatars it's being blocked by or is blocking.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -660,12 +660,12 @@ Broadcast; Mesh.
 
 SS, Commit: decommission target Keys Network card.
 
-**Flavor:** *Keys Auditor. Culture is a protocol too.*
+**Flavor:** *The runbook says stay calm, and Keys Auditor added label your cables.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Nostr clients can use many relays, reducing dependence on one operator.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-19 gives Nostr keys and event references bech32 encodings.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
 
 **Art direction:** MHB turns “SS, Commit: decommission target Keys Network card” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -679,12 +679,12 @@ SS, Commit: decommission target Keys Network card.
 
 No special ability.
 
-**Flavor:** *Friendly Fork. Stay sovereign. Send it.*
+**Flavor:** *Even the fallback plan has a fallback when Friendly Fork joins the call.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** NIP-25 expresses reactions as portable signed events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/25.md
+**Protocol Note · metadata:** NIP-21 defines the nostr: URI scheme for NIP-19 identifiers.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/21.md
 
 **Art direction:** Morgs turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -699,12 +699,12 @@ No special ability.
 0: The next 1 damage that would be dealt to this Avatar this turn is dealt to its owner instead. Only this Avatar's owner may activate this ability.<br>
 When this Avatar is decommissioned, its owner loses half their Uptime, rounded up.
 
-**Flavor:** *Uptime Anchor. Bullish on builders.*
+**Flavor:** *The Network asked for a hero; Uptime Anchor submitted a tested patch.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** Nostr events are signed data; relays distribute them without owning identity.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-21 defines the nostr: URI scheme for NIP-19 identifiers.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/21.md
 
 **Art direction:** AJ turns “0: The next 1 damage that would be dealt to this Avatar this turn is dealt to its owner instead. Only this Avatar's owner may activate this ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -717,12 +717,12 @@ When this Avatar is decommissioned, its owner loses half their Uptime, rounded u
 
 Target card on the Queue or Network card becomes Signal. (Resource symbols on that Network card remain unchanged.)
 
-**Flavor:** *Signal Rewrite. Fast signal. Final energy.*
+**Flavor:** *One clean interrupt later, the logs credited Signal Rewrite.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** A Nostr public key identifies an account across compatible clients.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-25 represents reactions as signed kind 7 events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/25.md
 
 **Art direction:** A precise burst of network action visualizes “Target card on the Queue or Network card becomes Signal. (Resource symbols on that Network card remain unchanged.)” without characters.
 
@@ -736,12 +736,12 @@ Target card on the Queue or Network card becomes Signal. (Resource symbols on th
 Attach to Avatar<br>
 Attached Avatar has Shielded from Power. This effect doesn't remove this Attachment.
 
-**Flavor:** *Power Shield. Consensus looks good on us.*
+**Flavor:** *No committee survived contact with the clarity of Power Shield.*
 
 **Simple Guide · metadata:** Resists the named affinity.
 
-**Protocol Note · metadata:** NIP-05 links a human-readable internet identifier to a Nostr public key.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
+**Protocol Note · metadata:** NIP-25 represents reactions as signed kind 7 events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/25.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -754,12 +754,12 @@ Attached Avatar has Shielded from Power. This effect doesn't remove this Attachm
 
 Return target Avatar card from your Archive to the Network.
 
-**Flavor:** *Archive Restore. Turn the plan into a signal.*
+**Flavor:** *A coordinated morning begins with coffee and Archive Restore.*
 
 **Simple Guide · metadata:** Moves a card into an Archive.
 
-**Protocol Note · metadata:** NIP-57 defines Lightning zaps as signed value signals around Nostr events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/57.md
+**Protocol Note · metadata:** NIP-42 authenticates a client by signing a relay-provided challenge.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/42.md
 
 **Art direction:** A coordinated network-wide event visualizes “Return target Avatar card from your Archive to the Network” without characters.
 
@@ -772,12 +772,12 @@ Return target Avatar card from your Archive to the Network.
 
 The next time a source of your choice would deal damage to you this turn, prevent that damage. You gain Uptime equal to the damage prevented this way.
 
-**Flavor:** *Damage Refund. YOLO, but verify.*
+**Flavor:** *The fast path keeps a reserved seat for Damage Refund.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Nostr clients can use many relays, reducing dependence on one operator.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-42 authenticates a client by signing a relay-provided challenge.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/42.md
 
 **Art direction:** A precise burst of network action visualizes “The next time a source of your choice would deal damage to you this turn, prevent that damage. You gain Uptime equal to the damage prevented this way” without characters.
 
@@ -790,12 +790,12 @@ The next time a source of your choice would deal damage to you this turn, preven
 
 Target blocking Avatar gets +7 Action and +7 Resilience until end of turn.
 
-**Flavor:** *Courage Under Load. One clean move. Zero committees.*
+**Flavor:** *The packet wore sensible shoes because it was carrying Courage Under Load.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** NIP-25 expresses reactions as portable signed events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/25.md
+**Protocol Note · metadata:** NIP-44 defines a versioned encrypted-payload format.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/44.md
 
 **Art direction:** A precise burst of network action visualizes “Target blocking Avatar gets +7 Action and +7 Resilience until end of turn” without characters.
 
@@ -809,12 +809,12 @@ Target blocking Avatar gets +7 Action and +7 Resilience until end of turn.
 
 Commit: Prevent the next 1 damage that would be dealt to any target this turn.
 
-**Flavor:** *First Responder. Good signal. Strong hands.*
+**Flavor:** *Every antenna found its horizon when First Responder climbed the roof.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Nostr events are signed data; relays distribute them without owning identity.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-44 defines a versioned encrypted-payload format.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/44.md
 
 **Art direction:** AJ turns “Commit: Prevent the next 1 damage that would be dealt to any target this turn” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -828,12 +828,12 @@ Commit: Prevent the next 1 damage that would be dealt to any target this turn.
 
 No special ability.
 
-**Flavor:** *Fast Starter. Make it real. Keep it open.*
+**Flavor:** *The coffee went cold, but the relay stayed warm for Fast Starter.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** A Nostr public key identifies an account across compatible clients.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-46 lets a client request signing from a remote Nostr signer.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/46.md
 
 **Art direction:** Cuddy turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -846,12 +846,12 @@ No special ability.
 
 Cold Storage target Avatar. Its controller gains Uptime equal to its Action.
 
-**Flavor:** *Peaceful Exit. YOLO, but verify.*
+**Flavor:** *A deadline became a punchline the moment Peaceful Exit landed.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** NIP-57 defines Lightning zaps as signed value signals around Nostr events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/57.md
+**Protocol Note · metadata:** NIP-46 lets a client request signing from a remote Nostr signer.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/46.md
 
 **Art direction:** A precise burst of network action visualizes “Cold Storage target Avatar. Its controller gains Uptime equal to its Action” without characters.
 
@@ -865,12 +865,12 @@ Cold Storage target Avatar. Its controller gains Uptime equal to its Action.
 
 As long as this Avatar is unlocked, all damage that would be dealt to you by unblocked Avatars is dealt to this Avatar instead.
 
-**Flavor:** *Community Shield. Bullish on builders.*
+**Flavor:** *The Queue behaved all afternoon under Community Shield's suspiciously polite stare.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Lets a committed card become usable again.
 
-**Protocol Note · metadata:** Nostr clients can use many relays, reducing dependence on one operator.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-47 carries wallet requests and responses through Nostr events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/47.md
 
 **Art direction:** MHB turns “As long as this Avatar is unlocked, all damage that would be dealt to you by unblocked Avatars is dealt to this Avatar instead” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -885,12 +885,12 @@ As long as this Avatar is unlocked, all damage that would be dealt to you by unb
 Firewall (This Avatar can't attack.)<br>
 Broadcast
 
-**Flavor:** *Blade Firewall. Good signal. Strong hands.*
+**Flavor:** *Someone said impossible; Blade Firewall heard needs one more adapter.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** NIP-25 expresses reactions as portable signed events.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/25.md
+**Protocol Note · metadata:** NIP-47 carries wallet requests and responses through Nostr events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/47.md
 
 **Art direction:** Sat turns “Firewall (This Avatar can't attack.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -903,14 +903,14 @@ Broadcast
 **Character:** Morgs
 
 First Strike (This Avatar deals clash damage before Avatars without First Strike.)<br>
-Shielded from Keys (This Avatar can't be blocked, targeted, dealt damage, or attached by anything Keys.)
+Shielded from Keys (It can't be targeted, attached, blocked or dealt damage by Keys sources.)
 
-**Flavor:** *Signal Knight. Make it real. Keep it open.*
+**Flavor:** *The outage brought drama, while Signal Knight brought a multimeter.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Resists the named affinity.
 
-**Protocol Note · metadata:** Nostr events are signed data; relays distribute them without owning identity.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-50 adds a search field to relay filters that choose to support it.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/50.md
 
 **Art direction:** Morgs turns “First Strike (This Avatar deals clash damage before Avatars without First Strike.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -924,12 +924,12 @@ Shielded from Keys (This Avatar can't be blocked, targeted, dealt damage, or att
 Attach to Avatar<br>
 Attached Avatar has Shielded from Signal. This effect doesn't remove this Attachment.
 
-**Flavor:** *Signal Shield. Trust less. Coordinate more.*
+**Flavor:** *The Network called it policy; Signal Shield called it Tuesday.*
 
 **Simple Guide · metadata:** Resists the named affinity.
 
-**Protocol Note · metadata:** A Nostr public key identifies an account across compatible clients.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-50 adds a search field to relay filters that choose to support it.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/50.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -940,16 +940,16 @@ Attached Avatar has Shielded from Signal. This effect doesn't remove this Attach
 **Operation** · Cost **2SS** · Rare
 
 
-Decommission all Avatars. They can't be regenerated.
+Decommission all Avatars. They can't be Rebooted.
 
-**Flavor:** *Clean Slate. We came to build the future.*
+**Flavor:** *The Network moved as one, mostly because Clean Slate brought labels.*
 
 **Simple Guide · metadata:** Removes a card from the Network. Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** NIP-05 links a human-readable internet identifier to a Nostr public key.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/05.md
+**Protocol Note · metadata:** NIP-57 defines signed zap receipts as kind 9735 events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/57.md
 
-**Art direction:** A coordinated network-wide event visualizes “Decommission all Avatars. They can't be regenerated” without characters.
+**Art direction:** A coordinated network-wide event visualizes “Decommission all Avatars. They can't be Rebooted” without characters.
 
 ---
 
@@ -963,12 +963,12 @@ Decommission all Avatars. They can't be regenerated.
 
 Broadcast
 
-**Flavor:** *Packet Shaper. Bullish on builders.*
+**Flavor:** *Trust arrived late, so Packet Shaper verified without it.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Median past time gives Bitcoin scripts a network-derived time reference.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
+**Protocol Note · metadata:** BIP-65 makes CHECKLOCKTIMEVERIFY enforce an absolute locktime.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
 
 **Art direction:** Michael1011 turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -981,12 +981,12 @@ Broadcast
 
 Target player moves the top three cards of their Stack into their Wallet.
 
-**Flavor:** *First Memory. Fast signal. Final energy.*
+**Flavor:** *The Network said now, and First Memory did not ask which timezone.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Lightning uses timelocks so outdated channel states can be challenged.
-**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
+**Protocol Note · metadata:** BIP-112 makes CHECKSEQUENCEVERIFY enforce relative locktime.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Target player moves the top three cards of their Stack into their Wallet” without characters.
 
@@ -1000,12 +1000,12 @@ Target player moves the top three cards of their Stack into their Wallet.
 Attach to Hardware<br>
 As long as attached Hardware isn't an Avatar, it's an Hardware Avatar with Action and Resilience each equal to its total resource cost.
 
-**Flavor:** *Boot Hardware. Consensus looks good on us.*
+**Flavor:** *One tidy invariant followed Boot Hardware into every messy room.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Block headers link to prior blocks, making history expensive to rewrite.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BIP-112 makes CHECKSEQUENCEVERIFY enforce relative locktime.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Hardware” without characters.
 
@@ -1020,12 +1020,12 @@ Choose one —<br>
 • marker target Power card on the Queue.<br>
 • decommission target Power Network card.
 
-**Flavor:** *Power Invalidation. Tiny packet. Huge mood.*
+**Flavor:** *Every millisecond filed paperwork after meeting Power Invalidation.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Bitcoin timelocks can delay when a transaction output becomes spendable.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BIP-113 evaluates transaction locktime against median past time.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Choose one —” without characters.
 
@@ -1038,12 +1038,12 @@ Choose one —<br>
 
 Target player moves the top X cards of their Stack into their Wallet.
 
-**Flavor:** *Query Burst. We came to build the future.*
+**Flavor:** *Tomorrow arrived early carrying the paperwork for Query Burst.*
 
 **Simple Guide · metadata:** Play this during your main phase for a one-time strategic effect.
 
-**Protocol Note · metadata:** CHECKLOCKTIMEVERIFY enforces an absolute time or block-height condition.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BIP-113 evaluates transaction locktime against median past time.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Target player moves the top X cards of their Stack into their Wallet” without characters.
 
@@ -1057,12 +1057,12 @@ Target player moves the top X cards of their Stack into their Wallet.
 
 You may have this Avatar enter as a copy of any Avatar on the Network.
 
-**Flavor:** *Mirror Client. Bullish on builders.*
+**Flavor:** *The dashboard blinked red until it met Mirror Client.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** CHECKSEQUENCEVERIFY enables relative timelocks measured from confirmation.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki
+**Protocol Note · metadata:** BIP-68 encodes relative locktime semantics in transaction sequence numbers.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki
 
 **Art direction:** Benarc turns “You may have this Avatar enter as a copy of any Avatar on the Network” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1076,12 +1076,12 @@ You may have this Avatar enter as a copy of any Avatar on the Network.
 Attach to Avatar<br>
 You control attached Avatar.
 
-**Flavor:** *Remote Control. Verify the rails. Then ride.*
+**Flavor:** *The loophole closed itself after reading Remote Control.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Median past time gives Bitcoin scripts a network-derived time reference.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
+**Protocol Note · metadata:** BIP-68 encodes relative locktime semantics in transaction sequence numbers.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -1094,12 +1094,12 @@ You control attached Avatar.
 
 You may have this Protocol enter as a copy of any Hardware on the Network, except it's a Protocol in addition to its other types.
 
-**Flavor:** *Hardware Clone. Consensus looks good on us.*
+**Flavor:** *A thousand opinions became one testable rule inside Hardware Clone.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Lightning uses timelocks so outdated channel states can be challenged.
-**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
+**Protocol Note · metadata:** BOLT 2 defines the messages peers use to manage Lightning channels.
+**Primary source:** https://github.com/lightning/bolts/blob/master/02-peer-protocol.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “You may have this Protocol enter as a copy of any Hardware on the Network, except it's a Protocol in addition to its other types” without characters.
 
@@ -1112,12 +1112,12 @@ You may have this Protocol enter as a copy of any Hardware on the Network, excep
 
 Invalidate target card on the Queue.
 
-**Flavor:** *Invalid Signature. Tiny packet. Huge mood.*
+**Flavor:** *The shortest meeting on record had one agenda item: Invalid Signature.*
 
 **Simple Guide · metadata:** Stops a card on the Queue before it resolves.
 
-**Protocol Note · metadata:** Block headers link to prior blocks, making history expensive to rewrite.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BOLT 2 defines the messages peers use to manage Lightning channels.
+**Primary source:** https://github.com/lightning/bolts/blob/master/02-peer-protocol.md
 
 **Art direction:** A precise burst of network action visualizes “Invalidate target card on the Queue” without characters.
 
@@ -1131,12 +1131,12 @@ Invalidate target card on the Queue.
 Attach to Avatar<br>
 When attached Avatar is decommissioned, this Attachment deals damage equal to that Avatar's Resilience to the Avatar's controller.
 
-**Flavor:** *Exit Fee. The good path stays inspectable.*
+**Flavor:** *The boring path became the reliable path under Exit Fee.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** Bitcoin timelocks can delay when a transaction output becomes spendable.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 3 defines commitment transactions that enforce a channel state.
+**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -1149,12 +1149,12 @@ When attached Avatar is decommissioned, this Attachment deals damage equal to th
 
 Target player activates a Resource ability of each Resource they control. Then that player loses all unspent Resource and you put the lost Resources into your Buffer.
 
-**Flavor:** *Buffer Drain. The next block belongs to builders.*
+**Flavor:** *A dozen small steps agreed to call themselves Buffer Drain.*
 
 **Simple Guide · metadata:** Play this during your main phase for a one-time strategic effect.
 
-**Protocol Note · metadata:** CHECKLOCKTIMEVERIFY enforces an absolute time or block-height condition.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 3 defines commitment transactions that enforce a channel state.
+**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
 
 **Art direction:** A coordinated network-wide event visualizes “Target player activates a Resource ability of each Resource they control. Then that player loses all unspent Resource and you put the lost Resources into your Buffer” without characters.
 
@@ -1168,12 +1168,12 @@ Target player activates a Resource ability of each Resource they control. Then t
 Attach to Protocol<br>
 At the beginning of the Maintenance of attached Protocol's controller, this Attachment deals 1 damage to that player.
 
-**Flavor:** *Relay Feedback. Verify the rails. Then ride.*
+**Flavor:** *Everyone brought assumptions, but Relay Feedback brought a specification.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** CHECKSEQUENCEVERIFY enables relative timelocks measured from confirmation.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki
+**Protocol Note · metadata:** BOLT 3 obscures the commitment number stored in transaction fields.
+**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Protocol” without characters.
 
@@ -1187,12 +1187,12 @@ At the beginning of the Maintenance of attached Protocol's controller, this Atta
 Attach to Avatar<br>
 Attached Avatar has Broadcast.
 
-**Flavor:** *Broadcast Upgrade. Consensus looks good on us.*
+**Flavor:** *The exception asked for permission before approaching Broadcast Upgrade.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Median past time gives Bitcoin scripts a network-derived time reference.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
+**Protocol Note · metadata:** BOLT 3 obscures the commitment number stored in transaction fields.
+**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -1204,13 +1204,13 @@ Attached Avatar has Broadcast.
 
 
 Attach to Avatar<br>
-Attached Avatar can't be blocked except by Walls.
+Attached Avatar can't be blocked except by Firewalls.
 
-**Flavor:** *Hidden Route. Trust less. Coordinate more.*
+**Flavor:** *A sticky note achieved consensus and grew into Hidden Route.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Lightning uses timelocks so outdated channel states can be challenged.
+**Protocol Note · metadata:** BOLT 3 defines separate timeout and success paths for offered HTLCs.
 **Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
@@ -1224,12 +1224,12 @@ Attached Avatar can't be blocked except by Walls.
 
 Target Avatar gains Broadcast until end of turn.
 
-**Flavor:** *Quick Uplink. YOLO, but verify.*
+**Flavor:** *The incident channel gained one emoji and one decisive Quick Uplink.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Block headers link to prior blocks, making history expensive to rewrite.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BOLT 3 defines separate timeout and success paths for offered HTLCs.
+**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
 
 **Art direction:** A precise burst of network action visualizes “Target Avatar gains Broadcast until end of turn” without characters.
 
@@ -1242,12 +1242,12 @@ Target Avatar gains Broadcast until end of turn.
 
 Whenever a Bitcoin Resource an opponent controls becomes committed, you gain 1 Uptime.
 
-**Flavor:** *Resource Tap. Open rules. Strong network.*
+**Flavor:** *Nothing says romance like deterministic behavior from Resource Tap.*
 
 **Simple Guide · metadata:** Uses committing as the cost for a repeatable effect.
 
-**Protocol Note · metadata:** Bitcoin timelocks can delay when a transaction output becomes spendable.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 4 wraps a payment route in one encrypted onion packet.
+**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Whenever a Bitcoin Resource an opponent controls becomes committed, you gain 1 Uptime” without characters.
 
@@ -1259,14 +1259,14 @@ Whenever a Bitcoin Resource an opponent controls becomes committed, you gain 1 U
 
 **Character:** Tal
 
-Other Merfolk get +1 Action and +1 Resilience and have Backchannel—Timelock. (They can't be blocked as long as defending player controls an Timelock Resource.)
+Other Merfolk get +1 Action and +1 Resilience and have Backchannel — Timelock. (Those Avatars can't be blocked while the defending player controls a Timelock Resource.)
 
-**Flavor:** *Relay Captain. Good signal. Strong hands.*
+**Flavor:** *No cape was required, though Relay Captain did bring spare batteries.*
 
 **Simple Guide · metadata:** Can slip past players using the named Resource.
 
-**Protocol Note · metadata:** CHECKLOCKTIMEVERIFY enforces an absolute time or block-height condition.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 4 wraps a payment route in one encrypted onion packet.
+**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
 
 **Art direction:** Tal turns “Other Merfolk get +1 Action and +1 Resilience and have Backchannel—Timelock. (They can't be blocked as long as defending player controls an Timelock Resource.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1279,12 +1279,12 @@ Other Merfolk get +1 Action and +1 Resilience and have Backchannel—Timelock. (
 
 Change the text of target card on the Queue or Network card by replacing all instances of one basic Resource type with another. (For example, you may change "Backchannel—Keys" to "Backchannel—Signal." This effect lasts indefinitely.)
 
-**Flavor:** *Resource Rewrite. Send it. The network knows.*
+**Flavor:** *Latency rehearsed an excuse, but Resource Rewrite had already resolved.*
 
 **Simple Guide · metadata:** Can slip past players using the named Resource.
 
-**Protocol Note · metadata:** CHECKSEQUENCEVERIFY enables relative timelocks measured from confirmation.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki
+**Protocol Note · metadata:** BOLT 4 derives a separate shared secret for each hop.
+**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
 
 **Art direction:** A precise burst of network action visualizes “Change the text of target card on the Queue or Network card by replacing all instances of one basic Resource type with another. (For example, you may change "Backchannel—Keys" to "Backchannel—Signal." This effect lasts indefinitely.)” without characters.
 
@@ -1296,14 +1296,14 @@ Change the text of target card on the Queue or Network card by replacing all ins
 
 **Character:** Jedai
 
-Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)
+Broadcast (This Avatar can be blocked only by Avatars with Broadcast or Broadcast Guard.)
 
-**Flavor:** *Protocol Architect. Culture is a protocol too.*
+**Flavor:** *The bug filed a retreat notice when Protocol Architect opened the logs.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Median past time gives Bitcoin scripts a network-derived time reference.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
+**Protocol Note · metadata:** BOLT 4 derives a separate shared secret for each hop.
+**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
 
 **Art direction:** Jedai turns “Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1316,12 +1316,12 @@ Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)
 
 Commit all Resources target player controls and that player loses all unspent Resource.
 
-**Flavor:** *Buffer Lock. YOLO, but verify.*
+**Flavor:** *The Queue blinked once and found Buffer Lock at the front.*
 
 **Simple Guide · metadata:** Uses committing as the cost for a repeatable effect.
 
-**Protocol Note · metadata:** Lightning uses timelocks so outdated channel states can be challenged.
-**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
+**Protocol Note · metadata:** BOLT 4 encrypts failure messages as they travel back toward the sender.
+**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
 
 **Art direction:** A precise burst of network action visualizes “Commit all Resources target player controls and that player loses all unspent Resource” without characters.
 
@@ -1335,12 +1335,12 @@ Commit all Resources target player controls and that player loses all unspent Re
 
 No special ability.
 
-**Flavor:** *Channel Operator. Bullish on builders.*
+**Flavor:** *Consensus took minutes; Channel Operator's cable labels took seconds.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Block headers link to prior blocks, making history expensive to rewrite.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BOLT 4 encrypts failure messages as they travel back toward the sender.
+**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
 
 **Art direction:** Darren turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1355,12 +1355,12 @@ No special ability.
 Broadcast<br>
 At the beginning of your Maintenance, archive this Avatar unless you pay T.
 
-**Flavor:** *Phantom Process. Good signal. Strong hands.*
+**Flavor:** *The edge feels like home when Phantom Process has the keys.*
 
 **Simple Guide · metadata:** Moves a card into an Archive. Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Bitcoin timelocks can delay when a transaction output becomes spendable.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 5 tells a node how to react when channel transactions reach the chain.
+**Primary source:** https://github.com/lightning/bolts/blob/master/05-onchain.md
 
 **Art direction:** Snick turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1375,12 +1375,12 @@ Attach to Resource<br>
 As this Attachment enters, choose a basic Resource type.<br>
 Attached Resource is the chosen type.
 
-**Flavor:** *Resource Reclassification. Consensus looks good on us.*
+**Flavor:** *The meeting ended early because Resource Reclassification had executable minutes.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** CHECKLOCKTIMEVERIFY enforces an absolute time or block-height condition.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 5 tells a node how to react when channel transactions reach the chain.
+**Primary source:** https://github.com/lightning/bolts/blob/master/05-onchain.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Resource” without characters.
 
@@ -1394,12 +1394,12 @@ Attached Resource is the chosen type.
 
 Broadcast
 
-**Flavor:** *Ghost Router. Culture is a protocol too.*
+**Flavor:** *Even the air gap makes small talk with Ghost Router.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** CHECKSEQUENCEVERIFY enables relative timelocks measured from confirmation.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki
+**Protocol Note · metadata:** BOLT 7 channel announcements prove that a funding output exists.
+**Primary source:** https://github.com/lightning/bolts/blob/master/07-routing-gossip.md
 
 **Art direction:** Tal turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1415,12 +1415,12 @@ This Avatar can't attack unless defending player controls an Timelock Resource.<
 Commit: This Avatar deals 1 damage to any target.<br>
 When you control no Timelock Resources, archive this Avatar.
 
-**Flavor:** *Channel Raider. Stay sovereign. Send it.*
+**Flavor:** *The packet took the scenic route and still saluted Channel Raider.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Moves a card into an Archive.
 
-**Protocol Note · metadata:** Median past time gives Bitcoin scripts a network-derived time reference.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
+**Protocol Note · metadata:** BOLT 7 channel announcements prove that a funding output exists.
+**Primary source:** https://github.com/lightning/bolts/blob/master/07-routing-gossip.md
 
 **Art direction:** Darren turns “This Avatar can't attack unless defending player controls an Timelock Resource” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1434,12 +1434,12 @@ When you control no Timelock Resources, archive this Avatar.
 Attach to a Protocol.<br>
 At its controller's Maintenance, this deals 2 damage to them. They may pay X Resources to prevent X of it.
 
-**Flavor:** *Maintenance Leak. Open rules. Strong network.*
+**Flavor:** *The Network slept better once Maintenance Leak checked the locks.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Lightning uses timelocks so outdated channel states can be challenged.
-**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
+**Protocol Note · metadata:** BOLT 7 node announcements carry public routing-node metadata.
+**Primary source:** https://github.com/lightning/bolts/blob/master/07-routing-gossip.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Protocol” without characters.
 
@@ -1452,12 +1452,12 @@ At its controller's Maintenance, this deals 2 damage to them. They may pay X Res
 
 Invalidate target card on the Queue unless its controller pays X. If that player doesn't, they commit all Resources with Resource abilities they control and lose all unspent Resource.
 
-**Flavor:** *Fee Spike. Fast signal. Final energy.*
+**Flavor:** *A tiny packet made a very large entrance as Fee Spike.*
 
 **Simple Guide · metadata:** Stops a card on the Queue before it resolves.
 
-**Protocol Note · metadata:** Block headers link to prior blocks, making history expensive to rewrite.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BOLT 7 node announcements carry public routing-node metadata.
+**Primary source:** https://github.com/lightning/bolts/blob/master/07-routing-gossip.md
 
 **Art direction:** A precise burst of network action visualizes “Invalidate target card on the Queue unless its controller pays X. If that player doesn't, they commit all Resources with Resource abilities they control and lose all unspent Resource” without characters.
 
@@ -1471,12 +1471,12 @@ Invalidate target card on the Queue unless its controller pays X. If that player
 
 Commit: This Avatar deals 1 damage to any target.
 
-**Flavor:** *Debugger. Make it real. Keep it open.*
+**Flavor:** *Uptime is a team sport, according to Debugger and the patched router.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Bitcoin timelocks can delay when a transaction output becomes spendable.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 7 channel updates advertise direction-specific routing policy.
+**Primary source:** https://github.com/lightning/bolts/blob/master/07-routing-gossip.md
 
 **Art direction:** Michael1011 turns “Commit: This Avatar deals 1 damage to any target” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1489,12 +1489,12 @@ Commit: This Avatar deals 1 damage to any target.
 
 Cognitive Surge deals 4 damage to any target and 2 damage to you.
 
-**Flavor:** *Cognitive Surge. Tiny packet. Huge mood.*
+**Flavor:** *The response window was brief and exactly long enough for Cognitive Surge.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** CHECKLOCKTIMEVERIFY enforces an absolute time or block-height condition.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 7 channel updates advertise direction-specific routing policy.
+**Primary source:** https://github.com/lightning/bolts/blob/master/07-routing-gossip.md
 
 **Art direction:** A precise burst of network action visualizes “Cognitive Surge deals 4 damage to any target and 2 damage to you” without characters.
 
@@ -1508,12 +1508,12 @@ Cognitive Surge deals 4 damage to any target and 2 damage to you.
 Attach to Resource<br>
 Whenever attached Resource becomes committed, this Attachment deals 2 damage to that Resource's controller.
 
-**Flavor:** *Hot Resource. The good path stays inspectable.*
+**Flavor:** *The fine print became infrastructure when Hot Resource entered the Network.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** CHECKSEQUENCEVERIFY enables relative timelocks measured from confirmation.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki
+**Protocol Note · metadata:** BOLT 8 encrypts and authenticates Lightning's peer transport.
+**Primary source:** https://github.com/lightning/bolts/blob/master/08-transport.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Resource” without characters.
 
@@ -1528,12 +1528,12 @@ Whenever attached Resource becomes committed, this Attachment deals 2 damage to 
 This Avatar can't attack unless defending player controls an Timelock Resource.<br>
 When you control no Timelock Resources, archive this Avatar.
 
-**Flavor:** *Deep Channel. Bullish on builders.*
+**Flavor:** *The status page calmed down as soon as Deep Channel picked up a wrench.*
 
 **Simple Guide · metadata:** Moves a card into an Archive.
 
-**Protocol Note · metadata:** Median past time gives Bitcoin scripts a network-derived time reference.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
+**Protocol Note · metadata:** BOLT 8 encrypts and authenticates Lightning's peer transport.
+**Primary source:** https://github.com/lightning/bolts/blob/master/08-transport.md
 
 **Art direction:** Benarc turns “This Avatar can't attack unless defending player controls an Timelock Resource” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1545,14 +1545,14 @@ When you control no Timelock Resources, archive this Avatar.
 
 
 Play only during an opponent's turn before attackers.<br>
-Their Avatars attack if able. At end step, decommission non-Walls that didn't attack unless they entered or changed control this turn.
+Their Avatars attack if able. At end step, decommission non-Firewalls that didn't attack unless they entered or changed control this turn.
 
-**Flavor:** *Call to Relay. Fast signal. Final energy.*
+**Flavor:** *No one heard the starter pistol; they only saw Call to Relay.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Lightning uses timelocks so outdated channel states can be challenged.
-**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
+**Protocol Note · metadata:** BOLT 9 uses even feature bits for required features and odd bits for optional ones.
+**Primary source:** https://github.com/lightning/bolts/blob/master/09-features.md
 
 **Art direction:** A precise burst of network action visualizes “Play this card on the Queue only during an opponent's turn, before attackers are declared” without characters.
 
@@ -1565,12 +1565,12 @@ Their Avatars attack if able. At end step, decommission non-Walls that didn't at
 
 Change the text of target card on the Queue or Network card by replacing all instances of one affinity word with another. (For example, you may change "target Keys card on the Queue" to "target Timelock card on the Queue." This effect lasts indefinitely.)
 
-**Flavor:** *Affinity Rewrite. Send it. The network knows.*
+**Flavor:** *The bug requested more time, which Affinity Rewrite politely denied.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Block headers link to prior blocks, making history expensive to rewrite.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BOLT 9 uses even feature bits for required features and odd bits for optional ones.
+**Primary source:** https://github.com/lightning/bolts/blob/master/09-features.md
 
 **Art direction:** A precise burst of network action visualizes “Change the text of target card on the Queue or Network card by replacing all instances of one affinity word with another. (For example, you may change "target Keys card on the Queue" to "target Timelock card on the Queue." This effect lasts indefinitely.)” without characters.
 
@@ -1583,12 +1583,12 @@ Change the text of target card on the Queue or Network card by replacing all ins
 
 Invalidate target card on the Queue with total resource cost X. (For example, if that card on the Queue's Resource cost is 3TT, X is 5.)
 
-**Flavor:** *Queue Filter. Tiny packet. Huge mood.*
+**Flavor:** *One clean interrupt later, the logs credited Queue Filter.*
 
 **Simple Guide · metadata:** Stops a card on the Queue before it resolves.
 
-**Protocol Note · metadata:** Bitcoin timelocks can delay when a transaction output becomes spendable.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 10 defines DNS records that help a new node discover peers.
+**Primary source:** https://github.com/lightning/bolts/blob/master/10-dns-bootstrap.md
 
 **Art direction:** A precise burst of network action visualizes “Invalidate target card on the Queue with total resource cost X. (For example, if that card on the Queue's Resource cost is 3TT, X is 5.)” without characters.
 
@@ -1602,12 +1602,12 @@ Invalidate target card on the Queue with total resource cost X. (For example, if
 Players skip their unlock steps.<br>
 At the beginning of your Maintenance, archive this Protocol unless you pay T.
 
-**Flavor:** *Consensus Pause. The good path stays inspectable.*
+**Flavor:** *Every rule has an edge case; Consensus Pause packed it a lunch.*
 
 **Simple Guide · metadata:** Moves a card into an Archive. Lets a committed card become usable again.
 
-**Protocol Note · metadata:** CHECKLOCKTIMEVERIFY enforces an absolute time or block-height condition.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 10 defines DNS records that help a new node discover peers.
+**Primary source:** https://github.com/lightning/bolts/blob/master/10-dns-bootstrap.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Players skip their unlock steps” without characters.
 
@@ -1621,12 +1621,12 @@ At the beginning of your Maintenance, archive this Protocol unless you pay T.
 Attach to Hardware<br>
 You control attached Hardware.
 
-**Flavor:** *Remote Hardware Control. Open rules. Strong network.*
+**Flavor:** *The whiteboard stopped arguing after Remote Hardware Control drew the final arrow.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** CHECKSEQUENCEVERIFY enables relative timelocks measured from confirmation.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki
+**Protocol Note · metadata:** BOLT 1 uses BigSize integers for compact variable-length values.
+**Primary source:** https://github.com/lightning/bolts/blob/master/01-messaging.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Hardware” without characters.
 
@@ -1639,12 +1639,12 @@ You control attached Hardware.
 
 Target card on the Queue or Network card becomes Timelock. (Resource symbols on that Network card remain unchanged.)
 
-**Flavor:** *Timelock Rewrite. Fast signal. Final energy.*
+**Flavor:** *The fast path keeps a reserved seat for Timelock Rewrite.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Median past time gives Bitcoin scripts a network-derived time reference.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
+**Protocol Note · metadata:** BOLT 1 uses BigSize integers for compact variable-length values.
+**Primary source:** https://github.com/lightning/bolts/blob/master/01-messaging.md
 
 **Art direction:** A precise burst of network action visualizes “Target card on the Queue or Network card becomes Timelock. (Resource symbols on that Network card remain unchanged.)” without characters.
 
@@ -1657,12 +1657,12 @@ Target card on the Queue or Network card becomes Timelock. (Resource symbols on 
 
 Each player shuffles their Wallet and Archive into their Stack, then draws seven cards. (Then put State Reset into its owner's Archive.)
 
-**Flavor:** *State Reset. Turn the plan into a signal.*
+**Flavor:** *The maintenance window finally found its purpose in State Reset.*
 
 **Simple Guide · metadata:** Puts more cards in your Wallet. Moves a card into an Archive.
 
-**Protocol Note · metadata:** Block headers link to prior blocks, making history expensive to rewrite.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BOLT 1 requires readers to ignore unknown odd TLV types.
+**Primary source:** https://github.com/lightning/bolts/blob/master/01-messaging.md
 
 **Art direction:** A coordinated network-wide event visualizes “Each player shuffles their Wallet and Archive into their Stack, then draws seven cards. (Then put State Reset into its owner's Archive.)” without characters.
 
@@ -1675,12 +1675,12 @@ Each player shuffles their Wallet and Archive into their Stack, then draws seven
 
 You may commit or unlock target Hardware, Avatar, or Resource.
 
-**Flavor:** *Toggle State. YOLO, but verify.*
+**Flavor:** *The packet wore sensible shoes because it was carrying Toggle State.*
 
 **Simple Guide · metadata:** Lets a committed card become usable again.
 
-**Protocol Note · metadata:** Bitcoin timelocks can delay when a transaction output becomes spendable.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 1 requires readers to ignore unknown odd TLV types.
+**Primary source:** https://github.com/lightning/bolts/blob/master/01-messaging.md
 
 **Art direction:** A precise burst of network action visualizes “You may commit or unlock target Hardware, Avatar, or Resource” without characters.
 
@@ -1693,12 +1693,12 @@ You may commit or unlock target Hardware, Avatar, or Resource.
 
 Return target Avatar to its owner's Wallet.
 
-**Flavor:** *Return to Wallet. One clean move. Zero committees.*
+**Flavor:** *A deadline became a punchline the moment Return to Wallet landed.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** CHECKLOCKTIMEVERIFY enforces an absolute time or block-height condition.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 11 invoices commit to a payment hash.
+**Primary source:** https://github.com/lightning/bolts/blob/master/11-payment-encoding.md
 
 **Art direction:** A precise burst of network action visualizes “Return target Avatar to its owner's Wallet” without characters.
 
@@ -1712,12 +1712,12 @@ Return target Avatar to its owner's Wallet.
 
 You may have this Avatar enter as a copy of any Avatar on the Network, except it doesn't copy that Avatar's affinity and it has "At the beginning of your Maintenance, you may have this Avatar become a copy of target Avatar, except it doesn't copy that Avatar's affinity and it has this ability."
 
-**Flavor:** *Adaptive Client. Good signal. Strong hands.*
+**Flavor:** *Nobody assigned the incident; it simply looked nervous around Adaptive Client.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** CHECKSEQUENCEVERIFY enables relative timelocks measured from confirmation.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki
+**Protocol Note · metadata:** BOLT 11 invoices commit to a payment hash.
+**Primary source:** https://github.com/lightning/bolts/blob/master/11-payment-encoding.md
 
 **Art direction:** Jedai turns “You may have this Avatar enter as a copy of any Avatar on the Network, except it doesn't copy that Avatar's affinity and it has "At the beginning of your Maintenance, you may have this Avatar become a copy of target Avatar, except it doesn't copy that Avatar's affinity and it has this ability."” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1730,12 +1730,12 @@ You may have this Avatar enter as a copy of any Avatar on the Network, except it
 
 Decommission X target Power Resources. Grid Eruption deals damage to each Avatar and each player equal to the number of Power Resources put into an Archive this way.
 
-**Flavor:** *Grid Eruption. Good vibes ship on schedule.*
+**Flavor:** *The big red button was replaced with a tested runbook named Grid Eruption.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** Median past time gives Bitcoin scripts a network-derived time reference.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0113.mediawiki
+**Protocol Note · metadata:** BOLT 11 uses a human-readable prefix to identify network and optional amount.
+**Primary source:** https://github.com/lightning/bolts/blob/master/11-payment-encoding.md
 
 **Art direction:** A coordinated network-wide event visualizes “Decommission X target Power Resources. Grid Eruption deals damage to each Avatar and each player equal to the number of Power Resources put into an Archive this way” without characters.
 
@@ -1747,14 +1747,15 @@ Decommission X target Power Resources. Grid Eruption deals damage to each Avatar
 
 **Character:** Snick
 
-Firewall, Broadcast (This Avatar can't attack, and it can block Avatars with Broadcast.)
+Firewall (This Avatar can't attack.)<br>
+Broadcast (This Avatar can be blocked only by Avatars with Broadcast or Broadcast Guard.)
 
-**Flavor:** *Airgap Firewall. Culture is a protocol too.*
+**Flavor:** *A second opinion arrived wearing Airgap Firewall's tool belt.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Lightning uses timelocks so outdated channel states can be challenged.
-**Primary source:** https://github.com/lightning/bolts/blob/master/03-transactions.md
+**Protocol Note · metadata:** BOLT 11 uses a human-readable prefix to identify network and optional amount.
+**Primary source:** https://github.com/lightning/bolts/blob/master/11-payment-encoding.md
 
 **Art direction:** Snick turns “Firewall, Broadcast (This Avatar can't attack, and it can block Avatars with Broadcast.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1769,12 +1770,12 @@ Firewall, Broadcast (This Avatar can't attack, and it can block Avatars with Bro
 Firewall (This Avatar can't attack.)<br>
 T: This Avatar gets +1 Action and +0 Resilience until end of turn.
 
-**Flavor:** *Liquid Firewall. Stay sovereign. Send it.*
+**Flavor:** *The runbook says stay calm, and Liquid Firewall added label your cables.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Block headers link to prior blocks, making history expensive to rewrite.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BOLT 12 offers are reusable descriptions from which invoices can be requested.
+**Primary source:** https://github.com/lightning/bolts/blob/master/12-offer-encoding.md
 
 **Art direction:** Tal turns “Firewall (This Avatar can't attack.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1788,12 +1789,12 @@ T: This Avatar gets +1 Action and +0 Resilience until end of turn.
 
 No special ability.
 
-**Flavor:** *Flow Controller. Bullish on builders.*
+**Flavor:** *Even the fallback plan has a fallback when Flow Controller joins the call.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Bitcoin timelocks can delay when a transaction output becomes spendable.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** BOLT 12 offers are reusable descriptions from which invoices can be requested.
+**Primary source:** https://github.com/lightning/bolts/blob/master/12-offer-encoding.md
 
 **Art direction:** Darren turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1809,11 +1810,11 @@ No special ability.
 Attach to an Avatar card in an Archive.<br>
 Return it under your control and attach Archive Boot. It gets -1 Action. When Archive Boot leaves, archive that Avatar.
 
-**Flavor:** *Archive Boot. Verify the rails. Then ride.*
+**Flavor:** *A handshake became a habit wherever Archive Boot was deployed.*
 
 **Simple Guide · metadata:** Moves a card into an Archive.
 
-**Protocol Note · metadata:** BIP-32 derives many wallet keys from one hierarchical root.
+**Protocol Note · metadata:** BIP-32 extended keys combine key material with a 32-byte chain code.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar card in an Archive” without characters.
@@ -1827,14 +1828,14 @@ Return it under your control and attach Archive Boot. It gets -1 Action. When Ar
 **Character:** DNI
 
 First Strike (This Avatar deals clash damage before Avatars without First Strike.)<br>
-Shielded from Signal (This Avatar can't be blocked, targeted, dealt damage, or attached by anything Signal.)
+Shielded from Signal (It can't be targeted, attached, blocked or dealt damage by Signal sources.)
 
-**Flavor:** *Sovereign Knight. Culture is a protocol too.*
+**Flavor:** *The Network asked for a hero; Sovereign Knight submitted a tested patch.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Resists the named affinity.
 
-**Protocol Note · metadata:** Schnorr signatures support simple, precise verification rules in Bitcoin.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
+**Protocol Note · metadata:** BIP-32 marks hardened child indexes at 2³¹ and above.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 **Art direction:** DNI turns “First Strike (This Avatar deals clash damage before Avatars without First Strike.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1846,14 +1847,14 @@ Shielded from Signal (This Avatar can't be blocked, targeted, dealt damage, or a
 
 **Character:** Nind
 
-Backchannel—Keys (This Avatar can't be blocked as long as defending player controls a Keys Resource.)
+Backchannel — Keys (This Avatar can't be blocked while the defending player controls a Keys Resource.)
 
-**Flavor:** *Backchannel Walker. Stay sovereign. Send it.*
+**Flavor:** *Every antenna found its horizon when Backchannel Walker climbed the roof.*
 
 **Simple Guide · metadata:** Can slip past players using the named Resource.
 
-**Protocol Note · metadata:** Multisignature policies can require several independent approvals.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#multisig
+**Protocol Note · metadata:** BIP-32 marks hardened child indexes at 2³¹ and above.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 **Art direction:** Nind turns “Backchannel—Keys (This Avatar can't be blocked as long as defending player controls a Keys Resource.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -1866,12 +1867,12 @@ Backchannel—Keys (This Avatar can't be blocked as long as defending player con
 
 Stake module — Add the top card of your Stack to the Stake. Discard your Wallet, then draw seven cards.
 
-**Flavor:** *Stake Contract. The next block belongs to builders.*
+**Flavor:** *Nothing was improvised except the celebratory snack after Stake Contract.*
 
 **Simple Guide · metadata:** Puts more cards in your Wallet. Reduces the options in an opponent's Wallet.
 
-**Protocol Note · metadata:** Nostr users can move between clients because identity lives in key pairs.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** BIP-32 can derive non-hardened public children from an extended public key.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Stake module — Add the top card of your Stack to the Stake. Discard your Wallet, then draw seven cards” without characters.
 
@@ -1885,12 +1886,12 @@ Stake module — Add the top card of your Stack to the Stake. Discard your Walle
 Attach to Resource<br>
 At the beginning of the Maintenance of attached Resource's controller, this Attachment deals 1 damage to that player.
 
-**Flavor:** *Leaking Key Vault. Verify the rails. Then ride.*
+**Flavor:** *No committee survived contact with the clarity of Leaking Key Vault.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Control of private keys authorizes spending; a wallet helps manage them.
-**Primary source:** https://developer.bitcoin.org/devguide/wallets.html
+**Protocol Note · metadata:** BIP-32 can derive non-hardened public children from an extended public key.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Resource” without characters.
 
@@ -1903,12 +1904,12 @@ At the beginning of the Maintenance of attached Resource's controller, this Atta
 
 Generate 3 Keys Resources.
 
-**Flavor:** *Proof of Work. Send it. The network knows.*
+**Flavor:** *The Network said now, and Proof of Work did not ask which timezone.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** BIP-32 derives many wallet keys from one hierarchical root.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+**Protocol Note · metadata:** BIP-39 appends a checksum before mapping entropy to mnemonic words.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Generate 3 Keys Resources” without characters.
 
@@ -1921,11 +1922,11 @@ Generate 3 Keys Resources.
 
 Stake module — Exchange ownership of the top card of your Stake with one random card from your opponent's Stake.
 
-**Flavor:** *Stake Swap. Turn the plan into a signal.*
+**Flavor:** *The rollout had a rollback and both approved Stake Swap.*
 
 **Simple Guide · metadata:** Play this during your main phase for a one-time strategic effect.
 
-**Protocol Note · metadata:** BIP-39 encodes wallet backup entropy as a mnemonic sentence.
+**Protocol Note · metadata:** BIP-39 appends a checksum before mapping entropy to mnemonic words.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Stake module — Exchange ownership of the top card of your Stake with one random card from your opponent's Stake” without characters.
@@ -1939,12 +1940,12 @@ Stake module — Exchange ownership of the top card of your Stake with one rando
 
 KK: marker target Bitcoin card on the Queue.
 
-**Flavor:** *Bitcoin Gatekeeper. The good path stays inspectable.*
+**Flavor:** *The Network called it policy; Bitcoin Gatekeeper called it Tuesday.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Schnorr signatures support simple, precise verification rules in Bitcoin.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
+**Protocol Note · metadata:** BIP-39 uses PBKDF2-HMAC-SHA512 to turn a mnemonic into a seed.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “KK: marker target Bitcoin card on the Queue” without characters.
 
@@ -1957,12 +1958,12 @@ KK: marker target Bitcoin card on the Queue.
 
 Target card on the Queue or Network card becomes Keys. (Resource symbols on that Network card remain unchanged.)
 
-**Flavor:** *Keys Rewrite. One clean move. Zero committees.*
+**Flavor:** *Every millisecond filed paperwork after meeting Keys Rewrite.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Multisignature policies can require several independent approvals.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#multisig
+**Protocol Note · metadata:** BIP-39 uses PBKDF2-HMAC-SHA512 to turn a mnemonic into a seed.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Target card on the Queue or Network card becomes Keys. (Resource symbols on that Network card remain unchanged.)” without characters.
 
@@ -1975,12 +1976,12 @@ Target card on the Queue or Network card becomes Keys. (Resource symbols on that
 
 Stake module — Each player may add the top card of their Stack to the Stake. If your opponent declines, you may play this again without paying its cost.
 
-**Flavor:** *Stake Arbitration. Big move. Open rails.*
+**Flavor:** *Every moving part received an introduction during Stake Arbitration.*
 
 **Simple Guide · metadata:** Play this during your main phase for a one-time strategic effect.
 
-**Protocol Note · metadata:** Nostr users can move between clients because identity lives in key pairs.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** BIP-44 defines purpose, coin, account, change and address path levels.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Stake module — Each player may add the top card of their Stack to the Stake. If your opponent declines, you may play this again without paying its cost” without characters.
 
@@ -1995,12 +1996,12 @@ Stake module — Each player may add the top card of their Stack to the Stake. I
 Commit: decommission target Resource.<br>
 At the beginning of your Maintenance, unless you pay KKK, commit this Avatar and archive a Resource of an opponent's choice.
 
-**Flavor:** *Resource Reclaimer. Make it real. Keep it open.*
+**Flavor:** *The coffee went cold, but the relay stayed warm for Resource Reclaimer.*
 
 **Simple Guide · metadata:** Removes a card from the Network. Moves a card into an Archive.
 
-**Protocol Note · metadata:** Control of private keys authorizes spending; a wallet helps manage them.
-**Primary source:** https://developer.bitcoin.org/devguide/wallets.html
+**Protocol Note · metadata:** BIP-44 defines purpose, coin, account, change and address path levels.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
 
 **Art direction:** NC turns “Commit: decommission target Resource” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2013,12 +2014,12 @@ At the beginning of your Maintenance, unless you pay KKK, commit this Avatar and
 
 Search your Stack for a card, put that card into your Wallet, then shuffle.
 
-**Flavor:** *Deep Search. Turn the plan into a signal.*
+**Flavor:** *The schedule feared drift until it encountered Deep Search.*
 
 **Simple Guide · metadata:** Play this during your main phase for a one-time strategic effect.
 
-**Protocol Note · metadata:** BIP-32 derives many wallet keys from one hierarchical root.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+**Protocol Note · metadata:** BIP-49 assigns a derivation scheme for SegWit nested inside P2SH.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Search your Stack for a card, put that card into your Wallet, then shuffle” without characters.
 
@@ -2031,12 +2032,12 @@ Search your Stack for a card, put that card into your Wallet, then shuffle.
 
 Spend only Keys Resources to pay X. Uptime Channel deals X damage to any target. You gain Uptime equal to the damage dealt, up to that target's Uptime or Resilience before the damage.
 
-**Flavor:** *Uptime Channel. We came to build the future.*
+**Flavor:** *The Network practiced once, then performed Uptime Channel without a soloist.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** BIP-39 encodes wallet backup entropy as a mnemonic sentence.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+**Protocol Note · metadata:** BIP-49 assigns a derivation scheme for SegWit nested inside P2SH.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Spend only Keys Resources to pay X. Uptime Channel deals X damage to any target. You gain Uptime equal to the damage dealt, up to that target's Uptime or Resilience before the damage” without characters.
 
@@ -2050,12 +2051,12 @@ Spend only Keys Resources to pay X. Uptime Channel deals X damage to any target.
 
 K: Reboot this Avatar. (The next time this Avatar would be decommissioned this turn, instead commit it, remove it from clash, and heal all damage on it.)
 
-**Flavor:** *Reboot Crew. Bullish on builders.*
+**Flavor:** *The Queue behaved all afternoon under Reboot Crew's suspiciously polite stare.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** Schnorr signatures support simple, precise verification rules in Bitcoin.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
+**Protocol Note · metadata:** BIP-84 assigns a derivation scheme for native SegWit wallets.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
 
 **Art direction:** BlackCoffee turns “K: Reboot this Avatar. (The next time this Avatar would be decommissioned this turn, instead commit it, remove it from clash, and heal all damage on it.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2069,12 +2070,12 @@ K: Reboot this Avatar. (The next time this Avatar would be decommissioned this t
 Attach to Resource<br>
 Attached Resource is a Keys Resource.
 
-**Flavor:** *Resource Corruption. Verify the rails. Then ride.*
+**Flavor:** *One tidy invariant followed Resource Corruption into every messy room.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Multisignature policies can require several independent approvals.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#multisig
+**Protocol Note · metadata:** BIP-84 assigns a derivation scheme for native SegWit wallets.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Resource” without characters.
 
@@ -2088,12 +2089,12 @@ Attached Resource is a Keys Resource.
 Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)<br>
 Attached Avatar has fear. (It can't be blocked except by Hardware Avatars and/or Keys Avatars.)
 
-**Flavor:** *Onion Route. Consensus looks good on us.*
+**Flavor:** *The loophole closed itself after reading Onion Route.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Nostr users can move between clients because identity lives in key pairs.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** BIP-86 assigns a derivation scheme for single-key Taproot outputs.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)” without characters.
 
@@ -2107,12 +2108,12 @@ Attached Avatar has fear. (It can't be blocked except by Hardware Avatars and/or
 
 K: This Avatar gets +1 Action and +1 Resilience until end of turn.
 
-**Flavor:** *Cold Signer. Culture is a protocol too.*
+**Flavor:** *Someone said impossible; Cold Signer heard needs one more adapter.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Control of private keys authorizes spending; a wallet helps manage them.
-**Primary source:** https://developer.bitcoin.org/devguide/wallets.html
+**Protocol Note · metadata:** BIP-86 assigns a derivation scheme for single-key Taproot outputs.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki
 
 **Art direction:** Proton turns “K: This Avatar gets +1 Action and +1 Resilience until end of turn” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2126,12 +2127,12 @@ K: This Avatar gets +1 Action and +1 Resilience until end of turn.
 Signal cards on the Queue cost 3 more to play.<br>
 Activated abilities of Signal Protocols cost 3 more to activate.
 
-**Flavor:** *Signal Tax. The good path stays inspectable.*
+**Flavor:** *A thousand opinions became one testable rule inside Signal Tax.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** BIP-32 derives many wallet keys from one hierarchical root.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+**Protocol Note · metadata:** BIP-340 Schnorr signatures serialize to 64 bytes.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Signal cards on the Queue cost 3 more to play” without characters.
 
@@ -2144,12 +2145,12 @@ Activated abilities of Signal Protocols cost 3 more to activate.
 
 Target Avatar gets +X/+0 until end of turn.
 
-**Flavor:** *Burst Signature. One clean move. Zero committees.*
+**Flavor:** *The shortest meeting on record had one agenda item: Burst Signature.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** BIP-39 encodes wallet backup entropy as a mnemonic sentence.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+**Protocol Note · metadata:** BIP-340 Schnorr signatures serialize to 64 bytes.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Target Avatar gets +X/+0 until end of turn” without characters.
 
@@ -2164,11 +2165,11 @@ Target Avatar gets +X/+0 until end of turn.
 Broadcast<br>
 Whenever this Avatar deals damage to an opponent, that player discards a card at random.
 
-**Flavor:** *Wallet Whisperer. Good signal. Strong hands.*
+**Flavor:** *The outage brought drama, while Wallet Whisperer brought a multimeter.*
 
 **Simple Guide · metadata:** Reduces the options in an opponent's Wallet. Deals or redirects damage.
 
-**Protocol Note · metadata:** Schnorr signatures support simple, precise verification rules in Bitcoin.
+**Protocol Note · metadata:** BIP-340 uses 32-byte x-only public keys.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
 **Art direction:** Gadaj turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
@@ -2182,12 +2183,12 @@ Whenever this Avatar deals damage to an opponent, that player discards a card at
 
 On deploy, set your Uptime to 0. You survive at 0; Uptime gains draw cards instead. Damage archives that many non-proxy cards or you lose. If this leaves, you lose.
 
-**Flavor:** *Sovereign Mode. Consensus looks good on us.*
+**Flavor:** *The boring path became the reliable path under Sovereign Mode.*
 
 **Simple Guide · metadata:** Puts more cards in your Wallet. Deals or redirects damage.
 
-**Protocol Note · metadata:** Multisignature policies can require several independent approvals.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#multisig
+**Protocol Note · metadata:** BIP-340 uses 32-byte x-only public keys.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “As this Protocol enters, you lose Uptime equal to your Uptime” without characters.
 
@@ -2202,12 +2203,12 @@ On deploy, set your Uptime to 0. You survive at 0; Uptime gains draw cards inste
 Broadcast, Overflow<br>
 At the beginning of your Maintenance, archive an Avatar other than this Avatar. If you can't, this Avatar deals 7 damage to you.
 
-**Flavor:** *Self-Custody Giant. Culture is a protocol too.*
+**Flavor:** *Trust arrived late, so Self-Custody Giant verified without it.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Moves a card into an Archive.
 
-**Protocol Note · metadata:** Nostr users can move between clients because identity lives in key pairs.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** BIP-340 tagged hashes separate one hashing context from another.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
 **Art direction:** DNI turns “Broadcast, Overflow” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2220,12 +2221,12 @@ At the beginning of your Maintenance, archive an Avatar other than this Avatar. 
 
 Randomly choose X cards from target player's Wallet; that player discards them.
 
-**Flavor:** *Wallet Scramble. We came to build the future.*
+**Flavor:** *The plan left the whiteboard and returned wearing Wallet Scramble.*
 
 **Simple Guide · metadata:** Reduces the options in an opponent's Wallet.
 
-**Protocol Note · metadata:** Control of private keys authorizes spending; a wallet helps manage them.
-**Primary source:** https://developer.bitcoin.org/devguide/wallets.html
+**Protocol Note · metadata:** BIP-340 tagged hashes separate one hashing context from another.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Randomly choose X cards from target player's Wallet; that player discards them” without characters.
 
@@ -2237,17 +2238,17 @@ Randomly choose X cards from target player's Wallet; that player discards them.
 
 **Character:** Nind
 
-Haste<br>
+This Avatar may attack as though it did not have Boot Delay.<br>
 At the beginning of your Maintenance, if this card is in your Archive with three or more Avatar cards above it, you may put this card onto the Network.
 
-**Flavor:** *Archive Returner. Bullish on builders.*
+**Flavor:** *The dashboard blinked red until it met Archive Returner.*
 
 **Simple Guide · metadata:** Moves a card into an Archive.
 
-**Protocol Note · metadata:** BIP-32 derives many wallet keys from one hierarchical root.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+**Protocol Note · metadata:** BIP-341 Taproot outputs can be spent through a key path or script path.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
 
-**Art direction:** Nind turns “Haste” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
+**Art direction:** Nind turns “the ability to attack without Boot Delay” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
 ---
 
@@ -2257,16 +2258,16 @@ At the beginning of your Maintenance, if this card is in your Archive with three
 
 **Character:** NC
 
-Commit — During an opponent's pre-attack step, target non-Wall Avatar they've controlled all turn attacks if able. Decommission it at end step if it didn't.
+Commit — During an opponent's pre-attack step, target non-Firewall Avatar they've controlled all turn attacks if able. Decommission it at end step if it didn't.
 
-**Flavor:** *Forced Signal. Good signal. Strong hands.*
+**Flavor:** *No cape was required, though Forced Signal did bring spare batteries.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** BIP-39 encodes wallet backup entropy as a mnemonic sentence.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+**Protocol Note · metadata:** BIP-341 Taproot outputs can be spent through a key path or script path.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
 
-**Art direction:** NC turns “Commit: Choose target non-Wall Avatar the active player has controlled continuously since the beginning of the turn. That Avatar attacks this turn if able. decommission it at the beginning of the next end step if it didn't attack this turn. Activate only during an opponent's turn, before attackers are declared” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
+**Art direction:** NC turns “Commit: Choose target non-Firewall Avatar the active player has controlled continuously since the beginning of the turn. That Avatar attacks this turn if able. decommission it at the beginning of the next end step if it didn't attack this turn. Activate only during an opponent's turn, before attackers are declared” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
 ---
 
@@ -2276,15 +2277,15 @@ Commit — During an opponent's pre-attack step, target non-Wall Avatar they've 
 
 **Character:** Proton
 
-Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)<br>
+Broadcast (This Avatar can be blocked only by Avatars with Broadcast or Broadcast Guard.)<br>
 Proton, Keyed Nightmare's Action and Resilience are each equal to the number of Keys Resources you control.
 
-**Flavor:** *Keyed Nightmare. Make it real. Keep it open.*
+**Flavor:** *The bug filed a retreat notice when Keyed Nightmare opened the logs.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Schnorr signatures support simple, precise verification rules in Bitcoin.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
+**Protocol Note · metadata:** BIP-342 validates Taproot scripts with Schnorr signatures.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0342.mediawiki
 
 **Art direction:** Proton turns “Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2297,12 +2298,12 @@ Proton, Keyed Nightmare's Action and Resilience are each equal to the number of 
 
 Attach to an Avatar and commit it. It doesn't unlock normally. At its controller's Maintenance, they may pay 4 to unlock it.
 
-**Flavor:** *Locked Process. Trust less. Coordinate more.*
+**Flavor:** *Everyone brought assumptions, but Locked Process brought a specification.*
 
 **Simple Guide · metadata:** Lets a committed card become usable again.
 
-**Protocol Note · metadata:** Multisignature policies can require several independent approvals.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#multisig
+**Protocol Note · metadata:** BIP-342 validates Taproot scripts with Schnorr signatures.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0342.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -2316,12 +2317,12 @@ Attach to an Avatar and commit it. It doesn't unlock normally. At its controller
 At the beginning of the end step, if no Avatars are on the Network, archive this Protocol.<br>
 K: This Protocol deals 1 damage to each Avatar and each player.
 
-**Flavor:** *Broadcast Storm. The good path stays inspectable.*
+**Flavor:** *The exception asked for permission before approaching Broadcast Storm.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Moves a card into an Archive.
 
-**Protocol Note · metadata:** Nostr users can move between clients because identity lives in key pairs.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** BIP-174 lets multiple tools coordinate an unsigned transaction without sharing keys.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “At the beginning of the end step, if no Avatars are on the Network, archive this Protocol” without characters.
 
@@ -2335,12 +2336,12 @@ K: This Protocol deals 1 damage to each Avatar and each player.
 
 BlackCoffee, Shared Secret Swarm's Action and Resilience are each equal to the number of Avatars named BlackCoffee, Shared Secret Swarm on the Network.
 
-**Flavor:** *Shared Secret Swarm. Bullish on builders.*
+**Flavor:** *Consensus took minutes; Shared Secret Swarm's cable labels took seconds.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Control of private keys authorizes spending; a wallet helps manage them.
-**Primary source:** https://developer.bitcoin.org/devguide/wallets.html
+**Protocol Note · metadata:** BIP-174 lets multiple tools coordinate an unsigned transaction without sharing keys.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 
 **Art direction:** BlackCoffee turns “BlackCoffee, Shared Secret Swarm's Action and Resilience are each equal to the number of Avatars named BlackCoffee, Shared Secret Swarm on the Network” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2353,12 +2354,12 @@ BlackCoffee, Shared Secret Swarm's Action and Resilience are each equal to the n
 
 Return target Avatar card from your Archive to your Wallet.
 
-**Flavor:** *Restore Backup. Big move. Open rails.*
+**Flavor:** *Every checklist box stood a little straighter for Restore Backup.*
 
 **Simple Guide · metadata:** Moves a card into an Archive.
 
-**Protocol Note · metadata:** BIP-32 derives many wallet keys from one hierarchical root.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+**Protocol Note · metadata:** BIP-370 defines version 2 of the PSBT format.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Return target Avatar card from your Archive to your Wallet” without characters.
 
@@ -2372,12 +2373,12 @@ Return target Avatar card from your Archive to your Wallet.
 
 Commit: decommission target committed Avatar.
 
-**Flavor:** *Commit Auditor. Make it real. Keep it open.*
+**Flavor:** *The edge feels like home when Commit Auditor has the keys.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** BIP-39 encodes wallet backup entropy as a mnemonic sentence.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+**Protocol Note · metadata:** BIP-370 defines version 2 of the PSBT format.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki
 
 **Art direction:** Gadaj turns “Commit: decommission target committed Avatar” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2391,12 +2392,12 @@ Commit: decommission target committed Avatar.
 As an additional cost to play this card on the Queue, archive an Avatar.<br>
 Generate that many Keys Resources, equal to the archived Avatar's total resource cost.
 
-**Flavor:** *Convert Uptime. Tiny packet. Huge mood.*
+**Flavor:** *The incident channel gained one emoji and one decisive Convert Uptime.*
 
 **Simple Guide · metadata:** Moves a card into an Archive. Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Schnorr signatures support simple, precise verification rules in Bitcoin.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
+**Protocol Note · metadata:** BIP-371 adds Taproot input and output fields to PSBT.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “As an additional cost to play this card on the Queue, archive an Avatar” without characters.
 
@@ -2410,12 +2411,12 @@ Generate that many Keys Resources, equal to the archived Avatar's total resource
 
 No special ability.
 
-**Flavor:** *Offline Operator. Stay sovereign. Send it.*
+**Flavor:** *Even the air gap makes small talk with Offline Operator.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Multisignature policies can require several independent approvals.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#multisig
+**Protocol Note · metadata:** BIP-371 adds Taproot input and output fields to PSBT.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki
 
 **Art direction:** NC turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2430,12 +2431,12 @@ No special ability.
 At the beginning of each end step, put a corpse marker on this Avatar for each Avatar that died this turn.<br>
 Remove a corpse marker from this Avatar: Reboot this Avatar.
 
-**Flavor:** *Archive Collector. Bullish on builders.*
+**Flavor:** *The packet took the scenic route and still saluted Archive Collector.*
 
 **Simple Guide · metadata:** Can keep an Avatar in the Network after damage.
 
-**Protocol Note · metadata:** Nostr users can move between clients because identity lives in key pairs.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** BIP-380 defines descriptors as strings that describe output scripts.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
 
 **Art direction:** Nind turns “At the beginning of each end step, put a corpse marker on this Avatar for each Avatar that died this turn” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2447,15 +2448,15 @@ Remove a corpse marker from this Avatar: Reboot this Avatar.
 
 **Character:** DNI
 
-Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)<br>
+Broadcast (This Avatar can be blocked only by Avatars with Broadcast or Broadcast Guard.)<br>
 Whenever an Avatar dealt damage by this Avatar this turn is decommissioned, put a +1/+1 marker on this Avatar.
 
-**Flavor:** *Sovereign Accumulator. Good signal. Strong hands.*
+**Flavor:** *Uptime is a team sport, according to Sovereign Accumulator and the patched router.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** Control of private keys authorizes spending; a wallet helps manage them.
-**Primary source:** https://developer.bitcoin.org/devguide/wallets.html
+**Protocol Note · metadata:** BIP-380 defines descriptors as strings that describe output scripts.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
 
 **Art direction:** DNI turns “Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2468,12 +2469,12 @@ Whenever an Avatar dealt damage by this Avatar this turn is decommissioned, put 
 
 You gain Uptime equal to the damage dealt to you this turn. State Mirror deals damage to target Avatar you control equal to the damage dealt to you this turn.
 
-**Flavor:** *State Mirror. Send it. The network knows.*
+**Flavor:** *Latency rehearsed an excuse, but State Mirror had already resolved.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** BIP-32 derives many wallet keys from one hierarchical root.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+**Protocol Note · metadata:** BIP-381 defines sh() and wsh() descriptor expressions.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0381.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “You gain Uptime equal to the damage dealt to you this turn. State Mirror deals damage to target Avatar you control equal to the damage dealt to you this turn” without characters.
 
@@ -2486,12 +2487,12 @@ You gain Uptime equal to the damage dealt to you this turn. State Mirror deals d
 
 Decommission target Resource.
 
-**Flavor:** *Resource Sink. Turn the plan into a signal.*
+**Flavor:** *The long route became the useful route after Resource Sink.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** BIP-39 encodes wallet backup entropy as a mnemonic sentence.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+**Protocol Note · metadata:** BIP-381 defines sh() and wsh() descriptor expressions.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0381.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Decommission target Resource” without characters.
 
@@ -2502,16 +2503,16 @@ Decommission target Resource.
 **Zap** · Cost **1K** · Common
 
 
-Decommission target nonartifact, nonblack Avatar. It can't be regenerated.
+Decommission target non-Hardware, non-Keys Avatar. It can't be Rebooted.
 
-**Flavor:** *Hard Shutdown. YOLO, but verify.*
+**Flavor:** *The Queue blinked once and found Hard Shutdown at the front.*
 
 **Simple Guide · metadata:** Removes a card from the Network. Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Schnorr signatures support simple, precise verification rules in Bitcoin.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
+**Protocol Note · metadata:** BIP-382 defines the tr() descriptor expression for Taproot outputs.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0382.mediawiki
 
-**Art direction:** A precise burst of network action visualizes “Decommission target nonartifact, nonblack Avatar. It can't be regenerated” without characters.
+**Art direction:** A precise burst of network action visualizes “Decommission target non-Hardware, non-Keys Avatar. It can't be Rebooted” without characters.
 
 ---
 
@@ -2523,12 +2524,12 @@ Decommission target nonartifact, nonblack Avatar. It can't be regenerated.
 Attach to Avatar<br>
 Attached Avatar gets +2 Action and +1 Resilience.
 
-**Flavor:** *Sovereign Strength. Open rules. Strong network.*
+**Flavor:** *A sticky note achieved consensus and grew into Sovereign Strength.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Multisignature policies can require several independent approvals.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#multisig
+**Protocol Note · metadata:** BIP-382 defines the tr() descriptor expression for Taproot outputs.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0382.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -2543,12 +2544,12 @@ Attached Avatar gets +2 Action and +1 Resilience.
 Firewall (This Avatar can't attack.)<br>
 K: Reboot this Avatar. (The next time this Avatar would be decommissioned this turn, instead commit it, remove it from clash, and heal all damage on it.)
 
-**Flavor:** *Backup Firewall. Good signal. Strong hands.*
+**Flavor:** *The status page calmed down as soon as Backup Firewall picked up a wrench.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** Nostr users can move between clients because identity lives in key pairs.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** Bitcoin Core descriptors may end with an eight-character checksum.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 
 **Art direction:** BlackCoffee turns “Firewall (This Avatar can't attack.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2562,12 +2563,12 @@ K: Reboot this Avatar. (The next time this Avatar would be decommissioned this t
 Attach to Hardware<br>
 At the beginning of the Maintenance of attached Hardware's controller, this Attachment deals 1 damage to that player.
 
-**Flavor:** *Hardware Leak. Consensus looks good on us.*
+**Flavor:** *Nothing says romance like deterministic behavior from Hardware Leak.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Control of private keys authorizes spending; a wallet helps manage them.
-**Primary source:** https://developer.bitcoin.org/devguide/wallets.html
+**Protocol Note · metadata:** Bitcoin Core descriptors may end with an eight-character checksum.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Hardware” without characters.
 
@@ -2581,12 +2582,12 @@ At the beginning of the Maintenance of attached Hardware's controller, this Atta
 Attach to Avatar<br>
 Attached Avatar gets -2 Action and -1 Resilience.
 
-**Flavor:** *Reduced Permissions. Trust less. Coordinate more.*
+**Flavor:** *The meeting ended early because Reduced Permissions had executable minutes.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** BIP-32 derives many wallet keys from one hierarchical root.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+**Protocol Note · metadata:** Bitcoin Core descriptor wallets track script templates instead of isolated addresses.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -2598,15 +2599,15 @@ Attached Avatar gets -2 Action and -1 Resilience.
 
 **Character:** Proton
 
-Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)<br>
+Broadcast (This Avatar can be blocked only by Avatars with Broadcast or Broadcast Guard.)<br>
 K: Reboot this Avatar. (The next time this Avatar would be decommissioned this turn, instead commit it, remove it from clash, and heal all damage on it.)
 
-**Flavor:** *Ephemeral Signer. Stay sovereign. Send it.*
+**Flavor:** *Nobody assigned the incident; it simply looked nervous around Ephemeral Signer.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** BIP-39 encodes wallet backup entropy as a mnemonic sentence.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+**Protocol Note · metadata:** Bitcoin Core descriptor wallets track script templates instead of isolated addresses.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 
 **Art direction:** Proton turns “Broadcast (Only Avatars with Broadcast or Broadcast Guard can block it.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2619,12 +2620,12 @@ K: Reboot this Avatar. (The next time this Avatar would be decommissioned this t
 
 Look at an opponent's Wallet and choose a card they can play. You control that player while they play the chosen card. Resources from their Buffer may be spent only for that card.
 
-**Flavor:** *Remote Command. One clean move. Zero committees.*
+**Flavor:** *A tiny packet made a very large entrance as Remote Command.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Schnorr signatures support simple, precise verification rules in Bitcoin.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
+**Protocol Note · metadata:** BIP-85 derives deterministic entropy streams from an HD wallet root.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0085.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Look at an opponent's Wallet and choose a card they can play. You control that player while they play the chosen card. Resources from their Buffer may be spent only for that card” without characters.
 
@@ -2636,15 +2637,15 @@ Look at an opponent's Wallet and choose a card they can play. You control that p
 
 **Character:** Gadaj
 
-Other Zombie Avatars have Backchannel—Keys. (They can't be blocked as long as defending player controls a Keys Resource.)<br>
+Other Zombie Avatars have Backchannel — Keys. (Those Avatars can't be blocked while the defending player controls a Keys Resource.)<br>
 Other Zombies have "K: Reboot this Network card."
 
-**Flavor:** *Archive Maintainer. Good signal. Strong hands.*
+**Flavor:** *A second opinion arrived wearing Archive Maintainer's tool belt.*
 
 **Simple Guide · metadata:** Can keep an Avatar in the Network after damage. Can slip past players using the named Resource.
 
-**Protocol Note · metadata:** Multisignature policies can require several independent approvals.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#multisig
+**Protocol Note · metadata:** BIP-85 derives deterministic entropy streams from an HD wallet root.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0085.mediawiki
 
 **Art direction:** Gadaj turns “Other Zombie Avatars have Backchannel—Keys. (They can't be blocked as long as defending player controls a Keys Resource.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2658,14 +2659,14 @@ Other Zombies have "K: Reboot this Network card."
 
 
 Attach to Avatar<br>
-Attached Avatar has Backchannel—Action. (It can't be blocked as long as defending player controls a Power Resource.)
+Attached Avatar has Backchannel — Power. (That Avatar can't be blocked while the defending player controls a Power Resource.)
 
-**Flavor:** *Tunneling Patch. Consensus looks good on us.*
+**Flavor:** *The Network slept better once Tunneling Patch checked the locks.*
 
 **Simple Guide · metadata:** Can slip past players using the named Resource.
 
-**Protocol Note · metadata:** Mining rewards combine newly issued bitcoin with transaction fees.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** Bitcoin proof of work searches for a block-header hash below a target.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -2678,11 +2679,11 @@ Attached Avatar has Backchannel—Action. (It can't be blocked as long as defend
 
 Target card on the Queue or Network card becomes Power. (Its Resource symbols remain unchanged.)
 
-**Flavor:** *Power Rewrite. Tiny packet. Huge mood.*
+**Flavor:** *The response window was brief and exactly long enough for Power Rewrite.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Proof of work makes proposing Bitcoin blocks computationally costly.
+**Protocol Note · metadata:** Each Bitcoin block header commits to the previous block header's hash.
 **Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** A precise burst of network action visualizes “Target card on the Queue or Network card becomes Power. (Its Resource symbols remain unchanged.)” without characters.
@@ -2694,16 +2695,16 @@ Target card on the Queue or Network card becomes Power. (Its Resource symbols re
 **Operation** · Cost **XP** · Common
 
 
-Final Settlement deals X damage to any target. If it's an Avatar, it can't be regenerated this turn, and if it would be decommissioned this turn, Cold Storage it instead.
+Final Settlement deals X damage to any target. If it's an Avatar, it can't be Rebooted this turn, and if it would be decommissioned this turn, Cold Storage it instead.
 
-**Flavor:** *Final Settlement. We came to build the future.*
+**Flavor:** *A coordinated morning begins with coffee and Final Settlement.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** Bitcoin adjusts mining difficulty to target a stable block interval.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
+**Protocol Note · metadata:** Each Bitcoin block header commits to the previous block header's hash.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
-**Art direction:** A coordinated network-wide event visualizes “Final Settlement deals X damage to any target. If it's an Avatar, it can't be regenerated this turn, and if it would be decommissioned this turn, Cold Storage it instead” without characters.
+**Art direction:** A coordinated network-wide event visualizes “Final Settlement deals X damage to any target. If it's an Avatar, it can't be Rebooted this turn, and if it would be decommissioned this turn, Cold Storage it instead” without characters.
 
 ---
 
@@ -2716,12 +2717,12 @@ Final Settlement deals X damage to any target. If it's an Avatar, it can't be re
 Broadcast<br>
 P: This Avatar gets +1 Action and +0 Resilience until end of turn. If this ability has been activated four or more times this turn, archive this Avatar at the beginning of the next end step.
 
-**Flavor:** *Young Overclocker. Bullish on builders.*
+**Flavor:** *The runbook says stay calm, and Young Overclocker added label your cables.*
 
 **Simple Guide · metadata:** Moves a card into an Archive. Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Miners assemble candidate blocks while full nodes verify every rule.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** A Bitcoin block header commits to its transactions through a Merkle root.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** MadMunky turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2733,16 +2734,16 @@ P: This Avatar gets +1 Action and +0 Resilience until end of turn. If this abili
 
 **Character:** Rootzoll
 
-Commit: decommission target Wall.
+Commit: decommission target Firewall.
 
-**Flavor:** *Hardware Breaker. Good signal. Strong hands.*
+**Flavor:** *Even the fallback plan has a fallback when Hardware Breaker joins the call.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Hashing turns variable input into a fixed-size result used in proof of work.
-**Primary source:** https://developer.bitcoin.org/reference/block_chain.html
+**Protocol Note · metadata:** A Bitcoin block header commits to its transactions through a Merkle root.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
-**Art direction:** Rootzoll turns “Commit: decommission target Wall” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
+**Art direction:** Rootzoll turns “Commit: decommission target Firewall” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
 ---
 
@@ -2754,12 +2755,12 @@ Commit: decommission target Wall.
 
 Commit: Target Avatar with Action 2 or less can't be blocked this turn.
 
-**Flavor:** *Tunnel Builder. Make it real. Keep it open.*
+**Flavor:** *The Network asked for a hero; Tunnel Builder submitted a tested patch.*
 
 **Simple Guide · metadata:** Uses committing as the cost for a repeatable effect.
 
-**Protocol Note · metadata:** A valid block must satisfy both proof-of-work and consensus rules.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html
+**Protocol Note · metadata:** Bitcoin retargets proof-of-work difficulty every 2,016 blocks.
+**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
 
 **Art direction:** Bam turns “Commit: Target Avatar with Action 2 or less can't be blocked this turn” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2773,12 +2774,12 @@ Commit: Target Avatar with Action 2 or less can't be blocked this turn.
 
 No special ability.
 
-**Flavor:** *Grid Stabilizer. Culture is a protocol too.*
+**Flavor:** *Every antenna found its horizon when Grid Stabilizer climbed the roof.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Mining rewards combine newly issued bitcoin with transaction fees.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** Bitcoin retargets proof-of-work difficulty every 2,016 blocks.
+**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
 
 **Art direction:** Leon turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2792,12 +2793,12 @@ No special ability.
 Attach to Avatar<br>
 When this Attachment enters, if attached Avatar has Broadcast, this Attachment deals 2 damage to that Avatar and this Attachment gains "attached Avatar loses Broadcast."
 
-**Flavor:** *Grounded Signal. The good path stays inspectable.*
+**Flavor:** *The fine print became infrastructure when Grounded Signal entered the Network.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Proof of work makes proposing Bitcoin blocks computationally costly.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** Bitcoin's proof-of-work target aims for a roughly ten-minute block interval.
+**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -2810,11 +2811,11 @@ When this Attachment enters, if attached Avatar has Broadcast, this Attachment d
 
 Hashquake deals X damage to each Avatar without Broadcast and each player.
 
-**Flavor:** *Hashquake. The next block belongs to builders.*
+**Flavor:** *The Network moved as one, mostly because Hashquake brought labels.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Bitcoin adjusts mining difficulty to target a stable block interval.
+**Protocol Note · metadata:** Bitcoin's proof-of-work target aims for a roughly ten-minute block interval.
 **Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
 
 **Art direction:** A coordinated network-wide event visualizes “Hashquake deals X damage to each Avatar without Broadcast and each player” without characters.
@@ -2828,12 +2829,12 @@ Hashquake deals X damage to each Avatar without Broadcast and each player.
 
 Play only during blockers. Remove one defending Avatar from clash; anything it alone blocked becomes unblocked. It may block another attacker.
 
-**Flavor:** *Route Misdirection. Fast signal. Final energy.*
+**Flavor:** *No one heard the starter pistol; they only saw Route Misdirection.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Miners assemble candidate blocks while full nodes verify every rule.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** The block-header nonce field is 32 bits wide.
+**Primary source:** https://developer.bitcoin.org/reference/block_chain.html#block-headers
 
 **Art direction:** A precise burst of network action visualizes “Play this card on the Queue only during the declare blockers step” without characters.
 
@@ -2847,12 +2848,12 @@ Play only during blockers. Remove one defending Avatar from clash; anything it a
 
 No special ability.
 
-**Flavor:** *Thermal Operator. Make it real. Keep it open.*
+**Flavor:** *The coffee went cold, but the relay stayed warm for Thermal Operator.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Hashing turns variable input into a fixed-size result used in proof of work.
-**Primary source:** https://developer.bitcoin.org/reference/block_chain.html
+**Protocol Note · metadata:** The block-header nonce field is 32 bits wide.
+**Primary source:** https://developer.bitcoin.org/reference/block_chain.html#block-headers
 
 **Art direction:** Essex turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2866,12 +2867,12 @@ No special ability.
 This card on the Queue costs 1 more to play for each target beyond the first.<br>
 Power Burst deals X damage divided evenly, rounded down, among any number of targets.
 
-**Flavor:** *Power Burst. Turn the plan into a signal.*
+**Flavor:** *Tomorrow arrived early carrying the paperwork for Power Burst.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** A valid block must satisfy both proof-of-work and consensus rules.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html
+**Protocol Note · metadata:** The coinbase transaction is the first transaction in a Bitcoin block.
+**Primary source:** https://developer.bitcoin.org/reference/block_chain.html#serialized-blocks
 
 **Art direction:** A coordinated network-wide event visualizes “This card on the Queue costs 1 more to play for each target beyond the first” without characters.
 
@@ -2885,12 +2886,12 @@ Power Burst deals X damage divided evenly, rounded down, among any number of tar
 Attach to Avatar<br>
 P: attached Avatar gets +1 Action and +0 Resilience until end of turn.
 
-**Flavor:** *Overclock. The good path stays inspectable.*
+**Flavor:** *Every rule has an edge case; Overclock packed it a lunch.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Mining rewards combine newly issued bitcoin with transaction fees.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** The coinbase transaction is the first transaction in a Bitcoin block.
+**Primary source:** https://developer.bitcoin.org/reference/block_chain.html#serialized-blocks
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -2903,12 +2904,12 @@ P: attached Avatar gets +1 Action and +0 Resilience until end of turn.
 
 Decommission all Signal Resource.
 
-**Flavor:** *Signal Outage. The next block belongs to builders.*
+**Flavor:** *A dozen small steps agreed to call themselves Signal Outage.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Proof of work makes proposing Bitcoin blocks computationally costly.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** A coinbase transaction can collect both block subsidy and transaction fees.
+**Primary source:** https://developer.bitcoin.org/devguide/mining.html
 
 **Art direction:** A coordinated network-wide event visualizes “Decommission all Signal Resource” without characters.
 
@@ -2921,12 +2922,12 @@ Decommission all Signal Resource.
 
 Copy target Zap or Operation card on the Queue, except that the copy is Power. You may choose new targets for the copy.
 
-**Flavor:** *Process Fork. Fast signal. Final energy.*
+**Flavor:** *The bug requested more time, which Process Fork politely denied.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Bitcoin adjusts mining difficulty to target a stable block interval.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
+**Protocol Note · metadata:** A coinbase transaction can collect both block subsidy and transaction fees.
+**Primary source:** https://developer.bitcoin.org/devguide/mining.html
 
 **Art direction:** A precise burst of network action visualizes “Copy target Zap or Operation card on the Queue, except that the copy is Power. You may choose new targets for the copy” without characters.
 
@@ -2940,12 +2941,12 @@ Copy target Zap or Operation card on the Queue, except that the copy is Power. Y
 
 P: This Avatar gains Broadcast until end of turn.
 
-**Flavor:** *Hot-Air Relay. Make it real. Keep it open.*
+**Flavor:** *The Queue behaved all afternoon under Hot-Air Relay's suspiciously polite stare.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Miners assemble candidate blocks while full nodes verify every rule.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** Bitcoin's block subsidy halves every 210,000 blocks.
+**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#block-height-and-forking
 
 **Art direction:** Toni China turns “P: This Avatar gains Broadcast until end of turn” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2959,12 +2960,12 @@ P: This Avatar gains Broadcast until end of turn.
 
 Other Goblins get +1 Action and +1 Resilience and have Backchannel—Action.
 
-**Flavor:** *Chaos Coordinator. Culture is a protocol too.*
+**Flavor:** *Someone said impossible; Chaos Coordinator heard needs one more adapter.*
 
 **Simple Guide · metadata:** Can slip past players using the named Resource.
 
-**Protocol Note · metadata:** Hashing turns variable input into a fixed-size result used in proof of work.
-**Primary source:** https://developer.bitcoin.org/reference/block_chain.html
+**Protocol Note · metadata:** Bitcoin's block subsidy halves every 210,000 blocks.
+**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#block-height-and-forking
 
 **Art direction:** MadMunky turns “Other Goblins get +1 Action and +1 Resilience and have Backchannel—Action” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -2979,11 +2980,11 @@ Other Goblins get +1 Action and +1 Resilience and have Backchannel—Action.
 Broadcast<br>
 P: This Avatar gets +0 Action and +1 Resilience until end of turn.
 
-**Flavor:** *Stone Sentinel. Stay sovereign. Send it.*
+**Flavor:** *The outage brought drama, while Stone Sentinel brought a multimeter.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster. Makes an Avatar stronger.
 
-**Protocol Note · metadata:** A valid block must satisfy both proof-of-work and consensus rules.
+**Protocol Note · metadata:** Full nodes independently reject blocks that violate consensus rules.
 **Primary source:** https://developer.bitcoin.org/devguide/block_chain.html
 
 **Art direction:** Rootzoll turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
@@ -2998,12 +2999,12 @@ P: This Avatar gets +0 Action and +1 Resilience until end of turn.
 
 No special ability.
 
-**Flavor:** *Shift Worker. Bullish on builders.*
+**Flavor:** *Trust arrived late, so Shift Worker verified without it.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Mining rewards combine newly issued bitcoin with transaction fees.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** Full nodes independently reject blocks that violate consensus rules.
+**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html
 
 **Art direction:** Leon turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3017,12 +3018,12 @@ No special ability.
 
 No special ability.
 
-**Flavor:** *Heavy Lifter. Good signal. Strong hands.*
+**Flavor:** *The dashboard blinked red until it met Heavy Lifter.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Proof of work makes proposing Bitcoin blocks computationally costly.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** Bitcoin compares valid branches by cumulative proof of work.
+**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#block-height-and-forking
 
 **Art direction:** Bam turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3036,12 +3037,12 @@ No special ability.
 
 No special ability.
 
-**Flavor:** *Bull Runner. Make it real. Keep it open.*
+**Flavor:** *No cape was required, though Bull Runner did bring spare batteries.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Bitcoin adjusts mining difficulty to target a stable block interval.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
+**Protocol Note · metadata:** Bitcoin compares valid branches by cumulative proof of work.
+**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#block-height-and-forking
 
 **Art direction:** Essex turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3055,12 +3056,12 @@ No special ability.
 
 This Avatar can't block Avatars with Action 2 or greater.
 
-**Flavor:** *Rough Miner. Culture is a protocol too.*
+**Flavor:** *The bug filed a retreat notice when Rough Miner opened the logs.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Miners assemble candidate blocks while full nodes verify every rule.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** Mining pools issue members easier share targets to measure contributed work.
+**Primary source:** https://developer.bitcoin.org/devguide/mining.html#pool-mining
 
 **Art direction:** Toni China turns “This Avatar can't block Avatars with Action 2 or greater” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3072,16 +3073,16 @@ This Avatar can't block Avatars with Action 2 or greater.
 
 **Character:** Rootzoll
 
-Rootzoll, Crew Multiplier's Action and Resilience are each equal to the number of non-Wall Avatars you control.
+Rootzoll, Crew Multiplier's Action and Resilience are each equal to the number of non-Firewall Avatars you control.
 
-**Flavor:** *Crew Multiplier. Stay sovereign. Send it.*
+**Flavor:** *Consensus took minutes; Crew Multiplier's cable labels took seconds.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Hashing turns variable input into a fixed-size result used in proof of work.
-**Primary source:** https://developer.bitcoin.org/reference/block_chain.html
+**Protocol Note · metadata:** Mining pools issue members easier share targets to measure contributed work.
+**Primary source:** https://developer.bitcoin.org/devguide/mining.html#pool-mining
 
-**Art direction:** Rootzoll turns “Rootzoll, Crew Multiplier's Action and Resilience are each equal to the number of non-Wall Avatars you control” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
+**Art direction:** Rootzoll turns “Rootzoll, Crew Multiplier's Action and Resilience are each equal to the number of non-Firewall Avatars you control” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
 ---
 
@@ -3092,12 +3093,12 @@ Rootzoll, Crew Multiplier's Action and Resilience are each equal to the number o
 
 Whenever a player commits a Resource for Resource, that player generates 1 additional Resource of an affinity that Resource produced.
 
-**Flavor:** *Grid Amplifier. Verify the rails. Then ride.*
+**Flavor:** *The whiteboard stopped arguing after Grid Amplifier drew the final arrow.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Mining rewards combine newly issued bitcoin with transaction fees.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** BIP-152 compact blocks use short transaction identifiers to reduce relay data.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Whenever a player commits a Resource for Resource, that player generates 1 additional Resource of an affinity that Resource produced” without characters.
 
@@ -3110,12 +3111,12 @@ Whenever a player commits a Resource for Resource, that player generates 1 addit
 
 Whenever a player commits a Resource for Resource, this Protocol deals 1 damage to that player.
 
-**Flavor:** *Hot Grid. Consensus looks good on us.*
+**Flavor:** *A handshake became a habit wherever Hot Grid was deployed.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Proof of work makes proposing Bitcoin blocks computationally costly.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BIP-152 compact blocks use short transaction identifiers to reduce relay data.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Whenever a player commits a Resource for Resource, this Protocol deals 1 damage to that player” without characters.
 
@@ -3129,12 +3130,12 @@ Whenever a player commits a Resource for Resource, this Protocol deals 1 damage 
 
 No special ability.
 
-**Flavor:** *Meme Raider. Culture is a protocol too.*
+**Flavor:** *The edge feels like home when Meme Raider has the keys.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Bitcoin adjusts mining difficulty to target a stable block interval.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
+**Protocol Note · metadata:** Headers-first sync validates a header chain before requesting every block.
+**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html#headers-first
 
 **Art direction:** MadMunky turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3148,12 +3149,12 @@ No special ability.
 
 Commit: This Avatar deals 2 damage to any target and 3 damage to you.
 
-**Flavor:** *Power Artillery. Stay sovereign. Send it.*
+**Flavor:** *Even the air gap makes small talk with Power Artillery.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Miners assemble candidate blocks while full nodes verify every rule.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** Headers-first sync validates a header chain before requesting every block.
+**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html#headers-first
 
 **Art direction:** Bam turns “Commit: This Avatar deals 2 damage to any target and 3 damage to you” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3166,12 +3167,12 @@ Commit: This Avatar deals 2 damage to any target and 3 damage to you.
 
 Attacking Avatars you control get +1 Action and +0 Resilience.
 
-**Flavor:** *Miner Rally. Open rules. Strong network.*
+**Flavor:** *No committee survived contact with the clarity of Miner Rally.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Hashing turns variable input into a fixed-size result used in proof of work.
-**Primary source:** https://developer.bitcoin.org/reference/block_chain.html
+**Protocol Note · metadata:** Bitcoin Core's assumevalid option can skip old script checks before a known block.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/assumeutxo.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attacking Avatars you control get +1 Action and +0 Resilience” without characters.
 
@@ -3184,12 +3185,12 @@ Attacking Avatars you control get +1 Action and +0 Resilience.
 
 At the beginning of each player's Maintenance, this Protocol deals X damage to that player, where X is the number of unlocked Resources they controlled at the beginning of this turn.
 
-**Flavor:** *Idle Grid Penalty. Verify the rails. Then ride.*
+**Flavor:** *The Network called it policy; Idle Grid Penalty called it Tuesday.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Lets a committed card become usable again.
 
-**Protocol Note · metadata:** A valid block must satisfy both proof-of-work and consensus rules.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html
+**Protocol Note · metadata:** Bitcoin Core's assumevalid option can skip old script checks before a known block.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/assumeutxo.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “At the beginning of each player's Maintenance, this Protocol deals X damage to that player, where X is the number of unlocked Resources they controlled at the beginning of this turn” without characters.
 
@@ -3200,14 +3201,14 @@ At the beginning of each player's Maintenance, this Protocol deals X damage to t
 **Protocol** · Cost **PP** · Rare
 
 
-On attack, each defender splits their non-Broadcast Avatars into left and right piles. Each attacker chooses a pile and can be blocked only by it or Broadcast.
+Whenever one or more Avatars you control attack, each defender splits their non-Broadcast Avatars into left and right piles. Each attacker chooses a pile and can be blocked only by it or Broadcast.
 
-**Flavor:** *Split Route. Consensus looks good on us.*
+**Flavor:** *One tidy invariant followed Split Route into every messy room.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Mining rewards combine newly issued bitcoin with transaction fees.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** AssumeUTXO loads a serialized UTXO snapshot before background validation finishes.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/assumeutxo.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Whenever one or more Avatars you control attack, each defending player divides all Avatars without Broadcast they control into a "left" pile and a "right" pile. Then, for each attacking Avatar you control, choose "left" or "right." That Avatar can't be blocked this clash except by Avatars with Broadcast and Avatars in a pile with the chosen label” without characters.
 
@@ -3222,12 +3223,12 @@ Choose one —<br>
 • marker target Timelock card on the Queue.<br>
 • decommission target Timelock Network card.
 
-**Flavor:** *Timelock Invalidation. Tiny packet. Huge mood.*
+**Flavor:** *One clean interrupt later, the logs credited Timelock Invalidation.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Proof of work makes proposing Bitcoin blocks computationally costly.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** AssumeUTXO loads a serialized UTXO snapshot before background validation finishes.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/assumeutxo.md
 
 **Art direction:** A precise burst of network action visualizes “Choose one —” without characters.
 
@@ -3241,12 +3242,12 @@ Choose one —<br>
 
 Broadcast
 
-**Flavor:** *High Relay Rider. Stay sovereign. Send it.*
+**Flavor:** *The packet took the scenic route and still saluted High Relay Rider.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Bitcoin adjusts mining difficulty to target a stable block interval.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
+**Protocol Note · metadata:** Pruned Bitcoin nodes validate the chain before deleting old block files.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/reduce-memory.md
 
 **Art direction:** Leon turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3261,12 +3262,12 @@ Broadcast
 Enters with X +1/+1 markers. Remove one to prevent 1 damage.<br>
 P: prevent 1 damage this turn. PPP — Maintenance: add a +1/+1 marker.
 
-**Flavor:** *Multihead Miner. Bullish on builders.*
+**Flavor:** *Uptime is a team sport, according to Multihead Miner and the patched router.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Miners assemble candidate blocks while full nodes verify every rule.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** Pruned Bitcoin nodes validate the chain before deleting old block files.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/reduce-memory.md
 
 **Art direction:** Toni China turns “This Avatar enters with X +1/+1 markers on it” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3281,12 +3282,12 @@ P: prevent 1 damage this turn. PPP — Maintenance: add a +1/+1 marker.
 This Avatar gets +1 Action and +1 Resilience as long as you control a Keys Resource.<br>
 K: Reboot this Avatar.
 
-**Flavor:** *Grid Rebooter. Good signal. Strong hands.*
+**Flavor:** *The status page calmed down as soon as Grid Rebooter picked up a wrench.*
 
 **Simple Guide · metadata:** Can keep an Avatar in the Network after damage. Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Hashing turns variable input into a fixed-size result used in proof of work.
-**Primary source:** https://developer.bitcoin.org/reference/block_chain.html
+**Protocol Note · metadata:** Signet blocks require a solution to the network's configured challenge.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0325.mediawiki
 
 **Art direction:** Essex turns “This Avatar gets +1 Action and +1 Resilience as long as you control a Keys Resource” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3299,12 +3300,12 @@ K: Reboot this Avatar.
 
 Decommission target Hardware.
 
-**Flavor:** *Hardware Shatter. Send it. The network knows.*
+**Flavor:** *The fast path keeps a reserved seat for Hardware Shatter.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** A valid block must satisfy both proof-of-work and consensus rules.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html
+**Protocol Note · metadata:** Signet blocks require a solution to the network's configured challenge.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0325.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Decommission target Hardware” without characters.
 
@@ -3319,12 +3320,12 @@ Decommission target Hardware.
 Broadcast<br>
 P: This Avatar gets +1 Action and +0 Resilience until end of turn.
 
-**Flavor:** *Hashrate Dragon. Culture is a protocol too.*
+**Flavor:** *Nobody assigned the incident; it simply looked nervous around Hashrate Dragon.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster. Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Mining rewards combine newly issued bitcoin with transaction fees.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** Bitcoin Core regtest mode creates blocks on demand for local tests.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/developer-notes.md
 
 **Art direction:** MadMunky turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3337,12 +3338,12 @@ P: This Avatar gets +1 Action and +0 Resilience until end of turn.
 
 Players can't unlock more than one Avatar during their unlock steps.
 
-**Flavor:** *Thermal Throttle. The good path stays inspectable.*
+**Flavor:** *The loophole closed itself after reading Thermal Throttle.*
 
 **Simple Guide · metadata:** Lets a committed card become usable again.
 
-**Protocol Note · metadata:** Proof of work makes proposing Bitcoin blocks computationally costly.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** Bitcoin Core regtest mode creates blocks on demand for local tests.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/developer-notes.md
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Players can't unlock more than one Avatar during their unlock steps” without characters.
 
@@ -3356,12 +3357,12 @@ Players can't unlock more than one Avatar during their unlock steps.
 
 Commit: Target Avatar you control with Resilience less than this Avatar's Action gains Broadcast until end of turn. decommission that Avatar at the beginning of the next end step.
 
-**Flavor:** *Launch Engineer. Bullish on builders.*
+**Flavor:** *A second opinion arrived wearing Launch Engineer's tool belt.*
 
 **Simple Guide · metadata:** Removes a card from the Network. Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Bitcoin adjusts mining difficulty to target a stable block interval.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
+**Protocol Note · metadata:** Bitcoin peers exchange network addresses to aid peer discovery.
+**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html#peer-discovery
 
 **Art direction:** Bam turns “Commit: Target Avatar you control with Resilience less than this Avatar's Action gains Broadcast until end of turn. decommission that Avatar at the beginning of the next end step” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3374,12 +3375,12 @@ Commit: Target Avatar you control with Resilience less than this Avatar's Action
 
 Decommission target Resource.
 
-**Flavor:** *Resource Cut. Big move. Open rails.*
+**Flavor:** *The maintenance window finally found its purpose in Resource Cut.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Miners assemble candidate blocks while full nodes verify every rule.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** Bitcoin peers exchange network addresses to aid peer discovery.
+**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html#peer-discovery
 
 **Art direction:** A coordinated network-wide event visualizes “Decommission target Resource” without characters.
 
@@ -3390,16 +3391,16 @@ Decommission target Resource.
 **Zap** · Cost **P** · Uncommon
 
 
-Decommission target Wall. It can't be regenerated.
+Decommission target Firewall. It can't be Rebooted.
 
-**Flavor:** *Firewall Tunnel. Send it. The network knows.*
+**Flavor:** *The packet wore sensible shoes because it was carrying Firewall Tunnel.*
 
 **Simple Guide · metadata:** Removes a card from the Network. Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Hashing turns variable input into a fixed-size result used in proof of work.
-**Primary source:** https://developer.bitcoin.org/reference/block_chain.html
+**Protocol Note · metadata:** BIP-155 addr v2 messages can carry Tor v3 and I2P addresses.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki
 
-**Art direction:** A precise burst of network action visualizes “Decommission target Wall. It can't be regenerated” without characters.
+**Art direction:** A precise burst of network action visualizes “Decommission target Firewall. It can't be Rebooted” without characters.
 
 ---
 
@@ -3412,12 +3413,12 @@ Decommission target Wall. It can't be regenerated.
 Overflow<br>
 This Avatar can block an additional Avatar each clash.
 
-**Flavor:** *Dual Operator. Culture is a protocol too.*
+**Flavor:** *The runbook says stay calm, and Dual Operator added label your cables.*
 
 **Simple Guide · metadata:** Can push excess clash damage through to Uptime.
 
-**Protocol Note · metadata:** A valid block must satisfy both proof-of-work and consensus rules.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html
+**Protocol Note · metadata:** BIP-155 addr v2 messages can carry Tor v3 and I2P addresses.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki
 
 **Art direction:** Rootzoll and Leon turns “Overflow” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3431,12 +3432,12 @@ This Avatar can block an additional Avatar each clash.
 
 P: Reboot this Avatar.
 
-**Flavor:** *Resilient Operator. Stay sovereign. Send it.*
+**Flavor:** *Even the fallback plan has a fallback when Resilient Operator joins the call.*
 
 **Simple Guide · metadata:** Can keep an Avatar in the Network after damage.
 
-**Protocol Note · metadata:** Mining rewards combine newly issued bitcoin with transaction fees.
-**Primary source:** https://developer.bitcoin.org/devguide/mining.html
+**Protocol Note · metadata:** BIP-324 defines an encrypted version 2 Bitcoin peer transport.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki
 
 **Art direction:** Essex turns “P: Reboot this Avatar” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3451,12 +3452,12 @@ P: Reboot this Avatar.
 Firewall (This Avatar can't attack.)<br>
 P: This Avatar gets +1 Action and +0 Resilience until end of turn.
 
-**Flavor:** *Thermal Firewall. Bullish on builders.*
+**Flavor:** *The Network asked for a hero; Thermal Firewall submitted a tested patch.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Proof of work makes proposing Bitcoin blocks computationally costly.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BIP-324 defines an encrypted version 2 Bitcoin peer transport.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki
 
 **Art direction:** Toni China turns “Firewall (This Avatar can't attack.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3470,12 +3471,12 @@ P: This Avatar gets +1 Action and +0 Resilience until end of turn.
 
 Firewall (This Avatar can't attack.)
 
-**Flavor:** *Stone Firewall. Good signal. Strong hands.*
+**Flavor:** *Every antenna found its horizon when Stone Firewall climbed the roof.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Bitcoin adjusts mining difficulty to target a stable block interval.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
+**Protocol Note · metadata:** A miner builds a candidate block from validated transactions.
+**Primary source:** https://developer.bitcoin.org/devguide/mining.html
 
 **Art direction:** Rootzoll turns “Firewall (This Avatar can't attack.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3488,11 +3489,11 @@ Firewall (This Avatar can't attack.)
 
 Each player discards their Wallet, then draws seven cards.
 
-**Flavor:** *Freedom Market. Good vibes ship on schedule.*
+**Flavor:** *The big red button was replaced with a tested runbook named Freedom Market.*
 
 **Simple Guide · metadata:** Puts more cards in your Wallet. Reduces the options in an opponent's Wallet.
 
-**Protocol Note · metadata:** Miners assemble candidate blocks while full nodes verify every rule.
+**Protocol Note · metadata:** A miner builds a candidate block from validated transactions.
 **Primary source:** https://developer.bitcoin.org/devguide/mining.html
 
 **Art direction:** A coordinated network-wide event visualizes “Each player discards their Wallet, then draws seven cards” without characters.
@@ -3509,12 +3510,12 @@ Each player discards their Wallet, then draws seven cards.
 Attach to Avatar<br>
 Attached Avatar gets +X/+Y, where X is half the number of Bitcoin Resources you control, rounded down, and Y is half the number of Bitcoin Resources you control, rounded up.
 
-**Flavor:** *Hashrate Aura. Trust less. Coordinate more.*
+**Flavor:** *A thousand opinions became one testable rule inside Hashrate Aura.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Transaction fees express demand for scarce block space.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
+**Protocol Note · metadata:** A UTXO is an unspent transaction output available to a later input.
+**Primary source:** https://developer.bitcoin.org/devguide/transactions.html
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -3528,12 +3529,12 @@ Attached Avatar gets +X/+Y, where X is half the number of Bitcoin Resources you 
 Play this card on the Queue only before the clash damage step.<br>
 Target Avatar gains Overflow and gets +X/+0 until end of turn, where X is its Action. At the beginning of the next end step, decommission that Avatar if it attacked this turn.
 
-**Flavor:** *Committed Growth. YOLO, but verify.*
+**Flavor:** *A deadline became a punchline the moment Committed Growth landed.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** A full node checks rules locally instead of trusting a remote verdict.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** A transaction input identifies a previous output by transaction id and index.
+**Primary source:** https://developer.bitcoin.org/reference/transactions.html#txin-a-transaction-input-non-coinbase
 
 **Art direction:** A precise burst of network action visualizes “Play this card on the Queue only before the clash damage step” without characters.
 
@@ -3548,12 +3549,12 @@ Target Avatar gains Overflow and gets +X/+0 until end of turn, where X is its Ac
 Broadcast<br>
 Commit: generate 1 Resource of any affinity.
 
-**Flavor:** *Multisource Scout. Bullish on builders.*
+**Flavor:** *The coffee went cold, but the relay stayed warm for Multisource Scout.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster. Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Taproot combines Schnorr signatures with flexible spending conditions.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+**Protocol Note · metadata:** A transaction input identifies a previous output by transaction id and index.
+**Primary source:** https://developer.bitcoin.org/reference/transactions.html#txin-a-transaction-input-non-coinbase
 
 **Art direction:** Shillie turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3566,12 +3567,12 @@ Commit: generate 1 Resource of any affinity.
 
 Play only before blockers are declared. You split your attacking Avatars into piles. The defending player chooses which pile each blocker can block.
 
-**Flavor:** *Obfuscated Formation. Fast signal. Final energy.*
+**Flavor:** *The Network said now, and Obfuscated Formation did not ask which timezone.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Bitcoin nodes independently validate transactions and blocks.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** A transaction output pairs a bitcoin value with a locking script.
+**Primary source:** https://developer.bitcoin.org/reference/transactions.html#txout-a-transaction-output
 
 **Art direction:** A precise burst of network action visualizes “Play only before blockers are declared. You split your attacking Avatars into piles. The defending player chooses which pile each blocker can block” without characters.
 
@@ -3584,32 +3585,32 @@ Play only before blockers are declared. You split your attacking Avatars into pi
 
 Until end of turn, any time you could activate a Resource ability, you may pay 1 Uptime. If you do, generate 1 neutral Resource.
 
-**Flavor:** *Human Hashrate. Good vibes ship on schedule.*
+**Flavor:** *Nothing was improvised except the celebratory snack after Human Hashrate.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** A UTXO is an unspent transaction output that can fund a later transaction.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html
+**Protocol Note · metadata:** A transaction output pairs a bitcoin value with a locking script.
+**Primary source:** https://developer.bitcoin.org/reference/transactions.html#txout-a-transaction-output
 
 **Art direction:** A coordinated network-wide event visualizes “Until end of turn, any time you could activate a Resource ability, you may pay 1 Uptime. If you do, generate 1 neutral Resource” without characters.
 
 ---
 
-### E1-191 · Mtoshi, Deathtouch Courier
+### E1-191 · Mtoshi, Lethal Courier
 
 **Avatar — Operator** · Cost **3BB** · Rare · **2/4**
 
 **Character:** Mtoshi
 
 Broadcast<br>
-Whenever this Avatar blocks or becomes blocked by a non-Wall Avatar, decommission that Avatar at end of clash.
+Whenever this Avatar blocks or becomes blocked by a non-Firewall Avatar, decommission that Avatar at end of clash.
 
-**Flavor:** *Deathtouch Courier. Culture is a protocol too.*
+**Flavor:** *The Queue behaved all afternoon under Lethal Courier's suspiciously polite stare.*
 
 **Simple Guide · metadata:** Removes a card from the Network. Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Bitcoin issuance is bounded by consensus and declines through halvings.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** A Bitcoin transaction fee equals total input value minus total output value.
+**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
 
 **Art direction:** Mtoshi turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3623,11 +3624,11 @@ Whenever this Avatar blocks or becomes blocked by a non-Wall Avatar, decommissio
 
 No special ability.
 
-**Flavor:** *Deep Node. Stay sovereign. Send it.*
+**Flavor:** *Someone said impossible; Deep Node heard needs one more adapter.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Transaction fees express demand for scarce block space.
+**Protocol Note · metadata:** A Bitcoin transaction fee equals total input value minus total output value.
 **Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
 
 **Art direction:** Longy turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
@@ -3642,12 +3643,12 @@ No special ability.
 
 First Strike — deals clash damage before Avatars without First Strike.
 
-**Flavor:** *First-Strike Archer. Bullish on builders.*
+**Flavor:** *The outage brought drama, while First-Strike Archer brought a multimeter.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** A full node checks rules locally instead of trusting a remote verdict.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** A coinbase output must mature for 100 blocks before it can be spent.
+**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#coinbase-input-the-input-of-the-first-transaction-in-a-block
 
 **Art direction:** Tobo turns “First Strike — deals clash damage before Avatars without First Strike” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3661,12 +3662,12 @@ First Strike — deals clash damage before Avatars without First Strike.
 You may play any number of Resources on each of your turns.<br>
 Whenever you play a Resource, if it wasn't the first Resource you played this turn, this Protocol deals 1 damage to you.
 
-**Flavor:** *Fast Channel. Verify the rails. Then ride.*
+**Flavor:** *The boring path became the reliable path under Fast Channel.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Taproot combines Schnorr signatures with flexible spending conditions.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+**Protocol Note · metadata:** A coinbase output must mature for 100 blocks before it can be spent.
+**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#coinbase-input-the-input-of-the-first-transaction-in-a-block
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “You may play any number of Resources on each of your turns” without characters.
 
@@ -3679,12 +3680,12 @@ Whenever you play a Resource, if it wasn't the first Resource you played this tu
 
 Prevent all clash damage that would be dealt this turn.
 
-**Flavor:** *Quiet Block. Send it. The network knows.*
+**Flavor:** *Every millisecond filed paperwork after meeting Quiet Block.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Bitcoin nodes independently validate transactions and blocks.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-16 P2SH commits to a redeem script by its hash.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Prevent all clash damage that would be dealt this turn” without characters.
 
@@ -3699,12 +3700,12 @@ Prevent all clash damage that would be dealt this turn.
 Overflow (This Avatar can deal excess clash damage to the player it's attacking.)<br>
 At the beginning of your Maintenance, this Avatar deals 8 damage to you unless you pay BBBB.
 
-**Flavor:** *Natural Hashrate. Culture is a protocol too.*
+**Flavor:** *Trust arrived late, so Natural Hashrate verified without it.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Can push excess clash damage through to Uptime.
 
-**Protocol Note · metadata:** A UTXO is an unspent transaction output that can fund a later transaction.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html
+**Protocol Note · metadata:** BIP-16 P2SH commits to a redeem script by its hash.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki
 
 **Art direction:** Arbadacarba turns “Overflow (This Avatar can deal excess clash damage to the player it's attacking.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3718,12 +3719,12 @@ At the beginning of your Maintenance, this Avatar deals 8 damage to you unless y
 
 Whenever this Avatar is dealt damage, put a +1/+1 marker on it.
 
-**Flavor:** *Feedback Grower. Stay sovereign. Send it.*
+**Flavor:** *The dashboard blinked red until it met Feedback Grower.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Bitcoin issuance is bounded by consensus and declines through halvings.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BIP-141 separates witness data from legacy transaction serialization.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki
 
 **Art direction:** BK turns “Whenever this Avatar is dealt damage, put a +1/+1 marker on it” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3737,12 +3738,12 @@ Whenever this Avatar is dealt damage, put a +1/+1 marker on it.
 
 While idle, Action/Resilience equal your Bitcoin Resources; while attacking, they equal the defender's. Commit: target Resource is Bitcoin while Longy remains.
 
-**Flavor:** *Resource Sovereign. Bullish on builders.*
+**Flavor:** *No cape was required, though Resource Sovereign did bring spare batteries.*
 
 **Simple Guide · metadata:** Uses committing as the cost for a repeatable effect.
 
-**Protocol Note · metadata:** Transaction fees express demand for scarce block space.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
+**Protocol Note · metadata:** BIP-141 separates witness data from legacy transaction serialization.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki
 
 **Art direction:** Longy turns “As long as Longy, Resource Sovereign isn't attacking, its Action and Resilience are each equal to the number of Bitcoin Resources you control. As long as Longy, Resource Sovereign is attacking, its Action and Resilience are each equal to the number of Bitcoin Resources defending player controls” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3755,12 +3756,12 @@ While idle, Action/Resilience equal your Bitcoin Resources; while attacking, the
 
 Target Avatar gets +3 Action and +3 Resilience until end of turn.
 
-**Flavor:** *Number Go Up. Fast signal. Final energy.*
+**Flavor:** *The shortest meeting on record had one agenda item: Number Go Up.*
 
 **Simple Guide · metadata:** Makes an Avatar stronger.
 
-**Protocol Note · metadata:** A full node checks rules locally instead of trusting a remote verdict.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** SegWit prevents witness changes from altering the legacy transaction id.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Target Avatar gets +3 Action and +3 Resilience until end of turn” without characters.
 
@@ -3774,12 +3775,12 @@ Target Avatar gets +3 Action and +3 Resilience until end of turn.
 
 Broadcast Guard (This Avatar can block Avatars with Broadcast.)
 
-**Flavor:** *Mesh Sentinel. Make it real. Keep it open.*
+**Flavor:** *The bug filed a retreat notice when Mesh Sentinel opened the logs.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** Taproot combines Schnorr signatures with flexible spending conditions.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+**Protocol Note · metadata:** SegWit prevents witness changes from altering the legacy transaction id.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki
 
 **Art direction:** Shillie turns “Broadcast Guard (This Avatar can block Avatars with Broadcast.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3793,12 +3794,12 @@ Broadcast Guard (This Avatar can block Avatars with Broadcast.)
 
 No special ability.
 
-**Flavor:** *Bear Market Builder. Culture is a protocol too.*
+**Flavor:** *Consensus took minutes; Bear Market Builder's cable labels took seconds.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Bitcoin nodes independently validate transactions and blocks.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** A SegWit block commits to witness data through its coinbase transaction.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki
 
 **Art direction:** BK turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3811,12 +3812,12 @@ No special ability.
 
 Network Storm deals X damage to each Avatar with Broadcast and each player.
 
-**Flavor:** *Network Storm. We came to build the future.*
+**Flavor:** *The rollout had a rollback and both approved Network Storm.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** A UTXO is an unspent transaction output that can fund a later transaction.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html
+**Protocol Note · metadata:** A SegWit block commits to witness data through its coinbase transaction.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Network Storm deals X damage to each Avatar with Broadcast and each player” without characters.
 
@@ -3829,12 +3830,12 @@ Network Storm deals X damage to each Avatar with Broadcast and each player.
 
 Decommission target Resource.
 
-**Flavor:** *Resource Freeze. The next block belongs to builders.*
+**Flavor:** *Every moving part received an introduction during Resource Freeze.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Bitcoin issuance is bounded by consensus and declines through halvings.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BIP-173 Bech32 strings use a human-readable prefix and checksum.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Decommission target Resource” without characters.
 
@@ -3846,15 +3847,15 @@ Decommission target Resource.
 
 
 Attach to Avatar<br>
-Attached Avatar can attack as though it had haste.<br>
+Attached Avatar may attack as though it did not have Boot Delay.<br>
 0: unlock attached Avatar. Activate only during your turn and only once each turn.
 
-**Flavor:** *Instant Boot. Verify the rails. Then ride.*
+**Flavor:** *Everyone brought assumptions, but Instant Boot brought a specification.*
 
 **Simple Guide · metadata:** Lets a committed card become usable again.
 
-**Protocol Note · metadata:** Transaction fees express demand for scarce block space.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
+**Protocol Note · metadata:** BIP-173 Bech32 strings use a human-readable prefix and checksum.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -3868,12 +3869,12 @@ Attached Avatar can attack as though it had haste.<br>
 
 No special ability.
 
-**Flavor:** *Rooted Node. Make it real. Keep it open.*
+**Flavor:** *The edge feels like home when Rooted Node has the keys.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** A full node checks rules locally instead of trusting a remote verdict.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-350 assigns Bech32m to witness versions 1 through 16.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki
 
 **Art direction:** Mtoshi turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3887,12 +3888,12 @@ No special ability.
 Attach to Resource<br>
 When attached Resource becomes committed, decommission it. That Resource's controller may attach this Attachment to a Resource of their choice.
 
-**Flavor:** *Migrating Workload. Trust less. Coordinate more.*
+**Flavor:** *The exception asked for permission before approaching Migrating Workload.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Taproot combines Schnorr signatures with flexible spending conditions.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+**Protocol Note · metadata:** BIP-350 assigns Bech32m to witness versions 1 through 16.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Resource” without characters.
 
@@ -3906,12 +3907,12 @@ When attached Resource becomes committed, decommission it. That Resource's contr
 
 Commit: unlock target Resource.
 
-**Flavor:** *Resource Unlocker. Stay sovereign. Send it.*
+**Flavor:** *Even the air gap makes small talk with Resource Unlocker.*
 
 **Simple Guide · metadata:** Lets a committed card become usable again.
 
-**Protocol Note · metadata:** Bitcoin nodes independently validate transactions and blocks.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-21 defines bitcoin: URIs for payment requests.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki
 
 **Art direction:** Tobo turns “Commit: unlock target Resource” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -3924,12 +3925,12 @@ Commit: unlock target Resource.
 
 BB: marker target Keys card on the Queue.
 
-**Flavor:** *Keys Invalidation. Open rules. Strong network.*
+**Flavor:** *A sticky note achieved consensus and grew into Keys Invalidation.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** A UTXO is an unspent transaction output that can fund a later transaction.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html
+**Protocol Note · metadata:** BIP-21 defines bitcoin: URIs for payment requests.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “BB: marker target Keys card on the Queue” without characters.
 
@@ -3942,12 +3943,12 @@ BB: marker target Keys card on the Queue.
 
 Target card on the Queue or Network card becomes Bitcoin. (Resource symbols on that Network card remain unchanged.)
 
-**Flavor:** *Bitcoin Rewrite. Fast signal. Final energy.*
+**Flavor:** *The incident channel gained one emoji and one decisive Bitcoin Rewrite.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** Bitcoin issuance is bounded by consensus and declines through halvings.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BIP-22 defines the getblocktemplate mining RPC.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0022.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Target card on the Queue or Network card becomes Bitcoin. (Resource symbols on that Network card remain unchanged.)” without characters.
 
@@ -3960,12 +3961,12 @@ Target card on the Queue or Network card becomes Bitcoin. (Resource symbols on t
 
 Attach to Hardware. Damage to you adds that many vitality markers. At Maintenance, remove one to gain 1 Uptime.
 
-**Flavor:** *Living Hardware. Consensus looks good on us.*
+**Flavor:** *Nothing says romance like deterministic behavior from Living Hardware.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Transaction fees express demand for scarce block space.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
+**Protocol Note · metadata:** BIP-22 defines the getblocktemplate mining RPC.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0022.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Hardware” without characters.
 
@@ -3978,12 +3979,12 @@ Attach to Hardware. Damage to you adds that many vitality markers. At Maintenanc
 
 All Bitcoin Resources are 1/1 Avatars that are still Resources.
 
-**Flavor:** *Resource Awakening. Trust less. Coordinate more.*
+**Flavor:** *The meeting ended early because Resource Awakening had executable minutes.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** A full node checks rules locally instead of trusting a remote verdict.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-34 places the block height in the coinbase transaction.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “All Bitcoin Resources are 1/1 Avatars that are still Resources” without characters.
 
@@ -3997,12 +3998,12 @@ All Bitcoin Resources are 1/1 Avatars that are still Resources.
 
 Commit: generate 1 Bitcoin Resource.
 
-**Flavor:** *Grid Steward. Stay sovereign. Send it.*
+**Flavor:** *The packet took the scenic route and still saluted Grid Steward.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Taproot combines Schnorr signatures with flexible spending conditions.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+**Protocol Note · metadata:** BIP-34 places the block height in the coinbase transaction.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
 
 **Art direction:** Arbadacarba turns “Commit: generate 1 Bitcoin Resource” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4016,12 +4017,12 @@ Commit: generate 1 Bitcoin Resource.
 Attach to Avatar<br>
 All Avatars able to block attached Avatar do so.
 
-**Flavor:** *Attention Market. Open rules. Strong network.*
+**Flavor:** *The Network slept better once Attention Market checked the locks.*
 
 **Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
 
-**Protocol Note · metadata:** Bitcoin nodes independently validate transactions and blocks.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-66 requires strict DER encoding for ECDSA signatures.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -4034,12 +4035,12 @@ All Avatars able to block attached Avatar do so.
 
 Look at the top three cards of target player's Stack, then put them back in any order. You may have that player shuffle.
 
-**Flavor:** *Topology Scan. Fast signal. Final energy.*
+**Flavor:** *Latency rehearsed an excuse, but Topology Scan had already resolved.*
 
 **Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
 
-**Protocol Note · metadata:** A UTXO is an unspent transaction output that can fund a later transaction.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html
+**Protocol Note · metadata:** BIP-66 requires strict DER encoding for ECDSA signatures.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
 
 **Art direction:** A precise burst of network action visualizes “Look at the top three cards of target player's Stack, then put them back in any order. You may have that player shuffle” without characters.
 
@@ -4053,12 +4054,12 @@ Look at the top three cards of target player's Stack, then put them back in any 
 Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)<br>
 B: Reboot attached Avatar. (The next time that Avatar would be decommissioned this turn, instead commit it, remove it from clash, and heal all damage on it.)
 
-**Flavor:** *Reboot Protocol. Consensus looks good on us.*
+**Flavor:** *The fine print became infrastructure when Reboot Protocol entered the Network.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Removes a card from the Network.
 
-**Protocol Note · metadata:** Bitcoin issuance is bounded by consensus and declines through halvings.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BIP-125 signals replaceability with an input sequence below 0xfffffffe.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)” without characters.
 
@@ -4071,12 +4072,12 @@ B: Reboot attached Avatar. (The next time that Avatar would be decommissioned th
 
 Return target card from your Archive to your Wallet.
 
-**Flavor:** *Recovery Phrase. Turn the plan into a signal.*
+**Flavor:** *The schedule feared drift until it encountered Recovery Phrase.*
 
 **Simple Guide · metadata:** Moves a card into an Archive.
 
-**Protocol Note · metadata:** Transaction fees express demand for scarce block space.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
+**Protocol Note · metadata:** BIP-125 signals replaceability with an input sequence below 0xfffffffe.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Return target card from your Archive to your Wallet” without characters.
 
@@ -4090,12 +4091,12 @@ Return target card from your Archive to your Wallet.
 
 Broadcast
 
-**Flavor:** *Tiny Broadcaster. Stay sovereign. Send it.*
+**Flavor:** *Uptime is a team sport, according to Tiny Broadcaster and the patched router.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** A full node checks rules locally instead of trusting a remote verdict.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-152 reconstructs compact blocks from a receiver's known transactions.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki
 
 **Art direction:** Shillie turns “Broadcast” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4107,14 +4108,14 @@ Broadcast
 
 **Character:** Tobo
 
-Backchannel—Bitcoin (This Avatar can't be blocked as long as defending player controls a Bitcoin Resource.)
+Backchannel — Bitcoin (This Avatar can't be blocked while the defending player controls a Bitcoin Resource.)
 
-**Flavor:** *Bitcoin Backchanneler. Bullish on builders.*
+**Flavor:** *The status page calmed down as soon as Bitcoin Backchanneler picked up a wrench.*
 
 **Simple Guide · metadata:** Can slip past players using the named Resource.
 
-**Protocol Note · metadata:** Taproot combines Schnorr signatures with flexible spending conditions.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+**Protocol Note · metadata:** BIP-152 reconstructs compact blocks from a receiver's known transactions.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki
 
 **Art direction:** Tobo turns “Backchannel—Bitcoin (This Avatar can't be blocked as long as defending player controls a Bitcoin Resource.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4127,12 +4128,12 @@ Backchannel—Bitcoin (This Avatar can't be blocked as long as defending player 
 
 Target player gains X Uptime.
 
-**Flavor:** *Uptime Stream. Big move. Open rails.*
+**Flavor:** *The Network practiced once, then performed Uptime Stream without a soloist.*
 
 **Simple Guide · metadata:** Play this during your main phase for a one-time strategic effect.
 
-**Protocol Note · metadata:** Bitcoin nodes independently validate transactions and blocks.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-157 lets clients fetch compact filters instead of every transaction.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Target player gains X Uptime” without characters.
 
@@ -4144,16 +4145,16 @@ Target player gains X Uptime.
 
 **Character:** Mtoshi
 
-Whenever this Avatar blocks or becomes blocked by a non-Wall Avatar, decommission that Avatar at end of clash.
+Whenever this Avatar blocks or becomes blocked by a non-Firewall Avatar, decommission that Avatar at end of clash.
 
-**Flavor:** *Finality Keeper. Make it real. Keep it open.*
+**Flavor:** *Nobody assigned the incident; it simply looked nervous around Finality Keeper.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** A UTXO is an unspent transaction output that can fund a later transaction.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html
+**Protocol Note · metadata:** BIP-157 lets clients fetch compact filters instead of every transaction.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
 
-**Art direction:** Mtoshi turns “Whenever this Avatar blocks or becomes blocked by a non-Wall Avatar, decommission that Avatar at end of clash” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
+**Art direction:** Mtoshi turns “Whenever this Avatar blocks or becomes blocked by a non-Firewall Avatar, decommission that Avatar at end of clash” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
 ---
 
@@ -4165,12 +4166,12 @@ Whenever this Avatar blocks or becomes blocked by a non-Wall Avatar, decommissio
 
 Mesh.
 
-**Flavor:** *Mesh Pack. Culture is a protocol too.*
+**Flavor:** *A second opinion arrived wearing Mesh Pack's tool belt.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Can coordinate with other Mesh Avatars during clashes.
 
-**Protocol Note · metadata:** Bitcoin issuance is bounded by consensus and declines through halvings.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BIP-158 encodes basic compact filters with Golomb-coded sets.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0158.mediawiki
 
 **Art direction:** BK turns “Mesh (Any Avatars with Mesh, and up to one without, can attack in a band. Bands are blocked as a group. If any Avatars with Mesh you control are blocking or being blocked by an Avatar, you divide that Avatar's clash damage, not its controller, among any of the Avatars it's being blocked by or is blocking.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4183,12 +4184,12 @@ Mesh.
 
 Decommission all Protocols.
 
-**Flavor:** *Protocol Reset. We came to build the future.*
+**Flavor:** *The plan left the whiteboard and returned wearing Protocol Reset.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Transaction fees express demand for scarce block space.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
+**Protocol Note · metadata:** BIP-158 encodes basic compact filters with Golomb-coded sets.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0158.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Decommission all Protocols” without characters.
 
@@ -4201,12 +4202,12 @@ Decommission all Protocols.
 
 Decommission all Timelock Resources.
 
-**Flavor:** *Timelock Outage. The next block belongs to builders.*
+**Flavor:** *Every checklist box stood a little straighter for Timelock Outage.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** A full node checks rules locally instead of trusting a remote verdict.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-133 feefilter messages announce a peer's minimum transaction feerate.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0133.mediawiki
 
 **Art direction:** A coordinated network-wide event visualizes “Decommission all Timelock Resources” without characters.
 
@@ -4220,12 +4221,12 @@ Decommission all Timelock Resources.
 
 Whenever you play a Protocol card on the Queue, you may draw a card.
 
-**Flavor:** *Protocol Gardener. Good signal. Strong hands.*
+**Flavor:** *The runbook says stay calm, and Protocol Gardener added label your cables.*
 
 **Simple Guide · metadata:** Puts more cards in your Wallet.
 
-**Protocol Note · metadata:** Taproot combines Schnorr signatures with flexible spending conditions.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+**Protocol Note · metadata:** BIP-133 feefilter messages announce a peer's minimum transaction feerate.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0133.mediawiki
 
 **Art direction:** Arbadacarba turns “Whenever you play a Protocol card on the Queue, you may draw a card” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4240,12 +4241,12 @@ Whenever you play a Protocol card on the Queue, you may draw a card.
 Firewall (This Avatar can't attack.)<br>
 B: Reboot this Avatar.
 
-**Flavor:** *Thorn Firewall. Make it real. Keep it open.*
+**Flavor:** *Even the fallback plan has a fallback when Thorn Firewall joins the call.*
 
 **Simple Guide · metadata:** Can keep an Avatar in the Network after damage.
 
-**Protocol Note · metadata:** Bitcoin nodes independently validate transactions and blocks.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-130 sendheaders asks peers to announce new blocks by header.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0130.mediawiki
 
 **Art direction:** Longy turns “Firewall (This Avatar can't attack.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4259,12 +4260,12 @@ B: Reboot this Avatar.
 
 Firewall (This Avatar can't attack.)
 
-**Flavor:** *Cold Firewall. Culture is a protocol too.*
+**Flavor:** *The Network asked for a hero; Cold Firewall submitted a tested patch.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** A UTXO is an unspent transaction output that can fund a later transaction.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html
+**Protocol Note · metadata:** BIP-130 sendheaders asks peers to announce new blocks by header.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0130.mediawiki
 
 **Art direction:** Shillie turns “Firewall (This Avatar can't attack.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4278,12 +4279,12 @@ Firewall (This Avatar can't attack.)
 
 Firewall (This Avatar can't attack.)
 
-**Flavor:** *Wooden Firewall. Stay sovereign. Send it.*
+**Flavor:** *Every antenna found its horizon when Wooden Firewall climbed the roof.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Bitcoin issuance is bounded by consensus and declines through halvings.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** BIP-159 defines NODE_NETWORK_LIMITED for nodes serving recent blocks.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0159.mediawiki
 
 **Art direction:** Tobo turns “Firewall (This Avatar can't attack.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4297,12 +4298,12 @@ Firewall (This Avatar can't attack.)
 Attach to Avatar<br>
 At the beginning of the Maintenance of attached Avatar's controller, this Attachment deals 1 damage to that player.
 
-**Flavor:** *Restless Client. Open rules. Strong network.*
+**Flavor:** *Every rule has an edge case; Restless Client packed it a lunch.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Transaction fees express demand for scarce block space.
-**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
+**Protocol Note · metadata:** BIP-159 defines NODE_NETWORK_LIMITED for nodes serving recent blocks.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0159.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar” without characters.
 
@@ -4316,12 +4317,12 @@ At the beginning of the Maintenance of attached Avatar's controller, this Attach
 
 Overflow
 
-**Flavor:** *Heavy Settler. Good signal. Strong hands.*
+**Flavor:** *The coffee went cold, but the relay stayed warm for Heavy Settler.*
 
 **Simple Guide · metadata:** Can push excess clash damage through to Uptime.
 
-**Protocol Note · metadata:** A full node checks rules locally instead of trusting a remote verdict.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** BIP-339 negotiates transaction relay using witness transaction ids.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0339.mediawiki
 
 **Art direction:** BK turns “Overflow” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4335,12 +4336,12 @@ Overflow
 Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)<br>
 Attached Avatar gets +0 Action and +2 Resilience and has Broadcast Guard. (It can block Avatars with Broadcast.)
 
-**Flavor:** *Mesh Upgrade. Consensus looks good on us.*
+**Flavor:** *The whiteboard stopped arguing after Mesh Upgrade drew the final arrow.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster. Makes an Avatar stronger.
 
-**Protocol Note · metadata:** Taproot combines Schnorr signatures with flexible spending conditions.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+**Protocol Note · metadata:** BIP-339 negotiates transaction relay using witness transaction ids.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0339.mediawiki
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)” without characters.
 
@@ -4354,12 +4355,12 @@ Attached Avatar gets +0 Action and +2 Resilience and has Broadcast Guard. (It ca
 Attach to Resource<br>
 Whenever attached Resource is committed for Resource, its controller generates 1 additional Bitcoin Resource.
 
-**Flavor:** *Yield Router. Trust less. Coordinate more.*
+**Flavor:** *A handshake became a habit wherever Yield Router was deployed.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Bitcoin nodes independently validate transactions and blocks.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** Bitcoin Core's mempool holds valid unconfirmed transactions.
+**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
 
 **Art direction:** An abstract but understandable protocol diagram made physical visualizes “Attach to Resource” without characters.
 
@@ -4374,12 +4375,12 @@ Whenever attached Resource is committed for Resource, its controller generates 1
 
 Whenever a Resource enters, this Hardware deals 2 damage to that Resource's controller.
 
-**Flavor:** *Entry Fee Device. Built to work when hype does not.*
+**Flavor:** *A blinking light found meaningful employment inside Entry Fee Device.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+**Protocol Note · metadata:** The Bitcoin whitepaper describes peer-to-peer electronic cash without a trusted third party.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** A practical open-source device visualizes “Whenever a Resource enters, this Hardware deals 2 damage to that Resource's controller” without characters.
 
@@ -4394,12 +4395,12 @@ This Hardware doesn't unlock during your unlock step.<br>
 Commit: generate 3 neutral Resources.<br>
 3: unlock this Hardware.
 
-**Flavor:** *Basalt Battery. Ship it open. Run it sovereign.*
+**Flavor:** *The spare cable finally met its destiny beside Basalt Battery.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays. Lets a committed card become usable again.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** Bitcoin's timestamp server hashes each new record together with the previous timestamp.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** A practical open-source device visualizes “This Hardware doesn't unlock during your unlock step” without characters.
 
@@ -4413,12 +4414,12 @@ Commit: generate 3 neutral Resources.<br>
 As this Hardware enters, choose an opponent.<br>
 At the beginning of the chosen player's Maintenance, this Hardware deals X damage to that player, where X is the number of cards in their Wallet minus 4.
 
-**Flavor:** *Wallet Pressure. Useful beats flashy. Every block.*
+**Flavor:** *Nothing rattles in Wallet Pressure except one very confident screw.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** NIP-19 gives Nostr identifiers human-friendly bech32 encodings.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
+**Protocol Note · metadata:** Bitcoin's timestamp server hashes each new record together with the previous timestamp.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** A practical open-source device visualizes “As this Hardware enters, choose an opponent” without characters.
 
@@ -4431,12 +4432,12 @@ At the beginning of the chosen player's Maintenance, this Hardware deals X damag
 
 2, Commit: generate 1 Resource of any affinity.
 
-**Flavor:** *Resource Prism. Plug in. Verify. Send it.*
+**Flavor:** *The workbench made room before Resource Prism even arrived.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Open specifications make protocol behavior reviewable and reusable.
-**Primary source:** https://github.com/nostr-protocol/nips
+**Protocol Note · metadata:** Simplified payment verification checks headers and a Merkle branch.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** A practical open-source device visualizes “2, Commit: generate 1 Resource of any affinity” without characters.
 
@@ -4449,12 +4450,12 @@ At the beginning of the chosen player's Maintenance, this Hardware deals X damag
 
 Toss module — Commit: toss Chaos Kernel from at least one card-height above the Network. Archive each non-proxy card it touches, then archive Chaos Kernel.
 
-**Flavor:** *Chaos Kernel. Built to work when hype does not.*
+**Flavor:** *A tiny fan applauds every successful cycle inside Chaos Kernel.*
 
 **Simple Guide · metadata:** Moves a card into an Archive.
 
-**Protocol Note · metadata:** Open protocols let independent implementations interoperate.
-**Primary source:** https://github.com/bitcoin/bips
+**Protocol Note · metadata:** Simplified payment verification checks headers and a Merkle branch.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** A practical open-source device visualizes “Toss module — Commit: toss Chaos Kernel from at least one card-height above the Network. Archive each non-proxy card it touches, then archive Chaos Kernel” without characters.
 
@@ -4469,12 +4470,12 @@ Toss module — Commit: toss Chaos Kernel from at least one card-height above th
 Enters with seven +1/+0 markers; remove one after it attacks or blocks.<br>
 X, Commit — Maintenance: refill up to X markers, to a maximum of seven.
 
-**Flavor:** *Clockwork Node. The machine joined the crew.*
+**Flavor:** *The Queue behaved all afternoon under Clockwork Node's suspiciously polite stare.*
 
 **Simple Guide · metadata:** Uses committing as the cost for a repeatable effect.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+**Protocol Note · metadata:** The Bitcoin whitepaper recommends a new key pair for each transaction for privacy.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** Cuddy turns “This Avatar enters with seven +1/+0 markers on it” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4487,12 +4488,12 @@ X, Commit — Maintenance: refill up to X markers, to a maximum of seven.
 
 3, Commit: Prevent the next 2 damage that would be dealt to you this turn.
 
-**Flavor:** *Damage Limiter. No permission. Just builders.*
+**Flavor:** *The warranty says robust; the dents on Damage Limiter say field-tested.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** The Bitcoin whitepaper recommends a new key pair for each transaction for privacy.
+**Primary source:** https://bitcoin.org/bitcoin.pdf
 
 **Art direction:** A practical open-source device visualizes “3, Commit: Prevent the next 2 damage that would be dealt to you this turn” without characters.
 
@@ -4505,12 +4506,12 @@ X, Commit — Maintenance: refill up to X markers, to a maximum of seven.
 
 At the beginning of each player's Maintenance, this Hardware deals 1 damage to that player.
 
-**Flavor:** *Uptime Clock. Useful beats flashy. Every block.*
+**Flavor:** *The rubber duck approved the wiring diagram for Uptime Clock.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Lightning payments use onion routing to limit who learns the full path.
-**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
+**Protocol Note · metadata:** Hashcash prices an email stamp as a partial hash collision.
+**Primary source:** https://www.hashcash.org/papers/hashcash.pdf
 
 **Art direction:** A practical open-source device visualizes “At the beginning of each player's Maintenance, this Hardware deals 1 damage to that player” without characters.
 
@@ -4523,12 +4524,12 @@ At the beginning of each player's Maintenance, this Hardware deals 1 damage to t
 
 Whenever a player play a Timelock card on the Queue, you may pay 1. If you do, you gain 1 Uptime.
 
-**Flavor:** *Timelock Receiver. Plug in. Verify. Send it.*
+**Flavor:** *One port remains unused so Timelock Receiver can claim mysterious potential.*
 
 **Simple Guide · metadata:** Deploy this Hardware for a lasting tool you can build around.
 
-**Protocol Note · metadata:** NIP-19 gives Nostr identifiers human-friendly bech32 encodings.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
+**Protocol Note · metadata:** Hashcash prices an email stamp as a partial hash collision.
+**Primary source:** https://www.hashcash.org/papers/hashcash.pdf
 
 **Art direction:** A practical open-source device visualizes “Whenever a player play a Timelock card on the Queue, you may pay 1. If you do, you gain 1 Uptime” without characters.
 
@@ -4541,12 +4542,12 @@ Whenever a player play a Timelock card on the Queue, you may pay 1. If you do, y
 
 2, Commit — Maintenance: mark target non-Keys Resource; it becomes Keys. If this is archived, at each future Maintenance remove all its marks from one marked Resource.
 
-**Flavor:** *Resource Tombstone. Built to work when hype does not.*
+**Flavor:** *The rack gained both capacity and personality from Resource Tombstone.*
 
 **Simple Guide · metadata:** Moves a card into an Archive.
 
-**Protocol Note · metadata:** Open specifications make protocol behavior reviewable and reusable.
-**Primary source:** https://github.com/nostr-protocol/nips
+**Protocol Note · metadata:** Wei Dai's b-money described money using a collective ledger of account balances.
+**Primary source:** https://nakamotoinstitute.org/library/b-money/
 
 **Art direction:** A practical open-source device visualizes “2, Commit: put a mire marker on target non-Keys Resource. It is a Keys Resource while it has a mire marker. Use only during your Maintenance” without characters.
 
@@ -4559,12 +4560,12 @@ Whenever a player play a Timelock card on the Queue, you may pay 1. If you do, y
 
 Whenever a Resource is put into an Archive from the Network, this Hardware deals 2 damage to that Resource's controller.
 
-**Flavor:** *Resource Exit Sensor. Ship it open. Run it sovereign.*
+**Flavor:** *A screwdriver took a victory lap around Resource Exit Sensor.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Moves a card into an Archive.
 
-**Protocol Note · metadata:** Open protocols let independent implementations interoperate.
-**Primary source:** https://github.com/bitcoin/bips
+**Protocol Note · metadata:** Wei Dai's b-money described money using a collective ledger of account balances.
+**Primary source:** https://nakamotoinstitute.org/library/b-money/
 
 **Art direction:** A practical open-source device visualizes “Whenever a Resource is put into an Archive from the Network, this Hardware deals 2 damage to that Resource's controller” without characters.
 
@@ -4577,12 +4578,12 @@ Whenever a Resource is put into an Archive from the Network, this Hardware deals
 
 3, Commit: Target player discards a card. Activate only during your turn.
 
-**Flavor:** *Wallet Scrubber. No permission. Just builders.*
+**Flavor:** *The uptime graph sent a thank-you note to Wallet Scrubber.*
 
 **Simple Guide · metadata:** Reduces the options in an opponent's Wallet.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+**Protocol Note · metadata:** Nick Szabo's bit gold proposal chained proof-of-work strings by timestamp.
+**Primary source:** https://nakamotoinstitute.org/library/bit-gold/
 
 **Art direction:** A practical open-source device visualizes “3, Commit: Target player discards a card. Activate only during your turn” without characters.
 
@@ -4595,12 +4596,12 @@ Whenever a Resource is put into an Archive from the Network, this Hardware deals
 
 1: The next time an unblocked Avatar of your choice would deal clash damage to you this turn, prevent all but 1 of that damage.
 
-**Flavor:** *Damage Firewall. Useful beats flashy. Every block.*
+**Flavor:** *Dust asked for access and was denied by Damage Firewall.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** Nick Szabo's bit gold proposal chained proof-of-work strings by timestamp.
+**Primary source:** https://nakamotoinstitute.org/library/bit-gold/
 
 **Art direction:** A practical open-source device visualizes “1: The next time an unblocked Avatar of your choice would deal clash damage to you this turn, prevent all but 1 of that damage” without characters.
 
@@ -4614,12 +4615,12 @@ Whenever a Resource is put into an Archive from the Network, this Hardware deals
 Power Avatars get +1 Action and +1 Resilience.<br>
 Whenever a Power Resource is committed for Resource, its controller generates 1 additional Power Resource.
 
-**Flavor:** *Hashrate Gauntlet. Plug in. Verify. Send it.*
+**Flavor:** *The useful machine in the corner finally got a name: Hashrate Gauntlet.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Lightning payments use onion routing to limit who learns the full path.
-**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
+**Protocol Note · metadata:** A Cypherpunk's Manifesto frames privacy as selective revelation.
+**Primary source:** https://www.activism.net/cypherpunk/manifesto.html
 
 **Art direction:** A practical open-source device visualizes “Power Avatars get +1 Action and +1 Resilience” without characters.
 
@@ -4632,12 +4633,12 @@ Whenever a Power Resource is committed for Resource, its controller generates 1 
 
 Commit: Look at target player's Wallet.
 
-**Flavor:** *Public Wallet Viewer. Built to work when hype does not.*
+**Flavor:** *The status LED on Public Wallet Viewer only blinks in complete sentences.*
 
 **Simple Guide · metadata:** Uses committing as the cost for a repeatable effect.
 
-**Protocol Note · metadata:** NIP-19 gives Nostr identifiers human-friendly bech32 encodings.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
+**Protocol Note · metadata:** A Cypherpunk's Manifesto frames privacy as selective revelation.
+**Primary source:** https://www.activism.net/cypherpunk/manifesto.html
 
 **Art direction:** A practical open-source device visualizes “Commit: Look at target player's Wallet” without characters.
 
@@ -4650,12 +4651,12 @@ Commit: Look at target player's Wallet.
 
 1, Commit: target Avatar gains Mesh this turn.
 
-**Flavor:** *Mesh Router. Ship it open. Run it sovereign.*
+**Flavor:** *Every connector clicked on the first try around Mesh Router, allegedly.*
 
 **Simple Guide · metadata:** Deals or redirects damage. Can coordinate with other Mesh Avatars during clashes.
 
-**Protocol Note · metadata:** Open specifications make protocol behavior reviewable and reusable.
-**Primary source:** https://github.com/nostr-protocol/nips
+**Protocol Note · metadata:** Chaum's blind-signature scheme lets a signer sign without seeing the message.
+**Primary source:** https://chaum.com/wp-content/uploads/2022/01/Chaum-blind-signatures.PDF
 
 **Art direction:** A practical open-source device visualizes “1, Commit: Target Avatar gains Mesh until end of turn. (Any Avatars with Mesh, and up to one without, can attack in a band. Bands are blocked as a group. If any Avatars with Mesh a player controls are blocking or being blocked by an Avatar, that player divides that Avatar's clash damage, not its controller, among any of the Avatars it's being blocked by or is blocking.)” without characters.
 
@@ -4668,12 +4669,12 @@ Commit: Look at target player's Wallet.
 
 At the beginning of each player's draw step, if this Hardware is unlocked, that player draws an additional card.
 
-**Flavor:** *Open Feed. No permission. Just builders.*
+**Flavor:** *A quiet hum is how Open Feed tells jokes.*
 
 **Simple Guide · metadata:** Puts more cards in your Wallet. Lets a committed card become usable again.
 
-**Protocol Note · metadata:** Open protocols let independent implementations interoperate.
-**Primary source:** https://github.com/bitcoin/bips
+**Protocol Note · metadata:** Chaum's blind-signature scheme lets a signer sign without seeing the message.
+**Primary source:** https://chaum.com/wp-content/uploads/2022/01/Chaum-blind-signatures.PDF
 
 **Art direction:** A practical open-source device visualizes “At the beginning of each player's draw step, if this Hardware is unlocked, that player draws an additional card” without characters.
 
@@ -4686,12 +4687,12 @@ At the beginning of each player's draw step, if this Hardware is unlocked, that 
 
 1, Commit: commit target Hardware, Avatar, or Resource.
 
-**Flavor:** *Cold Storage Controller. Useful beats flashy. Every block.*
+**Flavor:** *The breaker panel keeps a respectful distance from Cold Storage Controller.*
 
 **Simple Guide · metadata:** Uses committing as the cost for a repeatable effect.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+**Protocol Note · metadata:** Haber and Stornetta linked document timestamps to reveal later tampering.
+**Primary source:** https://doi.org/10.1007/3-540-38424-3_32
 
 **Art direction:** A practical open-source device visualizes “1, Commit: commit target Hardware, Avatar, or Resource” without characters.
 
@@ -4704,12 +4705,12 @@ At the beginning of each player's draw step, if this Hardware is unlocked, that 
 
 X: deploy an Avatar from your Wallet face down as a 2/2 neutral Avatar. Turn it face up when it would deal or receive damage, or become committed. X must cover its deploy cost.
 
-**Flavor:** *Identity Mask. Plug in. Verify. Send it.*
+**Flavor:** *No cloud was consulted during the assembly of Identity Mask.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** Haber and Stornetta linked document timestamps to reveal later tampering.
+**Primary source:** https://doi.org/10.1007/3-540-38424-3_32
 
 **Art direction:** A practical open-source device visualizes “X: deploy an Avatar from your Wallet face down as a 2/2 neutral Avatar. Turn it face up when it would deal or receive damage, or become committed. X must cover its deploy cost” without characters.
 
@@ -4722,12 +4723,12 @@ X: deploy an Avatar from your Wallet face down as a 2/2 neutral Avatar. Turn it 
 
 Whenever a player play a Power card on the Queue, you may pay 1. If you do, you gain 1 Uptime.
 
-**Flavor:** *Power Receiver. Built to work when hype does not.*
+**Flavor:** *The toolbox calls Power Receiver its most successful side project.*
 
 **Simple Guide · metadata:** Deploy this Hardware for a lasting tool you can build around.
 
-**Protocol Note · metadata:** Lightning payments use onion routing to limit who learns the full path.
-**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
+**Protocol Note · metadata:** OpenPGP packets can carry encrypted data, signatures and public keys.
+**Primary source:** https://www.rfc-editor.org/rfc/rfc4880.html
 
 **Art direction:** A practical open-source device visualizes “Whenever a player play a Power card on the Queue, you may pay 1. If you do, you gain 1 Uptime” without characters.
 
@@ -4740,12 +4741,12 @@ Whenever a player play a Power card on the Queue, you may pay 1. If you do, you 
 
 Whenever a player play a Signal card on the Queue, you may pay 1. If you do, you gain 1 Uptime.
 
-**Flavor:** *Signal Receiver. Ship it open. Run it sovereign.*
+**Flavor:** *The manual had three pages, and Signal Receiver used all of them as coasters.*
 
 **Simple Guide · metadata:** Deploy this Hardware for a lasting tool you can build around.
 
-**Protocol Note · metadata:** NIP-19 gives Nostr identifiers human-friendly bech32 encodings.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
+**Protocol Note · metadata:** OpenPGP packets can carry encrypted data, signatures and public keys.
+**Primary source:** https://www.rfc-editor.org/rfc/rfc4880.html
 
 **Art direction:** A practical open-source device visualizes “Whenever a player play a Signal card on the Queue, you may pay 1. If you do, you gain 1 Uptime” without characters.
 
@@ -4758,12 +4759,12 @@ Whenever a player play a Signal card on the Queue, you may pay 1. If you do, you
 
 1: The next time a source of your choice would deal damage to target Avatar this turn, that source deals that damage to you instead.
 
-**Flavor:** *Damage Router. No permission. Just builders.*
+**Flavor:** *A blinking light found meaningful employment inside Damage Router.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Open specifications make protocol behavior reviewable and reusable.
-**Primary source:** https://github.com/nostr-protocol/nips
+**Protocol Note · metadata:** Tor onion services let clients connect without learning a service's network location.
+**Primary source:** https://spec.torproject.org/rend-spec/introduction.html
 
 **Art direction:** A practical open-source device visualizes “1: The next time a source of your choice would deal damage to target Avatar this turn, that source deals that damage to you instead” without characters.
 
@@ -4776,12 +4777,12 @@ Whenever a player play a Signal card on the Queue, you may pay 1. If you do, you
 
 2: This Hardware becomes a 3/6 Golem Hardware Avatar until end of clash. Activate only during clash.
 
-**Flavor:** *Hot Wallet Statue. Useful beats flashy. Every block.*
+**Flavor:** *The spare cable finally met its destiny beside Hot Wallet Statue.*
 
 **Simple Guide · metadata:** Deploy this Hardware for a lasting tool you can build around.
 
-**Protocol Note · metadata:** Open protocols let independent implementations interoperate.
-**Primary source:** https://github.com/bitcoin/bips
+**Protocol Note · metadata:** Tor onion services let clients connect without learning a service's network location.
+**Primary source:** https://spec.torproject.org/rend-spec/introduction.html
 
 **Art direction:** A practical open-source device visualizes “2: This Hardware becomes a 3/6 Golem Hardware Avatar until end of clash. Activate only during clash” without characters.
 
@@ -4794,11 +4795,11 @@ Whenever a player play a Signal card on the Queue, you may pay 1. If you do, you
 
 4, Commit: Draw a card.
 
-**Flavor:** *Genesis Archive. Plug in. Verify. Send it.*
+**Flavor:** *Nothing rattles in Genesis Archive except one very confident screw.*
 
 **Simple Guide · metadata:** Puts more cards in your Wallet.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
+**Protocol Note · metadata:** BIP-174 PSBT separates transaction coordination from private-key custody.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 
 **Art direction:** A practical open-source device visualizes “4, Commit: Draw a card” without characters.
@@ -4812,14 +4813,14 @@ Whenever a player play a Signal card on the Queue, you may pay 1. If you do, you
 **Character:** FLX
 
 This Avatar attacks each clash if able.<br>
-This Avatar can't be blocked by Walls.
+This Avatar can't be blocked by Firewalls.
 
-**Flavor:** *Unstoppable Rig. Good hardware has a heartbeat.*
+**Flavor:** *Someone said impossible; Unstoppable Rig heard needs one more adapter.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** BIP-174 PSBT separates transaction coordination from private-key custody.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 
 **Art direction:** FLX turns “This Avatar attacks each clash if able” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4832,12 +4833,12 @@ This Avatar can't be blocked by Walls.
 
 All Keys Resources are 1/1 Keys Avatars that are still Resources.
 
-**Flavor:** *Keyed Resource Bell. Ship it open. Run it sovereign.*
+**Flavor:** *The workbench made room before Keyed Resource Bell even arrived.*
 
 **Simple Guide · metadata:** Deploy this Hardware for a lasting tool you can build around.
 
-**Protocol Note · metadata:** Lightning payments use onion routing to limit who learns the full path.
-**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
+**Protocol Note · metadata:** BIP-157 compact filters support client-side transaction matching.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
 
 **Art direction:** A practical open-source device visualizes “All Keys Resources are 1/1 Keys Avatars that are still Resources” without characters.
 
@@ -4851,12 +4852,12 @@ All Keys Resources are 1/1 Keys Avatars that are still Resources.
 You have no maximum Wallet size.<br>
 If an effect causes you to discard a card, discard it, but you may put it on top of your Stack instead of into your Archive.
 
-**Flavor:** *Memory Palace. No permission. Just builders.*
+**Flavor:** *A tiny fan applauds every successful cycle inside Memory Palace.*
 
 **Simple Guide · metadata:** Reduces the options in an opponent's Wallet. Moves a card into an Archive.
 
-**Protocol Note · metadata:** NIP-19 gives Nostr identifiers human-friendly bech32 encodings.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
+**Protocol Note · metadata:** BIP-157 compact filters support client-side transaction matching.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
 
 **Art direction:** A practical open-source device visualizes “You have no maximum Wallet size” without characters.
 
@@ -4871,12 +4872,12 @@ If an effect causes you to discard a card, discard it, but you may put it on top
 Firewall (This Avatar can't attack.)<br>
 1: Reboot this Avatar.
 
-**Flavor:** *Living Firewall. Good hardware has a heartbeat.*
+**Flavor:** *The outage brought drama, while Living Firewall brought a multimeter.*
 
 **Simple Guide · metadata:** Can keep an Avatar in the Network after damage.
 
-**Protocol Note · metadata:** Open specifications make protocol behavior reviewable and reusable.
-**Primary source:** https://github.com/nostr-protocol/nips
+**Protocol Note · metadata:** NIP-19 encodes Nostr entities in human-readable bech32 strings.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
 
 **Art direction:** MHB turns “Firewall (This Avatar can't attack.)” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -4889,12 +4890,12 @@ Firewall (This Avatar can't attack.)<br>
 
 Doesn't unlock normally. At Maintenance, pay 4 to unlock it. If committed at draw, it deals 1 damage to you. Commit: generate 3 neutral Resources.
 
-**Flavor:** *Boost Converter. Plug in. Verify. Send it.*
+**Flavor:** *The warranty says robust; the dents on Boost Converter say field-tested.*
 
 **Simple Guide · metadata:** Puts more cards in your Wallet. Deals or redirects damage.
 
-**Protocol Note · metadata:** Open protocols let independent implementations interoperate.
-**Primary source:** https://github.com/bitcoin/bips
+**Protocol Note · metadata:** NIP-19 encodes Nostr entities in human-readable bech32 strings.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
 
 **Art direction:** A practical open-source device visualizes “This Hardware doesn't unlock during your unlock step” without characters.
 
@@ -4907,12 +4908,12 @@ Doesn't unlock normally. At Maintenance, pay 4 to unlock it. If committed at dra
 
 Avatars with Action 3 or greater don't unlock during their controllers' unlock steps.
 
-**Flavor:** *Low-Power Mode. Built to work when hype does not.*
+**Flavor:** *The rubber duck approved the wiring diagram for Low-Power Mode.*
 
 **Simple Guide · metadata:** Lets a committed card become usable again.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+**Protocol Note · metadata:** BOLT 4 reveals only the next routing instruction to each forwarding hop.
+**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
 
 **Art direction:** A practical open-source device visualizes “Avatars with Action 3 or greater don't unlock during their controllers' unlock steps” without characters.
 
@@ -4925,12 +4926,12 @@ Avatars with Action 3 or greater don't unlock during their controllers' unlock s
 
 Commit: generate 1 Bitcoin Resource.
 
-**Flavor:** *Bitcoin Seed. Ship it open. Run it sovereign.*
+**Flavor:** *One port remains unused so Bitcoin Seed can claim mysterious potential.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** BOLT 4 reveals only the next routing instruction to each forwarding hop.
+**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
 
 **Art direction:** A practical open-source device visualizes “Commit: generate 1 Bitcoin Resource” without characters.
 
@@ -4943,12 +4944,12 @@ Commit: generate 1 Bitcoin Resource.
 
 Commit: generate 1 Keys Resource.
 
-**Flavor:** *Keys Shard. No permission. Just builders.*
+**Flavor:** *The rack gained both capacity and personality from Keys Shard.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Lightning payments use onion routing to limit who learns the full path.
-**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
+**Protocol Note · metadata:** Bitcoin Core descriptors describe whole families of wallet scripts.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 
 **Art direction:** A practical open-source device visualizes “Commit: generate 1 Keys Resource” without characters.
 
@@ -4961,12 +4962,12 @@ Commit: generate 1 Keys Resource.
 
 Commit: generate 1 Signal Resource.
 
-**Flavor:** *Signal Beacon. Useful beats flashy. Every block.*
+**Flavor:** *A screwdriver took a victory lap around Signal Beacon.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** NIP-19 gives Nostr identifiers human-friendly bech32 encodings.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
+**Protocol Note · metadata:** Bitcoin Core descriptors describe whole families of wallet scripts.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 
 **Art direction:** A practical open-source device visualizes “Commit: generate 1 Signal Resource” without characters.
 
@@ -4979,12 +4980,12 @@ Commit: generate 1 Signal Resource.
 
 Commit: generate 1 Power Resource.
 
-**Flavor:** *Power Cell. Plug in. Verify. Send it.*
+**Flavor:** *The uptime graph sent a thank-you note to Power Cell.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Open specifications make protocol behavior reviewable and reusable.
-**Primary source:** https://github.com/nostr-protocol/nips
+**Protocol Note · metadata:** Bitcoin Core signet is a test network with a configurable block-signing challenge.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/developer-notes.md
 
 **Art direction:** A practical open-source device visualizes “Commit: generate 1 Power Resource” without characters.
 
@@ -4997,12 +4998,12 @@ Commit: generate 1 Power Resource.
 
 Commit: generate 1 Timelock Resource.
 
-**Flavor:** *Timelock Crystal. Built to work when hype does not.*
+**Flavor:** *Dust asked for access and was denied by Timelock Crystal.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** Open protocols let independent implementations interoperate.
-**Primary source:** https://github.com/bitcoin/bips
+**Protocol Note · metadata:** Bitcoin Core signet is a test network with a configurable block-signing challenge.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/developer-notes.md
 
 **Art direction:** A practical open-source device visualizes “Commit: generate 1 Timelock Resource” without characters.
 
@@ -5016,12 +5017,12 @@ Commit: generate 1 Timelock Resource.
 This Hardware enters committed.<br>
 1, Commit: decommission all Hardware, Avatars, and Protocols.
 
-**Flavor:** *Network Reset Disk. Ship it open. Run it sovereign.*
+**Flavor:** *The useful machine in the corner finally got a name: Network Reset Disk.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+**Protocol Note · metadata:** Bitcoin Core regtest gives local tests complete control over block production.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/developer-notes.md
 
 **Art direction:** A practical open-source device visualizes “This Hardware enters committed” without characters.
 
@@ -5035,12 +5036,12 @@ This Hardware enters committed.<br>
 
 No special ability.
 
-**Flavor:** *Obsidian Node. Good hardware has a heartbeat.*
+**Flavor:** *Trust arrived late, so Obsidian Node verified without it.*
 
 **Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** Bitcoin Core regtest gives local tests complete control over block production.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/developer-notes.md
 
 **Art direction:** Michael1011 turns “No special ability” into a constructive cypherpunk scene; official silhouette and wardrobe stay recognizable.
 
@@ -5053,12 +5054,12 @@ No special ability.
 
 3, Commit: This Hardware deals 1 damage to any target.
 
-**Flavor:** *Fault Injector. Useful beats flashy. Every block.*
+**Flavor:** *The status LED on Fault Injector only blinks in complete sentences.*
 
 **Simple Guide · metadata:** Deals or redirects damage.
 
-**Protocol Note · metadata:** Lightning payments use onion routing to limit who learns the full path.
-**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
+**Protocol Note · metadata:** AssumeUTXO can make a node usable while historical validation continues.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/assumeutxo.md
 
 **Art direction:** A practical open-source device visualizes “3, Commit: This Hardware deals 1 damage to any target” without characters.
 
@@ -5071,12 +5072,12 @@ No special ability.
 
 Commit: generate 2 neutral Resources.
 
-**Flavor:** *Genesis Ring. Plug in. Verify. Send it.*
+**Flavor:** *Every connector clicked on the first try around Genesis Ring, allegedly.*
 
 **Simple Guide · metadata:** Generates extra Resources for larger plays.
 
-**Protocol Note · metadata:** NIP-19 gives Nostr identifiers human-friendly bech32 encodings.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
+**Protocol Note · metadata:** AssumeUTXO can make a node usable while historical validation continues.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/assumeutxo.md
 
 **Art direction:** A practical open-source device visualizes “Commit: generate 2 neutral Resources” without characters.
 
@@ -5089,12 +5090,12 @@ Commit: generate 2 neutral Resources.
 
 Whenever an Avatar is decommissioned, you may pay 1. If you do, you gain 1 Uptime.
 
-**Flavor:** *Archive Listener. Built to work when hype does not.*
+**Flavor:** *A quiet hum is how Archive Listener tells jokes.*
 
 **Simple Guide · metadata:** Removes a card from the Network.
 
-**Protocol Note · metadata:** Open specifications make protocol behavior reviewable and reusable.
-**Primary source:** https://github.com/nostr-protocol/nips
+**Protocol Note · metadata:** BIP-39 mnemonic words encode entropy plus a checksum.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 
 **Art direction:** A practical open-source device visualizes “Whenever an Avatar is decommissioned, you may pay 1. If you do, you gain 1 Uptime” without characters.
 
@@ -5107,12 +5108,12 @@ Whenever an Avatar is decommissioned, you may pay 1. If you do, you gain 1 Uptim
 
 You may spend Signal Resource as though it were Power Resource.
 
-**Flavor:** *Resource Converter. Ship it open. Run it sovereign.*
+**Flavor:** *The breaker panel keeps a respectful distance from Resource Converter.*
 
 **Simple Guide · metadata:** Deploy this Hardware for a lasting tool you can build around.
 
-**Protocol Note · metadata:** Open protocols let independent implementations interoperate.
-**Primary source:** https://github.com/bitcoin/bips
+**Protocol Note · metadata:** BIP-39 mnemonic words encode entropy plus a checksum.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 
 **Art direction:** A practical open-source device visualizes “You may spend Signal Resource as though it were Power Resource” without characters.
 
@@ -5125,12 +5126,12 @@ You may spend Signal Resource as though it were Power Resource.
 
 5, Commit: create a 1/1 neutral Insect Hardware Avatar proxy with Broadcast. Name it Swarm Drone.
 
-**Flavor:** *Swarm Node. No permission. Just builders.*
+**Flavor:** *No cloud was consulted during the assembly of Swarm Node.*
 
 **Simple Guide · metadata:** Can usually be blocked only by another Broadcaster.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+**Protocol Note · metadata:** BIP-32 extended public keys derive watch-only address branches.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 **Art direction:** A practical open-source device visualizes “5, Commit: create a 1/1 neutral Insect Hardware Avatar proxy with Broadcast. Name it Swarm Drone” without characters.
 
@@ -5143,12 +5144,12 @@ You may spend Signal Resource as though it were Power Resource.
 
 Whenever a player play a Keys card on the Queue, you may pay 1. If you do, you gain 1 Uptime.
 
-**Flavor:** *Keys Receiver. Useful beats flashy. Every block.*
+**Flavor:** *The toolbox calls Keys Receiver its most successful side project.*
 
 **Simple Guide · metadata:** Deploy this Hardware for a lasting tool you can build around.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** BIP-32 extended public keys derive watch-only address branches.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 **Art direction:** A practical open-source device visualizes “Whenever a player play a Keys card on the Queue, you may pay 1. If you do, you gain 1 Uptime” without characters.
 
@@ -5161,12 +5162,12 @@ Whenever a player play a Keys card on the Queue, you may pay 1. If you do, you g
 
 Timelock Vault enters committed. It does not unlock normally. You may skip a turn to unlock it. Commit: after this turn, take one additional turn.
 
-**Flavor:** *Timelock Vault. Plug in. Verify. Send it.*
+**Flavor:** *The manual had three pages, and Timelock Vault used all of them as coasters.*
 
 **Simple Guide · metadata:** Gives you another full turn after this one. Lets a committed card become usable again.
 
-**Protocol Note · metadata:** Lightning payments use onion routing to limit who learns the full path.
-**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
+**Protocol Note · metadata:** BIP-85 derives repeatable child entropy without storing extra random seeds.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0085.mediawiki
 
 **Art direction:** A practical open-source device visualizes “Timelock Vault enters committed. It does not unlock normally. You may skip a turn to unlock it. Commit: after this turn, take one additional turn” without characters.
 
@@ -5179,12 +5180,12 @@ Timelock Vault enters committed. It does not unlock normally. You may skip a tur
 
 As long as this Hardware is unlocked, players can't unlock more than one Resource during their unlock steps.
 
-**Flavor:** *Difficulty Winter. Built to work when hype does not.*
+**Flavor:** *A blinking light found meaningful employment inside Difficulty Winter.*
 
 **Simple Guide · metadata:** Lets a committed card become usable again.
 
-**Protocol Note · metadata:** NIP-19 gives Nostr identifiers human-friendly bech32 encodings.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
+**Protocol Note · metadata:** BIP-85 derives repeatable child entropy without storing extra random seeds.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0085.mediawiki
 
 **Art direction:** A practical open-source device visualizes “As long as this Hardware is unlocked, players can't unlock more than one Resource during their unlock steps” without characters.
 
@@ -5197,12 +5198,12 @@ As long as this Hardware is unlocked, players can't unlock more than one Resourc
 
 Whenever a player play a Bitcoin card on the Queue, you may pay 1. If you do, you gain 1 Uptime.
 
-**Flavor:** *Bitcoin Receiver. Ship it open. Run it sovereign.*
+**Flavor:** *The spare cable finally met its destiny beside Bitcoin Receiver.*
 
 **Simple Guide · metadata:** Deploy this Hardware for a lasting tool you can build around.
 
-**Protocol Note · metadata:** Open specifications make protocol behavior reviewable and reusable.
-**Primary source:** https://github.com/nostr-protocol/nips
+**Protocol Note · metadata:** NIP-11 relay documents can advertise software, policy and supported NIPs.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/11.md
 
 **Art direction:** A practical open-source device visualizes “Whenever a player play a Bitcoin card on the Queue, you may pay 1. If you do, you gain 1 Uptime” without characters.
 
@@ -5215,12 +5216,12 @@ Whenever a player play a Bitcoin card on the Queue, you may pay 1. If you do, yo
 
 Commit: generate 1 Keys or 1 Power.
 
-**Flavor:** *Power–Keys Junction. Local first. Global by protocol.*
+**Flavor:** *The edge became a neighborhood after Power–Keys Junction switched on.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to pay in either affinity.
 
-**Protocol Note · metadata:** Open protocols let independent implementations interoperate.
-**Primary source:** https://github.com/bitcoin/bips
+**Protocol Note · metadata:** NIP-11 relay documents can advertise software, policy and supported NIPs.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/11.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Keys or 1 Power” without characters.
 
@@ -5233,12 +5234,12 @@ Commit: generate 1 Keys or 1 Power.
 
 Commit: generate 1 Keys or 1 Bitcoin.
 
-**Flavor:** *Keys–Bitcoin Junction. Real capacity. Shared freely.*
+**Flavor:** *A local cable found global purpose through Keys–Bitcoin Junction.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to pay in either affinity.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+**Protocol Note · metadata:** NIP-78 stores application-specific data in replaceable events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/78.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Keys or 1 Bitcoin” without characters.
 
@@ -5251,12 +5252,12 @@ Commit: generate 1 Keys or 1 Bitcoin.
 
 Commit: generate 1 Power or 1 Signal.
 
-**Flavor:** *Power–Signal Junction. Stack the work. Grow the commons.*
+**Flavor:** *The commons keeps the kettle warm beside Power–Signal Junction.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to pay in either affinity.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** NIP-78 stores application-specific data in replaceable events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/78.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Power or 1 Signal” without characters.
 
@@ -5269,12 +5270,12 @@ Commit: generate 1 Power or 1 Signal.
 
 Commit: generate 1 Bitcoin or 1 Signal.
 
-**Flavor:** *Bitcoin–Signal Junction. Abundance starts at the edge.*
+**Flavor:** *No permission slip was harmed while building Bitcoin–Signal Junction.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to pay in either affinity.
 
-**Protocol Note · metadata:** Lightning payments use onion routing to limit who learns the full path.
-**Primary source:** https://github.com/lightning/bolts/blob/master/04-onion-routing.md
+**Protocol Note · metadata:** BOLT 8 derives fresh transport keys during its authenticated handshake.
+**Primary source:** https://github.com/lightning/bolts/blob/master/08-transport.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Bitcoin or 1 Signal” without characters.
 
@@ -5287,12 +5288,12 @@ Commit: generate 1 Bitcoin or 1 Signal.
 
 Commit: generate 1 Signal or 1 Keys.
 
-**Flavor:** *Signal–Keys Junction. Local first. Global by protocol.*
+**Flavor:** *The shortest route to abundance runs through Signal–Keys Junction.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to pay in either affinity.
 
-**Protocol Note · metadata:** NIP-19 gives Nostr identifiers human-friendly bech32 encodings.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/19.md
+**Protocol Note · metadata:** BOLT 8 derives fresh transport keys during its authenticated handshake.
+**Primary source:** https://github.com/lightning/bolts/blob/master/08-transport.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Signal or 1 Keys” without characters.
 
@@ -5305,12 +5306,12 @@ Commit: generate 1 Signal or 1 Keys.
 
 Commit: generate 1 Power or 1 Bitcoin.
 
-**Flavor:** *Power–Bitcoin Junction. Real capacity. Shared freely.*
+**Flavor:** *The lights stayed on and credited Power–Bitcoin Junction, plus sensible maintenance.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to pay in either affinity.
 
-**Protocol Note · metadata:** Open specifications make protocol behavior reviewable and reusable.
-**Primary source:** https://github.com/nostr-protocol/nips
+**Protocol Note · metadata:** BIP-152 compact blocks save bandwidth by sending short transaction identifiers.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Power or 1 Bitcoin” without characters.
 
@@ -5323,12 +5324,12 @@ Commit: generate 1 Power or 1 Bitcoin.
 
 Commit: generate 1 Bitcoin or 1 Timelock.
 
-**Flavor:** *Bitcoin–Timelock Junction. Stack the work. Grow the commons.*
+**Flavor:** *A spare watt found honest work inside Bitcoin–Timelock Junction.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to pay in either affinity.
 
-**Protocol Note · metadata:** Open protocols let independent implementations interoperate.
-**Primary source:** https://github.com/bitcoin/bips
+**Protocol Note · metadata:** BIP-152 compact blocks save bandwidth by sending short transaction identifiers.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Bitcoin or 1 Timelock” without characters.
 
@@ -5341,12 +5342,12 @@ Commit: generate 1 Bitcoin or 1 Timelock.
 
 Commit: generate 1 Signal or 1 Timelock.
 
-**Flavor:** *Signal–Timelock Junction. Abundance starts at the edge.*
+**Flavor:** *The Network planted one seed and labeled it Signal–Timelock Junction.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to pay in either affinity.
 
-**Protocol Note · metadata:** PSBT lets multiple tools coordinate signing without sharing private keys.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+**Protocol Note · metadata:** A reproducible build lets independent builders compare resulting binaries.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/contrib/guix/README.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Signal or 1 Timelock” without characters.
 
@@ -5359,12 +5360,12 @@ Commit: generate 1 Signal or 1 Timelock.
 
 Commit: generate 1 Timelock or 1 Keys.
 
-**Flavor:** *Timelock–Keys Junction. Local first. Global by protocol.*
+**Flavor:** *Every route needs a junction, and this one answers to Timelock–Keys Junction.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to pay in either affinity.
 
-**Protocol Note · metadata:** Compact block filters support private, bandwidth-efficient wallet queries.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki
+**Protocol Note · metadata:** A reproducible build lets independent builders compare resulting binaries.
+**Primary source:** https://github.com/bitcoin/bitcoin/blob/master/contrib/guix/README.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Timelock or 1 Keys” without characters.
 
@@ -5379,11 +5380,11 @@ Commit: generate 1 Timelock or 1 Keys.
 
 Commit: generate 1 Signal.
 
-**Flavor:** *Signal Commons — Sunrise. Real capacity. Shared freely.*
+**Flavor:** *The neighborhood gained one more useful sunrise from Signal Commons — Sunrise.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Signal.
 
-**Protocol Note · metadata:** NIP-57 defines Lightning zaps as signed value signals around Nostr events.
+**Protocol Note · metadata:** NIP-57 defines signed zap receipts as kind 9735 events.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/57.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Signal” without characters.
@@ -5397,12 +5398,12 @@ Commit: generate 1 Signal.
 
 Commit: generate 1 Signal.
 
-**Flavor:** *Signal Commons — Rooftop. Stack the work. Grow the commons.*
+**Flavor:** *Capacity became a shared verb around Signal Commons — Rooftop.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Signal.
 
-**Protocol Note · metadata:** Nostr clients can use many relays, reducing dependence on one operator.
-**Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
+**Protocol Note · metadata:** NIP-65 stores preferred relay lists in kind 10002 events.
+**Primary source:** https://github.com/nostr-protocol/nips/blob/master/65.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Signal” without characters.
 
@@ -5417,12 +5418,12 @@ Commit: generate 1 Signal.
 
 Commit: generate 1 Timelock.
 
-**Flavor:** *Timelock Channel — Dawn. Abundance starts at the edge.*
+**Flavor:** *Useful capacity grows wherever Timelock Channel — Dawn gets a clean connection.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Timelock.
 
-**Protocol Note · metadata:** Block headers link to prior blocks, making history expensive to rewrite.
-**Primary source:** https://bitcoin.org/bitcoin.pdf
+**Protocol Note · metadata:** Lightning moves bitcoin off-chain by cooperation while retaining on-chain enforcement.
+**Primary source:** https://github.com/lightning/bolts/blob/master/00-introduction.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Timelock” without characters.
 
@@ -5435,12 +5436,12 @@ Commit: generate 1 Timelock.
 
 Commit: generate 1 Timelock.
 
-**Flavor:** *Timelock Channel — Midnight. Local first. Global by protocol.*
+**Flavor:** *The edge became a neighborhood after Timelock Channel — Midnight switched on.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Timelock.
 
-**Protocol Note · metadata:** Bitcoin timelocks can delay when a transaction output becomes spendable.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki
+**Protocol Note · metadata:** Lightning moves bitcoin off-chain by cooperation while retaining on-chain enforcement.
+**Primary source:** https://github.com/lightning/bolts/blob/master/00-introduction.md
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Timelock” without characters.
 
@@ -5455,12 +5456,12 @@ Commit: generate 1 Timelock.
 
 Commit: generate 1 Keys.
 
-**Flavor:** *Key Vault — Workshop. Real capacity. Shared freely.*
+**Flavor:** *A local cable found global purpose through Key Vault — Workshop.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Keys.
 
-**Protocol Note · metadata:** BIP-32 derives many wallet keys from one hierarchical root.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+**Protocol Note · metadata:** BIP-129 gives multisig wallets a common setup-file format.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0129.mediawiki
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Keys” without characters.
 
@@ -5473,12 +5474,12 @@ Commit: generate 1 Keys.
 
 Commit: generate 1 Keys.
 
-**Flavor:** *Key Vault — Cold Room. Stack the work. Grow the commons.*
+**Flavor:** *The commons keeps the kettle warm beside Key Vault — Cold Room.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Keys.
 
-**Protocol Note · metadata:** BIP-39 encodes wallet backup entropy as a mnemonic sentence.
-**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+**Protocol Note · metadata:** BIP-129 gives multisig wallets a common setup-file format.
+**Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0129.mediawiki
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Keys” without characters.
 
@@ -5493,12 +5494,12 @@ Commit: generate 1 Keys.
 
 Commit: generate 1 Power.
 
-**Flavor:** *Power Plant — Solar. Abundance starts at the edge.*
+**Flavor:** *No permission slip was harmed while building Power Plant — Solar.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Power.
 
-**Protocol Note · metadata:** Hashing turns variable input into a fixed-size result used in proof of work.
-**Primary source:** https://developer.bitcoin.org/reference/block_chain.html
+**Protocol Note · metadata:** Block templates expose the target a miner must satisfy.
+**Primary source:** https://developer.bitcoin.org/reference/rpc/getblocktemplate.html
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Power” without characters.
 
@@ -5511,12 +5512,12 @@ Commit: generate 1 Power.
 
 Commit: generate 1 Power.
 
-**Flavor:** *Power Plant — Hydro. Local first. Global by protocol.*
+**Flavor:** *The shortest route to abundance runs through Power Plant — Hydro.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Power.
 
-**Protocol Note · metadata:** A valid block must satisfy both proof-of-work and consensus rules.
-**Primary source:** https://developer.bitcoin.org/devguide/block_chain.html
+**Protocol Note · metadata:** Block templates expose the target a miner must satisfy.
+**Primary source:** https://developer.bitcoin.org/reference/rpc/getblocktemplate.html
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Power” without characters.
 
@@ -5531,12 +5532,12 @@ Commit: generate 1 Power.
 
 Commit: generate 1 Bitcoin.
 
-**Flavor:** *Satoshi Orchard — Commons. Stack the work. Grow the commons.*
+**Flavor:** *The lights stayed on and credited Satoshi Orchard — Commons, plus sensible maintenance.*
 
 **Simple Guide · metadata:** Play this as your Resource for the turn. Commit it to generate Bitcoin.
 
-**Protocol Note · metadata:** Bitcoin nodes independently validate transactions and blocks.
-**Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html
+**Protocol Note · metadata:** Bitcoin Core's mempool holds valid unconfirmed transactions.
+**Primary source:** https://developer.bitcoin.org/devguide/transactions.html#transaction-fees-and-change
 
 **Art direction:** An open community infrastructure site visualizes “Commit: generate 1 Bitcoin” without characters.
 

@@ -22,11 +22,17 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from e1_editorial import (
+    apply_editorial_copy,
+    validate_catalog_shape,
+    validate_editorial_copy,
+)
+
 log = logging.getLogger("build_full_set")
 
 SET_NAME = "600B Timelock TCG — Edition One"
 SET_CODE = "600B-E1"
-TEXT_VERSION = "E1.0-text-lock"
+TEXT_VERSION = "E1.0-text-lock-r1"
 
 SOURCE_TO_AFFINITY = {
     "W": ("S", "Signal"),
@@ -1176,7 +1182,7 @@ def simple_help(card_type: str, rules_text: str, affinities: list[str]) -> str:
 
 FLAVOR_LINES = {
     "Avatar": (
-        "Bullish on builders.",
+        "Builders keep the signal alive.",
         "Good signal. Strong hands.",
         "Make it real. Keep it open.",
         "Culture is a protocol too.",
@@ -1231,7 +1237,7 @@ FLAVOR_LINES = {
 
 
 def flavor_for(name: str, card_type: str, slot: int) -> str:
-    """Write a short bullish collectible line with no rules meaning."""
+    """Write a short collectible line with no rules meaning."""
     phrases = FLAVOR_LINES[card_type]
     phrase = phrases[(slot - 1) % len(phrases)]
     subject = name.partition(",")[2].strip() if "Avatar" in card_type else name
@@ -1455,6 +1461,23 @@ def card_to_dict(card: CardRecord) -> dict[str, Any]:
     return result
 
 
+def apply_editorial_lock(cards: list[CardRecord]) -> tuple[list[CardRecord], list[str]]:
+    """Apply the shared E1 editorial lock to freshly adapted records."""
+    serialized = [card_to_dict(card) for card in cards]
+    apply_editorial_copy(serialized)
+    findings = validate_catalog_shape() + validate_editorial_copy(serialized)
+
+    locked: list[CardRecord] = []
+    for card in serialized:
+        fields = dict(card)
+        fields.pop("type_line", None)
+        character = fields.get("character")
+        if character is not None:
+            fields["character"] = CharacterRef(**character)
+        locked.append(CardRecord(**fields))
+    return locked, findings
+
+
 def write_json(path: Path, cards: list[CardRecord]) -> None:
     """Write the canonical Edition One card data."""
     payload = {
@@ -1638,8 +1661,8 @@ def main() -> None:
     args = parser.parse_args()
 
     source_cards = load_reference(args.reference)
-    cards = build_cards(source_cards)
-    errors = validate_cards(cards, source_cards)
+    cards, editorial_errors = apply_editorial_lock(build_cards(source_cards))
+    errors = validate_cards(cards, source_cards) + editorial_errors
 
     # Audit first. Public artifacts are written only after this transaction commits.
     record_audit(args.audit_db, cards)
