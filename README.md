@@ -1,7 +1,7 @@
 # 600B Timelock TCG
 
 Website-first Edition One rulebook and art system for a positive cypherpunk trading card
-game about Bitcoin, Nostr and open systems. Its fixed tone is **bullish Web5**: the
+game about Bitcoin, Nostr and open systems. Its fixed tone is **positive cypherpunk**: the
 future already works, capable friends build it together, and cypherpunk means freedom
 technology in daylight.
 
@@ -11,7 +11,7 @@ Open `index.html` to read the designed rulebook.
 
 ```text
 art/
-  E1-ART-AND-VOICE-DIRECTION.md  bullish Web5 visual and writing lock
+  E1-ART-AND-VOICE-DIRECTION.md  positive-cypherpunk visual and writing lock
   brand/       official 600B identity assets
   cards/final/ 295 rendered card faces, shared back and readability manifest
   fonts/       local open-source display fonts
@@ -30,6 +30,9 @@ rules/
   research-sources.md
 scripts/
   build_full_set.py
+  e1_editorial.py
+  lock_flavor_text.py
+  build_prompts.py
   sync_join_references.py
   lock_character_references.py
   build_art_prompts.py
@@ -58,7 +61,7 @@ burn, combat, a deterministic Queue, and opt-in Stake and Toss adapters.
 The mechanics are a prototype research reference. Public lore, art, text, symbols,
 layout and terminology are original 600B work.
 
-## Bullish Web5 direction
+## Positive-cypherpunk direction
 
 Edition One is optimistic by design: self-owned identity, sound money, open
 peer-to-peer infrastructure, working local energy and friends shipping useful things.
@@ -81,13 +84,17 @@ reference data remains read-only and is never copied into this repository.
 
 ```bash
 uv run python scripts/build_full_set.py --reference PATH/TO/reference.json
+uv run python scripts/lock_flavor_text.py
+uv run python scripts/build_prompts.py
 uv run python scripts/sync_join_references.py
 uv run python scripts/lock_character_references.py
 uv run python scripts/build_art_prompts.py
 ```
 
 The builder records its decisions in `.audit/e1-design.sqlite` before it writes public
-artifacts. That local audit database is ignored by Git.
+artifacts. That local audit database is ignored by Git. Future art generation starts
+from the versioned `cards/e1-art-prompts.json` prompts-v2 catalog; an editorial text
+pass never regenerates accepted illustrations.
 
 ## Standalone artwork lock
 

@@ -2,7 +2,7 @@
 
 ## The one-sentence concept
 
-**600 BILLION is a bullish Web5 cypherpunk world where the future already works:
+**600 BILLION is a positive cypherpunk world where the future already works:
 friends use Bitcoin, keys, signals, power and timelocks to build useful open
 infrastructure — with confidence, humor and a little YOLO.**
 
@@ -25,7 +25,7 @@ competitive move. They do not turn the setting into war, panic or despair.
 
 ## World5
 
-Web5 is the lived environment of the game:
+Open protocols are the lived environment of the game:
 
 - Bitcoin is native money and durable settlement.
 - Keys give people ownership and agency.
@@ -55,12 +55,12 @@ accessories remain consistent. They belong inside the scene; they never look pas
 
 ## Voice
 
-Card rules are short, literal and readable. Flavor is compact, collectible and bullish.
+Card rules are short, literal and readable. Flavor is compact, collectible and playful.
 It can be brave, playful or cheeky, but never corporate.
 
 Good:
 
-- Bullish on builders.
+- Builders brought tests, snacks and exactly one spare antenna.
 - YOLO, but verify.
 - No permission. Just builders.
 - Keys ready. Future open.

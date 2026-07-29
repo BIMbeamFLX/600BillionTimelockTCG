@@ -75,6 +75,7 @@ raise it above 20. Uptime is public information.
 
 A card changes only what it says it changes. Follow as much of an instruction as
 possible. The word **cannot** wins over **can** unless a card explicitly says otherwise.
+Cards may print *can't* for *cannot*.
 
 Protocol notes, flavor text, artist credits and collector information never affect play.
 
@@ -110,6 +111,10 @@ An Avatar's first stat is **Action**: the damage it deals in combat. Its second 
 
 For example, a 4/4 Avatar has 4 Action and 4 Resilience.
 
+An Avatar may print `*` for Action or Resilience. Its value is defined by that card's
+ability and is 0 while the definition does not apply. The definition applies in every
+zone and is applied with other Action and Resilience settings in layer 7 (§17).
+
 ### 3.3 Owner and controller
 
 The owner of a card is the player who started the game with it. The controller is the
@@ -134,8 +139,8 @@ a cost.
 
 ![Bitcoin icon](600B-resource-icons/bitcoin.svg)
 
-Scarcity, saving, settlement and resilient growth. Bitcoin compounds patient investment
-into durable advantage.
+Scarcity, saving, settlement and resilient growth. Bitcoin turns patient verification
+into durable coordination.
 
 ### Keys
 
@@ -887,8 +892,8 @@ This table is for production and migration. Only the 600B term appears on final 
 | trample | Overflow |
 | landwalk | Backchannel |
 | protection | Shielded from |
-| regenerate | Reboot |
-| wall | Firewall |
+| destruction-replacement shield | Reboot |
+| defender-only subtype | Firewall |
 | summoning sickness | Boot Delay |
 
 ## 24. E1 rules lock
