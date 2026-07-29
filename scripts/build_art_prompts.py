@@ -21,10 +21,10 @@ log = logging.getLogger("build_art_prompts")
 
 ART_WIDTH = 1920
 ART_HEIGHT = 2400
-PROMPT_VERSION = "600B-E1-art-director-v3-bullish-web5"
+PROMPT_VERSION = "600B-E1-art-director-v3-positive-cypherpunk"
 
 SERIES_BIBLE = (
-    "600 BILLION Timelock TCG, an unmistakably bullish Web5 cypherpunk world where the "
+    "600 BILLION Timelock TCG, an unmistakably positive cypherpunk world where the "
     "future already works: self-owned identity, sound money and open peer-to-peer "
     "infrastructure built by capable friends. Show agency, hospitality, competence, "
     "humor and shared abundance with confident playful YOLO-but-verify energy. Use "
@@ -384,8 +384,8 @@ def validate_records(records: list[PromptRecord], cards: list[dict[str, Any]]) -
             errors.append(f"{record.card_id}: missing clean-art constraint")
         if "procedural patterns" not in record.prompt:
             errors.append(f"{record.card_id}: missing pattern exclusion")
-        if "bullish Web5" not in record.prompt:
-            errors.append(f"{record.card_id}: missing bullish Web5 direction")
+        if "positive cypherpunk" not in record.prompt:
+            errors.append(f"{record.card_id}: missing positive-cypherpunk direction")
         if "future already works" not in record.prompt:
             errors.append(f"{record.card_id}: missing constructive-future direction")
         if "cyberpunk doom" not in record.prompt:
@@ -459,7 +459,7 @@ def write_json(path: Path, records: list[PromptRecord]) -> None:
         "prompt_version": PROMPT_VERSION,
         "artwork_size": [ART_WIDTH, ART_HEIGHT],
         "aspect_ratio": "4:5 portrait",
-        "tone": "bullish Web5 cypherpunk — the future already works",
+        "tone": "positive cypherpunk — the future already works",
         "card_count": len(records),
         "cards": [
             {
@@ -489,7 +489,7 @@ def write_markdown(path: Path, records: list[PromptRecord]) -> None:
         f"- Version: `{PROMPT_VERSION}`",
         f"- Artworks: **{len(records)}**",
         f"- Standard: **{ART_WIDTH} × {ART_HEIGHT} px, 4:5 portrait**",
-        "- Tone: **bullish Web5 cypherpunk — the future already works**",
+        "- Tone: **positive cypherpunk — the future already works**",
         "- Character identity: **join.600.wtf Detailed ·front**",
         "- Visible artwork: **no text, logos, card frames or procedural patterns**",
         "",
@@ -538,7 +538,7 @@ def write_report(path: Path, records: list[PromptRecord], errors: list[str]) -> 
         "- no text, UI, frame, logo or watermark inside artwork",
         "- no procedural rings, polygons or ornamental pattern overlays",
         "- no cutout, collage, sticker edge or rectangular character halo",
-        "- bullish Web5 tone: agency, hospitality, competence, humor and abundance",
+        "- positive-cypherpunk tone: agency, hospitality, competence, humor and abundance",
         "- cypherpunk freedom technology in daylight, never cyberpunk doom",
         "",
     ]

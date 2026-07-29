@@ -1,6 +1,6 @@
 # Edition One Art-Prompt Consistency Report
 
-- Version: `600B-E1-art-director-v3-bullish-web5`
+- Version: `600B-E1-art-director-v3-positive-cypherpunk`
 - Prompts checked: **295**
 - Avatar prompts with Detailed-front identity locks: **92**
 - Output standard: **1920 × 2400 px**
@@ -16,5 +16,5 @@
 - no text, UI, frame, logo or watermark inside artwork
 - no procedural rings, polygons or ornamental pattern overlays
 - no cutout, collage, sticker edge or rectangular character halo
-- bullish Web5 tone: agency, hospitality, competence, humor and abundance
+- positive-cypherpunk tone: agency, hospitality, competence, humor and abundance
 - cypherpunk freedom technology in daylight, never cyberpunk doom
