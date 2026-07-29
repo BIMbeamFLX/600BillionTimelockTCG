@@ -1,6 +1,14 @@
 """Unit tests for deterministic standalone-art planning."""
 
-from build_artwork import build_decisions, stable_seed, world_categories
+from build_artwork import (
+    ART_HEIGHT,
+    ART_WIDTH,
+    build_decisions,
+    draw_protocol_motif,
+    stable_seed,
+    world_categories,
+)
+from PIL import Image
 
 
 def test_stable_seed_uses_public_identity():
@@ -28,3 +36,20 @@ def test_art_decisions_keep_character_assets():
     assert decision.world_plates == ["signal.png"]
     assert decision.character_assets == ["flx_concept.png"]
     assert decision.output_file == "E1-003.jpg"
+
+
+def test_protocol_motif_stays_in_quiet_bottom_corner():
+    canvas = Image.new("RGBA", (ART_WIDTH, ART_HEIGHT), (0, 0, 0, 0))
+    card = {
+        "affinity": ["Signal"],
+        "rules_text": "Draw a card.",
+        "card_type": "Protocol",
+        "subtype": "",
+    }
+
+    draw_protocol_motif(canvas, card, seed=600_000_000_000)
+
+    alpha_box = canvas.getchannel("A").getbbox()
+    assert alpha_box is not None
+    assert alpha_box[0] > ART_WIDTH * 0.65
+    assert alpha_box[1] > ART_HEIGHT * 0.70

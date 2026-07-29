@@ -29,7 +29,7 @@ log = logging.getLogger("build_cards")
 
 CARD_WIDTH = 750
 CARD_HEIGHT = 1050
-LAYOUT_VERSION = "600B-E1-card-v2"
+LAYOUT_VERSION = "600B-E1-card-v3"
 
 ORANGE = (255, 106, 0)
 PURPLE = (116, 71, 184)
@@ -60,6 +60,8 @@ class RenderMetrics:
     rules_lines: int
     flavor_size: int
     flavor_lines: int
+    flavor_y: int
+    text_label: str
     overflow: bool
 
 
@@ -425,6 +427,26 @@ def card_affinity(card: dict[str, Any]) -> str:
     return affinities[0] if len(affinities) == 1 else "Neutral"
 
 
+def text_field_label(card: dict[str, Any]) -> str:
+    """Classify the visible rules block without changing its gameplay meaning."""
+    if card["card_type"] in {"Zap", "Operation"}:
+        return "PLAY"
+    rules = card["rules_text"]
+    if re.search(r"(?m)^[^.\n]{1,80}:\s", rules) or re.search(
+        r"\bCommit(?:\s+—\s+[^:]+)?:",
+        rules,
+    ):
+        return "ABILITY"
+    if re.search(r"(?im)(?:^|\n)(?:when|whenever|at)\b", rules):
+        return "TRIGGER"
+    return "STATIC"
+
+
+def bottom_aligned_text_y(line_count: int, line_height: int, bottom: int) -> int:
+    """Return the top coordinate for a text block anchored to a fixed bottom."""
+    return bottom - line_count * line_height
+
+
 def draw_cost_row(
     draw: ImageDraw.ImageDraw,
     card: dict[str, Any],
@@ -561,7 +583,8 @@ def draw_card(
     max_width = 638
     label_font = font(display_font, 13)
 
-    draw.text((x, 655), "PLAY", font=label_font, fill=PURPLE)
+    rules_label = text_field_label(card)
+    draw.text((x, 655), rules_label, font=label_font, fill=PURPLE)
     rules_font, rules_lines, rules_height, rules_overflow = fit_text(
         draw,
         card["rules_text"],
@@ -580,10 +603,11 @@ def draw_card(
         card["flavor_text"],
         600,
     )
+    flavor_y = bottom_aligned_text_y(len(flavor_lines), flavor_height, 904)
     draw_lines(
         draw,
         flavor_lines,
-        (74, 838),
+        (74, flavor_y),
         flavor_text_font,
         flavor_height,
         MUTED,
@@ -619,6 +643,8 @@ def draw_card(
         rules_lines=len(rules_lines),
         flavor_size=flavor_text_font.size,
         flavor_lines=len(flavor_lines),
+        flavor_y=flavor_y,
+        text_label=rules_label,
         overflow=rules_overflow or flavor_overflow,
     )
 
@@ -841,6 +867,8 @@ def write_manifest(
                     "rules_lines": card_metrics.rules_lines,
                     "flavor_size": card_metrics.flavor_size,
                     "flavor_lines": card_metrics.flavor_lines,
+                    "flavor_y": card_metrics.flavor_y,
+                    "text_label": card_metrics.text_label,
                     "overflow": card_metrics.overflow,
                 },
                 "status": "card-locked" if not card_metrics.overflow else "needs-review",

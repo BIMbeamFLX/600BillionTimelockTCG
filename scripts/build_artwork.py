@@ -229,18 +229,21 @@ def draw_protocol_motif(
     card: dict[str, Any],
     seed: int,
 ) -> None:
-    """Add a unique, text-free geometric motif derived from card behavior."""
+    """Add a quiet corner sigil without covering the illustration's focal subject."""
     rng = random.Random(seed ^ 0xE1)
     layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
     affinities = card["affinity"]
     accent = ACCENTS.get(affinities[0] if len(affinities) == 1 else "Neutral")
     orange = ACCENTS["Power"]
     purple = ACCENTS["Keys"]
-    center = (ART_WIDTH // 2 + rng.randint(-80, 80), ART_HEIGHT // 2 + rng.randint(-50, 100))
+    center = (
+        ART_WIDTH - 112 + rng.randint(-10, 10),
+        ART_HEIGHT - 118 + rng.randint(-10, 10),
+    )
     rules = card["rules_text"].casefold()
 
-    for index in range(3 + seed % 4):
-        radius = 46 + index * 38 + rng.randint(-9, 9)
+    for index in range(2):
+        radius = 18 + index * 18 + rng.randint(-3, 3)
         color = accent if index % 2 == 0 else purple
         ring = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
         ring_draw = ImageDraw.Draw(ring)
@@ -250,15 +253,15 @@ def draw_protocol_motif(
             center[0] + radius,
             center[1] + radius,
         )
-        ring_draw.ellipse(box, outline=(*color, 115), width=2 + index % 2)
+        ring_draw.ellipse(box, outline=(*color, 65), width=1 + index % 2)
         ring = ring.filter(ImageFilter.GaussianBlur(0.5))
         layer.alpha_composite(ring)
 
-    point_count = 5 + seed % 4
+    point_count = 5
     points: list[tuple[int, int]] = []
     for index in range(point_count):
         angle = (math.tau * index / point_count) + rng.random() * 0.28
-        radius = 120 + rng.randint(-30, 85)
+        radius = 38 + rng.randint(-7, 8)
         points.append(
             (
                 round(center[0] + math.cos(angle) * radius),
@@ -266,51 +269,51 @@ def draw_protocol_motif(
             )
         )
     points.append(points[0])
-    draw_glow_line(layer, points, accent, 2)
+    draw_glow_line(layer, points, accent, 1)
 
     if "damage" in rules or card["card_type"] == "Zap":
         bolt = [
-            (center[0] - 100, center[1] - 180),
-            (center[0] + 20, center[1] - 40),
-            (center[0] - 35, center[1] + 5),
-            (center[0] + 110, center[1] + 190),
+            (center[0] - 24, center[1] - 42),
+            (center[0] + 5, center[1] - 10),
+            (center[0] - 8, center[1] + 2),
+            (center[0] + 26, center[1] + 44),
         ]
-        draw_glow_line(layer, bolt, orange, 5)
+        draw_glow_line(layer, bolt, orange, 2)
     if "draw" in rules or "wallet" in rules:
         draw = ImageDraw.Draw(layer)
-        for index in range(4):
-            inset = index * 13
+        for index in range(2):
+            inset = index * 5
             box = (
-                center[0] - 92 + inset,
-                center[1] - 118 - inset,
-                center[0] + 92 + inset,
-                center[1] + 118 - inset,
+                center[0] - 28 + inset,
+                center[1] - 36 - inset,
+                center[0] + 28 + inset,
+                center[1] + 36 - inset,
             )
-            draw.rounded_rectangle(box, radius=14, outline=(*accent, 150), width=3)
+            draw.rounded_rectangle(box, radius=5, outline=(*accent, 85), width=1)
     if "shielded" in rules or "prevent" in rules or "firewall" in card["subtype"].casefold():
         draw = ImageDraw.Draw(layer)
         shield = [
-            (center[0], center[1] - 150),
-            (center[0] + 130, center[1] - 85),
-            (center[0] + 95, center[1] + 90),
-            (center[0], center[1] + 170),
-            (center[0] - 95, center[1] + 90),
-            (center[0] - 130, center[1] - 85),
+            (center[0], center[1] - 42),
+            (center[0] + 34, center[1] - 22),
+            (center[0] + 25, center[1] + 25),
+            (center[0], center[1] + 45),
+            (center[0] - 25, center[1] + 25),
+            (center[0] - 34, center[1] - 22),
         ]
-        draw.line(shield + [shield[0]], fill=(*purple, 210), width=7, joint="curve")
+        draw.line(shield + [shield[0]], fill=(*purple, 95), width=2, joint="curve")
     if "additional turn" in rules or "unlock" in rules:
         draw = ImageDraw.Draw(layer)
         draw.arc(
             (
-                center[0] - 155,
-                center[1] - 155,
-                center[0] + 155,
-                center[1] + 155,
+                center[0] - 42,
+                center[1] - 42,
+                center[0] + 42,
+                center[1] + 42,
             ),
             start=30,
             end=325,
-            fill=(*orange, 210),
-            width=7,
+            fill=(*orange, 95),
+            width=2,
         )
 
     layer = layer.filter(ImageFilter.GaussianBlur(0.25))
