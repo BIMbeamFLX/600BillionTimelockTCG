@@ -3,28 +3,56 @@
 import json
 from pathlib import Path
 
-from build_gallery import gallery_records
+from build_gallery import THUMBNAIL_SIZE, build_thumbnails, gallery_records
+from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_gallery_joins_all_final_card_files():
     cards = json.loads((REPO_ROOT / "cards" / "e1-cards.json").read_text(encoding="utf-8"))["cards"]
-    manifest = json.loads(
+    art_manifest = json.loads(
+        (
+            REPO_ROOT / "art" / "generated" / "prompts-v2-final-1920x2400" / "manifest.json"
+        ).read_text(encoding="utf-8")
+    )
+    face_manifest = json.loads(
         (REPO_ROOT / "art" / "cards" / "final" / "manifest.json").read_text(encoding="utf-8")
     )
-    records = gallery_records(cards, manifest)
+    records = gallery_records(cards, art_manifest, face_manifest)
 
     assert len(records) == 295
     assert records[0]["id"] == "E1-001"
-    assert records[0]["file"] == "Genesis Lotus.jpg"
-    assert all(record["help"] and record["note"] and record["source"] for record in records)
+    assert records[0]["artFile"] == "E1-001.jpg"
+    assert records[0]["faceFile"] == "Genesis Lotus.jpg"
+    assert records[201]["id"] == "E1-202"
+    assert "fips.network" in records[201]["searchTags"]
+    assert all(
+        record["rules"] and record["flavor"] and record["help"] and record["note"]
+        for record in records
+    )
+
+
+def test_gallery_builds_lightweight_art_thumbnails(tmp_path: Path):
+    art_dir = tmp_path / "art"
+    output_dir = tmp_path / "thumbs"
+    art_dir.mkdir()
+    Image.new("RGB", (800, 1000), "#f7931a").save(art_dir / "E1-001.jpg")
+    records = [{"artFile": "E1-001.jpg", "thumbFile": "E1-001.webp"}]
+
+    build_thumbnails(records, art_dir, output_dir)
+
+    with Image.open(output_dir / "E1-001.webp") as thumbnail:
+        assert thumbnail.size == THUMBNAIL_SIZE
+        assert thumbnail.format == "WEBP"
 
 
 def test_built_gallery_contains_complete_set_and_rulebook_link():
     gallery = (REPO_ROOT / "cards.html").read_text(encoding="utf-8")
 
-    assert "All 295" in gallery
+    assert "Alle Karten." in gallery
+    assert "E1-001.jpg" in gallery
     assert "Genesis Lotus.jpg" in gallery
     assert 'href="index.html"' in gallery
-    assert "Simple Guide" in gallery
+    assert "Bild + Text" in gallery
+    assert "Regeltext" in gallery
