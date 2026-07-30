@@ -42,13 +42,29 @@ scripts/
   build_cards.py
   build_promos.py
   build_gallery.py
+  build_card_set.py
   build-rulebook.cjs
 site/
   arena.html    static play-area mockup
   cards.html    searchable image-and-text catalog
+  e1-card-set.html  Node Runner frame proof sheet, print-ready
   index.html    landing page
   rules.html    designed rulebook
 ```
+
+## Node Runner frame proof sheet
+
+`cards/e1-node-runner-set.json` locks the 18-card playtest set (E1 · 007–024) in the
+Node Runner frame ported from the claude.ai design canvas. The generative border is
+emitted as static SVG paths, so a build is deterministic and reviewable in the diff.
+
+```bash
+uv run python scripts/build_card_set.py
+uv run python scripts/build_card_set.py --border-amp 11 --no-guides --no-fable
+```
+
+Cards print at 63 × 88 mm trim inside a 3 mm bleed at 300 dpi. Drop artwork into
+`art/cards/node-runner/` named after each card to fill its art window.
 
 ## Build
 
