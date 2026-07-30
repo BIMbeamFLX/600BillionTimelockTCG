@@ -75,6 +75,7 @@ raise it above 20. Uptime is public information.
 
 A card changes only what it says it changes. Follow as much of an instruction as
 possible. The word **cannot** wins over **can** unless a card explicitly says otherwise.
+Cards may print *can't* for *cannot*.
 
 Protocol notes, flavor text, artist credits and collector information never affect play.
 
@@ -91,15 +92,17 @@ Every playable card has the following rules-facing fields.
 | Rules | Instructions and abilities that affect the game. |
 | Action / Resilience | Combat values shown only on Avatars. |
 | Set code | Edition and collector identity; no gameplay effect. |
+| Simple Guide | A plain-language explanation of the card's practical job; no gameplay effect. |
 | Protocol note | A factual learning note; no gameplay effect. |
 
 ![Edition One card-system examples](600B-E1-iconic-six-contact-sheet.png)
 
 ### 3.1 Affinity
 
-A card's affinity is normally defined by the specific Resource symbols in its cost.
-A card with no specific Resource symbol is neutral. An effect may add, remove or change
-an affinity.
+A non-Resource card's affinity is normally defined by the specific Resource symbols in
+its cost. A Resource card has the affinity of its Resource subtype. A card with neither
+a specific Resource symbol nor a Resource subtype is neutral. An effect may add, remove
+or change an affinity.
 
 ### 3.2 Action and Resilience
 
@@ -107,6 +110,10 @@ An Avatar's first stat is **Action**: the damage it deals in combat. Its second 
 **Resilience**: how much marked damage it can withstand during a turn.
 
 For example, a 4/4 Avatar has 4 Action and 4 Resilience.
+
+An Avatar may print `*` for Action or Resilience. Its value is defined by that card's
+ability and is 0 while the definition does not apply. The definition applies in every
+zone and is applied with other Action and Resilience settings in layer 7 (§17).
 
 ### 3.3 Owner and controller
 
@@ -132,8 +139,8 @@ a cost.
 
 ![Bitcoin icon](600B-resource-icons/bitcoin.svg)
 
-Scarcity, saving, settlement and resilient growth. Bitcoin compounds patient investment
-into durable advantage.
+Scarcity, saving, settlement and resilient growth. Bitcoin turns patient verification
+into durable coordination.
 
 ### Keys
 
@@ -558,8 +565,13 @@ Avatar, or an effect explicitly removes it from combat.
 
 ### Broadcast
 
-An Avatar with Broadcast can be blocked only by an Avatar with Broadcast. An Avatar with
-Broadcast may block an Avatar with or without Broadcast.
+An Avatar with Broadcast can be blocked only by an Avatar with Broadcast or **Broadcast
+Guard**. An Avatar with Broadcast may block an Avatar with or without Broadcast.
+
+### Broadcast Guard
+
+An Avatar with Broadcast Guard may block Avatars with Broadcast. Broadcast Guard does
+not make that Avatar a Broadcaster and does not change which Avatars can block it.
 
 ### First Strike
 
@@ -762,9 +774,10 @@ No card, money, satoshis or other asset changes owner because of a match.
 
 Toss effects are disabled in ranked or accessibility-first play.
 
-**Web adapter:** the player chooses up to three legal Network cards controlled by one
-player. The game uses its recorded random seed to select one of them. The selected card
-is treated as hit. The source card defines what happens to a hit card.
+**Web adapter:** the player chooses exactly three legal Network cards controlled by one
+player, or all of them if fewer than three are legal. The game uses its recorded random
+seed to select one of those cards. The selected card is treated as hit. The source card
+defines what happens to a hit card.
 
 **Optional tabletop simulation:** use the physical instruction printed on the card, agree
 on a clear table before play, and never stack or conceal cards to manipulate contact.
@@ -800,6 +813,10 @@ the game engine. If they conflict in a prototype build, the published manifest v
 is authoritative and the card must be corrected in the next render.
 
 ## 21. Protocol notes
+
+Every card also has a short **Simple Guide** in the card database and website. It
+explains what the card usually accomplishes in ordinary language. A Simple Guide never
+adds, removes or overrides a rule; the formal Rules field remains authoritative.
 
 Every E1 card may carry a short **Protocol Note**. It teaches one accurate Bitcoin, Nostr
 or cypherpunk idea connected to the card's mechanic.
@@ -870,12 +887,13 @@ This table is for production and migration. Only the 600B term appears on final 
 | destroy | Decommission |
 | counter a spell | Invalidate |
 | flying | Broadcast |
+| reach | Broadcast Guard |
 | banding | Mesh |
 | trample | Overflow |
 | landwalk | Backchannel |
 | protection | Shielded from |
-| regenerate | Reboot |
-| wall | Firewall |
+| destruction-replacement shield | Reboot |
+| defender-only subtype | Firewall |
 | summoning sickness | Boot Delay |
 
 ## 24. E1 rules lock

@@ -1,0 +1,287 @@
+{
+  "source": "https://join.600.wtf/",
+  "source_policy": "read-only",
+  "visual_reference": "Detailed \u00b7front",
+  "captured_at": "2026-07-28",
+  "characters": [
+    {
+      "name": "Kerni",
+      "card_aliases": ["Kerni"],
+      "role": "CIVO \u00b7 Chief Invisible Hand Officer",
+      "detailed_front_url": "https://blossom.bimcvp.com/42eb0fc2f5f0394c40b887aafb81068919b65845553774cd14ef2eb2c958ab20",
+      "homepage_url": "https://blossom.bimcvp.com/3039dfae9b97b2cd71cb16aabb027ee1a22c5a3eec2a8b6606b7e14288ff41ae",
+      "tagline": "The quiet hand at the workshop edge \u2014 unseen in command, present when useful.",
+      "traits": ["quiet-helper", "workshop-familiar", "repair-minded", "non-intrusive"]
+    },
+    {
+      "name": "DNI",
+      "card_aliases": ["DNI"],
+      "role": "CEO",
+      "detailed_front_url": "https://blossom.bimcvp.com/b15f66e847a4917ae81f6378231d3eded4ddde22586454686cc2d95436f86ca3",
+      "homepage_url": "https://blossom.bimcvp.com/0cb3eb3b3950f4f77e8f8fa96e83ec189aa6da6b0614171e03c593765475352a",
+      "tagline": "The prophet who carries the stone \u2014 hood up, hands open, signal warm.",
+      "traits": ["signal-bearer", "prophet", "stone-carrier", "hooded", "calm-center"]
+    },
+    {
+      "name": "Nind",
+      "card_aliases": ["Nind"],
+      "role": "CCS",
+      "detailed_front_url": "https://blossom.bimcvp.com/275f9ec4ed3c580cdb11947f14a4e80ac1d73f4980ab2fe50ba68645355e6ba1",
+      "homepage_url": "https://blossom.bimcvp.com/4815b8aa53a3f9aef1b13f13bdaf8e371a0eae20cdff4bbdb8a46b9a4fa7d3ab",
+      "tagline": "Architect of the domes \u2014 blueprints in cyan, roses in hand, a frog on the desk.",
+      "traits": ["architect", "cyan-geometry", "precision", "frog-meme", "cake-craft"]
+    },
+    {
+      "name": "Michael1011",
+      "card_aliases": ["Michael1011"],
+      "role": "CTO",
+      "detailed_front_url": "https://blossom.bimcvp.com/2cee6699876f487321a8071f9b59a1314bceba94a2a8c630915df688244437ef",
+      "homepage_url": "https://blossom.bimcvp.com/1409650b2cc3104a8efebcd24c7f58edaebc6cbbe3d20ba99520a5168acb8b25",
+      "tagline": "The monk who runs the node \u2014 hooded over the glowing orb, machine whisperer.",
+      "traits": ["node-runner", "engineer-monk", "og-coder", "machine-whisperer", "quiet"]
+    },
+    {
+      "name": "Sat",
+      "card_aliases": ["Sat"],
+      "role": "CMO",
+      "detailed_front_url": "https://blossom.bimcvp.com/eea23fef749451a6e80ddedd62076b77c76125153688b75e3cfd78a002b715f0",
+      "homepage_url": "https://blossom.bimcvp.com/9756dbaea1eab81cb3f611f5eae32fb2807e6a84378ff64d71b13c2547981351",
+      "tagline": "Astronaut of the signal \u2014 Bitcoin helmet aglow, boots in the old plaza.",
+      "traits": ["amplifier", "explorer", "astronaut", "frontier", "public-facing"]
+    },
+    {
+      "name": "FLX",
+      "card_aliases": ["FLX"],
+      "role": "CWO",
+      "detailed_front_url": "https://blossom.bimcvp.com/740424be95a07e56e403bdbe7cfda89959060b5616069c70c7def7d0ba6604df",
+      "homepage_url": "https://blossom.bimcvp.com/1b7202a7fa3243b9972e68c649c92a5fcfb23c6e6a3943172c8a3d49e1b373cb",
+      "tagline": "The Bullbear who curates the culture \u2014 armor on, coffee hot, signal louder.",
+      "traits": ["bullbear", "culture-curator", "chaos-engineer", "traditional-craft", "coffee-fueled"]
+    },
+    {
+      "name": "Shillie",
+      "card_aliases": ["Shillie"],
+      "role": "CDO",
+      "detailed_front_url": "https://blossom.bimcvp.com/80919713108ae3548c9ba3b46c747d0868e462e126089955381aefcee6a369d3",
+      "homepage_url": "https://blossom.bimcvp.com/9e73669425dbb03927721686ca9b7ef6cc0c062d1ba15688b448cb40022df710",
+      "tagline": "Wave rider with the orange halo \u2014 shades on, hands up, the crowd already moving.",
+      "traits": ["wave-rider", "amplifier", "hype-conductor", "shades", "stage-energy"]
+    },
+    {
+      "name": "Arbadacarba",
+      "card_aliases": ["Arbadacarba"],
+      "role": "CMO",
+      "detailed_front_url": "https://blossom.bimcvp.com/ecd66b39031eb6fb765bf2247a2d6725927e328fb73e115d662896293f15fe26",
+      "homepage_url": "https://blossom.bimcvp.com/4276a4b56447a80e771ed064cf15b937b05cc798e3739cf699ff81a6d40bc23b",
+      "tagline": "The robed strategist \u2014 arms open in the great hall, the knowledge-orb lit.",
+      "traits": ["strategist", "ritual-library", "long-game", "composed", "knowledge-keeper"]
+    },
+    {
+      "name": "Benarc",
+      "card_aliases": ["Benarc"],
+      "role": "CVO",
+      "detailed_front_url": "https://blossom.bimcvp.com/ad50c54f012aa7f374d3bc2bad0acecde3f1bb6d251187cafcfee27d4e2b26fd",
+      "homepage_url": "https://blossom.bimcvp.com/a51fb348bf9926fcf8135b4bd6c30116a80abb573018aa3c4c7d4b4ca32fe8aa",
+      "tagline": "Vision at the forge \u2014 tool raised, sparks orange, the not-yet-made made.",
+      "traits": ["vision-crafter", "forge", "maker", "dramatic", "builder"]
+    },
+    {
+      "name": "Tobo",
+      "card_aliases": ["Tobo"],
+      "role": "CDO",
+      "detailed_front_url": "https://blossom.bimcvp.com/de0e2bb5cce7e56735c2f638335e57e4c8307d4d4871c737d6f9fcdd01ad3cd1",
+      "homepage_url": "https://blossom.bimcvp.com/8540de2e2a062e0900bc806d13e936f9a734ff3aa2221008da8e7c16d553805f",
+      "tagline": "The envoy in the tricorn \u2014 coat old-world, finger pointing the way through.",
+      "traits": ["connector", "envoy", "diplomat", "old-world", "route-finder"]
+    },
+    {
+      "name": "BlackCoffee",
+      "card_aliases": ["BlackCoffee"],
+      "role": "CHO",
+      "detailed_front_url": "https://blossom.bimcvp.com/f6433d48f990e26cef5e45b0ae89c737501da4a2b8bf633d8bb4191e64596a21",
+      "homepage_url": "https://blossom.bimcvp.com/ff6683ebe9ba570a6711b28e0f952fb521522a97608957cc8b85de48400a319f",
+      "tagline": "Shadow operator under the storm \u2014 armor dark, mug in hand, lightning behind.",
+      "traits": ["shadow-operator", "armored", "storm-charged", "coffee-ritual", "quiet-intense"]
+    },
+    {
+      "name": "Darren",
+      "card_aliases": ["Darren"],
+      "role": "CIO",
+      "detailed_front_url": "https://blossom.bimcvp.com/6c36b205f9b03fd445c919cde19f2e41d517db4fba84b9cb30c6f10731870864",
+      "homepage_url": "https://blossom.bimcvp.com/1b3bcd5fabdb55410de58afd3c5386efb60e1c79a846e5c5c6f22858356c2b21",
+      "tagline": "The donkey on the peak \u2014 orange flag up, binary sky, meme kept simple.",
+      "traits": ["pathfinder", "summit-flag", "meme-simple", "stubborn", "high-ground"]
+    },
+    {
+      "name": "Leon",
+      "card_aliases": ["Leon"],
+      "role": "CHO",
+      "detailed_front_url": "https://blossom.bimcvp.com/7f0311eb8aa3d7510394dfd4e96547d7588ba60de5e8bb3bd96118317682d393",
+      "homepage_url": "https://blossom.bimcvp.com/d77ef76bbda2108c42014585abab62094f2206fbcdcc5285a3b14f5b66e0b963",
+      "tagline": "The quiet hand on the crew's well-being.",
+      "traits": ["people-first", "steady", "crew-care", "grounded"]
+    },
+    {
+      "name": "MadMunky",
+      "card_aliases": ["MadMunky"],
+      "role": "CDJ",
+      "detailed_front_url": "https://blossom.bimcvp.com/4a548e6879670db4db5806c7d7ef8b85072c2b3021ad40e0598e4ad94801e87f",
+      "homepage_url": "https://blossom.bimcvp.com/4b94749899bfcf0360c34e1ff40fb5af85c776f066fa675a1b34b3c44ecef772",
+      "tagline": "The trickster monkey \u2014 dreads, beard, raised brow, decks warming up.",
+      "traits": ["trickster", "dj-monkey", "polish-officer", "mischief", "good-taste"]
+    },
+    {
+      "name": "Rootzoll",
+      "card_aliases": ["Rootzoll"],
+      "role": "CDJ",
+      "detailed_front_url": "https://blossom.bimcvp.com/3efc183def57274454032fa4b1ce0babcef2d488f89167dcd6ec9a0e4e951772",
+      "homepage_url": "https://blossom.bimcvp.com/e2b94bbf1872db4233b9ef29c48041219a0119f01dc96b12fc4d559920548f30",
+      "tagline": "Helmet on, headphones tighter \u2014 the worksite DJ who keeps the crew moving.",
+      "traits": ["dj-honeybadger", "worksite", "tempo-setter", "practical", "relentless"]
+    },
+    {
+      "name": "NC",
+      "card_aliases": ["NC"],
+      "role": "CCC",
+      "detailed_front_url": "https://blossom.bimcvp.com/301fad7fde8f55a9a8cadcd06ce300f6e20baea18ee4d71225b667bc2d2000a2",
+      "homepage_url": "https://blossom.bimcvp.com/6bbf5f5a9940a89a6f88f78906c892781f6d2e3c2fa4ff2862ae61f3ae84ee22",
+      "tagline": "Mic in hand, shades on \u2014 the performer who curates the crew's culture.",
+      "traits": ["culture-curator", "performer", "mc", "taste-keeper", "stage-cool"]
+    },
+    {
+      "name": "Longy",
+      "card_aliases": ["Longy"],
+      "role": "CSO",
+      "detailed_front_url": "https://blossom.bimcvp.com/e37b36df2930b0b6750aa8b4b2e6414d64b7440bbfd57108c26a4cdd37087af1",
+      "homepage_url": "https://blossom.bimcvp.com/91dc69cb0e1fe9c8ded695eff125d27acaa0bec871f0210a046164b19f2cc740",
+      "tagline": "Street guitar, cypherpunk grit \u2014 the long riff that holds the crew's night.",
+      "traits": ["street-guitar", "cypherpunk", "riff-strategy", "grit", "through-line"]
+    },
+    {
+      "name": "Essex",
+      "card_aliases": ["Essex"],
+      "role": "CPO \u00b7 aaron of essex",
+      "detailed_front_url": "https://blossom.bimcvp.com/f50289018765ddf299e513ecaa174df0815ca2489d026bc434e672a5c2c1ee2d",
+      "homepage_url": "https://blossom.bimcvp.com/da14baae9e4b5b7ac563e306641e77e1dcae18355338a34055b64decd74f1bcb",
+      "tagline": "Aaron of Essex \u2014 mic leaned into, drum kit hot, a punk gig for a heart.",
+      "traits": ["chief-punk", "stage-raw", "loud-honest", "gig-heart", "anti-sterile"]
+    },
+    {
+      "name": "Jedai",
+      "card_aliases": ["Jedai"],
+      "role": "CIAO",
+      "detailed_front_url": "https://blossom.bimcvp.com/9b5231aa013e57e3e022cef24930650fae549df1bc37f624e28ac1333a0ebc2b",
+      "homepage_url": "https://blossom.bimcvp.com/d62fe48308412df2a9cc73d7748276a2e0a8ec66c54098d162be93cd77321759",
+      "tagline": "Command chair, cigar, chessboard \u2014 bear on the left, eagle on the right.",
+      "traits": ["strategist", "chess-mind", "storm-calm", "bear-and-eagle", "cigar-cool"]
+    },
+    {
+      "name": "P",
+      "card_aliases": ["P", "Proton"],
+      "role": "CBDC \u00b7 protom",
+      "detailed_front_url": "https://blossom.bimcvp.com/e79024267485faa6dd2c864403fb6bcab23d5de6cd4ae2b92067de1493ec3f8a",
+      "homepage_url": "https://blossom.bimcvp.com/f25c0249c1a3b1ace4e25dd3dc6d6c98ed4c193af2f50fac0b0760f6b70def48",
+      "tagline": "Protom \u2014 CBDC-grinning badger wizard, hex ready, grin wider.",
+      "traits": ["badger-wizard", "cbdc-counter", "grinning", "hex-craft", "edge-runner"]
+    },
+    {
+      "name": "AJ",
+      "card_aliases": ["AJ"],
+      "role": "COL",
+      "detailed_front_url": "https://blossom.bimcvp.com/1b80daa4b8bf252f696931183ad093fd4b773eff8e72b587298ee12c56ae99c0",
+      "homepage_url": "https://blossom.bimcvp.com/95d16e6f606d1990408928ea57b5803dc4df216d913112a70573a434919042ab",
+      "tagline": "Hip-hop reggae cypherpunk operator with the offbeat on lock.",
+      "traits": ["operator", "hip-hop-reggae", "cypherpunk", "offbeat", "groove-keeper"]
+    },
+    {
+      "name": "Bam",
+      "card_aliases": ["Bam"],
+      "role": "CMO \u00b7 jose bam",
+      "detailed_front_url": "https://blossom.bimcvp.com/1d04815c3768b9db95a4fd0f8669d221409c3146c6b99d845d814994610192c3",
+      "homepage_url": "https://blossom.bimcvp.com/0c8c3600e4f08a3eb2ce4e40dfa336272a106d9764b2466226f9ac197d861b12",
+      "tagline": "Jose Bam \u2014 the mustache with a plan, meme-front commander.",
+      "traits": ["meme-commander", "mustache", "carrier-wave", "style-first", "viral"]
+    },
+    {
+      "name": "MHB",
+      "card_aliases": ["MHB"],
+      "role": "CRO \u00b7 mrs. honeybadger",
+      "detailed_front_url": "https://blossom.bimcvp.com/45f47ab1470a124a8a29e077651991701105781d8cb5a933b54bfb898c0792af",
+      "homepage_url": "https://blossom.bimcvp.com/c1abc70271526fa335561262f5e5484c232e93c89c7770784ae6062689d749a8",
+      "tagline": "Mrs. Honeybadger \u2014 boho robe, dreamcatcher, medallion warm in the gold light.",
+      "traits": ["ritual-carrier", "honeybadger", "boho-warmth", "unflinching", "culture-keeper"]
+    },
+    {
+      "name": "Snick",
+      "card_aliases": ["Snick"],
+      "role": "CWO",
+      "detailed_front_url": "https://blossom.bimcvp.com/665fcaf95bed9714dcb7910b86fa407df73f88a2c2cf0eebd714269d45b6edb6",
+      "homepage_url": "https://blossom.bimcvp.com/89ea5e91e2b47e4db775fdb429a8274f86763c6aa7157d3e743f0895aba20175",
+      "tagline": "The workshop operator \u2014 tools laid out, sleeves up, the job already half done.",
+      "traits": ["workshop-operator", "hands-on", "fixer", "competent", "builder"]
+    },
+    {
+      "name": "Tal",
+      "card_aliases": ["Tal"],
+      "role": "CNO",
+      "detailed_front_url": "https://blossom.bimcvp.com/1f6bc61d559980165167a51b2672925153be08e65f2019c0be6fad0a757654f5",
+      "homepage_url": "https://blossom.bimcvp.com/c3acfe4b9a96b4f02da10eaf4d5ac691fb25c109de53aaacfc304258302fa450",
+      "tagline": "Keeping the network's threads from tangling.",
+      "traits": ["network", "connector", "clean-signal", "calm"]
+    },
+    {
+      "name": "BK",
+      "card_aliases": ["BK"],
+      "role": "CUO \u00b7 bitkarrot",
+      "detailed_front_url": "https://blossom.bimcvp.com/a6b942c8ce3a17d360c4a25f1924fd8c0e651b2f766cd6de9c0a3ec8d731596d",
+      "homepage_url": "https://blossom.bimcvp.com/ef88d7ac651ac14730d1b0faea4bb1a9a8d0c5ad3c2cea494b47483c831fefdc",
+      "tagline": "Bitkarrot \u2014 the carrot the crew actually chases.",
+      "traits": ["bitkarrot", "incentive", "quick", "meme-native"]
+    },
+    {
+      "name": "Gadaj",
+      "card_aliases": ["Gadaj", "GDJ"],
+      "role": "CKO \u00b7 gadaj",
+      "detailed_front_url": "https://blossom.bimcvp.com/2d3b9d0f9900501270e497187e7026b0ecbb206b2f38b7b2a6b1fe49012b8d60",
+      "homepage_url": "https://blossom.bimcvp.com/f79f9778b9e3dd39722b8690d4dd0b5fd7404d32fdded4f8d7ee8dfa0cf7fb02",
+      "tagline": "The boar in the rain \u2014 red headband, tusks up, arms like industrial pistons.",
+      "traits": ["boar-guardian", "raw-force", "rain-tank", "fearless", "crew-shield"]
+    },
+    {
+      "name": "Mtoshi",
+      "card_aliases": ["Mtoshi"],
+      "role": "CHR",
+      "detailed_front_url": "https://blossom.bimcvp.com/33f5fe693b8c5a148457de6816f948b2a3ea8bb925d0c5ddf0ccae22dcef5dbe",
+      "homepage_url": "https://blossom.bimcvp.com/2e1e71ebd8ff3ba636e05fe2f96c353191c33945cd4e45b06537074b5c528c88",
+      "tagline": "Keeper of the crew's people and history.",
+      "traits": ["record-keeper", "memory", "crew-history", "warm"]
+    },
+    {
+      "name": "Morgs",
+      "card_aliases": ["Morgs"],
+      "role": "CFR",
+      "detailed_front_url": "https://blossom.bimcvp.com/0862c67ca3875fbd88fb36dc003cad233386c6cb4309dadd4f1c5ef80544763d",
+      "homepage_url": "https://blossom.bimcvp.com/1e52152cf0ce588a8bc0f50a2781c9475cad63054d43143a761e7ec32cc73acc",
+      "tagline": "Minding the flows the crew runs on.",
+      "traits": ["resource-flow", "honest-books", "steady", "exact"]
+    },
+    {
+      "name": "Cuddy",
+      "card_aliases": ["Cuddy"],
+      "role": "CLO",
+      "detailed_front_url": "https://blossom.bimcvp.com/a8fb435a7ba3fd665d8edad892a36efd83165c3270c071bea6bef501d04648ae",
+      "homepage_url": "https://blossom.bimcvp.com/94ad16daa2e7e72b8aad533e59f3c387b40b6ed5bc09608ad858f04269c76b66",
+      "tagline": "The crew's law and its soft edges both.",
+      "traits": ["structure", "warmth", "crew-glue", "patient"]
+    },
+    {
+      "name": "Toni China",
+      "card_aliases": ["Toni China"],
+      "role": "CCN",
+      "detailed_front_url": "https://blossom.bimcvp.com/02f1990b26c37850f467be1a09bd3b480868271d619879e66180eac389303a24",
+      "homepage_url": "https://blossom.bimcvp.com/1f6ee6174b10a0a410a8c7190327fca42619b2dab9cccdde3d9897930f99e6cf",
+      "tagline": "The crew's line to the far side of the map.",
+      "traits": ["bridge", "far-side", "connector", "eastward"]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+[project]
+name = "tcg600nap"
+version = "0.1.0"
+description = "600B Timelock TCG Edition One design and card-render pipeline"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = "MIT"
+dependencies = [
+    "pillow>=11.3.0,<13",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1,<10",
+    "ruff>=0.12.7,<1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

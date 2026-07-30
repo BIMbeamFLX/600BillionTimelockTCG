@@ -4,7 +4,7 @@ const { marked } = require("marked");
 
 const ROOT = path.resolve(__dirname, "..");
 const SOURCE_MD = path.join(ROOT, "rules", "600B-Timelock-TCG-Rulebook-E1.md");
-const OUTPUT_HTML = path.join(ROOT, "index.html");
+const OUTPUT_HTML = path.join(ROOT, "site", "rules.html");
 
 const colors = {
   orange: "#F7931A",
@@ -40,11 +40,11 @@ function renderWebsite() {
   markdown = markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "");
   markdown = markdown.replace(/^# 600B Timelock TCG\r?\n+## Edition One Rules\r?\n+/m, "");
   markdown = markdown
-    .replaceAll("600B-rulebook-assets/", "art/rulebook/")
-    .replaceAll("600B-resource-icons/", "art/resources/")
+    .replaceAll("600B-rulebook-assets/", "../art/rulebook/")
+    .replaceAll("600B-resource-icons/", "../art/resources/")
     .replaceAll(
       "600B-E1-iconic-six-contact-sheet.png",
-      "art/cards/600B-E1-iconic-six-contact-sheet.png",
+      "../art/cards/600B-E1-iconic-six-contact-sheet.png",
     );
 
   const headings = [];
@@ -71,11 +71,11 @@ function renderWebsite() {
     '<figure class="rule-banner"><img src="$1" alt="$2" loading="lazy"></figure>',
   );
   article = article.replace(
-    /<p><img src="art\/cards\/600B-E1-iconic-six-contact-sheet\.png" alt="([^"]*)"><\/p>/g,
-    '<figure class="card-system-preview"><img src="art/cards/600B-E1-iconic-six-contact-sheet.png" alt="$1" loading="lazy"><figcaption>First six E1 pipeline proofs. Rules text and educational notes are rendered separately from the art.</figcaption></figure>',
+    /<p><img src="\.\.\/art\/cards\/600B-E1-iconic-six-contact-sheet\.png" alt="([^"]*)"><\/p>/g,
+    '<figure class="card-system-preview"><img src="../art/cards/600B-E1-iconic-six-contact-sheet.png" alt="$1" loading="lazy"><figcaption>First six E1 pipeline proofs. Rules text and educational notes are rendered separately from the art.</figcaption></figure>',
   );
   article = article.replace(
-    /<p><img src="(art\/resources\/[^"]+)" alt="([^"]*)"><\/p>/g,
+    /<p><img src="(\.\.\/art\/resources\/[^"]+)" alt="([^"]*)"><\/p>/g,
     '<p class="resource-icon"><img src="$1" alt="$2" loading="lazy"></p>',
   );
 
@@ -94,12 +94,12 @@ function renderWebsite() {
   <style>
     @font-face {
       font-family: "Anton600";
-      src: url("art/fonts/Anton-Regular.ttf") format("truetype");
+      src: url("../art/fonts/Anton-Regular.ttf") format("truetype");
       font-display: swap;
     }
     @font-face {
       font-family: "Alfa600";
-      src: url("art/fonts/AlfaSlabOne-Regular.ttf") format("truetype");
+      src: url("../art/fonts/AlfaSlabOne-Regular.ttf") format("truetype");
       font-display: swap;
     }
     :root {
@@ -178,7 +178,7 @@ function renderWebsite() {
       overflow: hidden;
       background:
         linear-gradient(90deg, rgba(0,0,0,.98) 0, rgba(0,0,0,.78) 46%, rgba(0,0,0,.12) 78%),
-        url("art/rulebook/banner-01-build-the-network.webp") center/cover;
+        url("../art/rulebook/banner-01-build-the-network.webp") center/cover;
       border-bottom: 1px solid var(--line);
     }
     .hero-inner {
@@ -214,6 +214,7 @@ function renderWebsite() {
     }
     .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 30px; }
     .pill {
+      display: inline-block;
       padding: 8px 12px;
       color: var(--black);
       background: var(--purple);
@@ -222,6 +223,8 @@ function renderWebsite() {
       letter-spacing: .09em;
       text-transform: uppercase;
     }
+    a.pill { text-decoration: none; }
+    a.pill:hover { background: var(--orange); }
     article { min-width: 0; padding-top: 20px; }
     article > p:first-child {
       margin-top: 0;
@@ -410,7 +413,7 @@ function renderWebsite() {
     <div class="hero-inner">
       <div class="hero-copy">
         <div class="brand-row">
-          <img src="art/brand/600B-logo-primary.png" alt="600 000 000 000">
+          <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
           <span>Timelock TCG · Edition One</span>
         </div>
         <h1>Build the <em>Network.</em></h1>
@@ -420,6 +423,8 @@ function renderWebsite() {
           <span class="pill">20 Uptime</span>
           <span class="pill">40+ cards</span>
           <span class="pill">Classic profile</span>
+          <a class="pill" href="cards.html">Browse all cards →</a>
+          <a class="pill" href="leaderboard.html">Sats leaderboard →</a>
         </div>
       </div>
     </div>
@@ -438,7 +443,9 @@ function renderWebsite() {
   </div>
   <script>
     const links = [...document.querySelectorAll(".toc a")];
-    const sections = links.map((link) => document.querySelector(link.getAttribute("href"))).filter(Boolean);
+    const sections = links
+      .map((link) => document.getElementById(link.getAttribute("href").slice(1)))
+      .filter(Boolean);
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue;
@@ -449,6 +456,7 @@ function renderWebsite() {
   </script>
 </body>
 </html>`;
+  fs.mkdirSync(path.dirname(OUTPUT_HTML), { recursive: true });
   fs.writeFileSync(OUTPUT_HTML, html);
 }
 

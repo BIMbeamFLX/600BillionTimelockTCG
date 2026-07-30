@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="600B Timelock TCG — the positive cypherpunk card game. Sign in with Nostr, explore the cards, play in the arena.">
+<title>600B Timelock TCG — Landing</title>
+<style>
+@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+:root {
+  --orange: #f7931a; --ember: #ff6a00; --gold: #f3c244;
+  --purple: #b991e4; --purple-deep: #7447b8; --violet: #5e5acb;
+  --black: #09080b; --soot: #111014; --panel: #19151f;
+  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
+}
+* { box-sizing: border-box; margin: 0; }
+html { color-scheme: dark; scroll-behavior: smooth; }
+body { background: var(--black); color: var(--cream); font: 16px/1.55 Arial, sans-serif; }
+a { color: var(--orange); }
+
+.nav {
+  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
+  padding: 12px clamp(16px, 4vw, 56px); background: rgba(9,8,11,.9);
+  border-bottom: 1px solid var(--line); backdrop-filter: blur(16px);
+}
+.nav img { width: 42px; height: 42px; }
+.nav .brand { margin-right: auto; font: 19px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; }
+.nav .brand small { display: block; color: var(--purple); font: 700 9px/1.4 Arial; letter-spacing: .22em; }
+.nav a.link {
+  color: var(--cream); text-decoration: none; font: 13px/1 Anton600, Impact, sans-serif;
+  letter-spacing: .08em; text-transform: uppercase; padding: 9px 12px; border: 1px solid transparent;
+}
+.nav a.link:hover { border-color: var(--purple-deep); }
+#loginBtn {
+  cursor: pointer; padding: 10px 16px; background: var(--orange); color: var(--black); border: 0;
+  font: 14px/1 Anton600, Impact, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+}
+#loginBtn:hover { filter: brightness(1.1); }
+#who { display: none; align-items: center; gap: 10px; }
+#who img { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--orange); object-fit: cover; }
+#who .n { font-weight: 700; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#who .k { color: var(--muted); font-size: 11px; font-family: monospace; }
+#who button { cursor: pointer; background: none; border: 1px solid var(--line); color: var(--muted); padding: 6px 8px; font-size: 11px; }
+
+.hero {
+  position: relative; overflow: hidden; min-height: 82vh; display: grid; align-content: center;
+  padding: clamp(48px, 9vw, 120px) clamp(16px, 4vw, 56px);
+}
+.hero::before {
+  content: ""; position: absolute; inset: 0;
+  background: url("../art/world-plates/timelock.png") center 30% / cover no-repeat;
+  filter: brightness(.75);
+}
+.hero::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(9,8,11,.82), rgba(9,8,11,.38) 40%, var(--black) 96%);
+}
+.hero > * { position: relative; z-index: 1; }
+.eyebrow { color: var(--gold); font-weight: 900; letter-spacing: .24em; text-transform: uppercase; font-size: 13px; }
+h1 {
+  max-width: 1000px; margin: 12px 0 18px;
+  font: clamp(52px, 9vw, 128px)/.9 Anton600, Impact, sans-serif; letter-spacing: -.02em; text-transform: uppercase;
+}
+h1 span { color: var(--ember); }
+.sub { max-width: 640px; color: var(--cream); font-size: clamp(17px, 2vw, 20px); }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+.cta a {
+  text-decoration: none; padding: 15px 26px; font: 16px/1 Anton600, Impact, sans-serif;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.cta .primary { background: var(--ember); color: var(--black); }
+.cta .ghost { color: var(--cream); border: 1px solid var(--purple-deep); }
+.cta a:hover { filter: brightness(1.12); }
+.stats { display: flex; gap: 26px; flex-wrap: wrap; margin-top: 44px; }
+.stat b { display: block; font: 34px/1 Anton600, Impact, sans-serif; color: var(--orange); }
+.stat span { color: var(--muted); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+
+section { max-width: 1280px; margin: 0 auto; padding: clamp(48px, 7vw, 96px) clamp(16px, 4vw, 56px); }
+h2 { font: clamp(30px, 4.5vw, 52px)/1 Anton600, Impact, sans-serif; text-transform: uppercase; letter-spacing: .01em; margin-bottom: 10px; }
+h2 span { color: var(--ember); }
+.lead { color: var(--muted); max-width: 700px; margin-bottom: 34px; }
+
+.teaser { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+.teaser figure { position: relative; margin: 0; padding-bottom: 26px; }
+.teaser img {
+  display: block; width: 100%; aspect-ratio: 5/7; object-fit: contain;
+  border-radius: 12px; border: 1px solid var(--line);
+  box-shadow: 0 18px 44px rgba(0,0,0,.5);
+}
+.teaser figcaption {
+  position: absolute; left: 0; right: 0; bottom: -26px; text-align: center;
+  color: var(--muted); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+}
+.hint { margin-top: 44px; color: var(--muted); font-size: 13px; text-align: center; }
+
+.zap { background: linear-gradient(180deg, transparent, rgba(116,71,184,.1), transparent); }
+.duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 18px; align-items: center; max-width: 720px; margin: 0 auto 30px; }
+.duelist { text-align: center; padding: 22px; background: var(--soot); border: 1px solid var(--line); }
+.duelist .dial {
+  --p: 100; width: 74px; height: 74px; margin: 0 auto 10px; border-radius: 50%; position: relative;
+  background: conic-gradient(var(--c) calc(var(--p)*1%), rgba(255,255,255,.08) 0); display: grid; place-items: center;
+}
+.duelist .dial::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--panel); }
+.duelist .dial b { position: relative; font: 26px/1 Anton600, Impact, sans-serif; }
+.duelist .nm { font: 16px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; }
+.duelist .st { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .14em; margin-top: 4px; }
+.bolt { font-size: 46px; color: var(--gold); text-shadow: 0 0 26px rgba(243,194,68,.6); }
+.zapflow { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.step { padding: 18px; background: var(--soot); border: 1px solid var(--line); border-top: 3px solid var(--orange); }
+.step b { display: block; font: 15px/1.2 Anton600, Impact, sans-serif; letter-spacing: .04em; margin-bottom: 8px; text-transform: uppercase; }
+.step p { color: var(--muted); font-size: 13.5px; }
+.legal { margin-top: 26px; padding: 14px 18px; border: 1px dashed var(--line); color: var(--muted); font-size: 12.5px; }
+
+footer { border-top: 1px solid var(--line); padding: 30px clamp(16px,4vw,56px); display: flex; gap: 18px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 13px; }
+footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; color: var(--orange); letter-spacing: .08em; }
+
+@media (max-width: 720px) { .duel { grid-template-columns: 1fr; } .bolt { text-align: center; } }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <img src="../art/brand/600B-logo-primary.png" alt="600B">
+  <div class="brand">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></div>
+  <a class="link" href="cards.html">Cards</a>
+  <a class="link" href="arena.html">Arena</a>
+  <a class="link" href="leaderboard.html">Leaderboard</a>
+  <a class="link" href="rules.html">Rulebook</a>
+  <button id="loginBtn">⚡ Sign in with Nostr</button>
+  <div id="who">
+    <img id="whoPic" alt="">
+    <div><div class="n" id="whoName"></div><div class="k" id="whoNpub"></div></div>
+    <button id="logoutBtn">sign out</button>
+  </div>
+</nav>
+
+<header class="hero">
+  <p class="eyebrow">Positive Cypherpunk · Edition One</p>
+  <h1>Build the Network.<br><span>Protect your Uptime.</span></h1>
+  <p class="sub">295 cards about Bitcoin, Nostr and open systems. Five Resources, one deterministic
+  Queue, zero permission required. Learn real protocols while you take your opponents offline — kindly.</p>
+  <div class="cta">
+    <a class="primary" href="arena.html">Enter the Arena</a>
+    <a class="ghost" href="cards.html">All 295 Cards</a>
+    <a class="ghost" href="leaderboard.html">Sats Leaderboard</a>
+    <a class="ghost" href="rules.html">Read the Rulebook</a>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>295</b><span>Cards</span></div>
+    <div class="stat"><b>5</b><span>Resources</span></div>
+    <div class="stat"><b>20</b><span>Uptime</span></div>
+    <div class="stat"><b>0</b><span>Permissions</span></div>
+  </div>
+</header>
+
+<section id="gallery">
+  <h2>Finished cards. <span>One coherent set.</span></h2>
+  <p class="lead">Every released image is a finished tournament card.
+  The complete collection, rules text and protocol notes live in the gallery.</p>
+  <div class="teaser">
+    <figure>
+      <img src="../art/cards/final/Proton, Keyed Nightmare.jpg" alt="Proton, Keyed Nightmare — card" loading="lazy">
+      <figcaption>Proton, Keyed Nightmare</figcaption>
+    </figure>
+    <figure>
+      <img src="../art/cards/final/Satoshi Orchard.jpg" alt="Satoshi Orchard — card" loading="lazy">
+      <figcaption>Satoshi Orchard</figcaption>
+    </figure>
+    <figure>
+      <img src="../art/cards/final/Firewall Tunnel.jpg" alt="Firewall Tunnel — card" loading="lazy">
+      <figcaption>Firewall Tunnel</figcaption>
+    </figure>
+    <figure>
+      <img src="../art/cards/final/FLX, Unstoppable Rig.jpg" alt="FLX, Unstoppable Rig — card" loading="lazy">
+      <figcaption>FLX, Unstoppable Rig</figcaption>
+    </figure>
+  </div>
+  <p class="hint"><a href="cards.html">→ Full gallery with search, filters and complete card text</a></p>
+</section>
+
+<section class="zap" id="zap">
+  <h2>Zap duel. <span>Winner takes the stake.</span></h2>
+  <p class="lead">Before the match, both players agree on a stake in sats. The winner receives the
+  zap — wallet to wallet over Lightning. The platform never touches the money.</p>
+  <div class="duel">
+    <div class="duelist"><div class="dial" style="--c:#ff6a00"><b>20</b></div><div class="nm">YOU</div><div class="st">Stake: 2,100 sats</div></div>
+    <div class="bolt">⚡</div>
+    <div class="duelist"><div class="dial" style="--c:#f3c244; --p:35"><b>7</b></div><div class="nm">OPPONENT</div><div class="st">Stake: 2,100 sats</div></div>
+  </div>
+  <div class="zapflow">
+    <div class="step"><b>1 · Agree</b><p>Both players confirm the stake during match setup. It is recorded in the signed match transcript.</p></div>
+    <div class="step"><b>2 · Play</b><p>The match runs peer-to-peer over WebRTC. Both clients run the same deterministic engine — the result is provable.</p></div>
+    <div class="step"><b>3 · Zap</b><p>After the win, the app opens the zap to the winner's Lightning address (NIP-57). Honor system — your reputation plays too.</p></div>
+    <div class="step"><b>4 · Stats</b><p>Both players publish the result as a Nostr event. Settled duels build your public track record.</p></div>
+  </div>
+  <p class="legal">v1 is an honor system: the app never holds funds, it only reminds you of the agreed zap.
+  Escrowed stakes (Cashu) are under review as a later opt-in module — including a legal assessment.
+  Rulebook §19: standard matches never transfer anything of value.</p>
+</section>
+
+<footer>
+  <span>600 000 000 000 · Edition One · E1.0-draft</span>
+  <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
+  <span class="tag">WE STACK. WE BUILD. WE MEME. WE REPEAT.</span>
+</footer>
+
+<script>
+// --- minimal bech32 (npub) encoder, BIP-173 ---
+const B32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+function polymod(vals) {
+  const GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  let chk = 1;
+  for (const v of vals) {
+    const b = chk >> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ v;
+    for (let i = 0; i < 5; i++) if ((b >> i) & 1) chk ^= GEN[i];
+  }
+  return chk;
+}
+function hrpExpand(hrp) {
+  const out = [];
+  for (const c of hrp) out.push(c.charCodeAt(0) >> 5);
+  out.push(0);
+  for (const c of hrp) out.push(c.charCodeAt(0) & 31);
+  return out;
+}
+function toWords(bytes) {
+  const out = []; let acc = 0, bits = 0;
+  for (const b of bytes) {
+    acc = (acc << 8) | b; bits += 8;
+    while (bits >= 5) { bits -= 5; out.push((acc >> bits) & 31); }
+  }
+  if (bits) out.push((acc << (5 - bits)) & 31);
+  return out;
+}
+function npubEncode(hex) {
+  const bytes = hex.match(/../g).map(h => parseInt(h, 16));
+  const words = toWords(bytes);
+  const vals = hrpExpand("npub").concat(words, [0, 0, 0, 0, 0, 0]);
+  const mod = polymod(vals) ^ 1;
+  let checksum = "";
+  for (let i = 0; i < 6; i++) checksum += B32[(mod >> (5 * (5 - i))) & 31];
+  return "npub1" + words.map(w => B32[w]).join("") + checksum;
+}
+
+// --- NIP-07 login + kind-0 profile over public relays ---
+const RELAYS = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
+const els = {
+  login: document.getElementById("loginBtn"), who: document.getElementById("who"),
+  pic: document.getElementById("whoPic"), name: document.getElementById("whoName"),
+  npub: document.getElementById("whoNpub"), logout: document.getElementById("logoutBtn"),
+};
+
+function showUser(pubkey, profile) {
+  els.login.style.display = "none";
+  els.who.style.display = "flex";
+  const np = npubEncode(pubkey);
+  els.npub.textContent = np.slice(0, 12) + "…" + np.slice(-5);
+  els.name.textContent = (profile && (profile.display_name || profile.name)) || "Nostrich";
+  if (profile && profile.picture) { els.pic.src = profile.picture; els.pic.style.display = "block"; }
+  else els.pic.style.display = "none";
+}
+
+function fetchProfile(pubkey) {
+  return new Promise(resolve => {
+    let done = false; const sockets = [];
+    const finish = p => { if (!done) { done = true; sockets.forEach(w => { try { w.close(); } catch {} }); resolve(p); } };
+    setTimeout(() => finish(null), 4500);
+    for (const url of RELAYS) {
+      try {
+        const ws = new WebSocket(url); sockets.push(ws);
+        ws.onopen = () => ws.send(JSON.stringify(["REQ", "p", { kinds: [0], authors: [pubkey], limit: 1 }]));
+        ws.onmessage = m => {
+          try {
+            const [type, , ev] = JSON.parse(m.data);
+            if (type === "EVENT" && ev && ev.content) finish(JSON.parse(ev.content));
+          } catch {}
+        };
+      } catch {}
+    }
+  });
+}
+
+async function login() {
+  if (!window.nostr) {
+    alert("No NIP-07 extension found.\nInstall Alby or nos2x and reload the page.");
+    return;
+  }
+  try {
+    const pubkey = await window.nostr.getPublicKey();
+    localStorage.setItem("600b:pubkey", pubkey);
+    showUser(pubkey, null);
+    showUser(pubkey, await fetchProfile(pubkey));
+  } catch (e) {
+    console.warn("login cancelled", e);
+  }
+}
+
+els.login.addEventListener("click", login);
+els.logout.addEventListener("click", () => {
+  localStorage.removeItem("600b:pubkey");
+  els.who.style.display = "none";
+  els.login.style.display = "inline-block";
+});
+
+const saved = localStorage.getItem("600b:pubkey");
+if (saved) { showUser(saved, null); fetchProfile(saved).then(p => showUser(saved, p)); }
+</script>
+</body>
+</html>

@@ -31,7 +31,14 @@ RESOURCE_TO_CLIENT = {"S": "W", "T": "U", "K": "B", "P": "R", "B": "G"}
 CLIENT_COLOR_ORDER = "WUBRG"
 
 # E1 card type -> Cockatrice table row (0 resources, 1 permanents, 2 avatars, 3 one-shots).
-TABLEROW_BY_TYPE = {"Resource": 0, "Avatar": 2, "Zap": 3, "Operation": 3}
+TABLEROW_BY_TYPE = {
+    "Resource": 0,
+    "Basic Resource": 0,
+    "Avatar": 2,
+    "Hardware Avatar": 2,
+    "Zap": 3,
+    "Operation": 3,
+}
 
 ART_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 
@@ -84,9 +91,7 @@ class Card:
     def client_colors(self) -> str:
         """Mapped color letters present in the cost, in Cockatrice WUBRG order."""
         found = {
-            RESOURCE_TO_CLIENT[ch.upper()]
-            for ch in self.cost
-            if ch.upper() in RESOURCE_TO_CLIENT
+            RESOURCE_TO_CLIENT[ch.upper()] for ch in self.cost if ch.upper() in RESOURCE_TO_CLIENT
         }
         return "".join(c for c in CLIENT_COLOR_ORDER if c in found)
 
@@ -170,9 +175,7 @@ def install(xml_path: Path, art_dir: Path) -> None:
     """Copy the set XML and card art into the local Cockatrice data directory."""
     data_dir = cockatrice_data_dir()
     if not data_dir.is_dir():
-        log.warning(
-            "Cockatrice data dir not found at %s — is Cockatrice installed?", data_dir
-        )
+        log.warning("Cockatrice data dir not found at %s — is Cockatrice installed?", data_dir)
         return
 
     customsets = data_dir / "customsets"
@@ -183,10 +186,12 @@ def install(xml_path: Path, art_dir: Path) -> None:
     pics_custom = data_dir / "pics" / "CUSTOM"
     pics_custom.mkdir(parents=True, exist_ok=True)
     count = 0
-    for img in sorted(art_dir.iterdir()) if art_dir.is_dir() else []:
-        if img.suffix.lower() in ART_EXTENSIONS:
-            shutil.copy2(img, pics_custom / img.name)
-            count += 1
+    # Placeholders first; finished card faces overwrite them.
+    for source in (art_dir / "placeholders", art_dir / "final", art_dir):
+        for img in sorted(source.iterdir()) if source.is_dir() else []:
+            if img.suffix.lower() in ART_EXTENSIONS:
+                shutil.copy2(img, pics_custom / img.name)
+                count += 1
     log.info("installed %d card images to %s", count, pics_custom)
 
 
@@ -197,12 +202,8 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", type=Path, default=repo_root / "cards" / "cards.csv")
-    parser.add_argument(
-        "--out", type=Path, default=repo_root / "dist" / "01.600b-e1.xml"
-    )
-    parser.add_argument(
-        "--install", action="store_true", help="copy into Cockatrice data dir"
-    )
+    parser.add_argument("--out", type=Path, default=repo_root / "dist" / "01.600b-e1.xml")
+    parser.add_argument("--install", action="store_true", help="copy into Cockatrice data dir")
     args = parser.parse_args()
 
     cards = load_cards(args.csv)

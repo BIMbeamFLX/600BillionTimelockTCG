@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="600B Timelock TCG leaderboard for verified wins and losses in sats.">
+<title>600B Timelock TCG — Sats Leaderboard</title>
+<style>
+@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+:root {
+  --orange:#f7931a; --purple:#9b51e0; --blue:#3d5afe; --cyan:#00b8d9;
+  --green:#2dbe60; --black:#09080b; --soot:#111014; --panel:#19151f;
+  --cream:#fff7ec; --muted:#c7bbcc; --line:rgba(185,145,228,.28);
+}
+* { box-sizing:border-box; }
+html { color-scheme:dark; }
+body { margin:0; color:var(--cream); background:
+  radial-gradient(circle at 85% 0, rgba(155,81,224,.17), transparent 32rem),
+  radial-gradient(circle at 0 60%, rgba(247,147,26,.11), transparent 38rem),
+  var(--black); font:16px/1.5 Arial,sans-serif; min-height:100vh; }
+.nav { position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:14px;
+  padding:12px clamp(16px,4vw,56px); background:rgba(9,8,11,.92);
+  border-bottom:1px solid var(--line); backdrop-filter:blur(16px); }
+.nav img { width:42px; height:42px; }
+.brand { margin-right:auto; font:19px/1 Anton600,Impact,sans-serif; letter-spacing:.05em; }
+.brand small { display:block; margin-top:5px; color:var(--purple); font:700 9px/1 Arial;
+  letter-spacing:.22em; }
+.nav a { color:var(--cream); text-decoration:none; text-transform:uppercase;
+  font:13px/1 Anton600,Impact,sans-serif; letter-spacing:.08em; }
+main { width:min(1240px,calc(100% - 32px)); margin:auto; padding:clamp(52px,8vw,100px) 0 100px; }
+.eyebrow { color:var(--orange); font-weight:900; letter-spacing:.22em; text-transform:uppercase; }
+h1 { max-width:950px; margin:10px 0 16px; font:clamp(52px,9vw,112px)/.88 Anton600,Impact,sans-serif;
+  letter-spacing:-.02em; text-transform:uppercase; }
+h1 span { color:var(--purple); }
+.lead { max-width:760px; margin:0; color:var(--muted); font-size:18px; }
+.metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:38px 0 26px; }
+.metric { position:relative; overflow:hidden; padding:20px; background:var(--panel);
+  border:1px solid var(--line); clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px)); }
+.metric::before { content:""; position:absolute; inset:0 auto 0 0; width:8px;
+  background:repeating-linear-gradient(165deg,var(--c) 0 12px,#08070a 12px 19px); }
+.metric b { display:block; margin-left:8px; color:var(--c); font:38px/1 Anton600,Impact,sans-serif; }
+.metric span { margin-left:8px; color:var(--muted); font-size:11px; letter-spacing:.14em; text-transform:uppercase; }
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:14px;
+  background:rgba(25,21,31,.92); border:1px solid var(--line); }
+.toolbar button,.file-label { min-height:42px; padding:0 14px; color:var(--cream); background:#0e0c11;
+  border:1px solid var(--line); cursor:pointer; font-weight:900; letter-spacing:.06em; text-transform:uppercase; }
+.toolbar button.active { color:var(--black); background:var(--orange); border-color:var(--orange); }
+.file-label { display:inline-grid; place-items:center; margin-left:auto; color:var(--black); background:var(--purple); }
+.file-label input { display:none; }
+.source { flex-basis:100%; color:var(--muted); font-size:12px; }
+.table-wrap { overflow:auto; border:1px solid var(--line); border-top:0; }
+table { width:100%; min-width:820px; border-collapse:collapse; background:rgba(17,16,20,.96); }
+th { padding:15px 12px; color:var(--muted); border-bottom:1px solid var(--line);
+  font-size:11px; letter-spacing:.12em; text-align:right; text-transform:uppercase; }
+th:nth-child(1),th:nth-child(2) { text-align:left; }
+td { padding:16px 12px; border-bottom:1px solid rgba(185,145,228,.12); text-align:right; }
+td:nth-child(1),td:nth-child(2) { text-align:left; }
+tr:hover td { background:rgba(155,81,224,.06); }
+.rank { color:var(--orange); font:24px/1 Anton600,Impact,sans-serif; }
+.player { display:flex; align-items:center; gap:10px; font-weight:900; }
+.avatar { display:grid; width:34px; height:34px; place-items:center; border-radius:50%;
+  color:var(--black); background:linear-gradient(135deg,var(--orange),var(--purple));
+  font:16px/1 Anton600,Impact,sans-serif; }
+.npub { display:block; max-width:310px; overflow:hidden; color:var(--muted);
+  font:11px/1.4 monospace; text-overflow:ellipsis; white-space:nowrap; }
+.won { color:var(--green); font-weight:900; }
+.lost { color:#ff7657; font-weight:900; }
+.net.positive { color:var(--cyan); font-weight:900; }
+.net.negative { color:#ff7657; font-weight:900; }
+.empty { padding:64px 20px; color:var(--muted); text-align:center; border:1px dashed var(--line);
+  background:rgba(17,16,20,.72); }
+.empty strong { display:block; margin-bottom:8px; color:var(--cream); font:28px/1 Anton600,Impact,sans-serif; }
+.note { margin-top:18px; padding:14px 18px; color:var(--muted); border-left:5px solid var(--orange);
+  background:rgba(247,147,26,.06); font-size:13px; }
+@media (max-width:720px) {
+  .nav a:nth-of-type(-n+2) { display:none; }
+  .metrics { grid-template-columns:1fr; }
+  .file-label { margin-left:0; }
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
+  <div class="brand">SATS LEADERBOARD<small>VERIFIED MATCH RESULTS</small></div>
+  <a href="index.html">Home</a>
+  <a href="cards.html">Cards</a>
+  <a href="arena.html">Arena</a>
+  <a href="rules.html">Rules</a>
+</nav>
+<main>
+  <p class="eyebrow">600 Billion · Public Track Record</p>
+  <h1>Wins. Losses. <span>Measured in sats.</span></h1>
+  <p class="lead">Rank players by verified sats won, sats lost or net result. The board only
+  counts settled match records; it never invents scores and never holds funds.</p>
+
+  <section class="metrics" aria-label="Leaderboard totals">
+    <div class="metric" style="--c:var(--orange)"><b id="matchCount">0</b><span>Verified matches</span></div>
+    <div class="metric" style="--c:var(--purple)"><b id="playerCount">0</b><span>Ranked players</span></div>
+    <div class="metric" style="--c:var(--cyan)"><b id="satsCount">0</b><span>Settled sats</span></div>
+  </section>
+
+  <div class="toolbar" aria-label="Leaderboard controls">
+    <button class="active" data-sort="won">Most sats won</button>
+    <button data-sort="lost">Most sats lost</button>
+    <button data-sort="net">Best net sats</button>
+    <label class="file-label">Import match JSON<input id="importFile" type="file" accept="application/json"></label>
+    <div class="source" id="sourceLabel">Source: local verified match cache · no records loaded</div>
+  </div>
+  <div class="table-wrap" id="tableWrap">
+    <table>
+      <thead><tr>
+        <th>Rank</th><th>Player</th><th>Wins</th><th>Losses</th>
+        <th>Sats won</th><th>Sats lost</th><th>Net sats</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="empty" id="empty">
+    <strong>No verified matches yet.</strong>
+    Import a signed match-result JSON file or let the Arena write verified results to
+    <code>600b:match-results</code> in local storage.
+  </div>
+  <p class="note">Expected record fields: <code>id</code>, <code>winner</code>,
+  <code>loser</code>, <code>settledSats</code>, <code>verified: true</code> and
+  <code>createdAt</code>. A player can be a string pubkey or an object with
+  <code>pubkey</code> and <code>name</code>.</p>
+</main>
+<script>
+const CACHE_KEY = "600b:match-results";
+let sortMode = "won";
+let results = readCache();
+
+function readCache() {
+  try {
+    const value = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch { return []; }
+}
+function playerInfo(value) {
+  if (typeof value === "string") return { pubkey:value, name:"Nostrich" };
+  return { pubkey:String(value?.pubkey || value?.npub || ""), name:String(value?.name || "Nostrich") };
+}
+function verifiedRows(records) {
+  const players = new Map();
+  const verified = records.filter(record =>
+    record && record.verified === true && Number.isSafeInteger(record.settledSats) &&
+    record.settledSats >= 0 && record.winner && record.loser
+  );
+  function ensure(player) {
+    const info = playerInfo(player);
+    if (!info.pubkey) return null;
+    if (!players.has(info.pubkey)) players.set(info.pubkey, {
+      pubkey:info.pubkey, name:info.name, wins:0, losses:0, won:0, lost:0, net:0
+    });
+    const row = players.get(info.pubkey);
+    if (row.name === "Nostrich" && info.name !== "Nostrich") row.name = info.name;
+    return row;
+  }
+  for (const record of verified) {
+    const winner = ensure(record.winner);
+    const loser = ensure(record.loser);
+    if (!winner || !loser || winner === loser) continue;
+    winner.wins += 1; winner.won += record.settledSats;
+    loser.losses += 1; loser.lost += record.settledSats;
+  }
+  for (const row of players.values()) row.net = row.won - row.lost;
+  return { verified, players:[...players.values()] };
+}
+function formatSats(value) { return new Intl.NumberFormat("en-GB").format(value) + " sats"; }
+function render() {
+  const data = verifiedRows(results);
+  data.players.sort((a,b) => b[sortMode] - a[sortMode] || b.wins - a.wins || a.name.localeCompare(b.name));
+  document.getElementById("matchCount").textContent = data.verified.length;
+  document.getElementById("playerCount").textContent = data.players.length;
+  document.getElementById("satsCount").textContent =
+    new Intl.NumberFormat("en-GB").format(data.verified.reduce((sum,row) => sum + row.settledSats, 0));
+  const body = document.getElementById("rows");
+  body.replaceChildren();
+  data.players.forEach((row,index) => {
+    const tr = document.createElement("tr");
+    const initials = row.name.trim().slice(0,2).toUpperCase() || "₿";
+    const netClass = row.net >= 0 ? "positive" : "negative";
+    tr.innerHTML = `<td class="rank">#${index + 1}</td>
+      <td><div class="player"><span class="avatar">${initials}</span><span>${row.name}
+      <small class="npub">${row.pubkey}</small></span></div></td>
+      <td>${row.wins}</td><td>${row.losses}</td>
+      <td class="won">${formatSats(row.won)}</td><td class="lost">${formatSats(row.lost)}</td>
+      <td class="net ${netClass}">${row.net < 0 ? "−" : "+"}${formatSats(Math.abs(row.net))}</td>`;
+    body.append(tr);
+  });
+  document.getElementById("tableWrap").hidden = !data.players.length;
+  document.getElementById("empty").hidden = Boolean(data.players.length);
+}
+document.querySelectorAll("[data-sort]").forEach(button => button.addEventListener("click", () => {
+  sortMode = button.dataset.sort;
+  document.querySelectorAll("[data-sort]").forEach(item => item.classList.toggle("active", item === button));
+  render();
+}));
+document.getElementById("importFile").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const payload = JSON.parse(await file.text());
+    const imported = Array.isArray(payload) ? payload : payload.results;
+    if (!Array.isArray(imported)) throw new Error("JSON must contain a results array");
+    results = imported;
+    localStorage.setItem(CACHE_KEY, JSON.stringify(results));
+    document.getElementById("sourceLabel").textContent =
+      `Source: ${file.name} · ${verifiedRows(results).verified.length} verified records`;
+    render();
+  } catch (error) {
+    alert("Could not import match results: " + error.message);
+  }
+});
+render();
+</script>
+</body>
+</html>

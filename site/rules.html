@@ -9,12 +9,12 @@
   <style>
     @font-face {
       font-family: "Anton600";
-      src: url("art/fonts/Anton-Regular.ttf") format("truetype");
+      src: url("../art/fonts/Anton-Regular.ttf") format("truetype");
       font-display: swap;
     }
     @font-face {
       font-family: "Alfa600";
-      src: url("art/fonts/AlfaSlabOne-Regular.ttf") format("truetype");
+      src: url("../art/fonts/AlfaSlabOne-Regular.ttf") format("truetype");
       font-display: swap;
     }
     :root {
@@ -93,7 +93,7 @@
       overflow: hidden;
       background:
         linear-gradient(90deg, rgba(0,0,0,.98) 0, rgba(0,0,0,.78) 46%, rgba(0,0,0,.12) 78%),
-        url("art/rulebook/banner-01-build-the-network.webp") center/cover;
+        url("../art/rulebook/banner-01-build-the-network.webp") center/cover;
       border-bottom: 1px solid var(--line);
     }
     .hero-inner {
@@ -129,6 +129,7 @@
     }
     .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 30px; }
     .pill {
+      display: inline-block;
       padding: 8px 12px;
       color: var(--black);
       background: var(--purple);
@@ -137,6 +138,8 @@
       letter-spacing: .09em;
       text-transform: uppercase;
     }
+    a.pill { text-decoration: none; }
+    a.pill:hover { background: var(--orange); }
     article { min-width: 0; padding-top: 20px; }
     article > p:first-child {
       margin-top: 0;
@@ -325,7 +328,7 @@
     <div class="hero-inner">
       <div class="hero-copy">
         <div class="brand-row">
-          <img src="art/brand/600B-logo-primary.png" alt="600 000 000 000">
+          <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
           <span>Timelock TCG · Edition One</span>
         </div>
         <h1>Build the <em>Network.</em></h1>
@@ -335,6 +338,8 @@
           <span class="pill">20 Uptime</span>
           <span class="pill">40+ cards</span>
           <span class="pill">Classic profile</span>
+          <a class="pill" href="cards.html">Browse all cards →</a>
+          <a class="pill" href="leaderboard.html">Sats leaderboard →</a>
         </div>
       </div>
     </div>
@@ -382,7 +387,7 @@ rules can be enforced by a web app.</p>
 <p><strong>Edition One principle:</strong> cards can bend these rules. When a card and this rulebook
 disagree, the card wins for the specific thing it changes.</p>
 </blockquote>
-<figure class="rule-banner"><img src="art/rulebook/banner-01-build-the-network.webp" alt="FLX builds the Network" loading="lazy"></figure>
+<figure class="rule-banner"><img src="../art/rulebook/banner-01-build-the-network.webp" alt="FLX builds the Network" loading="lazy"></figure>
 <h2 id="1-fast-start">1. Fast start</h2>
 
 <p>You can learn the core loop in one page.</p>
@@ -442,7 +447,8 @@ raise it above 20. Uptime is public information.</p>
 <h3 id="2-4-cards-over-rules">2.4 Cards over rules</h3>
 
 <p>A card changes only what it says it changes. Follow as much of an instruction as
-possible. The word <strong>cannot</strong> wins over <strong>can</strong> unless a card explicitly says otherwise.</p>
+possible. The word <strong>cannot</strong> wins over <strong>can</strong> unless a card explicitly says otherwise.
+Cards may print <em>can&#39;t</em> for <em>cannot</em>.</p>
 <p>Protocol notes, flavor text, artist credits and collector information never affect play.</p>
 <h2 id="3-what-is-on-a-card">3. What is on a card</h2>
 
@@ -483,21 +489,29 @@ possible. The word <strong>cannot</strong> wins over <strong>can</strong> unless
 <td>Edition and collector identity; no gameplay effect.</td>
 </tr>
 <tr>
+<td>Simple Guide</td>
+<td>A plain-language explanation of the card&#39;s practical job; no gameplay effect.</td>
+</tr>
+<tr>
 <td>Protocol note</td>
 <td>A factual learning note; no gameplay effect.</td>
 </tr>
 </tbody></table>
-<figure class="card-system-preview"><img src="art/cards/600B-E1-iconic-six-contact-sheet.png" alt="Edition One card-system examples" loading="lazy"><figcaption>First six E1 pipeline proofs. Rules text and educational notes are rendered separately from the art.</figcaption></figure>
+<figure class="card-system-preview"><img src="../art/cards/600B-E1-iconic-six-contact-sheet.png" alt="Edition One card-system examples" loading="lazy"><figcaption>First six E1 pipeline proofs. Rules text and educational notes are rendered separately from the art.</figcaption></figure>
 <h3 id="3-1-affinity">3.1 Affinity</h3>
 
-<p>A card&#39;s affinity is normally defined by the specific Resource symbols in its cost.
-A card with no specific Resource symbol is neutral. An effect may add, remove or change
-an affinity.</p>
+<p>A non-Resource card&#39;s affinity is normally defined by the specific Resource symbols in
+its cost. A Resource card has the affinity of its Resource subtype. A card with neither
+a specific Resource symbol nor a Resource subtype is neutral. An effect may add, remove
+or change an affinity.</p>
 <h3 id="3-2-action-and-resilience">3.2 Action and Resilience</h3>
 
 <p>An Avatar&#39;s first stat is <strong>Action</strong>: the damage it deals in combat. Its second stat is
 <strong>Resilience</strong>: how much marked damage it can withstand during a turn.</p>
 <p>For example, a 4/4 Avatar has 4 Action and 4 Resilience.</p>
+<p>An Avatar may print <code>*</code> for Action or Resilience. Its value is defined by that card&#39;s
+ability and is 0 while the definition does not apply. The definition applies in every
+zone and is applied with other Action and Resilience settings in layer 7 (§17).</p>
 <h3 id="3-3-owner-and-controller">3.3 Owner and controller</h3>
 
 <p>The owner of a card is the player who started the game with it. The controller is the
@@ -507,30 +521,30 @@ effects can change control. Ownership never changes during a game.</p>
 
 <p>The five Resources are both spendable energy and philosophical affinities. None is good
 or evil. Each represents a useful tool with a characteristic strength and tradeoff.</p>
-<figure class="rule-banner"><img src="art/rulebook/banner-02-five-resources.svg" alt="The five 600B Resources" loading="lazy"></figure>
+<figure class="rule-banner"><img src="../art/rulebook/banner-02-five-resources.svg" alt="The five 600B Resources" loading="lazy"></figure>
 <h3 id="power">Power</h3>
 
-<p class="resource-icon"><img src="art/resources/power.svg" alt="Power icon" loading="lazy"></p>
+<p class="resource-icon"><img src="../art/resources/power.svg" alt="Power icon" loading="lazy"></p>
 <p>Energy, mining, speed and direct action. Power solves the immediate problem, sometimes at
 a cost.</p>
 <h3 id="bitcoin">Bitcoin</h3>
 
-<p class="resource-icon"><img src="art/resources/bitcoin.svg" alt="Bitcoin icon" loading="lazy"></p>
-<p>Scarcity, saving, settlement and resilient growth. Bitcoin compounds patient investment
-into durable advantage.</p>
+<p class="resource-icon"><img src="../art/resources/bitcoin.svg" alt="Bitcoin icon" loading="lazy"></p>
+<p>Scarcity, saving, settlement and resilient growth. Bitcoin turns patient verification
+into durable coordination.</p>
 <h3 id="keys">Keys</h3>
 
-<p class="resource-icon"><img src="art/resources/keys.svg" alt="Keys icon" loading="lazy"></p>
+<p class="resource-icon"><img src="../art/resources/keys.svg" alt="Keys icon" loading="lazy"></p>
 <p>Custody, privacy, signatures and deliberate risk. Keys trade comfort for agency and turn
 access into responsibility.</p>
 <h3 id="signal">Signal</h3>
 
-<p class="resource-icon"><img src="art/resources/signal.svg" alt="Signal icon" loading="lazy"></p>
+<p class="resource-icon"><img src="../art/resources/signal.svg" alt="Signal icon" loading="lazy"></p>
 <p>Identity, culture, coordination and protection. Signal makes people legible to one
 another without requiring a central platform.</p>
 <h3 id="timelock">Timelock</h3>
 
-<p class="resource-icon"><img src="art/resources/timelock.svg" alt="Timelock icon" loading="lazy"></p>
+<p class="resource-icon"><img src="../art/resources/timelock.svg" alt="Timelock icon" loading="lazy"></p>
 <p>Sequencing, planning, verification and control. Timelock delays the easy move to preserve
 the stronger move.</p>
 <h3 id="4-1-affinity-wheel">4.1 Affinity wheel</h3>
@@ -701,7 +715,7 @@ design envelope and to test the content pipeline, not to promise tournament bala
 <li>The first player begins. There is no mulligan in the Classic Profile.</li>
 </ol>
 <p>The first player draws a card during their first turn.</p>
-<figure class="rule-banner"><img src="art/rulebook/banner-03-timechain.webp" alt="The first block begins the sequence" loading="lazy"></figure>
+<figure class="rule-banner"><img src="../art/rulebook/banner-03-timechain.webp" alt="The first block begins the sequence" loading="lazy"></figure>
 <h2 id="9-turn-structure">9. Turn structure</h2>
 
 <p>Every turn follows the same sequence.</p>
@@ -804,7 +818,7 @@ do not use the Queue.</p>
 <p>Once an activated or triggered ability is on the Queue, removing its source does not
 remove the ability. It resolves independently unless all its targets become illegal or
 another effect invalidates it.</p>
-<figure class="rule-banner"><img src="art/rulebook/banner-04-queue.webp" alt="Actions enter the Queue; answers resolve first" loading="lazy"></figure>
+<figure class="rule-banner"><img src="../art/rulebook/banner-04-queue.webp" alt="Actions enter the Queue; answers resolve first" loading="lazy"></figure>
 <h2 id="11-playing-cards-and-activating-abilities">11. Playing cards and activating abilities</h2>
 
 <p>To play a card or activate an ability:</p>
@@ -882,7 +896,7 @@ new subtype. Changing a subtype does not change the card&#39;s name, committed s
 controller.</p>
 <h2 id="13-clash">13. Clash</h2>
 
-<figure class="rule-banner"><img src="art/rulebook/banner-05-clash.webp" alt="Every route has a defender" loading="lazy"></figure>
+<figure class="rule-banner"><img src="../art/rulebook/banner-05-clash.webp" alt="Every route has a defender" loading="lazy"></figure>
 <h3 id="13-1-declaring-attackers">13.1 Declaring attackers</h3>
 
 <p>The active player chooses any number of eligible Avatars and declares them as attackers
@@ -934,8 +948,12 @@ Avatar, or an effect explicitly removes it from combat.</p>
 
 <h3 id="broadcast">Broadcast</h3>
 
-<p>An Avatar with Broadcast can be blocked only by an Avatar with Broadcast. An Avatar with
-Broadcast may block an Avatar with or without Broadcast.</p>
+<p>An Avatar with Broadcast can be blocked only by an Avatar with Broadcast or <strong>Broadcast
+Guard</strong>. An Avatar with Broadcast may block an Avatar with or without Broadcast.</p>
+<h3 id="broadcast-guard">Broadcast Guard</h3>
+
+<p>An Avatar with Broadcast Guard may block Avatars with Broadcast. Broadcast Guard does
+not make that Avatar a Broadcaster and does not change which Avatars can block it.</p>
 <h3 id="first-strike">First Strike</h3>
 
 <p>If an attacking or blocking Avatar has First Strike, Clash includes a First Strike damage
@@ -1085,7 +1103,7 @@ reorder.</p>
 <p>The web app performs random choices with a server-recorded seed and logs the eligible set
 and result. A random choice must be reproducible for audit without revealing unrelated
 hidden information during the game.</p>
-<figure class="rule-banner"><img src="art/rulebook/banner-06-protocol.webp" alt="Independent keys remove single points of failure" loading="lazy"></figure>
+<figure class="rule-banner"><img src="../art/rulebook/banner-06-protocol.webp" alt="Independent keys remove single points of failure" loading="lazy"></figure>
 <h2 id="19-legacy-adapters">19. Legacy adapters</h2>
 
 <p>The complete E1 card mapping includes two early-design categories that do not belong in a
@@ -1105,9 +1123,10 @@ zone.</li>
 <h3 id="19-2-toss-effects">19.2 Toss effects</h3>
 
 <p>Toss effects are disabled in ranked or accessibility-first play.</p>
-<p><strong>Web adapter:</strong> the player chooses up to three legal Network cards controlled by one
-player. The game uses its recorded random seed to select one of them. The selected card
-is treated as hit. The source card defines what happens to a hit card.</p>
+<p><strong>Web adapter:</strong> the player chooses exactly three legal Network cards controlled by one
+player, or all of them if fewer than three are legal. The game uses its recorded random
+seed to select one of those cards. The selected card is treated as hit. The source card
+defines what happens to a hit card.</p>
 <p><strong>Optional tabletop simulation:</strong> use the physical instruction printed on the card, agree
 on a clear table before play, and never stack or conceal cards to manipulate contact.</p>
 <h3 id="19-3-historical-timing-adapter">19.3 Historical timing adapter</h3>
@@ -1140,6 +1159,9 @@ the game engine. If they conflict in a prototype build, the published manifest v
 is authoritative and the card must be corrected in the next render.</p>
 <h2 id="21-protocol-notes">21. Protocol notes</h2>
 
+<p>Every card also has a short <strong>Simple Guide</strong> in the card database and website. It
+explains what the card usually accomplishes in ordinary language. A Simple Guide never
+adds, removes or overrides a rule; the formal Rules field remains authoritative.</p>
 <p>Every E1 card may carry a short <strong>Protocol Note</strong>. It teaches one accurate Bitcoin, Nostr
 or cypherpunk idea connected to the card&#39;s mechanic.</p>
 <p>Protocol Notes:</p>
@@ -1269,6 +1291,10 @@ memory a correct name.</p>
 <td>Broadcast</td>
 </tr>
 <tr>
+<td>reach</td>
+<td>Broadcast Guard</td>
+</tr>
+<tr>
 <td>banding</td>
 <td>Mesh</td>
 </tr>
@@ -1285,11 +1311,11 @@ memory a correct name.</p>
 <td>Shielded from</td>
 </tr>
 <tr>
-<td>regenerate</td>
+<td>destruction-replacement shield</td>
 <td>Reboot</td>
 </tr>
 <tr>
-<td>wall</td>
+<td>defender-only subtype</td>
 <td>Firewall</td>
 </tr>
 <tr>
@@ -1340,7 +1366,9 @@ is project guidance, not legal advice.</p>
   </div>
   <script>
     const links = [...document.querySelectorAll(".toc a")];
-    const sections = links.map((link) => document.querySelector(link.getAttribute("href"))).filter(Boolean);
+    const sections = links
+      .map((link) => document.getElementById(link.getAttribute("href").slice(1)))
+      .filter(Boolean);
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue;

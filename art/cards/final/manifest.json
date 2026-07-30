@@ -1,0 +1,6209 @@
+{
+  "phase": "final-card-faces",
+  "layout_version": "600B-E1-card-v5",
+  "card_count": 295,
+  "card_size": [
+    750,
+    1050
+  ],
+  "overflow_count": 0,
+  "overflow_ids": [],
+  "card_back": "600B-Timelock-card-back.jpg",
+  "files": [
+    {
+      "id": "E1-001",
+      "name": "Genesis Lotus",
+      "file": "Genesis Lotus.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "677e00395378a6827f68c42d45ed65cbceea35ac34ba8b8eec09b4b78115ee72",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-002",
+      "name": "Satoshi Orchard",
+      "file": "Satoshi Orchard.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d08885ffa4a15485a00390dabe6f57637b0cc8732f8a6a2538c5b4ec25356506",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-003",
+      "name": "FLX, Culture Curator",
+      "file": "FLX, Culture Curator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3612d62bdf26570bec1ac0dc110f99b21444cfeb6e1672cbe433df7d5d50bc1c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-004",
+      "name": "Zap",
+      "file": "Zap.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "308b225f99e930590bfdb14d523be89bdde14a3383a0ce6c45dd3275ebeb4d55",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-005",
+      "name": "Next Block",
+      "file": "Next Block.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8b604797130f5a715e931635f725e88d8d36a300196618f0ef8597a0a5d74016",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-006",
+      "name": "Multisig Quorum",
+      "file": "Multisig Quorum.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "996188f7e1fd4769ba6a8c2e3a529d44490034fb64e955b27ba56b27b35c2d84",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-007",
+      "name": "Firmware for Firewalls",
+      "file": "Firmware for Firewalls.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f6dec6e9a032baaad393c5b9127a1e15b32456facb8ec7be8b73404c05360975",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-008",
+      "name": "Grid Reset",
+      "file": "Grid Reset.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "064346b55b9bff2d154945428bc37c9c0ad9fd2b66a26f1626303db98e4ae870",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-009",
+      "name": "Fair State",
+      "file": "Fair State.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "79d8820a7fcabf3ae74e44bcc7139cf853630b3c7c33c51d098c4583ff517eaf",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-010",
+      "name": "Cuddy, Signal Organizer",
+      "file": "Cuddy, Signal Organizer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ced53af5735cac907814d7c70306e5be4119effbf782f6f5263ce35fdc1676a8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-011",
+      "name": "Keys Shield",
+      "file": "Keys Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4c50d85243d236c8fb2425099f2783c0cd952523a4cdc810b1d0392cc06249ba",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-012",
+      "name": "Last Broadcast",
+      "file": "Last Broadcast.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0425d97c38ed87879a05dcab50eed5800da1e91855d0f6b856dd4a785cba0954",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-013",
+      "name": "Shared Uptime",
+      "file": "Shared Uptime.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d522022de5dc28ce1220c6cf248584e1616751efa875209b22c3b1ce73cb334a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-014",
+      "name": "Timelock Shield",
+      "file": "Timelock Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1454f8bc9d1940686a5478bd5ca4b3910378c9ce1628abba03ce7198682f8093",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-015",
+      "name": "Local Citadel",
+      "file": "Local Citadel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c9b794ad64ed879518011e9ec259b34da9b52dc123da2cda24175af41e9f5e3b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-016",
+      "name": "Timelock Protection Circuit",
+      "file": "Timelock Protection Circuit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6c67710e66da276049ec1db41d4685ba57e40c84d00811dfb496bdea9a48ba4b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-017",
+      "name": "Bitcoin Protection Circuit",
+      "file": "Bitcoin Protection Circuit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1325b18340ccf912fb9d5fa81a868d4a4afd21be59750ed610f22799748e9ce9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-018",
+      "name": "Power Protection Circuit",
+      "file": "Power Protection Circuit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "13ff6d35668ec8c9b3fa410f845a868de55050dc1571675398b195ab111c3d32",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-019",
+      "name": "Signal Protection Circuit",
+      "file": "Signal Protection Circuit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "60c77baea1d9e48f6606ccf93af799ed4a4ac74ae3e26098135d4bbddfe7529a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-020",
+      "name": "Hardened Resource",
+      "file": "Hardened Resource.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "30626821859cde1d24bb6bb081992f72a7830b4d88969fe4e276f46f0248dbd5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-021",
+      "name": "Grid Conversion",
+      "file": "Grid Conversion.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "25fb17d30c023d25b39a3bc5b68187154659eb1bf87c8da2290bd9c71706b43c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-022",
+      "name": "Public Goods Drive",
+      "file": "Public Goods Drive.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "dd89a9038e64440229e4265200b140ea6863f6bfdf68ed132933438e18360ad9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-023",
+      "name": "Emergency Reboot",
+      "file": "Emergency Reboot.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "fa474e15257fa426f695b84ddf6850c9c77790dd6615f6446c2910278637a372",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-024",
+      "name": "Protocol Cleanup",
+      "file": "Protocol Cleanup.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "989682fc71a3e1014db873f827e64202c9cf4d15c72f614791fa0d414abb155f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-025",
+      "name": "Home Miner",
+      "file": "Home Miner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e2e1c1495ca0d33639f30a3713c79cf0bd74966130ce4e38af7017eb650bfe0c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-026",
+      "name": "Bitcoin Shield",
+      "file": "Bitcoin Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4dfba2944187f570d573915d5e2a7f45e2f87f3a14c34b72aff332219bb824ee",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-027",
+      "name": "Guardian Signal",
+      "file": "Guardian Signal.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "52695c79db46ab2c1ba41b0e5bed7592f4486423664253814680ad2297bfdd8e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-028",
+      "name": "Repair Packet",
+      "file": "Repair Packet.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "509630a3963f6a3642d6db65babe9e7fc4204635b3f2b545225707aec6fda15c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 19,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-029",
+      "name": "Hardened Identity",
+      "file": "Hardened Identity.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1214df79d679ed4f34e7fa23fe9f2a0cccec51d6ba1c8304fe24765bed36e6d4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-030",
+      "name": "Community Strength",
+      "file": "Community Strength.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "90082a559dbba483522500622cb6bb9acc8e0a2e2eeec0a79e83d3be0cdc386d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-031",
+      "name": "Offline Sanctuary",
+      "file": "Offline Sanctuary.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "db6b95cfd7342f13223d0f71e39d4ebf36779738926625c2cb9d8759e9f45cc5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-032",
+      "name": "Consequence Ledger",
+      "file": "Consequence Ledger.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5c04c7895279cdbfdfd24763fc46bce567327d6a6f52b136750e5105147ea006",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-033",
+      "name": "Fast Path",
+      "file": "Fast Path.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "fcfceedecae5ea452c3ebeafb7a3cb1f79d2012df09dafa6ea2829154db45956",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-034",
+      "name": "Sat, Relay Rider",
+      "file": "Sat, Relay Rider.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4a4d635f41a5b2acb3175c68d0ac940226625a392bddc932abdc8aeb777e5fa7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-035",
+      "name": "MHB, Keys Auditor",
+      "file": "MHB, Keys Auditor.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "853f97fdf8fa5891b28667520daaea222e7399eb19cacc4978e0dfbdd212be5a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-036",
+      "name": "Morgs, Friendly Fork",
+      "file": "Morgs, Friendly Fork.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8f9d6aa2680996fac1604b1567614c05b3c278ffc44cacaedc6bf8a5dc8fb674",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-037",
+      "name": "AJ, Uptime Anchor",
+      "file": "AJ, Uptime Anchor.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c361e59f95f08b6195edc37257ea9b2103d71642deb38a9ed741bb0c8b509930",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 16,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-038",
+      "name": "Signal Rewrite",
+      "file": "Signal Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d16b55bce61fe0f3672eae0b1a61a68ae528a773888de9cc0308d68c551aec23",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-039",
+      "name": "Power Shield",
+      "file": "Power Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f6079193233d639ebd09af3262542d2c86315e9e670f076b6dcd19e42ec6070d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-040",
+      "name": "Archive Restore",
+      "file": "Archive Restore.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "42d97faafe561f0a8d9c9fc2dc97bb30b9b119e6ee4a627b9b66746286290b3d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-041",
+      "name": "Damage Refund",
+      "file": "Damage Refund.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "34b1c4c46e519e72d4ea8460d66891a4e2d67dc5d6ecab49dfd970d63f414cbb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-042",
+      "name": "Courage Under Load",
+      "file": "Courage Under Load.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ab8e1af138d2318e112add2358b690a303a5f742526e8136b075616f3202ea04",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-043",
+      "name": "AJ, First Responder",
+      "file": "AJ, First Responder.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "434836433669a120574a256f518e1188b1aee59f3bf87228c8d6d3e4400f3eb8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-044",
+      "name": "Cuddy, Fast Starter",
+      "file": "Cuddy, Fast Starter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3e5bbacd44a61beac34b3d68762a657890d94bb641b7880b75de6dbe7fe88980",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-045",
+      "name": "Peaceful Exit",
+      "file": "Peaceful Exit.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "71b32793dbbcaebbc793b954a70af3cb0d0efef5736e05183c6c18eca8e98eba",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-046",
+      "name": "MHB, Community Shield",
+      "file": "MHB, Community Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b1dfe4c116c59e7688502976ffffab7a965e0023830ef6bda3393c267c709c58",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-047",
+      "name": "Sat, Blade Firewall",
+      "file": "Sat, Blade Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d40b27dfe7a8daef446f2127bddaf35888d82f3af63001298b7d6bcfae32e7a9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-048",
+      "name": "Morgs, Signal Knight",
+      "file": "Morgs, Signal Knight.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6971e7ce7af669cb5fbe0a77f1ad437ba426271c2499b771f9bf6f0ffdf8c1c9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-049",
+      "name": "Signal Shield",
+      "file": "Signal Shield.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "681b810fd9025011a387020e4595cddf782fb4679434457fc886ea150a52c1b7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-050",
+      "name": "Clean Slate",
+      "file": "Clean Slate.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1beadce85b02b0af42f91baa1409ee9290aee03c75d395a0546fee0ef38c0139",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-051",
+      "name": "Michael1011, Packet Shaper",
+      "file": "Michael1011, Packet Shaper.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b2f76fbc143b4a12d9f3b0e4d9a1337edfca1ab021de692a4357c8c106fe269f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-052",
+      "name": "First Memory",
+      "file": "First Memory.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bc02ad7b87c5c0f4dda579f58fff49699ce0c65d9fbbdae4c7d00dc2382a406f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-053",
+      "name": "Boot Hardware",
+      "file": "Boot Hardware.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0f266b23c4dd8fecbaaae3b09ba7707a2c181caf80d81f0c2a41cd629cebeb0c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 19,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-054",
+      "name": "Power Invalidation",
+      "file": "Power Invalidation.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9847090e293d538af4fe273892876950e079ac24454ac8cf74af81215ef6f39f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-055",
+      "name": "Query Burst",
+      "file": "Query Burst.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4663687f1df6aab18ec3d25e258dba6025f7567f201d14e92f65418d305f933a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-056",
+      "name": "Benarc, Mirror Client",
+      "file": "Benarc, Mirror Client.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ff7abfb4b8ed99f04f50e2b8a227605c3b33868b4e05dda755e7b3d39c811bb2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-057",
+      "name": "Remote Control",
+      "file": "Remote Control.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6704102a0621c1f2b35931d79b0b6390d19726c8bdf676ffcaece099d51c1d9f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-058",
+      "name": "Hardware Clone",
+      "file": "Hardware Clone.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6e327e300a11e1ea6dc53e6f4b7d6e0a981a235dd7d690de54179c417bc1e4d1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-059",
+      "name": "Invalid Signature",
+      "file": "Invalid Signature.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7b38d105d67b387937b474e092247753ba39f8215b21a1b4ae487eb3c87f957f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-060",
+      "name": "Exit Fee",
+      "file": "Exit Fee.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e89e1aa404b109fafaba30ea05b3d829bb495c39f9dc7e5795a4499761237cb8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-061",
+      "name": "Buffer Drain",
+      "file": "Buffer Drain.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b464abd08356501d0bae5d19b8872ba6ae67151a884b190a4da5d889f17353db",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-062",
+      "name": "Relay Feedback",
+      "file": "Relay Feedback.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ec4f59f4c0aa5960ed9337d09f3884795241cb9ffec0cd1459a19940d4b40931",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-063",
+      "name": "Broadcast Upgrade",
+      "file": "Broadcast Upgrade.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "966bc942dea59190e5332d2ca11f02a23554f869dd4fd29c163b0fa73207bcae",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-064",
+      "name": "Hidden Route",
+      "file": "Hidden Route.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "69fd4f79103db1f08c050318a97e97820a0e3fb898a5cac442fea0b16846938c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-065",
+      "name": "Quick Uplink",
+      "file": "Quick Uplink.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "36d55de73ee65dc38a66ef2a683ddf9ecf26441ef54cfffc3cc1f0c72bdf231e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-066",
+      "name": "Resource Tap",
+      "file": "Resource Tap.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bb39e2dcfc679b94a1480673b2ef8c9ef685716bd57f3cd8e73a959b980791f4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-067",
+      "name": "Tal, Relay Captain",
+      "file": "Tal, Relay Captain.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "53d9ba2d9b583fc52c3f11fb22aa40088748ec939345c8814dec2a5bfd684a3e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-068",
+      "name": "Resource Rewrite",
+      "file": "Resource Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7c3ef8895e36b993fc9b0fb6287e30b838ec06a73fe0926494246aa6e691bb57",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 16,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-069",
+      "name": "Jedai, Protocol Architect",
+      "file": "Jedai, Protocol Architect.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "974feb55784d3714516ba721de175f1f6c9d2e313b8b2498d0b19245bda9c5b8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-070",
+      "name": "Buffer Lock",
+      "file": "Buffer Lock.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3d83e3155356536053e281145ca8f21057713ce219d3c1278509e1c003e1508b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-071",
+      "name": "Darren, Channel Operator",
+      "file": "Darren, Channel Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1b1ae2f97467e365cc2c3861c0650afe611f09eaebacc517574b375619fbf17a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-072",
+      "name": "Snick, Phantom Process",
+      "file": "Snick, Phantom Process.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "87c6969705b07c52dd2e2395bddb87e40905da3dd36ee2ef745085aaae6201da",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-073",
+      "name": "Resource Reclassification",
+      "file": "Resource Reclassification.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "68b40e55cbcb0a3e863058f2ab294353136148a92d1bee3772c15055ce4bee61",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-074",
+      "name": "Tal, Ghost Router",
+      "file": "Tal, Ghost Router.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e96fcf0452833c97bbadd9e2ae1ad39ae80ad8643887f5ebd8c3367df67bf8a8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-075",
+      "name": "Darren, Channel Raider",
+      "file": "Darren, Channel Raider.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a047b6ff3ff67cc93e68087c57d9a93f2d0f33d61e27249154db7cc5fddd4412",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-076",
+      "name": "Maintenance Leak",
+      "file": "Maintenance Leak.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4ab70154c3f86bc7bab5754a4eb7f9395ca89c288929cd23aea4238c95f9c448",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-077",
+      "name": "Fee Spike",
+      "file": "Fee Spike.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "abb72c6492afb684740856a106d243f972b4c2d53420d28bde2a1d7fe61b22bd",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-078",
+      "name": "Michael1011, Debugger",
+      "file": "Michael1011, Debugger.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4a72c164748b91115cb2553506c90bf291d6eb67337b23f688d60b3258efcd55",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-079",
+      "name": "Cognitive Surge",
+      "file": "Cognitive Surge.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b055169437ed5677a575d86bf1f11c31fe2285bc0e999cccaf82ce217d5d58dc",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-080",
+      "name": "Hot Resource",
+      "file": "Hot Resource.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3c9c95bc8e378be28f40c51613820a5ad198153de34f1d70fce3413195bd8752",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-081",
+      "name": "Benarc, Deep Channel",
+      "file": "Benarc, Deep Channel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6322eb84831b17b19329d7bd3940f3a2ca93f3a18ccf41c7b73bd84eb3750c59",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-082",
+      "name": "Call to Relay",
+      "file": "Call to Relay.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1b2d79a232150810e6d9b6eb927edb56dc902ed5288c3ba17f11b14b5aacb0a3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-083",
+      "name": "Affinity Rewrite",
+      "file": "Affinity Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "118e483f9e05ed85955dd2a54607f06b335f22d5281cbf436881009955356f3f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 16,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-084",
+      "name": "Queue Filter",
+      "file": "Queue Filter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "83ce59bfef2e23f2b2ae24f40f9a5dda5b150cbbbe9caff0bbfd30290204878b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-085",
+      "name": "Consensus Pause",
+      "file": "Consensus Pause.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7b380b6b654b518acf10813801eb436792118b8013b31df6ef75792a4f327cbf",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-086",
+      "name": "Remote Hardware Control",
+      "file": "Remote Hardware Control.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d0857404704f0761553bae09dcf9785a5544686ad183557696a634cae56ddf59",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-087",
+      "name": "Timelock Rewrite",
+      "file": "Timelock Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "db14663a6baea993f46424ee9c172e8fec4fc87c2cd861d437e5a6f3e405e421",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-088",
+      "name": "State Reset",
+      "file": "State Reset.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "60ec893bdc9ed2d699709137270166bb61dd607d0db39f01cbdd6dd3fa618de7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-089",
+      "name": "Toggle State",
+      "file": "Toggle State.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bb65f115b0c3e7d5c32ca6d3d32f6ad78fde05e3644e45b0978149d5d9fb7a23",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-090",
+      "name": "Return to Wallet",
+      "file": "Return to Wallet.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "59c6e9c8f10a346612ff5167613549f5f9dc48c62be98213544cccddad49a897",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-091",
+      "name": "Jedai, Adaptive Client",
+      "file": "Jedai, Adaptive Client.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f987b069e91466ea4662d91e656b9cac4cfccfb31bffaccbe09b6c550fdc70ad",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 14,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-092",
+      "name": "Grid Eruption",
+      "file": "Grid Eruption.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "87c7af64c23524799263c839a81e5b83b85c9c6384b9a2178a8abe084f7add78",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-093",
+      "name": "Snick, Airgap Firewall",
+      "file": "Snick, Airgap Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "99114b996fc27125d9b69737502442b391250a57403fa472571b8f6277b682d1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-094",
+      "name": "Tal, Liquid Firewall",
+      "file": "Tal, Liquid Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1fcc8654c845f029952fb22017894413daa30e73f4445abffd4ed95ef6a29dc9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-095",
+      "name": "Darren, Flow Controller",
+      "file": "Darren, Flow Controller.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a89e0869c0276b5c5e01c738418ff53e96ad98877e8532e89b024ddc17121f14",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-096",
+      "name": "Archive Boot",
+      "file": "Archive Boot.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "350b0ca24550e7fbd8f48abd3055035f6c22798eb9a1f1df386773d0701ac92b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-097",
+      "name": "DNI, Sovereign Knight",
+      "file": "DNI, Sovereign Knight.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0d2d78866f8681b52af70c2a10f9f61d94c1b6abe157af2a02a45c251c6bef5e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-098",
+      "name": "Nind, Backchannel Walker",
+      "file": "Nind, Backchannel Walker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bb8da0e33b8d8418684e51f330c054e114b036c04e1f3c2869127d9f3ec7bc2a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-099",
+      "name": "Stake Contract",
+      "file": "Stake Contract.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "db76d17a3c557af7d5b2c567aafd15116203273ba051c0e5d5bec9cd7dc5253d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-100",
+      "name": "Leaking Key Vault",
+      "file": "Leaking Key Vault.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f85c2eb237edd156ecd6685e1dad8c4f5de59454cb1fd0c3bdbeafcfe964bc49",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-101",
+      "name": "Proof of Work",
+      "file": "Proof of Work.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d7709e3ee8d0dbaf1fb97b7c2f2df4ffb90728b0d3c4071800a6b17bb59c1a8d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-102",
+      "name": "Stake Swap",
+      "file": "Stake Swap.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c79ae78a9e63320c9be54272b8c919f608ae49c90554ef3d3eba15e2770ae2b1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-103",
+      "name": "Bitcoin Gatekeeper",
+      "file": "Bitcoin Gatekeeper.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "87b5cfdefd9d84df1c60793f085e6c32735cd2b4a57c5b0b2d62aa76cb1844f9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-104",
+      "name": "Keys Rewrite",
+      "file": "Keys Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e280981b41da53a2726218eab39d0e77db869f2eab531be6bcb850697c6392e9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-105",
+      "name": "Stake Arbitration",
+      "file": "Stake Arbitration.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2d5d704fc0ea729191a841d471d463420b6065a6aed913119b8f3c6583c57894",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-106",
+      "name": "NC, Resource Reclaimer",
+      "file": "NC, Resource Reclaimer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a51ccc5509803dda159383bd39e70dbc6cbe0abc673f9126526ae3d5e02e4889",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-107",
+      "name": "Deep Search",
+      "file": "Deep Search.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "be679d4f4a5657905c96a8ea89e596d17deb4198b91c8361eb707b65388692b5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-108",
+      "name": "Uptime Channel",
+      "file": "Uptime Channel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e32d642b40e1c7378322ef8eb20f13751f8bf3501c03afed9945bcc5ec5ca0f0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-109",
+      "name": "BlackCoffee, Reboot Crew",
+      "file": "BlackCoffee, Reboot Crew.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "33eaa27533a0d5ac40278fc40284b0a952f54c3ec0ff7bfbbcaeeea3bf05d686",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-110",
+      "name": "Resource Corruption",
+      "file": "Resource Corruption.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7234b0f593fca97f477a9e77753c8c6a21adc3f9adea762d2d19de4930b1ae84",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-111",
+      "name": "Onion Route",
+      "file": "Onion Route.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a28a7a76c1fdcf264f4cab0b52638ba61d7535081be7c6e117a36f083da68c8f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-112",
+      "name": "Proton, Cold Signer",
+      "file": "Proton, Cold Signer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "aa03458b459fa1ef8a9a83d87a6121b09c4761c9b00ae9b0fa1fb49ebff4c6c7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-113",
+      "name": "Signal Tax",
+      "file": "Signal Tax.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f17f307e479084195972013d00fa97c04be4ddef18b5c620231e5fdaf74f6047",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-114",
+      "name": "Burst Signature",
+      "file": "Burst Signature.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ff04186b3ca53833bcee06dc27fd1813fb15a9bb56482af940bf15c0c1441f0c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-115",
+      "name": "Gadaj, Wallet Whisperer",
+      "file": "Gadaj, Wallet Whisperer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "46a84105ee0ba05e168434e32f0fc589cb04f91d6ab3b133edac3bcb203f2cfa",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-116",
+      "name": "Sovereign Mode",
+      "file": "Sovereign Mode.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e477c05ce71938e4e4e571513c473a39311fcd0980534f7df4ff0771fece1f2d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-117",
+      "name": "DNI, Self-Custody Giant",
+      "file": "DNI, Self-Custody Giant.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f4982c44f94c41a9f4328996bd01ceeab75c9862b11503c4dbbb8cb074887c73",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-118",
+      "name": "Wallet Scramble",
+      "file": "Wallet Scramble.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e208c78ef70c731c5ff9dd6b902b3d14e36aeabc596ea3ad6c535f7597b24cb5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-119",
+      "name": "Nind, Archive Returner",
+      "file": "Nind, Archive Returner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c9e623baffbca879199b19001e1cf0ffe8ba55cd50fc02478adcfa5b49d5cfd3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-120",
+      "name": "NC, Forced Signal",
+      "file": "NC, Forced Signal.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0e36aa9297e6feee8d7192ae151a087123f0ef19fcf6bd28f2524a94c0e37395",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-121",
+      "name": "Proton, Keyed Nightmare",
+      "file": "Proton, Keyed Nightmare.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b977423a19c2942e07ed8165eb49f4046f2c0638a1e3cb749ff4ae6f11c149c2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-122",
+      "name": "Locked Process",
+      "file": "Locked Process.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "bdb811b256745067be4f05ad99f443c77bb9d9f3df0c5dddc8ee68a82f8bde9d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-123",
+      "name": "Broadcast Storm",
+      "file": "Broadcast Storm.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "982acdf8a561881645dca569006e7dbb9ac3ce57673183a7777592c57b126191",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-124",
+      "name": "BlackCoffee, Shared Secret Swarm",
+      "file": "BlackCoffee, Shared Secret Swarm.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4dd5f6876ef25e95e1ec5b2277af05194f46ee3cc69bc0ab2dd8ef1c3756c3b3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-125",
+      "name": "Restore Backup",
+      "file": "Restore Backup.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "04b6805efe07b73380efbac238304d6f61bf3e919c3b472545ef4192881be8fc",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-126",
+      "name": "Gadaj, Commit Auditor",
+      "file": "Gadaj, Commit Auditor.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "589a832e339ca12e6684709d6c5a4dc6a6f0718e05b8eda4c51ffc22db4c2b30",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-127",
+      "name": "Convert Uptime",
+      "file": "Convert Uptime.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a281a789ec039cbb53b95eae5cdd9e8f96513eca5d1fa3193565104d87ee13a9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 19,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-128",
+      "name": "NC, Offline Operator",
+      "file": "NC, Offline Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5dd268e6c312a71a61a9daf533d42e88506f2eb525893e80c475f3d319ea86c4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-129",
+      "name": "Nind, Archive Collector",
+      "file": "Nind, Archive Collector.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "39b1700b665aa99365dcf3b15d9a189ad4bd67c15fe050664892b49be5d0c816",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-130",
+      "name": "DNI, Sovereign Accumulator",
+      "file": "DNI, Sovereign Accumulator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6578d5e820372c6ef67499ed1030d1b8433ed3bca902e5d23fb0d7b9f974ff73",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-131",
+      "name": "State Mirror",
+      "file": "State Mirror.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2bbf342bdeab0de9e3892d21cdba6e135855be11d606e7cdab4bc162f4c7e3d7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-132",
+      "name": "Resource Sink",
+      "file": "Resource Sink.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2168428b0f79a5034683cbc58789b7f32a9cae94fb5ebf86cb3da43b8483175f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-133",
+      "name": "Hard Shutdown",
+      "file": "Hard Shutdown.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cdc6b8bcbafe5a830342f80560f2bba92966336c365383ebcfc2581f4174d194",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-134",
+      "name": "Sovereign Strength",
+      "file": "Sovereign Strength.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "540ef8e433ae4438fe1c81235cef4570ede5f54da00e262b296738711e598ed9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-135",
+      "name": "BlackCoffee, Backup Firewall",
+      "file": "BlackCoffee, Backup Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "61470c18d2447661cd9f97da0874c44cfcda2172d4dd37ba26a54da5d6f0176a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-136",
+      "name": "Hardware Leak",
+      "file": "Hardware Leak.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3623a28884fbede17fbe69d8de5dc606486ae7bf4c781ac619a02a023b6fbbf1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-137",
+      "name": "Reduced Permissions",
+      "file": "Reduced Permissions.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8aa8912587f4a31fee734bd5cb72c93a80ea89c2b2b942e94f6dff685c20c666",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-138",
+      "name": "Proton, Ephemeral Signer",
+      "file": "Proton, Ephemeral Signer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "faf3baec4e115e1a82fd2b73819b08a698293b416be6eec3ae9f6c244d554826",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-139",
+      "name": "Remote Command",
+      "file": "Remote Command.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f3406aad34a019070301c27738c117eec63c2becd874471487164f8614fbdf88",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-140",
+      "name": "Gadaj, Archive Maintainer",
+      "file": "Gadaj, Archive Maintainer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d88ec46c7e9412597a97ec899c0a2a99ae9429984d9ff475e1cfab9d8032c7ca",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 19,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-141",
+      "name": "Tunneling Patch",
+      "file": "Tunneling Patch.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "913336bfa4e91e6331891723f0400eaa09247375c4bdc871fe866ef16e931f43",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-142",
+      "name": "Power Rewrite",
+      "file": "Power Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6f71e7a77507e9efe31f46759cb1eedd969f1f42f63c52f0fe6df46197331567",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-143",
+      "name": "Final Settlement",
+      "file": "Final Settlement.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c74b56bfeb964f0ddb81d5541723e7b1592da21db11f7ecb251073f36ba12e99",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-144",
+      "name": "MadMunky, Young Overclocker",
+      "file": "MadMunky, Young Overclocker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "233ee4361af927ba0d712ba00eb6cb66c3ce909cc379b32f158743220c4d3e8b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-145",
+      "name": "Rootzoll, Hardware Breaker",
+      "file": "Rootzoll, Hardware Breaker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f57a238c032719e2bb98f52f2774e3682af7b6c71ee655540df22be0aebc9828",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-146",
+      "name": "Bam, Tunnel Builder",
+      "file": "Bam, Tunnel Builder.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f0ed60f33cbf2e9f370125ed78c9b6879eaac3bb4c03ddf98bf92810f4090e2f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-147",
+      "name": "Leon, Grid Stabilizer",
+      "file": "Leon, Grid Stabilizer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "729e3a60cf280dcff9738cd0a1f57ae43c74c447cd144448e62f44c8b58c5aa9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-148",
+      "name": "Grounded Signal",
+      "file": "Grounded Signal.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ac30bce6a17b07e44e8782e0e1dc4888190fb23c7029757874a6ecacc4511b73",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 16,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-149",
+      "name": "Hashquake",
+      "file": "Hashquake.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "01bca4f678a4749001d6d59f331195a2414dd4192e8a76b9379121d1876148d4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-150",
+      "name": "Route Misdirection",
+      "file": "Route Misdirection.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "292206d9199707b0b8a30c145aa9d250301e244b775e778795be62e5c3413024",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-151",
+      "name": "Essex, Thermal Operator",
+      "file": "Essex, Thermal Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a1a8d48b0a862d850302f72a29a726a32fb12e73b812e4d298cc18cdef3c909d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-152",
+      "name": "Power Burst",
+      "file": "Power Burst.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "689d2decbbc248793e325dc4a214edf23dc5661b559d954d2c8f4846dcaa9f92",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 18,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-153",
+      "name": "Overclock",
+      "file": "Overclock.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "305d8644b8b5a166261f4dc571ff7deed58e309f35d311052528aa67276c6598",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-154",
+      "name": "Signal Outage",
+      "file": "Signal Outage.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ebe907a5e3bbebb4e55e819997a2e59063797528cdafa5d77c250fcf5805239d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-155",
+      "name": "Process Fork",
+      "file": "Process Fork.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "db49c85e18d0f765a4b22bf18707ca75ebb0eedca44e98ce8f17f746fe8d62c9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-156",
+      "name": "Toni China, Hot-Air Relay",
+      "file": "Toni China, Hot-Air Relay.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3868f1e90be0b5dae9873b3e7b4b13203183ebe808fdf1df64fbd074bf9ce710",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-157",
+      "name": "MadMunky, Chaos Coordinator",
+      "file": "MadMunky, Chaos Coordinator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c952563b38b3f7a05ff53c23df70174acd416acd4237409bda2d9716cf436ce9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-158",
+      "name": "Rootzoll, Stone Sentinel",
+      "file": "Rootzoll, Stone Sentinel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1902d1442285488b6d7ef68a12d83f000d0bdd8aaaf420120756d1488b3a9d7d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-159",
+      "name": "Leon, Shift Worker",
+      "file": "Leon, Shift Worker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b818eb07da5cd6cb065c8717e4a2e59b3906f05e4e9dcaa30c7aa2a9976299c7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-160",
+      "name": "Bam, Heavy Lifter",
+      "file": "Bam, Heavy Lifter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3e297ca2d4ec821ccdaf9a3d11b950a388f6bd0aba05b7897a677ec7d20f17da",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-161",
+      "name": "Essex, Bull Runner",
+      "file": "Essex, Bull Runner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ef04c40b4cd86861978aa54594f3b5e993a7e55edcb8fda77b5989ff0c8659c8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-162",
+      "name": "Toni China, Rough Miner",
+      "file": "Toni China, Rough Miner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6cbed253843a07661fe0f8f48cc9368170afcb1cadbde453892b9aecc47e3ffb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-163",
+      "name": "Rootzoll, Crew Multiplier",
+      "file": "Rootzoll, Crew Multiplier.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6549c84c0916f0f6f068956edd5000aaa2f2bb2ccceed356727d54edd363934e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-164",
+      "name": "Grid Amplifier",
+      "file": "Grid Amplifier.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "44db144948319c4658d6951bcbb9003943288fa731cd6ae3605bd425e83b94ad",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-165",
+      "name": "Hot Grid",
+      "file": "Hot Grid.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "177b179f3d1fbff5b165b32f75a6efbe5d645ebfe290ee3f84938662e949e8fb",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-166",
+      "name": "MadMunky, Meme Raider",
+      "file": "MadMunky, Meme Raider.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "12f483a64575869151f65fdbd020151d416f7864aacd6a80a005c563b7a7e2aa",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-167",
+      "name": "Bam, Power Artillery",
+      "file": "Bam, Power Artillery.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "11b7d3c3f92def1e4fbeddcca398f79dcb7975aa9277cf572a1638ccab7cb5af",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-168",
+      "name": "Miner Rally",
+      "file": "Miner Rally.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e4798a5b5ec0d2ce17026195c371d162da76922465d6f5bc8f81a0e1fa3603c1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-169",
+      "name": "Idle Grid Penalty",
+      "file": "Idle Grid Penalty.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ef0f8adee73440170694ea06c2afaa109780223fcc7827b7ac566c7571377a21",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-170",
+      "name": "Split Route",
+      "file": "Split Route.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "51c5f1b20f07d7e692b2cedfec1c22971b4bb190aa6a4be019705d31792e1332",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 20,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-171",
+      "name": "Timelock Invalidation",
+      "file": "Timelock Invalidation.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "20ad8cd12880e46c6e0574ebf2bcaad9a814c5f6aef4dee56942a380228021bf",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-172",
+      "name": "Leon, High Relay Rider",
+      "file": "Leon, High Relay Rider.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d1b7a867d3b9bb18d7209d746c527c3f91b1cd35ff4f386c7fd272550c4072b6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-173",
+      "name": "Toni China, Multihead Miner",
+      "file": "Toni China, Multihead Miner.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "787e141a402b509bb4101d72d018b216382d4e11eb16480bf0db153455b20469",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 21,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-174",
+      "name": "Essex, Grid Rebooter",
+      "file": "Essex, Grid Rebooter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "39a9eaed1c6610e02425245559fc365ec204e087326331851008672a72bc4ead",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-175",
+      "name": "Hardware Shatter",
+      "file": "Hardware Shatter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "49c1b7130d679de96575deeb2500a44d431daacb654a67b0c75a84dcfe5e422b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-176",
+      "name": "MadMunky, Hashrate Dragon",
+      "file": "MadMunky, Hashrate Dragon.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "43bf607d429e522cb4de8ec22540839d5d81a19c689b2ce89058baa62879284c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-177",
+      "name": "Thermal Throttle",
+      "file": "Thermal Throttle.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cd7baeac9ddd9ff3ae8d479f12deec4675ebebb0c7be451ccbb0d7d929690f19",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-178",
+      "name": "Bam, Launch Engineer",
+      "file": "Bam, Launch Engineer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "112ae96ceb7b832f385e83617f708cf748af9145180c666f2a46f4ed6cd4be8e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-179",
+      "name": "Resource Cut",
+      "file": "Resource Cut.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3f215960efdd3ff5e31fbbde348b4889a770d200986b314f83ab69788471ed70",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-180",
+      "name": "Firewall Tunnel",
+      "file": "Firewall Tunnel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d6832d6f03d92f394a73e249404d0b3fecc42a5bfc2e5244fde1c2ab7ae80b7e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-181",
+      "name": "Rootzoll & Leon, Dual Operator",
+      "file": "Rootzoll & Leon, Dual Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "28b30e304f0193e4a15275cd78e5f903c1b97a7056571224e9ed59ab2f67092e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-182",
+      "name": "Essex, Resilient Operator",
+      "file": "Essex, Resilient Operator.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8edbc5cd1f4cc939ad9c73eb1320d7d384e7364533089fc1dcb84b3831db4973",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-183",
+      "name": "Toni China, Thermal Firewall",
+      "file": "Toni China, Thermal Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8cd4dde09e41166c2113f7bc15c2ddcdc796b8f55552024a52cb819058f34ae0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-184",
+      "name": "Rootzoll, Stone Firewall",
+      "file": "Rootzoll, Stone Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "860ad331d5bc8cacf4f5b2f50c38866455985e686faf414a09d5903979eea6a0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-185",
+      "name": "Freedom Market",
+      "file": "Freedom Market.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e14399c3b5b7d437d43f9ae293c0b6fb79e176817b21435f28c8e3f27e57f5d8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-186",
+      "name": "Hashrate Aura",
+      "file": "Hashrate Aura.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ed2852e9f8fc7f0bd810ea9b0be463cb8139ba1c7f733279e9ba73809a5631d7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-187",
+      "name": "Committed Growth",
+      "file": "Committed Growth.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5424aa5e5f3ba71e64b39013fb36bf5a1453d673e805490490ec3cd1a40e3221",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 16,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-188",
+      "name": "Shillie, Multisource Scout",
+      "file": "Shillie, Multisource Scout.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "1e4c0a16703780d2ca2465fdd76e31a60e9d9d78cc075dd9b3cf94cb4fcf0872",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-189",
+      "name": "Obfuscated Formation",
+      "file": "Obfuscated Formation.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6a2e2b932bafe181698ef4d981aa81eba860418fabeb29799e222a55ec9dd847",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 27,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-190",
+      "name": "Human Hashrate",
+      "file": "Human Hashrate.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7ed4ce9ca583cd0be0af2af58f492462a60d32b10db80b3e0016f96a06c3f123",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-191",
+      "name": "Mtoshi, Lethal Courier",
+      "file": "Mtoshi, Lethal Courier.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "431099e21c942e66fd2b2a8608329f7e1fed3bf620ae392450038e3494f8b286",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-192",
+      "name": "Longy, Deep Node",
+      "file": "Longy, Deep Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9f0e5067d6ed35f1be18faf5718b96257cc13b973ee5b2b9837afba01675e484",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-193",
+      "name": "Tobo, First-Strike Archer",
+      "file": "Tobo, First-Strike Archer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "60e1e4c323cc5d77bf999bb641a41a0e54798b949b20b098c17230de57be9020",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-194",
+      "name": "Fast Channel",
+      "file": "Fast Channel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8d7854d13b7365e485d7b298c6a61d8fc23a749877aee3132bd21ede41801017",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-195",
+      "name": "Quiet Block",
+      "file": "Quiet Block.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "260b7770297c9f01a4c7ed9e7c0c328066787b4a1f69acb5035311768f0488fe",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-196",
+      "name": "Arbadacarba, Natural Hashrate",
+      "file": "Arbadacarba, Natural Hashrate.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "990f2907d86cdfb3c08d3871f32ab5819894fa86940a8479acd4b07265a24523",
+      "metrics": {
+        "title_size": 30,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-197",
+      "name": "BK, Feedback Grower",
+      "file": "BK, Feedback Grower.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "937ea4d57946c00752152fffef3d30bdeeb5eb92846787bc1f1b1dbcb32b6a09",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-198",
+      "name": "Longy, Resource Sovereign",
+      "file": "Longy, Resource Sovereign.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6fd863a81d3b41d770cdec156967813994e6fe38634bc260baeaf33399eb1e92",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-199",
+      "name": "Number Go Up",
+      "file": "Number Go Up.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9a52b17c136b1b3aa2285a9b68022ca6bdda20ffac891ba9bff479c1eedbd3ac",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-200",
+      "name": "Shillie, Mesh Sentinel",
+      "file": "Shillie, Mesh Sentinel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a04a1520e13be4f11f47eca36ec3d80f96fdb69443e45fd9796dd1339a56bd1a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-201",
+      "name": "BK, Bear Market Builder",
+      "file": "BK, Bear Market Builder.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b28da94be061a52b6f285d791bba2068eab98478beacadedd45ebc25839c3d11",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-202",
+      "name": "Network Storm",
+      "file": "Network Storm.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "39f8bd6d2f331423359863d9df4b6186270fb7b1dadf971ce01b11c6aedb1b35",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-203",
+      "name": "Resource Freeze",
+      "file": "Resource Freeze.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "64b65685833dd9b0fbb84ff8fb5de3386ebfabb5bc3287c591f6a419a09fd5d9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-204",
+      "name": "Instant Boot",
+      "file": "Instant Boot.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "67674939d68a719c5e963889a5705a7a3124a8cf9b61e402438e290f478a5af7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-205",
+      "name": "Mtoshi, Rooted Node",
+      "file": "Mtoshi, Rooted Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "eaf2de7cda7e9c21196bf332378859f83520462247d1531ab56082028780f5fd",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-206",
+      "name": "Migrating Workload",
+      "file": "Migrating Workload.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d6b869c87fcb8142cd9f8ba5b901ab7622b2ee5cff52e9b80c20d247b8875f39",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-207",
+      "name": "Tobo, Resource Unlocker",
+      "file": "Tobo, Resource Unlocker.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "161f4813ba6208b93f858afdec65a4a3b3994c61c09f325398acf8f77b579fef",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-208",
+      "name": "Keys Invalidation",
+      "file": "Keys Invalidation.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "863da524dba89b521578c60f172a9c3486b7dad38c22dbbd7790b8779372d499",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-209",
+      "name": "Bitcoin Rewrite",
+      "file": "Bitcoin Rewrite.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b752fa7fa34e6c2fe98206928359bbefae9bca931f5e8b041f7dd4914deeb064",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-210",
+      "name": "Living Hardware",
+      "file": "Living Hardware.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f75c357842949c8d4a3c13dd495c4ccb2ab9cc9c0f45062980c3257bedec16e3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-211",
+      "name": "Resource Awakening",
+      "file": "Resource Awakening.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9be729109be4ef904613c75082227dd23e4fc6f2f92645d5a9f96410e952939a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-212",
+      "name": "Arbadacarba, Grid Steward",
+      "file": "Arbadacarba, Grid Steward.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0fb427773d78a6a4c7b4800b61480c59b7f6e600c78f2e9faf6bd3d2621690a6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-213",
+      "name": "Attention Market",
+      "file": "Attention Market.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e6cddd4c951371cf92d470d4334e7320f6bcad6341d6bdf40955a394948c452e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-214",
+      "name": "Topology Scan",
+      "file": "Topology Scan.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "01174c688832a55f5705d497d79e641e5187c58e3e31f72519b2572cbb86a533",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-215",
+      "name": "Reboot Protocol",
+      "file": "Reboot Protocol.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c5e9b1651b08e9c328cf2bb37fe1e1b9911a5f6c235e9ef7ebb0e99b9db0bf39",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-216",
+      "name": "Recovery Phrase",
+      "file": "Recovery Phrase.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "db49ab37743012a5fd55cd27479c63f24d511216aaec7ddff7b06fa563d6514a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-217",
+      "name": "Shillie, Tiny Broadcaster",
+      "file": "Shillie, Tiny Broadcaster.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3d9aa54b966f552dda59f216705d155b4710d56039096e0ee64768fa3265fa2a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-218",
+      "name": "Tobo, Bitcoin Backchanneler",
+      "file": "Tobo, Bitcoin Backchanneler.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9af5aaa751854d160b0030562224ff59574ac445920a2c360c8637e01537da7a",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-219",
+      "name": "Uptime Stream",
+      "file": "Uptime Stream.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9db5a3d6b8a83ee768f5a854159c70c97b6fdc4695928124cf10b92dba43b613",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-220",
+      "name": "Mtoshi, Finality Keeper",
+      "file": "Mtoshi, Finality Keeper.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "20f703ebf1c5f6e648c50ce4ad2d2761cdfd93f43417c68741aa01ef896562e4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-221",
+      "name": "BK, Mesh Pack",
+      "file": "BK, Mesh Pack.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c1e93424afcc7cfea5dff4e6e6d1472897d3ef73589707bccd648878d0e8748c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-222",
+      "name": "Protocol Reset",
+      "file": "Protocol Reset.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "e5a333b6de561c7e0ad241b1776c293b154f7f0e32b10acd674830c5af8e1441",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-223",
+      "name": "Timelock Outage",
+      "file": "Timelock Outage.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "76edf1b3db5c40a7598ab959a619ce271219dd21e815bc73f8889d1f68823b5c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "PLAY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-224",
+      "name": "Arbadacarba, Protocol Gardener",
+      "file": "Arbadacarba, Protocol Gardener.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "cede525bbc9a7f3a30fd41fc6e768b08ef4280dd6fef44fdcc0345c770667a08",
+      "metrics": {
+        "title_size": 37,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-225",
+      "name": "Longy, Thorn Firewall",
+      "file": "Longy, Thorn Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4a124a491a314da3e7149fbadc0bd81110a34190abe655fdc070b4253978d119",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-226",
+      "name": "Shillie, Cold Firewall",
+      "file": "Shillie, Cold Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "747f5bebe6aae56ceaf44fd1444e13ca66aeed62c97efbb3e3a2621c12c8382e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-227",
+      "name": "Tobo, Wooden Firewall",
+      "file": "Tobo, Wooden Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6b4f3dd71981bddc8c5ef2079984701e378b3ffed68db50af67a7c06c0d5c243",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-228",
+      "name": "Restless Client",
+      "file": "Restless Client.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d4b09a95ceb480d3f812f219240153593affec13251d9cca411ff5c5182744c2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-229",
+      "name": "BK, Heavy Settler",
+      "file": "BK, Heavy Settler.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6134e241d34b867a5fd5c8f81334224625a4ebe60b3cd4f0da45ff38f58ec336",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-230",
+      "name": "Mesh Upgrade",
+      "file": "Mesh Upgrade.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7656492cd9c219605663e59e2a865f3bee24b113b86debc1243786488f1921a9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 15,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-231",
+      "name": "Yield Router",
+      "file": "Yield Router.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "512a2873e4c26ef9b55d02926ece5bea99121e180daf53b3699100b0067eb117",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-232",
+      "name": "Entry Fee Device",
+      "file": "Entry Fee Device.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "488098d9f777e8282b5aac69885453e9978807da2c6f4995bbebc241c9328c35",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-233",
+      "name": "Basalt Battery",
+      "file": "Basalt Battery.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c2297bb85a2c0e99a149751f511158a66ce3c7d5fc8406665838b4c4ce90b56b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 26,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-234",
+      "name": "Wallet Pressure",
+      "file": "Wallet Pressure.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7b1458148dd7cb0c1aed6158ce2ad723804891839a6c7df5d9095fbdeaed6b7d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 17,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-235",
+      "name": "Resource Prism",
+      "file": "Resource Prism.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5c0d54057ee743f365fef3267677fc160d8dfc11b302d462b01c0b9f43d01371",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-236",
+      "name": "Chaos Kernel",
+      "file": "Chaos Kernel.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "662fa8e1ffbbf2f6f78cf2e1a115776dab44c356f98c59fe420fe1dc0e2df8b2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 25,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-237",
+      "name": "Cuddy, Clockwork Node",
+      "file": "Cuddy, Clockwork Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6f1db2f12e9682a989299e3339b0dab6080865b63d0ad06bd1fefcc0f6cd6b17",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 19,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-238",
+      "name": "Damage Limiter",
+      "file": "Damage Limiter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8659af73ffc0915ce7b995c1c22849b404fd0e4865f9229420590e68c32f3b33",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-239",
+      "name": "Uptime Clock",
+      "file": "Uptime Clock.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5b9c2d770433a129cfe96a7f38e17155d1fa7fbf6ed8bf5619692f1a82e2d4e5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-240",
+      "name": "Timelock Receiver",
+      "file": "Timelock Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f55a52bf2716ea9fa68f7bda8917d146f52cb28fc7f922e59c7521613e1dd9d0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-241",
+      "name": "Resource Tombstone",
+      "file": "Resource Tombstone.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "366731f42c8e4256a5ef2457639c1977eebea99ab6a23846fb662b43f444bf20",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-242",
+      "name": "Resource Exit Sensor",
+      "file": "Resource Exit Sensor.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6440db58095f97542875e280ae2618a465c1a20e781543b77622b73cd460ac46",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-243",
+      "name": "Wallet Scrubber",
+      "file": "Wallet Scrubber.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7e04151a162e10b0f3b12541d1dbd24e02e7deaa75a635efe015be58a00707fe",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-244",
+      "name": "Damage Firewall",
+      "file": "Damage Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5f31dc9c6ca35f6f6d286341ef5dff3a899314b40ae8a6da1b8e993dc792e135",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-245",
+      "name": "Hashrate Gauntlet",
+      "file": "Hashrate Gauntlet.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "24e7bc6ad0ac5034b9028c692a774c2d5f17eb901d2e7ff5c29cc582d11113bd",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 24,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-246",
+      "name": "Public Wallet Viewer",
+      "file": "Public Wallet Viewer.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3100856e6746f85e26955bae10f72576a4d086737eefaba38c8bcd2581c25f3c",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-247",
+      "name": "Mesh Router",
+      "file": "Mesh Router.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "89761845514ef8ae8db44b84bd56166e77a69372b42a02a822d0581dd5548606",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-248",
+      "name": "Open Feed",
+      "file": "Open Feed.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "6fa8a50da0c8cd43588369f67b0e4b65b72ef8c987b37961618ae185064e1cbd",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-249",
+      "name": "Cold Storage Controller",
+      "file": "Cold Storage Controller.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "db24b8f1fb453c4ff163fc3c15faeda94fff330289537977f3a695ca68c7b4a6",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-250",
+      "name": "Identity Mask",
+      "file": "Identity Mask.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d868919d07413f4039bd5d52403221a821d7dd8ff6cc50b31d9e2a7595db7b81",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 22,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-251",
+      "name": "Power Receiver",
+      "file": "Power Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "4b7e6cce515e6916f975c4c9603c1e6b22982d35ff82b26775719491aadb7726",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-252",
+      "name": "Signal Receiver",
+      "file": "Signal Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "5320712f8631fc5a9ab0f4686067c761526cc93e4fee651b0ef73c6c09646052",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-253",
+      "name": "Damage Router",
+      "file": "Damage Router.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "f82c30b1bd24ce37cce959e3e893c2161e91094cb5ae4ef2548df2ec0583cdc9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-254",
+      "name": "Hot Wallet Statue",
+      "file": "Hot Wallet Statue.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9f2d5302109b805b7d59e05e322f79e30b657cfc595d0844ed020eb073d18483",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-255",
+      "name": "Genesis Archive",
+      "file": "Genesis Archive.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ffd613c93e189218a935281a916629da06dd067c930576fb550e7c4ba1a1101b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-256",
+      "name": "FLX, Unstoppable Rig",
+      "file": "FLX, Unstoppable Rig.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "052605dc959a9c4b0106b98621f7df8651e901f8c7fb50cc86f0022d05663ad5",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-257",
+      "name": "Keyed Resource Bell",
+      "file": "Keyed Resource Bell.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "69aacb22421a43509084cc0d388b1733dcdc366a2e7d6c86d36137ed0830ad9f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-258",
+      "name": "Memory Palace",
+      "file": "Memory Palace.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "21c5481c5e147d1ef0da5c53c91eafca6091597a499421cfa792ac1d35b54ba4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 23,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-259",
+      "name": "MHB, Living Firewall",
+      "file": "MHB, Living Firewall.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "307ae0d6e6806d61892943bef7184fb8d21af4d4ba9baca4f41a0720380b6163",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-260",
+      "name": "Boost Converter",
+      "file": "Boost Converter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "90b42dd942c3af8cfb56bf3199db00f5a519cd61a31a73a7f9bcd73c87678745",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 27,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-261",
+      "name": "Low-Power Mode",
+      "file": "Low-Power Mode.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9a6f349fe49ba2ed1a48cdc7f89f3dfcb32c39790d17f2dd00139aea9d586b86",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-262",
+      "name": "Bitcoin Seed",
+      "file": "Bitcoin Seed.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "3a124cecc3e6886c9ca2b96df8fb572801242ed401025c47468c4303187e4a58",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-263",
+      "name": "Keys Shard",
+      "file": "Keys Shard.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c32067772d89a0f62a2fa41a2ef8a8a250244a51b484edcc1897e08bb93f8cc1",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-264",
+      "name": "Signal Beacon",
+      "file": "Signal Beacon.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "679da48a841213ef16544769d84df800eb9b01785a2659254a27a20a707c6eed",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-265",
+      "name": "Power Cell",
+      "file": "Power Cell.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "21a81f5457a94ccee33abb472168052636d5e9cbd534cf8ac06156f0d35495a8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-266",
+      "name": "Timelock Crystal",
+      "file": "Timelock Crystal.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0a3aa75dd7c5a2293284f395802abb3f19f2a15b239ae526cc996268c9a763c4",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-267",
+      "name": "Network Reset Disk",
+      "file": "Network Reset Disk.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "ee243b0496b2391f7e76c1db1a72202094a992937b1488828aef044d07aa355f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-268",
+      "name": "Michael1011, Obsidian Node",
+      "file": "Michael1011, Obsidian Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8322538c469e1e1806c84b12a3733cff328a3ec90ac3c86163838d72893fdd51",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-269",
+      "name": "Fault Injector",
+      "file": "Fault Injector.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "0740a7384f8de056d7db12b0e5ba178b6ae486b5e5651b627a6c9f6d0f1ce08f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-270",
+      "name": "Genesis Ring",
+      "file": "Genesis Ring.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "8965cebffbfa175c6a8aa66c44c0b22b9a839a956e36ac2c1dbfa9fab12dee42",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-271",
+      "name": "Archive Listener",
+      "file": "Archive Listener.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "2f29b2e133c7f1d1daeb9948f9120ab8610989c6c49d74e7698e631c46f7eba0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-272",
+      "name": "Resource Converter",
+      "file": "Resource Converter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "77f6a3887cceb04f07aec2b1d2c1c89caa25646134426a2333aac0d11c47f8a0",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 2,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-273",
+      "name": "Swarm Node",
+      "file": "Swarm Node.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "d0afa848ba9d2d6c628d3df40d05542094bc18145f7c2e7a5fb99aa39cb74223",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-274",
+      "name": "Keys Receiver",
+      "file": "Keys Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "50dc7779bc937c2bde2c8a50f46a9634b00a235b8a8085afa0685b74e924a9b2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-275",
+      "name": "Timelock Vault",
+      "file": "Timelock Vault.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "35e396340d37f6797cfd30b94d50ad3a2ef912fc73ff7c21502d40da6aaf8b59",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-276",
+      "name": "Difficulty Winter",
+      "file": "Difficulty Winter.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a01bab1ff59df0aa228f6a0a616deebf2356cd0a10107d74e6bd2696e73938b9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "STATIC",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-277",
+      "name": "Bitcoin Receiver",
+      "file": "Bitcoin Receiver.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "fe028a0e281468d1cd9b4d6d1bc0be086b4795f8b04ebdabac0fbdd833e5bed3",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 3,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "TRIGGER",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-278",
+      "name": "Power–Keys Junction",
+      "file": "Power–Keys Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "c2de8a7744b77ae45737195128ee2f8f08c753becd5cf2d2d2268a413a3d95af",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-279",
+      "name": "Keys–Bitcoin Junction",
+      "file": "Keys–Bitcoin Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "aac6405c050f48cafdb0f781e9fdd00930d3cb51333ad439ff1022fc0ce5f8d9",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-280",
+      "name": "Power–Signal Junction",
+      "file": "Power–Signal Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "86b2d10ea0c8f855a88273de19ed6eb8ba9ca30df1b590870f317deec24d55aa",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-281",
+      "name": "Bitcoin–Signal Junction",
+      "file": "Bitcoin–Signal Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "57034c35d5989a91a1bed7cce0626662bd57f26d7ed631a904aa99c5f8a72455",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-282",
+      "name": "Signal–Keys Junction",
+      "file": "Signal–Keys Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "34ac895b0cc6e529e41552dbcd520450ad4fb988363bdf62bbaddd06952ae39f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-283",
+      "name": "Power–Bitcoin Junction",
+      "file": "Power–Bitcoin Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "065724ebdd2398d1cc22930b82e2c5777f73bc7942ec683564236caa48629b9d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-284",
+      "name": "Bitcoin–Timelock Junction",
+      "file": "Bitcoin–Timelock Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "43663a1ac8608867bc1ee3db623f892079b788804c04e7a4eca34fe2a49a4127",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-285",
+      "name": "Signal–Timelock Junction",
+      "file": "Signal–Timelock Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "648047a1fc93f1be1a8f2a5dbc337d54586dd59e589fdaa3ed9f06c8a7863e80",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-286",
+      "name": "Timelock–Keys Junction",
+      "file": "Timelock–Keys Junction.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "91147d6a17aab0f2633ee3f2f46e24174b2bdcc4d5bd234323bedaa643222511",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-287",
+      "name": "Signal Commons — Sunrise",
+      "file": "Signal Commons — Sunrise.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "b05133ecf900ce47e33032c9190c53d8a68e44074446e44f2de270e9ee16f9b8",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-288",
+      "name": "Signal Commons — Rooftop",
+      "file": "Signal Commons — Rooftop.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "146a569229f85d9df386cdd246618fdbf8e9307d0fcb54390fa2c38b720ee912",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-289",
+      "name": "Timelock Channel — Dawn",
+      "file": "Timelock Channel — Dawn.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "602c0d6000fc6d5c4162da0d3b6740ecdd0419d552bc61280bdd854481a8c88d",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-290",
+      "name": "Timelock Channel — Midnight",
+      "file": "Timelock Channel — Midnight.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "12d099ba7609a32f6cd4041a3cea54abec1c1bb61e0c76c3194fe32e421cde66",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-291",
+      "name": "Key Vault — Workshop",
+      "file": "Key Vault — Workshop.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "7c89dca11912765efe3e8fe37c8d1cac7502f7752e834fff386381bb5fb9831f",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-292",
+      "name": "Key Vault — Cold Room",
+      "file": "Key Vault — Cold Room.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "a9ecd33c421cd100c424463ff85eb08b3e3aaaae3dfe24ebbf4657eed02696f2",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-293",
+      "name": "Power Plant — Solar",
+      "file": "Power Plant — Solar.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9771054b4972d10b97d06593195f8823877d09815d759e7255c2d90c1a257d3e",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 1,
+        "flavor_y": 880,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-294",
+      "name": "Power Plant — Hydro",
+      "file": "Power Plant — Hydro.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "9e41d9f8120718eb79ab6f3a082fac3b69c5455010646182ececca74aa45ac2b",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    },
+    {
+      "id": "E1-295",
+      "name": "Satoshi Orchard — Commons",
+      "file": "Satoshi Orchard — Commons.jpg",
+      "size": [
+        750,
+        1050
+      ],
+      "sha256": "eaa784374e542e48b1e4c96c76771da3a253f0b31f16957f298a962b3d60d5a7",
+      "metrics": {
+        "title_size": 38,
+        "rules_size": 28,
+        "rules_lines": 1,
+        "flavor_size": 19,
+        "flavor_lines": 2,
+        "flavor_y": 856,
+        "text_label": "ABILITY",
+        "overflow": false
+      },
+      "status": "card-locked"
+    }
+  ]
+}

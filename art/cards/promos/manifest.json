@@ -1,0 +1,37 @@
+{
+  "phase": "promo-card-faces",
+  "card_count": 1,
+  "files": [
+    {
+      "id": "FIPS-P01",
+      "name": "Global FIPS Balloon Network",
+      "art_file": "FIPS-P01.jpg",
+      "art_size": [
+        1920,
+        2400
+      ],
+      "art_sha256": "6cfa9d888387470d9798063399b5df95d1087372ba91c411b605d966d75c819c",
+      "art_watermark": {
+        "asset": "art/brand/600B-logo-primary.png",
+        "placement": "bottom-right-preview-safe-inset",
+        "box": [
+          1388,
+          2214,
+          1532,
+          2358
+        ],
+        "width_ratio": 0.075,
+        "margin_ratio": 0.022,
+        "right_inset_ratio": 0.18,
+        "opacity": 78
+      },
+      "face_file": "Global FIPS Balloon Network.jpg",
+      "face_size": [
+        750,
+        1050
+      ],
+      "face_sha256": "e69bdd77862550dae9b57c1d8c104ad2d4a95478668c19ae70bcee7b5856501b",
+      "status": "promo-locked"
+    }
+  ]
+}
