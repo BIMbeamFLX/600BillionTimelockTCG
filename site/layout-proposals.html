@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>600B — Card Layout Proposals</title>
+<style>
+@font-face { font-family:Anton600; src:url("../art/fonts/Anton-Regular.ttf") format("truetype"); }
+:root { --o:#f7931a; --p:#9b51e0; --b:#09080b; --s:#17131d; --c:#fff7ec; --m:#c7bbcc; }
+* { box-sizing:border-box; }
+body { margin:0; color:var(--c); background:radial-gradient(circle at 50% 0,#28153b,var(--b) 42rem);
+  font:16px/1.45 Arial,sans-serif; }
+header { max-width:1460px; margin:auto; padding:60px 24px 28px; }
+.eyebrow { color:var(--o); font-weight:900; letter-spacing:.2em; text-transform:uppercase; }
+h1 { margin:8px 0 12px; font:clamp(44px,7vw,90px)/.9 Anton600,Impact,sans-serif; text-transform:uppercase; }
+header p { max-width:740px; color:var(--m); }
+.grid { display:grid; grid-template-columns:repeat(3,minmax(300px,420px)); justify-content:center;
+  gap:34px; padding:28px 24px 90px; }
+.proposal h2 { margin:18px 0 5px; color:var(--o); font:28px/1 Anton600,Impact,sans-serif; text-transform:uppercase; }
+.proposal > p { margin:0; color:var(--m); font-size:13px; }
+.card { --accent:var(--p); position:relative; overflow:hidden; aspect-ratio:5/7; padding:16px;
+  color:var(--c); background:#0e0c11; box-shadow:0 24px 70px #000b; isolation:isolate; }
+.card::after { content:""; position:absolute; inset:7px; z-index:-1; pointer-events:none; }
+.title { height:47px; padding:2px 46px 0 14px; overflow:hidden; font:27px/1 Anton600,Impact,sans-serif;
+  text-overflow:ellipsis; white-space:nowrap; }
+.cost { position:absolute; top:17px; right:18px; display:grid; width:34px; height:34px; place-items:center;
+  border:2px solid var(--accent); border-radius:50%; font:22px/1 Anton600,Impact,sans-serif; }
+.art { width:100%; height:42%; object-fit:cover; object-position:center 26%; border:2px solid var(--o); }
+.type { margin-top:7px; padding:8px 10px; color:var(--c); background:#251d2e;
+  font:15px/1 Anton600,Impact,sans-serif; letter-spacing:.04em; text-transform:uppercase; }
+.rules { min-height:31%; margin-top:7px; padding:14px; color:#18131d; background:#f1ecf7; }
+.rules b { color:var(--p); font:11px/1 Anton600,Impact,sans-serif; text-transform:uppercase; }
+.rules p { margin:9px 0 18px; font-size:15px; font-weight:700; }
+.rules em { color:#5c4d69; font:italic 13px/1.35 Georgia,serif; }
+.footer { display:flex; justify-content:space-between; padding:9px 11px 0; color:var(--m);
+  font:11px/1 Anton600,Impact,sans-serif; letter-spacing:.04em; }
+
+/* A — current direction: a broad woven protocol rail with a stepped inner edge. */
+.rail { clip-path:polygon(0 0,94% 0,100% 3%,100% 48%,98% 50%,100% 52%,100% 97%,94% 100%,0 100%); }
+.rail::before { content:""; position:absolute; z-index:3; inset:63px auto 39px 7px; width:28px;
+  background:repeating-linear-gradient(155deg,var(--accent) 0 13px,#342443 13px 20px);
+  clip-path:polygon(0 0,70% 0,100% 3%,72% 9%,100% 16%,72% 24%,100% 32%,72% 40%,100% 50%,
+  72% 60%,100% 68%,72% 76%,100% 84%,72% 92%,100% 97%,70% 100%,0 100%); }
+.rail .title,.rail .type,.rail .rules,.rail .footer { margin-left:24px; }
+
+/* B — a sharper right-side blade that merges art, stats and resource identity. */
+.blade { padding-right:38px; clip-path:polygon(0 3%,4% 0,100% 0,100% 100%,4% 100%,0 97%); }
+.blade::before { content:""; position:absolute; z-index:4; top:0; right:0; bottom:0; width:34px;
+  background:linear-gradient(180deg,var(--o) 0 42%,var(--p) 42% 100%);
+  clip-path:polygon(28% 0,100% 0,100% 100%,28% 100%,0 94%,38% 84%,0 74%,38% 62%,0 51%,
+  38% 39%,0 27%,38% 15%,0 6%); }
+.blade .art { border-color:var(--p); }
+.blade .type { border-left:6px solid var(--o); }
+.blade .rules { clip-path:polygon(0 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%); }
+
+/* C — modular corners and a diagonal orbit, visually lighter in the long edges. */
+.orbit { padding:20px; border:2px solid transparent;
+  background:linear-gradient(#0e0c11,#0e0c11) padding-box,
+  conic-gradient(from 35deg,var(--o),var(--p),#3d5afe,var(--o)) border-box;
+  clip-path:polygon(0 8%,8% 0,92% 0,100% 8%,100% 92%,92% 100%,8% 100%,0 92%); }
+.orbit::before { content:""; position:absolute; z-index:4; left:-35%; top:28%; width:170%; height:15px;
+  background:repeating-linear-gradient(90deg,var(--o) 0 42px,#0e0c11 42px 54px,var(--p) 54px 96px);
+  transform:rotate(-8deg); box-shadow:0 0 0 5px #0e0c11; }
+.orbit .title { padding-left:4px; }
+.orbit .art { clip-path:polygon(0 0,100% 0,100% 94%,94% 100%,0 100%); }
+.orbit .type { margin-top:12px; border-right:8px solid var(--p); }
+.orbit .rules { clip-path:polygon(0 0,96% 0,100% 8%,100% 100%,4% 100%,0 92%); }
+@media (max-width:1080px) { .grid { grid-template-columns:minmax(300px,420px); } }
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">600 Billion · Frame Study</div>
+  <h1>Three directions.<br>One visual system.</h1>
+  <p>All three retain the same art, type hierarchy and resource palette. Only the frame language
+  changes, so the comparison stays honest.</p>
+</header>
+<main class="grid">
+  <article class="proposal">
+    <div class="card rail" style="--accent:#94a3b8">
+      <div class="title">FLX, Unstoppable Rig</div><div class="cost">4</div>
+      <img class="art" src="assets/layouts/e1-256-art.jpg" alt="">
+      <div class="type">Hardware Avatar — Node · 5 / 3</div>
+      <div class="rules"><b>Static</b><p>This Avatar attacks each clash if able.<br>This Avatar
+      can't be blocked by Firewalls.</p><em>“Someone said impossible; Unstoppable Rig heard
+      needs one more adapter.”</em></div>
+      <div class="footer"><span>600 BILLION · TIMELOCK TCG</span><span>E1-256</span></div>
+    </div>
+    <h2>A · Protocol Rail</h2>
+    <p>Strongest resource recognition and best set-wide consistency. The stepped edge feels
+    engineered without fighting the artwork.</p>
+  </article>
+
+  <article class="proposal">
+    <div class="card blade">
+      <div class="title">FLX, Unstoppable Rig</div><div class="cost">4</div>
+      <img class="art" src="assets/layouts/e1-256-art.jpg" alt="">
+      <div class="type">Hardware Avatar — Node · 5 / 3</div>
+      <div class="rules"><b>Static</b><p>This Avatar attacks each clash if able.<br>This Avatar
+      can't be blocked by Firewalls.</p><em>“Someone said impossible; Unstoppable Rig heard
+      needs one more adapter.”</em></div>
+      <div class="footer"><span>600 BILLION · TIMELOCK TCG</span><span>E1-256</span></div>
+    </div>
+    <h2>B · Signal Blade</h2>
+    <p>Most aggressive and futuristic. Excellent for multi-affinity cards, but it takes more
+    horizontal space from titles and rules.</p>
+  </article>
+
+  <article class="proposal">
+    <div class="card orbit">
+      <div class="title">FLX, Unstoppable Rig</div><div class="cost">4</div>
+      <img class="art" src="assets/layouts/e1-256-art.jpg" alt="">
+      <div class="type">Hardware Avatar — Node · 5 / 3</div>
+      <div class="rules"><b>Static</b><p>This Avatar attacks each clash if able.<br>This Avatar
+      can't be blocked by Firewalls.</p><em>“Someone said impossible; Unstoppable Rig heard
+      needs one more adapter.”</em></div>
+      <div class="footer"><span>600 BILLION · TIMELOCK TCG</span><span>E1-256</span></div>
+    </div>
+    <h2>C · Orbit Frame</h2>
+    <p>Most premium and airy. The corners feel collectible, while the diagonal orbit adds motion
+    with less permanent edge weight.</p>
+  </article>
+</main>
+</body>
+</html>

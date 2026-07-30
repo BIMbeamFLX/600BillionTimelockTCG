@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from normalize_generated_art import ART_HEIGHT, ART_WIDTH, normalize_one
-from normalize_sacred_number_art import CANONICAL_VALUE
 from PIL import Image, ImageOps
+from sacred_number import CANONICAL_VALUE
 
 log = logging.getLogger("apply_final_art_qa_fixes")
 
@@ -54,6 +54,7 @@ GENERATIVE_FIXES = frozenset(
         "E1-225",
         "E1-256",
         "E1-268",
+        "E1-286",
     }
 )
 FIX_CARD_IDS = GENERATIVE_FIXES

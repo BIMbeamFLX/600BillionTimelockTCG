@@ -14,13 +14,35 @@ from normalize_generated_art import ART_HEIGHT, ART_WIDTH, normalize_one
 from PIL import Image
 
 log = logging.getLogger("apply_art_watermarks")
-WATERMARK_FORMAT_VERSION = "600B-E1-art-1920x2400-v2-watermarked"
+WATERMARK_FORMAT_VERSION = "600B-E1-art-1920x2400-v3-preview-safe-watermark"
 
 
 def resolve_source(repo_root: Path, source_file: str) -> Path:
     """Resolve a manifest source path without changing the source file."""
     source = Path(source_file)
     return source if source.is_absolute() else repo_root / source
+
+
+def resolve_raw_imagegen_source(
+    repo_root: Path,
+    item: dict[str, Any],
+    legacy_by_id: dict[str, dict[str, Any]],
+) -> Path:
+    """Unwrap an unchanged legacy pass-through to its original ImageGen source."""
+    source_file = item["source_file"].replace("\\", "/")
+    if "prompts-v2-sacred-number-v3/" not in source_file:
+        return resolve_source(repo_root, item["source_file"])
+    legacy = legacy_by_id[item["id"]]
+    if legacy["canonical_overlay"]:
+        raise ValueError(f"legacy overlay source still released for {item['id']}")
+    historical_source = resolve_source(repo_root, legacy["source"])
+    if historical_source.exists():
+        return historical_source
+
+    original_raw = repo_root / "art" / "generated" / "prompts-v2" / f"{item['id']}.png"
+    if original_raw.exists():
+        return original_raw
+    return historical_source
 
 
 def record_planned(
@@ -60,7 +82,7 @@ def record_planned(
                     str(output_dir / item["file"]),
                     str(logo_path),
                     "planned",
-                    "apply the official circular 600B logo as a subtle watermark",
+                    "apply the official circular 600B logo with a preview-safe right inset",
                     "user:felix+auto:codex:art-watermark",
                     now,
                 )
@@ -113,12 +135,20 @@ def main() -> None:
     if len(files) != 295:
         raise ValueError(f"expected 295 locked artworks, found {len(files)}")
 
-    sources = {item["id"]: resolve_source(repo_root, item["source_file"]) for item in files}
+    legacy_manifest_path = (
+        repo_root / "art" / "generated" / "prompts-v2-sacred-number-v3" / "manifest.json"
+    )
+    legacy_manifest = json.loads(legacy_manifest_path.read_text(encoding="utf-8"))
+    legacy_by_id = {item["id"]: item for item in legacy_manifest["files"]}
+    sources = {
+        item["id"]: resolve_raw_imagegen_source(repo_root, item, legacy_by_id) for item in files
+    }
     missing = [card_id for card_id, path in sources.items() if not path.exists()]
     if missing:
         raise FileNotFoundError(f"missing {len(missing)} watermark sources: {missing}")
 
-    record_planned(args.audit_db, files, args.art, args.logo)
+    effective_files = [{**item, "source_file": sources[item["id"]].as_posix()} for item in files]
+    record_planned(args.audit_db, effective_files, args.art, args.logo)
     with Image.open(args.logo) as opened_logo:
         logo = opened_logo.convert("RGBA")
 
@@ -145,7 +175,8 @@ def main() -> None:
             "format_version": WATERMARK_FORMAT_VERSION,
             "required_size": [ART_WIDTH, ART_HEIGHT],
             "watermark_asset": "art/brand/600B-logo-primary.png",
-            "watermark_policy": "subtle bottom-right official circular mark",
+            "watermark_policy": "subtle official circular mark inset left from preview crop",
+            "source_policy": "original ImageGen source or reviewed raw ImageGen regeneration",
             "files": rebuilt,
         }
     )

@@ -13,6 +13,7 @@ from typing import Any
 from brand_watermark import (
     WATERMARK_MARGIN_RATIO,
     WATERMARK_OPACITY,
+    WATERMARK_RIGHT_INSET_RATIO,
     WATERMARK_WIDTH_RATIO,
     paste_subtle_watermark,
 )
@@ -139,10 +140,11 @@ def normalize_one(
     if watermark_box is not None:
         result["watermark"] = {
             "asset": "art/brand/600B-logo-primary.png",
-            "placement": "bottom-right",
+            "placement": "bottom-right-preview-safe-inset",
             "box": list(watermark_box),
             "width_ratio": WATERMARK_WIDTH_RATIO,
             "margin_ratio": WATERMARK_MARGIN_RATIO,
+            "right_inset_ratio": WATERMARK_RIGHT_INSET_RATIO,
             "opacity": WATERMARK_OPACITY,
         }
         result["status"] = "art-locked-watermarked"

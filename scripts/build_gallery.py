@@ -517,6 +517,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
       <strong>TIMELOCK TCG</strong>
       <span>Edition One · Artwork + Text</span>
     </div>
+    <a class="nav-link" href="leaderboard.html">Leaderboard</a>
     <a class="nav-link" href="rules.html">Rulebook</a>
   </header>
   <main>

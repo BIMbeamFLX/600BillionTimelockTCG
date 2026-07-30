@@ -424,6 +424,7 @@ function renderWebsite() {
           <span class="pill">40+ cards</span>
           <span class="pill">Classic profile</span>
           <a class="pill" href="cards.html">Browse all cards →</a>
+          <a class="pill" href="leaderboard.html">Sats leaderboard →</a>
         </div>
       </div>
     </div>

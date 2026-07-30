@@ -21,10 +21,11 @@ def test_watermark_is_subtle_and_placed_inside_lower_right_bounds():
         width_ratio=0.25,
         opacity=64,
         margin_ratio=0.05,
+        right_inset_ratio=0.1,
     )
 
-    assert box == (132, 102, 172, 142)
-    assert canvas.getpixel((152, 122)) == (79, 45, 15)
+    assert box == (116, 102, 156, 142)
+    assert canvas.getpixel((136, 122)) == (79, 45, 15)
     assert canvas.getpixel((20, 10)) == (20, 20, 20)
 
 
@@ -37,6 +38,8 @@ def test_watermark_rejects_invalid_geometry_and_opacity():
         {"width_ratio": 1},
         {"opacity": -1},
         {"opacity": 256},
+        {"right_inset_ratio": -0.1},
+        {"right_inset_ratio": 1},
     ):
         try:
             paste_subtle_watermark(canvas, logo, **kwargs)
@@ -53,11 +56,12 @@ def test_locked_art_manifest_records_one_official_watermark_per_card():
         ).read_text(encoding="utf-8")
     )
 
-    assert manifest["format_version"] == "600B-E1-art-1920x2400-v2-watermarked"
+    assert manifest["format_version"] == "600B-E1-art-1920x2400-v3-preview-safe-watermark"
     assert len(manifest["files"]) == 295
     assert all(
         item["watermark"]["asset"] == "art/brand/600B-logo-primary.png"
-        and item["watermark"]["placement"] == "bottom-right"
+        and item["watermark"]["placement"] == "bottom-right-preview-safe-inset"
+        and item["watermark"]["right_inset_ratio"] >= 0.17
         and item["status"] == "art-locked-watermarked"
         for item in manifest["files"]
     )

@@ -31,7 +31,7 @@ log = logging.getLogger("build_cards")
 
 CARD_WIDTH = 750
 CARD_HEIGHT = 1050
-LAYOUT_VERSION = "600B-E1-card-v4"
+LAYOUT_VERSION = "600B-E1-card-v5"
 
 ORANGE = (255, 106, 0)
 PURPLE = (116, 71, 184)
@@ -52,10 +52,7 @@ AFFINITY_COLORS = {
     "Neutral": (148, 163, 184),
 }
 
-AFFINITY_STRIPE_BOXES = (
-    (42, 20, 708, 29),
-    (42, 1021, 708, 1030),
-)
+AFFINITY_RAIL_BOUNDS = (22, 116, 64, 970)
 
 ART_CENTERING_OVERRIDES = {
     "E1-202": (0.5, 0.65),
@@ -444,40 +441,111 @@ def frame_affinities(card: dict[str, Any]) -> list[str]:
     return affinities or ["Neutral"]
 
 
-def affinity_stripe_segments(
+def affinity_rail_segments(
     affinities: list[str],
-    left: int,
-    right: int,
+    top: int,
+    bottom: int,
 ) -> list[tuple[int, int, tuple[int, int, int]]]:
-    """Split a horizontal stripe into equal, gapless affinity segments."""
+    """Split the vertical resource rail into equal, gapless affinity segments."""
     if not affinities:
         affinities = ["Neutral"]
-    span = right - left
+    span = bottom - top
     return [
         (
-            left + span * index // len(affinities),
-            left + span * (index + 1) // len(affinities),
+            top + span * index // len(affinities),
+            top + span * (index + 1) // len(affinities),
             AFFINITY_COLORS[affinity],
         )
         for index, affinity in enumerate(affinities)
     ]
 
 
-def draw_affinity_frame_stripes(
+def draw_affinity_frame_rail(
     draw: ImageDraw.ImageDraw,
     affinities: list[str],
 ) -> None:
-    """Draw print-safe resource stripes at the top and bottom of the frame."""
-    for left, top, right, bottom in AFFINITY_STRIPE_BOXES:
-        for segment_left, segment_right, color in affinity_stripe_segments(
-            affinities,
-            left,
-            right,
-        ):
-            draw.rectangle(
-                (segment_left, top, segment_right - 1, bottom - 1),
-                fill=color,
+    """Draw one wide, patterned resource rail with a stepped inner edge."""
+    left, top, right, bottom = AFFINITY_RAIL_BOUNDS
+    draw.polygon(
+        (
+            (left - 4, top - 12),
+            (right - 8, top - 12),
+            (right + 5, top + 5),
+            (right - 2, bottom - 5),
+            (right - 12, bottom + 12),
+            (left - 4, bottom + 12),
+        ),
+        fill=(8, 8, 11),
+        outline=PURPLE,
+    )
+    for segment_top, segment_bottom, color in affinity_rail_segments(
+        affinities,
+        top,
+        bottom,
+    ):
+        mid = (segment_top + segment_bottom) // 2
+        points = (
+            (left, segment_top),
+            (right - 10, segment_top),
+            (right + 2, min(segment_top + 18, segment_bottom)),
+            (right - 7, min(segment_top + 44, segment_bottom)),
+            (right + 3, mid),
+            (right - 7, max(segment_bottom - 44, segment_top)),
+            (right + 2, max(segment_bottom - 18, segment_top)),
+            (right - 10, segment_bottom),
+            (left, segment_bottom),
+        )
+        draw.polygon(points, fill=color)
+        pattern = tuple(max(0, channel - 55) for channel in color)
+        highlight = tuple(min(255, channel + 42) for channel in color)
+        for y in range(segment_top + 10, segment_bottom - 7, 34):
+            draw.line(
+                (left + 5, y, right - 7, min(y + 22, segment_bottom - 2)),
+                fill=pattern,
+                width=6,
             )
+        draw.line(
+            (left + 2, segment_top, left + 2, segment_bottom),
+            fill=highlight,
+            width=2,
+        )
+    draw.polygon(
+        ((left, top), (right - 10, top), (right + 5, top + 15), (left, top + 15)),
+        fill=CREAM,
+    )
+    draw.polygon(
+        (
+            (left, bottom - 15),
+            (right + 5, bottom - 15),
+            (right - 10, bottom),
+            (left, bottom),
+        ),
+        fill=BLACK,
+        outline=CREAM,
+    )
+
+
+def draw_futuristic_corner_brackets(
+    draw: ImageDraw.ImageDraw,
+    accent: tuple[int, int, int],
+) -> None:
+    """Add layered chamfered brackets instead of decorative straight cuts."""
+    draw.polygon(
+        ((20, 78), (20, 28), (82, 28), (68, 40), (36, 40), (36, 64)),
+        fill=accent,
+    )
+    draw.polygon(
+        ((730, 78), (730, 28), (668, 28), (682, 40), (714, 40), (714, 64)),
+        fill=ULTRAVIOLET,
+    )
+    draw.polygon(
+        ((20, 972), (20, 1022), (82, 1022), (68, 1010), (36, 1010), (36, 986)),
+        fill=ULTRAVIOLET,
+    )
+    draw.polygon(
+        ((730, 972), (730, 1022), (668, 1022), (682, 1010), (714, 1010), (714, 986)),
+        fill=accent,
+    )
 
 
 def text_field_label(card: dict[str, Any]) -> str:
@@ -600,8 +668,12 @@ def draw_card(
     draw.rounded_rectangle((9, 9, 741, 1041), radius=42, fill=SOOT)
     draw.rounded_rectangle((20, 20, 730, 1030), radius=34, fill=BLACK)
     draw.rounded_rectangle((29, 29, 721, 1021), radius=28, outline=PURPLE, width=3)
-    draw_affinity_frame_stripes(draw, frame_affinities(card))
-    draw.line((42, 105, 708, 105), fill=ORANGE, width=3)
+    draw.line(
+        ((42, 106), (218, 106), (232, 99), (498, 99), (512, 106), (708, 106)),
+        fill=ORANGE,
+        width=3,
+        joint="curve",
+    )
 
     affinity = card_affinity(card)
     accent = AFFINITY_COLORS[affinity]
@@ -627,18 +699,18 @@ def draw_card(
     draw.rounded_rectangle((36, 544, 714, 621), radius=18, fill=(31, 24, 42))
     draw.rectangle((36, 580, 714, 621), fill=(31, 24, 42))
     draw.line((36, 618, 714, 618), fill=accent, width=3)
-    draw_type_badge(draw, (61, 582), card["card_type"], accent)
+    draw_type_badge(draw, (82, 582), card["card_type"], accent)
     type_font = font(display_font, 24)
     type_line = card["type_line"].upper()
-    draw.text((90, 582), type_line, font=type_font, fill=CREAM, anchor="lm")
+    draw.text((112, 582), type_line, font=type_font, fill=CREAM, anchor="lm")
     if card["action_resilience"]:
         draw_stats(draw, card["action_resilience"], display_font)
 
     draw.rounded_rectangle((36, 630, 714, 966), radius=18, fill=PANEL)
     draw.rectangle((36, 650, 714, 946), fill=PANEL)
     draw.line((48, 642, 702, 642), fill=PURPLE, width=2)
-    x = 56
-    max_width = 638
+    x = 76
+    max_width = 618
     label_font = font(display_font, 13)
 
     rules_label = text_field_label(card)
@@ -655,7 +727,7 @@ def draw_card(
     )
     draw_lines(draw, rules_lines, (x, 681), rules_font, rules_height, INK)
 
-    draw.line((56, 816, 694, 816), fill=(199, 185, 214), width=1)
+    draw.line((76, 816, 694, 816), fill=(199, 185, 214), width=1)
     flavor_text_font, flavor_lines, flavor_height, flavor_overflow = fit_flavor_text(
         draw,
         card["flavor_text"],
@@ -672,9 +744,9 @@ def draw_card(
     )
 
     # Educational notes, canon and art-generation data remain in the game UI.
-    draw.line((56, 918, 694, 918), fill=(199, 185, 214), width=1)
+    draw.line((76, 918, 694, 918), fill=(199, 185, 214), width=1)
     rarity_font = font(display_font, 13)
-    draw.text((56, 938), card["rarity"].upper(), font=rarity_font, fill=MUTED)
+    draw.text((76, 938), card["rarity"].upper(), font=rarity_font, fill=MUTED)
     affinity_label = " + ".join(card["affinity"]).upper() or "OPEN"
     draw.text((694, 938), affinity_label, font=rarity_font, fill=PURPLE, anchor="ra")
 
@@ -691,9 +763,8 @@ def draw_card(
     )
     draw.text((698, 995), card["id"], font=footer_font, fill=ORANGE, anchor="rm")
 
-    # Small cyberpunk corner cuts keep the frame directional without visual weight.
-    draw.line((29, 82, 52, 29), fill=ORANGE, width=3)
-    draw.line((698, 1021, 721, 968), fill=ULTRAVIOLET, width=3)
+    draw_affinity_frame_rail(draw, frame_affinities(card))
+    draw_futuristic_corner_brackets(draw, accent)
 
     return canvas, RenderMetrics(
         title_size=title_size,

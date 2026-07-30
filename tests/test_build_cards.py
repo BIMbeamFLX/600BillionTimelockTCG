@@ -5,10 +5,11 @@ from pathlib import Path
 
 from build_cards import (
     AFFINITY_COLORS,
+    AFFINITY_RAIL_BOUNDS,
     ART_CENTERING_OVERRIDES,
-    affinity_stripe_segments,
+    affinity_rail_segments,
     bottom_aligned_text_y,
-    draw_affinity_frame_stripes,
+    draw_affinity_frame_rail,
     fit_text,
     frame_affinities,
     parse_cost,
@@ -48,23 +49,26 @@ def test_frame_affinities_fall_back_to_neutral_and_remove_duplicates():
     assert frame_affinities({"affinity": ["Signal", "Signal"]}) == ["Signal"]
 
 
-def test_multi_affinity_frame_segments_have_equal_width():
-    segments = affinity_stripe_segments(["Keys", "Power"], 42, 708)
+def test_multi_affinity_frame_segments_have_equal_height():
+    segments = affinity_rail_segments(["Keys", "Power"], 116, 970)
 
     assert segments == [
-        (42, 375, AFFINITY_COLORS["Keys"]),
-        (375, 708, AFFINITY_COLORS["Power"]),
+        (116, 543, AFFINITY_COLORS["Keys"]),
+        (543, 970, AFFINITY_COLORS["Power"]),
     ]
 
 
-def test_frame_stripes_render_resource_colors_at_both_edges():
+def test_frame_rail_is_wide_vertical_pattern_with_both_resource_colors():
     image = Image.new("RGB", (750, 1050))
-    draw_affinity_frame_stripes(ImageDraw.Draw(image), ["Bitcoin", "Signal"])
+    draw_affinity_frame_rail(ImageDraw.Draw(image), ["Bitcoin", "Signal"])
 
-    assert image.getpixel((100, 24)) == AFFINITY_COLORS["Bitcoin"]
-    assert image.getpixel((600, 24)) == AFFINITY_COLORS["Signal"]
-    assert image.getpixel((100, 1025)) == AFFINITY_COLORS["Bitcoin"]
-    assert image.getpixel((600, 1025)) == AFFINITY_COLORS["Signal"]
+    left, top, right, bottom = AFFINITY_RAIL_BOUNDS
+    assert right - left >= 40
+    assert bottom - top > 800
+    assert image.getpixel((left + 6, 200)) == AFFINITY_COLORS["Bitcoin"]
+    assert image.getpixel((left + 6, 700)) == AFFINITY_COLORS["Signal"]
+    rail_colors = {image.getpixel((x, y)) for x in range(left, right) for y in range(180, 260)}
+    assert len(rail_colors) >= 3
 
 
 def test_fips_submarine_crop_keeps_the_launch_bays_visible():
@@ -131,7 +135,7 @@ def test_final_card_manifest_contains_only_visible_text_metrics():
         (REPO_ROOT / "art" / "cards" / "final" / "manifest.json").read_text(encoding="utf-8")
     )
 
-    assert manifest["layout_version"] == "600B-E1-card-v4"
+    assert manifest["layout_version"] == "600B-E1-card-v5"
     assert manifest["overflow_count"] == 0
     assert all(item["metrics"]["rules_lines"] <= 3 for item in manifest["files"])
     assert all(

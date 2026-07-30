@@ -74,6 +74,7 @@ def test_built_gallery_contains_complete_set_and_rulebook_link():
     assert "Genesis Lotus.jpg" in gallery
     assert "Global FIPS Balloon Network" in gallery
     assert 'href="rules.html"' in gallery
+    assert 'href="leaderboard.html"' in gallery
     assert "Artwork + Text" in gallery
     assert "Rules Text" in gallery
     assert '<html lang="en">' in gallery
