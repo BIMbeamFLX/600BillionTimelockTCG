@@ -55,3 +55,4 @@ def test_final_manifest_uses_no_legacy_overlay_sources() -> None:
     assert all(
         "prompts-v2-sacred-number-v3" not in item["source_file"] for item in manifest["files"]
     )
+    assert all("prompts-v2-qa-fixed" not in item["source_file"] for item in manifest["files"])

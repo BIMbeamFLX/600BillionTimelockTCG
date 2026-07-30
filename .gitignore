@@ -13,4 +13,7 @@ Thumbs.db
 .art-build.*.log
 .audit/
 art/generated/
+art/illustrations/
+art/qa/
+art/cards/placeholders/
 art/references/join-detailed-front/

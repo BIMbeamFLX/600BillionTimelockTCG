@@ -17,8 +17,7 @@ art/
   cards/final/ 295 rendered card faces, shared back and readability manifest
   cards/promos/ separately locked promotional card faces
   fonts/       local open-source display fonts
-  illustrations/ 295 text-free E1 artwork plates plus verified manifest
-  qa/          labeled contact sheets for visual review
+  generated/   ignored local raw ImageGen sources and high-resolution exports
   resources/   Power, Bitcoin, Keys, Signal and Timelock icons
   rulebook/    wide chapter banners
   world-plates/ six generated affinity environments
@@ -111,16 +110,22 @@ full 1920 × 2400 scene with no printed card UI. The six world plates set the af
 palette. All 92 Avatar prompts use canonical `join.600.wtf` Detailed ·front references
 as identity locks; every other illustration explicitly remains character-free.
 
-The locked prompt catalog is `art/prompts/e1-art-prompts.json`. Generated source images
-remain in the ignored working area `art/generated/raw/` until the full batch passes
-review. Accepted images are normalized without effects or procedural overlays:
+The locked prompt catalog is `art/prompts/e1-art-prompts.json`. Approved original
+ImageGen sources remain read-only in the ignored `art/generated/prompts-v2/` directory;
+reviewed raw regenerations live in `art/generated/prompts-v2-qa-edits/`. Rejected
+batches, patched copies and QA staging are not retained.
 
 ```bash
-uv run python scripts/normalize_generated_art.py
+uv run python scripts/apply_final_art_qa_fixes.py --refresh
+uv run python scripts/apply_final_art_qa_fixes.py --install
+uv run python scripts/apply_art_watermarks.py
 ```
 
-The accepted output is `art/illustrations/E1-001.jpg` through `E1-295.jpg`, each exactly
-1920 × 2400. The JSON manifest contains dimensions and SHA-256 checksums.
+The local high-resolution export is
+`art/generated/prompts-v2-final-1920x2400/E1-001.jpg` through `E1-295.jpg`, each exactly
+1920 × 2400. Its manifest contains dimensions, raw-source provenance and SHA-256
+checksums. Git publishes only the finished card faces; reproducible contact sheets and
+other QA exports remain local build products.
 
 ## Final cards and website gallery
 
@@ -159,8 +164,8 @@ uv run python scripts/build_placeholders.py
 uv run python scripts/build_set.py --install
 ```
 
-`build_placeholders.py` renders a branded placeholder face for every card into
-`art/cards/placeholders/`. `--install` copies the set XML plus card images into the
+`build_placeholders.py` renders temporary branded playtest faces into the ignored
+`art/cards/placeholders/` directory. `--install` copies the set XML plus card images into the
 local Cockatrice data folder: placeholders first, then finished art from `art/cards/`
 (named exactly like the card, e.g. `Power Surge.png`), so real art always wins.
 Restart Cockatrice and the set `600B Timelock TCG — Edition One (600B)` appears in the

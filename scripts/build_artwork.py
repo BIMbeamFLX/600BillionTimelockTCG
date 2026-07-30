@@ -553,7 +553,7 @@ def main() -> None:
     parser.add_argument(
         "--out",
         type=Path,
-        default=repo_root / "art" / "illustrations",
+        default=repo_root / "art" / "generated" / "procedural-preview",
     )
     parser.add_argument(
         "--audit-db",

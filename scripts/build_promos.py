@@ -19,10 +19,9 @@ from build_cards import (
     save_jpeg_atomic,
 )
 from normalize_generated_art import ART_HEIGHT, ART_WIDTH, normalize_one
-from PIL import Image, ImageOps
+from PIL import Image
 
 log = logging.getLogger("build_promos")
-THUMBNAIL_SIZE = (384, 480)
 
 
 def record_build(
@@ -75,23 +74,19 @@ def render_promo(
     card: dict[str, Any],
     source: Path,
     art_output: Path,
-    thumbnail_output: Path,
     face_output: Path,
     logo_path: Path,
     display_font: Path,
 ) -> dict[str, Any]:
-    """Build one normalized artwork, gallery thumbnail and card face."""
+    """Build one normalized artwork and card face."""
     art_output.parent.mkdir(parents=True, exist_ok=True)
-    thumbnail_output.parent.mkdir(parents=True, exist_ok=True)
     face_output.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(logo_path) as opened_logo:
         logo = opened_logo.convert("RGBA")
     normalized = normalize_one(source, art_output, watermark_logo=logo)
 
     with Image.open(art_output) as opened_art:
-        artwork = ImageOps.exif_transpose(opened_art).convert("RGB")
-        thumbnail = ImageOps.fit(artwork, THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
-        thumbnail.save(thumbnail_output, "WEBP", quality=84, method=6)
+        artwork = opened_art.convert("RGB")
     face, metrics = draw_card(card, artwork, logo, display_font)
     save_jpeg_atomic(face, face_output, quality=94)
     if metrics.overflow:
@@ -104,7 +99,6 @@ def render_promo(
         "art_size": [ART_WIDTH, ART_HEIGHT],
         "art_sha256": normalized["sha256"],
         "art_watermark": normalized["watermark"],
-        "thumbnail_file": thumbnail_output.name,
         "face_file": face_output.name,
         "face_size": [CARD_WIDTH, CARD_HEIGHT],
         "face_sha256": file_sha256(face_output),
@@ -129,11 +123,6 @@ def main() -> None:
         default=repo_root / "art" / "generated" / "promos" / "final",
     )
     parser.add_argument(
-        "--thumbs",
-        type=Path,
-        default=repo_root / "art" / "generated" / "gallery-thumbs",
-    )
-    parser.add_argument(
         "--faces",
         type=Path,
         default=repo_root / "art" / "cards" / "promos",
@@ -154,7 +143,6 @@ def main() -> None:
     for card in cards:
         source = args.source_dir / f"{card['id']}.png"
         art_output = args.art_dir / f"{card['id']}.jpg"
-        thumbnail_output = args.thumbs / f"{card['id']}.webp"
         face_output = args.faces / safe_filename(card["name"])
         record_build(
             args.audit_db,
@@ -169,7 +157,6 @@ def main() -> None:
                 card,
                 source,
                 art_output,
-                thumbnail_output,
                 face_output,
                 repo_root / "art" / "brand" / "600B-logo-primary.png",
                 repo_root / "art" / "fonts" / "Anton-Regular.ttf",

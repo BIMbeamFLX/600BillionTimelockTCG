@@ -9,18 +9,12 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from PIL import Image, ImageOps
-
-THUMBNAIL_SIZE = (384, 480)
-
 
 def gallery_records(
     cards: list[dict[str, Any]],
-    art_manifest: dict[str, Any],
     face_manifest: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Join card text with standalone art and rendered card-face filenames."""
-    art_files = {item["id"]: item["file"] for item in art_manifest["files"]}
+    """Join card text with rendered card-face filenames."""
     face_files = {item["id"]: item["file"] for item in face_manifest["files"]}
     return [
         {
@@ -32,8 +26,6 @@ def gallery_records(
             "cost": card["cost"] or "—",
             "stats": card["action_resilience"],
             "rarity": card["rarity"],
-            "artFile": art_files[card["id"]],
-            "thumbFile": f"{card['id']}.webp",
             "faceFile": face_files[card["id"]],
             "rules": card["rules_text"],
             "flavor": card["flavor_text"],
@@ -65,8 +57,6 @@ def promo_gallery_records(
             "cost": card["cost"] or "—",
             "stats": card["action_resilience"],
             "rarity": card["rarity"],
-            "artFile": files[card["id"]]["art_file"],
-            "thumbFile": files[card["id"]]["thumbnail_file"],
             "faceFile": files[card["id"]]["face_file"],
             "rules": card["rules_text"],
             "flavor": card["flavor_text"],
@@ -84,9 +74,8 @@ def record_site_decision(
     db_path: Path,
     records: list[dict[str, Any]],
     output_path: Path,
-    thumbnail_dir: Path,
 ) -> None:
-    """Record the gallery build before writing HTML or thumbnails."""
+    """Record the gallery build before writing HTML."""
     payload = json.dumps(records, sort_keys=True, ensure_ascii=False).encode()
     with sqlite3.connect(db_path) as connection:
         connection.execute(
@@ -115,66 +104,17 @@ def record_site_decision(
                 "auto:codex:e1-image-text-gallery",
             ),
         )
-        connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS site_thumbnail_builds (
-                artifact TEXT PRIMARY KEY,
-                output_directory TEXT NOT NULL,
-                record_count INTEGER NOT NULL,
-                output_size TEXT NOT NULL,
-                status TEXT NOT NULL,
-                updated_by TEXT NOT NULL,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        connection.execute(
-            """
-            INSERT OR REPLACE INTO site_thumbnail_builds (
-                artifact, output_directory, record_count, output_size,
-                status, updated_by
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                str(output_path),
-                str(thumbnail_dir),
-                len(records),
-                json.dumps(THUMBNAIL_SIZE),
-                "planned",
-                "auto:codex:e1-image-text-gallery",
-            ),
-        )
         connection.commit()
 
 
 def complete_site_decision(db_path: Path, output_path: Path) -> None:
-    """Mark the HTML and thumbnail artifacts generated after successful writes."""
+    """Mark the HTML artifact generated after a successful write."""
     with sqlite3.connect(db_path) as connection:
         connection.execute(
             "UPDATE site_builds SET status='generated' WHERE artifact=?",
             (str(output_path),),
         )
-        connection.execute(
-            "UPDATE site_thumbnail_builds SET status='generated' WHERE artifact=?",
-            (str(output_path),),
-        )
         connection.commit()
-
-
-def build_thumbnails(
-    records: list[dict[str, Any]],
-    art_dir: Path,
-    output_dir: Path,
-) -> None:
-    """Create lightweight WebP previews while preserving full-resolution art."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    for record in records:
-        source = art_dir / record["artFile"]
-        output = output_dir / record["thumbFile"]
-        with Image.open(source) as opened:
-            image = ImageOps.exif_transpose(opened).convert("RGB")
-            image = ImageOps.fit(image, THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
-            image.save(output, "WEBP", quality=84, method=6)
 
 
 def render_html(records: list[dict[str, Any]]) -> str:
@@ -376,26 +316,12 @@ def render_html(records: list[dict[str, Any]]) -> str:
       letter-spacing: .08em;
     }}
     .art-button:focus-visible {{ outline: 3px solid var(--orange); outline-offset: -3px; }}
-    .art-button {{ perspective: 1100px; }}
-    .flip-inner {{
-      position: relative;
-      width: 100%;
-      aspect-ratio: 5 / 7;
-      transition: transform .55s;
-      transform-style: preserve-3d;
-    }}
-    .art-button:hover .flip-inner,
-    .art-button:focus-visible .flip-inner {{ transform: rotateY(180deg); }}
     .art-button img {{
-      position: absolute;
-      inset: 0;
       display: block;
       width: 100%;
-      height: 100%;
-      object-fit: cover;
-      backface-visibility: hidden;
+      aspect-ratio: 5 / 7;
+      object-fit: contain;
     }}
-    .art-button img.flip-back {{ transform: rotateY(180deg); }}
     .card-copy {{
       display: flex;
       flex: 1;
@@ -454,7 +380,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
     .modal-grid > img {{
       width: 100%;
       min-height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       background: #000;
     }}
     .details {{ position: relative; padding: clamp(26px, 5vw, 54px); }}
@@ -614,17 +540,6 @@ def render_html(records: list[dict[str, Any]]) -> str:
       typeFilter.append(option);
     }});
 
-    function artUrl(card) {{
-      const base = card.promo
-        ? "../art/generated/promos/final/"
-        : "../art/generated/prompts-v2-final-1920x2400/";
-      return base + encodeURIComponent(card.artFile);
-    }}
-
-    function thumbUrl(file) {{
-      return "../art/generated/gallery-thumbs/" + encodeURIComponent(file);
-    }}
-
     function faceUrl(card) {{
       const base = card.promo ? "../art/cards/promos/" : "../art/cards/final/";
       return base + encodeURIComponent(card.faceFile);
@@ -636,8 +551,8 @@ def render_html(records: list[dict[str, Any]]) -> str:
     }}
 
     function openCard(card) {{
-      document.getElementById("modalImage").src = artUrl(card);
-      document.getElementById("modalImage").alt = card.name + " Artwork";
+      document.getElementById("modalImage").src = faceUrl(card);
+      document.getElementById("modalImage").alt = card.name + " card";
       document.getElementById("modalId").textContent = card.id + " · " + card.rarity;
       document.getElementById("modalName").textContent = card.name;
       document.getElementById("modalMeta").textContent = metaText(card);
@@ -658,21 +573,12 @@ def render_html(records: list[dict[str, Any]]) -> str:
       button.className = "art-button";
       button.type = "button";
       button.setAttribute("aria-label", "Open details for " + card.name);
-      const flip = document.createElement("div");
-      flip.className = "flip-inner";
       const face = document.createElement("img");
       face.src = faceUrl(card);
       face.alt = card.name + " card";
       face.loading = "lazy";
       face.decoding = "async";
-      const art = document.createElement("img");
-      art.className = "flip-back";
-      art.src = thumbUrl(card.thumbFile);
-      art.alt = card.name + " artwork";
-      art.loading = "lazy";
-      art.decoding = "async";
-      flip.append(face, art);
-      button.append(flip);
+      button.append(face);
       button.addEventListener("click", () => openCard(card));
 
       const copy = document.createElement("div");
@@ -753,18 +659,13 @@ def render_html(records: list[dict[str, Any]]) -> str:
 
 
 def main() -> None:
-    """Build site/cards.html and its thumbnail set from locked card and art data."""
+    """Build site/cards.html from locked card text and rendered card faces."""
     repo_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--cards",
         type=Path,
         default=repo_root / "cards" / "e1-cards.json",
-    )
-    parser.add_argument(
-        "--art-manifest",
-        type=Path,
-        default=(repo_root / "art" / "generated" / "prompts-v2-final-1920x2400" / "manifest.json"),
     )
     parser.add_argument(
         "--face-manifest",
@@ -781,16 +682,6 @@ def main() -> None:
         type=Path,
         default=repo_root / "art" / "cards" / "promos" / "manifest.json",
     )
-    parser.add_argument(
-        "--art-dir",
-        type=Path,
-        default=repo_root / "art" / "generated" / "prompts-v2-final-1920x2400",
-    )
-    parser.add_argument(
-        "--thumbs",
-        type=Path,
-        default=repo_root / "art" / "generated" / "gallery-thumbs",
-    )
     parser.add_argument("--out", type=Path, default=repo_root / "site" / "cards.html")
     parser.add_argument(
         "--audit-db",
@@ -800,19 +691,17 @@ def main() -> None:
     args = parser.parse_args()
 
     cards = json.loads(args.cards.read_text(encoding="utf-8"))["cards"]
-    art_manifest = json.loads(args.art_manifest.read_text(encoding="utf-8"))
     face_manifest = json.loads(args.face_manifest.read_text(encoding="utf-8"))
     promo_payload = json.loads(args.promos.read_text(encoding="utf-8"))
     promo_manifest = json.loads(args.promo_manifest.read_text(encoding="utf-8"))
-    if len(cards) != 295 or art_manifest["card_count"] != 295 or face_manifest["card_count"] != 295:
-        raise ValueError("complete text, art, and card-face locks are required")
+    if len(cards) != 295 or face_manifest["card_count"] != 295:
+        raise ValueError("complete text and card-face locks are required")
     if promo_payload["set"]["card_count"] != promo_manifest["card_count"]:
         raise ValueError("complete promo card lock is required")
-    e1_records = gallery_records(cards, art_manifest, face_manifest)
+    e1_records = gallery_records(cards, face_manifest)
     promo_records = promo_gallery_records(promo_payload["cards"], promo_manifest)
     records = e1_records + promo_records
-    record_site_decision(args.audit_db, records, args.out, args.thumbs)
-    build_thumbnails(e1_records, args.art_dir, args.thumbs)
+    record_site_decision(args.audit_db, records, args.out)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(render_html(records), encoding="utf-8")
     complete_site_decision(args.audit_db, args.out)

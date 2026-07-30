@@ -26,23 +26,13 @@ def resolve_source(repo_root: Path, source_file: str) -> Path:
 def resolve_raw_imagegen_source(
     repo_root: Path,
     item: dict[str, Any],
-    legacy_by_id: dict[str, dict[str, Any]],
 ) -> Path:
-    """Unwrap an unchanged legacy pass-through to its original ImageGen source."""
+    """Resolve one approved raw ImageGen source and reject derived staging."""
     source_file = item["source_file"].replace("\\", "/")
-    if "prompts-v2-sacred-number-v3/" not in source_file:
-        return resolve_source(repo_root, item["source_file"])
-    legacy = legacy_by_id[item["id"]]
-    if legacy["canonical_overlay"]:
-        raise ValueError(f"legacy overlay source still released for {item['id']}")
-    historical_source = resolve_source(repo_root, legacy["source"])
-    if historical_source.exists():
-        return historical_source
-
-    original_raw = repo_root / "art" / "generated" / "prompts-v2" / f"{item['id']}.png"
-    if original_raw.exists():
-        return original_raw
-    return historical_source
+    forbidden = ("sacred-number", "qa-fixed", "reframed", "cleaned")
+    if any(part in source_file for part in forbidden):
+        raise ValueError(f"derived artwork source still released for {item['id']}")
+    return resolve_source(repo_root, item["source_file"])
 
 
 def record_planned(
@@ -135,14 +125,7 @@ def main() -> None:
     if len(files) != 295:
         raise ValueError(f"expected 295 locked artworks, found {len(files)}")
 
-    legacy_manifest_path = (
-        repo_root / "art" / "generated" / "prompts-v2-sacred-number-v3" / "manifest.json"
-    )
-    legacy_manifest = json.loads(legacy_manifest_path.read_text(encoding="utf-8"))
-    legacy_by_id = {item["id"]: item for item in legacy_manifest["files"]}
-    sources = {
-        item["id"]: resolve_raw_imagegen_source(repo_root, item, legacy_by_id) for item in files
-    }
+    sources = {item["id"]: resolve_raw_imagegen_source(repo_root, item) for item in files}
     missing = [card_id for card_id, path in sources.items() if not path.exists()]
     if missing:
         raise FileNotFoundError(f"missing {len(missing)} watermark sources: {missing}")

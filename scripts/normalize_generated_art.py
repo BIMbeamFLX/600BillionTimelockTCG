@@ -164,12 +164,12 @@ def main() -> None:
     parser.add_argument(
         "--raw",
         type=Path,
-        default=repo_root / "art" / "generated" / "raw",
+        default=repo_root / "art" / "generated" / "prompts-v2",
     )
     parser.add_argument(
         "--out",
         type=Path,
-        default=repo_root / "art" / "illustrations",
+        default=repo_root / "art" / "generated" / "prompts-v2-final-1920x2400",
     )
     parser.add_argument(
         "--audit-db",

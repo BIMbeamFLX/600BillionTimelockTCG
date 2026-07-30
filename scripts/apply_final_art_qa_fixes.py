@@ -195,9 +195,9 @@ def install_finals(
         target = final_dir / item["file"]
         shutil.copy2(source, target)
         record = manifest_by_id[card_id]
-        record["source_file"] = item["derived"]
+        record["source_file"] = item["source"]
         record["source_size"] = item["source_size"]
-        record["source_sha256"] = item["derived_sha256"]
+        record["source_sha256"] = item["source_sha256"]
         record["crop_box"] = [0, 0, item["source_size"][0], item["source_size"][1]]
         record["sha256"] = item["sha256"]
         record["status"] = "art-locked-qa-fixed"
