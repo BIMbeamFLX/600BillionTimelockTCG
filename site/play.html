@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="Play the 600B Timelock TCG Edition One locally: two-player hotseat with all 295 cards.">
+<title>600B Timelock TCG — Play</title>
+<style>
+@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+:root {
+  --orange: #ff6a00; --orange-soft: #f7931a; --gold: #f3c244;
+  --purple: #b991e4; --purple-deep: #7447b8; --violet: #5e5acb;
+  --black: #09080b; --soot: #111014; --panel: #19151f; --panel-2: #1f1a27;
+  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
+  --danger: #ff4d3d; --good: #6ee7a8;
+  --card-w: clamp(64px, 6.4vw, 104px);
+}
+* { box-sizing: border-box; margin: 0; }
+html { color-scheme: dark; background: var(--black); }
+body { min-height: 100vh; color: var(--cream); font: 14px/1.45 Arial, sans-serif; }
+button, select, input { font: inherit; }
+a { color: var(--orange-soft); }
+
+.stage { position: relative; min-height: 100vh; }
+.stage::before {
+  content: ""; position: fixed; inset: 0; z-index: 0;
+  background: url("../art/world-plates/power.png") center / cover no-repeat;
+  filter: saturate(.9) brightness(.55);
+}
+.stage::after {
+  content: ""; position: fixed; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse at 50% 42%, rgba(9,8,11,.4) 0%, rgba(9,8,11,.9) 62%, rgba(9,8,11,.98) 100%);
+}
+.wrap { position: relative; z-index: 1; max-width: 1680px; margin: 0 auto; padding: 12px clamp(10px, 2vw, 24px) 24px; }
+
+.masthead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; }
+.masthead img { width: 40px; height: 40px; }
+.brand strong { display: block; font: 20px/1 Anton600, Impact, sans-serif; letter-spacing: .03em; }
+.brand span { color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+.navlink { margin-left: auto; padding: 8px 11px; color: var(--cream); border: 1px solid var(--purple-deep); text-decoration: none; font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.turnchip { padding: 7px 12px; background: rgba(17,16,20,.85); border: 1px solid var(--line); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+.turnchip b { color: var(--orange); }
+
+/* ---------- setup ---------- */
+.setup { max-width: 720px; margin: 6vh auto; padding: 28px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
+.setup h1 { font: clamp(34px, 5vw, 58px)/.95 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 10px; }
+.setup h1 span { color: var(--orange); }
+.setup p { color: var(--muted); margin-bottom: 20px; }
+.seats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.seat { padding: 14px; background: var(--panel); border: 1px solid var(--line); }
+.seat label { display: block; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
+.seat input, .seat select { width: 100%; min-height: 40px; margin-bottom: 12px; padding: 8px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
+.startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+.btn { padding: 12px 18px; color: var(--black); background: var(--orange); border: 0; cursor: pointer; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
+.btn:hover { background: var(--gold); }
+.btn.ghost:hover { background: var(--panel-2); }
+
+/* ---------- table ---------- */
+.phases { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
+.phase { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: rgba(17,16,20,.8); border: 1px solid var(--line); }
+.phase.active { color: var(--black); background: var(--orange); border-color: var(--orange); }
+.phase.done { color: var(--purple); }
+
+.prompt { padding: 10px 12px; margin-bottom: 10px; background: rgba(17,16,20,.9); border-left: 4px solid var(--purple-deep); font-weight: 700; }
+.prompt.target { border-left-color: var(--orange); }
+.prompt.manual { border-left-color: var(--gold); color: var(--gold); }
+.prompt.good { border-left-color: var(--good); color: var(--good); }
+
+.layout { display: grid; grid-template-columns: 1fr 300px; gap: 14px; align-items: start; }
+.board { display: flex; flex-direction: column; gap: 10px; }
+.side { padding: 10px; background: rgba(17,16,20,.82); border: 1px solid var(--line); }
+.playerbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.playerbar .name { font: 17px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; }
+.uptime { padding: 4px 10px; background: var(--panel-2); border: 1px solid var(--line); font-weight: 900; }
+.uptime b { color: var(--orange); font-size: 17px; }
+.counts { color: var(--muted); font-size: 12px; }
+.buffer { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
+.pip { padding: 3px 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; background: var(--soot); border: 1px solid var(--line); }
+.pip-P { border-color: var(--orange); color: var(--orange); }
+.pip-B { border-color: var(--gold); color: var(--gold); }
+.pip-K { border-color: var(--purple-deep); color: var(--purple); }
+.pip-S { border-color: var(--cream); color: var(--cream); }
+.pip-T { border-color: var(--violet); color: var(--violet); }
+
+.zlabel { font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--purple); margin-bottom: 5px; }
+.zone { display: flex; gap: 6px; flex-wrap: wrap; min-height: calc(var(--card-w) * 1.4); padding: 6px; background: rgba(9,8,11,.55); border: 1px dashed var(--line); }
+
+.gcard { position: relative; width: var(--card-w); cursor: pointer; border: 2px solid transparent; transition: transform .12s ease, border-color .12s ease; }
+.gcard img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
+.gcard:hover { transform: translateY(-4px); border-color: var(--orange-soft); }
+.gcard.committed { transform: rotate(8deg); filter: brightness(.72); }
+.gcard.attacking { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.35); }
+.gcard.blocking { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(94,90,203,.4); }
+.gcard.targetable { border-color: var(--good); box-shadow: 0 0 0 3px rgba(110,231,168,.45); animation: pulse 1s infinite alternate; }
+@keyframes pulse { to { box-shadow: 0 0 0 6px rgba(110,231,168,.2); } }
+.gcard.facedown { aspect-ratio: 5/7; background: linear-gradient(150deg, #1a1420, #0b0a0e); border: 1px solid var(--line); }
+.gstats { position: absolute; right: 3px; bottom: 3px; padding: 1px 5px; background: rgba(9,8,11,.9); border: 1px solid var(--orange); font-size: 11px; font-weight: 900; }
+.gstats.hurt { color: var(--danger); border-color: var(--danger); }
+.gmanual { position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; display: grid; place-items: center; background: var(--gold); color: var(--black); font-size: 11px; font-weight: 900; }
+
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px; background: rgba(17,16,20,.9); border: 1px solid var(--line); }
+.chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
+
+/* ---------- right rail ---------- */
+.rail { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 10px; }
+.panel { padding: 10px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
+.panel h3 { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); margin-bottom: 8px; }
+#inspector { display: flex; gap: 10px; }
+#inspector img { width: 108px; aspect-ratio: 5/7; object-fit: cover; border: 1px solid var(--line); }
+.ibody { flex: 1; min-width: 0; }
+.imeta { color: var(--muted); font-size: 11px; margin: 4px 0 6px; }
+.itext { font-size: 12px; white-space: pre-line; }
+.imanualnote { margin-top: 6px; color: var(--gold); font-size: 11px; }
+.iacts { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.iacts button { padding: 6px 8px; text-align: left; color: var(--black); background: var(--orange-soft); border: 0; cursor: pointer; font-size: 11px; font-weight: 700; }
+.iacts button.ghost { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+.manualgrid { display: flex; gap: 4px; flex-wrap: wrap; }
+.manualgrid button { padding: 5px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); cursor: pointer; font-size: 11px; font-weight: 700; }
+.manualgrid button:hover { border-color: var(--orange); }
+#log { max-height: 300px; overflow-y: auto; font-size: 11px; }
+.logline { padding: 3px 0; border-bottom: 1px solid rgba(185,145,228,.12); color: var(--muted); }
+.logline.good { color: var(--good); }
+.logline.warn { color: var(--gold); }
+.logline.bad { color: var(--danger); }
+.logline.manual { color: var(--purple); }
+
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .rail { position: static; } .seats { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="stage">
+<div class="wrap">
+
+  <header class="masthead">
+    <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
+    <div class="brand"><strong>TIMELOCK TCG</strong><span>Edition One · Local Table</span></div>
+    <div class="turnchip" id="turnchip">Not started</div>
+    <a class="navlink" href="rules.html">Rulebook</a>
+    <a class="navlink" href="cards.html">Cards</a>
+  </header>
+
+  <!-- ---------------- setup ---------------- -->
+  <section class="setup" id="setup">
+    <h1>Play <span>locally</span></h1>
+    <p>Two-player hotseat on one machine, with all <b id="cardCount">295</b> Edition One cards.
+    Each seat gets a randomised 40-card Stack in the rulebook's recommended prototype shape.
+    The engine runs the turn structure, Buffer and resource burn, costs, clash and state checks;
+    cards whose text it cannot fully model are flagged <b>!</b> and resolved by you with the
+    manual controls.</p>
+    <div class="seats">
+      <div class="seat">
+        <label for="nameA">Seat one</label>
+        <input id="nameA" value="Player 1" autocomplete="off">
+        <label for="deckA">Stack affinity</label>
+        <select id="deckA"></select>
+      </div>
+      <div class="seat">
+        <label for="nameB">Seat two</label>
+        <input id="nameB" value="Player 2" autocomplete="off">
+        <label for="deckB">Stack affinity</label>
+        <select id="deckB"></select>
+      </div>
+    </div>
+    <div class="startrow">
+      <button class="btn" id="start">Start game</button>
+      <label for="seed" style="color:var(--muted);font-size:12px">Seed
+        <input id="seed" style="width:110px;margin-left:6px;padding:6px 8px;color:var(--cream);background:var(--soot);border:1px solid var(--line)" placeholder="random" autocomplete="off">
+      </label>
+    </div>
+  </section>
+
+  <!-- ---------------- table ---------------- -->
+  <section id="table" hidden>
+    <div class="phases" id="phases"></div>
+    <div class="prompt" id="prompt"></div>
+
+    <div class="layout">
+      <div class="board">
+
+        <div class="side">
+          <div class="playerbar">
+            <span class="name" id="foeName">Opponent</span>
+            <span class="uptime">Uptime <b id="foeUptime">20</b></span>
+            <span class="counts" id="foeCounts"></span>
+            <span class="buffer" id="foeBuffer"></span>
+          </div>
+          <div class="zlabel">Wallet</div>
+          <div class="zone" id="foeHand"></div>
+          <div class="zlabel" style="margin-top:8px">Network</div>
+          <div class="zone" id="foeNetwork"></div>
+        </div>
+
+        <div class="controls">
+          <button class="btn" id="continue">Continue</button>
+          <button class="btn ghost" id="endturn">End turn</button>
+          <button class="btn ghost" id="cancelTarget">Cancel targeting</button>
+          <button class="btn ghost" id="clearManual">Clear notice</button>
+          <span class="chip" id="resourceChip">Resource play available</span>
+        </div>
+
+        <div class="side">
+          <div class="playerbar">
+            <span class="name" id="youName">You</span>
+            <span class="uptime">Uptime <b id="youUptime">20</b></span>
+            <span class="counts" id="youCounts"></span>
+            <span class="buffer" id="youBuffer"></span>
+          </div>
+          <div class="zlabel">Network</div>
+          <div class="zone" id="youNetwork"></div>
+          <div class="zlabel" style="margin-top:8px">Wallet — click a card to play it</div>
+          <div class="zone" id="youHand"></div>
+        </div>
+
+      </div>
+
+      <aside class="rail">
+        <div class="panel">
+          <h3>Card</h3>
+          <div id="inspector"><span style="color:var(--muted);font-size:12px">Hover a card.</span></div>
+        </div>
+        <div class="panel">
+          <h3>Manual controls</h3>
+          <div class="manualgrid">
+            <button data-manual="uptime:1">+1 Uptime</button>
+            <button data-manual="uptime:-1">−1 Uptime</button>
+            <button data-manual="uptime:1" data-side="foe">+1 foe</button>
+            <button data-manual="uptime:-1" data-side="foe">−1 foe</button>
+            <button data-manual="draw:1">Draw</button>
+          </div>
+          <div class="manualgrid" style="margin-top:6px">
+            <button data-manual="generate:P">+P</button>
+            <button data-manual="generate:B">+B</button>
+            <button data-manual="generate:K">+K</button>
+            <button data-manual="generate:S">+S</button>
+            <button data-manual="generate:T">+T</button>
+            <button data-manual="generate:N">+neutral</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Log</h3>
+          <div id="log"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+</div>
+</div>
+<script src="play-data.js"></script>
+<script src="play.js"></script>
+</body>
+</html>

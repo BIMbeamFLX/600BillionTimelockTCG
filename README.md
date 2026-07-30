@@ -43,13 +43,39 @@ scripts/
   build_promos.py
   build_gallery.py
   build_card_set.py
+  build_play_data.py
   build-rulebook.cjs
 site/
   arena.html    static play-area mockup
   cards.html    searchable image-and-text catalog
   e1-card-set.html  Node Runner frame proof sheet, print-ready
   index.html    landing page
+  play.html     playable two-player hotseat table
+  play.js       local rules engine
+  play-data.js  generated playable card data
   rules.html    designed rulebook
+```
+
+## Playing locally
+
+`site/play.html` is a two-player hotseat table for the full 295-card set. Serve the
+repository and open it — the page needs no build step of its own beyond `play-data.js`.
+
+```bash
+python -m http.server 8777
+```
+
+Then open <http://localhost:8777/site/play.html>.
+
+The engine enforces the rules framework from `rules/600B-Timelock-TCG-Rulebook-E1.md`:
+the eight-step turn structure, the once-per-turn Resource play, Buffer generation and
+classic resource burn, printed costs, clash with First Strike and Overflow, and the
+state checks. `scripts/build_play_data.py` compiles the locked catalog and auto-scripts
+the ability templates that recur across the set; the remaining cards are marked `!` and
+resolved at the table with the manual controls, so no card is locked out of play.
+
+```bash
+uv run python scripts/build_play_data.py
 ```
 
 ## Node Runner frame proof sheet
