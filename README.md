@@ -5,7 +5,8 @@ game about Bitcoin, Nostr and open systems. Its fixed tone is **positive cypherp
 future already works, capable friends build it together, and cypherpunk means freedom
 technology in daylight.
 
-Open `index.html` to read the designed rulebook.
+Open `site/index.html` for the landing page and `site/rules.html` for the designed
+rulebook.
 
 ## Structure
 
@@ -14,6 +15,7 @@ art/
   E1-ART-AND-VOICE-DIRECTION.md  positive-cypherpunk visual and writing lock
   brand/       official 600B identity assets
   cards/final/ 295 rendered card faces, shared back and readability manifest
+  cards/promos/ separately locked promotional card faces
   fonts/       local open-source display fonts
   illustrations/ 295 text-free E1 artwork plates plus verified manifest
   qa/          labeled contact sheets for visual review
@@ -22,6 +24,7 @@ art/
   world-plates/ six generated affinity environments
 cards/
   e1-cards.json          canonical 295-card text lock
+  promos.json            separate promotional cards outside the E1 lock
   E1-CARD-TEXT.md        human-readable editorial catalog
   e1-text-lock-report.md consistency gate
   cards.csv              Cockatrice adapter input
@@ -38,9 +41,14 @@ scripts/
   build_art_prompts.py
   normalize_generated_art.py
   build_cards.py
+  build_promos.py
   build_gallery.py
   build-rulebook.cjs
-index.html
+site/
+  arena.html    static play-area mockup
+  cards.html    searchable image-and-text catalog
+  index.html    landing page
+  rules.html    designed rulebook
 ```
 
 ## Build
@@ -123,13 +131,22 @@ Guides, Protocol Notes and sources remain website/game metadata. Dynamic typogra
 keeps all 295 cards readable with zero overflows.
 
 ```bash
+uv run python scripts/apply_final_art_qa_fixes.py --refresh
+uv run python scripts/apply_final_art_qa_fixes.py --install
+uv run python scripts/apply_art_watermarks.py
 uv run python scripts/build_cards.py
+uv run python scripts/build_promos.py
 uv run python scripts/build_gallery.py
 ```
 
-Open `cards.html` for the searchable, filterable complete-set gallery. `index.html`
-links to it from the rulebook hero. The shared card back is
+Open `site/cards.html` for the searchable, filterable 295-card E1 set plus promos.
+`site/index.html` links to it from the landing-page hero. The shared card back is
 `art/cards/final/600B-Timelock-card-back.jpg`.
+
+The official circular 600B mark is rebuilt from the unmodified source artwork as a
+small, low-opacity lower-right watermark. Card frames use print-safe resource stripes:
+Bitcoin orange, Signal/Nostr purple, Power cyan, Keys green, Timelock cobalt and
+Neutral slate. Multi-affinity cards divide the stripe into equal color segments.
 
 ## Cockatrice playtesting
 
@@ -137,10 +154,9 @@ Cards are authored as data in `cards/cards.csv` and compiled into a
 [Cockatrice](https://cockatrice.github.io/) custom set for online playtests.
 
 ```bash
-py -3.14 -m venv .venv
-.venv/Scripts/python -m pip install pytest ruff pillow
-.venv/Scripts/python scripts/build_placeholders.py
-.venv/Scripts/python scripts/build_set.py --install
+uv sync
+uv run python scripts/build_placeholders.py
+uv run python scripts/build_set.py --install
 ```
 
 `build_placeholders.py` renders a branded placeholder face for every card into
@@ -156,9 +172,9 @@ CSV columns: `name, type, subtype, cost, ar, rarity, text`. Costs use affinity l
 slots (Signal=W, Timelock=U, Keys=B, Power=R, Bitcoin=G) as a render adapter only — all
 names and rules text stay 600B.
 
-`scripts/build_gallery.py` generates `cards.html` — a gallery of every card's full-card
+`scripts/build_gallery.py` generates `site/cards.html` — a gallery of every card's full-card
 image (the same graphics used in game) with its complete text, search and affinity
 filters. Serve the repo root with any static server, e.g.
-`.venv/Scripts/python -m http.server 8600`, then open `/cards.html`.
+`uv run python -m http.server 8600`, then open `/site/cards.html`.
 
 Run the generator tests with `uv run pytest`.

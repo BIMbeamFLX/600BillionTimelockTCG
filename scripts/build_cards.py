@@ -1,9 +1,9 @@
 """Render all Edition One card faces after text and standalone art are locked.
 
-The layout is purpose-built for the 600B cypherpunk identity: orange outer frame,
-black art core, purple structure, centered resource symbols and a light rules field
-with black body text. Learning notes, canon and prompt data stay in the game metadata
-instead of appearing on the collectible card face.
+The layout is purpose-built for the 600B cypherpunk identity: resource-coded frame
+stripes, black art core, purple structure, centered resource symbols and a light
+rules field with black body text. Learning notes, canon and prompt data stay in the
+game metadata instead of appearing on the collectible card face.
 
 Usage:
     python scripts/build_cards.py
@@ -18,18 +18,20 @@ import logging
 import math
 import re
 import sqlite3
+import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from brand_watermark import paste_subtle_watermark
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 log = logging.getLogger("build_cards")
 
 CARD_WIDTH = 750
 CARD_HEIGHT = 1050
-LAYOUT_VERSION = "600B-E1-card-v3"
+LAYOUT_VERSION = "600B-E1-card-v4"
 
 ORANGE = (255, 106, 0)
 PURPLE = (116, 71, 184)
@@ -42,12 +44,21 @@ INK = (20, 17, 24)
 MUTED = (84, 70, 102)
 
 AFFINITY_COLORS = {
-    "Signal": (255, 247, 236),
-    "Timelock": (94, 90, 203),
-    "Keys": (116, 71, 184),
-    "Power": (255, 106, 0),
-    "Bitcoin": (243, 194, 68),
-    "Neutral": (164, 103, 224),
+    "Signal": (155, 81, 224),
+    "Timelock": (61, 90, 254),
+    "Keys": (45, 190, 96),
+    "Power": (0, 184, 217),
+    "Bitcoin": (247, 147, 26),
+    "Neutral": (148, 163, 184),
+}
+
+AFFINITY_STRIPE_BOXES = (
+    (42, 20, 708, 29),
+    (42, 1021, 708, 1030),
+)
+
+ART_CENTERING_OVERRIDES = {
+    "E1-202": (0.5, 0.65),
 }
 
 
@@ -427,6 +438,48 @@ def card_affinity(card: dict[str, Any]) -> str:
     return affinities[0] if len(affinities) == 1 else "Neutral"
 
 
+def frame_affinities(card: dict[str, Any]) -> list[str]:
+    """Return ordered, unique affinities for the card's frame stripe."""
+    affinities = list(dict.fromkeys(card["affinity"]))
+    return affinities or ["Neutral"]
+
+
+def affinity_stripe_segments(
+    affinities: list[str],
+    left: int,
+    right: int,
+) -> list[tuple[int, int, tuple[int, int, int]]]:
+    """Split a horizontal stripe into equal, gapless affinity segments."""
+    if not affinities:
+        affinities = ["Neutral"]
+    span = right - left
+    return [
+        (
+            left + span * index // len(affinities),
+            left + span * (index + 1) // len(affinities),
+            AFFINITY_COLORS[affinity],
+        )
+        for index, affinity in enumerate(affinities)
+    ]
+
+
+def draw_affinity_frame_stripes(
+    draw: ImageDraw.ImageDraw,
+    affinities: list[str],
+) -> None:
+    """Draw print-safe resource stripes at the top and bottom of the frame."""
+    for left, top, right, bottom in AFFINITY_STRIPE_BOXES:
+        for segment_left, segment_right, color in affinity_stripe_segments(
+            affinities,
+            left,
+            right,
+        ):
+            draw.rectangle(
+                (segment_left, top, segment_right - 1, bottom - 1),
+                fill=color,
+            )
+
+
 def text_field_label(card: dict[str, Any]) -> str:
     """Classify the visible rules block without changing its gameplay meaning."""
     if card["card_type"] in {"Zap", "Operation"}:
@@ -541,12 +594,13 @@ def draw_card(
     display_font: Path,
 ) -> tuple[Image.Image, RenderMetrics]:
     """Render one final website- and print-ready card face."""
-    canvas = Image.new("RGB", (CARD_WIDTH, CARD_HEIGHT), ORANGE)
+    canvas = Image.new("RGB", (CARD_WIDTH, CARD_HEIGHT), SOOT)
     draw = ImageDraw.Draw(canvas)
 
-    draw.rounded_rectangle((9, 9, 741, 1041), radius=42, fill=ORANGE)
+    draw.rounded_rectangle((9, 9, 741, 1041), radius=42, fill=SOOT)
     draw.rounded_rectangle((20, 20, 730, 1030), radius=34, fill=BLACK)
     draw.rounded_rectangle((29, 29, 721, 1021), radius=28, outline=PURPLE, width=3)
+    draw_affinity_frame_stripes(draw, frame_affinities(card))
     draw.line((42, 105, 708, 105), fill=ORANGE, width=3)
 
     affinity = card_affinity(card)
@@ -562,8 +616,12 @@ def draw_card(
     art_box = (48, 128, 702, 524)
     draw.rounded_rectangle(art_mat, radius=22, fill=BLACK, outline=ORANGE, width=4)
     draw.rounded_rectangle((42, 122, 708, 530), radius=18, outline=PURPLE, width=2)
-    art_centering = (0.5, 0.0) if "Avatar" in card["card_type"] else (0.5, 0.5)
+    art_centering = ART_CENTERING_OVERRIDES.get(
+        card["id"],
+        (0.5, 0.0) if "Avatar" in card["card_type"] else (0.5, 0.5),
+    )
     rounded_paste(canvas, artwork, art_box, radius=14, centering=art_centering)
+    paste_subtle_watermark(canvas, logo, art_box)
     draw.rounded_rectangle(art_box, radius=14, outline=accent, width=2)
 
     draw.rounded_rectangle((36, 544, 714, 621), radius=18, fill=(31, 24, 42))
@@ -739,6 +797,33 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def save_jpeg_atomic(
+    image: Image.Image,
+    output: Path,
+    *,
+    quality: int,
+    progressive: bool = False,
+) -> None:
+    """Write a JPEG through a sibling temporary file and replace with retries."""
+    temporary = output.with_name(f".{output.stem}.tmp.jpg")
+    image.save(
+        temporary,
+        "JPEG",
+        quality=quality,
+        subsampling=0,
+        optimize=True,
+        progressive=progressive,
+    )
+    for attempt in range(6):
+        try:
+            temporary.replace(output)
+            return
+        except OSError:
+            if attempt == 5:
+                raise
+            time.sleep(0.05 * (2**attempt))
+
+
 def record_card_decisions(
     db_path: Path,
     cards: list[dict[str, Any]],
@@ -903,7 +988,7 @@ def main() -> None:
     parser.add_argument(
         "--art",
         type=Path,
-        default=repo_root / "art" / "illustrations",
+        default=repo_root / "art" / "generated" / "prompts-v2-final-1920x2400",
     )
     parser.add_argument(
         "--out",
@@ -941,12 +1026,10 @@ def main() -> None:
                 logo,
                 display_font,
             )
-        image.save(
+        save_jpeg_atomic(
+            image,
             args.out / safe_filename(card["name"]),
-            "JPEG",
             quality=94,
-            subsampling=0,
-            optimize=True,
             progressive=True,
         )
         metrics[card["id"]] = card_metrics
@@ -954,12 +1037,10 @@ def main() -> None:
             log.info("rendered %d/%d final card faces", index, len(cards))
 
     card_back = draw_card_back(logo, display_font)
-    card_back.save(
+    save_jpeg_atomic(
+        card_back,
         args.out / "600B-Timelock-card-back.jpg",
-        "JPEG",
         quality=95,
-        subsampling=0,
-        optimize=True,
     )
     write_manifest(args.out / "manifest.json", cards, args.out, metrics)
     build_contact_sheets(

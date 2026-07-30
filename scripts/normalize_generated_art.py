@@ -10,6 +10,12 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from brand_watermark import (
+    WATERMARK_MARGIN_RATIO,
+    WATERMARK_OPACITY,
+    WATERMARK_WIDTH_RATIO,
+    paste_subtle_watermark,
+)
 from PIL import Image, ImageOps
 
 log = logging.getLogger("normalize_generated_art")
@@ -102,17 +108,25 @@ def record_decisions(
         connection.commit()
 
 
-def normalize_one(source: Path, output: Path) -> dict[str, Any]:
-    """Crop and resize one generated image without adding visual effects."""
+def normalize_one(
+    source: Path,
+    output: Path,
+    *,
+    watermark_logo: Image.Image | None = None,
+) -> dict[str, Any]:
+    """Crop and resize one generated image, optionally adding the official watermark."""
     with Image.open(source) as image:
         image = ImageOps.exif_transpose(image).convert("RGB")
         original_size = list(image.size)
         crop_box = center_crop_box(*image.size)
         image = image.crop(crop_box)
         image = image.resize((ART_WIDTH, ART_HEIGHT), Image.Resampling.LANCZOS)
+        watermark_box = None
+        if watermark_logo is not None:
+            watermark_box = paste_subtle_watermark(image, watermark_logo)
         output.parent.mkdir(parents=True, exist_ok=True)
         image.save(output, "JPEG", quality=95, optimize=True, progressive=True)
-    return {
+    result = {
         "source_file": source.as_posix(),
         "source_size": original_size,
         "source_sha256": file_sha256(source),
@@ -122,6 +136,17 @@ def normalize_one(source: Path, output: Path) -> dict[str, Any]:
         "sha256": file_sha256(output),
         "status": "art-locked",
     }
+    if watermark_box is not None:
+        result["watermark"] = {
+            "asset": "art/brand/600B-logo-primary.png",
+            "placement": "bottom-right",
+            "box": list(watermark_box),
+            "width_ratio": WATERMARK_WIDTH_RATIO,
+            "margin_ratio": WATERMARK_MARGIN_RATIO,
+            "opacity": WATERMARK_OPACITY,
+        }
+        result["status"] = "art-locked-watermarked"
+    return result
 
 
 def main() -> None:

@@ -1,4 +1,4 @@
-"""Tests for the deterministic final artwork QA fix inventory."""
+"""Tests for the scene-integrated final artwork QA fix inventory."""
 
 from __future__ import annotations
 
@@ -9,29 +9,25 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from apply_final_art_qa_fixes import (  # noqa: E402
-    BRAND_OVERLAYS,
-    CLEANUP_CARDS,
     FIX_CARD_IDS,
     GENERATIVE_FIXES,
 )
 
 
 def test_final_art_qa_fix_inventory_is_complete() -> None:
-    """The reviewed 19-card QA finding set must stay fully represented."""
-    assert len(FIX_CARD_IDS) == 19
-    assert len(BRAND_OVERLAYS) == 13
-    assert CLEANUP_CARDS == {"E1-120", "E1-125", "E1-128", "E1-184"}
-    assert GENERATIVE_FIXES == {"E1-093", "E1-094", "E1-174"}
+    """The reviewed QA finding set plus E1-202 revision must stay represented."""
+    assert len(FIX_CARD_IDS) == 20
+    assert FIX_CARD_IDS == GENERATIVE_FIXES
+    assert {"E1-093", "E1-094", "E1-174", "E1-202"} <= GENERATIVE_FIXES
 
 
-def test_every_brand_overlay_uses_an_exact_supported_kind() -> None:
-    """Only deterministic official-logo, four-line-grid, and 600B badges are allowed."""
-    supported = {"circle", "grid", "600b"}
-    assert all(
-        overlay.kind in supported for overlays in BRAND_OVERLAYS.values() for overlay in overlays
+def test_no_post_generation_overlay_or_cleanup_inventory_remains() -> None:
+    """Every reviewed fix must now be a scene-integrated ImageGen source."""
+    module_text = (REPO_ROOT / "scripts" / "apply_final_art_qa_fixes.py").read_text(
+        encoding="utf-8"
     )
-    assert all(
-        overlay.size[0] > 0 and overlay.size[1] > 0
-        for overlays in BRAND_OVERLAYS.values()
-        for overlay in overlays
-    )
+
+    assert "BRAND_OVERLAYS" not in module_text
+    assert "CLEANUP_CARDS" not in module_text
+    assert "deterministic-brand-overlay" not in module_text
+    assert "deterministic-cleanup" not in module_text

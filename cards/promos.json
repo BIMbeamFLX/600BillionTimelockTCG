@@ -1,0 +1,32 @@
+{
+  "set": {
+    "name": "600B Timelock TCG — Promos",
+    "code": "600B-PROMO",
+    "card_count": 1,
+    "language": "English"
+  },
+  "cards": [
+    {
+      "id": "FIPS-P01",
+      "name": "Global FIPS Balloon Network",
+      "card_type": "Protocol",
+      "subtype": "FIPS Balloon Mesh",
+      "affinity": [
+        "Signal",
+        "Bitcoin"
+      ],
+      "cost": "3SB",
+      "action_resilience": "",
+      "rarity": "promo",
+      "rules_text": "Avatars you control with Broadcast get +1 Resilience.\nWhenever one enters your Network, generate 1 Signal. This ability triggers only once each turn.",
+      "help_text": "Makes every Broadcaster tougher and refunds Signal as the mesh grows.",
+      "protocol_note": "A distributed balloon mesh keeps carrying signal when one route disappears.",
+      "protocol_source": "https://fips.network",
+      "art_direction": "An orange civilian submarine launches dense stacks of node balloons into an already-global connected balloon mesh.",
+      "art_prompt": "Portrait 4:5 positive-cypherpunk artwork. A vivid Bitcoin-orange civilian submarine opens broad launch bays and releases large stacks of node balloons. Hundreds of intact balloons already form an orange and ultraviolet mesh above Earth. No weapons, explosions, damage, text, logos or card frame.",
+      "status": "promo-locked",
+      "type_line": "Protocol — FIPS Balloon Mesh",
+      "flavor_text": "One balloon is a relay. A sky full of them is uptime with weather."
+    }
+  ]
+}

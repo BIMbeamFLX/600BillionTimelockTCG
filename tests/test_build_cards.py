@@ -5,8 +5,12 @@ from pathlib import Path
 
 from build_cards import (
     AFFINITY_COLORS,
+    ART_CENTERING_OVERRIDES,
+    affinity_stripe_segments,
     bottom_aligned_text_y,
+    draw_affinity_frame_stripes,
     fit_text,
+    frame_affinities,
     parse_cost,
     safe_filename,
     text_field_label,
@@ -28,12 +32,43 @@ def test_safe_filename_preserves_readable_names():
     assert Path(safe_filename("Genesis Lotus")).suffix == ".jpg"
 
 
-def test_affinity_cost_rings_use_the_locked_palette():
-    assert AFFINITY_COLORS["Power"] == (255, 106, 0)
-    assert AFFINITY_COLORS["Bitcoin"] == (243, 194, 68)
-    assert AFFINITY_COLORS["Keys"] == (116, 71, 184)
-    assert AFFINITY_COLORS["Signal"] == (255, 247, 236)
-    assert AFFINITY_COLORS["Timelock"] == (94, 90, 203)
+def test_affinity_cost_rings_use_the_locked_resource_palette():
+    assert AFFINITY_COLORS == {
+        "Signal": (155, 81, 224),
+        "Timelock": (61, 90, 254),
+        "Keys": (45, 190, 96),
+        "Power": (0, 184, 217),
+        "Bitcoin": (247, 147, 26),
+        "Neutral": (148, 163, 184),
+    }
+
+
+def test_frame_affinities_fall_back_to_neutral_and_remove_duplicates():
+    assert frame_affinities({"affinity": []}) == ["Neutral"]
+    assert frame_affinities({"affinity": ["Signal", "Signal"]}) == ["Signal"]
+
+
+def test_multi_affinity_frame_segments_have_equal_width():
+    segments = affinity_stripe_segments(["Keys", "Power"], 42, 708)
+
+    assert segments == [
+        (42, 375, AFFINITY_COLORS["Keys"]),
+        (375, 708, AFFINITY_COLORS["Power"]),
+    ]
+
+
+def test_frame_stripes_render_resource_colors_at_both_edges():
+    image = Image.new("RGB", (750, 1050))
+    draw_affinity_frame_stripes(ImageDraw.Draw(image), ["Bitcoin", "Signal"])
+
+    assert image.getpixel((100, 24)) == AFFINITY_COLORS["Bitcoin"]
+    assert image.getpixel((600, 24)) == AFFINITY_COLORS["Signal"]
+    assert image.getpixel((100, 1025)) == AFFINITY_COLORS["Bitcoin"]
+    assert image.getpixel((600, 1025)) == AFFINITY_COLORS["Signal"]
+
+
+def test_fips_submarine_crop_keeps_the_launch_bays_visible():
+    assert ART_CENTERING_OVERRIDES["E1-202"] == (0.5, 0.65)
 
 
 def test_rules_field_label_matches_rules_taxonomy():
@@ -96,7 +131,7 @@ def test_final_card_manifest_contains_only_visible_text_metrics():
         (REPO_ROOT / "art" / "cards" / "final" / "manifest.json").read_text(encoding="utf-8")
     )
 
-    assert manifest["layout_version"] == "600B-E1-card-v3"
+    assert manifest["layout_version"] == "600B-E1-card-v4"
     assert manifest["overflow_count"] == 0
     assert all(item["metrics"]["rules_lines"] <= 3 for item in manifest["files"])
     assert all(

@@ -187,7 +187,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#09080b">
   <meta name="description"
-    content="Every Edition One and promo card from the 600B Timelock TCG, with artwork and card text.">
+    content="Every 600B Timelock TCG Edition One and promo card, with artwork and text.">
   <title>600B Timelock TCG — All Cards</title>
   <style>
     @font-face {{

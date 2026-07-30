@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#09080b">
 <title>600B Timelock TCG — Arena</title>
 <style>
-@font-face { font-family: Anton600; src: url("art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
 :root {
   --orange: #ff6a00; --orange-soft: #f7931a; --gold: #f3c244;
   --purple: #b991e4; --purple-deep: #7447b8; --violet: #5e5acb;
@@ -28,7 +28,7 @@ body {
 }
 .stage::before {
   content: ""; position: fixed; inset: 0; z-index: 0;
-  background: var(--plate, url("art/world-plates/power.png")) center / cover no-repeat;
+  background: var(--plate, url("../art/world-plates/power.png")) center / cover no-repeat;
   filter: saturate(.92) brightness(.8);
 }
 .stage::after {
@@ -181,7 +181,7 @@ body {
 <div class="wrap">
 
   <header class="masthead">
-    <img src="art/brand/600B-logo-primary.png" alt="600B">
+    <img src="../art/brand/600B-logo-primary.png" alt="600B">
     <div class="brand"><strong>TIMELOCK ARENA</strong><span>Edition One · Design Mockup</span></div>
     <div class="skins" id="skins" title="Arena environment"></div>
     <div class="turnchip">Turn <b>6</b> · <b>Clash</b> · Priority: <b>You</b></div>
@@ -204,31 +204,31 @@ body {
 
       <div class="zone resources">
         <span class="zlabel">Resources</span>
-        <div class="cardslot committed"><img src="art/cards/final/Satoshi Orchard.jpg" alt="Satoshi Orchard (committed)"></div>
-        <div class="cardslot"><img src="art/cards/final/Satoshi Orchard — Commons.jpg" alt="Satoshi Orchard — Commons"></div>
-        <div class="cardslot committed"><img src="art/cards/final/Key Vault — Cold Room.jpg" alt="Key Vault — Cold Room (committed)"></div>
-        <div class="cardslot"><img src="art/cards/final/Key Vault — Workshop.jpg" alt="Key Vault — Workshop"></div>
+        <div class="cardslot committed"><img src="../art/cards/final/Satoshi Orchard.jpg" alt="Satoshi Orchard (committed)"></div>
+        <div class="cardslot"><img src="../art/cards/final/Satoshi Orchard — Commons.jpg" alt="Satoshi Orchard — Commons"></div>
+        <div class="cardslot committed"><img src="../art/cards/final/Key Vault — Cold Room.jpg" alt="Key Vault — Cold Room (committed)"></div>
+        <div class="cardslot"><img src="../art/cards/final/Key Vault — Workshop.jpg" alt="Key Vault — Workshop"></div>
       </div>
 
       <div class="zone">
         <span class="zlabel">Their Network</span>
-        <div class="cardslot attacking committed"><img src="art/cards/final/Longy, Deep Node.jpg" alt="Longy, Deep Node — attacking"></div>
-        <div class="cardslot"><img src="art/cards/final/Longy, Thorn Firewall.jpg" alt="Longy, Thorn Firewall"></div>
-        <div class="cardslot"><img src="art/cards/final/BlackCoffee, Backup Firewall.jpg" alt="BlackCoffee, Backup Firewall"></div>
+        <div class="cardslot attacking committed"><img src="../art/cards/final/Longy, Deep Node.jpg" alt="Longy, Deep Node — attacking"></div>
+        <div class="cardslot"><img src="../art/cards/final/Longy, Thorn Firewall.jpg" alt="Longy, Thorn Firewall"></div>
+        <div class="cardslot"><img src="../art/cards/final/BlackCoffee, Backup Firewall.jpg" alt="BlackCoffee, Backup Firewall"></div>
       </div>
 
       <div class="zone">
         <span class="zlabel">Your Network</span>
-        <div class="cardslot blocking"><img src="art/cards/final/FLX, Unstoppable Rig.jpg" alt="FLX, Unstoppable Rig — blocking"></div>
-        <div class="cardslot"><img src="art/cards/final/AJ, First Responder.jpg" alt="AJ, First Responder"></div>
-        <div class="cardslot committed"><img src="art/cards/final/Bam, Power Artillery.jpg" alt="Bam, Power Artillery (committed)"></div>
+        <div class="cardslot blocking"><img src="../art/cards/final/FLX, Unstoppable Rig.jpg" alt="FLX, Unstoppable Rig — blocking"></div>
+        <div class="cardslot"><img src="../art/cards/final/AJ, First Responder.jpg" alt="AJ, First Responder"></div>
+        <div class="cardslot committed"><img src="../art/cards/final/Bam, Power Artillery.jpg" alt="Bam, Power Artillery (committed)"></div>
       </div>
 
       <div class="zone resources">
         <span class="zlabel">Resources</span>
-        <div class="cardslot committed"><img src="art/cards/final/Power Plant — Solar.jpg" alt="Power Plant — Solar (committed)"></div>
-        <div class="cardslot"><img src="art/cards/final/Power Plant — Hydro.jpg" alt="Power Plant — Hydro"></div>
-        <div class="cardslot"><img src="art/cards/final/Timelock Vault.jpg" alt="Timelock Vault"></div>
+        <div class="cardslot committed"><img src="../art/cards/final/Power Plant — Solar.jpg" alt="Power Plant — Solar (committed)"></div>
+        <div class="cardslot"><img src="../art/cards/final/Power Plant — Hydro.jpg" alt="Power Plant — Hydro"></div>
+        <div class="cardslot"><img src="../art/cards/final/Timelock Vault.jpg" alt="Timelock Vault"></div>
       </div>
 
       <div class="playerbar" style="--pcolor:#ff6a00">
@@ -250,14 +250,14 @@ body {
       </div>
       <div class="panel inspector">
         <h2>Inspector</h2>
-        <img id="inspect" src="art/cards/final/FLX, Unstoppable Rig.jpg" alt="Card inspector">
+        <img id="inspect" src="../art/cards/final/FLX, Unstoppable Rig.jpg" alt="Card inspector">
         <p id="inspectName">Hover any card</p>
       </div>
       <div class="panel">
         <h2>Stacks</h2>
         <div style="display:flex; gap:12px">
-          <div class="stackpile cardslot"><img src="art/cards/final/600B-Timelock-card-back.jpg" alt="Your Stack"><i>29</i></div>
-          <div class="stackpile cardslot"><img src="art/cards/final/Archive Boot.jpg" alt="Your Archive top"><i>3</i></div>
+          <div class="stackpile cardslot"><img src="../art/cards/final/600B-Timelock-card-back.jpg" alt="Your Stack"><i>29</i></div>
+          <div class="stackpile cardslot"><img src="../art/cards/final/Archive Boot.jpg" alt="Your Archive top"><i>3</i></div>
         </div>
       </div>
     </aside>
@@ -277,11 +277,11 @@ body {
     </div>
 
     <div class="hand" id="hand">
-      <div class="cardslot"><img src="art/cards/final/Firewall Tunnel.jpg" alt="Firewall Tunnel"></div>
-      <div class="cardslot"><img src="art/cards/final/Broadcast Storm.jpg" alt="Broadcast Storm"></div>
-      <div class="cardslot"><img src="art/cards/final/Affinity Rewrite.jpg" alt="Affinity Rewrite"></div>
-      <div class="cardslot"><img src="art/cards/final/Boot Hardware.jpg" alt="Boot Hardware"></div>
-      <div class="cardslot"><img src="art/cards/final/Call to Relay.jpg" alt="Call to Relay"></div>
+      <div class="cardslot"><img src="../art/cards/final/Firewall Tunnel.jpg" alt="Firewall Tunnel"></div>
+      <div class="cardslot"><img src="../art/cards/final/Broadcast Storm.jpg" alt="Broadcast Storm"></div>
+      <div class="cardslot"><img src="../art/cards/final/Affinity Rewrite.jpg" alt="Affinity Rewrite"></div>
+      <div class="cardslot"><img src="../art/cards/final/Boot Hardware.jpg" alt="Boot Hardware"></div>
+      <div class="cardslot"><img src="../art/cards/final/Call to Relay.jpg" alt="Call to Relay"></div>
     </div>
 
     <div class="actions">
@@ -291,7 +291,7 @@ body {
     </div>
   </div>
 
-  <p class="note">Arena v0.1 — static design mockup for the napplet board · zones per rulebook §6 · <a href="cards.html">card gallery</a> · <a href="index.html">rulebook</a></p>
+  <p class="note">Arena v0.1 — static design mockup for the napplet board · zones per rulebook §6 · <a href="cards.html">card gallery</a> · <a href="rules.html">rulebook</a></p>
 </div>
 </div>
 
@@ -303,13 +303,13 @@ const PLATES = [
 const skins = document.getElementById("skins");
 for (const [name, color] of PLATES) {
   const b = document.createElement("button");
-  b.style.backgroundImage = `url("art/world-plates/${name}.png")`;
+  b.style.backgroundImage = `url("../art/world-plates/${name}.png")`;
   b.style.borderColor = color;
   b.title = name;
   b.textContent = name;
   if (name === "power") b.classList.add("active");
   b.addEventListener("click", () => {
-    document.getElementById("stage").style.setProperty("--plate", `url("art/world-plates/${name}.png")`);
+    document.getElementById("stage").style.setProperty("--plate", `url("../art/world-plates/${name}.png")`);
     skins.querySelectorAll("button").forEach(x => x.classList.remove("active"));
     b.classList.add("active");
   });

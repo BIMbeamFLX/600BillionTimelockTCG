@@ -65,4 +65,4 @@ definition applies in every zone." Apply in layer 7 of §17.
 1. Apply fixes 1–4 in the card-text source, re-run `build_full_set.py` gate.
 2. Decide the E1-191 rename (fix 5).
 3. Re-render only the affected faces, re-run gallery + Cockatrice adapter.
-4. Add the `*/*` paragraph to the rulebook and rebuild `index.html`.
+4. Add the `*/*` paragraph to the rulebook and rebuild `site/index.html`.

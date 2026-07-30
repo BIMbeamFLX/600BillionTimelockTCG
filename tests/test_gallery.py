@@ -3,7 +3,12 @@
 import json
 from pathlib import Path
 
-from build_gallery import THUMBNAIL_SIZE, build_thumbnails, gallery_records
+from build_gallery import (
+    THUMBNAIL_SIZE,
+    build_thumbnails,
+    gallery_records,
+    promo_gallery_records,
+)
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -47,12 +52,29 @@ def test_gallery_builds_lightweight_art_thumbnails(tmp_path: Path):
         assert thumbnail.format == "WEBP"
 
 
-def test_built_gallery_contains_complete_set_and_rulebook_link():
-    gallery = (REPO_ROOT / "cards.html").read_text(encoding="utf-8")
+def test_gallery_adds_the_separate_fips_promo():
+    promo_payload = json.loads((REPO_ROOT / "cards" / "promos.json").read_text(encoding="utf-8"))
+    promo_manifest = json.loads(
+        (REPO_ROOT / "art" / "cards" / "promos" / "manifest.json").read_text(encoding="utf-8")
+    )
 
-    assert "Alle Karten." in gallery
+    records = promo_gallery_records(promo_payload["cards"], promo_manifest)
+
+    assert len(records) == 1
+    assert records[0]["id"] == "FIPS-P01"
+    assert records[0]["promo"] is True
+    assert "global balloon mesh" in records[0]["searchTags"]
+
+
+def test_built_gallery_contains_complete_set_and_rulebook_link():
+    gallery = (REPO_ROOT / "site" / "cards.html").read_text(encoding="utf-8")
+
+    assert "All Cards." in gallery
     assert "E1-001.jpg" in gallery
     assert "Genesis Lotus.jpg" in gallery
-    assert 'href="index.html"' in gallery
-    assert "Bild + Text" in gallery
-    assert "Regeltext" in gallery
+    assert "Global FIPS Balloon Network" in gallery
+    assert 'href="rules.html"' in gallery
+    assert "Artwork + Text" in gallery
+    assert "Rules Text" in gallery
+    assert '<html lang="en">' in gallery
+    assert "Alle Karten" not in gallery
