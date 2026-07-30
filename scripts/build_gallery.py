@@ -43,6 +43,38 @@ def gallery_records(
             "searchTags": (
                 "fips.network submarine node balloons" if card["id"] == "E1-202" else ""
             ),
+            "promo": False,
+        }
+        for card in cards
+    ]
+
+
+def promo_gallery_records(
+    cards: list[dict[str, Any]],
+    promo_manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Convert separately locked promo cards into gallery records."""
+    files = {item["id"]: item for item in promo_manifest["files"]}
+    return [
+        {
+            "id": card["id"],
+            "name": card["name"],
+            "type": card["card_type"],
+            "typeLine": card["type_line"],
+            "affinity": card["affinity"] or ["Neutral"],
+            "cost": card["cost"] or "—",
+            "stats": card["action_resilience"],
+            "rarity": card["rarity"],
+            "artFile": files[card["id"]]["art_file"],
+            "thumbFile": files[card["id"]]["thumbnail_file"],
+            "faceFile": files[card["id"]]["face_file"],
+            "rules": card["rules_text"],
+            "flavor": card["flavor_text"],
+            "help": card["help_text"],
+            "note": card["protocol_note"],
+            "source": card["protocol_source"],
+            "searchTags": "fips.network global balloon mesh submarine node balloons",
+            "promo": True,
         }
         for card in cards
     ]
@@ -149,18 +181,18 @@ def render_html(records: list[dict[str, Any]]) -> str:
     """Render a dependency-free, filterable image-and-text card catalog."""
     data = json.dumps(records, ensure_ascii=False).replace("</", "<\\/")
     return f"""<!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#09080b">
   <meta name="description"
-    content="Alle 295 Karten des 600B Timelock TCG mit Artwork und Kartentext.">
-  <title>600B Timelock TCG — Alle Karten</title>
+    content="Every Edition One and promo card from the 600B Timelock TCG, with artwork and card text.">
+  <title>600B Timelock TCG — All Cards</title>
   <style>
     @font-face {{
       font-family: Anton600;
-      src: url("art/fonts/Anton-Regular.ttf") format("truetype");
+      src: url("../art/fonts/Anton-Regular.ttf") format("truetype");
       font-display: swap;
     }}
     :root {{
@@ -344,12 +376,26 @@ def render_html(records: list[dict[str, Any]]) -> str:
       letter-spacing: .08em;
     }}
     .art-button:focus-visible {{ outline: 3px solid var(--orange); outline-offset: -3px; }}
+    .art-button {{ perspective: 1100px; }}
+    .flip-inner {{
+      position: relative;
+      width: 100%;
+      aspect-ratio: 5 / 7;
+      transition: transform .55s;
+      transform-style: preserve-3d;
+    }}
+    .art-button:hover .flip-inner,
+    .art-button:focus-visible .flip-inner {{ transform: rotateY(180deg); }}
     .art-button img {{
+      position: absolute;
+      inset: 0;
       display: block;
       width: 100%;
-      aspect-ratio: 4 / 5;
+      height: 100%;
       object-fit: cover;
+      backface-visibility: hidden;
     }}
+    .art-button img.flip-back {{ transform: rotateY(180deg); }}
     .card-copy {{
       display: flex;
       flex: 1;
@@ -466,34 +512,34 @@ def render_html(records: list[dict[str, Any]]) -> str:
 </head>
 <body>
   <header class="masthead">
-    <img src="art/brand/600B-logo-primary.png" alt="600 000 000 000">
+    <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
     <div class="brand">
       <strong>TIMELOCK TCG</strong>
-      <span>Edition One · Bild + Text</span>
+      <span>Edition One · Artwork + Text</span>
     </div>
-    <a class="nav-link" href="index.html">Regelbuch</a>
+    <a class="nav-link" href="rules.html">Rulebook</a>
   </header>
   <main>
     <section class="hero">
-      <div class="eyebrow">600 Billion · 295 Karten · vollständiger Katalog</div>
-      <h1>Alle Karten. <span>Bild + Text.</span></h1>
-      <p class="intro">Durchsuche Edition One nach Name, ID, Kartentyp, Affinität oder
-      Regeltext. Jede Karte zeigt das finale Artwork, ihren Spieltext und Flavor direkt
-      in der Übersicht. Ein Klick öffnet Guide, Protocol Note und den Kartenrender.</p>
-      <span class="counter" id="counter">295 / 295</span>
+      <div class="eyebrow">600 Billion · 295 E1 + 1 Promo · Complete Catalog</div>
+      <h1>All Cards. <span>Artwork + Text.</span></h1>
+      <p class="intro">Search Edition One by name, ID, card type, affinity or rules text.
+      Every entry shows its final artwork, gameplay text and flavor in the catalog.
+      Open a card for its guide, protocol note and rendered card face.</p>
+      <span class="counter" id="counter">{len(records)} / {len(records)}</span>
     </section>
-    <section class="controls" aria-label="Kartenfilter">
+    <section class="controls" aria-label="Card filters">
       <input class="search" id="search" type="search"
-        placeholder="Name, ID, Regeltext oder Affinität suchen …" autocomplete="off">
-      <select id="typeFilter" aria-label="Nach Kartentyp filtern">
-        <option value="">Alle Kartentypen</option>
+        placeholder="Search name, ID, rules text or affinity …" autocomplete="off">
+      <select id="typeFilter" aria-label="Filter by card type">
+        <option value="">All card types</option>
       </select>
-      <select id="sortOrder" aria-label="Sortierung">
-        <option value="id">Sortierung: Setnummer</option>
-        <option value="name">Sortierung: Name</option>
-        <option value="type">Sortierung: Kartentyp</option>
+      <select id="sortOrder" aria-label="Sort order">
+        <option value="id">Sort: set number</option>
+        <option value="name">Sort: name</option>
+        <option value="type">Sort: card type</option>
       </select>
-      <div class="chips" id="chips" aria-label="Nach Affinität filtern"></div>
+      <div class="chips" id="chips" aria-label="Filter by affinity"></div>
     </section>
     <section class="gallery" id="gallery" aria-live="polite"></section>
   </main>
@@ -501,12 +547,12 @@ def render_html(records: list[dict[str, Any]]) -> str:
     <div class="modal-grid">
       <img id="modalImage" alt="">
       <div class="details">
-        <button class="close" id="closeDialog" aria-label="Details schließen">×</button>
+        <button class="close" id="closeDialog" aria-label="Close details">×</button>
         <div class="modal-id" id="modalId"></div>
         <h2 id="modalName"></h2>
         <div class="meta" id="modalMeta"></div>
         <div class="detail-block">
-          <strong>Regeltext</strong>
+          <strong>Rules Text</strong>
           <p class="modal-rules" id="modalRules"></p>
         </div>
         <div class="detail-block">
@@ -514,16 +560,16 @@ def render_html(records: list[dict[str, Any]]) -> str:
           <p id="modalFlavor"></p>
         </div>
         <div class="detail-block">
-          <strong>Simple Guide · kein Regeleffekt</strong>
+          <strong>Simple Guide · no rules effect</strong>
           <p id="modalHelp"></p>
         </div>
         <div class="detail-block">
-          <strong>Protocol Note · kein Regeleffekt</strong>
+          <strong>Protocol Note · no rules effect</strong>
           <p id="modalNote"></p>
           <p><a id="modalSource" target="_blank" rel="noreferrer">
-            Primärquelle öffnen →</a></p>
+            Open primary source →</a></p>
         </div>
-        <a class="face-link" id="modalFace" target="_blank">Gerenderte Karte öffnen</a>
+        <a class="face-link" id="modalFace" target="_blank">Open rendered card</a>
       </div>
     </div>
   </dialog>
@@ -540,7 +586,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
 
     const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock", "Neutral"];
     const labels = {{
-      All: "Alle",
+      All: "All",
       Power: "Power",
       Bitcoin: "Bitcoin",
       Keys: "Keys",
@@ -567,16 +613,20 @@ def render_html(records: list[dict[str, Any]]) -> str:
       typeFilter.append(option);
     }});
 
-    function artUrl(file) {{
-      return "art/generated/prompts-v2-final-1920x2400/" + encodeURIComponent(file);
+    function artUrl(card) {{
+      const base = card.promo
+        ? "../art/generated/promos/final/"
+        : "../art/generated/prompts-v2-final-1920x2400/";
+      return base + encodeURIComponent(card.artFile);
     }}
 
     function thumbUrl(file) {{
-      return "art/generated/gallery-thumbs/" + encodeURIComponent(file);
+      return "../art/generated/gallery-thumbs/" + encodeURIComponent(file);
     }}
 
-    function faceUrl(file) {{
-      return "art/cards/final/" + encodeURIComponent(file);
+    function faceUrl(card) {{
+      const base = card.promo ? "../art/cards/promos/" : "../art/cards/final/";
+      return base + encodeURIComponent(card.faceFile);
     }}
 
     function metaText(card) {{
@@ -585,7 +635,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
     }}
 
     function openCard(card) {{
-      document.getElementById("modalImage").src = artUrl(card.artFile);
+      document.getElementById("modalImage").src = artUrl(card);
       document.getElementById("modalImage").alt = card.name + " Artwork";
       document.getElementById("modalId").textContent = card.id + " · " + card.rarity;
       document.getElementById("modalName").textContent = card.name;
@@ -595,7 +645,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
       document.getElementById("modalHelp").textContent = card.help;
       document.getElementById("modalNote").textContent = card.note;
       document.getElementById("modalSource").href = card.source;
-      document.getElementById("modalFace").href = faceUrl(card.faceFile);
+      document.getElementById("modalFace").href = faceUrl(card);
       dialog.showModal();
     }}
 
@@ -606,13 +656,22 @@ def render_html(records: list[dict[str, Any]]) -> str:
       const button = document.createElement("button");
       button.className = "art-button";
       button.type = "button";
-      button.setAttribute("aria-label", "Details zu " + card.name + " öffnen");
-      const image = document.createElement("img");
-      image.src = thumbUrl(card.thumbFile);
-      image.alt = card.name;
-      image.loading = "lazy";
-      image.decoding = "async";
-      button.append(image);
+      button.setAttribute("aria-label", "Open details for " + card.name);
+      const flip = document.createElement("div");
+      flip.className = "flip-inner";
+      const face = document.createElement("img");
+      face.src = faceUrl(card);
+      face.alt = card.name + " card";
+      face.loading = "lazy";
+      face.decoding = "async";
+      const art = document.createElement("img");
+      art.className = "flip-back";
+      art.src = thumbUrl(card.thumbFile);
+      art.alt = card.name + " artwork";
+      art.loading = "lazy";
+      art.decoding = "async";
+      flip.append(face, art);
+      button.append(flip);
       button.addEventListener("click", () => openCard(card));
 
       const copy = document.createElement("div");
@@ -669,7 +728,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
       if (!filtered.length) {{
         const empty = document.createElement("div");
         empty.className = "empty";
-        empty.textContent = "Keine Karte passt zu diesen Filtern.";
+        empty.textContent = "No cards match these filters.";
         gallery.append(empty);
         return;
       }}
@@ -693,7 +752,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
 
 
 def main() -> None:
-    """Build cards.html and its thumbnail set from locked card and art data."""
+    """Build site/cards.html and its thumbnail set from locked card and art data."""
     repo_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -712,6 +771,16 @@ def main() -> None:
         default=repo_root / "art" / "cards" / "final" / "manifest.json",
     )
     parser.add_argument(
+        "--promos",
+        type=Path,
+        default=repo_root / "cards" / "promos.json",
+    )
+    parser.add_argument(
+        "--promo-manifest",
+        type=Path,
+        default=repo_root / "art" / "cards" / "promos" / "manifest.json",
+    )
+    parser.add_argument(
         "--art-dir",
         type=Path,
         default=repo_root / "art" / "generated" / "prompts-v2-final-1920x2400",
@@ -721,7 +790,7 @@ def main() -> None:
         type=Path,
         default=repo_root / "art" / "generated" / "gallery-thumbs",
     )
-    parser.add_argument("--out", type=Path, default=repo_root / "cards.html")
+    parser.add_argument("--out", type=Path, default=repo_root / "site" / "cards.html")
     parser.add_argument(
         "--audit-db",
         type=Path,
@@ -732,11 +801,18 @@ def main() -> None:
     cards = json.loads(args.cards.read_text(encoding="utf-8"))["cards"]
     art_manifest = json.loads(args.art_manifest.read_text(encoding="utf-8"))
     face_manifest = json.loads(args.face_manifest.read_text(encoding="utf-8"))
+    promo_payload = json.loads(args.promos.read_text(encoding="utf-8"))
+    promo_manifest = json.loads(args.promo_manifest.read_text(encoding="utf-8"))
     if len(cards) != 295 or art_manifest["card_count"] != 295 or face_manifest["card_count"] != 295:
         raise ValueError("complete text, art, and card-face locks are required")
-    records = gallery_records(cards, art_manifest, face_manifest)
+    if promo_payload["set"]["card_count"] != promo_manifest["card_count"]:
+        raise ValueError("complete promo card lock is required")
+    e1_records = gallery_records(cards, art_manifest, face_manifest)
+    promo_records = promo_gallery_records(promo_payload["cards"], promo_manifest)
+    records = e1_records + promo_records
     record_site_decision(args.audit_db, records, args.out, args.thumbs)
-    build_thumbnails(records, args.art_dir, args.thumbs)
+    build_thumbnails(e1_records, args.art_dir, args.thumbs)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(render_html(records), encoding="utf-8")
     complete_site_decision(args.audit_db, args.out)
     print(f"wrote {args.out} with {len(records)} image-and-text cards")
