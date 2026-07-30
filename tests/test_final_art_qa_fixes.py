@@ -16,7 +16,7 @@ from apply_final_art_qa_fixes import (  # noqa: E402
 
 def test_final_art_qa_fix_inventory_is_complete() -> None:
     """The reviewed QA finding set plus E1-202 revision must stay represented."""
-    assert len(FIX_CARD_IDS) == 20
+    assert len(FIX_CARD_IDS) == 34
     assert FIX_CARD_IDS == GENERATIVE_FIXES
     assert {"E1-093", "E1-094", "E1-174", "E1-202"} <= GENERATIVE_FIXES
 
