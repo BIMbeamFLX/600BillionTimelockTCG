@@ -20,25 +20,39 @@ log = logging.getLogger("apply_final_art_qa_fixes")
 
 GENERATIVE_FIXES = frozenset(
     {
+        "E1-003",
         "E1-034",
         "E1-035",
         "E1-037",
         "E1-043",
         "E1-046",
         "E1-047",
+        "E1-051",
         "E1-056",
         "E1-069",
+        "E1-071",
         "E1-072",
         "E1-075",
         "E1-078",
+        "E1-081",
+        "E1-091",
         "E1-093",
         "E1-094",
+        "E1-095",
+        "E1-106",
         "E1-120",
+        "E1-124",
         "E1-125",
         "E1-128",
+        "E1-151",
+        "E1-161",
         "E1-174",
         "E1-184",
+        "E1-192",
+        "E1-198",
         "E1-202",
+        "E1-225",
+        "E1-256",
         "E1-268",
     }
 )
@@ -99,12 +113,12 @@ def record_planned(
                 """,
                 (
                     card_id,
-                    "imagegen-integrated-edit",
+                    "imagegen-raw-regeneration",
                     str(imagegen_dir / f"{card_id}.png"),
                     str(derived_dir / f"{card_id}.png"),
                     str(final_dir / f"{card_id}.jpg"),
                     "planned",
-                    f"replace pasted repair with reviewed scene-integrated edit for "
+                    f"replace every post-generation repair with reviewed raw ImageGen art for "
                     f"{cards[card_id]['name']}",
                     "user:felix+codex:imagegen",
                     now,
@@ -159,7 +173,7 @@ def write_fix(
         "file": final.name,
         "sha256": normalized["sha256"],
         "size": normalized["size"],
-        "operations": [{"kind": "imagegen-integrated-edit"}],
+        "operations": [{"kind": "imagegen-raw-regeneration"}],
         "imagegen_edit": True,
         "canonical_value": CANONICAL_VALUE,
     }
@@ -237,6 +251,11 @@ def main() -> None:
         action="store_true",
         help="refresh the existing reproducible QA staging files in place",
     )
+    parser.add_argument(
+        "--plan-only",
+        action="store_true",
+        help="record the regeneration decision before any derived image is written",
+    )
     args = parser.parse_args()
 
     fix_manifest_path = args.staged_final / "manifest.json"
@@ -252,13 +271,17 @@ def main() -> None:
         log.info("installed %d reviewed final-art fixes", len(fix_manifest["files"]))
         return
 
+    cards = prompt_cards(args.prompts)
+    record_planned(args.audit_db, cards, args.imagegen, args.derived, args.final)
+    if args.plan_only:
+        log.info("recorded %d raw ImageGen regeneration decisions", len(FIX_CARD_IDS))
+        return
+
     if not args.refresh and args.derived.exists() and any(args.derived.iterdir()):
         raise FileExistsError(f"refusing to overwrite non-empty directory: {args.derived}")
     if not args.refresh and args.staged_final.exists() and any(args.staged_final.iterdir()):
         raise FileExistsError(f"refusing to overwrite non-empty directory: {args.staged_final}")
 
-    cards = prompt_cards(args.prompts)
-    record_planned(args.audit_db, cards, args.imagegen, args.derived, args.final)
     files = []
     for card_id in sorted(FIX_CARD_IDS):
         source = select_source(card_id, args.imagegen)
@@ -279,7 +302,7 @@ def main() -> None:
         "source_size": "per-file",
         "source_data_modified": False,
         "canonical_value": CANONICAL_VALUE,
-        "repair_mode": "scene-integrated-imagegen-only",
+        "repair_mode": "raw-imagegen-only-no-post-generation-art-patches",
         "files": files,
     }
     args.staged_final.mkdir(parents=True, exist_ok=True)
