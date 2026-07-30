@@ -60,3 +60,8 @@ def test_layout_proposals_compare_three_non_destructive_frame_directions() -> No
     assert page.count("assets/layouts/e1-256-art.jpg") == 3
     assert (REPO_ROOT / "site" / "assets" / "layouts" / "e1-256-art.jpg").is_file()
     assert "../art/generated/" not in page
+    assert "aspect-ratio:4/5" in page
+    assert "object-fit:contain" in page
+    assert "height:42%" not in page
+    assert "Segoe UI Variable Display" in page
+    assert "Alfa600" not in page
