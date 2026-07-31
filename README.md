@@ -92,48 +92,45 @@ uv run python scripts/build_card_set.py --border-amp 11 --no-guides --no-fable
 Cards print at 63 × 88 mm trim inside a 3 mm bleed at 300 dpi. Drop artwork into
 `art/cards/node-runner/` named after each card to fill its art window.
 
-### Rendering the whole set as PNG
+### Rendering the whole set
 
 `scripts/render_card_pngs.py` draws the same frame straight to a bitmap with Pillow,
-reusing the geometry functions from `build_card_set.py` so a rendered PNG and the HTML
-proof sheet agree. Artwork comes from the raw ImageGen exports and is contain-fitted
-into the art window exactly as the canvas specifies.
+reusing the geometry functions from `build_card_set.py` so a render and the HTML proof
+sheet agree. Artwork comes from the raw ImageGen exports and is contain-fitted into the
+art window exactly as the canvas specifies.
+
+Two masters are produced from the same render. Print is lossless PNG tagged at its real
+resolution so prepress reads the physical size; web is WebP, visually identical at a
+fraction of the bytes.
 
 ```bash
-uv run python scripts/render_card_pngs.py
-uv run python scripts/render_card_pngs.py --guides --border-amp 11 --limit 12
+uv run python scripts/render_card_pngs.py --format png --out art/cards/node-runner-print
+uv run python scripts/render_card_pngs.py --format webp --quality 88 \
+  --out art/cards/node-runner-web
 ```
 
-Output lands in `art/cards/node-runner-faces/` at 814 × 1109 px full bleed. That is
-roughly 200 MB for the set, so the directory is ignored and rebuilt on demand rather
-than committed.
+| Set | Format | Size | Per card | Use |
+| --- | --- | --- | --- | --- |
+| `node-runner-print/` | PNG, 300 dpi | 814 × 1109 | ~670 KB | 63 × 88 mm trim, 3 mm bleed |
+| `node-runner-web/` | WebP q88 | 814 × 1109 | ~140 KB | site, game table, Blossom |
 
-## Publishing to Blossom and Ordinals
+Both directories are ignored and rebuilt on demand rather than committed. Add `--guides`
+for a trim proof, `--scale` for a smaller web set.
 
-Blossom addresses every blob by the SHA-256 of its bytes, so the hash is the
-identifier and any mirror holding the same bytes answers identically. Ordinals need
-the same digest to verify what was inscribed. One manifest serves both.
+## Content-addressed publishing
+
+Blossom addresses every blob by the SHA-256 of its bytes, so the digest is the
+identifier: a server answers `GET /<sha256>` and any mirror holding the same bytes
+answers identically. That digest is also what a NIP-94 file event carries, so one
+manifest covers storage and the event that points at it.
 
 ```bash
-uv run python scripts/build_blob_manifest.py --blossom-base https://blossom.example
+uv run python scripts/build_blob_manifest.py --dir art/cards/node-runner-web \
+  --blossom-base https://blossom.example
 ```
 
-The two targets do not take the same file. Blossom has no size limit, so it takes the
-full-quality PNG masters. Inscription does: Bitcoin caps a standard transaction at
-400,000 weight units and witness bytes cost one unit each, which leaves roughly 390 KB
-of payload. The PNG masters average about 670 KB and cannot be inscribed as they are,
-so the inscription set is rendered separately as WebP.
-
-```bash
-uv run python scripts/render_card_pngs.py --format webp --quality 82 \
-  --out art/cards/node-runner-inscribe
-uv run python scripts/build_blob_manifest.py --dir art/cards/node-runner-inscribe \
-  --ord-batch art/cards/node-runner-inscribe/batch.yaml
-```
-
-`build_blob_manifest.py` reports anything over the ceiling and leaves it out of the
-batch file rather than letting it fail at broadcast time. Check fees with
-`ord wallet batch --dry-run` before broadcasting anything.
+Each entry records the card id and name, mime type, byte length, SHA-256 and the
+resolved Blossom URL.
 
 ## Build
 

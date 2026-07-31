@@ -41,10 +41,6 @@ BONE = (232, 223, 207)
 ORANGE = (247, 147, 26)
 INK = (17, 17, 17)
 
-# Bitcoin caps a standard transaction at 400,000 weight units and witness bytes
-# cost 1 WU each, so an inscription payload has to stay under roughly 390 KB.
-INSCRIPTION_LIMIT = 390 * 1024
-
 ART_BOX = (68, 204, 678, 624)
 WELL_BOX = (60, 196, 694, 640)
 CORNER_MARKS = [
@@ -382,6 +378,9 @@ def main() -> None:
     )
     parser.add_argument("--quality", type=int, default=82, help="webp/jpeg quality (default: 82)")
     parser.add_argument(
+        "--dpi", type=int, default=300, help="resolution tagged on print output (default: 300)"
+    )
+    parser.add_argument(
         "--scale",
         type=float,
         default=1.0,
@@ -395,13 +394,14 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
 
     suffix = {"png": ".png", "webp": ".webp", "jpeg": ".jpg"}[args.format]
-    options: dict[str, Any] = {"optimize": True}
+    options: dict[str, Any]
     if args.format == "png":
-        options = {"optimize": True}
+        # Tag the real print resolution so a prepress tool reads the physical size.
+        options = {"optimize": True, "dpi": (args.dpi, args.dpi)}
     elif args.format == "webp":
         options = {"quality": args.quality, "method": 6}
     else:
-        options = {"quality": args.quality, "optimize": True}
+        options = {"quality": args.quality, "optimize": True, "dpi": (args.dpi, args.dpi)}
 
     missing_art = 0
     written = 0
@@ -422,11 +422,6 @@ def main() -> None:
     average = written / max(1, len(cards))
     print(f"wrote {len(cards)} {args.format} card faces to {args.out}")
     print(f"  {written / 1024 / 1024:.1f} MB total, {average / 1024:.0f} KB average")
-    if average > INSCRIPTION_LIMIT:
-        print(
-            f"  note: over the ~{INSCRIPTION_LIMIT // 1024} KB standard-transaction ceiling, "
-            "so this set is for Blossom rather than inscription"
-        )
     if missing_art:
         print(f"note: {missing_art} rendered without artwork (no source in {args.art_dir.name})")
 
