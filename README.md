@@ -108,6 +108,33 @@ Output lands in `art/cards/node-runner-faces/` at 814 × 1109 px full bleed. Tha
 roughly 200 MB for the set, so the directory is ignored and rebuilt on demand rather
 than committed.
 
+## Publishing to Blossom and Ordinals
+
+Blossom addresses every blob by the SHA-256 of its bytes, so the hash is the
+identifier and any mirror holding the same bytes answers identically. Ordinals need
+the same digest to verify what was inscribed. One manifest serves both.
+
+```bash
+uv run python scripts/build_blob_manifest.py --blossom-base https://blossom.example
+```
+
+The two targets do not take the same file. Blossom has no size limit, so it takes the
+full-quality PNG masters. Inscription does: Bitcoin caps a standard transaction at
+400,000 weight units and witness bytes cost one unit each, which leaves roughly 390 KB
+of payload. The PNG masters average about 670 KB and cannot be inscribed as they are,
+so the inscription set is rendered separately as WebP.
+
+```bash
+uv run python scripts/render_card_pngs.py --format webp --quality 82 \
+  --out art/cards/node-runner-inscribe
+uv run python scripts/build_blob_manifest.py --dir art/cards/node-runner-inscribe \
+  --ord-batch art/cards/node-runner-inscribe/batch.yaml
+```
+
+`build_blob_manifest.py` reports anything over the ceiling and leaves it out of the
+batch file rather than letting it fail at broadcast time. Check fees with
+`ord wallet batch --dry-run` before broadcasting anything.
+
 ## Build
 
 ```bash

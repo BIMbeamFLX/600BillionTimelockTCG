@@ -41,6 +41,10 @@ BONE = (232, 223, 207)
 ORANGE = (247, 147, 26)
 INK = (17, 17, 17)
 
+# Bitcoin caps a standard transaction at 400,000 weight units and witness bytes
+# cost 1 WU each, so an inscription payload has to stay under roughly 390 KB.
+INSCRIPTION_LIMIT = 390 * 1024
+
 ART_BOX = (68, 204, 678, 624)
 WELL_BOX = (60, 196, 694, 640)
 CORNER_MARKS = [
@@ -370,6 +374,19 @@ def main() -> None:
     )
     parser.add_argument("--guides", action="store_true", help="draw the trim guide")
     parser.add_argument("--limit", type=int, default=0, help="render only the first N cards")
+    parser.add_argument(
+        "--format",
+        default="png",
+        choices=("png", "webp", "jpeg"),
+        help="png is the archival master; webp is small enough to inscribe (default: png)",
+    )
+    parser.add_argument("--quality", type=int, default=82, help="webp/jpeg quality (default: 82)")
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=1.0,
+        help="scale the finished card, e.g. 0.5 for a half-size inscription set",
+    )
     args = parser.parse_args()
 
     cards = json.loads(args.cards.read_text(encoding="utf-8"))["cards"]
@@ -377,16 +394,39 @@ def main() -> None:
         cards = cards[: args.limit]
     args.out.mkdir(parents=True, exist_ok=True)
 
+    suffix = {"png": ".png", "webp": ".webp", "jpeg": ".jpg"}[args.format]
+    options: dict[str, Any] = {"optimize": True}
+    if args.format == "png":
+        options = {"optimize": True}
+    elif args.format == "webp":
+        options = {"quality": args.quality, "method": 6}
+    else:
+        options = {"quality": args.quality, "optimize": True}
+
     missing_art = 0
+    written = 0
     for index, card in enumerate(cards, start=1):
         image = render_card(card, index, args.art_dir, args.border_amp, args.guides)
         if not (args.art_dir / f"{card['id']}.jpg").exists():
             missing_art += 1
-        image.convert("RGB").save(args.out / f"{card['name']}.png", "PNG", optimize=True)
+        if args.scale != 1.0:
+            image = image.resize(
+                (round(CARD_W * args.scale), round(CARD_H * args.scale)), Image.LANCZOS
+            )
+        target = args.out / f"{card['name']}{suffix}"
+        image.convert("RGB").save(target, args.format.upper(), **options)
+        written += target.stat().st_size
         if index % 25 == 0:
             print(f"  … {index}/{len(cards)}")
 
-    print(f"wrote {len(cards)} PNG card faces to {args.out}")
+    average = written / max(1, len(cards))
+    print(f"wrote {len(cards)} {args.format} card faces to {args.out}")
+    print(f"  {written / 1024 / 1024:.1f} MB total, {average / 1024:.0f} KB average")
+    if average > INSCRIPTION_LIMIT:
+        print(
+            f"  note: over the ~{INSCRIPTION_LIMIT // 1024} KB standard-transaction ceiling, "
+            "so this set is for Blossom rather than inscription"
+        )
     if missing_art:
         print(f"note: {missing_art} rendered without artwork (no source in {args.art_dir.name})")
 
