@@ -652,7 +652,7 @@
   };
 
   function faceUrl(card) {
-    return "../art/cards/final/" + encodeURIComponent(card.face);
+    return "../art/cards/node-runner-web/" + encodeURIComponent(card.face);
   }
 
   function cardNode(entry, options = {}) {

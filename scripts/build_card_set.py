@@ -40,10 +40,11 @@ AFFINITY_BADGE_FG = {
     "Keys": "#FFF7EC",
     "Timelock": "#FFF7EC",
 }
+# Per the Node Runner handoff: common bone, uncommon orange, rare gold.
 RARITY_DOT = {
     "common": ("#e8dfcf", "rgba(232,223,207,.25)"),
-    "uncommon": ("#F3C244", "rgba(243,194,68,.3)"),
-    "rare": ("#f7931a", "rgba(247,147,26,.3)"),
+    "uncommon": ("#f7931a", "rgba(247,147,26,.3)"),
+    "rare": ("#F3C244", "rgba(243,194,68,.3)"),
 }
 COST_AFFINITY = {"P": "Power", "B": "Bitcoin", "K": "Keys", "S": "Signal", "T": "Timelock"}
 ART_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")

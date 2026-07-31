@@ -25,12 +25,12 @@ from build_card_set import (
     TRIM_INSET,
     TRIM_W,
     _rain,
+    blob_geometry,
     circuit_geometry,
     net_geometry,
     open_geometry,
     spine_geometry,
 )
-from build_cards import draw_resource_icon
 from PIL import Image, ImageDraw, ImageFont
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -55,6 +55,23 @@ MONO_ITALIC = ["consolai.ttf", "DejaVuSansMono-Oblique.ttf", "couri.ttf"]
 BODY = ["trebuc.ttf", "arial.ttf", "DejaVuSans.ttf"]
 BODY_BOLD = ["trebucbd.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf"]
 DISPLAY = [str(REPO_ROOT / "art" / "fonts" / "Anton-Regular.ttf"), "impact.ttf", "arialbd.ttf"]
+
+
+ICON_DIR = REPO_ROOT / "art" / "resources" / "png"
+PIP_SIZE = 54
+RESOURCE_ICON = 64
+# Titles never wrap; they step down this ladder until they clear the cost cluster.
+TITLE_LADDER = (68, 66, 62, 60, 58, 52, 46, 40, 34)
+_ICONS: dict[tuple[str, int], Image.Image] = {}
+
+
+def resource_icon(affinity: str, size: int) -> Image.Image:
+    """Load a canonical resource icon, rasterized from art/resources/*.svg."""
+    key = (affinity, size)
+    if key not in _ICONS:
+        with Image.open(ICON_DIR / f"{affinity.lower()}.png") as source:
+            _ICONS[key] = source.convert("RGBA").resize((size, size), Image.LANCZOS)
+    return _ICONS[key]
 
 
 def font(candidates: list[str], size: int) -> ImageFont.FreeTypeFont:
@@ -117,6 +134,24 @@ def wrap(
                 current = word
         lines.append(current)
     return [line for line in lines if line]
+
+
+def fit_block(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    family: list[str],
+    steps: tuple[tuple[int, int], ...],
+    width: int = 670,
+    max_lines: int = 2,
+) -> tuple[ImageFont.FreeTypeFont, int, list[str]]:
+    """Pick the largest type size whose wrap still fits the handoff's line budget."""
+    block_font, height, lines = font(family, steps[0][0]), steps[0][1], []
+    for size, step_height in steps:
+        block_font, height = font(family, size), step_height
+        lines = wrap(draw, text, block_font, width)
+        if len(lines) <= max_lines:
+            break
+    return block_font, height, lines[:max_lines]
 
 
 def quad_points(
@@ -274,26 +309,25 @@ def render_card(
     generic, symbols = cost_tokens(card["cost"] or "")
     cost_width = 0
     if generic or symbols:
-        icon_size = 54 if generic else 64
         cost_width = (
             (78 if generic else 0)
-            + len(symbols) * icon_size
+            + len(symbols) * PIP_SIZE
             + 10 * (bool(generic) + len(symbols) - 1)
         )
 
-    # Title, with the canvas' ember/violet offset shadows
-    title_size = 60
-    title_font = font(DISPLAY, title_size)
+    # Title steps down a fixed ladder rather than shrinking freely, and must never
+    # wrap or reach the cost cluster.
     name = card["name"].upper()
     available = CARD_W - 64 - cost_width - 72 - 20 if cost_width else 600
-    while draw.textlength(name, font=title_font) > available and title_size > 24:
-        title_size -= 2
+    for title_size in TITLE_LADDER:
         title_font = font(DISPLAY, title_size)
+        if draw.textlength(name, font=title_font) <= available:
+            break
     for offset, colour in ((3, (255, 106, 0)), (-3, (116, 71, 184))):
         draw.text((72 + offset, 98), name, font=title_font, fill=colour)
     draw.text((72, 98), name, font=title_font, fill=CREAM)
 
-    # Cost row, right aligned
+    # Cost row, right aligned, using the canonical resource icons as-is
     if generic or symbols:
         x = CARD_W - 64 - cost_width
         if generic:
@@ -303,9 +337,9 @@ def render_card(
             draw.text((x + (78 - tw) / 2, 108), generic, font=big, fill=CREAM)
             x += 88
         for symbol in symbols:
-            radius = icon_size // 2
-            draw_resource_icon(draw, (x + radius, 92 + radius + 6), radius, COST_AFFINITY[symbol])
-            x += icon_size + 10
+            icon = resource_icon(COST_AFFINITY[symbol], PIP_SIZE)
+            canvas.alpha_composite(icon, (int(x), 92 + (78 - PIP_SIZE) // 2))
+            x += PIP_SIZE + 10
 
     # Action / Resilience
     stats = card["action_resilience"]
@@ -324,21 +358,24 @@ def render_card(
             lw = tracked_width(draw, label, mono14, 1.4)
             tracked_text(draw, (left + (60 - lw) / 2, 786), label, mono14, ORANGE, 1.4)
     elif "Resource" in card["card_type"] and affinity in COST_AFFINITY.values():
-        draw_resource_icon(draw, (CARD_W - 76 - 32, 736 + 32), 32, affinity)
+        icon = resource_icon(affinity, RESOURCE_ICON)
+        canvas.alpha_composite(icon, (CARD_W - 76 - RESOURCE_ICON, 736))
 
-    # Rules and flavour
-    body = font(BODY, 31)
+    # Rules and flavour. The handoff budgets 146px here: two lines of effect, a
+    # 12px gap, then two lines of fable. Shrink a step rather than overrun it.
     y = 864
     if card["rules_text"]:
-        for line in wrap(draw, card["rules_text"], body, 670)[:4]:
+        body, height, lines = fit_block(draw, card["rules_text"], BODY, ((31, 40), (29, 38)))
+        for line in lines:
             draw.text((72, y), line, font=body, fill=BONE)
-            y += 40
+            y += height
     if card["flavor_text"]:
-        italic = font(MONO_ITALIC, 21)
-        y += 8
-        for line in wrap(draw, f"// {card['flavor_text']}", italic, 670)[:2]:
+        y += 12
+        fable_text = f"// {card['flavor_text']}"
+        italic, height, lines = fit_block(draw, fable_text, MONO_ITALIC, ((21, 27), (20, 26)))
+        for line in lines:
             draw.text((72, y), line, font=italic, fill=(*BONE, 128))
-            y += 26
+            y += height
 
     # Footer
     mono22 = font(MONO, 22)
@@ -353,6 +390,56 @@ def render_card(
     return canvas
 
 
+def render_back(border_amp: int, guides: bool) -> Image.Image:
+    """Render the shared card back: orange spine, node field, ring and sacred stack."""
+    k = border_amp / 6
+    canvas = Image.new("RGBA", (CARD_W, CARD_H), (*CARD_BG, 255))
+    paint_rain(canvas, 232)  # seeds 553/554 in the canvas = index offset 232
+
+    overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    spine = spine_geometry(999)
+    for x0, y0, x1, y1 in spine["dim"]:
+        draw.rectangle((x0, y0, x1, y1), fill=rgba("#f7931a", 0.25))
+    for x0, y0, x1, y1 in spine["main"]:
+        draw.rectangle((x0, y0, x1, y1), fill=rgba("#f7931a", 1.0))
+
+    mesh = net_geometry(120, 180, 574, 600, 26, 552)
+    for link in mesh["links"]:
+        draw.line(link, fill=rgba("#f7931a", 0.35), width=2)
+    for px, py in mesh["points"]:
+        draw.ellipse((px - 4, py - 4, px + 4, py + 4), fill=rgba("#f7931a", 0.6))
+
+    points = blob_geometry(407, 554, 170, 44, 8, 551, k)
+    ring = [((points[-1][0] + points[0][0]) / 2, (points[-1][1] + points[0][1]) / 2)]
+    for i, point in enumerate(points):
+        nxt = points[(i + 1) % len(points)]
+        ring += quad_points(ring[-1], point, ((point[0] + nxt[0]) / 2, (point[1] + nxt[1]) / 2))
+    draw.polygon(ring, fill=(*hex_rgb("#0a0705"), 255))
+    draw.line(ring + ring[:1], fill=rgba("#f7931a", 1.0), width=6)
+
+    if guides:
+        draw.rectangle(
+            (TRIM_INSET, TRIM_INSET, TRIM_INSET + TRIM_W, TRIM_INSET + TRIM_H),
+            outline=(0, 210, 255, 180),
+            width=2,
+        )
+    canvas.alpha_composite(overlay)
+
+    draw = ImageDraw.Draw(canvas)
+    stack_font = font(DISPLAY, 60)
+    y = 404 + (300 - 4 * 59) / 2
+    for line in ("600", "000", "000", "000"):
+        width = draw.textlength(line, font=stack_font)
+        draw.text((257 + (300 - width) / 2, y), line, font=stack_font, fill=hex_rgb("#f7931a"))
+        y += 59
+    mono22 = font(MONO, 22)
+    footer = "TIMELOCK_TCG :: EDITION ONE"
+    footer_w = tracked_width(draw, footer, mono22, 7.5)
+    tracked_text(draw, ((CARD_W - footer_w) / 2, 1010), footer, mono22, (*BONE, 153), 7.5)
+    return canvas
+
+
 def main() -> None:
     """Render the whole set into PNG card faces."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -363,7 +450,13 @@ def main() -> None:
         default=REPO_ROOT / "art" / "generated" / "prompts-v2-final-1920x2400",
     )
     parser.add_argument(
-        "--out", type=Path, default=REPO_ROOT / "art" / "cards" / "node-runner-faces"
+        "--out", type=Path, default=REPO_ROOT / "art" / "cards" / "node-runner-web"
+    )
+    parser.add_argument("--promos", type=Path, default=REPO_ROOT / "cards" / "promos.json")
+    parser.add_argument(
+        "--promo-art-dir",
+        type=Path,
+        default=REPO_ROOT / "art" / "generated" / "promos" / "final",
     )
     parser.add_argument(
         "--border-amp", type=int, default=6, choices=range(1, 15), metavar="{1..14}"
@@ -389,8 +482,13 @@ def main() -> None:
     args = parser.parse_args()
 
     cards = json.loads(args.cards.read_text(encoding="utf-8"))["cards"]
+    entries = [(card, args.art_dir) for card in cards]
+    # The promo lives in its own lock but must carry the same frame as the set.
+    if args.promos and args.promos.exists() and not args.limit:
+        promos = json.loads(args.promos.read_text(encoding="utf-8"))["cards"]
+        entries += [(card, args.promo_art_dir) for card in promos]
     if args.limit:
-        cards = cards[: args.limit]
+        entries = entries[: args.limit]
     args.out.mkdir(parents=True, exist_ok=True)
 
     suffix = {"png": ".png", "webp": ".webp", "jpeg": ".jpg"}[args.format]
@@ -403,12 +501,12 @@ def main() -> None:
     else:
         options = {"quality": args.quality, "optimize": True, "dpi": (args.dpi, args.dpi)}
 
-    missing_art = 0
+    missing_art = []
     written = 0
-    for index, card in enumerate(cards, start=1):
-        image = render_card(card, index, args.art_dir, args.border_amp, args.guides)
-        if not (args.art_dir / f"{card['id']}.jpg").exists():
-            missing_art += 1
+    for index, (card, art_dir) in enumerate(entries, start=1):
+        image = render_card(card, index, art_dir, args.border_amp, args.guides)
+        if not (art_dir / f"{card['id']}.jpg").exists():
+            missing_art.append(card["id"])
         if args.scale != 1.0:
             image = image.resize(
                 (round(CARD_W * args.scale), round(CARD_H * args.scale)), Image.LANCZOS
@@ -417,13 +515,20 @@ def main() -> None:
         image.convert("RGB").save(target, args.format.upper(), **options)
         written += target.stat().st_size
         if index % 25 == 0:
-            print(f"  … {index}/{len(cards)}")
+            print(f"  … {index}/{len(entries)}")
 
-    average = written / max(1, len(cards))
-    print(f"wrote {len(cards)} {args.format} card faces to {args.out}")
+    back = render_back(args.border_amp, args.guides)
+    if args.scale != 1.0:
+        back = back.resize((round(CARD_W * args.scale), round(CARD_H * args.scale)), Image.LANCZOS)
+    back_target = args.out / f"600B-Timelock-card-back{suffix}"
+    back.convert("RGB").save(back_target, args.format.upper(), **options)
+    written += back_target.stat().st_size
+
+    average = written / max(1, len(entries))
+    print(f"wrote {len(entries)} {args.format} card faces to {args.out}")
     print(f"  {written / 1024 / 1024:.1f} MB total, {average / 1024:.0f} KB average")
     if missing_art:
-        print(f"note: {missing_art} rendered without artwork (no source in {args.art_dir.name})")
+        print(f"note: {len(missing_art)} rendered without artwork, first: {missing_art[0]}")
 
 
 if __name__ == "__main__":

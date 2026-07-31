@@ -257,7 +257,7 @@ def playable_records(
                 "text": card["rules_text"],
                 "flavor": card["flavor_text"],
                 "help": card["help_text"],
-                "face": face_files[card["id"]],
+                "face": f"{card['name']}.webp",
                 "keywords": parse_keywords(card["rules_text"]),
                 "abilities": abilities,
                 "manual": manual,

@@ -33,7 +33,7 @@ def test_landing_page_links_to_rules_and_final_cards() -> None:
 
     assert 'href="rules.html"' in landing
     assert 'href="leaderboard.html"' in landing
-    assert "../art/cards/final/" in landing
+    assert "../art/cards/node-runner-web/" in landing
     assert "../art/generated/" not in landing
     assert "../art/illustrations/" not in landing
 

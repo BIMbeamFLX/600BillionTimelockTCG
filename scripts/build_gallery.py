@@ -14,8 +14,14 @@ def gallery_records(
     cards: list[dict[str, Any]],
     face_manifest: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Join card text with rendered card-face filenames."""
-    face_files = {item["id"]: item["file"] for item in face_manifest["files"]}
+    """Join card text with its Node Runner face.
+
+    Faces are keyed by card name rather than by the manifest's filenames: the
+    manifest is still required as proof the art lock is complete, but the
+    rendered set is one flat directory of `<name>.webp`.
+    """
+    if len(face_manifest["files"]) != len(cards):
+        raise ValueError("card text and the face lock disagree on card count")
     return [
         {
             "id": card["id"],
@@ -26,7 +32,7 @@ def gallery_records(
             "cost": card["cost"] or "—",
             "stats": card["action_resilience"],
             "rarity": card["rarity"],
-            "faceFile": face_files[card["id"]],
+            "faceFile": f"{card['name']}.webp",
             "rules": card["rules_text"],
             "flavor": card["flavor_text"],
             "help": card["help_text"],
@@ -46,7 +52,8 @@ def promo_gallery_records(
     promo_manifest: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Convert separately locked promo cards into gallery records."""
-    files = {item["id"]: item for item in promo_manifest["files"]}
+    if len(promo_manifest["files"]) != len(cards):
+        raise ValueError("promo text and the promo face lock disagree on card count")
     return [
         {
             "id": card["id"],
@@ -57,7 +64,7 @@ def promo_gallery_records(
             "cost": card["cost"] or "—",
             "stats": card["action_resilience"],
             "rarity": card["rarity"],
-            "faceFile": files[card["id"]]["face_file"],
+            "faceFile": f"{card['name']}.webp",
             "rules": card["rules_text"],
             "flavor": card["flavor_text"],
             "help": card["help_text"],
@@ -541,8 +548,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
     }});
 
     function faceUrl(card) {{
-      const base = card.promo ? "../art/cards/promos/" : "../art/cards/final/";
-      return base + encodeURIComponent(card.faceFile);
+      return "../art/cards/node-runner-web/" + encodeURIComponent(card.faceFile);
     }}
 
     function metaText(card) {{
