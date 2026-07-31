@@ -24,6 +24,8 @@ from build_card_set import (
     TRIM_H,
     TRIM_INSET,
     TRIM_W,
+    TYPE_BASE,
+    TYPE_GROUP,
     _rain,
     blob_geometry,
     circuit_geometry,
@@ -36,6 +38,7 @@ from PIL import Image, ImageDraw, ImageFont
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CARD_BG = (5, 4, 3)
 WELL_BG = (10, 7, 5)
+
 CREAM = (255, 247, 236)
 BONE = (232, 223, 207)
 ORANGE = (247, 147, 26)
@@ -276,13 +279,16 @@ def render_card(
     accent = AFFINITY_ACCENT.get(affinity, AFFINITY_ACCENT["Neutral"])
     badge_fg = AFFINITY_BADGE_FG.get(affinity, "#050403")
 
-    canvas = Image.new("RGBA", (CARD_W, CARD_H), (*CARD_BG, 255))
+    base_bg, base_plate = TYPE_BASE[TYPE_GROUP.get(card["card_type"], "avatar")]
+    canvas = Image.new("RGBA", (CARD_W, CARD_H), (*hex_rgb(base_bg), 255))
     draw = ImageDraw.Draw(canvas)
 
     paint_rain(canvas, index)
 
     wx, wy, ww, wh = WELL_BOX
-    draw.rectangle((wx, wy, wx + ww, wy + wh), fill=(*WELL_BG, 255), outline=rgba("#f7931a", 0.25))
+    draw.rectangle(
+        (wx, wy, wx + ww, wy + wh), fill=(*hex_rgb(base_plate), 255), outline=rgba("#f7931a", 0.25)
+    )
     art_path = art_dir / f"{card['id']}.jpg"
     if art_path.exists():
         with Image.open(art_path) as source:

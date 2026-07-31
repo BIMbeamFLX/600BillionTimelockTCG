@@ -46,6 +46,27 @@ RARITY_DOT = {
     "uncommon": ("#f7931a", "rgba(247,147,26,.3)"),
     "rare": ("#F3C244", "rgba(243,194,68,.3)"),
 }
+# Affinity already owns the spine, chip, circuit and pips, so card type gets the
+# one channel affinity does not use: the base dark. Four groups a player sorts by,
+# all held at roughly the same luminance so the terminal look survives.
+TYPE_GROUP = {
+    "Basic Resource": "resource",
+    "Resource": "resource",
+    "Avatar": "avatar",
+    "Hardware Avatar": "avatar",
+    "Zap": "spell",
+    "Operation": "spell",
+    "Hardware": "device",
+    "Protocol": "device",
+}
+TYPE_BASE = {
+    "resource": ("#0d0803", "#1a0f06"),  # warm amber-black — the mana
+    "avatar": ("#050403", "#0a0705"),  # the spec default, neutral
+    "spell": ("#03060f", "#060c1c"),  # cool blue-black — one-shot
+    "device": ("#080412", "#110925"),  # violet-black — persistent
+}
+
+
 COST_AFFINITY = {"P": "Power", "B": "Bitcoin", "K": "Keys", "S": "Signal", "T": "Timelock"}
 ART_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
 CORNER_MARKS = (
@@ -404,11 +425,13 @@ def render_card(card: dict[str, Any], paths: dict[str, Any], art_dir: Path) -> s
     else:
         art = f'<div class="art-empty">{html.escape(card["art"])}</div>'
 
+    base_bg, base_plate = TYPE_BASE[TYPE_GROUP.get(card["card_type"], "avatar")]
     parts = [
-        f'<article class="card" id="{html.escape(card["id"])}">',
+        f'<article class="card" id="{html.escape(card["id"])}"'
+        f' style="background:{base_bg}">',
         f'<div class="rain rain-l">{paths["rainL"]}</div>',
         f'<div class="rain rain-r">{paths["rainR"]}</div>',
-        '<div class="art-well"></div>',
+        f'<div class="art-well" style="background:{base_plate}"></div>',
         f'<div class="art">{art}</div>',
         f'<svg class="frame" viewBox="0 0 {CARD_W} {CARD_H}" aria-hidden="true">',
         f'<path d="{paths["spineDim"]}" fill="{accent}" opacity="0.25"/>',

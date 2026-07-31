@@ -107,3 +107,31 @@ def test_every_card_renders_without_error():
         card = find(card_id)
         image = render_card(card, 1, ART_DIR, 6, False)
         assert image.size == (CARD_W, CARD_H)
+
+
+def test_card_type_drives_a_distinct_base_dark():
+    """Type owns the base dark so a Power Avatar and a Power Zap differ at a glance."""
+    from build_card_set import TYPE_BASE, TYPE_GROUP
+
+    assert set(TYPE_GROUP.values()) == set(TYPE_BASE)
+    assert TYPE_GROUP["Zap"] == TYPE_GROUP["Operation"] == "spell"
+    assert TYPE_GROUP["Hardware"] == TYPE_GROUP["Protocol"] == "device"
+    assert TYPE_GROUP["Basic Resource"] == "resource"
+    # Avatar keeps the handoff's default dark.
+    assert TYPE_BASE["avatar"] == ("#050403", "#0a0705")
+    # Every group is visibly distinct from every other.
+    bases = [value[0] for value in TYPE_BASE.values()]
+    assert len(set(bases)) == len(bases)
+
+
+def test_same_affinity_different_type_renders_differently():
+    power_avatar = next(
+        c for c in CARDS if c["card_type"] == "Avatar" and c["affinity"] == ["Power"]
+    )
+    power_zap = next(c for c in CARDS if c["card_type"] == "Zap" and c["affinity"] == ["Power"])
+
+    # Sample the top-left bleed corner, which is pure base dark on both.
+    avatar_px = render_card(power_avatar, 1, ART_DIR, 6, False).convert("RGB").getpixel((790, 8))
+    zap_px = render_card(power_zap, 1, ART_DIR, 6, False).convert("RGB").getpixel((790, 8))
+
+    assert avatar_px != zap_px

@@ -14,7 +14,9 @@ rulebook.
 art/
   E1-ART-AND-VOICE-DIRECTION.md  positive-cypherpunk visual and writing lock
   brand/       official 600B identity assets
-  cards/final/ 295 rendered card faces, shared back and readability manifest
+  cards/node-runner-web/ 296 card faces + back in the Node Runner frame, shipped
+  cards/node-runner-print/ ignored 300 dpi print masters, rebuilt on demand
+  cards/final/ superseded first-generation card faces
   cards/promos/ separately locked promotional card faces
   fonts/       local open-source display fonts
   generated/   ignored local raw ImageGen sources and high-resolution exports
@@ -43,7 +45,10 @@ scripts/
   build_promos.py
   build_gallery.py
   build_card_set.py
+  render_card_pngs.py
+  build_blob_manifest.py
   build_play_data.py
+  rasterize-icons.cjs
   build-rulebook.cjs
 site/
   arena.html    static play-area mockup
@@ -109,13 +114,30 @@ uv run python scripts/render_card_pngs.py --format webp --quality 88 \
   --out art/cards/node-runner-web
 ```
 
+### Reading a card at a glance
+
+Affinity owns the spine, type chip, circuit border and cost pips. Card type owns
+the one channel affinity leaves free — the base dark — so two cards of the same
+affinity still sort by what they do:
+
+| Group | Types | Base |
+| --- | --- | --- |
+| Resource | Basic Resource, Resource | warm amber-black `#0d0803` |
+| Avatar | Avatar, Hardware Avatar | neutral `#050403` (the handoff default) |
+| Spell | Zap, Operation | cool blue-black `#03060f` |
+| Device | Hardware, Protocol | violet-black `#080412` |
+
+`TYPE_GROUP` and `TYPE_BASE` live in `scripts/build_card_set.py`, so the HTML proof
+sheet and the rendered PNGs stay in step.
+
 | Set | Format | Size | Per card | Use |
 | --- | --- | --- | --- | --- |
 | `node-runner-print/` | PNG, 300 dpi | 814 × 1109 | ~670 KB | 63 × 88 mm trim, 3 mm bleed |
-| `node-runner-web/` | WebP q88 | 814 × 1109 | ~140 KB | site, game table, Blossom |
+| `node-runner-web/` | WebP q90 | 814 × 1109 | ~140 KB | site, game table, Blossom |
 
-Both directories are ignored and rebuilt on demand rather than committed. Add `--guides`
-for a trim proof, `--scale` for a smaller web set.
+The web set ships and is what the site and game table load. The print masters are
+ignored and rebuilt on demand. Add `--guides` for a trim proof, `--scale` for a
+smaller web set.
 
 ## Content-addressed publishing
 
