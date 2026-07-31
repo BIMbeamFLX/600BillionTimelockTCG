@@ -123,8 +123,10 @@ def _dot(x: float, y: float, radius: float) -> str:
     )
 
 
-def _circuit(x: int, y: int, w: int, h: int, seg: int, seed: int, k: float) -> dict[str, str]:
-    """Build the jittered circuit ring that traces the art window."""
+def circuit_geometry(
+    x: int, y: int, w: int, h: int, seg: int, seed: int, k: float
+) -> dict[str, list]:
+    """Trace the jittered circuit ring around the art window as raw geometry."""
     rand = _rng(seed)
     n1 = max(2, _js_round(w / seg))
     n2 = max(2, _js_round(h / seg))
@@ -144,28 +146,40 @@ def _circuit(x: int, y: int, w: int, h: int, seg: int, seed: int, k: float) -> d
         jitter_y = _round1(py + (rand() * 2 - 1) * 4 * k)
         points.append((jitter_x, jitter_y, nx, ny, corner))
 
+    nodes = []
+    for index, (px, py, _nx, _ny, corner) in enumerate(points):
+        if corner:
+            nodes.append((px, py, 7))
+        elif index % 4 == 2:
+            nodes.append((px, py, 4.5))
+
+    ticks = []
+    for _ in range(10):
+        px, py, nx, ny, _corner = points[math.floor(rand() * len(points))]
+        length = 14 + rand() * 8
+        ticks.append((px, py, _round1(px + nx * length), _round1(py + ny * length)))
+    return {"points": points, "nodes": nodes, "ticks": ticks}
+
+
+def _circuit(x: int, y: int, w: int, h: int, seg: int, seed: int, k: float) -> dict[str, str]:
+    """Build the jittered circuit ring that traces the art window."""
+    shape = circuit_geometry(x, y, w, h, seg, seed, k)
+    points = shape["points"]
+
     line = f"M{_num(points[0][0])},{_num(points[0][1])}"
     for px, py, _nx, _ny, _corner in points[1:]:
         line += f"L{_num(px)},{_num(py)}"
     line += "Z"
 
-    nodes = ""
-    for index, (px, py, _nx, _ny, corner) in enumerate(points):
-        if corner:
-            nodes += _dot(px, py, 7)
-        elif index % 4 == 2:
-            nodes += _dot(px, py, 4.5)
-
-    ticks = ""
-    for _ in range(10):
-        px, py, nx, ny, _corner = points[math.floor(rand() * len(points))]
-        length = 14 + rand() * 8
-        ticks += f"M{_num(px)},{_num(py)}L{_f(px + nx * length)},{_f(py + ny * length)}"
+    nodes = "".join(_dot(px, py, radius) for px, py, radius in shape["nodes"])
+    ticks = "".join(
+        f"M{_num(px)},{_num(py)}L{_num(tx)},{_num(ty)}" for px, py, tx, ty in shape["ticks"]
+    )
     return {"line": line, "nodes": nodes, "ticks": ticks}
 
 
-def _net(x: int, y: int, w: int, h: int, count: int, seed: int) -> dict[str, str]:
-    """Build a small orthogonally routed node mesh."""
+def net_geometry(x: int, y: int, w: int, h: int, count: int, seed: int) -> dict[str, list]:
+    """Scatter nodes and route each to its two nearest neighbours, as raw geometry."""
     rand = _rng(seed)
     points = []
     for _ in range(count):
@@ -174,7 +188,7 @@ def _net(x: int, y: int, w: int, h: int, count: int, seed: int) -> dict[str, str
         points.append((px, py))
 
     seen: set[str] = set()
-    links = ""
+    links: list[list[tuple[float, float]]] = []
     for i, (ax, ay) in enumerate(points):
         near = sorted(
             ((math.hypot(qx - ax, qy - ay), j) for j, (qx, qy) in enumerate(points)),
@@ -187,38 +201,55 @@ def _net(x: int, y: int, w: int, h: int, count: int, seed: int) -> dict[str, str
                 continue
             seen.add(key)
             bx, by = points[j]
-            a, b = f"{_num(ax)},{_num(ay)}", f"{_num(bx)},{_num(by)}"
-            if (i + j) % 2:
-                links += f"M{a}L{_num(ax)},{_num(by)}L{b}"
-            else:
-                links += f"M{a}L{_num(bx)},{_num(ay)}L{b}"
+            elbow = (ax, by) if (i + j) % 2 else (bx, ay)
+            links.append([(ax, ay), elbow, (bx, by)])
+    return {"points": points, "links": links}
 
-    nodes = "".join(_dot(px, py, 4) for px, py in points)
+
+def _net(x: int, y: int, w: int, h: int, count: int, seed: int) -> dict[str, str]:
+    """Build a small orthogonally routed node mesh."""
+    shape = net_geometry(x, y, w, h, count, seed)
+    links = "".join(
+        f"M{_num(a[0])},{_num(a[1])}L{_num(b[0])},{_num(b[1])}L{_num(c[0])},{_num(c[1])}"
+        for a, b, c in shape["links"]
+    )
+    nodes = "".join(_dot(px, py, 4) for px, py in shape["points"])
     return {"links": links, "nodes": nodes}
 
 
-def _blob(cx: int, cy: int, r0: int, count: int, amp: int, seed: int, k: float) -> str:
-    """Build the wobbly ring behind the card back's sacred number."""
+def blob_geometry(
+    cx: int, cy: int, r0: int, count: int, amp: int, seed: int, k: float
+) -> list[tuple[float, float]]:
+    """Return the control points of the wobbly ring behind the sacred number."""
     rand = _rng(seed)
     points = []
     for i in range(count):
         angle = math.pi * 2 * i / count
         radius = r0 + (rand() * 2 - 1) * amp * k
         points.append((cx + math.cos(angle) * radius, cy + math.sin(angle) * radius))
+    return points
 
-    def mid(a: tuple[float, float], b: tuple[float, float]) -> tuple[float, float]:
-        return _round1((a[0] + b[0]) / 2), _round1((a[1] + b[1]) / 2)
 
-    start = mid(points[-1], points[0])
+def _mid(a: tuple[float, float], b: tuple[float, float]) -> tuple[float, float]:
+    """Midpoint of two points, rounded the way the canvas rounds it."""
+    return _round1((a[0] + b[0]) / 2), _round1((a[1] + b[1]) / 2)
+
+
+def _blob(cx: int, cy: int, r0: int, count: int, amp: int, seed: int, k: float) -> str:
+    """Build the wobbly ring behind the card back's sacred number."""
+    points = blob_geometry(cx, cy, r0, count, amp, seed, k)
+    start = _mid(points[-1], points[0])
     path = f"M{_num(start[0])},{_num(start[1])}"
     for i, point in enumerate(points):
-        m = mid(point, points[(i + 1) % len(points)])
+        m = _mid(point, points[(i + 1) % len(points)])
         path += f"Q{_f(point[0])},{_f(point[1])} {_num(m[0])},{_num(m[1])}"
     return path + "Z"
 
 
-def _open(x1: int, y1: int, x2: int, y2: int, seg: int, amp: int, seed: int, k: float) -> str:
-    """Build the hand-drawn rule that separates art from rules text."""
+def open_geometry(
+    x1: int, y1: int, x2: int, y2: int, seg: int, amp: int, seed: int, k: float
+) -> list[tuple[float, float]]:
+    """Return the joints of the hand-drawn rule under the art window."""
     rand = _rng(seed)
     dx, dy = x2 - x1, y2 - y1
     count = max(3, _js_round(math.hypot(dx, dy) / seg))
@@ -229,11 +260,16 @@ def _open(x1: int, y1: int, x2: int, y2: int, seg: int, amp: int, seed: int, k: 
             joints.append((px, py))
         else:
             joints.append((px + (rand() * 2 - 1) * amp * k, py + (rand() * 2 - 1) * amp * k))
+    return joints
 
+
+def _open(x1: int, y1: int, x2: int, y2: int, seg: int, amp: int, seed: int, k: float) -> str:
+    """Build the hand-drawn rule that separates art from rules text."""
+    joints = open_geometry(x1, y1, x2, y2, seg, amp, seed, k)
+    count = len(joints) - 1
     path = f"M{_f(joints[0][0])},{_f(joints[0][1])}"
     for i in range(1, count):
-        mx = _round1((joints[i][0] + joints[i + 1][0]) / 2)
-        my = _round1((joints[i][1] + joints[i + 1][1]) / 2)
+        mx, my = _mid(joints[i], joints[i + 1])
         path += f"Q{_f(joints[i][0])},{_f(joints[i][1])} {_num(mx)},{_num(my)}"
     return path + f"L{_f(joints[count][0])},{_f(joints[count][1])}"
 
@@ -244,21 +280,36 @@ def _rain(count: int, seed: int) -> str:
     return "".join(("6" if rand() < 0.3 else "0") + "\n" for _ in range(count))
 
 
-def _spine(seed: int) -> dict[str, str]:
-    """Build the ragged bar that runs the full height of the left edge."""
+def spine_geometry(seed: int) -> dict[str, list]:
+    """Return the bar and its notches as rectangles: (x0, y0, x1, y1)."""
     rand = _rng(seed)
-    main = "M0,0L6,0L6,1109L0,1109Z"
-    dim = ""
+    main: list[tuple[float, float, float, float]] = [(0, 0, 6, CARD_H)]
+    dim: list[tuple[float, float, float, float]] = []
     y = 8.0
     while y < 1090:
         h = 18 + rand() * 70
         w = 12 + rand() * 30
         if rand() < 0.3:
-            wide = w * 1.9
-            dim += f"M0,{_f(y)}L{_f(wide)},{_f(y)}L{_f(wide)},{_f(y + h)}L0,{_f(y + h)}Z"
+            dim.append((0, _round1(y), _round1(w * 1.9), _round1(y + h)))
         else:
-            main += f"M0,{_f(y)}L{_f(w)},{_f(y)}L{_f(w)},{_f(y + h)}L0,{_f(y + h)}Z"
+            main.append((0, _round1(y), _round1(w), _round1(y + h)))
         y += h + rand() * 30
+    return {"main": main, "dim": dim}
+
+
+def _spine(seed: int) -> dict[str, str]:
+    """Build the ragged bar that runs the full height of the left edge."""
+    shape = spine_geometry(seed)
+
+    def rects(items: list[tuple[float, float, float, float]], skip_first: bool) -> str:
+        out = "M0,0L6,0L6,1109L0,1109Z" if skip_first else ""
+        for x0, y0, x1, y1 in items[1:] if skip_first else items:
+            out += f"M{_num(x0)},{_num(y0)}L{_num(x1)},{_num(y0)}"
+            out += f"L{_num(x1)},{_num(y1)}L{_num(x0)},{_num(y1)}Z"
+        return out
+
+    main = rects(shape["main"], True)
+    dim = rects(shape["dim"], False)
     return {"main": main, "dim": dim}
 
 

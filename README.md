@@ -92,6 +92,22 @@ uv run python scripts/build_card_set.py --border-amp 11 --no-guides --no-fable
 Cards print at 63 × 88 mm trim inside a 3 mm bleed at 300 dpi. Drop artwork into
 `art/cards/node-runner/` named after each card to fill its art window.
 
+### Rendering the whole set as PNG
+
+`scripts/render_card_pngs.py` draws the same frame straight to a bitmap with Pillow,
+reusing the geometry functions from `build_card_set.py` so a rendered PNG and the HTML
+proof sheet agree. Artwork comes from the raw ImageGen exports and is contain-fitted
+into the art window exactly as the canvas specifies.
+
+```bash
+uv run python scripts/render_card_pngs.py
+uv run python scripts/render_card_pngs.py --guides --border-amp 11 --limit 12
+```
+
+Output lands in `art/cards/node-runner-faces/` at 814 × 1109 px full bleed. That is
+roughly 200 MB for the set, so the directory is ignored and rebuilt on demand rather
+than committed.
+
 ## Build
 
 ```bash
