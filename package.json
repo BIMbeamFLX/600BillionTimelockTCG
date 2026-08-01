@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
-    "marked": "^17.0.5"
+    "marked": "^17.0.5",
+    "ws": "^8.21.1"
   }
 }

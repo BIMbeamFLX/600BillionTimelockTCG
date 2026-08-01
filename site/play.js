@@ -75,10 +75,62 @@
     // Events arrive redacted for whichever seat the table is showing.
     for (const event of E.redactEvents(result.events, uiSeat(result.state))) {
       session.events.unshift(event);
+      fx(event);
     }
     if (session.events.length > 240) session.events.length = 240;
     render();
     return true;
+  }
+
+  // -------------------------------------------------------------- effects
+
+  /* The engine emits structured rules events; E1FX speaks its own fixed
+   * vocabulary of 23 cues. This is the translation between them, and it is
+   * deliberately the ONLY place the two meet — the engine never learns that
+   * sound exists, and the FX layer never learns the rules.
+   *
+   * Driving effects from the event stream rather than from click handlers is
+   * what makes them work unchanged for a networked seat or a replay: anything
+   * that produces events produces the show. */
+  const FX_PHASE = { open: "unlock", build1: "build1", clash: "clash", build2: "build2", close: "cleanup" };
+
+  function fx(event) {
+    const FX = globalThis.E1FX;
+    if (!FX) return; // the game must run with fx.js absent
+    const card = event.cardId ? CARD_BY_ID[event.cardId] : null;
+    const affinity = card && card.affinity ? card.affinity[0] : undefined;
+    switch (event.t) {
+      case "TURN": return FX.emit("turn:begin", { seat: event.seat, number: event.number });
+      case "PHASE": return FX.emit("phase:enter", { phase: FX_PHASE[event.phase] || event.phase });
+      case "DRAW": return FX.emit("card:draw", { seat: event.seat });
+      case "GENERATE":
+        return FX.emit("resource:generate", { seat: event.seat, affinity: event.symbol, amount: event.amount });
+      case "BURN": return FX.emit("buffer:burn", { seat: event.seat, amount: event.amount });
+      case "QUEUED":
+        return FX.emit("card:play", { seat: event.seat, cardType: card && card.type, affinity });
+      case "ENTERS":
+        // A Resource entering play is the once-per-turn land drop, not a spell.
+        return card && /Resource/.test(card.type)
+          ? FX.emit("resource:play", { seat: event.seat, affinity })
+          : FX.emit("card:play", { seat: event.seat, cardType: card && card.type, affinity });
+      case "ARCHIVED": case "INVALIDATED": return FX.emit("card:archive", { seat: event.seat });
+      case "DECOMMISSIONED": return FX.emit("avatar:decommission", { uid: event.uid });
+      case "DAMAGE":
+        return event.to === "seat"
+          ? FX.emit("damage:player", { seat: event.seat, amount: event.amount })
+          : FX.emit("damage:avatar", { uid: event.uid, amount: event.amount });
+      case "UPTIME":
+        return event.delta > 0 ? FX.emit("uptime:gain", { seat: event.seat, amount: event.delta }) : undefined;
+      case "ATTACKERS":
+        FX.emit("clash:begin", {});
+        return FX.emit("clash:declareAttackers", { count: (event.attackers || []).length });
+      case "BLOCKERS": return FX.emit("clash:declareBlockers", { count: event.count || 0 });
+      case "PASS_PRIORITY": return FX.emit("priority:pass", { seat: event.seat });
+      case "MANUAL_ANNOUNCED": case "MANUAL_PROPOSED": case "MANUAL_APPLIED":
+        return FX.emit("manual:resolve", { seat: event.seat });
+      case "GAME_OVER": return FX.emit("game:win", { seat: event.winner });
+      default: return undefined;
+    }
   }
 
   // ---------------------------------------------------------- log wording
@@ -657,10 +709,21 @@
     picking = null;
     document.getElementById("setup").hidden = true;
     document.getElementById("table").hidden = false;
+    if (globalThis.E1FX) globalThis.E1FX.emit("game:start", {});
     render();
   }
 
   function init() {
+    /* Mount the audio control into the table's control row. Mounting is lazy
+     * about the AudioContext: nothing is created until a real user gesture, so
+     * this never trips the browser's autoplay policy. */
+    if (globalThis.E1FX) {
+      try {
+        globalThis.E1FX.init({ control: true, parent: document.getElementById("fxControl") });
+      } catch (error) {
+        void error; // sound is never load-bearing
+      }
+    }
     const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock"];
     for (const id of ["deckA", "deckB"]) {
       const select = document.getElementById(id);
