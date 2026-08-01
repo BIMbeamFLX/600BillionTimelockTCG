@@ -3,11 +3,11 @@
   <title id="title">Keys resource</title>
   <defs>
     <filter id="glow" x="-45%" y="-45%" width="190%" height="190%">
-      <feGaussianBlur stdDeviation="0.9" result="b"/>
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
     </filter>
   </defs>
   <g transform="translate(32 32) scale(1.30) translate(-32 -32)">
-    <g filter="url(#glow)" opacity="0.42"><g transform="translate(.8 -1.2)"><path d="M20 37a11 11 0 1 1 10.2-15.2L53 44.6V52h-7v-5h-6v-5h-6.6l-3.2-3.2A11 11 0 0 1 20 37Z" fill="none" stroke="#7447B8" stroke-width="5.6" stroke-linejoin="round"/><circle cx="20" cy="26" r="3.5" fill="#7447B8" stroke="#7447B8" stroke-width="1.6"/></g></g>
-    <g transform="translate(.8 -1.2)"><path d="M20 37a11 11 0 1 1 10.2-15.2L53 44.6V52h-7v-5h-6v-5h-6.6l-3.2-3.2A11 11 0 0 1 20 37Z" fill="none" stroke="#7447B8" stroke-width="5" stroke-linejoin="round"/><circle cx="20" cy="26" r="3.5" fill="#7447B8" stroke="#FFF7EC" stroke-width="1.2"/></g>
+    <g filter="url(#glow)" opacity="0.85"><g transform="translate(.8 -1.2)"><path d="M20 37a11 11 0 1 1 10.2-15.2L53 44.6V52h-7v-5h-6v-5h-6.6l-3.2-3.2A11 11 0 0 1 20 37Z" fill="none" stroke="#7447B8" stroke-width="8.5" stroke-linejoin="round"/><circle cx="20" cy="26" r="3.5" fill="#7447B8" stroke="#7447B8" stroke-width="4.5"/></g></g>
+    <g transform="translate(.8 -1.2)"><path d="M20 37a11 11 0 1 1 10.2-15.2L53 44.6V52h-7v-5h-6v-5h-6.6l-3.2-3.2A11 11 0 0 1 20 37Z" fill="none" stroke="#7447B8" stroke-width="5" stroke-linejoin="round"/><circle cx="20" cy="26" r="3.5" fill="#7447B8" stroke="#7447B8" stroke-width="1.2"/></g>
   </g>
 </svg>

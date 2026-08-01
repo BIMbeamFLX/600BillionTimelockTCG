@@ -73,7 +73,7 @@ GLYPH = {
 
 # One dial for the halo. Signal carries its own alpha because its accent IS cream,
 # so a cream glow behind a cream glyph blows out where the others do not.
-GLOW = {"blur": 0.9, "w": 1.6, "k": 5.6, "k2": 4.0, "alpha": 0.42, "signal_alpha": 0.22}
+GLOW = {"blur": 1.5, "w": 4.5, "k": 8.5, "k2": 6.5, "alpha": 0.85, "signal_alpha": 0.5}
 
 TITLE = {
     "power": "Power",
@@ -103,11 +103,10 @@ for name, (scale, body) in GLYPH.items():
     accent = ACCENT[name]
     # Halo pass: everything painted in the accent and widened, then blurred.
     halo = body.format(f=accent, c=accent, s=accent, w=GLOW["w"], k=GLOW["k"], k2=GLOW["k2"])
-    # Crisp pass: the glyph IS the affinity colour, the same value the card's spine,
-    # type chip and circuit ring already carry, so a symbol and its card read as one
-    # thing. Cream is kept only as a thin outline so the glyph does not dissolve into
-    # a same-hue background.
-    crisp = body.format(f=accent, c="#FFF7EC", s=accent, w=1.2, k=5, k2=3)
+    # One colour, end to end: the glyph and its border are both the affinity value
+    # the card already uses. The border is the blurred pass showing past the crisp
+    # one, so the edge glows in the same hue instead of being outlined in a second.
+    crisp = body.format(f=accent, c=accent, s=accent, w=1.2, k=5, k2=3)
     alpha = GLOW["signal_alpha"] if name == "signal" else GLOW["alpha"]
     svg = TEMPLATE.format(
         title=TITLE[name], scale=f"{scale:.2f}", halo=halo, crisp=crisp,
