@@ -7,7 +7,7 @@
     </filter>
   </defs>
   <g transform="translate(32 32) scale(1.32) translate(-32 -32)">
-    <g filter="url(#glow)" opacity="0.85"><path fill="#FF6A00" stroke="#FF6A00" stroke-width="4.5" stroke-linejoin="round" d="M35.3 8 17.8 35.1h11.4L25.9 56 46.2 27.5H34.4L35.3 8Z"/></g>
+    <g filter="url(#glow)" opacity="0.85"><path fill="#FFA733" stroke="#FFA733" stroke-width="4.5" stroke-linejoin="round" d="M35.3 8 17.8 35.1h11.4L25.9 56 46.2 27.5H34.4L35.3 8Z"/></g>
     <path fill="#FF6A00" stroke="#FF6A00" stroke-width="1.2" stroke-linejoin="round" d="M35.3 8 17.8 35.1h11.4L25.9 56 46.2 27.5H34.4L35.3 8Z"/>
   </g>
 </svg>

@@ -23,6 +23,18 @@ ACCENT = {
     "timelock": "#17BEBB",
 }
 
+# The halo is a LIGHTER tone of the glyph's own hue, so the edge lifts off the body
+# instead of merging into it. Power and Keys already have canonical bright values in
+# the design system (--orange-bright and --purple in site/play.html); the other three
+# follow the same move toward white.
+GLOW_COLOR = {
+    "power": "#FFA733",
+    "bitcoin": "#FFE08A",
+    "keys": "#B991E4",
+    "signal": "#FFFFFF",
+    "timelock": "#5FF0EC",
+}
+
 # The original glyph bodies, lifted verbatim from the pre-redesign icons. `{c}` is the
 # accent for the halo pass and `{f}` the fill for the crisp pass, so one body renders
 # both. `scale` lets each glyph grow into the space the circle used to occupy.
@@ -102,7 +114,8 @@ os.makedirs(OUT, exist_ok=True)
 for name, (scale, body) in GLYPH.items():
     accent = ACCENT[name]
     # Halo pass: everything painted in the accent and widened, then blurred.
-    halo = body.format(f=accent, c=accent, s=accent, w=GLOW["w"], k=GLOW["k"], k2=GLOW["k2"])
+    bright = GLOW_COLOR[name]
+    halo = body.format(f=bright, c=bright, s=bright, w=GLOW["w"], k=GLOW["k"], k2=GLOW["k2"])
     # One colour, end to end: the glyph and its border are both the affinity value
     # the card already uses. The border is the blurred pass showing past the crisp
     # one, so the edge glows in the same hue instead of being outlined in a second.
@@ -113,5 +126,5 @@ for name, (scale, body) in GLYPH.items():
         alpha=alpha, blur=GLOW["blur"]
     )
     open(f"{OUT}/{name}.svg", "w", encoding="utf-8").write(svg)
-    print(f"  {name}.svg  scale {scale}  accent {accent}")
+    print(f"  {name}.svg  glyph {accent}  glow {bright}")
 print("5 icons rebuilt: original glyphs, no circle, accent glow")
