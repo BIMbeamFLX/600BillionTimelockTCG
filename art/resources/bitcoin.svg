@@ -3,11 +3,11 @@
   <title id="title">Bitcoin resource</title>
   <defs>
     <filter id="glow" x="-45%" y="-45%" width="190%" height="190%">
-      <feGaussianBlur stdDeviation="1.7" result="b"/>
+      <feGaussianBlur stdDeviation="0.9" result="b"/>
     </filter>
   </defs>
   <g transform="translate(32 32) scale(1.24) translate(-32 -32)">
-    <g filter="url(#glow)" opacity="0.92"><g transform="translate(-3.2 -.7)"><path fill="#F3C244" stroke="#F3C244" stroke-width="3.5" stroke-linejoin="round" d="M23 15h14.2c8.1 0 12.8 3.8 12.8 10.2 0 4.1-2.2 7.2-6.2 8.8 5 1.4 7.7 4.7 7.7 9.5C51.5 51 46 55 37 55H23V15Zm8 7v9h5.2c4 0 5.8-1.4 5.8-4.6 0-3-1.9-4.4-5.8-4.4H31Zm0 16v10h6c4.4 0 6.4-1.7 6.4-5 0-3.4-2.2-5-6.5-5H31Z"/><rect x="28" y="10" width="4" height="9" fill="#F3C244" stroke="#F3C244" stroke-width="3.5"/><rect x="36" y="10" width="4" height="9" fill="#F3C244" stroke="#F3C244" stroke-width="3.5"/><rect x="28" y="51" width="4" height="5" fill="#F3C244" stroke="#F3C244" stroke-width="3.5"/><rect x="36" y="51" width="4" height="5" fill="#F3C244" stroke="#F3C244" stroke-width="3.5"/></g></g>
+    <g filter="url(#glow)" opacity="0.42"><g transform="translate(-3.2 -.7)"><path fill="#F3C244" stroke="#F3C244" stroke-width="1.6" stroke-linejoin="round" d="M23 15h14.2c8.1 0 12.8 3.8 12.8 10.2 0 4.1-2.2 7.2-6.2 8.8 5 1.4 7.7 4.7 7.7 9.5C51.5 51 46 55 37 55H23V15Zm8 7v9h5.2c4 0 5.8-1.4 5.8-4.6 0-3-1.9-4.4-5.8-4.4H31Zm0 16v10h6c4.4 0 6.4-1.7 6.4-5 0-3.4-2.2-5-6.5-5H31Z"/><rect x="28" y="10" width="4" height="9" fill="#F3C244" stroke="#F3C244" stroke-width="1.6"/><rect x="36" y="10" width="4" height="9" fill="#F3C244" stroke="#F3C244" stroke-width="1.6"/><rect x="28" y="51" width="4" height="5" fill="#F3C244" stroke="#F3C244" stroke-width="1.6"/><rect x="36" y="51" width="4" height="5" fill="#F3C244" stroke="#F3C244" stroke-width="1.6"/></g></g>
     <g transform="translate(-3.2 -.7)"><path fill="#FFF7EC" stroke="#F3C244" stroke-width="1.4" stroke-linejoin="round" d="M23 15h14.2c8.1 0 12.8 3.8 12.8 10.2 0 4.1-2.2 7.2-6.2 8.8 5 1.4 7.7 4.7 7.7 9.5C51.5 51 46 55 37 55H23V15Zm8 7v9h5.2c4 0 5.8-1.4 5.8-4.6 0-3-1.9-4.4-5.8-4.4H31Zm0 16v10h6c4.4 0 6.4-1.7 6.4-5 0-3.4-2.2-5-6.5-5H31Z"/><rect x="28" y="10" width="4" height="9" fill="#FFF7EC" stroke="#F3C244" stroke-width="1.4"/><rect x="36" y="10" width="4" height="9" fill="#FFF7EC" stroke="#F3C244" stroke-width="1.4"/><rect x="28" y="51" width="4" height="5" fill="#FFF7EC" stroke="#F3C244" stroke-width="1.4"/><rect x="36" y="51" width="4" height="5" fill="#FFF7EC" stroke="#F3C244" stroke-width="1.4"/></g>
   </g>
 </svg>

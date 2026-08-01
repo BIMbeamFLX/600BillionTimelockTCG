@@ -71,6 +71,10 @@ GLYPH = {
     ),
 }
 
+# One dial for the halo. Signal carries its own alpha because its accent IS cream,
+# so a cream glow behind a cream glyph blows out where the others do not.
+GLOW = {"blur": 0.9, "w": 1.6, "k": 5.6, "k2": 4.0, "alpha": 0.42, "signal_alpha": 0.22}
+
 TITLE = {
     "power": "Power",
     "bitcoin": "Bitcoin",
@@ -84,7 +88,7 @@ TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
   <title id="title">{title} resource</title>
   <defs>
     <filter id="glow" x="-45%" y="-45%" width="190%" height="190%">
-      <feGaussianBlur stdDeviation="1.7" result="b"/>
+      <feGaussianBlur stdDeviation="{blur}" result="b"/>
     </filter>
   </defs>
   <g transform="translate(32 32) scale({scale}) translate(-32 -32)">
@@ -98,12 +102,13 @@ os.makedirs(OUT, exist_ok=True)
 for name, (scale, body) in GLYPH.items():
     accent = ACCENT[name]
     # Halo pass: everything painted in the accent and widened, then blurred.
-    halo = body.format(f=accent, c=accent, s=accent, w=3.5, k=7, k2=5.5)
+    halo = body.format(f=accent, c=accent, s=accent, w=GLOW["w"], k=GLOW["k"], k2=GLOW["k2"])
     # Crisp pass: cream glyph, a thin accent edge to keep it from floating.
     crisp = body.format(f="#FFF7EC", c=accent, s="#FFF7EC", w=1.4, k=5, k2=3)
-    alpha = 0.55 if name == "signal" else 0.92
+    alpha = GLOW["signal_alpha"] if name == "signal" else GLOW["alpha"]
     svg = TEMPLATE.format(
-        title=TITLE[name], scale=f"{scale:.2f}", halo=halo, crisp=crisp, alpha=alpha
+        title=TITLE[name], scale=f"{scale:.2f}", halo=halo, crisp=crisp,
+        alpha=alpha, blur=GLOW["blur"]
     )
     open(f"{OUT}/{name}.svg", "w", encoding="utf-8").write(svg)
     print(f"  {name}.svg  scale {scale}  accent {accent}")
