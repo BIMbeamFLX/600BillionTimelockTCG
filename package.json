@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build-rulebook.cjs",
+    "table": "node server/table.js",
     "test:js": "node --test tests/js/*.test.mjs"
   },
   "dependencies": {

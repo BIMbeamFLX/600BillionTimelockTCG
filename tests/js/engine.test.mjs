@@ -635,6 +635,29 @@ test("view is idempotent and publicState is the intersection", () => {
   assert.deepEqual(E.view(state, "audit"), JSON.parse(JSON.stringify(state)));
 });
 
+test("view carries only YOUR pending triggers, and a spectator gets none", () => {
+  // A networked seat holds only a view, and ORDER_TRIGGERS requires it to name
+  // every waiting pendingId. The counts cannot express that, so view() exposes
+  // myTriggers for the viewing seat — and for nobody else.
+  const state = E.createGame(baseConfig());
+  state.pendingTriggers["0"] = [{ pendingId: "q_own", cardId: "E1-001", seat: 0 }];
+  state.pendingTriggers["1"] = [{ pendingId: "q_theirs", cardId: "E1-002", seat: 1 }];
+
+  const mine = E.view(state, 0);
+  assert.deepEqual(mine.myTriggers, [{ pendingId: "q_own", cardId: "E1-001" }]);
+  assert.deepEqual(mine.pendingTriggers, { 0: 1, 1: 1 }, "the counts stay, additively");
+  assert.ok(!JSON.stringify(mine.myTriggers).includes("q_theirs"));
+  assert.ok(!JSON.stringify(mine).includes("q_theirs"), "the opponent's pendingIds must not leak");
+
+  const theirs = E.view(state, 1);
+  assert.deepEqual(theirs.myTriggers, [{ pendingId: "q_theirs", cardId: "E1-002" }]);
+  assert.ok(!JSON.stringify(theirs).includes("q_own"));
+
+  assert.deepEqual(E.view(state, null).myTriggers, [], "a spectator sees counts alone");
+  // Still idempotent: a view is valid input to view() for the same seat.
+  assert.deepEqual(E.view(E.view(state, 0), 0), E.view(state, 0));
+});
+
 test("legalActions runs on a redacted view and gives the same shape as on full state", () => {
   const state = E.createGame(baseConfig());
   const fromFull = E.legalActions(state, 0).map((a) => a.type).sort();

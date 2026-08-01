@@ -1,0 +1,754 @@
+/* Table Transport v1 — the S2/S3/S4 proof, headless.
+ *
+ * Boots server/table.js IN PROCESS on an ephemeral port, connects two real
+ * WebSocket clients and plays a real match through the referee. No browser, no
+ * DOM, no fixtures: the clients see exactly the bytes a browser sees, and they
+ * hold only VIEWS — never a state — which is the contract site/net.js must honour.
+ *
+ * Run: node --test tests/js/net.test.mjs
+ * (the DIRECTORY form of --test fails on Windows; use the file/glob form)
+ */
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { createTable } = require("../../server/table.js");
+const E = require("../../site/engine.js");
+const CARDS = require("../../site/play-data.js");
+const WebSocket = require("ws");
+E.setCatalog(CARDS);
+
+const CATALOG = E.buildCatalog(CARDS);
+const card = (id) => CATALOG.byId[id] || null;
+const WIRE = 1;
+
+// --------------------------------------------------------------- test client
+
+class Client {
+  constructor(url) {
+    this.url = url;
+    this.inbox = [];
+    this.waiters = [];
+    this.view = null;
+    this.seat = null;
+    this.matchId = null;
+    this.token = null;
+    this.events = [];
+    this.over = null;
+  }
+
+  static async open(url) {
+    const c = new Client(url);
+    c.ws = new WebSocket(url);
+    await new Promise((resolve, reject) => {
+      c.ws.once("open", resolve);
+      c.ws.once("error", reject);
+    });
+    c.ws.on("message", (raw) => c.ingest(JSON.parse(String(raw))));
+    return c;
+  }
+
+  ingest(msg) {
+    if (msg.t === "STATE") {
+      this.matchId = msg.matchId;
+      this.code = msg.code;
+      this.seat = msg.seat;
+      if (msg.token) this.token = msg.token;
+      this.view = msg.view;
+      this.events = msg.events.slice();
+      this.status = msg.status;
+      this.role = msg.role;
+    } else if (msg.t === "FRAME") {
+      this.view = msg.view;
+      for (const ev of msg.events) this.events.push(ev);
+    } else if (msg.t === "REJECT") {
+      this.view = msg.view;
+    } else if (msg.t === "OVER") {
+      this.over = msg;
+    }
+    this.inbox.push(msg);
+    for (const w of this.waiters.splice(0)) w();
+  }
+
+  send(msg) {
+    this.ws.send(JSON.stringify(Object.assign({ v: WIRE }, msg)));
+  }
+
+  /** Wait for the next message satisfying `match`, consuming it from the inbox. */
+  async next(match, ms = 10000) {
+    const deadline = Date.now() + ms;
+    for (;;) {
+      const i = this.inbox.findIndex(match);
+      if (i >= 0) return this.inbox.splice(i, 1)[0];
+      if (Date.now() > deadline) throw new Error("timed out waiting for a message");
+      await new Promise((resolve) => {
+        this.waiters.push(resolve);
+        setTimeout(resolve, 5);
+      });
+    }
+  }
+
+  type(t) {
+    return this.next((m) => m.t === t);
+  }
+
+  /* Send one action and wait for ITS reply, correlated by seq. Waiting for "the
+   * next FRAME" is wrong: a frame caused by the opponent can arrive first, and
+   * consuming it as the answer desyncs the client by one action. */
+  async act(action) {
+    this.send({ t: "ACT", action });
+    return this.next(
+      (m) =>
+        (m.t === "FRAME" && m.seq === action.seq + 1) ||
+        (m.t === "REJECT" && m.seq === action.seq) ||
+        m.t === "ERROR"
+    );
+  }
+
+  close() {
+    if (!this.ws || this.ws.readyState === WebSocket.CLOSED) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.ws.once("close", resolve);
+      setTimeout(resolve, 1000); // never let cleanup outlive the test
+      try {
+        this.ws.close();
+      } catch (err) {
+        resolve();
+      }
+    });
+  }
+}
+
+/* Both seats must have caught up before either chooses again — otherwise the
+ * driver reasons about a view the referee has already moved past. A browser does
+ * not need this; a synchronous scripted client does. */
+async function settle(clients, seq, ms = 5000) {
+  const deadline = Date.now() + ms;
+  for (const c of clients) {
+    while ((c.view ? c.view.seq : -1) < seq && Date.now() < deadline && !c.over) {
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+  }
+}
+
+// ------------------------------------------------------------ the match driver
+
+const costOf = (id) => {
+  const c = card(id);
+  if (!c || !c.costParsed) return 0;
+  return Object.values(c.costParsed).reduce((a, b) => a + (Number(b) || 0), 0);
+};
+
+/* Chooses one action from a REDACTED VIEW — it has no access to the full state,
+ * which is the point: if fog of war were fake, this driver could cheat.
+ * Aggressive on purpose (attack with everything, block with nothing) so uptime
+ * actually runs out and the match reaches a real result rather than decking. */
+function chooseAction(view, seat, banned) {
+  if (!view || view.result) return null;
+  const seq = view.seq;
+  const act = (type, payload) => ({ type, seat, seq, at: "", payload: payload || {} });
+  const vetoed = (key) => banned.has(`${seq}:${key}`);
+
+  if (view.pendingManual) {
+    return view.pendingManual.seat === seat
+      ? act("MANUAL_WITHDRAW", { mid: view.pendingManual.mid })
+      : act("MANUAL_REJECT", { mid: view.pendingManual.mid, reason: "scripted client" });
+  }
+  if (view.pendingChoice && view.pendingChoice.seat === seat) {
+    const options = view.pendingChoice.options || [];
+    return act("CHOOSE", {
+      choiceId: view.pendingChoice.id,
+      selection: options.slice(0, 1).map((o) => (o && o.value !== undefined ? o.value : o)),
+    });
+  }
+
+  const awaiting = view.awaiting;
+  if (awaiting) {
+    if (awaiting.seat !== seat) return null; // the other seat owes the game an answer
+    switch (awaiting.kind) {
+      case "attackers": {
+        // A refused attack falls back to declaring none, which is always legal.
+        if (vetoed("ATTACK")) return act("DECLARE_ATTACKERS", { attackers: [] });
+        const mine = view.zones[`${seat}:network`] || [];
+        const attackers = mine.filter((uid) => {
+          const o = view.objects[uid];
+          if (!o || !o.cardId || o.committed || o.bootDelay) return false;
+          const c = card(o.cardId);
+          return Boolean(c && c.isAvatar && (c.keywords || []).indexOf("Firewall") < 0);
+        });
+        return act("DECLARE_ATTACKERS", { attackers });
+      }
+      case "blockers":
+        return act("DECLARE_BLOCKERS", { blocks: {} });
+      case "order":
+        return act("ORDER_BLOCKERS", { order: {} });
+      case "damage":
+        return act("ASSIGN_COMBAT_DAMAGE", { assignment: null });
+      case "discard": {
+        const wallet = view.zones[`${seat}:wallet`] || [];
+        return act("DISCARD_TO_LIMIT", { uids: wallet.slice(0, awaiting.count) });
+      }
+      case "triggers": {
+        /* view.pendingTriggers is COUNTS, so a seat can only form the action it is
+         * REQUIRED to submit if the view carries its own pendingIds. That is the
+         * engine.js `myTriggers` fix; without it a seat is stuck. */
+        if (Array.isArray(view.myTriggers)) {
+          return act("ORDER_TRIGGERS", { qids: view.myTriggers.map((t) => t.pendingId) });
+        }
+        return { blocked: "ORDER_TRIGGERS needs view.myTriggers — see the engine.js redaction fix" };
+      }
+      default:
+        return act("CONCEDE");
+    }
+  }
+
+  if (view.priority.seat !== seat) return null;
+
+  const wallet = view.zones[`${seat}:wallet`] || [];
+  const isResource = (uid) => {
+    const o = view.objects[uid];
+    const c = o && o.cardId ? card(o.cardId) : null;
+    return Boolean(c && c.isResource);
+  };
+  const main = (view.turn.phase === "build1" || view.turn.phase === "build2") && view.turn.step === "main";
+  const sorcerySpeed = main && view.turn.active === seat && view.queue.length === 0;
+  if (!sorcerySpeed) return act("PASS_PRIORITY");
+
+  if (view.turn.resourcePlays.used < view.turn.resourcePlays.allowed) {
+    const uid = wallet.find((u) => isResource(u) && !vetoed("R" + u));
+    if (uid) return act("PLAY_RESOURCE", { uid });
+  }
+
+  // Nothing is affordable until committed Resources have generated into the
+  // buffer, so tap before trying to cast.
+  const buffer = view.seats[seat].buffer || {};
+  const banked = Object.values(buffer).reduce((a, b) => a + (Number(b) || 0), 0);
+  if (banked < 8) {
+    const network = view.zones[`${seat}:network`] || [];
+    const source = network.find((uid) => {
+      const o = view.objects[uid];
+      if (!o || !o.cardId || o.committed || vetoed("A" + uid)) return false;
+      const c = card(o.cardId);
+      return Boolean(c && c.isResource && c.abilities.length);
+    });
+    if (source) {
+      const c = card(view.objects[source].cardId);
+      const index = c.abilities.findIndex((ab) => ab.resourceAbility);
+      const affinity = (c.affinity || []).find((x) => x !== "Neutral") || "Power";
+      if (index >= 0) {
+        return act("ACTIVATE_RESOURCE_ABILITY", { uid: source, abilityIndex: index, choice: affinity });
+      }
+    }
+  }
+
+  const castable = wallet
+    .filter((uid) => !isResource(uid) && view.objects[uid] && view.objects[uid].cardId && !vetoed(uid))
+    .sort((a, b) => costOf(view.objects[a].cardId) - costOf(view.objects[b].cardId));
+  if (castable.length) return act("PLAY_CARD", { uid: castable[0] });
+  return act("PASS_PRIORITY");
+}
+
+/* Drive both clients until the match ends. Rejections are expected and
+ * informative: a scripted client cannot know what it can afford, so it probes
+ * and the referee says no — which is exactly the behaviour under test. */
+async function playOut(a, b, budget = 8000) {
+  const clients = [a, b];
+  const banned = new Set();
+  const rejects = {};
+  let blocked = null;
+  let actions = 0;
+
+  for (let i = 0; i < budget; i++) {
+    if (a.over || b.over) break;
+    let acted = false;
+    for (const c of clients) {
+      if (a.over || b.over) break;
+      if (!c.view || c.view.result) continue;
+      const action = chooseAction(c.view, c.seat, banned);
+      if (!action) continue;
+      if (action.blocked) {
+        blocked = action.blocked;
+        await c.act({ type: "CONCEDE", seat: c.seat, seq: c.view.seq, at: "", payload: {} });
+        acted = true;
+        continue;
+      }
+      const reply = await c.act(action);
+      actions++;
+      acted = true;
+      if (reply.t === "ERROR") throw new Error(`transport ERROR mid-match: ${reply.code}`);
+      if (reply.t === "REJECT") {
+        rejects[reply.code] = (rejects[reply.code] || 0) + 1;
+        // Never retry the same refused action at the same seq — probe once, then move on.
+        const key =
+          action.type === "DECLARE_ATTACKERS" ? "ATTACK"
+          : action.type === "PLAY_RESOURCE" ? "R" + action.payload.uid
+          : action.type === "ACTIVATE_RESOURCE_ABILITY" ? "A" + action.payload.uid
+          : action.payload.uid;
+        banned.add(`${action.seq}:${key}`);
+        continue;
+      }
+      await settle(clients, reply.seq);
+      /* OVER is sent immediately after the winning FRAME but lands one tick
+       * later. Waiting for it explicitly is the difference between a proven
+       * end-of-match and a race. */
+      if (reply.view && reply.view.result) {
+        // OVER goes to BOTH seats; wait for both so either may be inspected.
+        for (const x of clients) if (!x.over) await x.type("OVER");
+      }
+    }
+    if (!acted) break;
+  }
+  return { rejects, blocked, actions };
+}
+
+// --------------------------------------------------------------------- setup
+
+const tmpDb = (name) => path.join(fs.mkdtempSync(path.join(os.tmpdir(), "600b-net-")), name);
+
+/* One cleanup path, registered before anything can fail: clients first, then the
+ * table. Closing the table first terminates the sockets and a later client
+ * close() would wait for an event that already fired. */
+async function boot(t, name, extra) {
+  const table = await createTable(
+    Object.assign({ port: 0, dbPath: tmpDb(name), host: "127.0.0.1", rateMax: 1000000 }, extra || {})
+  );
+  const clients = [];
+  table.client = async () => {
+    const c = await Client.open(table.wsUrl);
+    clients.push(c);
+    return c;
+  };
+  t.after(async () => {
+    for (const c of clients) await c.close();
+    await table.close();
+  });
+  return table;
+}
+
+async function twoSeats(table) {
+  const a = await table.client();
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: "a".repeat(64) });
+  const created = await a.type("STATE");
+  const b = await table.client();
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: "b".repeat(64) });
+  await b.type("STATE");
+  await a.type("STATE"); // seat 0 is told the table filled
+  return { a, b, created };
+}
+
+// ---------------------------------------------------------------------- tests
+
+test("CREATE + JOIN give the two seats different views of one state", async (t) => {
+  const table = await boot(t, "t1.db");
+  const { a, b } = await twoSeats(table);
+
+  assert.equal(a.seat, 0);
+  assert.equal(b.seat, 1);
+  assert.equal(a.matchId, b.matchId);
+  assert.equal(a.view.forSeat, 0);
+  assert.equal(b.view.forSeat, 1);
+  assert.equal(a.view.gameId, b.view.gameId);
+  assert.equal(a.view.seq, b.view.seq);
+  assert.notEqual(JSON.stringify(a.view), JSON.stringify(b.view));
+  assert.ok(a.token && b.token && a.token !== b.token);
+  // Both seats agree on the shared reality even though their views differ.
+  assert.equal(a.view.catalogDigest, b.view.catalogDigest);
+});
+
+test("fog of war is enforced by the referee, not the UI", async (t) => {
+  const table = await boot(t, "t2.db");
+  const { a, b } = await twoSeats(table);
+
+  const mine = a.view.zones["0:wallet"];
+  assert.ok(mine.length > 0);
+  for (const uid of mine) assert.ok(a.view.objects[uid].cardId, "own hand must show cardIds");
+
+  // The opponent's Wallet is an ordered array of uid SHELLS: the list is required
+  // so a random discard can name its eligible set, the identities are not.
+  const theirs = a.view.zones["1:wallet"];
+  assert.ok(theirs.length > 0);
+  for (const uid of theirs) {
+    assert.deepEqual(Object.keys(a.view.objects[uid]).sort(), ["owner", "uid", "zone"]);
+    assert.equal(a.view.objects[uid].cardId, undefined);
+  }
+  for (const uid of b.view.zones["0:wallet"]) {
+    assert.equal(b.view.objects[uid].cardId, undefined);
+  }
+
+  // Hidden seeds NEVER leave the server; only the draw counter does, which proves
+  // the referee performed exactly the number of hidden draws the log accounts for.
+  for (const stream of a.view.rng.hidden) {
+    assert.equal(stream.s, undefined, "a hidden seed reached a client");
+    assert.equal(typeof stream.n, "number");
+  }
+  // The public stream DOES ship whole, seed included — that is deliberate.
+  assert.equal(typeof a.view.rng.public.s, "number");
+
+  // The Stack is a count, not a list, even for its owner.
+  assert.equal(Array.isArray(a.view.zones["0:stack"]), false);
+  assert.equal(typeof a.view.zones["0:stack"].n, "number");
+  // A view is tagged and can never be fed back into apply().
+  assert.equal(a.view.redacted, true);
+  assert.throws(() => E.view(a.view, 1), /REDACTED_STATE|cannot re-redact/);
+  // And it IS a legal input to the read-only helpers the UI runs.
+  assert.ok(E.legalActions(a.view, 0).length > 0);
+});
+
+test("an illegal action is rejected with the ENGINE's code and a fresh view", async (t) => {
+  const table = await boot(t, "t3.db");
+  const { a, b } = await twoSeats(table);
+
+  // 1. claiming the other seat — the engine checks this, not the server
+  const notYours = await b.act({ type: "PASS_PRIORITY", seat: 0, seq: b.view.seq, at: "", payload: {} });
+  assert.equal(notYours.t, "REJECT");
+  assert.equal(notYours.code, "NOT_YOUR_SEAT");
+  assert.ok(notYours.view, "a rejection must carry a fresh view");
+  assert.equal(notYours.view.forSeat, 1, "and it must be the SENDER's view");
+
+  // 2. a stale seq
+  const stale = await a.act({ type: "PASS_PRIORITY", seat: 0, seq: a.view.seq + 99, at: "", payload: {} });
+  assert.equal(stale.code, "SEQ_MISMATCH");
+  assert.equal(stale.view.seq, a.view.seq, "the correction is current");
+
+  // 3. a nonexistent object
+  const unknown = await a.act({ type: "PLAY_CARD", seat: 0, seq: a.view.seq, at: "", payload: { uid: "o99999" } });
+  assert.ok(["UNKNOWN_OBJECT", "NOT_IN_ZONE", "SCHEMA"].includes(unknown.code), unknown.code);
+
+  // 4. transport failures are ERROR, rules failures are REJECT — never mixed.
+  a.ws.send(JSON.stringify({ t: "ACT", v: 99, action: {} }));
+  assert.equal((await a.type("ERROR")).code, "BAD_VERSION");
+  a.send({ t: "WAT" });
+  assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE");
+
+  // Every rejection is recorded: rejection rate is the cheapest cheat signal.
+  const rows = table.db.prepare("SELECT code FROM rejects WHERE match_id = ?").all(a.matchId);
+  assert.ok(rows.length >= 3, `expected rejects to be logged, got ${rows.length}`);
+  assert.ok(rows.some((r) => r.code === "NOT_YOUR_SEAT"));
+  // ...and none of them entered the chain.
+  const chain = table.db.prepare("SELECT COUNT(*) AS n FROM entries WHERE match_id = ?").get(a.matchId);
+  assert.equal(chain.n, 0);
+});
+
+test("a duplicate ACT is SEQ_MISMATCH, never a double-play", async (t) => {
+  const table = await boot(t, "t4.db");
+  const { a } = await twoSeats(table);
+
+  const action = { type: "PASS_PRIORITY", seat: 0, seq: a.view.seq, at: "", payload: {} };
+  a.send({ t: "ACT", action });
+  a.send({ t: "ACT", action }); // the double-click
+  const first = await a.next((m) => m.t === "FRAME" && m.seq === action.seq + 1);
+  const second = await a.next((m) => m.t === "REJECT" && m.seq === action.seq);
+  assert.equal(first.t, "FRAME");
+  assert.equal(second.code, "SEQ_MISMATCH");
+
+  const dupes = table.db
+    .prepare("SELECT seq, COUNT(*) AS n FROM entries WHERE match_id = ? GROUP BY seq HAVING n > 1")
+    .all(a.matchId);
+  assert.deepEqual(dupes, [], "the chain must never contain a seq twice");
+  const atSeq = table.db
+    .prepare("SELECT COUNT(*) AS n FROM entries WHERE match_id = ? AND seq = ?")
+    .get(a.matchId, action.seq);
+  assert.equal(atSeq.n, 1);
+});
+
+test("a full remote match: transcript persists, replays, and verifies", async (t) => {
+  const table = await boot(t, "t5.db");
+  const { a, b } = await twoSeats(table);
+
+  const { rejects, blocked, actions } = await playOut(a, b);
+  if (blocked) t.diagnostic(`driver fell back to CONCEDE: ${blocked}`);
+  t.diagnostic(`actions sent: ${actions} · rejections: ${JSON.stringify(rejects)}`);
+
+  const over = a.over || b.over;
+  assert.ok(over, "the match must reach a result");
+  assert.ok(Array.isArray(over.result.winners), "winners is an ARRAY — a draw has none");
+  t.diagnostic(`result: ${JSON.stringify(over.result)} over ${over.transcript.length} entries`);
+
+  // The referee verified the match against WHAT IT PERSISTED, not against memory.
+  assert.equal(over.verify.ok, true, JSON.stringify(over.verify));
+  assert.equal(over.verify.divergedAt, null);
+
+  // A fresh replay of the transcript reproduces the published head hash.
+  const replayed = E.replay(over.config, over.transcript.map((e) => e.action));
+  assert.equal(replayed.error, null);
+  assert.equal(E.hashState(replayed.state), over.transcript.at(-1).stateHash);
+  assert.equal(E.publicHash(replayed.state), over.publicHash);
+  assert.deepEqual(replayed.state.result, over.result);
+  assert.equal(E.entryHash(over.transcript.at(-1)), over.headHash);
+
+  // And a client can verify the whole match itself, from the bundle it was sent.
+  const clientSide = E.verifyMatch({ config: over.config, log: over.transcript });
+  assert.equal(clientSide.ok, true, JSON.stringify(clientSide.error));
+  assert.deepEqual(clientSide.result, over.result);
+  assert.equal(clientSide.headHash, E.hashState(replayed.state));
+
+  // The transcript on disk is the transcript that was broadcast.
+  const rows = table.db.prepare("SELECT * FROM entries WHERE match_id = ? ORDER BY seq").all(over.matchId);
+  assert.equal(rows.length, over.transcript.length);
+  assert.equal(rows.at(-1).hash, over.headHash);
+  for (const row of rows) assert.equal(row.at, "", "`at` is hashed and must stay deterministic");
+  // The chain is contiguous and each link names the one before it.
+  for (let i = 1; i < rows.length; i++) {
+    assert.equal(rows[i].seq, rows[i - 1].seq + 1);
+    assert.equal(rows[i].prev, rows[i - 1].hash);
+  }
+
+  // transcriptHash — the cross-topology agreement field — is reproducible.
+  const recomputed = E.sha256hex(
+    E.canonicalJSON(over.transcript.map((e) => ({ seq: e.seq, seat: e.seat, at: e.at, action: e.action })))
+  );
+  assert.equal(recomputed, over.transcriptHash);
+
+  // Both players are handed the SAME bytes to sign, so agreement is a string compare.
+  assert.equal(a.over.resultContent, b.over.resultContent);
+  assert.deepEqual(a.over.resultTags, b.over.resultTags);
+  const payload = JSON.parse(over.resultContent);
+  assert.equal(payload.v, 1);
+  assert.equal(payload.kind, "result");
+  assert.deepEqual(payload.winners, over.result.winners);
+  assert.equal(payload.transcriptHash, over.transcriptHash);
+  assert.equal(payload.publicHash, over.publicHash);
+  assert.equal(payload.actions, over.transcript.length);
+
+  // Tamper detection still bites on the persisted chain.
+  const tampered = over.transcript.map((e) => ({ ...e }));
+  const mid = Math.floor(tampered.length / 2);
+  tampered[mid].action = { type: "CONCEDE", seat: 0, seq: tampered[mid].seq, at: "", payload: {} };
+  assert.equal(E.verifyMatch({ config: over.config, log: tampered }).ok, false);
+
+  // The row is closed out and the verdict is on disk.
+  const row = table.db.prepare("SELECT * FROM matches WHERE match_id = ?").get(over.matchId);
+  assert.equal(row.status, "over");
+  assert.equal(JSON.parse(row.verify_json).ok, true);
+  assert.equal(row.transcript_hash, over.transcriptHash);
+  assert.ok(row.ended_at);
+});
+
+test("RESUME by token restores the exact seat and view", async (t) => {
+  const table = await boot(t, "t6.db");
+  const { a, b } = await twoSeats(table);
+
+  // Advance a little so the resume happens mid-match, not at seq 0.
+  const banned = new Set();
+  for (let i = 0; i < 10; i++) {
+    const c = [a, b].find((x) => {
+      const action = chooseAction(x.view, x.seat, banned);
+      return action && !action.blocked;
+    });
+    if (!c) break;
+    const reply = await c.act(chooseAction(c.view, c.seat, banned));
+    if (reply.t === "FRAME") await settle([a, b], reply.seq);
+  }
+  assert.ok(a.view.seq > 0, "the match must have moved before we resume");
+
+  const liveView = JSON.stringify(a.view);
+  const { matchId, token } = a;
+  await a.close();
+  assert.equal((await b.next((m) => m.t === "PEER" && m.online === false)).seat, 0);
+
+  const again = await table.client();
+  again.send({ t: "RESUME", matchId, token });
+  const state = await again.type("STATE");
+  assert.equal(state.seat, 0);
+  assert.equal(state.role, "seat");
+  assert.equal(state.downgraded, false);
+  assert.equal(state.full, true);
+  assert.equal(JSON.stringify(state.view), liveView, "the resumed view must be the live view");
+  assert.ok(Array.isArray(state.events), "enough log to render must come back too");
+  assert.equal((await b.next((m) => m.t === "PEER" && m.online === true)).seat, 0);
+
+  // The resumed connection plays immediately — no re-handshake, no re-deal.
+  const action = chooseAction(again.view, 0, new Set());
+  if (action && !action.blocked) {
+    const reply = await again.act(action);
+    assert.ok(["FRAME", "REJECT"].includes(reply.t), JSON.stringify(reply));
+  }
+});
+
+test("a valid token takes the seat over; a stranger is downgraded, not refused", async (t) => {
+  const table = await boot(t, "t7.db");
+  const { a } = await twoSeats(table);
+
+  // Takeover, not refusal: the stale tab is told SUPERSEDED and closed, so a
+  // player can never be locked out of their own match.
+  const twin = await table.client();
+  twin.send({ t: "RESUME", matchId: a.matchId, token: a.token });
+  assert.equal((await a.type("ERROR")).code, "SUPERSEDED");
+  assert.equal((await twin.type("STATE")).seat, 0);
+
+  // A stranger with no credential becomes an audience member.
+  const stranger = await table.client();
+  stranger.send({ t: "RESUME", matchId: a.matchId });
+  const spec = await stranger.type("STATE");
+  assert.equal(spec.role, "spectator");
+  assert.equal(spec.seat, null);
+  assert.equal(spec.downgraded, true);
+  assert.ok(spec.downgradeReason);
+  assert.equal(spec.token, undefined, "a spectator must never receive a seat token");
+  // Spectator fog: NEITHER hand is visible, not even as uid shells.
+  assert.equal(Array.isArray(spec.view.zones["0:wallet"]), false);
+  assert.equal(Array.isArray(spec.view.zones["1:wallet"]), false);
+  assert.equal(spec.view.forSeat, null);
+  // And a spectator cannot act.
+  stranger.send({ t: "ACT", action: { type: "PASS_PRIORITY", seat: 0, seq: spec.view.seq, at: "", payload: {} } });
+  assert.equal((await stranger.type("ERROR")).code, "BAD_MESSAGE");
+
+  // A bad token is a downgrade too, never a crash.
+  const forger = await table.client();
+  forger.send({ t: "RESUME", matchId: a.matchId, token: "0".repeat(32) });
+  assert.equal((await forger.type("STATE")).role, "spectator");
+  // An unknown match IS a hard error — there is nothing to spectate.
+  forger.send({ t: "RESUME", matchId: "m_deadbeefdead", token: a.token });
+  assert.equal((await forger.type("ERROR")).code, "NO_SUCH_MATCH");
+});
+
+test("the referee survives being killed: a new process rebuilds from the DB", async (t) => {
+  const dbPath = tmpDb("t8.db");
+  const first = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
+  const a = await Client.open(first.wsUrl);
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: null });
+  const created = await a.type("STATE");
+  const b = await Client.open(first.wsUrl);
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: null });
+  await b.type("STATE");
+  await a.type("STATE");
+
+  const banned = new Set();
+  for (let i = 0; i < 10; i++) {
+    const c = [a, b].find((x) => {
+      const action = chooseAction(x.view, x.seat, banned);
+      return action && !action.blocked;
+    });
+    if (!c) break;
+    const reply = await c.act(chooseAction(c.view, c.seat, banned));
+    if (reply.t === "FRAME") await settle([a, b], reply.seq);
+  }
+  const before = JSON.stringify(a.view);
+  const { matchId, token } = a;
+  const seq = a.view.seq;
+  assert.ok(seq > 0);
+  await a.close();
+  await b.close();
+  await first.close(); // a hard stop, as kill -9 would be
+
+  const second = await boot(t, "unused.db", { dbPath });
+  const revived = await second.client();
+  revived.send({ t: "RESUME", matchId, token });
+  const state = await revived.type("STATE");
+  assert.equal(state.seat, 0);
+  assert.equal(state.status, "playing");
+  assert.equal(state.view.seq, seq);
+  assert.equal(JSON.stringify(state.view), before, "recovery must be byte-identical");
+  // Recovery is a row read, but the transcript is still there to verify against.
+  const rows = second.db.prepare("SELECT COUNT(*) AS n FROM entries WHERE match_id = ?").get(matchId);
+  assert.equal(rows.n, seq);
+});
+
+test("nostr events are stored verbatim and agreement is a query", async (t) => {
+  const table = await boot(t, "t9.db");
+  const { a, b } = await twoSeats(table);
+
+  const content = JSON.stringify({ v: 1, kind: "result", matchId: a.matchId, winners: [0] });
+  const ev = (pubkey, over) =>
+    Object.assign(
+      { id: "f".repeat(64), pubkey, kind: 31600, created_at: 1785310322, tags: [["d", a.matchId]], content, sig: "0".repeat(128) },
+      over || {}
+    );
+
+  // The agreement broadcast goes to BOTH seats, so a message is matched by what
+  // it says rather than by "the next NOSTR" — b already holds a's broadcast.
+  const nostr = (c, n) => c.next((m) => m.t === "NOSTR" && m.events.length === n);
+
+  a.send({ t: "NOSTR", role: "result", event: ev("a".repeat(64)) });
+  assert.equal((await nostr(a, 1)).agreement, "pending");
+  assert.equal((await nostr(b, 1)).agreement, "pending", "both seats learn the state of play");
+
+  b.send({ t: "NOSTR", role: "result", event: ev("b".repeat(64)) });
+  const confirmed = await nostr(b, 2);
+  assert.equal(confirmed.agreement, "confirmed");
+  assert.equal(confirmed.events.length, 2);
+  assert.equal(JSON.parse(confirmed.events[0].content).matchId, a.matchId, "stored verbatim");
+
+  // A disagreeing republication flips it, and is never silently dropped.
+  b.send({ t: "NOSTR", role: "result", event: ev("b".repeat(64), { content: '{"v":1,"winners":[1]}' }) });
+  assert.equal((await b.next((m) => m.t === "NOSTR" && m.agreement === "disputed")).events.length, 2);
+
+  // The handshake roles are recorded too, and nothing is broadcast for them.
+  a.send({ t: "NOSTR", role: "invite", event: ev("a".repeat(64), { kind: 4600 }) });
+  await new Promise((r) => setTimeout(r, 50));
+  const kinds = table.db.prepare("SELECT role, kind, sig_checked FROM nostr_events WHERE match_id=? ORDER BY role").all(a.matchId);
+  assert.ok(kinds.some((k) => k.role === "invite" && k.kind === 4600));
+  // D-11, recorded honestly: this server does not verify schnorr signatures.
+  for (const k of kinds) assert.equal(k.sig_checked, 0);
+
+  // A malformed event is refused rather than stored.
+  a.send({ t: "NOSTR", role: "result", event: { pubkey: "nope" } });
+  assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE");
+});
+
+test("HTTP: health, the relay-free table list, and out-of-band verification", async (t) => {
+  const table = await boot(t, "t10.db");
+
+  const health = await (await fetch(`${table.url}/api/health`)).json();
+  assert.equal(health.ok, true);
+
+  const a = await table.client();
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: null });
+  const created = await a.type("STATE");
+  assert.equal(created.status, "open");
+  assert.equal(created.view, null, "no game exists until seat 1 arrives");
+  assert.match(created.code, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
+
+  // The relay-free join path: if every relay dies on stage, tables are still findable.
+  const tables = await (await fetch(`${table.url}/api/tables`)).json();
+  assert.equal(tables.length, 1);
+  assert.equal(tables[0].code, created.code);
+
+  const b = await table.client();
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: null });
+  await b.type("STATE");
+  await a.type("STATE");
+  assert.equal((await (await fetch(`${table.url}/api/tables`)).json()).length, 0, "a full table is no longer open");
+
+  const match = await (await fetch(`${table.url}/api/match/${a.matchId}`)).json();
+  assert.equal(match.status, "playing");
+  assert.ok(match.config.seeds, "the audit endpoint exposes the config so anyone can replay");
+  assert.equal(E.hashState(E.createGame(match.config)), E.hashState(E.createGame(match.config)));
+  assert.equal((await fetch(`${table.url}/api/match/m_nope`)).status, 404);
+
+  // A second JOIN on a full table is refused with a TRANSPORT code.
+  const c = await table.client();
+  c.send({ t: "JOIN", code: created.code, name: "eve", affinity: "Keys", pubkey: null });
+  assert.equal((await c.type("ERROR")).code, "MATCH_FULL");
+  c.send({ t: "JOIN", code: "ZZZZZZ", name: "eve", affinity: "Keys", pubkey: null });
+  assert.equal((await c.type("ERROR")).code, "NO_SUCH_MATCH");
+
+  // Static files come off the same port — one process on demo day.
+  const page = await fetch(`${table.url}/play.html`);
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /text\/html/);
+  assert.match(await page.text(), /engine\.js/);
+  assert.equal((await fetch(`${table.url}/engine.js`)).status, 200);
+  // Traversal is refused, never served.
+  assert.ok((await fetch(`${table.url}/%2e%2e/package.json`)).status >= 400);
+});
+
+test("the rate limit closes a runaway client without wedging the table", async (t) => {
+  const table = await boot(t, "t11.db", { rateMax: 30 });
+  const { a, b } = await twoSeats(table);
+
+  // A loop that never learns: 60 stale actions in a burst.
+  for (let i = 0; i < 60; i++) {
+    a.send({ t: "ACT", action: { type: "PASS_PRIORITY", seat: 0, seq: 9999, at: "", payload: {} } });
+  }
+  assert.equal((await a.type("ERROR")).code, "RATE_LIMITED");
+
+  // The opponent is untouched and the match is still playable.
+  assert.equal((await b.next((m) => m.t === "PEER" && m.online === false)).seat, 0);
+  const reply = await b.act({ type: "PASS_PRIORITY", seat: 1, seq: b.view.seq, at: "", payload: {} });
+  assert.ok(["FRAME", "REJECT"].includes(reply.t));
+});

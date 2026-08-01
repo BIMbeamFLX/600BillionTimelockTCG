@@ -73,17 +73,22 @@ def test_editorial_copy_is_varied_sourced_and_free_of_legacy_terms():
         for card in cards
     )
 
-    assert len(note_counts) == 148
+    # A floor, not a pin. This used to assert == 148, which locked in the
+    # generator's habit of printing each note on exactly two cards.
+    assert len(note_counts) >= 250
     assert max(note_counts.values()) <= 2
     assert max(tails.values()) <= 2
     assert all(len(card["flavor_text"]) <= 110 for card in cards)
     assert all(len(card["protocol_note"]) <= 120 for card in cards)
     assert not re.search(
-        r"\bWalls?\b|regenerat\w*|\bhaste\b|nonblack|nonartifact|"
-        r"Deathtouch|Bullish|Web5",
+        r"regenerat\w*|\bhaste\b|nonblack|nonartifact|Deathtouch|Bullish|Web5",
         public_text,
         flags=re.IGNORECASE,
     )
+    # "Wall" is a legacy creature type and is capitalised. A lowercase "wall" is
+    # an ordinary noun that flavour text may use — this check was case-insensitive
+    # and rejected lines like "Turns out the wall had opinions."
+    assert not re.search(r"\bWalls?\b", public_text)
 
     sources = {card["protocol_source"] for card in cards}
     assert any("bitcoin/bips" in source for source in sources)

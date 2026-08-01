@@ -29,7 +29,10 @@ AFFINITY_ACCENT = {
     "Bitcoin": "#F3C244",
     "Keys": "#7447B8",
     "Signal": "#FFF7EC",
-    "Timelock": "#5E5ACB",
+    # Timelock was #5E5ACB, a blue-violet only deltaE 12 from Keys' #7447B8 — the
+    # two were indistinguishable on a board while every other pair sat above 64.
+    # Teal is the palette's one open hue and reads as clock rather than key.
+    "Timelock": "#17BEBB",
     # Neutral was #f7931a, a shade off Power's #FF6A00 — the two read as the same
     # orange on a shelf, and 47 Hardware cards were being mistaken for Power. Grey
     # is the project's own neutral, from the world plates in site/arena.html.
@@ -41,7 +44,7 @@ AFFINITY_BADGE_FG = {
     "Signal": "#050403",
     "Neutral": "#050403",
     "Keys": "#FFF7EC",
-    "Timelock": "#FFF7EC",
+    "Timelock": "#050403",
 }
 # Per the Node Runner handoff: common bone, uncommon orange, rare gold.
 RARITY_DOT = {
@@ -53,8 +56,10 @@ RARITY_DOT = {
 # one channel affinity does not use: the base dark. Four groups a player sorts by,
 # all held at roughly the same luminance so the terminal look survives.
 TYPE_GROUP = {
-    "Basic Resource": "resource",
-    "Resource": "resource",
+    # A Basic Resource makes one thing; a Junction offers a choice of two. They
+    # are played every single turn, so telling them apart has to be instant.
+    "Basic Resource": "basic",
+    "Resource": "junction",
     "Avatar": "avatar",
     "Hardware Avatar": "avatar",
     "Zap": "spell",
@@ -63,7 +68,8 @@ TYPE_GROUP = {
     "Protocol": "device",
 }
 TYPE_BASE = {
-    "resource": ("#0d0803", "#1a0f06"),  # warm amber-black — the mana
+    "basic": ("#0d0803", "#1a0f06"),  # warm amber-black — the mana
+    "junction": ("#04100a", "#08200f"),  # green-black — the crossing
     "avatar": ("#050403", "#0a0705"),  # the spec default, neutral
     "spell": ("#03060f", "#060c1c"),  # cool blue-black — one-shot
     "device": ("#080412", "#110925"),  # violet-black — persistent
@@ -430,8 +436,7 @@ def render_card(card: dict[str, Any], paths: dict[str, Any], art_dir: Path) -> s
 
     base_bg, base_plate = TYPE_BASE[TYPE_GROUP.get(card["card_type"], "avatar")]
     parts = [
-        f'<article class="card" id="{html.escape(card["id"])}"'
-        f' style="background:{base_bg}">',
+        f'<article class="card" id="{html.escape(card["id"])}" style="background:{base_bg}">',
         f'<div class="rain rain-l">{paths["rainL"]}</div>',
         f'<div class="rain rain-r">{paths["rainR"]}</div>',
         f'<div class="art-well" style="background:{base_plate}"></div>',

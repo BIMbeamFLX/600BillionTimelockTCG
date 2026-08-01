@@ -63,6 +63,17 @@ DISPLAY = [str(REPO_ROOT / "art" / "fonts" / "Anton-Regular.ttf"), "impact.ttf",
 ICON_DIR = REPO_ROOT / "art" / "resources" / "png"
 PIP_SIZE = 54
 RESOURCE_ICON = 64
+BASIC_ICON = 200  # one giant symbol: this card makes exactly this
+JUNCTION_ICON = 150  # two symbols and a slash: choose one
+
+
+def resource_symbols(card: dict[str, Any]) -> list[str]:
+    """The affinities a Resource card produces, or [] if it is not a Resource."""
+    if "Resource" not in card["card_type"]:
+        return []
+    return [a for a in (card["affinity"] or []) if a in COST_AFFINITY.values()]
+
+
 # Titles never wrap; they step down this ladder until they clear the cost cluster.
 TITLE_LADDER = (68, 66, 62, 60, 58, 52, 46, 40, 34)
 _ICONS: dict[tuple[str, int], Image.Image] = {}
@@ -363,19 +374,41 @@ def render_card(
             draw.text((left + (60 - tw) / 2, 736), value, font=mono40, fill=CREAM)
             lw = tracked_width(draw, label, mono14, 1.4)
             tracked_text(draw, (left + (60 - lw) / 2, 786), label, mono14, ORANGE, 1.4)
-    elif "Resource" in card["card_type"] and affinity in COST_AFFINITY.values():
-        icon = resource_icon(affinity, RESOURCE_ICON)
-        canvas.alpha_composite(icon, (CARD_W - 76 - RESOURCE_ICON, 736))
+    # A Resource is played every turn, so it gets a simplified face: the symbols
+    # ARE the rules text. One symbol means it makes that Resource; two side by
+    # side mean choose. A player reads the count before they read a word, which
+    # is why the printed line is dropped rather than shrunk.
+    symbols = resource_symbols(card)
+    if symbols:
+        size = BASIC_ICON if len(symbols) == 1 else JUNCTION_ICON
+        gap = 40
+        total = len(symbols) * size + (len(symbols) - 1) * gap
+        x = (CARD_W - total) // 2
+        # Centred in the band between the art plate (ends 828) and the footer (1022).
+        top = (836 + 1010) // 2 - size // 2
+        for index, name in enumerate(symbols):
+            canvas.alpha_composite(resource_icon(name, size), (int(x), top))
+            if index + 1 < len(symbols):
+                # An "or" between them, so the choice is explicit rather than implied.
+                slash = font(DISPLAY, 46)
+                sw = draw.textlength("/", font=slash)
+                draw.text(
+                    (x + size + (gap - sw) / 2, top + size / 2 - 30),
+                    "/",
+                    font=slash,
+                    fill=(*BONE, 150),
+                )
+            x += size + gap
 
     # Rules and flavour. The handoff budgets 146px here: two lines of effect, a
     # 12px gap, then two lines of fable. Shrink a step rather than overrun it.
     y = 864
-    if card["rules_text"]:
+    if card["rules_text"] and not symbols:
         body, height, lines = fit_block(draw, card["rules_text"], BODY, ((31, 40), (29, 38)))
         for line in lines:
             draw.text((72, y), line, font=body, fill=BONE)
             y += height
-    if card["flavor_text"]:
+    if card["flavor_text"] and not symbols:
         y += 12
         fable_text = f"// {card['flavor_text']}"
         italic, height, lines = fit_block(draw, fable_text, MONO_ITALIC, ((21, 27), (20, 26)))
@@ -455,9 +488,7 @@ def main() -> None:
         type=Path,
         default=REPO_ROOT / "art" / "generated" / "prompts-v2-final-1920x2400",
     )
-    parser.add_argument(
-        "--out", type=Path, default=REPO_ROOT / "art" / "cards" / "node-runner-web"
-    )
+    parser.add_argument("--out", type=Path, default=REPO_ROOT / "art" / "cards" / "node-runner-web")
     parser.add_argument("--promos", type=Path, default=REPO_ROOT / "cards" / "promos.json")
     parser.add_argument(
         "--promo-art-dir",

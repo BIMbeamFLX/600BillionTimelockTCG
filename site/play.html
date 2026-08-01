@@ -10,7 +10,7 @@
 @font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
 :root {
   --orange: #ff6a00; --orange-soft: #f7931a; --gold: #f3c244;
-  --purple: #b991e4; --purple-deep: #7447b8; --violet: #5e5acb;
+  --purple: #b991e4; --purple-deep: #7447b8; --violet: #17bebb;
   --black: #09080b; --soot: #111014; --panel: #19151f; --panel-2: #1f1a27;
   --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
   --danger: #ff4d3d; --good: #6ee7a8;
@@ -56,6 +56,24 @@ a { color: var(--orange-soft); }
 .btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
 .btn:hover { background: var(--gold); }
 .btn.ghost:hover { background: var(--panel-2); }
+
+/* ---------- lobby ---------- */
+.online { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); }
+.online h2 { font: clamp(22px, 3vw, 34px)/1 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 8px; }
+.online h2 span { color: var(--purple); }
+.online p { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+.netid { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.joinrow { display: flex; gap: 6px; margin-bottom: 12px; }
+.joinrow input { flex: 1; min-width: 0; margin-bottom: 0 !important; text-transform: uppercase; letter-spacing: .18em; font-weight: 900; }
+.hostpanel { margin-top: 16px; padding: 14px; background: var(--soot); border: 1px solid var(--orange); }
+.tablecode { font: clamp(30px, 6vw, 54px)/1 Anton600, Impact, sans-serif; letter-spacing: .16em; color: var(--orange); }
+.netlist { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.netrow { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; background: var(--soot); border: 1px solid var(--line); font-size: 12px; }
+.netrow .btn { padding: 6px 10px; font-size: 12px; }
+.netline { color: var(--muted); font-size: 12px; padding: 2px 0; word-break: break-word; }
+.netchip { color: var(--good); border-color: var(--good); }
+.netchip.stale { color: var(--gold); border-color: var(--gold); }
+#netInfo { display: flex; flex-direction: column; gap: 2px; }
 
 /* ---------- table ---------- */
 .phases { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
@@ -148,6 +166,7 @@ a { color: var(--orange-soft); }
     <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
     <div class="brand"><strong>TIMELOCK TCG</strong><span>Edition One · Local Table</span></div>
     <div class="turnchip" id="turnchip">Not started</div>
+    <div class="turnchip netchip" id="netchip" hidden></div>
     <a class="navlink" href="rules.html">Rulebook</a>
     <a class="navlink" href="cards.html">Cards</a>
   </header>
@@ -179,6 +198,63 @@ a { color: var(--orange-soft); }
       <label for="seed" style="color:var(--muted);font-size:12px">Seed
         <input id="seed" style="width:110px;margin-left:6px;padding:6px 8px;color:var(--cream);background:var(--soot);border:1px solid var(--line)" placeholder="random" autocomplete="off">
       </label>
+    </div>
+
+    <!-- ---------------- lobby ----------------
+         A panel, not a page: navigating away mid-demo would lose the socket and
+         the seat. The local game above keeps working with this whole block
+         untouched — and with no server at all. -->
+    <div class="online" id="online">
+      <h2>Or play <span>across the table</span></h2>
+      <p>One referee runs the rules and deals both seats; every play travels over a socket, and only the
+      invite, the accept and the signed result ever touch a relay. Sign in to be named — or stay anonymous,
+      it changes nothing about the game.</p>
+
+      <div class="netid">
+        <button class="btn ghost" id="nostrLogin">Sign in with nostr</button>
+        <span class="chip" id="nostrWho" hidden></span>
+        <button class="btn ghost" id="nostrLogout" hidden>Sign out</button>
+        <span class="chip" id="netTable"></span>
+      </div>
+
+      <div class="seats" style="margin-top:14px">
+        <div class="seat">
+          <label for="netName">Your name</label>
+          <input id="netName" value="Player" autocomplete="off">
+          <label for="netAffinity">Stack affinity</label>
+          <select id="netAffinity"></select>
+        </div>
+        <div class="seat">
+          <label for="joinCode">Join with a table code</label>
+          <div class="joinrow">
+            <input id="joinCode" placeholder="K7M2QF" maxlength="6" autocomplete="off" spellcheck="false">
+            <button class="btn" id="joinTable">Join</button>
+          </div>
+          <label for="challengeNpub">Challenge an npub (optional)</label>
+          <input id="challengeNpub" placeholder="npub1… — blank makes an open invite" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+
+      <div class="startrow">
+        <button class="btn" id="createTable">Create table</button>
+        <button class="btn ghost" id="refreshTables">Open tables</button>
+        <button class="btn ghost" id="checkInvites">Check invites</button>
+      </div>
+
+      <div class="prompt" id="netNotice" hidden></div>
+
+      <div class="hostpanel" id="hostPanel" hidden>
+        <div class="zlabel">Table code — read it aloud</div>
+        <div class="tablecode" id="tableCode">------</div>
+        <div class="startrow" style="margin-top:10px">
+          <button class="btn ghost" id="copyCode">Copy join link</button>
+          <button class="btn ghost" id="publishInvite">Publish invite to nostr</button>
+          <span class="chip">waiting for a second seat</span>
+        </div>
+      </div>
+
+      <div id="tableList" class="netlist"></div>
+      <div id="inviteList" class="netlist"></div>
     </div>
   </section>
 
@@ -228,6 +304,16 @@ a { color: var(--orange-soft); }
       </div>
 
       <aside class="rail">
+        <div class="panel" id="netPanel" hidden>
+          <h3>Table</h3>
+          <div id="netInfo"></div>
+          <div class="manualgrid" style="margin-top:8px">
+            <button id="publishAccept" hidden>Publish accept</button>
+            <button id="publishResult" hidden>Publish result</button>
+            <button class="ghost" id="forceResume">Force resync</button>
+            <button class="ghost" id="leaveTable">Leave table</button>
+          </div>
+        </div>
         <div class="panel">
           <h3>Card</h3>
           <div id="inspector"><span style="color:var(--muted);font-size:12px">Hover a card.</span></div>
@@ -267,6 +353,9 @@ a { color: var(--orange-soft); }
 <script src="play-data.js"></script>
 <script src="engine.js"></script>
 <script src="fx.js"></script>
+<!-- The transport. It opens no socket unless this page already holds a match or
+     the player asks for one, so play.html stays a working offline hotseat. -->
+<script src="net.js"></script>
 <script src="play.js"></script>
 </body>
 </html>

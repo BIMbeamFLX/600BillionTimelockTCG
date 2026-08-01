@@ -29,7 +29,7 @@ ACCENTS = {
     "B": "#F3C244",
     "K": "#7447B8",
     "S": "#FFF7EC",
-    "T": "#5E5ACB",
+    "T": "#17BEBB",
 }
 SUBTYPE_TO_AFFINITY = {
     "Power": "P",

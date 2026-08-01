@@ -3227,6 +3227,18 @@
         0: state.pendingTriggers["0"].length,
         1: state.pendingTriggers["1"].length,
       },
+      /* A seat must be able to FORM the ORDER_TRIGGERS action it is REQUIRED to
+       * submit when awaiting.kind === "triggers", and that action must list every
+       * waiting pendingId (ORDER_TRIGGERS: "list every waiting trigger once").
+       * The counts above cannot express it, so a networked seat holding only a
+       * view could not take an action the rules oblige it to take. Own seat only:
+       * the opponent and a spectator still see counts alone. */
+      myTriggers: spectator
+        ? []
+        : state.pendingTriggers[String(seat)].map((t) => ({
+            pendingId: t.pendingId,
+            cardId: t.cardId,
+          })),
       // Consent is meaningless unless both seats see the whole proposal.
       pendingManual: state.pendingManual ? cloneJson(state.pendingManual) : null,
       manualOpen: cloneJson(state.manualOpen),

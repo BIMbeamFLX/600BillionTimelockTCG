@@ -32,6 +32,14 @@
     log: [],       // the chained transcript
     events: [],    // rendered as the table log
     notice: null,  // last rejection, shown in #prompt
+    /* Remote play. `seat` is null in hotseat and 0|1 when a referee has seated
+     * us — every remote branch in this file keys off exactly that, which is why
+     * the local game is preserved by construction rather than by care.
+     * `awaitingSeq` is set when an action goes out and cleared by the FRAME or
+     * REJECT that answers it, so a double-click cannot produce two actions. */
+    seat: null,
+    role: "hotseat",     // hotseat | seat | spectator
+    awaitingSeq: null,
   };
 
   /* Local click-gathering. None of this is game state: it is the half-formed
@@ -44,12 +52,28 @@
    * turn.active, because the defender acts during the blockers step — and for a
    * pending proposal it is the OPPONENT of the proposer, since they are the one
    * whose verdict the game is waiting on. */
+  /* Remote play makes this a lock rather than a preference: E.view(v, otherSeat)
+   * throws REDACTED_STATE, so a state the referee redacted for seat N can only
+   * ever be rendered as seat N. A spectator holds a view for nobody and is shown
+   * seat 0's side of the table. */
   const uiSeat = (s) =>
-    (s.pendingChoice && s.pendingChoice.seat) ??
-    (s.pendingManual ? 1 - s.pendingManual.seat : null) ??
-    (s.awaiting && s.awaiting.seat) ??
-    s.priority.seat ??
-    s.turn.active;
+    s && s.redacted
+      ? (s.forSeat === null ? 0 : s.forSeat)
+      : (s.pendingChoice && s.pendingChoice.seat) ??
+        (s.pendingManual ? 1 - s.pendingManual.seat : null) ??
+        (s.awaiting && s.awaiting.seat) ??
+        s.priority.seat ??
+        s.turn.active;
+
+  /* Hotseat holds the unredacted state and renders the redaction of it, so the
+   * fog-of-war path runs every frame of the local game. A remote seat was SENT
+   * exactly that view by the referee and renders it as-is: view() is idempotent
+   * for the same seat, so this is one code path, not two. */
+  const viewNow = () => {
+    const s = session.full;
+    if (!s) return null;
+    return s.redacted ? s : E.view(s, uiSeat(s));
+  };
 
   // ------------------------------------------------------------- dispatch
 
@@ -57,6 +81,32 @@
     const state = session.full;
     if (!state) return false;
     const action = { type, seat, seq: state.seq, at: "", payload: payload || {} };
+
+    /* A spectator holds a view redacted for nobody. Without this it would fall
+     * through to the hotseat branch and be told "apply() refuses a redacted
+     * state" — the engine's internal complaint, correct and useless. */
+    if (session.role === "spectator") {
+      session.notice = "You are spectating this table — you cannot act.";
+      render();
+      return false;
+    }
+
+    /* Remote: the client never applies anything. It sends the action and waits
+     * for the referee's FRAME (or REJECT, which arrives with a fresh view). The
+     * local path below is untouched and still runs the hotseat game. */
+    if (session.seat !== null) {
+      if (session.awaitingSeq !== null) return false; // swallow the double-click
+      if (!globalThis.E1Net.act(action)) {
+        session.notice = "Not connected to the table — the action was not sent.";
+        render();
+        return false;
+      }
+      session.awaitingSeq = action.seq;
+      session.notice = null;
+      render();
+      return true;
+    }
+
     const result = E.apply(state, action);
     if (result.error) {
       // Every rejection used to be a log(..., "warn") line and the click
@@ -410,11 +460,15 @@
     const full = session.full;
     if (!full) return;
     const seat = uiSeat(full);
-    const v = E.view(full, seat);      // the table renders the redacted view
+    const v = viewNow();               // the table renders the redacted view
     const foe = 1 - seat;
 
+    /* The name is whoever the table is speaking to, which in remote play is
+     * always you — so the turn owner is named separately whenever it is not the
+     * same person. Hotseat gets it too: the defender speaks during blockers. */
     document.getElementById("turnchip").innerHTML =
       `Turn <b>${v.turn.number}</b> · <b>${v.seats[seat].name}</b>` +
+      (v.turn.active !== seat ? ` · ${v.seats[v.turn.active].name}'s turn` : "") +
       (v.result ? ` · <b>${v.result.reason === "draw" ? "draw" : v.seats[v.result.winners[0]].name + " wins"}</b>` : "");
 
     const ribbon = document.getElementById("phases");
@@ -518,6 +572,13 @@
       const open = v.manualOpen[0];
       text = `Assisted — ${v.seats[open.seat].name}: ${open.cardText}`;
       tone = "prompt manual";
+    } else if (session.seat !== null && v.priority.seat !== seat) {
+      /* Remote only. Hotseat passes the keyboard between seats, so "act" is
+       * always addressed to whoever is holding it; a networked seat that cannot
+       * act must be told so, or it clicks Continue into a rejection. */
+      text = v.priority.seat === null
+        ? `Waiting on the other seat — ${v.turn.phase}/${v.turn.step}.`
+        : `Waiting for ${v.seats[v.priority.seat].name} — ${v.turn.phase}/${v.turn.step}.`;
     } else {
       text = `${v.seats[seat].name} — ${v.turn.phase}/${v.turn.step}. Play from your Wallet, then Continue.`;
     }
@@ -582,7 +643,7 @@
       attackers.splice(index, 1);
       return void render();
     }
-    const v = E.view(session.full, uiSeat(session.full));
+    const v = viewNow();
     if (!E.canAttack({ state: v, ctx: E.resolveCtx({}) }, uid)) {
       const object = v.objects[uid];
       const card = CARD_BY_ID[object.cardId];
@@ -618,7 +679,7 @@
       session.notice = "Click the attacker you want to block first.";
       return void render();
     }
-    const v = E.view(session.full, uiSeat(session.full));
+    const v = viewNow();
     // Same reasoning as attackers: the declaration is atomic, and the keyword
     // gates of §14 (Broadcast, Shielded, Backchannel) are checked here so the
     // player learns immediately which blocks are legal.
@@ -668,16 +729,430 @@
         return void dispatch("DISCARD_TO_LIMIT", seat, { uids: wallet.slice(0, over) });
       }
       if (awaiting.kind === "triggers") {
-        return void dispatch("ORDER_TRIGGERS", seat, {
-          qids: full.pendingTriggers[String(seat)].map((t) => t.pendingId),
-        });
+        /* ORDER_TRIGGERS must name EVERY waiting pendingId. A full state carries
+         * the arrays; a view carries myTriggers, because view()'s counts cannot
+         * express an action the seat is obliged to take. Same branch, both. */
+        const waiting = full.myTriggers || full.pendingTriggers[String(seat)];
+        return void dispatch("ORDER_TRIGGERS", seat, { qids: waiting.map((t) => t.pendingId) });
       }
     }
     if (full.priority.seat === null) {
       session.notice = "Waiting on a pending decision.";
       return void render();
     }
+    if (session.seat !== null && full.priority.seat !== session.seat) {
+      // Sending it would be a correct NOT_YOUR_SEAT rejection; saying so here is
+      // faster and quieter than a round trip.
+      session.notice = `Waiting for ${full.seats[full.priority.seat].name}.`;
+      return void render();
+    }
     dispatch("PASS_PRIORITY", full.priority.seat);
+  }
+
+  // --------------------------------------------------------- remote / lobby
+
+  /* Everything below is the networked table. It shares the whole board, the log
+   * wording, the click-gathering and the FX with the local game above — the only
+   * difference is where a state change comes from. Nothing here runs unless the
+   * player asks for a table or already holds one, which is what keeps play.html
+   * a working offline hotseat from file:// with no server. */
+
+  const NET = globalThis.E1Net;
+  const remote = {
+    over: null,        // the OVER message, kept so the result can be signed later
+    agreement: null,   // pending | confirmed | disputed, from the referee
+    invite: null,      // the invite we joined from, if any (for the accept event)
+    unsubscribe: null,
+    catalogOk: true,
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const nostr = () => NET.nostr;
+
+  function netNotice(text, tone) {
+    const box = $("netNotice");
+    if (!box) return;
+    box.hidden = !text;
+    box.textContent = text || "";
+    box.className = "prompt " + (tone || "");
+  }
+
+  function renderNetChip() {
+    const chip = $("netchip");
+    if (!chip) return;
+    if (session.seat === null && session.role === "hotseat") {
+      chip.hidden = true;
+      return;
+    }
+    const label = {
+      idle: "offline", connecting: "connecting…", live: "live",
+      reconnecting: "reconnecting…", superseded: "seat taken elsewhere", gone: "table gone",
+    }[NET.status] || NET.status;
+    const who = session.role === "spectator" ? "spectating" : `seat ${session.seat}`;
+    const foe = session.seat === null ? null : NET.peers[1 - session.seat];
+    chip.hidden = false;
+    chip.textContent = `${who} · ${label}` + (foe === false ? " · opponent away" : "");
+    chip.className = "turnchip netchip" + (NET.status === "live" ? "" : " stale");
+  }
+
+  function renderNetPanel() {
+    const panel = $("netPanel");
+    if (!panel) return;
+    panel.hidden = session.role === "hotseat";
+    if (panel.hidden) return;
+    const state = NET.lastState;
+    const info = $("netInfo");
+    info.innerHTML = "";
+    if (!state) return;
+    const line = (text) => info.append(el("div", "netline", text));
+    line(`Match ${state.matchId}${state.code ? " · code " + state.code : ""}`);
+    for (const p of state.players || []) {
+      const tag = p.pubkey ? " · " + nostr().shortNpub(p.pubkey) : " · anonymous";
+      line(`Seat ${p.seat}: ${p.name || "—"}${tag} · ${p.online ? "online" : "away"}`);
+    }
+    if (state.downgraded) line(`Spectating — ${state.downgradeReason || "seat taken"}.`);
+    if (remote.over) {
+      const v = remote.over.verify || {};
+      line(`Verified from the referee's database: ${v.ok ? "OK" : "FAILED"}`);
+      line(`publicHash ${String(remote.over.publicHash).slice(0, 16)}…`);
+    }
+    if (remote.agreement) line(`Result agreement: ${remote.agreement}`);
+    $("publishResult").hidden = !(remote.over && nostr().hasNip07() && session.seat !== null);
+    $("publishAccept").hidden = !(session.seat === 1 && !remote.over && nostr().hasNip07());
+  }
+
+  /* A view is only renderable against the same card set the referee used. The
+   * engine would fail CATALOG_MISMATCH on the first click anyway; saying so
+   * before the first click is the difference between a bug and a banner. */
+  function checkCatalog(msg) {
+    if (!msg.catalogDigest) return true;
+    let mine;
+    try {
+      mine = E.buildCatalog(CARDS).digest;
+    } catch (error) {
+      return true; // if we cannot compute it, do not invent a failure
+    }
+    remote.catalogOk = mine === msg.catalogDigest;
+    if (!remote.catalogOk) {
+      netNotice(`Card set mismatch — this table runs ${msg.catalogDigest}, this browser has ${mine}. Reload with a matching build before playing.`, "bad");
+    }
+    return remote.catalogOk;
+  }
+
+  function adoptState(msg) {
+    checkCatalog(msg);
+    session.seat = msg.seat === 0 || msg.seat === 1 ? msg.seat : null;
+    session.role = msg.role === "spectator" ? "spectator" : "seat";
+    session.awaitingSeq = null;
+    session.notice = null;
+    picking = null;
+    attackers = [];
+    blocks = {};
+    blockTarget = null;
+    if (msg.view) {
+      session.full = msg.view;
+      // The referee ships events oldest-first; this log unshifts, so reverse once.
+      session.events = (msg.events || []).slice().reverse();
+    }
+    if (msg.result) remote.agreement = remote.agreement || null;
+
+    if (msg.status === "open") {
+      // The table exists on the server before any invite is published: a relay
+      // failure can never block a match starting.
+      $("setup").hidden = false;
+      $("table").hidden = true;
+      $("hostPanel").hidden = false;
+      $("tableCode").textContent = msg.code || "------";
+      netNotice(`Table open. Read the code aloud, publish the invite, or send this link: ${matchLink(msg)}`, "good");
+    } else if (session.full) {
+      $("setup").hidden = true;
+      $("table").hidden = false;
+      render();
+    }
+    renderNetChip();
+    renderNetPanel();
+  }
+
+  const matchLink = (msg) => {
+    try {
+      const url = new URL(location.href);
+      url.search = "";
+      url.searchParams.set("match", msg.matchId);
+      if (msg.code) url.searchParams.set("code", msg.code);
+      return url.toString();
+    } catch (error) {
+      return msg.matchId;
+    }
+  };
+
+  const NET_HANDLERS = {
+    onState: adoptState,
+
+    onFrame(msg) {
+      session.full = msg.view;
+      session.awaitingSeq = null;
+      session.notice = null;
+      for (const event of msg.events || []) {
+        session.events.unshift(event);
+        fx(event);
+      }
+      if (session.events.length > 240) session.events.length = 240;
+      render();
+      renderNetChip();
+    },
+
+    onReject(msg) {
+      /* Codes, not prose the transport invented — and the fresh view means a
+       * desynced client is corrected in the same message it is scolded by. */
+      session.notice = msg.message || msg.code;
+      if (msg.view) session.full = msg.view;
+      session.awaitingSeq = null;
+      picking = null;
+      render();
+    },
+
+    onPeer() {
+      renderNetChip();
+      renderNetPanel();
+    },
+
+    onOver(msg) {
+      remote.over = msg;
+      renderNetPanel();
+      renderNetChip();
+    },
+
+    onNostr(msg) {
+      if (msg.role !== "result") return;
+      remote.agreement = msg.agreement;
+      renderNetPanel();
+    },
+
+    onStatus() {
+      renderNetChip();
+    },
+
+    onError(msg) {
+      const text = {
+        NO_SUCH_MATCH: "No table with that code.",
+        MATCH_FULL: "Both seats at that table are taken.",
+        MATCH_OVER: "That match is already finished.",
+        DECK_BUILD_FAILED: "The referee could not build a legal deck pair — try again.",
+        RATE_LIMITED: "Too many actions too quickly.",
+        SUPERSEDED: "Your seat was claimed by another tab or machine.",
+        NO_TABLE: "This page is not being served by a table. Open it from the referee (npm run table), or pass ?table=ws://host:8777/ws.",
+      }[msg.code] || msg.message || msg.code;
+      netNotice(text, "bad");
+      session.notice = text;
+      if (session.full) render();
+      renderNetChip();
+    },
+  };
+
+  // ---- lobby actions ------------------------------------------------------
+
+  const lobbyName = () => ($("netName").value || "Player").slice(0, 40);
+  const lobbyAffinity = () => $("netAffinity").value;
+
+  function createTable() {
+    if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
+    netNotice("Opening a table…", "");
+    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey: nostr().savedPubkey() });
+  }
+
+  function joinTable(code, invite) {
+    if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
+    const value = String(code || $("joinCode").value || "").trim().toUpperCase();
+    if (!/^[A-HJ-NP-Z2-9]{6}$/.test(value)) return void netNotice("A table code is six characters, no 0/O/1/I.", "bad");
+    remote.invite = invite || null;
+    netNotice("Joining…", "");
+    NET.join({
+      code: value,
+      name: lobbyName(),
+      affinity: lobbyAffinity(),
+      pubkey: nostr().savedPubkey(),
+      table: invite ? invite.table : undefined,
+    });
+  }
+
+  async function refreshTables() {
+    const list = $("tableList");
+    list.innerHTML = "";
+    try {
+      const rows = await NET.tables();
+      if (!rows.length) return void list.append(el("div", "netline", "No open tables."));
+      for (const row of rows) {
+        const item = el("div", "netrow");
+        item.append(el("span", null, `${row.code} · ${row.name} · ${row.affinity}`));
+        const button = el("button", "btn ghost", "Join");
+        button.addEventListener("click", () => joinTable(row.code));
+        item.append(button);
+        list.append(item);
+      }
+    } catch (error) {
+      list.append(el("div", "netline", "Could not reach the table's /api/tables — is the referee running?"));
+    }
+  }
+
+  function checkInvites() {
+    const list = $("inviteList");
+    list.innerHTML = "";
+    list.append(el("div", "netline", "Listening for invites on the relays…"));
+    if (remote.unsubscribe) remote.unsubscribe();
+    let first = true;
+    remote.unsubscribe = nostr().subscribeInvites(nostr().savedPubkey(), (invite) => {
+      if (first) { list.innerHTML = ""; first = false; }
+      const item = el("div", "netrow");
+      item.append(el("span", null,
+        `${invite.code} · ${invite.host.name || "?"} (${invite.host.affinity || "?"}) · ${nostr().shortNpub(invite.pubkey)}`));
+      const button = el("button", "btn ghost", "Join");
+      button.addEventListener("click", () => joinTable(invite.code, invite));
+      item.append(button);
+      list.append(item);
+    });
+  }
+
+  // ---- the three signed moments -------------------------------------------
+
+  async function signAndSend(role, unsigned) {
+    try {
+      const signed = await nostr().sign(unsigned);
+      const res = await nostr().publish(signed);
+      NET.sendNostr(role, signed); // the referee records it verbatim either way
+      netNotice(res.ok
+        ? `Published to ${res.accepted.length}/${res.tried} relays.`
+        : `No relay accepted the ${role}. The match is unaffected — nostr is the announcement, never the gate.`,
+        res.ok ? "good" : "");
+    } catch (error) {
+      netNotice(`Signing was declined — ${role} not published. The match is unaffected.`, "");
+    }
+  }
+
+  function publishInvite() {
+    const state = NET.lastState;
+    if (!state) return;
+    const to = String($("challengeNpub").value || "").trim();
+    if (NET.publicTableIsLocal()) {
+      netNotice("This table is only reachable at a loopback address — an invite carrying it cannot be joined from another machine. Start the referee with PUBLIC_HOST set to the Tailscale name and open this page through it.", "bad");
+      return;
+    }
+    signAndSend("invite", nostr().inviteEvent({
+      matchId: state.matchId,
+      code: state.code,
+      table: NET.publicTable(),
+      name: lobbyName(),
+      affinity: lobbyAffinity(),
+      ruleset: state.ruleset,
+      catalogDigest: state.catalogDigest,
+      to: to ? nostr().toHexPubkey(to) : null,
+    }));
+  }
+
+  function publishAccept() {
+    const state = NET.lastState;
+    if (!state) return;
+    const host = (state.players || []).find((p) => p.seat === 0);
+    signAndSend("accept", nostr().acceptEvent({
+      matchId: state.matchId,
+      invite: remote.invite ? remote.invite.id : null,
+      table: NET.publicTable(),
+      name: lobbyName(),
+      affinity: lobbyAffinity(),
+      to: host ? host.pubkey : null,
+    }));
+  }
+
+  function publishResult() {
+    if (!remote.over) return;
+    // Both players sign the referee's exact bytes, so agreement is a string
+    // compare rather than two browsers hoping to re-serialise identically.
+    signAndSend("result", nostr().resultEvent(remote.over));
+  }
+
+  // ---- identity -----------------------------------------------------------
+
+  function renderIdentity() {
+    const pubkey = nostr().savedPubkey();
+    $("nostrLogin").hidden = Boolean(pubkey);
+    $("nostrWho").hidden = !pubkey;
+    $("nostrLogout").hidden = !pubkey;
+    if (pubkey) $("nostrWho").textContent = nostr().shortNpub(pubkey);
+    const url = NET.tableUrl();
+    $("netTable").textContent = url ? `table ${url}` : "no table server — hotseat only";
+    for (const id of ["createTable", "joinTable"]) $(id).disabled = !url;
+    renderNetPanel();
+  }
+
+  async function login() {
+    try {
+      await nostr().login();
+      renderIdentity();
+      netNotice("Signed in. Your npub is a claim at the table — the referee does not verify signatures in v1 (D-11).", "");
+    } catch (error) {
+      netNotice(String(error.message || error), "bad");
+    }
+  }
+
+  function initNet() {
+    const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock"];
+    const select = $("netAffinity");
+    for (const name of affinities) {
+      const option = el("option", null, name === "All" ? "All affinities" : name);
+      option.value = name;
+      select.append(option);
+    }
+    // Keys builds a legal deck on roughly a third of seeds (D-12); the referee
+    // re-rolls, but a rehearsed demo should not lean on it.
+    select.value = "Power";
+
+    $("nostrLogin").addEventListener("click", login);
+    $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); });
+    $("createTable").addEventListener("click", createTable);
+    $("joinTable").addEventListener("click", () => joinTable());
+    $("refreshTables").addEventListener("click", refreshTables);
+    $("checkInvites").addEventListener("click", checkInvites);
+    $("publishInvite").addEventListener("click", publishInvite);
+    $("publishAccept").addEventListener("click", publishAccept);
+    $("publishResult").addEventListener("click", publishResult);
+    $("copyCode").addEventListener("click", () => {
+      const state = NET.lastState;
+      if (state) navigator.clipboard.writeText(matchLink(state)).then(
+        () => netNotice("Link copied.", "good"),
+        () => netNotice(matchLink(state), "")
+      );
+    });
+    $("forceResume").addEventListener("click", () => {
+      NET.resume();
+      netNotice("Resynced from the referee.", "");
+    });
+    $("leaveTable").addEventListener("click", () => {
+      NET.leave();
+      session.seat = null;
+      session.role = "hotseat";
+      session.full = null;
+      remote.over = null;
+      remote.agreement = null;
+      $("table").hidden = true;
+      $("setup").hidden = false;
+      $("hostPanel").hidden = true;
+      renderNetChip();
+      renderIdentity();
+    });
+
+    /* The panic button the runbook asks for: a forced RESUME without hunting
+     * for the panel. Ignored while typing into a field. */
+    window.addEventListener("keydown", (event) => {
+      if (event.key !== "r" || !event.ctrlKey || !event.altKey) return;
+      if (session.role === "hotseat") return;
+      event.preventDefault();
+      NET.resume();
+    });
+
+    renderIdentity();
+    /* Auto-open only if this page already holds a match (localStorage or a
+     * ?match= link). A cold play.html opens no socket at all. */
+    const started = NET.start(NET_HANDLERS);
+    if (started.resuming) netNotice("Rejoining your table…", "");
   }
 
   // -------------------------------------------------------------- setup
@@ -704,6 +1179,9 @@
     session.log = [];
     session.events = [];
     session.notice = null;
+    session.seat = null;        // hotseat: this table applies its own actions
+    session.role = "hotseat";
+    session.awaitingSeq = null;
     attackers = [];
     blocks = {};
     picking = null;
@@ -740,6 +1218,9 @@
     document.getElementById("endturn").addEventListener("click", () => {
       // Not a single action: the turn machine advances only via PASS_PRIORITY,
       // so "End turn" is a burst of them that stops at the first real decision.
+      // Remote, the burst is one action: the referee answers asynchronously, so
+      // the next pass can only be decided by the FRAME that has not arrived yet.
+      if (session.seat !== null) return void advance();
       const startTurn = session.full && session.full.turn.active;
       for (let i = 0; i < 60; i++) {
         const full = session.full;
@@ -801,15 +1282,30 @@
     }, true);
 
     document.getElementById("cardCount").textContent = CARDS.length;
+
+    // Last, and guarded: a missing net.js must not take the hotseat down with it.
+    if (globalThis.E1Net) {
+      try {
+        initNet();
+      } catch (error) {
+        console.error("lobby init failed — the local game is unaffected", error);
+      }
+    }
   }
 
   window.addEventListener("DOMContentLoaded", init);
 
-  /* Exposed for the console and for future transport code: `full` is the
-   * authoritative state, `log` is the chained transcript that replays it. */
+  /* Exposed for the console and for the transport: in hotseat `state` is the
+   * authoritative state and `log` is the chained transcript that replays it; in
+   * remote play `state` is this seat's VIEW and the transcript lives on the
+   * referee (GET /api/match/:id, and in the OVER message). */
   window.E1_GAME = {
     get state() { return session.full; },
     get log() { return session.log; },
+    get mode() { return session.role; },
+    get seat() { return session.seat; },
+    get over() { return remote.over; },
+    net: globalThis.E1Net || null,
     view: (seat) => E.view(session.full, seat),
     hash: () => E.hashState(session.full),
     publicHash: () => E.publicHash(session.full),

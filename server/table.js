@@ -152,6 +152,10 @@ async function createTable(opts) {
   const siteDir = options.siteDir || path.join(REPO, "site");
   const host = options.host || "0.0.0.0";
   const pinSeed = Number.isInteger(options.pinSeed) ? options.pinSeed : null;
+  /* Generous enough to be invisible to a human, tight enough that a runaway loop
+   * cannot wedge the table. Raised only by the headless tests, which act at
+   * machine speed and are not the threat model. */
+  const rateMax = Number.isInteger(options.rateMax) ? options.rateMax : RATE_MAX_ACT;
   const startedAt = Date.now();
 
   if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -533,7 +537,7 @@ async function createTable(opts) {
     const hits = rec.rate[seat].filter((t) => now - t < RATE_WINDOW_MS);
     hits.push(now);
     rec.rate[seat] = hits;
-    return hits.length <= RATE_MAX_ACT;
+    return hits.length <= rateMax;
   }
 
   // --------------------------------------------------------------- match over
@@ -1004,7 +1008,10 @@ if (require.main === module) {
   const port = Number(process.env.PORT || 8777);
   const dbPath = process.env.DB || path.join(__dirname, "matches.db");
   const pinSeed = process.env.PIN_SEED ? Number(process.env.PIN_SEED) : null;
-  createTable({ port, dbPath, pinSeed, publicHost: process.env.PUBLIC_HOST })
+  /* RATE_MAX exists for headless soak runs, which act far faster than any human.
+   * Leave it unset for the demo — the default is what protects the table. */
+  const rateMax = process.env.RATE_MAX ? Number(process.env.RATE_MAX) : null;
+  createTable({ port, dbPath, pinSeed, rateMax, publicHost: process.env.PUBLIC_HOST })
     .then((table) => {
       console.log(`[table] 600B referee on ${table.url}  (ws ${table.wsUrl})`);
       console.log(`[table] db ${dbPath} · catalog ${CATALOG.size} cards ${CATALOG.digest}`);

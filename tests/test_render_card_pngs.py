@@ -116,7 +116,10 @@ def test_card_type_drives_a_distinct_base_dark():
     assert set(TYPE_GROUP.values()) == set(TYPE_BASE)
     assert TYPE_GROUP["Zap"] == TYPE_GROUP["Operation"] == "spell"
     assert TYPE_GROUP["Hardware"] == TYPE_GROUP["Protocol"] == "device"
-    assert TYPE_GROUP["Basic Resource"] == "resource"
+    # A Basic Resource makes one thing and a Junction offers a choice, so they
+    # are separate groups with separate bases and separate layouts.
+    assert TYPE_GROUP["Basic Resource"] == "basic"
+    assert TYPE_GROUP["Resource"] == "junction"
     # Avatar keeps the handoff's default dark.
     assert TYPE_BASE["avatar"] == ("#050403", "#0a0705")
     # Every group is visibly distinct from every other.

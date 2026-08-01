@@ -46,7 +46,7 @@
             letter-spacing="2">SIGNAL</text>
         </g>
         <g transform="translate(1420 64)">
-          <circle cx="0" cy="0" r="72" fill="#18151D" stroke="#5E5ACB" stroke-width="3"/>
+          <circle cx="0" cy="0" r="72" fill="#18151D" stroke="#17BEBB" stroke-width="3"/>
           <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIj4KICA8dGl0bGUgaWQ9InRpdGxlIj5UaW1lbG9jayByZXNvdXJjZTwvdGl0bGU+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMjgiIGZpbGw9IiMxMTExMTEiIHN0cm9rZT0iIzVFNUFDQiIgc3Ryb2tlLXdpZHRoPSI0Ii8+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCAuMykiPgogICAgPHBhdGggZD0iTTIwIDI5di02YzAtNy4yIDUuNC0xMyAxMi0xM3MxMiA1LjggMTIgMTN2NiIgZmlsbD0ibm9uZSIKICAgICAgICAgIHN0cm9rZT0iI0ZGRjdFQyIgc3Ryb2tlLXdpZHRoPSI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICAgIDxyZWN0IHg9IjE1IiB5PSIyNyIgd2lkdGg9IjM0IiBoZWlnaHQ9IjI3IiByeD0iNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGN0VDIiBzdHJva2Utd2lkdGg9IjUiLz4KICAgIDxjaXJjbGUgY3g9IjMyIiBjeT0iNDAuNSIgcj0iOCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGN0VDIiBzdHJva2Utd2lkdGg9IjMiLz4KICAgIDxwYXRoIGQ9Ik0zMiAzNXY2bDQgMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGN0VDIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDwvZz4KPC9zdmc+Cg==" x="-52" y="-52" width="104" height="104"/>
           <text x="0" y="128" text-anchor="middle" fill="#FFF7EC"
             font-family="Impact, Arial Black, sans-serif" font-size="34"
