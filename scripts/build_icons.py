@@ -1,19 +1,27 @@
-"""Rebuild the resource icons: the original glyphs, no containing circle, accent glow.
+"""Build the five resource icons in the card frame's own drawing language.
 
-The circle was what made the old set indistinguishable — five identical outlines with
-the identity hidden inside. The glyphs themselves were always distinct shapes, so
-dropping the circle turns the glyph into the silhouette and frees it to fill the box.
+The frame is thin single-weight line, right angles, and a small filled node at
+every junction — see the letterbox rails and the circuit ring in
+`render_card_pngs.paint_frame`, which draw 2px links with r4 dots. Earlier icon
+passes ignored that and produced heavy filled glyphs inside a container, so a
+symbol read as something stuck onto the card rather than something drawn by the
+same hand.
 
-The accent colour moves from the circle's stroke to a halo drawn behind the glyph:
-the same shape stroked wide in the affinity colour and blurred, with the crisp cream
-glyph on top. Two passes rather than a filter alone, so the icon still reads as a hard
-edge in print where a pure blur would go muddy.
+These are built from the frame's vocabulary: one stroke weight, round terminals,
+a node where a line begins or meets another, and a shine rather than a glow — a
+single lighter-toned pass at low alpha, tight enough that it reads as sheen on the
+line instead of fog around it.
+
+Timelock is a clock, not a padlock. A key and a padlock are the same idea to a
+player, and Keys already owns that idea; duration is what Timelock actually means.
 """
+
+from __future__ import annotations
 
 import os
 
-REPO = "G:/Github/TCG600nap"
-OUT = f"{REPO}/art/resources"
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(REPO_ROOT, "art", "resources")
 
 ACCENT = {
     "power": "#FF6A00",
@@ -23,11 +31,9 @@ ACCENT = {
     "timelock": "#17BEBB",
 }
 
-# The halo is a LIGHTER tone of the glyph's own hue, so the edge lifts off the body
-# instead of merging into it. Power and Keys already have canonical bright values in
-# the design system (--orange-bright and --purple in site/play.html); the other three
-# follow the same move toward white.
-GLOW_COLOR = {
+# The shine is a lighter tone of the glyph's own hue. Power and Keys reuse the
+# design system's own bright values (--orange-bright, --purple in site/play.html).
+SHINE = {
     "power": "#FFA733",
     "bitcoin": "#FFE08A",
     "keys": "#B991E4",
@@ -35,57 +41,57 @@ GLOW_COLOR = {
     "timelock": "#5FF0EC",
 }
 
-# The original glyph bodies, lifted verbatim from the pre-redesign icons. `{c}` is the
-# accent for the halo pass and `{f}` the fill for the crisp pass, so one body renders
-# both. `scale` lets each glyph grow into the space the circle used to occupy.
-GLYPH = {
+# One weight for every line in every icon, matching the frame's 2px links once an
+# icon is drawn at pip size. NODE is the frame's r4 junction dot, scaled to match.
+W = 4.0
+NODE = 3.4
+SHINE_BLUR = 0.7
+SHINE_ALPHA = 0.5
+
+# Each body is drawn twice: once as the shine pass, once crisp. `{c}` is the colour
+# and `{w}` the weight, so one description renders both.
+BODY = {
+    # A bolt as an open zigzag rather than a filled arrow, with a node at each end.
     "power": (
-        1.32,
-        '<path fill="{f}" stroke="{c}" stroke-width="{w}" stroke-linejoin="round"'
-        ' d="M35.3 8 17.8 35.1h11.4L25.9 56 46.2 27.5H34.4L35.3 8Z"/>',
+        '<path d="M43 6 17 34h16L21 58" fill="none" stroke="{c}" stroke-width="{w}"'
+        ' stroke-linecap="round" stroke-linejoin="round"/>'
+        '<circle cx="43" cy="6" r="{n}" fill="{c}"/>'
+        '<circle cx="21" cy="58" r="{n}" fill="{c}"/>'
     ),
+    # The mark drawn as line: one stem, two open bowls, the four ticks kept.
     "bitcoin": (
-        1.24,
-        '<g transform="translate(-3.2 -.7)">'
-        '<path fill="{f}" stroke="{c}" stroke-width="{w}" stroke-linejoin="round"'
-        ' d="M23 15h14.2c8.1 0 12.8 3.8 12.8 10.2 0 4.1-2.2 7.2-6.2 8.8 5 1.4 7.7 4.7 7.7 9.5C51.5 51 46 55 37 55H23V15Zm8 7v9h5.2c4 0 5.8-1.4 5.8-4.6 0-3-1.9-4.4-5.8-4.4H31Zm0 16v10h6c4.4 0 6.4-1.7 6.4-5 0-3.4-2.2-5-6.5-5H31Z"/>'  # noqa: E501
-        '<rect x="28" y="10" width="4" height="9" fill="{f}" stroke="{c}" stroke-width="{w}"/>'
-        '<rect x="36" y="10" width="4" height="9" fill="{f}" stroke="{c}" stroke-width="{w}"/>'
-        '<rect x="28" y="51" width="4" height="5" fill="{f}" stroke="{c}" stroke-width="{w}"/>'
-        '<rect x="36" y="51" width="4" height="5" fill="{f}" stroke="{c}" stroke-width="{w}"/>'
-        "</g>",
+        '<path d="M25 13v38M25 17h12a8 8 0 0 1 0 16H25M25 33h14a8 8 0 0 1 0 16H25"'
+        ' fill="none" stroke="{c}" stroke-width="{w}" stroke-linecap="round"'
+        ' stroke-linejoin="round"/>'
+        '<path d="M31 7v6M39 7v6M31 51v6M39 51v6" fill="none" stroke="{c}"'
+        ' stroke-width="{w}" stroke-linecap="round"/>'
+        '<circle cx="25" cy="13" r="{n}" fill="{c}"/>'
+        '<circle cx="25" cy="51" r="{n}" fill="{c}"/>'
     ),
+    # Ring, shaft, two teeth. The bow is a node, the way the frame terminates a run.
     "keys": (
-        1.30,
-        '<g transform="translate(.8 -1.2)">'
-        '<path d="M20 37a11 11 0 1 1 10.2-15.2L53 44.6V52h-7v-5h-6v-5h-6.6l-3.2-3.2A11 11 0 0 1 20 37Z"'  # noqa: E501
-        ' fill="none" stroke="{s}" stroke-width="{k}" stroke-linejoin="round"/>'
-        '<circle cx="20" cy="26" r="3.5" fill="{f}" stroke="{c}" stroke-width="{w}"/>'
-        "</g>",
+        '<circle cx="21" cy="22" r="10" fill="none" stroke="{c}" stroke-width="{w}"/>'
+        '<path d="M28 29 52 53M40 41l-6 6M46 47l-6 6" fill="none" stroke="{c}"'
+        ' stroke-width="{w}" stroke-linecap="round"/>'
+        '<circle cx="21" cy="22" r="{n}" fill="{c}"/>'
+        '<circle cx="52" cy="53" r="{n}" fill="{c}"/>'
     ),
+    # Three arcs from one node: the frame's own idea of a link leaving a junction.
     "signal": (
-        1.28,
-        '<g transform="translate(0 5.2)">'
-        '<circle cx="32" cy="43" r="4" fill="{f}" stroke="{c}" stroke-width="{w}"/>'
-        '<path d="M22 35a14 14 0 0 1 20 0M15 28a24 24 0 0 1 34 0M9 20a33 33 0 0 1 46 0"'
-        ' fill="none" stroke="{s}" stroke-width="{k}" stroke-linecap="round"/>'
-        "</g>",
+        '<path d="M19 39a18 18 0 0 1 26 0M11 30a30 30 0 0 1 42 0M4 21a41 41 0 0 1 56 0"'
+        ' fill="none" stroke="{c}" stroke-width="{w}" stroke-linecap="round"/>'
+        '<circle cx="32" cy="50" r="{n2}" fill="{c}"/>'
     ),
+    # A clock: duration, which is what Timelock means. Not a lock — Keys owns that.
     "timelock": (
-        1.26,
-        '<g transform="translate(0 .3)">'
-        '<path d="M20 29v-6c0-7.2 5.4-13 12-13s12 5.8 12 13v6" fill="none"'
-        ' stroke="{s}" stroke-width="{k}" stroke-linecap="round"/>'
-        '<rect x="15" y="27" width="34" height="27" fill="none" stroke="{s}" stroke-width="{k}"/>'
-        '<circle cx="32" cy="40.5" r="8" fill="none" stroke="{s}" stroke-width="{k2}"/>'
-        '<path d="M32 35v6l4 3" fill="none" stroke="{s}" stroke-width="{k2}" stroke-linecap="round"/>'  # noqa: E501
-        "</g>",
+        '<circle cx="32" cy="32" r="23" fill="none" stroke="{c}" stroke-width="{w}"/>'
+        '<path d="M32 32V18M32 32l11 7" fill="none" stroke="{c}" stroke-width="{w}"'
+        ' stroke-linecap="round"/>'
+        '<path d="M32 9v4M55 32h-4M32 55v-4M9 32h4" fill="none" stroke="{c}"'
+        ' stroke-width="{w}" stroke-linecap="round"/>'
+        '<circle cx="32" cy="32" r="{n}" fill="{c}"/>'
     ),
 }
-
-# One dial for the halo. Signal carries its own alpha because its accent IS cream,
-# so a cream glow behind a cream glyph blows out where the others do not.
-GLOW = {"blur": 1.5, "w": 4.5, "k": 8.5, "k2": 6.5, "alpha": 0.85, "signal_alpha": 0.5}
 
 TITLE = {
     "power": "Power",
@@ -99,32 +105,34 @@ TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
      role="img" aria-labelledby="title">
   <title id="title">{title} resource</title>
   <defs>
-    <filter id="glow" x="-45%" y="-45%" width="190%" height="190%">
-      <feGaussianBlur stdDeviation="{blur}" result="b"/>
+    <filter id="shine" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="{blur}"/>
     </filter>
   </defs>
-  <g transform="translate(32 32) scale({scale}) translate(-32 -32)">
-    <g filter="url(#glow)" opacity="{alpha}">{halo}</g>
-    {crisp}
-  </g>
+  <g filter="url(#shine)" opacity="{alpha}">{shine}</g>
+  {crisp}
 </svg>
 """
 
-os.makedirs(OUT, exist_ok=True)
-for name, (scale, body) in GLYPH.items():
-    accent = ACCENT[name]
-    # Halo pass: everything painted in the accent and widened, then blurred.
-    bright = GLOW_COLOR[name]
-    halo = body.format(f=bright, c=bright, s=bright, w=GLOW["w"], k=GLOW["k"], k2=GLOW["k2"])
-    # One colour, end to end: the glyph and its border are both the affinity value
-    # the card already uses. The border is the blurred pass showing past the crisp
-    # one, so the edge glows in the same hue instead of being outlined in a second.
-    crisp = body.format(f=accent, c=accent, s=accent, w=1.2, k=5, k2=3)
-    alpha = GLOW["signal_alpha"] if name == "signal" else GLOW["alpha"]
-    svg = TEMPLATE.format(
-        title=TITLE[name], scale=f"{scale:.2f}", halo=halo, crisp=crisp,
-        alpha=alpha, blur=GLOW["blur"]
-    )
-    open(f"{OUT}/{name}.svg", "w", encoding="utf-8").write(svg)
-    print(f"  {name}.svg  glyph {accent}  glow {bright}")
-print("5 icons rebuilt: original glyphs, no circle, accent glow")
+
+def build() -> None:
+    """Write the five icons."""
+    os.makedirs(OUT, exist_ok=True)
+    for name, body in BODY.items():
+        accent, shine_colour = ACCENT[name], SHINE[name]
+        shine = body.format(c=shine_colour, w=W + 1.6, n=NODE + 0.8, n2=5.2)
+        crisp = body.format(c=accent, w=W, n=NODE, n2=4.4)
+        svg = TEMPLATE.format(
+            title=TITLE[name],
+            blur=SHINE_BLUR,
+            alpha=SHINE_ALPHA,
+            shine=shine,
+            crisp=crisp,
+        )
+        open(os.path.join(OUT, f"{name}.svg"), "w", encoding="utf-8").write(svg)
+        print(f"  {name}.svg  line {W}  node {NODE}  {accent} / shine {shine_colour}")
+    print("5 icons rebuilt in the frame's line-and-node language")
+
+
+if __name__ == "__main__":
+    build()

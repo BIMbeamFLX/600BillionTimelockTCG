@@ -2,12 +2,10 @@
      role="img" aria-labelledby="title">
   <title id="title">Timelock resource</title>
   <defs>
-    <filter id="glow" x="-45%" y="-45%" width="190%" height="190%">
-      <feGaussianBlur stdDeviation="1.5" result="b"/>
+    <filter id="shine" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="0.7"/>
     </filter>
   </defs>
-  <g transform="translate(32 32) scale(1.26) translate(-32 -32)">
-    <g filter="url(#glow)" opacity="0.85"><g transform="translate(0 .3)"><path d="M20 29v-6c0-7.2 5.4-13 12-13s12 5.8 12 13v6" fill="none" stroke="#5FF0EC" stroke-width="8.5" stroke-linecap="round"/><rect x="15" y="27" width="34" height="27" fill="none" stroke="#5FF0EC" stroke-width="8.5"/><circle cx="32" cy="40.5" r="8" fill="none" stroke="#5FF0EC" stroke-width="6.5"/><path d="M32 35v6l4 3" fill="none" stroke="#5FF0EC" stroke-width="6.5" stroke-linecap="round"/></g></g>
-    <g transform="translate(0 .3)"><path d="M20 29v-6c0-7.2 5.4-13 12-13s12 5.8 12 13v6" fill="none" stroke="#17BEBB" stroke-width="5" stroke-linecap="round"/><rect x="15" y="27" width="34" height="27" fill="none" stroke="#17BEBB" stroke-width="5"/><circle cx="32" cy="40.5" r="8" fill="none" stroke="#17BEBB" stroke-width="3"/><path d="M32 35v6l4 3" fill="none" stroke="#17BEBB" stroke-width="3" stroke-linecap="round"/></g>
-  </g>
+  <g filter="url(#shine)" opacity="0.5"><circle cx="32" cy="32" r="23" fill="none" stroke="#5FF0EC" stroke-width="5.6"/><path d="M32 32V18M32 32l11 7" fill="none" stroke="#5FF0EC" stroke-width="5.6" stroke-linecap="round"/><path d="M32 9v4M55 32h-4M32 55v-4M9 32h4" fill="none" stroke="#5FF0EC" stroke-width="5.6" stroke-linecap="round"/><circle cx="32" cy="32" r="4.2" fill="#5FF0EC"/></g>
+  <circle cx="32" cy="32" r="23" fill="none" stroke="#17BEBB" stroke-width="4.0"/><path d="M32 32V18M32 32l11 7" fill="none" stroke="#17BEBB" stroke-width="4.0" stroke-linecap="round"/><path d="M32 9v4M55 32h-4M32 55v-4M9 32h4" fill="none" stroke="#17BEBB" stroke-width="4.0" stroke-linecap="round"/><circle cx="32" cy="32" r="3.4" fill="#17BEBB"/>
 </svg>
