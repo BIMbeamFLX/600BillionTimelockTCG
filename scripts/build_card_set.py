@@ -30,7 +30,10 @@ AFFINITY_ACCENT = {
     "Keys": "#7447B8",
     "Signal": "#FFF7EC",
     "Timelock": "#5E5ACB",
-    "Neutral": "#f7931a",
+    # Neutral was #f7931a, a shade off Power's #FF6A00 — the two read as the same
+    # orange on a shelf, and 47 Hardware cards were being mistaken for Power. Grey
+    # is the project's own neutral, from the world plates in site/arena.html.
+    "Neutral": "#8a8f98",
 }
 AFFINITY_BADGE_FG = {
     "Power": "#050403",
