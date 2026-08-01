@@ -1,11 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
   <title id="title">Bitcoin resource</title>
-  <circle cx="32" cy="32" r="30" fill="#111111" stroke="#F3C244" stroke-width="4"/>
-  <g transform="translate(-3.2 -.7)">
-    <path fill="#FFF7EC" d="M23 15h14.2c8.1 0 12.8 3.8 12.8 10.2 0 4.1-2.2 7.2-6.2 8.8 5 1.4 7.7 4.7 7.7 9.5C51.5 51 46 55 37 55H23V15Zm8 7v9h5.2c4 0 5.8-1.4 5.8-4.6 0-3-1.9-4.4-5.8-4.4H31Zm0 16v10h6c4.4 0 6.4-1.7 6.4-5 0-3.4-2.2-5-6.5-5H31Z"/>
-    <rect x="28" y="10" width="4" height="9" rx="2" fill="#FFF7EC"/>
-    <rect x="36" y="10" width="4" height="9" rx="2" fill="#FFF7EC"/>
-    <rect x="28" y="51" width="4" height="5" rx="2" fill="#FFF7EC"/>
-    <rect x="36" y="51" width="4" height="5" rx="2" fill="#FFF7EC"/>
+  <circle cx="32" cy="32" r="26" fill="#F3C244"/>
+  <g transform="rotate(14 32 32)" fill="#FFF7EC">
+    <path fill-rule="evenodd" d="M23 15 H34 A8.5 8.5 0 0 1 34 32 H35 A8.5 8.5 0 0 1 35 49 H23 Z
+             M29 21 H33 A3.5 3.5 0 0 1 33 28 H29 Z
+             M29 38 H34 A3.5 3.5 0 0 1 34 45 H29 Z"/>
+    <rect x="25.5" y="1" width="5" height="15"/>
+    <rect x="33.5" y="1" width="5" height="15"/>
+    <rect x="25.5" y="48" width="5" height="15"/>
+    <rect x="33.5" y="48" width="5" height="15"/>
   </g>
 </svg>

@@ -76,8 +76,10 @@ function passUntil(state, stop, limit = 400) {
 
 const atStep = (phase, step) => (s) => s.turn.phase === phase && s.turn.step === step;
 
-/* Put a specific card into a seat's Network directly, for rules fixtures. */
-function seed(state, seat, cardId, tweaks) {
+/* Put a specific card into a seat's zone directly, for rules fixtures. Defaults
+ * to the Network; `zone` exists so a test can prove what may NOT attack. */
+function seed(state, seat, cardId, tweaks, zone) {
+  const where = zone || "network";
   const uid = "o" + state.nextUid;
   state.nextUid += 1;
   state.objects[uid] = Object.assign(
@@ -86,7 +88,7 @@ function seed(state, seat, cardId, tweaks) {
       cardId,
       owner: seat,
       controller: seat,
-      zone: `${seat}:network`,
+      zone: `${seat}:${where}`,
       committed: false,
       bootDelay: byId[cardId].type.includes("Avatar"),
       damage: 0,
@@ -102,7 +104,7 @@ function seed(state, seat, cardId, tweaks) {
     },
     tweaks || {}
   );
-  state.zones[`${seat}:network`].push(uid);
+  state.zones[`${seat}:${where}`].push(uid);
   return uid;
 }
 
@@ -324,6 +326,41 @@ test("§13.2 a blocked attacker stays blocked after its blockers leave", () => {
     uptimeBefore,
     "a blocked attacker whose blocker died must not fall through to the player"
   );
+});
+
+test("§13.1 attackers come from the Network — never from the Wallet or the Archive", () => {
+  let state = E.createGame(baseConfig());
+  const big = findCard((c) => c.type === "Avatar" && c.action >= 3 && !c.keywords.length);
+  const onNetwork = seed(state, 0, big.id, { bootDelay: false });
+  const inWallet = seed(state, 0, big.id, { bootDelay: false }, "wallet");
+  const inArchive = seed(state, 0, big.id, { bootDelay: false }, "archive");
+  state = passUntil(state, (s) => s.awaiting && s.awaiting.kind === "attackers");
+
+  const env = { state, ctx: E.resolveCtx({}) };
+  assert.equal(E.canAttack(env, onNetwork), true);
+  assert.equal(E.canAttack(env, inWallet), false, "a card in hand is not on the battlefield");
+  assert.equal(E.canAttack(env, inArchive), false, "§5.2/§6 the Archive is out of combat");
+
+  /* The same code DECLARE_BLOCKERS uses, so the two declarations answer alike.
+   * Before this, a hand card was accepted: no cost paid, the card never left the
+   * Wallet, the defender saw a uid shell it could not evaluate a block against,
+   * and the whole printed Action landed on the defending player — an illegal
+   * action written into the hash chain as a legal entry, so the match it won was
+   * certified by the referee's own audit trail. */
+  for (const uid of [inWallet, inArchive]) {
+    const r = act(state, "DECLARE_ATTACKERS", 0, { attackers: [uid] });
+    assert.equal(r.error && r.error.code, "NOT_IN_ZONE", `${uid} was allowed to attack`);
+    assert.equal(r.state, state, "a rejected declaration must not mutate");
+  }
+  // One illegal uid poisons the whole declaration; it is not silently dropped.
+  const mixed = act(state, "DECLARE_ATTACKERS", 0, { attackers: [onNetwork, inWallet] });
+  assert.equal(mixed.error.code, "NOT_IN_ZONE");
+  assert.deepEqual(state.clash.attackers, [], "a refused declaration left partial state");
+  assert.equal(state.objects[onNetwork].committed, false, "a refused declaration committed a card");
+
+  // And the legal declaration still works.
+  const good = ok(act(state, "DECLARE_ATTACKERS", 0, { attackers: [onNetwork] }));
+  assert.deepEqual(good.clash.attackers, [onNetwork]);
 });
 
 test("§13.3 two blockers raise ORDER_BLOCKERS, and only to the attacker's controller", () => {
@@ -611,9 +648,16 @@ test("view() hides both Stacks, the opponent's Wallet faces and every hidden see
       // Quoted, so "o8" does not spuriously match inside "o80".
       assert.ok(!text.includes(`"${uid}"`), `stack uid ${uid} leaked`);
     }
-    assert.equal(v.rng.hidden[0].s, undefined, "hidden seed leaked");
-    assert.equal(v.rng.hidden[0].n, state.rng.hidden[0].n, "the hidden draw counter must survive");
-    assert.equal(v.rng.public.s, state.rng.public.s, "§18.4 the public stream is auditable");
+    /* NO seed of any kind, in any stream, in any view. The public seed used to
+     * ship for §18.4 audit; under a referee it is an oracle for testing hidden
+     * seed guesses against gameId and deckCommit, so audit moved entirely to the
+     * post-match OVER bundle. Only the draw counters cross the wire. */
+    for (const stream of [v.rng.public].concat(v.rng.hidden)) {
+      assert.equal(stream.s, undefined, "an rng seed reached a view");
+      assert.equal(typeof stream.n, "number", "the draw counter must survive");
+    }
+    assert.equal(v.rng.hidden[0].n, state.rng.hidden[0].n);
+    assert.equal(v.rng.public.n, state.rng.public.n);
     assert.ok(!JSON.stringify(v.objects).includes("prevUid"));
     assert.equal(v.redacted, true);
     assert.equal(v.forSeat, seat);

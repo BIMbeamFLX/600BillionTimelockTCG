@@ -5,8 +5,12 @@
  * were UI-side, this script could read the opponent's hand — it checks that it
  * cannot.
  *
- *   node server/table.js                     # terminal 1
+ *   RATE_MAX=100000 node server/table.js     # terminal 1
  *   node scripts/demo-two-clients.mjs        # terminal 2
+ *
+ * RATE_MAX is needed here and ONLY here: this script acts at ~100 actions per
+ * second, which is precisely the traffic the referee's action budget exists to
+ * bound. A human never approaches it, so the demo itself leaves RATE_MAX unset.
  *
  * Env: TABLE (ws url, default ws://127.0.0.1:8777/ws)
  */
@@ -164,9 +168,24 @@ const foe = a.view.zones["1:wallet"];
 ok(`seat 0 reads its own ${own.length}-card hand`, own.every((u) => a.view.objects[u].cardId));
 ok(`seat 0 sees seat 1's ${foe.length} hand cards as uid shells only`, foe.every((u) => !a.view.objects[u].cardId));
 ok("seat 1 likewise cannot read seat 0's hand", b.view.zones["0:wallet"].every((u) => !b.view.objects[u].cardId));
-ok("no hidden rng seed appears in either view", a.view.rng.hidden.concat(b.view.rng.hidden).every((s) => s.s === undefined));
+/* NO seed of any kind, public included. The public seed used to ship "for
+ * audit"; under a referee it is a live oracle — a seat holding it can test
+ * candidate hidden seeds against gameId and deckCommit, and under PIN_SEED it
+ * derived them by addition. Audit is the post-match bundle in section 6. */
+const streams = [a.view.rng.public, b.view.rng.public].concat(a.view.rng.hidden, b.view.rng.hidden);
+ok("no rng seed of any kind appears in either view", streams.every((s) => s.s === undefined));
+ok("the draw counters still do", streams.every((s) => typeof s.n === "number"));
 ok("the Stack is a count, never a list", !Array.isArray(a.view.zones["0:stack"]));
 console.log(`        seat 0 example own card: ${a.view.objects[own[0]].cardId} · seat 1 example: ${JSON.stringify(a.view.objects[foe[0]])}`);
+
+/* And the HTTP audit endpoint says nothing about a LIVE match: config carries
+ * the hidden seeds, which generate both decks, both shuffles and every future
+ * draw, and a matchId is not a secret — it is in every STATE. */
+const liveBase = URL.replace(/^ws/, "http").replace(/\/ws$/, "");
+const liveAudit = await (await fetch(`${liveBase}/api/match/${a.matchId}`)).json();
+ok(`GET /api/match/${a.matchId} while playing hides the config`, liveAudit.config === undefined);
+ok("…and the transcript with it", liveAudit.entries === undefined);
+ok("…and names no seed at all", !JSON.stringify(liveAudit).includes("seeds"));
 
 console.log("\n3. AN ILLEGAL ACTION IS REJECTED WITH THE ENGINE'S OWN CODE");
 for (const probe of [
@@ -193,7 +212,13 @@ for (let i = 0; i < 8000 && !a.over && !b.over; i++) {
     const r = await c.act(action);
     sent++;
     acted = true;
-    if (r.t === "ERROR") throw new Error("transport ERROR: " + r.code);
+    if (r.t === "ERROR") {
+      // Say which knob, rather than dying with a bare code on stage.
+      const hint = r.code === "RATE_LIMITED"
+        ? " — this script acts at machine speed; start the referee with RATE_MAX=100000"
+        : "";
+      throw new Error("transport ERROR: " + r.code + hint);
+    }
     if (r.t === "REJECT") {
       rejects[r.code] = (rejects[r.code] || 0) + 1;
       const key = action.type === "DECLARE_ATTACKERS" ? "ATTACK"

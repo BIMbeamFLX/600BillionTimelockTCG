@@ -1,11 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
   <title id="title">Timelock resource</title>
-  <circle cx="32" cy="32" r="30" fill="#111111" stroke="#17BEBB" stroke-width="4"/>
-  <g transform="translate(0 .3)">
-    <path d="M20 29v-6c0-7.2 5.4-13 12-13s12 5.8 12 13v6" fill="none"
-          stroke="#FFF7EC" stroke-width="5" stroke-linecap="round"/>
-    <rect x="15" y="27" width="34" height="27" rx="5" fill="none" stroke="#FFF7EC" stroke-width="5"/>
-    <circle cx="32" cy="40.5" r="8" fill="none" stroke="#FFF7EC" stroke-width="3"/>
-    <path d="M32 35v6l4 3" fill="none" stroke="#FFF7EC" stroke-width="3" stroke-linecap="round"/>
-  </g>
+  <rect x="6" y="0" width="52" height="6" fill="#17BEBB"/>
+  <rect x="6" y="58" width="52" height="6" fill="#17BEBB"/>
+  <polygon points="10,6 54,6 32,30" fill="#17BEBB"/>
+  <polygon points="32,34 54,58 10,58" fill="#17BEBB"/>
+  <polygon points="24,16 40,16 32,27" fill="#FFF7EC"/>
+  <rect x="29" y="26" width="6" height="24" fill="#FFF7EC"/>
+  <polygon points="21,58 43,58 32,45" fill="#FFF7EC"/>
 </svg>

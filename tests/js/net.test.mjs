@@ -379,14 +379,19 @@ test("fog of war is enforced by the referee, not the UI", async (t) => {
     assert.equal(b.view.objects[uid].cardId, undefined);
   }
 
-  // Hidden seeds NEVER leave the server; only the draw counter does, which proves
-  // the referee performed exactly the number of hidden draws the log accounts for.
-  for (const stream of a.view.rng.hidden) {
-    assert.equal(stream.s, undefined, "a hidden seed reached a client");
-    assert.equal(typeof stream.n, "number");
+  /* NO SEED OF ANY KIND LEAVES THE SERVER — public included. Only the draw
+   * counters do, which prove the referee performed exactly the number of draws
+   * the log accounts for. The public seed used to ship whole "for audit"; under
+   * a referee that is a live oracle, because a seat holding it can test
+   * candidate hidden seeds against gameId and deckCommit, and under PIN_SEED it
+   * derived them outright. Audit belongs to the post-match OVER bundle. */
+  for (const view of [a.view, b.view]) {
+    for (const stream of [view.rng.public].concat(view.rng.hidden)) {
+      assert.equal(stream.s, undefined, "an rng seed reached a client");
+      assert.equal(typeof stream.n, "number", "the draw counter must survive");
+    }
   }
-  // The public stream DOES ship whole, seed included — that is deliberate.
-  assert.equal(typeof a.view.rng.public.s, "number");
+  assert.ok(!/"s"\s*:/.test(JSON.stringify(a.view.rng)), "no seed field anywhere in rng");
 
   // The Stack is a count, not a list, even for its owner.
   assert.equal(Array.isArray(a.view.zones["0:stack"]), false);
@@ -663,6 +668,26 @@ test("nostr events are stored verbatim and agreement is a query", async (t) => {
   // it says rather than by "the next NOSTR" — b already holds a's broadcast.
   const nostr = (c, n) => c.next((m) => m.t === "NOSTR" && m.events.length === n);
 
+  /* The handshake is signable at once — that is what it is for. A RESULT is not:
+   * there is no result until the match has one. */
+  a.send({ t: "NOSTR", role: "invite", event: ev("a".repeat(64), { kind: 4600 }) });
+  a.send({ t: "NOSTR", role: "result", event: ev("a".repeat(64)) });
+  assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE", "a result before OVER is not a result");
+
+  /* ONE SEAT MUST NOT BE ABLE TO MANUFACTURE MUTUAL AGREEMENT. Signatures are
+   * unverified in v1 (D-11), so seat binding is the only thing making
+   * `confirmed` mean what the lobby renders. Seat 1 speaking under seat 0's key
+   * — or under a key belonging to nobody — is refused outright. */
+  b.send({ t: "NOSTR", role: "result", event: ev("a".repeat(64)) });
+  assert.equal((await b.type("ERROR")).code, "BAD_MESSAGE", "seat 1 forged seat 0's pubkey");
+  b.send({ t: "NOSTR", role: "result", event: ev("c".repeat(64)) });
+  assert.equal((await b.type("ERROR")).code, "BAD_MESSAGE", "seat 1 invented a third pubkey");
+
+  // Now finish the match for real, so a result exists to agree about.
+  await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
+  await a.type("OVER");
+  await b.type("OVER");
+
   a.send({ t: "NOSTR", role: "result", event: ev("a".repeat(64)) });
   assert.equal((await nostr(a, 1)).agreement, "pending");
   assert.equal((await nostr(b, 1)).agreement, "pending", "both seats learn the state of play");
@@ -677,17 +702,119 @@ test("nostr events are stored verbatim and agreement is a query", async (t) => {
   b.send({ t: "NOSTR", role: "result", event: ev("b".repeat(64), { content: '{"v":1,"winners":[1]}' }) });
   assert.equal((await b.next((m) => m.t === "NOSTR" && m.agreement === "disputed")).events.length, 2);
 
-  // The handshake roles are recorded too, and nothing is broadcast for them.
-  a.send({ t: "NOSTR", role: "invite", event: ev("a".repeat(64), { kind: 4600 }) });
   await new Promise((r) => setTimeout(r, 50));
-  const kinds = table.db.prepare("SELECT role, kind, sig_checked FROM nostr_events WHERE match_id=? ORDER BY role").all(a.matchId);
+  const kinds = table.db.prepare("SELECT role, kind, pubkey, sig_checked FROM nostr_events WHERE match_id=? ORDER BY role").all(a.matchId);
   assert.ok(kinds.some((k) => k.role === "invite" && k.kind === 4600));
-  // D-11, recorded honestly: this server does not verify schnorr signatures.
-  for (const k of kinds) assert.equal(k.sig_checked, 0);
+  // Seat binding caps the table at one row per (role, seat): three rows, never
+  // a fourth invented by one side.
+  assert.equal(kinds.filter((k) => k.role === "result").length, 2);
+  for (const k of kinds) {
+    assert.ok(["a".repeat(64), "b".repeat(64)].includes(k.pubkey), "a row under a foreign pubkey");
+    // D-11, recorded honestly: this server does not verify schnorr signatures.
+    assert.equal(k.sig_checked, 0);
+  }
 
   // A malformed event is refused rather than stored.
   a.send({ t: "NOSTR", role: "result", event: { pubkey: "nope" } });
   assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE");
+});
+
+test("an anonymous seat claims its key on first use, and is then bound to it", async (t) => {
+  const table = await boot(t, "t16.db");
+  /* Sitting down without an npub is allowed by the lobby, and reaching for the
+   * extension only when there is finally something to sign is the natural
+   * order — so the first key a seat speaks under becomes that seat's key. */
+  const a = await table.client();
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: null });
+  const created = await a.type("STATE");
+  assert.deepEqual(created.players.map((p) => p.pubkey), [null, null]);
+
+  const ev = (pubkey) => ({ id: "f".repeat(64), pubkey, kind: 4600, created_at: 1, tags: [], content: "{}", sig: "0".repeat(128) });
+  a.send({ t: "NOSTR", role: "invite", event: ev("a".repeat(64)) });
+  /* Announced with a fresh STATE while nobody is mid-turn, so the panel stops
+   * calling a signed seat "anonymous" — on the final screen, who signed is the
+   * whole point. */
+  const claimed = await a.next((m) => m.t === "STATE" && m.players[0].pubkey === "a".repeat(64));
+  assert.ok(claimed, "the claim was not announced");
+  const row = table.db.prepare("SELECT seat0_pubkey FROM matches WHERE match_id=?").get(a.matchId);
+  assert.equal(row.seat0_pubkey, "a".repeat(64), "the claim must survive a restart");
+
+  const b = await table.client();
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: null });
+  await b.type("STATE");
+  await a.type("STATE");
+
+  /* The other seat cannot claim the same key. nostr_events is keyed on
+   * (match, role, pubkey), so two seats sharing one key would collapse two
+   * results into a single row and make `confirmed` meaningless. */
+  b.send({ t: "NOSTR", role: "invite", event: ev("a".repeat(64)) });
+  assert.equal((await b.type("ERROR")).code, "BAD_MESSAGE", "seat 1 claimed seat 0's key");
+
+  /* Its own key binds it in turn. Mid-match the announcement is a PEER, not a
+   * STATE: adopting a STATE would clear a half-built target selection. */
+  b.send({ t: "NOSTR", role: "invite", event: ev("b".repeat(64)) });
+  await b.next((m) => m.t === "PEER" && m.seat === 1);
+  const keys = table.db.prepare("SELECT seat0_pubkey, seat1_pubkey FROM matches WHERE match_id=?").get(a.matchId);
+  assert.deepEqual([keys.seat0_pubkey, keys.seat1_pubkey], ["a".repeat(64), "b".repeat(64)]);
+
+  // And a bound seat cannot switch keys afterwards.
+  a.send({ t: "NOSTR", role: "invite", event: ev("c".repeat(64)) });
+  assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE");
+});
+
+test("a finished match can still be signed after a reload, a reconnect and a restart", async (t) => {
+  const dbPath = tmpDb("t12.db");
+  // Created by hand, not via boot(): this test closes it mid-way to prove a
+  // referee restart cannot erase the closing beat, so it must not be closed twice.
+  const table = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
+  const a = await Client.open(table.wsUrl);
+  a.send({ t: "CREATE", v: WIRE, name: "felix", affinity: "Power", pubkey: "a".repeat(64) });
+  const created = await a.type("STATE");
+  const b = await Client.open(table.wsUrl);
+  b.send({ t: "JOIN", v: WIRE, code: created.code, name: "anna", affinity: "Signal", pubkey: "b".repeat(64) });
+  await b.type("STATE");
+  await a.type("STATE");
+  const matchId = a.matchId;
+
+  /* Seat 1 is GONE — terminated, no close frame — when the match ends. This is
+   * the demo-day case: a slept laptop, a dropped wifi, a closed tab. */
+  b.ws.terminate();
+  await new Promise((r) => setTimeout(r, 80));
+  await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
+  const over = await a.type("OVER");
+  assert.ok(over.resultContent && over.resultTags, "the winner got the signable bytes");
+
+  // Seat 1 comes back the way site/net.js does. It must be handed the SAME bytes
+  // its opponent already signed, or the two signatures can never be compared.
+  const b2 = await Client.open(table.wsUrl);
+  b2.send({ t: "RESUME", v: WIRE, matchId, token: b.token });
+  const state = await b2.type("STATE");
+  assert.equal(state.status, "over");
+  assert.equal(state.resultContent, over.resultContent, "STATE must carry the exact bytes");
+  assert.deepEqual(state.resultTags, over.resultTags);
+  assert.equal(state.resultCreatedAt, over.resultCreatedAt);
+  const replayed = await b2.type("OVER");
+  assert.equal(replayed.resultContent, over.resultContent, "OVER is re-sent on resume");
+  assert.equal(replayed.verify.ok, true);
+
+  // And from a cold page that never held a socket when the match ended.
+  const body = await (await fetch(`${table.url}/api/match/${matchId}`)).json();
+  assert.equal(body.resultContent, over.resultContent);
+  assert.deepEqual(body.resultTags, over.resultTags);
+
+  /* A referee restart must not erase the closing beat either: finishMatch is
+   * never re-run, so the bytes have to come off the row. */
+  await a.close();
+  await b2.close();
+  await table.close(); // a hard stop, as kill -9 would be
+
+  const table2 = await boot(t, "unused.db", { dbPath });
+  const c = await table2.client();
+  c.send({ t: "RESUME", v: WIRE, matchId, token: b.token });
+  const after = await c.type("STATE");
+  assert.equal(after.status, "over");
+  assert.equal(after.resultContent, over.resultContent, "a restart lost the signable bytes");
+  assert.deepEqual(after.resultTags, over.resultTags);
 });
 
 test("HTTP: health, the relay-free table list, and out-of-band verification", async (t) => {
@@ -714,10 +841,18 @@ test("HTTP: health, the relay-free table list, and out-of-band verification", as
   await a.type("STATE");
   assert.equal((await (await fetch(`${table.url}/api/tables`)).json()).length, 0, "a full table is no longer open");
 
-  const match = await (await fetch(`${table.url}/api/match/${a.matchId}`)).json();
-  assert.equal(match.status, "playing");
-  assert.ok(match.config.seeds, "the audit endpoint exposes the config so anyone can replay");
-  assert.equal(E.hashState(E.createGame(match.config)), E.hashState(E.createGame(match.config)));
+  /* WHILE A MATCH IS LIVE THIS ENDPOINT SAYS ALMOST NOTHING. config carries the
+   * two hidden seeds, which generate both decklists, both shuffles and every
+   * future draw — a matchId is in every STATE and, while the table is open, in
+   * /api/tables, so publishing them mid-match hands any passer-by the opponent's
+   * hand for the rest of the game. The transcript is gated with them: an
+   * opponent's actions are not public either. */
+  const live = await (await fetch(`${table.url}/api/match/${a.matchId}`)).json();
+  assert.equal(live.status, "playing");
+  assert.equal(live.config, undefined, "the config reached an unauthenticated caller");
+  assert.equal(live.entries, undefined, "the transcript reached an unauthenticated caller");
+  assert.ok(!JSON.stringify(live).includes("seeds"), "a seed appeared in the live payload");
+  assert.deepEqual(Object.keys(live).sort(), ["headHash", "headSeq", "matchId", "publicHash", "status"]);
   assert.equal((await fetch(`${table.url}/api/match/m_nope`)).status, 404);
 
   // A second JOIN on a full table is refused with a TRANSPORT code.
@@ -726,6 +861,15 @@ test("HTTP: health, the relay-free table list, and out-of-band verification", as
   assert.equal((await c.type("ERROR")).code, "MATCH_FULL");
   c.send({ t: "JOIN", code: "ZZZZZZ", name: "eve", affinity: "Keys", pubkey: null });
   assert.equal((await c.type("ERROR")).code, "NO_SUCH_MATCH");
+
+  // Post-match it becomes the out-of-band verification path it was meant to be.
+  await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
+  await a.type("OVER");
+  const done = await (await fetch(`${table.url}/api/match/${a.matchId}`)).json();
+  assert.equal(done.status, "over");
+  assert.ok(done.config.seeds, "the finished match exposes the config so anyone can replay");
+  assert.equal(E.hashState(E.createGame(done.config)), E.hashState(E.createGame(done.config)));
+  assert.equal(E.verifyMatch({ config: done.config, log: done.entries }).ok, true);
 
   // Static files come off the same port — one process on demo day.
   const page = await fetch(`${table.url}/play.html`);
@@ -737,12 +881,31 @@ test("HTTP: health, the relay-free table list, and out-of-band verification", as
   assert.ok((await fetch(`${table.url}/%2e%2e/package.json`)).status >= 400);
 });
 
-test("the rate limit closes a runaway client without wedging the table", async (t) => {
-  const table = await boot(t, "t11.db", { rateMax: 30 });
+test("rejected card clicks are free; only a runaway loop is closed", async (t) => {
+  const table = await boot(t, "t11.db", { rateMax: 30, rejectMax: 400 });
   const { a, b } = await twoSeats(table);
 
-  // A loop that never learns: 60 stale actions in a burst.
+  /* WHAT A HUMAN ACTUALLY DOES. Clicking each card in your opening hand on turn
+   * 1 is rejected every time — CANNOT_AFFORD, NOT_RESOURCE, WRONG_PHASE are what
+   * browsing your own hand looks like on the wire. Charging those to the action
+   * budget kicked the player off the socket for playing the game. Sixty clicks
+   * is twice the old ceiling and must cost nothing. */
+  const rejects = {};
   for (let i = 0; i < 60; i++) {
+    const hand = a.view.zones["0:wallet"];
+    const reply = await a.act({
+      type: "PLAY_CARD", seat: 0, seq: a.view.seq, at: "",
+      payload: { uid: hand[i % hand.length] },
+    });
+    assert.notEqual(reply.t, "ERROR", `a card click was rate-limited after ${i} clicks`);
+    if (reply.t === "REJECT") rejects[reply.code] = (rejects[reply.code] || 0) + 1;
+  }
+  t.diagnostic(`60 card clicks, all free: ${JSON.stringify(rejects)}`);
+  assert.ok(Object.keys(rejects).length > 0, "the clicks must really have been rejected");
+  assert.equal(a.ws.readyState, 1, "the socket was closed by ordinary play");
+
+  // A loop that never learns is still cut off — that is what the budget is for.
+  for (let i = 0; i < 500; i++) {
     a.send({ t: "ACT", action: { type: "PASS_PRIORITY", seat: 0, seq: 9999, at: "", payload: {} } });
   }
   assert.equal((await a.type("ERROR")).code, "RATE_LIMITED");
@@ -751,4 +914,133 @@ test("the rate limit closes a runaway client without wedging the table", async (
   assert.equal((await b.next((m) => m.t === "PEER" && m.online === false)).seat, 0);
   const reply = await b.act({ type: "PASS_PRIORITY", seat: 1, seq: b.view.seq, at: "", payload: {} });
   assert.ok(["FRAME", "REJECT"].includes(reply.t));
+
+  /* And a kicked seat is not re-kicked the instant it returns. The window used
+   * to survive the disconnect, so the first action on the fresh socket was
+   * RATE_LIMITED again for the rest of the 10 s window. */
+  const back = await table.client();
+  back.send({ t: "RESUME", v: WIRE, matchId: a.matchId, token: a.token });
+  const state = await back.type("STATE");
+  assert.equal(state.seat, 0);
+  const first = await back.act({ type: "PASS_PRIORITY", seat: 0, seq: state.view.seq, at: "", payload: {} });
+  assert.notEqual(first.t, "ERROR", "a reconnected seat was immediately re-kicked");
+});
+
+test("a table refuses to seat the same connection twice", async (t) => {
+  const table = await boot(t, "t13.db");
+  const a = await table.client();
+  a.send({ t: "CREATE", name: "solo", affinity: "Power", pubkey: "a".repeat(64) });
+  const created = await a.type("STATE");
+
+  /* A presenter who fumbles and types their OWN code into the join box used to
+   * be registered at conns[0] AND conns[1]: the match started against itself,
+   * left /api/tables, delivered both seats' unredacted views down one socket,
+   * and the real opponent got MATCH_FULL forever with no way back. */
+  a.send({ t: "JOIN", code: created.code, name: "solo-again", affinity: "Signal", pubkey: "a".repeat(64) });
+  assert.equal((await a.type("ERROR")).code, "MATCH_FULL");
+
+  // A second tab of the same login is refused on the pubkey alone.
+  const dup = await table.client();
+  dup.send({ t: "JOIN", code: created.code, name: "me-again", affinity: "Keys", pubkey: "a".repeat(64) });
+  assert.equal((await dup.type("ERROR")).code, "MATCH_FULL");
+
+  // The table survived all of it: a real opponent still gets seat 1.
+  const b = await table.client();
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: "b".repeat(64) });
+  const joined = await b.type("STATE");
+  assert.equal(joined.seat, 1);
+  assert.equal(joined.status, "playing");
+});
+
+test("the host's share link offers the free seat instead of a spectator downgrade", async (t) => {
+  const table = await boot(t, "t14.db");
+  const a = await table.client();
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: "a".repeat(64) });
+  const created = await a.type("STATE");
+  assert.equal(created.claimable, true, "an open table with a free seat says so");
+
+  /* A cold browser opening ?match=…&code=… carries no token and no pubkey, so
+   * it lands in the downgrade branch. It is still the person the host invited:
+   * the STATE must say the seat is there for the taking, or both people sit
+   * looking at the same host screen waiting for the other to join. */
+  const b = await table.client();
+  b.send({ t: "RESUME", matchId: created.matchId });
+  const downgraded = await b.type("STATE");
+  assert.equal(downgraded.role, "spectator");
+  assert.equal(downgraded.status, "open");
+  assert.equal(downgraded.claimable, true, "the free seat was not offered");
+  assert.equal(downgraded.code, created.code, "the code to join with must be in the STATE");
+
+  // And acting on it seats them for real.
+  b.send({ t: "JOIN", code: downgraded.code, name: "anna", affinity: "Signal", pubkey: "b".repeat(64) });
+  const seated = await b.next((m) => m.t === "STATE" && m.seat === 1);
+  assert.equal(seated.status, "playing");
+  assert.equal(seated.claimable, false);
+});
+
+test("no seat can attack from its Wallet, over the wire", async (t) => {
+  /* PINNED so this test is deterministic: on a random seed the scripted driver
+   * often decks out before anyone lands an Avatar, and a test that only
+   * sometimes reaches the code under test is not a regression test. Under pin 15
+   * seat 1 is asked for attackers on turn 2 holding six cards. */
+  const table = await boot(t, "t15.db", { pinSeed: 15 });
+  const { a, b } = await twoSeats(table);
+
+  /* site/play.js only ever offers Network cards, so no local hotseat test can
+   * reach this — it takes a modified client, which is exactly the threat. Drive
+   * a real match until someone is asked to declare attackers, then name a card
+   * that is still in hand. */
+  /* Anything the seat owns that is NOT on the Network: the Wallet if it still
+   * holds a card, otherwise the Archive. Both are out of combat under §5.2/§6. */
+  const offNetwork = (view, seat) => {
+    const wallet = view.zones[`${seat}:wallet`] || [];
+    if (wallet.length) return wallet[0];
+    const archive = (view.zones[`${seat}:archive`] || []).filter((u) => view.objects[u].owner === seat);
+    return archive.length ? archive[0] : null;
+  };
+
+  const banned = new Set();
+  let declaring = null;
+  let illegal = null;
+  for (let i = 0; i < 6000 && !declaring; i++) {
+    let acted = false;
+    for (const c of [a, b]) {
+      if (!c.view || c.view.result) continue;
+      if (c.view.awaiting && c.view.awaiting.kind === "attackers" && c.view.awaiting.seat === c.seat) {
+        illegal = offNetwork(c.view, c.seat);
+        if (illegal) { declaring = c; break; }
+      }
+      const action = chooseAction(c.view, c.seat, banned);
+      if (!action || action.blocked) continue;
+      const reply = await c.act(action);
+      acted = true;
+      if (reply.t === "ERROR") throw new Error("transport ERROR: " + reply.code);
+      if (reply.t === "REJECT") {
+        const key = action.type === "DECLARE_ATTACKERS" ? "ATTACK"
+          : action.type === "PLAY_RESOURCE" ? "R" + action.payload.uid
+          : action.type === "ACTIVATE_RESOURCE_ABILITY" ? "A" + action.payload.uid
+          : action.payload.uid;
+        banned.add(`${action.seq}:${key}`);
+        continue;
+      }
+      await settle([a, b], reply.seq);
+    }
+    if (!acted && !declaring) break;
+  }
+  assert.ok(declaring, "never reached a declare-attackers step with an off-Network card");
+
+  const seat = declaring.seat;
+  const zoneBefore = declaring.view.objects[illegal].zone;
+  const uptimeBefore = declaring.view.seats[1 - seat].uptime;
+  t.diagnostic(`seat ${seat} declares ${illegal} from ${zoneBefore}`);
+  const reply = await declaring.act({
+    type: "DECLARE_ATTACKERS", seat, seq: declaring.view.seq, at: "", payload: { attackers: [illegal] },
+  });
+  assert.equal(reply.t, "REJECT", "the referee accepted an attack from off the Network");
+  assert.equal(reply.code, "NOT_IN_ZONE", "and refused it with the blocker path's own code");
+  assert.equal(reply.view.objects[illegal].zone, zoneBefore, "the card moved");
+  assert.equal(reply.view.seats[1 - seat].uptime, uptimeBefore, "damage was dealt by a refused attack");
+  // Nothing illegal reached the hash chain, so the transcript still certifies.
+  const rows = table.db.prepare("SELECT COUNT(*) AS n FROM entries WHERE match_id=?").get(a.matchId);
+  assert.equal(rows.n, declaring.view.seq, "a refused declaration was written to the transcript");
 });

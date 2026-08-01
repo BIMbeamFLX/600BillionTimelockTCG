@@ -2212,6 +2212,12 @@
     if (!object) return false;
     const card = cardOf(env.ctx, object.cardId);
     if (!card.isAvatar) return false;
+    /* §13.1 attackers are declared FROM THE NETWORK. Without this the Wallet and
+     * the Archive are attack-legal: a modified client could declare its whole
+     * opening hand, pay nothing, and the defender would see only uid shells and
+     * so could not even evaluate a block. DECLARE_BLOCKERS has always checked
+     * the zone; this is the same check on the other side of the same phase. */
+    if (zoneName(object.zone) !== "network") return false;
     if (object.committed) return false; // §13.1
     if (object.bootDelay) return false; // §5.2
     const keywords = keywordsOf(state, env.ctx, uid);
@@ -2577,6 +2583,11 @@
         seen[uid] = true;
         requireUid(state, uid);
         if (state.objects[uid].controller !== action.seat) fail("NOT_CONTROLLER", uid);
+        // §13.1 declared from the Network, and refused with the SAME code the
+        // blocker path uses so the two declarations answer alike.
+        if (zoneName(state.objects[uid].zone) !== "network") {
+          fail("NOT_IN_ZONE", "that object is not on the Network", { uid });
+        }
         if (!canAttack(env, uid)) fail("CANNOT_ATTACK", `${uid} cannot attack`);
         state.clash.attackers.push(uid);
         // §13.1 declaring an Avatar as an attacker commits it.
@@ -3244,11 +3255,15 @@
       manualOpen: cloneJson(state.manualOpen),
       effects: cloneJson(state.effects),
       rng: {
-        // §18.4 the public stream goes out whole so both seats can verify every
-        // in-game random choice. Hidden seeds never leave; the draw COUNTER
-        // does, which proves the referee performed exactly the number of hidden
-        // draws the public log accounts for.
-        public: cloneJson(state.rng.public),
+        /* NO SEED, PUBLIC OR HIDDEN, EVER LEAVES. Only the draw counters do,
+         * which prove the referee performed exactly the number of draws the log
+         * accounts for. The public seed used to ship whole for §18.4 audit, but
+         * under a referee that is a live oracle: a seat that knows the public
+         * seed can test candidate hidden seeds against gameId and deckCommit,
+         * and under PIN_SEED it derived them outright. Verification does not
+         * need it mid-match — the OVER bundle carries the full config and the
+         * transcript, which is where E.verifyMatch belongs. */
+        public: { alg: state.rng.public.alg, n: state.rng.public.n },
         hidden: state.rng.hidden.map((stream) => ({ alg: stream.alg, n: stream.n })),
       },
     };

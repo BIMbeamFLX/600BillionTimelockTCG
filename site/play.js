@@ -856,7 +856,50 @@
     }
     if (msg.result) remote.agreement = remote.agreement || null;
 
-    if (msg.status === "open") {
+    /* A result belongs to ONE match. Sitting down at a new table without
+     * pressing Leave must not leave the previous match's bytes under the
+     * "Publish result" button, which would sign a finished match a second time. */
+    if (msg.status !== "over" || (remote.over && remote.over.matchId !== msg.matchId)) {
+      remote.over = null;
+      remote.agreement = null;
+    }
+
+    /* THE CLOSING BEAT SURVIVES A RELOAD. The referee used to hand out the
+     * signable bytes exactly once, in the live OVER, so a seat that was away or
+     * merely refreshed could never publish its own result and the agreement
+     * counter could never leave "none". A finished match now carries them in
+     * every STATE, so adopt them whenever we do not already hold them. */
+    if (msg.status === "over" && msg.resultContent && !remote.over) {
+      remote.over = {
+        matchId: msg.matchId,
+        result: msg.result,
+        headHash: msg.headHash || null,
+        publicHash: msg.publicHash || null,
+        transcriptHash: msg.transcriptHash || null,
+        verify: msg.verify || null,
+        resultContent: msg.resultContent,
+        resultTags: msg.resultTags,
+        resultCreatedAt: msg.resultCreatedAt,
+      };
+    }
+
+    if (msg.status === "open" && msg.downgraded) {
+      /* THE PERSON FOLLOWING THE HOST'S SHARE LINK CAME TO PLAY. They arrive
+       * with no token and no pubkey, so the referee downgrades them to a
+       * spectator — of an empty table. Showing them the HOST panel then left
+       * both people staring at the same screen waiting for the other to join.
+       * The referee says whether the seat is still free; offer it. */
+      $("setup").hidden = false;
+      $("table").hidden = true;
+      $("hostPanel").hidden = true;
+      if (msg.code) $("joinCode").value = msg.code;
+      netNotice(
+        msg.claimable
+          ? "This table is waiting for a second player — press Join to take seat 1."
+          : "This table is full. You are watching.",
+        msg.claimable ? "good" : ""
+      );
+    } else if (msg.status === "open") {
       // The table exists on the server before any invite is published: a relay
       // failure can never block a match starting.
       $("setup").hidden = false;
@@ -871,6 +914,7 @@
     }
     renderNetChip();
     renderNetPanel();
+    renderLobbyButtons();
   }
 
   const matchLink = (msg) => {
@@ -1077,10 +1121,21 @@
     $("nostrWho").hidden = !pubkey;
     $("nostrLogout").hidden = !pubkey;
     if (pubkey) $("nostrWho").textContent = nostr().shortNpub(pubkey);
+    renderLobbyButtons();
+    renderNetPanel();
+  }
+
+  /* A host waiting at their own open table must not be able to join it: typing
+   * your own code into the join box used to seat one connection at BOTH seats,
+   * which killed the table and locked the real opponent out for good. The
+   * referee refuses it now; the button simply stops offering. */
+  function renderLobbyButtons() {
     const url = NET.tableUrl();
     $("netTable").textContent = url ? `table ${url}` : "no table server — hotseat only";
-    for (const id of ["createTable", "joinTable"]) $(id).disabled = !url;
-    renderNetPanel();
+    const state = NET.lastState;
+    const hosting = Boolean(state && state.status === "open" && state.seat === 0);
+    $("createTable").disabled = !url || hosting;
+    $("joinTable").disabled = !url || hosting;
   }
 
   async function login() {

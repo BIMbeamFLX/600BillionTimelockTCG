@@ -45,9 +45,12 @@ serves the static site too, so the separate `python -m http.server` leaves the r
 
 ### Invariants (non-negotiable)
 
-1. The server holds the only unredacted state and the only hidden seeds. Clients receive
-   `E.view(state, seat)` and `E.redactEvents(events, seat)`. Verified: `rng.hidden[].s` is
-   absent from every view, and the opponent's Wallet is uid shells with no `cardId`.
+1. The server holds the only unredacted state and the only seeds. Clients receive
+   `E.view(state, seat)` and `E.redactEvents(events, seat)`. Verified: **no** `rng[].s` — public
+   or hidden — appears in any view, and the opponent's Wallet is uid shells with no `cardId`.
+   The public seed used to ship whole for §18.4 audit; under a referee it is a live oracle for
+   testing hidden-seed guesses against `gameId` and `deckCommit`, so audit moved entirely to
+   the post-match `OVER` bundle.
 2. Clients send **actions**, never state. Validation is `E.apply` and nothing else. The
    server contains **zero rules code** — it never inspects a card, a phase or a cost.
 3. A desynced client is *corrected*, never trusted: every `REJECT` carries a fresh view.
@@ -141,12 +144,29 @@ message carrying whole history.
  "events":[ …E.redactEvents(tail, seat), capped at 240… ],
  "full": true,
  "publicHash":"<64-hex>|null",
- "result": null | {"winners":[0],"reason":"uptime","losers":[1]}}
+ "claimable": true,
+ "result": null | {"winners":[0],"reason":"uptime","losers":[1]},
+
+ // status = "over" only — the bytes to sign, repeated in EVERY state message:
+ "resultContent":"…","resultTags":[…],"resultCreatedAt":1785310322,
+ "transcriptHash":"<64-hex>","headHash":"<64-hex>",
+ "verify":{"ok":true,"divergedAt":null,"headHash":"<64-hex>","error":null}}
 ```
 `token` appears only in the first `STATE` of a connection and never for a spectator.
 `full:true` = replace `session.events` wholesale. `view` is `null` while status is `"open"`.
 For a spectator, `seat:null`, no `token`, and `view` = `E.view(state, null)` — **neither**
 hand visible, not even as uid shells.
+
+`claimable` is `true` while the table is open and seat 1 is free. A cold browser following the
+host's share link carries no token and no pubkey, so it lands in the spectator downgrade — but
+it is the person the host invited, and it came to play. `claimable` says the seat is there for
+the taking; the client turns that into a prefilled Join, never into a second host panel.
+
+**A finished match repeats its signable payload in every `STATE`.** These bytes used to exist
+only in the single live `OVER`, so a seat that was disconnected when the match ended — or that
+merely reloaded afterwards — could never rebuild them, its "Publish result" button never
+appeared, and `agreement` could never leave `none`. They are persisted on the row, so a referee
+restart cannot erase them either.
 
 **`FRAME`** — one applied action. The hot path. ~4.6 KB raw, ~1 KB deflated.
 ```json
@@ -182,7 +202,10 @@ the same message it is scolded by. `seq` echoes the action's seq.
 
 **`PEER`** — presence. `{"t":"PEER","v":1,"seat":1,"online":false}`
 
-**`OVER`** — sent to both, once, immediately after the `FRAME` that produced the result.
+**`OVER`** — sent to both immediately after the `FRAME` that produced the result, and **again
+to any seat that `RESUME`s into a finished match**. A returning client receives the identical
+bytes its opponent already signed; agreement is a string compare and must not depend on having
+been connected at one particular instant.
 ```json
 {"t":"OVER","v":1,
  "matchId":"m_7f3a91c2",
@@ -249,12 +272,26 @@ distinction says instantly whether the *rules* refused you or the *plumbing* did
 
 ### 2.5 Rate limit
 
-30 `ACT` per seat per 10 s → `ERROR{RATE_LIMITED}` and close 4029. Generous enough to be
-invisible to a human, tight enough that a runaway loop cannot wedge the table. The opponent is
-unaffected and the match stays playable.
+Two budgets, both per seat per 10 s. Exceeding either is `ERROR{RATE_LIMITED}` and close 4029.
+The opponent is unaffected and the match stays playable.
 
-`RATE_MAX` (env) raises it for headless soak runs, which act far faster than any human.
-**Leave it unset for the demo** — the default is what protects the table.
+| Budget | Default | Counts |
+|---|---|---|
+| `RATE_MAX` | 150 | **accepted** actions only, metered *after* `E.apply` agrees |
+| `RATE_MAX_REJECT` | 400 | rejected actions — the runaway-loop guard, nothing more |
+
+**A rejection must never cost a player their socket.** `CANNOT_AFFORD`, `NOT_RESOURCE` and
+`WRONG_PHASE` are what browsing your own hand looks like on the wire: clicking each card in a
+seven-card opening hand is seven rejections, and charging those to the action budget closed the
+socket on a player for playing the game. Rejects are therefore metered separately and far more
+loosely, and the check happens after the engine has ruled, never before it.
+
+A successful `RESUME` clears both buckets for that seat. Otherwise the window survived the
+disconnect and the first action on the fresh socket was `RATE_LIMITED` again for the rest of
+the 10 s — kicked, reconnected, kicked again.
+
+`RATE_MAX` (env) raises the action budget for headless soak runs, which act far faster than any
+human. **Leave it unset for the demo** — the default is what protects the table.
 
 ### 2.6 HTTP (same process, same port)
 
@@ -263,13 +300,27 @@ GET /                      → site/index.html
 GET /<path>                → static from site/ , and /art/ /cards/ /rules/ from the repo root
 GET /api/health            → {"ok":true,"matches":3,"uptime":1820}
 GET /api/tables            → [{matchId,code,name,pubkey,affinity,createdAt}]   (status='open')
-GET /api/match/:matchId    → {config, entries, result, verify, transcriptHash, headHash, publicHash}
+GET /api/match/:matchId    → while status ≠ 'over':
+                             {matchId, status, headSeq, headHash, publicHash}
+                             once status = 'over':
+                             {matchId, status, config, entries, result, verify,
+                              transcriptHash, headHash, publicHash,
+                              resultContent, resultTags, resultCreatedAt}
 ```
 
 `/api/tables` is the **relay-free join path**: if every relay dies on stage, players still see
-and join tables. `/api/match/:id` is out-of-band verification — anyone can re-run
-`E.verifyMatch` on the DB's own copy. Paths resolving outside the allowed roots are `403`,
-never read.
+and join tables. Paths resolving outside the allowed roots are `403`, never read.
+
+`/api/match/:id` is out-of-band verification, and **verification is a post-match act**.
+While a match is live it returns only the four public chain fields. `config` carries the two
+hidden seeds, which generate both decklists, both shuffles and every future draw — anyone
+holding them can reconstruct the opponent's hand for the rest of the match — and a `matchId` is
+not a secret: it is in every `STATE`, and while a table is open it is in `/api/tables`. The
+transcript is gated with the config, because an opponent's actions are not public either.
+
+Once the match is over the whole bundle is served, `resultContent`/`resultTags` included, so
+the signed result is recoverable even from a cold page that held no socket when the match
+ended.
 
 ---
 
@@ -288,10 +339,10 @@ PRAGMA foreign_keys = ON;
 
 | Table | Row | Notes |
 |---|---|---|
-| `matches` | one per table | `config_json` is the exact `E.createGame` argument — **it contains the hidden seeds**, which is precisely why this file never leaves the server while a match is live. `state_json` is the current authoritative state, overwritten each action (~25 KB per match, not per action). Seat columns rather than a seats table: there are exactly two seats and a join buys nothing at this size. While status is `'open'` `config_json` is `'{}'` — no game exists yet. |
+| `matches` | one per table | `config_json` is the exact `E.createGame` argument — **it contains the hidden seeds and the per-seat deck-commitment salts**, which is precisely why it never leaves the server while a match is live (§2.6). `result_content` / `result_tags_json` / `result_created_at` hold the exact bytes both seats sign, so the closing beat survives a reload, a reconnect and a referee restart. `state_json` is the current authoritative state, overwritten each action (~25 KB per match, not per action). Seat columns rather than a seats table: there are exactly two seats and a join buys nothing at this size. While status is `'open'` `config_json` is `'{}'` — no game exists yet. |
 | `entries` | one per **accepted** action | Exactly the entry object `site/play.js` already builds (`{seq,seat,at,action,prev,stateHash,hash}`), plus `public_hash` and `received_at`. `at` is **always** `''` because it is hashed; wall clock lives in `received_at`, outside the hash. Append-only: no UPDATE, no DELETE. `PRIMARY KEY (match_id, seq)`. |
 | `rejects` | one per refused action | Never in the chain, never replayed. Kept because rejection rate is the cheapest cheat signal there is. |
-| `nostr_events` | one per (match, role, pubkey) | Signed events verbatim. `role='result'` has one row per player, which makes confirmed/disputed a query rather than a special case. `sig_checked` is `0` in v1 and says so honestly (D-11). |
+| `nostr_events` | one per (match, role, pubkey) | Signed events verbatim. `role='result'` has one row per player — **enforced**, not assumed: a seat may only submit under its own pubkey, the two seats must hold different keys, and a result is refused before `status='over'` (§6.4). That is what makes confirmed/disputed a query rather than a special case. `sig_checked` is `0` in v1 and says so honestly (D-11). |
 
 **Not created:** an `events` table (engine events are free — `E.replay(config, log)` returns
 them deterministically and `E.redactEvents` re-derives any seat's log; storing them would be a
@@ -428,8 +479,22 @@ three:
 - **(a)** `mintGame` re-rolls the seeds up to 40 times, so the failure can never reach a
   client. Exhausting all 40 is `ERROR{DECK_BUILD_FAILED}`, never a crash.
 - **(b)** `PIN_SEED` forces the rehearsed demo seed and is **tried first**, so a narrated
-  opening is reproducible.
+  opening is reproducible. The three streams are **derived by hash** —
+  `sha256(pin + ':public' | ':0' | ':1')`, each folded to 31 bits — never by adjacency.
+  `hidden = [pin+1, pin+2]` meant that knowing the public seed gave you both hidden ones by
+  addition, and the public seed was in every seat's own view. The deal is unchanged for a
+  given pin, so the rehearsal still holds.
 - **(c)** Keep Keys off the demo decks unless the pinned seed is proven good.
+
+**Deck commitments are salted.** `mintGame` generates a random per-seat salt, passes it as
+`seats[].salt`, and it lives in `config_json` — server-side until the match is over. §3.4's
+`deckCommit` ships in every view, and unsalted it was a free verification oracle: a 31-bit
+hidden seed can be brute-forced offline (measured 2,667 candidates/s single-core through the
+full `createGame` path) and *confirmed* against the published commitment, so the seeds carried
+only ~31 bits of real secrecy. Salted, the commitment still proves the deck was fixed before
+play and reveals nothing during it — and because the salt is part of the config, `gameId`
+(a hash over the whole config) stops being an oracle too. The salt is published with the config
+in the post-match `OVER` bundle, which is when opening the commitment is the point.
 
 This is a workaround. The underlying bug is that `buildDeckList` does not filter Stake cards
 when the Stake module is off — **P-12** is a one-line engine fix. `tests/js/seeds.test.mjs`
@@ -528,6 +593,27 @@ The server does **not** verify schnorr signatures in v1. secp256k1 schnorr is no
   own key, published to relays where anyone can verify.
 - Impersonation on reconnect — the property that actually matters live — is blocked by the
   token, not the signature.
+
+**What makes `agreement` trustworthy in v1 is seat binding, not signature verification.**
+Since no signature is checked, a `NOSTR` frame is only as good as the connection it arrived on,
+so the server binds every event to the sending seat:
+
+1. A seat may submit events **only under its own pubkey**. Without this, one seat could store a
+   row attributed to its opponent and drive `agreement` to `confirmed` — or to `disputed` — on
+   its own, and the lobby renders that verdict verbatim.
+2. A seat that sat down anonymously **claims a key on first use**: the first pubkey it speaks
+   under becomes that seat's key, is persisted, and every later event must match it. Signing in
+   only when there is finally something to sign is a normal order of events, and the seat is
+   already authenticated by its token, so nobody else can do the claiming.
+3. The two seats must hold **different** keys. `nostr_events` is keyed on
+   `(match_id, role, pubkey)`, so two seats sharing a key would collapse two results into one
+   row.
+4. `role:"result"` is refused unless `status = 'over'`. There is no result before there is a
+   result.
+
+Together these cap `nostr_events` at three rows per match — one invite, one accept, one result
+per seat — and make `confirmed` mean what the lobby says it means: *both seats said the same
+thing.* That is an enforced constraint, not an assumption.
 
 **P-11:** `@noble/curves`, verify the accept event at join, require its `pubkey` to match the
 seat.
@@ -661,7 +747,11 @@ index.
 - Keep the table terminal beside the `git checkout demo-safe-v1` terminal.
 - **Fallback ladder, in order:** relay invite → read the 6-character code aloud →
   `GET /api/tables` → local hotseat on `play.html` (which never stopped working).
-- Pin the rehearsed seed via `PIN_SEED`. Leave `RATE_MAX` unset.
+- Pin the rehearsed seed via `PIN_SEED`. **Leave `RATE_MAX` unset for the demo** — the default
+  is what protects the table, and no human comes near it.
+- `scripts/demo-two-clients.mjs` is the exception: it is a headless client acting at ~100
+  actions/second, which is exactly the traffic the budget exists to bound. Start the referee with
+  `RATE_MAX=100000` when running it, as `tests/js/net.test.mjs` already does in-process.
 
 ---
 
@@ -672,8 +762,8 @@ Run with the **file/glob form** — `node --test tests/js/` (directory form) fai
 | File | Covers |
 |---|---|
 | `tests/js/engine.test.mjs` | 33 — the original 32 plus `myTriggers` redaction (own seat only; a spectator gets `[]`) |
-| `tests/js/client.test.mjs` | 8 — `site/net.js` loaded against a stubbed `file:`/`http:` environment: **zero sockets from `file://`**, `NO_TABLE` instead of a stack trace, auto-resume only with a saved match, `?table=` override, no loopback in a published invite, npub round trip, invites-are-untrusted, and the versioned 4600/31600 payloads |
-| `tests/js/net.test.mjs` | 11 in-process integration tests: two views of one state; server-enforced fog of war; engine error codes in `REJECT`; duplicate `ACT` → `SEQ_MISMATCH` with one chain row; a full match to a result with replay + verify + tamper detection; `RESUME` by token; takeover and spectator downgrade; kill-and-rebuild crash recovery; nostr storage and agreement; HTTP endpoints and traversal; the rate limit |
+| `tests/js/client.test.mjs` | 10 — `site/net.js` loaded against a stubbed `file:`/`http:` environment: **zero sockets from `file://`**, `NO_TABLE` instead of a stack trace, auto-resume only with a saved match, `?table=` override, no loopback in a published invite, npub round trip, invites-are-untrusted, and the versioned 4600/31600 payloads. Plus two `site/play.js` lobby tests against a stub DOM: the share link offers a Join rather than the host panel, and a finished match is publishable from a `STATE` alone |
+| `tests/js/net.test.mjs` | 16 in-process integration tests: two views of one state; server-enforced fog of war (no seed of any kind in any view); engine error codes in `REJECT`; duplicate `ACT` → `SEQ_MISMATCH` with one chain row; a full match to a result with replay + verify + tamper detection; `RESUME` by token; takeover and spectator downgrade; kill-and-rebuild crash recovery; nostr storage, seat binding and agreement; anonymous claim-on-first-use; a finished match still signable after reload/reconnect/restart; HTTP endpoints, traversal, and the live-match config gate; rejected clicks are free while a runaway loop is still closed; one connection cannot hold both seats; the share link offers the free seat; and no seat can attack from its Wallet over the wire |
 | `tests/js/seeds.test.mjs` | the Stake landmine and the `mintGame` re-roll, every affinity |
 | `scripts/demo-two-clients.mjs` | the out-of-process proof against a **running** `node server/table.js` |
 
@@ -682,8 +772,8 @@ Run with the **file/glob form** — `node --test tests/js/` (directory form) fai
 ## 9. Demo debt
 
 **Retired:** **D-1** — hidden information was UI-side only because the peer topology had to
-ship both seeds to both clients; a referee does not, and `rng.hidden[].s` is verified absent
-from every view. **D-2** is moot for this topology: three signing popups per match, none during
+ship both seeds to both clients; a referee does not, and **no** `rng[].s`, public or hidden,
+is present in any view. **D-2** is moot for this topology: three signing popups per match, none during
 play, so the ad-hoc session key is not needed at all.
 
 | ID | Debt | Why acceptable | Repayment |

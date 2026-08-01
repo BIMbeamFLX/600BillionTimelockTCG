@@ -11,6 +11,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const NET_JS = fs.readFileSync(path.join(HERE, "..", "..", "site", "net.js"), "utf8");
@@ -171,4 +174,177 @@ test("the signed events carry the versioned payloads the spec fixes", () => {
   assert.equal(res.content, over.resultContent, "content is passed through, never re-serialised");
   assert.equal(res.tags, over.resultTags);
   assert.equal(res.created_at, 123);
+});
+
+/* ------------------------------------------------------------ the lobby view
+ *
+ * site/play.js owns the DOM and therefore the two beats a headless transport
+ * test cannot reach: what the person following the host's SHARE LINK is shown,
+ * and whether the signed result can still be published after a reload. Both are
+ * demo-day-visible, so they get a stub DOM rather than no coverage at all.
+ * play.js only ever touches getElementById / createElement / querySelectorAll,
+ * so the stub is small enough to be honest. */
+const PLAY_JS = fs.readFileSync(path.join(HERE, "..", "..", "site", "play.js"), "utf8");
+const ENGINE_JS = path.join(HERE, "..", "..", "site", "engine.js");
+
+function stubElement(id) {
+  const node = {
+    id, hidden: false, textContent: "", value: "", className: "", innerHTML: "",
+    disabled: false, dataset: {}, children: [], style: {}, listeners: {},
+    classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+    addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); },
+    removeEventListener() {},
+    append(...kids) { this.children.push(...kids); },
+    appendChild(kid) { this.children.push(kid); return kid; },
+    closest: () => null,
+    querySelectorAll: () => [],
+    remove() {},
+    click() { for (const fn of this.listeners.click || []) fn({ preventDefault() {} }); },
+  };
+  return node;
+}
+
+/* Loads play.js against a stub DOM and returns handles to poke at it. The
+ * DOMContentLoaded listener is fired by hand, which is what runs initNet(). */
+function loadPlay(netStub) {
+  const nodes = new Map();
+  const byId = (id) => {
+    if (!nodes.has(id)) nodes.set(id, stubElement(id));
+    return nodes.get(id);
+  };
+  const fired = {};
+  globalThis.document = {
+    getElementById: byId,
+    createElement: (tag) => stubElement(tag),
+    querySelectorAll: () => [],
+    addEventListener() {},
+  };
+  globalThis.window = {
+    addEventListener(type, fn) { (fired[type] = fired[type] || []).push(fn); },
+    E1Net: netStub,
+  };
+  // node defines a getter-only globalThis.navigator, so it has to be replaced
+  // rather than assigned.
+  Object.defineProperty(globalThis, "navigator", {
+    value: { clipboard: { writeText: () => Promise.resolve() } },
+    configurable: true,
+  });
+  globalThis.E1Engine = require(ENGINE_JS);
+  globalThis.E1_CARDS = require(path.join(HERE, "..", "..", "site", "play-data.js"));
+  globalThis.E1Engine.setCatalog(globalThis.E1_CARDS);
+  globalThis.E1Net = netStub;
+  new Function(PLAY_JS)();
+  for (const fn of fired.DOMContentLoaded || []) fn();
+  return { byId, game: globalThis.window.E1_GAME || globalThis.E1_GAME };
+}
+
+/* A transport stub that records what play.js asks of it and hands back the
+ * handlers so a STATE can be delivered as the referee would. */
+function netStub(extra) {
+  const calls = [];
+  const stub = {
+    status: "live", peers: [true, false], lastState: null, session: null,
+    handlers: null,
+    start(handlers) { stub.handlers = handlers; return { resuming: false }; },
+    create(o) { calls.push(["create", o]); },
+    join(o) { calls.push(["join", o]); },
+    act() { return true; },
+    sendNostr(role, ev) { calls.push(["nostr", role, ev]); return true; },
+    leave() {}, resume() {}, tables: async () => [],
+    tableUrl: () => "ws://bitbeam:8777/ws",
+    publicTable: () => "ws://bitbeam:8777/ws",
+    publicTableIsLocal: () => false,
+    savedMatch: () => null,
+    nostr: {
+      hasNip07: () => true,
+      savedPubkey: () => "a".repeat(64),
+      shortNpub: () => "npub1…",
+      npub: () => "npub1x",
+      login: async () => "a".repeat(64),
+      logout() {}, relays: () => [],
+      sign: async (e) => Object.assign({ id: "e".repeat(64), sig: "s".repeat(128) }, e),
+      publish: async () => ({ ok: true, accepted: ["r"], tried: 1 }),
+      resultEvent: (over) => ({ kind: 31600, created_at: over.resultCreatedAt, tags: over.resultTags, content: over.resultContent }),
+      inviteEvent: () => ({ kind: 4600, tags: [], content: "{}" }),
+      acceptEvent: () => ({ kind: 4600, tags: [], content: "{}" }),
+      subscribeInvites: () => () => {},
+      toHexPubkey: (v) => v,
+      parseInvite: () => null,
+    },
+    calls,
+  };
+  return Object.assign(stub, extra || {});
+}
+
+const STATE_BASE = {
+  t: "STATE", v: 1, matchId: "m_0123456789ab", code: "K7M2QF",
+  ruleset: "E1.0", catalogDigest: null, players: [
+    { seat: 0, name: "felix", pubkey: "a".repeat(64), affinity: "Power", online: true },
+    { seat: 1, name: null, pubkey: null, affinity: null, online: false },
+  ],
+  view: null, events: [], full: true, publicHash: null, result: null,
+};
+
+test("the host's share link offers a Join, not the host panel", () => {
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+
+  // The HOST's own view of an open table: the panel with the code to read out.
+  stub.lastState = { ...STATE_BASE, seat: 0, role: "seat", status: "open", downgraded: false, claimable: true };
+  stub.handlers.onState(stub.lastState);
+  assert.equal(byId("hostPanel").hidden, false, "the host must see the code panel");
+  assert.equal(byId("tableCode").textContent, "K7M2QF");
+  assert.equal(byId("joinTable").disabled, true, "a host must not be able to join its own table");
+
+  /* The INVITED player following ?match=…&code=… carries no credential, so the
+   * referee downgrades them to a spectator — of an empty table. Showing them the
+   * host panel left both people staring at the same screen. */
+  const guest = netStub();
+  const g = loadPlay(guest);
+  guest.lastState = { ...STATE_BASE, seat: null, role: "spectator", status: "open", downgraded: true, downgradeReason: "no seat credential", claimable: true };
+  guest.handlers.onState(guest.lastState);
+  assert.equal(g.byId("hostPanel").hidden, true, "the joiner was shown the host panel");
+  assert.equal(g.byId("joinCode").value, "K7M2QF", "the code to join with must be prefilled");
+  assert.match(g.byId("netNotice").textContent, /press Join to take seat 1/);
+  assert.equal(g.byId("joinTable").disabled, false, "the joiner must be able to press Join");
+
+  // And pressing Join sends the code the link carried.
+  g.byId("joinTable").click();
+  const join = guest.calls.find((c) => c[0] === "join");
+  assert.ok(join, "Join sent nothing");
+  assert.equal(join[1].code, "K7M2QF");
+});
+
+test("a finished match can be published from a STATE alone — no live OVER needed", () => {
+  const stub = netStub();
+  const { byId, game } = loadPlay(stub);
+
+  /* The reload path. The referee used to hand out the signable bytes exactly
+   * once, in the live OVER: a seat that was away or merely refreshed could never
+   * publish its result, so the agreement counter could never leave "none". */
+  const content = JSON.stringify({ v: 1, kind: "result", winners: [0] });
+  const tags = [["d", "m_0123456789ab"], ["winner", "a".repeat(64)]];
+  stub.lastState = {
+    ...STATE_BASE, seat: 0, role: "seat", status: "over", downgraded: false, claimable: false,
+    view: null, result: { winners: [0], losers: [1], reason: "concede" },
+    resultContent: content, resultTags: tags, resultCreatedAt: 1785310322,
+    transcriptHash: "sha256:t", headHash: "sha256:h", verify: { ok: true, divergedAt: null },
+  };
+  stub.handlers.onState(stub.lastState);
+
+  assert.ok(game.over, "STATE for a finished match must rebuild the signable payload");
+  assert.equal(game.over.resultContent, content);
+  assert.deepEqual(game.over.resultTags, tags);
+  assert.equal(byId("publishResult").hidden, false, "the publish button stayed hidden after a reload");
+
+  // Pressing it signs the referee's EXACT bytes, so agreement is a string compare.
+  byId("publishResult").click();
+
+  /* A result belongs to ONE match. Sitting down at a new table without pressing
+   * Leave must not leave the previous match's bytes under the button, which
+   * would sign a finished match a second time. */
+  stub.lastState = { ...STATE_BASE, matchId: "m_ffffffffffff", seat: 0, role: "seat", status: "playing", claimable: false, view: null };
+  stub.handlers.onState(stub.lastState);
+  assert.equal(game.over, null, "the previous match's result survived into a new one");
+  assert.equal(byId("publishResult").hidden, true);
 });
