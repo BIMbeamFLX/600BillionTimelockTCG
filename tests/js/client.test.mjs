@@ -21,13 +21,25 @@ const NET_JS = fs.readFileSync(path.join(HERE, "..", "..", "site", "net.js"), "u
 /* net.js is a browser IIFE that assigns globalThis.E1Net. Loading it against a
  * stubbed environment is the whole harness: no jsdom, no build step. */
 function loadNet(env) {
-  const store = new Map(Object.entries(env.storage || {}));
+  /* `env.store` lets two loadNet calls share one localStorage — that is what
+   * "two tabs of the same browser" means, and the only way to reproduce a second
+   * tab taking the first tab's seat. sessionStorage is always fresh, because
+   * that is exactly what a new tab gets. */
+  const store = env.store || new Map(Object.entries(env.storage || {}));
+  // Passing the same `session` map back models a RELOAD of that same tab;
+  // omitting it models a brand new tab.
+  const session = env.session || new Map();
   const opened = [];
   globalThis.location = env.location;
   globalThis.localStorage = {
     getItem: (k) => (store.has(k) ? store.get(k) : null),
     setItem: (k, v) => store.set(k, String(v)),
     removeItem: (k) => store.delete(k),
+  };
+  globalThis.sessionStorage = {
+    getItem: (k) => (session.has(k) ? session.get(k) : null),
+    setItem: (k, v) => session.set(k, String(v)),
+    removeItem: (k) => session.delete(k),
   };
   globalThis.WebSocket = function (url) {
     opened.push(url);
@@ -38,7 +50,7 @@ function loadNet(env) {
   };
   delete globalThis.E1Net;
   new Function(NET_JS)();
-  return { net: globalThis.E1Net, opened, store };
+  return { net: globalThis.E1Net, opened, store, session };
 }
 
 const FILE_ENV = {
@@ -81,6 +93,73 @@ test("a saved match auto-resumes, and only then — the reload path", () => {
   assert.equal(started.resuming, true);
   assert.equal(started.seat, 1);
   assert.deepEqual(warm.opened, ["ws://bitbeam:8777/ws"], "it reconnects to the table it was seated at");
+});
+
+/* Playing both sides on one machine — the demo. localStorage belongs to the
+ * ORIGIN, not the tab, and it used to hold ONE record, which broke this twice:
+ * the second tab resumed on the first tab's token and superseded it, and
+ * whichever tab saved last destroyed the other's credential, so a reload came
+ * back as the wrong seat. */
+test("two tabs at one table keep two separate seats", () => {
+  const shared = new Map();
+  const HOST = { matchId: "m_0123456789ab", seat: 0, token: "a".repeat(32),
+    table: "ws://bitbeam:8777/ws", code: "K7M2QF" };
+  const GUEST = { ...HOST, seat: 1, token: "b".repeat(32) };
+  const link = { ...HTTP_ENV.location, search: "?match=m_0123456789ab&code=K7M2QF" };
+
+  // Tab one takes seat 0.
+  const host = loadNet({ ...HTTP_ENV, store: shared });
+  host.net.start({});
+  host.net.saveMatch(HOST);
+  const map = JSON.parse(shared.get("600b:seats"));
+  assert.deepEqual(Object.keys(map), ["m_0123456789ab:0"], "the map is keyed by seat");
+  assert.ok(map["m_0123456789ab:0"].tab, "and records which tab holds it");
+  assert.ok(map["m_0123456789ab:0"].seenAt, "and when that tab was last alive");
+
+  // Tab two follows the share link while tab one is live: it lands on the table
+  // but must not arrive holding seat 0's token.
+  const guest = loadNet({ location: link, store: shared });
+  const started = guest.net.start({});
+  assert.equal(started.resuming, true, "it still lands on the right table");
+  assert.equal(started.matchId, "m_0123456789ab");
+  assert.equal(started.seat, null, "but it is NOT the seated player");
+  assert.equal(guest.net.session.token, null, "and it must not hold the host's token");
+
+  // It then takes the free seat, which must not clobber the host's credential.
+  guest.net.saveMatch(GUEST);
+  assert.deepEqual(
+    Object.keys(JSON.parse(shared.get("600b:seats"))).sort(),
+    ["m_0123456789ab:0", "m_0123456789ab:1"],
+    "both seats survive in storage",
+  );
+
+  // Each tab's own reload returns it to its own seat.
+  const hostAgain = loadNet({ ...HTTP_ENV, store: shared, session: host.session });
+  assert.equal(hostAgain.net.start({}).seat, 0, "the host reloads back into seat 0");
+  const guestAgain = loadNet({ location: link, store: shared, session: guest.session });
+  assert.equal(guestAgain.net.start({}).seat, 1, "the guest reloads back into seat 1");
+
+  // A cold restart (browser closed, so no sessionStorage anywhere) reclaims the
+  // most recently held seat: nothing is beating, so there is nobody to displace.
+  const cold = JSON.parse(shared.get("600b:seats"));
+  cold["m_0123456789ab:0"].seenAt = Date.now() - 600000; // abandoned long ago
+  cold["m_0123456789ab:1"].seenAt = Date.now() - 60000;  // the seat last played
+  shared.set("600b:seats", JSON.stringify(cold));
+  const reopened = loadNet({ ...HTTP_ENV, store: shared });
+  assert.equal(reopened.net.start({}).seat, 1, "a stale credential is ours again");
+});
+
+/* An upgrade must not cost a player the table they are sitting at. */
+test("a seat saved by the previous single-key build still resumes", () => {
+  const legacy = {
+    matchId: "m_0123456789ab", seat: 1, token: "a".repeat(32),
+    table: "ws://bitbeam:8777/ws", code: "K7M2QF",
+  };
+  const warm = loadNet({ ...HTTP_ENV, storage: { "600b:match": JSON.stringify(legacy) } });
+  const started = warm.net.start({});
+  assert.equal(started.resuming, true);
+  assert.equal(started.seat, 1);
+  assert.deepEqual(warm.opened, ["ws://bitbeam:8777/ws"]);
 });
 
 test("the table URL is derived from the page, and ?table= overrides it", () => {

@@ -17,7 +17,6 @@
   "use strict";
 
   const WIRE = 1;
-  const LS_MATCH = "600b:match";
   const LS_PUBKEY = "600b:pubkey"; // the same key index.html's login writes
   const KIND_HANDSHAKE = 4600;     // invite + accept, discriminated by the t tag
   const KIND_RESULT = 31600;       // addressable, d = matchId
@@ -136,21 +135,116 @@
     try { return new URLSearchParams(location.search).get(name); } catch (err) { return null; }
   };
 
-  function savedMatch() {
+  /* A seat credential is the TAB's, not the browser's — but localStorage is
+   * shared by every tab of an origin, and one key held one record. Playing both
+   * sides on one machine therefore broke twice over: the second tab resumed on
+   * the first tab's token and superseded it, and whichever tab saved last
+   * destroyed the other's credential outright, so a reload came back as the
+   * wrong seat.
+   *
+   * So sessionStorage is the store — it is per tab and survives a reload, which
+   * is exactly the lifetime a seat has. localStorage keeps a per-seat map purely
+   * so a CLOSED browser can still reclaim its seat; entries there are stamped
+   * with the tab holding them and a heartbeat, and a tab may only adopt one that
+   * has stopped beating. That separates the two situations which look identical
+   * in storage: another tab is playing that seat right now (leave it alone and
+   * take the free one), versus the browser was closed and reopened (it is ours). */
+  const SS_MATCH = "600b:match";   // this tab's live session
+  const TAB_KEY = "600b:tab";
+  const LS_SEATS = "600b:seats";   // {"<matchId>:<seat>": {…credential, tab, seenAt}}
+  const BEAT_MS = 4000;
+  const STALE_MS = 12000; // three missed beats — long enough to survive a GC pause
+
+  const readJSON = (store, key) => {
     try {
-      const raw = localStorage.getItem(LS_MATCH);
-      const value = raw ? JSON.parse(raw) : null;
-      return value && typeof value.matchId === "string" ? value : null;
+      const raw = store.getItem(key);
+      return raw ? JSON.parse(raw) : null;
     } catch (err) {
       return null;
     }
+  };
+  const writeJSON = (store, key, value) => {
+    try { store.setItem(key, JSON.stringify(value)); } catch (err) { /* private mode, quota */ }
+  };
+
+  function tabId() {
+    try {
+      let id = sessionStorage.getItem(TAB_KEY);
+      if (!id) {
+        id = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        sessionStorage.setItem(TAB_KEY, id);
+      }
+      return id;
+    } catch (err) {
+      return "no-session-storage";
+    }
   }
+
+  const seatMap = () => readJSON(localStorage, LS_SEATS) || {};
+  const seatKey = (v) => `${v.matchId}:${v.seat}`;
+
+  function savedMatch() {
+    // This tab's own session always wins: a reload is not a new player.
+    const mine = readJSON(sessionStorage, SS_MATCH);
+    if (mine && typeof mine.matchId === "string") return mine;
+
+    /* No session in this tab. Anything in the seat map was left by a tab that is
+     * gone (cold restart) or still running (a second tab). Prefer the most
+     * recently seen, and only hand over the token if its holder stopped beating. */
+    const entries = Object.values(seatMap()).filter((v) => v && typeof v.matchId === "string");
+    if (!entries.length) {
+      // A seat saved by the previous single-key build, so an upgrade mid-match
+      // does not quietly cost someone their table.
+      const legacy = readJSON(localStorage, "600b:match");
+      return legacy && typeof legacy.matchId === "string" ? legacy : null;
+    }
+    entries.sort((a, b) => (Number(b.seenAt) || 0) - (Number(a.seenAt) || 0));
+    const best = entries[0];
+    if (Date.now() - (Number(best.seenAt) || 0) >= STALE_MS) return best;
+    // Still live elsewhere: land on the table, but as no one in particular.
+    return { matchId: best.matchId, seat: null, token: null, table: best.table, code: best.code || null };
+  }
+
   function saveMatch(value) {
-    try { localStorage.setItem(LS_MATCH, JSON.stringify(value)); } catch (err) { /* private mode */ }
+    writeJSON(sessionStorage, SS_MATCH, value);
+    if (value && value.seat !== null && value.token) {
+      const map = seatMap();
+      map[seatKey(value)] = Object.assign({}, value, { tab: tabId(), seenAt: Date.now() });
+      writeJSON(localStorage, LS_SEATS, map);
+    }
   }
+
   function forgetMatch() {
-    try { localStorage.removeItem(LS_MATCH); } catch (err) { /* private mode */ }
+    const mine = readJSON(sessionStorage, SS_MATCH);
+    try { sessionStorage.removeItem(SS_MATCH); } catch (err) { /* private mode */ }
+    if (!mine || mine.seat === null) return;
+    const map = seatMap();
+    if (map[seatKey(mine)]) {
+      delete map[seatKey(mine)];
+      writeJSON(localStorage, LS_SEATS, map);
+    }
   }
+
+  /* Only the tab that owns a seat beats, and only for its own entry — so a
+   * spectator tab never masquerades as the seat holder, and two tabs at one
+   * table keep two separate credentials alive.
+   *
+   * The beat REWRITES a missing entry rather than skipping it. Two tabs each
+   * read-modify-write the whole map, so one can clobber the other's entry by
+   * writing a copy it read a moment too early; if a beat only ever refreshed an
+   * existing entry, whoever lost that race would vanish from storage for good.
+   * Restoring it makes the map converge no matter who writes last. */
+  const heartbeat = setInterval(() => {
+    const s = net.session;
+    if (!s || s.seat === null || !s.token) return;
+    const map = seatMap();
+    const entry = map[seatKey(s)];
+    if (entry && entry.tab !== tabId()) return; // another tab owns this seat
+    map[seatKey(s)] = Object.assign({}, entry || s, { tab: tabId(), seenAt: Date.now() });
+    writeJSON(localStorage, LS_SEATS, map);
+  }, BEAT_MS);
+  // Under node (the client tests) a bare interval would hold the process open.
+  if (heartbeat && typeof heartbeat.unref === "function") heartbeat.unref();
 
   /* Where the referee is. In order: an explicit ?table=, the table we were last
    * seated at, then the origin that served this page. On file:// there is no
@@ -620,7 +714,7 @@
     KIND_RESULT,
     start, create, join, act, sendNostr, leave, resume, tables,
     tableUrl, publicTable, publicTableIsLocal,
-    savedMatch,
+    savedMatch, saveMatch,
     get status() { return net.status; },
     get session() { return net.session; },
     get lastState() { return net.lastState; },
