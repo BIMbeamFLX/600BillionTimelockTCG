@@ -1,11 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     role="img" aria-labelledby="title">
   <title id="title">Keys resource</title>
-  <g transform="rotate(45 32 32)">
-    <rect x="19" y="26.5" width="52" height="11" fill="#FFF7EC"/>
-    <rect x="37" y="37.5" width="8" height="12" fill="#FFF7EC"/>
-    <rect x="50" y="37.5" width="9" height="12" fill="#FFF7EC"/>
-    <path fill="#7447B8" fill-rule="evenodd"
-      d="M7 16.5 A15.5 15.5 0 1 0 7 47.5 A15.5 15.5 0 1 0 7 16.5 Z
-         M7 25 A7 7 0 1 1 7 39 A7 7 0 1 1 7 25 Z"/>
+  <defs>
+    <filter id="glow" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur stdDeviation="1.7" result="b"/>
+    </filter>
+  </defs>
+  <g transform="translate(32 32) scale(1.30) translate(-32 -32)">
+    <g filter="url(#glow)" opacity="0.92"><g transform="translate(.8 -1.2)"><path d="M20 37a11 11 0 1 1 10.2-15.2L53 44.6V52h-7v-5h-6v-5h-6.6l-3.2-3.2A11 11 0 0 1 20 37Z" fill="none" stroke="#7447B8" stroke-width="7" stroke-linejoin="round"/><circle cx="20" cy="26" r="3.5" fill="#7447B8" stroke="#7447B8" stroke-width="3.5"/></g></g>
+    <g transform="translate(.8 -1.2)"><path d="M20 37a11 11 0 1 1 10.2-15.2L53 44.6V52h-7v-5h-6v-5h-6.6l-3.2-3.2A11 11 0 0 1 20 37Z" fill="none" stroke="#FFF7EC" stroke-width="5" stroke-linejoin="round"/><circle cx="20" cy="26" r="3.5" fill="#FFF7EC" stroke="#7447B8" stroke-width="1.4"/></g>
   </g>
 </svg>
