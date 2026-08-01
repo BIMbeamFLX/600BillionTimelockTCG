@@ -11,6 +11,7 @@ def test_static_site_pages_live_together() -> None:
         "arena.html",
         "cards.html",
         "e1-card-set.html",
+        "fx-demo.html",
         "index.html",
         "leaderboard.html",
         "play.html",

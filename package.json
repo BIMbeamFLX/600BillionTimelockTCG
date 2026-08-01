@@ -4,7 +4,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "node scripts/build-rulebook.cjs"
+    "build": "node scripts/build-rulebook.cjs",
+    "test:js": "node --test tests/js/*.test.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

@@ -1,648 +1,165 @@
-/* 600B Timelock TCG — local hotseat engine.
+/* 600B Timelock TCG — local hotseat table.
  *
- * Enforces the E1 rules framework: turn structure, the once-per-turn Resource
- * play, Buffer generation and resource burn, costs, clash with First Strike and
- * Overflow, and state checks. Card abilities the compiler recognised resolve
- * automatically; everything else is announced and resolved by the table using
- * the manual controls, which is why all 295 cards are playable. */
+ * This file holds NO rules. It is a view and a controller: it owns the DOM, the
+ * wording of the log, and the local click-gathering that turns a sequence of
+ * clicks into one validated action. Every state change goes through
+ * E1Engine.apply(), which is the same reducer a server or a peer would run.
+ *
+ * The table renders view(full, uiSeat(full)) rather than the full state, so the
+ * fog-of-war path is exercised on every frame of the local game every day and
+ * cannot rot. One implementation, continuously verified, instead of a redaction
+ * path that only runs in production. */
 (() => {
   "use strict";
 
-  const CARDS = window.E1_CARDS || [];
+  const E = globalThis.E1Engine;
+  const CARDS = globalThis.E1_CARDS || [];
   const SYMBOLS = ["P", "B", "K", "S", "T"];
-  const SYMBOL_NAME = { P: "Power", B: "Bitcoin", K: "Keys", S: "Signal", T: "Timelock" };
-  const NAME_SYMBOL = { Power: "P", Bitcoin: "B", Keys: "K", Signal: "S", Timelock: "T" };
-  const PHASES = [
-    { id: "unlock", label: "Unlock", auto: true },
-    { id: "maintenance", label: "Maintenance" },
-    { id: "draw", label: "Draw", auto: true },
-    { id: "build1", label: "Build I" },
-    { id: "clash", label: "Clash" },
-    { id: "build2", label: "Build II" },
-    { id: "end", label: "End" },
-    { id: "cleanup", label: "Cleanup", auto: true },
-  ];
-  const CLASH_STAGES = ["attackers", "blockers", "damage", "done"];
-  const START_UPTIME = 20;
-  const HAND_LIMIT = 7;
+  const SYMBOL_NAME = { P: "Power", B: "Bitcoin", K: "Keys", S: "Signal", T: "Timelock", N: "neutral" };
+  const CARD_BY_ID = Object.create(null);
+  const COMPILED = Object.create(null);
+  for (const card of CARDS) CARD_BY_ID[card.id] = card;
+  const compiled = (cardId) => {
+    if (!COMPILED[cardId]) COMPILED[cardId] = E.compileCard(CARD_BY_ID[cardId]);
+    return COMPILED[cardId];
+  };
 
-  const isResource = (card) => card.type === "Basic Resource" || card.type === "Resource";
-  const isPermanent = (card) =>
-    isResource(card) || /Avatar|Hardware|Protocol/.test(card.type);
-  const isAvatar = (card) => card.type.includes("Avatar");
-  const hasKeyword = (card, name) => card.keywords.some((k) => k.name === name);
+  /* Host-side session. `full` is the unredacted state — in a multiplayer build
+   * this object lives on the server (or with the dealer) and each client holds
+   * only its view. The log is accumulated by the host, not stored in state. */
+  const session = {
+    full: null,
+    log: [],       // the chained transcript
+    events: [],    // rendered as the table log
+    notice: null,  // last rejection, shown in #prompt
+  };
 
-  let state = null;
-  let uidSeq = 1;
-  let pending = null; // { prompt, kinds, onPick, cancel }
+  /* Local click-gathering. None of this is game state: it is the half-formed
+   * intent between the first click and the one action that gets dispatched. */
+  let picking = null; // { kind:"play"|"ability", uid, abilityIndex, spec, targets }
+  let attackers = [];
+  let blocks = {};
 
-  // ---------------------------------------------------------------- deck build
+  /* Which seat the hotseat table is currently speaking to. Priority rather than
+   * turn.active, because the defender acts during the blockers step — and for a
+   * pending proposal it is the OPPONENT of the proposer, since they are the one
+   * whose verdict the game is waiting on. */
+  const uiSeat = (s) =>
+    (s.pendingChoice && s.pendingChoice.seat) ??
+    (s.pendingManual ? 1 - s.pendingManual.seat : null) ??
+    (s.awaiting && s.awaiting.seat) ??
+    s.priority.seat ??
+    s.turn.active;
 
-  function rng(seed) {
-    let a = seed >>> 0;
-    return () => {
-      a = (a + 0x6d2b79f5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
+  // ------------------------------------------------------------- dispatch
 
-  function pick(pool, count, rand) {
-    const out = [];
-    if (!pool.length) return out;
-    for (let i = 0; i < count; i++) out.push(pool[Math.floor(rand() * pool.length)]);
-    return out;
-  }
-
-  /* 40 cards in the rulebook's recommended prototype shape (section 7). */
-  function buildDeck(affinity, seed) {
-    const rand = rng(seed);
-    const inAffinity = (card) =>
-      affinity === "All" || card.affinity.includes(affinity) || card.affinity.includes("Neutral");
-    const pool = CARDS.filter(inAffinity);
-    const of = (test) => pool.filter(test);
-    const deck = [
-      ...pick(of(isResource), 17, rand),
-      ...pick(of((c) => isAvatar(c)), 14, rand),
-      ...pick(of((c) => c.type === "Zap" || c.type === "Operation"), 5, rand),
-      ...pick(of((c) => c.type === "Hardware" || c.type === "Protocol"), 4, rand),
-    ].filter(Boolean);
-    for (let i = deck.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [deck[i], deck[j]] = [deck[j], deck[i]];
+  function dispatch(type, seat, payload) {
+    const state = session.full;
+    if (!state) return false;
+    const action = { type, seat, seq: state.seq, at: "", payload: payload || {} };
+    const result = E.apply(state, action);
+    if (result.error) {
+      // Every rejection used to be a log(..., "warn") line and the click
+      // silently did nothing. Now it is a code with a message.
+      session.notice = result.error.message;
+      render();
+      return false;
     }
-    return deck.map((card) => ({ uid: uidSeq++, card }));
-  }
-
-  function newPlayer(name, affinity, seed) {
-    return {
-      name,
-      affinity,
-      uptime: START_UPTIME,
-      stack: buildDeck(affinity, seed),
-      wallet: [],
-      network: [],
-      archive: [],
-      cold: [],
-      buffer: { P: 0, B: 0, K: 0, S: 0, T: 0, N: 0 },
-      lost: false,
-    };
-  }
-
-  // ------------------------------------------------------------------- helpers
-
-  const active = () => state.players[state.turnPlayer];
-  const inactive = () => state.players[1 - state.turnPlayer];
-  const phase = () => PHASES[state.phase];
-
-  function log(message, tone) {
-    state.log.unshift({ message, tone, turn: state.turn });
-    if (state.log.length > 220) state.log.pop();
-  }
-
-  function draw(player, count) {
-    for (let i = 0; i < count; i++) {
-      if (!player.stack.length) {
-        player.lost = true;
-        log(`${player.name} cannot draw from an empty Stack and loses.`, "bad");
-        return;
-      }
-      player.wallet.push(player.stack.shift());
+    session.notice = null;
+    const prev = session.log.length ? session.log[session.log.length - 1].hash : state.gameId;
+    const stateHash = E.hashState(result.state);
+    const entry = { seq: action.seq, seat, at: "", action, prev, stateHash };
+    entry.hash = E.entryHash(entry);
+    session.log.push(entry);
+    session.full = result.state;
+    // Events arrive redacted for whichever seat the table is showing.
+    for (const event of E.redactEvents(result.events, uiSeat(result.state))) {
+      session.events.unshift(event);
     }
-  }
-
-  function bufferTotal(player) {
-    return SYMBOLS.concat("N").reduce((sum, key) => sum + player.buffer[key], 0);
-  }
-
-  function burnBuffer(player, reason) {
-    const total = bufferTotal(player);
-    if (!total) return;
-    player.uptime -= total;
-    for (const key of SYMBOLS.concat("N")) player.buffer[key] = 0;
-    log(`${player.name} burns ${total} unspent Resource${total > 1 ? "s" : ""} (${reason}) — −${total} Uptime.`, "warn");
-  }
-
-  function canPay(player, cost) {
-    if (!cost) return true;
-    const buffer = { ...player.buffer };
-    for (const symbol of SYMBOLS) {
-      const need = cost[symbol] || 0;
-      if (buffer[symbol] < need) return false;
-      buffer[symbol] -= need;
-    }
-    const pool = SYMBOLS.reduce((sum, s) => sum + buffer[s], 0) + buffer.N;
-    return pool >= (cost.generic || 0);
-  }
-
-  function pay(player, cost) {
-    if (!cost) return true;
-    if (!canPay(player, cost)) return false;
-    for (const symbol of SYMBOLS) player.buffer[symbol] -= cost[symbol] || 0;
-    let generic = cost.generic || 0;
-    for (const key of ["N", ...SYMBOLS]) {
-      while (generic > 0 && player.buffer[key] > 0) {
-        player.buffer[key]--;
-        generic--;
-      }
-    }
+    if (session.events.length > 240) session.events.length = 240;
+    render();
     return true;
   }
 
-  function moveTo(player, entry, zone) {
-    for (const name of ["network", "wallet", "archive", "cold", "stack"]) {
-      const index = player[name].indexOf(entry);
-      if (index >= 0) player[name].splice(index, 1);
-    }
-    entry.damage = 0;
-    entry.plusAction = 0;
-    entry.plusResilience = 0;
-    entry.committed = false;
-    entry.attacking = false;
-    entry.blocking = null;
-    player[zone].push(entry);
-  }
+  // ---------------------------------------------------------- log wording
 
-  const statOf = (entry) => ({
-    action: (entry.card.action || 0) + (entry.plusAction || 0),
-    resilience: (entry.card.resilience || 0) + (entry.plusResilience || 0),
-  });
+  const nameOf = (cardId) => (CARD_BY_ID[cardId] ? CARD_BY_ID[cardId].name : "a card");
+  const seatName = (seat) => (session.full ? session.full.seats[seat].name : `Seat ${seat}`);
 
-  function ownerOf(entry) {
-    return state.players.find((p) =>
-      ["network", "wallet", "archive", "cold", "stack"].some((z) => p[z].includes(entry))
-    );
-  }
-
-  // -------------------------------------------------------------- state checks
-
-  function stateChecks() {
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const player of state.players) {
-        if (player.uptime <= 0 && !player.lost) {
-          player.lost = true;
-          log(`${player.name} is at 0 Uptime and loses.`, "bad");
-          changed = true;
-        }
-        for (const entry of [...player.network]) {
-          if (!isAvatar(entry.card)) continue;
-          const { resilience } = statOf(entry);
-          if (resilience <= 0 || (entry.damage || 0) >= resilience) {
-            moveTo(player, entry, "archive");
-            log(`${entry.card.name} is decommissioned.`, "warn");
-            changed = true;
-          }
-        }
-      }
-    }
-    const alive = state.players.filter((p) => !p.lost);
-    if (alive.length === 1 && !state.winner) {
-      state.winner = alive[0].name;
-      log(`${alive[0].name} wins the game.`, "good");
-    }
-  }
-
-  // ------------------------------------------------------------------ abilities
-
-  function targetsFor(kind) {
-    const out = [];
-    for (const player of state.players) {
-      for (const entry of player.network) {
-        const card = entry.card;
-        const match =
-          kind === "any"
-            ? isAvatar(card)
-            : kind === "avatar" || kind === "this"
-              ? isAvatar(card)
-              : card.type.includes(kind);
-        if (match) out.push({ type: "entry", entry, player });
-      }
-    }
-    if (kind === "any" || kind === "player") {
-      for (const player of state.players) out.push({ type: "player", player });
-    }
-    return out;
-  }
-
-  function damageTo(target, amount, sourceName) {
-    if (target.type === "player") {
-      target.player.uptime -= amount;
-      log(`${sourceName} deals ${amount} damage to ${target.player.name}.`, "warn");
-    } else {
-      target.entry.damage = (target.entry.damage || 0) + amount;
-      log(`${sourceName} deals ${amount} damage to ${target.entry.card.name}.`, "warn");
+  /* The engine emits structured events and never prose; all wording lives here
+   * so it can change without touching a hashed byte. */
+  function describe(event) {
+    const p = event;
+    switch (event.t) {
+      case "TURN": return [`=== Turn ${p.number} · ${seatName(p.seat)} ===`, ""];
+      case "PHASE": return [`— ${p.phase} —`, ""];
+      case "UNLOCK": return [`${seatName(p.seat)} unlocks everything.`, ""];
+      case "DRAW": return [`${seatName(p.seat)} draws${p.cardId ? ` ${nameOf(p.cardId)}` : " a card"}.`, ""];
+      case "DECKED": return [`${seatName(p.seat)} cannot draw from an empty Stack.`, "bad"];
+      case "BURN": return [`${seatName(p.seat)} burns ${p.amount} unspent Resource${p.amount > 1 ? "s" : ""} (${p.reason}) — −${p.amount} Uptime.`, "warn"];
+      case "GENERATE": return [`${seatName(p.seat)} generates ${p.amount} ${SYMBOL_NAME[p.symbol] || p.symbol}.`, "good"];
+      case "PAID": return [`${seatName(p.seat)} pays ${bufferText(p.payment)}.`, ""];
+      case "SPEND": return [`${seatName(p.seat)} spends ${p.amount} ${SYMBOL_NAME[p.symbol]}.`, ""];
+      case "QUEUED": return [`${seatName(p.seat)} announces ${nameOf(p.cardId)}.`, ""];
+      case "ENTERS": return [`${nameOf(p.cardId)} enters the Network.`, ""];
+      case "RESOLVED": return [`${nameOf(p.cardId)} resolves.`, ""];
+      case "INVALIDATED": return [`${nameOf(p.cardId)} is invalidated (${p.reason}) and archived.`, "warn"];
+      case "ARCHIVED": return [`${nameOf(p.cardId)} is archived.`, "warn"];
+      case "DECOMMISSIONED": return [`${nameOf(p.cardId)} is decommissioned.`, "warn"];
+      case "REBOOT": return [`${nameOf(p.cardId)} Reboots instead of being decommissioned.`, "good"];
+      case "REBOOT_SHIELD": return ["A Reboot shield is created.", "good"];
+      case "DAMAGE":
+        return p.to === "seat"
+          ? [`${seatName(p.seat)} takes ${p.amount} damage.`, "warn"]
+          : [`${p.amount} damage is marked on the board.`, "warn"];
+      case "PREVENTED": return ["Damage is prevented — Shielded.", "good"];
+      case "UPTIME": return [`${seatName(p.seat)} ${p.delta >= 0 ? "gains" : "loses"} ${Math.abs(p.delta)} Uptime.`, p.delta >= 0 ? "good" : "warn"];
+      case "PUMP": return ["A stat modifier is applied.", "good"];
+      case "COUNTER": return [`A ${p.name} counter is placed.`, "good"];
+      case "COMMIT": return [p.value ? "An object is committed." : "An object is unlocked.", ""];
+      case "ATTACKERS": return [p.attackers.length ? `${seatName(p.seat)} attacks with ${p.attackers.length}.` : `${seatName(p.seat)} declares no attackers.`, ""];
+      case "BLOCKERS": return [`${seatName(p.seat)} declares blocks.`, ""];
+      case "ORDER": return ["Blockers are ordered.", ""];
+      case "COMBAT_DAMAGE": return [p.firstStrike ? "First Strike damage." : "Combat damage.", "warn"];
+      case "DISCARD": case "DISCARDED": return [`${seatName(p.seat)} discards.`, "warn"];
+      case "RANDOM_PICK": return [`Random choice from ${p.eligible.length} eligible.`, ""];
+      case "SHUFFLE": return ["A zone is shuffled.", ""];
+      case "CLEANUP": return [`${seatName(p.seat)} cleans up.`, ""];
+      case "PASS_PRIORITY": return [`${seatName(p.seat)} passes${p.auto ? " (auto)" : ""}.`, ""];
+      case "MANUAL_ANNOUNCED": return [`${nameOf(p.cardId)}: resolve at the table.`, "manual"];
+      case "MANUAL_PROPOSED": return [`${seatName(p.seat)} proposes (Tier ${p.tier}): ${p.cardText}`, "manual"];
+      case "MANUAL_APPLIED": return [`Manual edit applied: ${opsText(p.ops)}`, "manual"];
+      case "MANUAL_ACCEPTED": return [`${seatName(p.seat)} accepts.`, "manual"];
+      case "MANUAL_REJECTED": return [`${seatName(p.seat)} REJECTS — the card fizzles.${p.reason ? " " + p.reason : ""}`, "bad"];
+      case "MANUAL_RESOLVED": return ["Assisted ability closed with no change.", "manual"];
+      case "MANUAL_WITHDRAWN": return ["Proposal withdrawn.", "manual"];
+      case "MANUAL_FLAGGED": return [`⚑ ${seatName(p.seat)} flags a manual edit: ${p.reason}`, "bad"];
+      case "NOTE": return [p.text, "manual"];
+      case "TOKEN": return ["A token is created.", "good"];
+      case "GAME_OVER":
+        return [p.reason === "draw" ? "The game is a draw." : `${seatName(p.winners[0])} wins (${p.reason}).`, "good"];
+      default: return null;
     }
   }
 
-  /* Resolve one compiled op, asking for a target when the template needs one. */
-  function runOps(ops, controller, sourceEntry, done) {
-    const queue = [...ops];
-    const sourceName = sourceEntry ? sourceEntry.card.name : "The ability";
+  const bufferText = (buffer) =>
+    Object.keys(buffer)
+      .filter((key) => buffer[key])
+      .map((key) => `${buffer[key]} ${key}`)
+      .join(" + ") || "nothing";
 
-    const step = () => {
-      if (!queue.length) {
-        stateChecks();
-        render();
-        if (done) done();
-        return;
-      }
-      const op = queue.shift();
-      switch (op.op) {
-        case "generate": {
-          const key =
-            op.affinity === "neutral" || op.affinity === "choice"
-              ? "N"
-              : NAME_SYMBOL[op.affinity] || "N";
-          controller.buffer[key] += op.amount;
-          const label = op.affinity === "choice" ? "any affinity" : op.affinity;
-          log(`${controller.name} generates ${op.amount} ${label}.`, "good");
-          return step();
-        }
-        case "damage": {
-          if (op.target === "each-player") {
-            for (const player of state.players) damageTo({ type: "player", player }, op.amount, sourceName);
-            return step();
-          }
-          if (op.target === "each-avatar") {
-            for (const player of state.players)
-              for (const entry of [...player.network])
-                if (isAvatar(entry.card)) damageTo({ type: "entry", entry }, op.amount, sourceName);
-            return step();
-          }
-          return requestTarget(`Choose a target for ${op.amount} damage`, op.target, (target) => {
-            damageTo(target, op.amount, sourceName);
-            step();
-          });
-        }
-        case "draw":
-          draw(controller, op.amount);
-          log(`${controller.name} draws ${op.amount}.`);
-          return step();
-        case "uptime": {
-          const who = op.target === "player" ? controller : controller;
-          who.uptime += op.amount;
-          log(`${who.name} gains ${op.amount} Uptime.`, "good");
-          return step();
-        }
-        case "discard": {
-          const victim = state.players.find((p) => p !== controller);
-          for (let i = 0; i < op.amount && victim.wallet.length; i++) {
-            const entry = victim.wallet[Math.floor(Math.random() * victim.wallet.length)];
-            moveTo(victim, entry, "archive");
-          }
-          log(`${victim.name} discards ${op.amount}.`, "warn");
-          return step();
-        }
-        case "pump": {
-          const apply = (entry) => {
-            entry.plusAction = (entry.plusAction || 0) + op.action;
-            entry.plusResilience = (entry.plusResilience || 0) + op.resilience;
-            if (op.duration === "eot") state.untilEndOfTurn.push({ entry, ...op });
-          };
-          if (op.target === "target-avatar") {
-            return requestTarget("Choose an Avatar to pump", "avatar", (target) => {
-              apply(target.entry);
-              log(`${target.entry.card.name} gets +${op.action}/+${op.resilience}.`, "good");
-              step();
-            });
-          }
-          if (op.target === "this-avatar" && sourceEntry) apply(sourceEntry);
-          else
-            for (const entry of controller.network)
-              if (isAvatar(entry.card)) apply(entry);
-          log(`+${op.action}/+${op.resilience} applied.`, "good");
-          return step();
-        }
-        case "decommission": {
-          if (op.scope === "all") {
-            for (const player of state.players)
-              for (const entry of [...player.network])
-                if (entry.card.type.includes(op.kind)) moveTo(player, entry, "archive");
-            log(`All ${op.kind}s decommissioned.`, "warn");
-            return step();
-          }
-          return requestTarget(`Choose a ${op.kind} to decommission`, op.kind, (target) => {
-            const owner = ownerOf(target.entry);
-            moveTo(owner, target.entry, "archive");
-            log(`${target.entry.card.name} is decommissioned.`, "warn");
-            step();
-          });
-        }
-        case "reboot":
-          if (sourceEntry) {
-            sourceEntry.committed = false;
-            sourceEntry.damage = 0;
-            log(`${sourceEntry.card.name} reboots.`, "good");
-          }
-          return step();
-        default:
-          return step();
-      }
-    };
-    step();
-  }
+  const opsText = (ops) =>
+    ops
+      .map((op) => {
+        if (op.op === "note") return op.text;
+        const bits = Object.keys(op)
+          .filter((key) => key !== "op")
+          .map((key) => `${key}=${JSON.stringify(op[key])}`);
+        return `${op.op}(${bits.join(", ")})`;
+      })
+      .join("; ");
 
-  function requestTarget(prompt, kinds, onPick) {
-    const options = targetsFor(kinds);
-    if (!options.length) {
-      log(`${prompt}: no legal target, the effect is invalidated.`, "warn");
-      render();
-      return;
-    }
-    pending = { prompt, options, onPick };
-    render();
-  }
-
-  function resolveAbility(entry, ability, controller) {
-    if (ability.manual || !ability.ops) {
-      log(`${entry.card.name}: “${ability.text}” — resolve manually.`, "manual");
-      state.manualNote = `${entry.card.name}: ${ability.text}`;
-      render();
-      return;
-    }
-    runOps(ability.ops, controller, entry);
-  }
-
-  function activateAbility(entry, index) {
-    const controller = ownerOf(entry);
-    if (controller !== active() || state.winner) return;
-    const ability = entry.card.abilities[index];
-    if (!ability || ability.kind !== "activated") return;
-    const cost = ability.cost || "";
-    if (/Commit/i.test(cost)) {
-      if (entry.committed) return log(`${entry.card.name} is already committed.`, "warn");
-      entry.committed = true;
-    }
-    const symbolCost = {};
-    let generic = (cost.match(/\d+/) || [])[0];
-    if (generic) symbolCost.generic = Number(generic);
-    for (const ch of cost) if (SYMBOLS.includes(ch)) symbolCost[ch] = (symbolCost[ch] || 0) + 1;
-    if (Object.keys(symbolCost).length && !pay(controller, symbolCost)) {
-      entry.committed = false;
-      return log(`Not enough Resources in the Buffer for ${entry.card.name}.`, "warn");
-    }
-    log(`${controller.name} activates ${entry.card.name}: ${ability.text}`);
-    resolveAbility(entry, ability, controller);
-    render();
-  }
-
-  // ---------------------------------------------------------------- playing
-
-  function playFromWallet(entry) {
-    const player = active();
-    if (state.winner) return;
-    const card = entry.card;
-    const canSorcerySpeed = ["build1", "build2"].includes(phase().id);
-
-    if (isResource(card)) {
-      if (!canSorcerySpeed) return log("Play Resources during Build I or Build II.", "warn");
-      if (state.resourcePlayed) return log("You have already played a Resource this turn.", "warn");
-      moveTo(player, entry, "network");
-      state.resourcePlayed = true;
-      log(`${player.name} plays ${card.name}.`);
-      stateChecks();
-      return render();
-    }
-
-    const isZap = card.type === "Zap";
-    if (!isZap && !canSorcerySpeed)
-      return log(`${card.type}s are played during Build I or Build II.`, "warn");
-    if (!pay(player, card.costParsed))
-      return log(`Not enough Resources in the Buffer for ${card.name}.`, "warn");
-
-    log(`${player.name} plays ${card.name}.`);
-    const playAbilities = card.abilities.filter((a) => a.kind === "play" || a.kind === "static");
-    if (isPermanent(card)) {
-      moveTo(player, entry, "network");
-      const auto = playAbilities.filter((a) => !a.manual && a.ops);
-      for (const ability of auto) runOps(ability.ops, player, entry);
-      const manual = card.abilities.filter((a) => a.manual);
-      if (manual.length) {
-        state.manualNote = `${card.name}: ${manual.map((a) => a.text).join(" / ")}`;
-        log(`${card.name}: resolve “${manual[0].text}” manually.`, "manual");
-      }
-    } else {
-      // Zaps and Operations resolve, then go to the Archive.
-      const auto = card.abilities.filter((a) => !a.manual && a.ops);
-      moveTo(player, entry, "archive");
-      if (auto.length) {
-        for (const ability of auto) runOps(ability.ops, player, entry);
-      } else {
-        state.manualNote = `${card.name}: ${card.text}`;
-        log(`${card.name}: resolve manually, then it is archived.`, "manual");
-      }
-    }
-    stateChecks();
-    render();
-  }
-
-  // ------------------------------------------------------------------- phases
-
-  function runPhaseEntry() {
-    const player = active();
-    switch (phase().id) {
-      case "unlock":
-        for (const entry of player.network) entry.committed = false;
-        log(`${player.name} unlocks everything.`);
-        return nextPhase();
-      case "draw":
-        // Section 8: the first player does draw during their first turn.
-        draw(player, 1);
-        log(`${player.name} draws for turn.`);
-        stateChecks();
-        return nextPhase();
-      case "clash":
-        state.clash = { stage: "attackers", attackers: [], blocks: {} };
-        burnBuffer(state.players[0], "Clash begins");
-        burnBuffer(state.players[1], "Clash begins");
-        break;
-      case "cleanup": {
-        while (player.wallet.length > HAND_LIMIT) {
-          moveTo(player, player.wallet[player.wallet.length - 1], "archive");
-        }
-        for (const p of state.players)
-          for (const entry of p.network) entry.damage = 0;
-        for (const effect of state.untilEndOfTurn) {
-          effect.entry.plusAction -= effect.action;
-          effect.entry.plusResilience -= effect.resilience;
-        }
-        state.untilEndOfTurn = [];
-        log(`${player.name} cleans up.`);
-        stateChecks();
-        return endTurn();
-      }
-    }
-    stateChecks();
-    render();
-  }
-
-  function nextPhase() {
-    if (state.winner) return render();
-    // Clash steps are inside one phase; the Buffer only burns at its start and end.
-    if (phase().id === "clash" && state.clash.stage !== "done") {
-      return advanceClash();
-    }
-    burnBuffer(active(), `end of ${phase().label}`);
-    state.phase += 1;
-    if (state.phase >= PHASES.length) return endTurn();
-    log(`— ${phase().label} —`);
-    runPhaseEntry();
-  }
-
-  function endTurn() {
-    state.turnPlayer = 1 - state.turnPlayer;
-    if (state.turnPlayer === state.firstPlayer) state.turn += 1;
-    state.phase = 0;
-    state.resourcePlayed = false;
-    state.clash = { stage: null, attackers: [], blocks: {} };
-    log(`=== Turn ${state.turn} · ${active().name} ===`);
-    runPhaseEntry();
-  }
-
-  // -------------------------------------------------------------------- clash
-
-  function canAttack(entry) {
-    const card = entry.card;
-    return (
-      isAvatar(card) &&
-      !entry.committed &&
-      !hasKeyword(card, "Firewall") &&
-      !hasKeyword(card, "Boot Delay")
-    );
-  }
-
-  function toggleAttacker(entry) {
-    if (phase().id !== "clash" || state.clash.stage !== "attackers") return;
-    if (ownerOf(entry) !== active()) return;
-    if (!canAttack(entry) && !entry.attacking) {
-      return log(`${entry.card.name} cannot attack.`, "warn");
-    }
-    entry.attacking = !entry.attacking;
-    render();
-  }
-
-  function toggleBlock(blocker) {
-    if (phase().id !== "clash" || state.clash.stage !== "blockers") return;
-    if (ownerOf(blocker) !== inactive()) return;
-    if (blocker.committed) return log(`${blocker.card.name} is committed and cannot block.`, "warn");
-    const attackers = state.clash.attackers;
-    if (!attackers.length) return;
-    const current = attackers.indexOf(blocker.blocking);
-    const next = current + 1 >= attackers.length ? null : attackers[current + 1];
-    blocker.blocking = next;
-    render();
-  }
-
-  function dealCombatDamage(firstStrike) {
-    const attackerSide = active();
-    const defenderSide = inactive();
-    for (const attacker of state.clash.attackers) {
-      if (!attackerSide.network.includes(attacker)) continue;
-      const fs = hasKeyword(attacker.card, "First Strike");
-      if (fs !== firstStrike) continue;
-      const blockers = defenderSide.network.filter((b) => b.blocking === attacker);
-      const power = statOf(attacker).action;
-      if (!blockers.length) {
-        defenderSide.uptime -= power;
-        log(`${attacker.card.name} hits ${defenderSide.name} for ${power}.`, "warn");
-      } else {
-        let remaining = power;
-        for (const blocker of blockers) {
-          const lethal = Math.max(0, statOf(blocker).resilience - (blocker.damage || 0));
-          const assign = Math.min(remaining, lethal);
-          blocker.damage = (blocker.damage || 0) + assign;
-          remaining -= assign;
-        }
-        if (remaining > 0 && hasKeyword(attacker.card, "Overflow")) {
-          defenderSide.uptime -= remaining;
-          log(`${attacker.card.name} overflows ${remaining} to ${defenderSide.name}.`, "warn");
-        }
-      }
-    }
-    for (const blocker of defenderSide.network) {
-      if (!blocker.blocking) continue;
-      const fs = hasKeyword(blocker.card, "First Strike");
-      if (fs !== firstStrike) continue;
-      blocker.blocking.damage = (blocker.blocking.damage || 0) + statOf(blocker).action;
-    }
-    stateChecks();
-  }
-
-  function advanceClash() {
-    const clash = state.clash;
-    if (clash.stage === "attackers") {
-      clash.attackers = active().network.filter((e) => e.attacking);
-      for (const attacker of clash.attackers) attacker.committed = true;
-      log(
-        clash.attackers.length
-          ? `${active().name} attacks with ${clash.attackers.map((a) => a.card.name).join(", ")}.`
-          : `${active().name} declares no attackers.`
-      );
-      clash.stage = clash.attackers.length ? "blockers" : "done";
-      if (clash.stage === "done") return nextPhaseAfterClash();
-      return render();
-    }
-    if (clash.stage === "blockers") {
-      const blockers = inactive().network.filter((b) => b.blocking);
-      log(blockers.length ? `${inactive().name} blocks with ${blockers.length}.` : `${inactive().name} does not block.`);
-      clash.stage = "damage";
-      dealCombatDamage(true);
-      dealCombatDamage(false);
-      for (const entry of [...active().network, ...inactive().network]) {
-        entry.attacking = false;
-        entry.blocking = null;
-      }
-      clash.stage = "done";
-      burnBuffer(state.players[0], "Clash ends");
-      burnBuffer(state.players[1], "Clash ends");
-      return nextPhaseAfterClash();
-    }
-    return nextPhaseAfterClash();
-  }
-
-  function nextPhaseAfterClash() {
-    state.phase += 1;
-    log(`— ${phase().label} —`);
-    runPhaseEntry();
-  }
-
-  // ------------------------------------------------------------ manual controls
-
-  function manual(action, value) {
-    const player = state.players[value?.side ?? state.turnPlayer];
-    switch (action) {
-      case "uptime":
-        player.uptime += value.delta;
-        log(`Manual: ${player.name} Uptime ${value.delta > 0 ? "+" : ""}${value.delta}.`, "manual");
-        break;
-      case "generate":
-        player.buffer[value.symbol] += 1;
-        log(`Manual: ${player.name} generates 1 ${SYMBOL_NAME[value.symbol] || "neutral"}.`, "manual");
-        break;
-      case "draw":
-        draw(player, 1);
-        log(`Manual: ${player.name} draws a card.`, "manual");
-        break;
-      case "clear":
-        state.manualNote = null;
-        break;
-    }
-    stateChecks();
-    render();
-  }
-
-  function moveEntry(entry, zone) {
-    const owner = ownerOf(entry);
-    moveTo(owner, entry, zone);
-    log(`Manual: ${entry.card.name} → ${zone}.`, "manual");
-    stateChecks();
-    render();
-  }
-
-  // ------------------------------------------------------------------- render
+  // ------------------------------------------------------------ DOM helpers
 
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
@@ -651,202 +168,496 @@
     return node;
   };
 
-  function faceUrl(card) {
-    return "../art/cards/node-runner-web/" + encodeURIComponent(card.face);
+  const faceUrl = (card) => "../art/cards/node-runner-web/" + encodeURIComponent(card.face);
+
+  // ------------------------------------------------------- click intentions
+
+  function beginPlay(v, seat, uid) {
+    const object = v.objects[uid];
+    if (!object || !object.cardId) return;
+    const card = compiled(object.cardId);
+    if (card.isResource) return void dispatch("PLAY_RESOURCE", seat, { uid });
+    const spec = card.playTargetSpec;
+    if (!spec.length) return void dispatch("PLAY_CARD", seat, { uid, targets: [] });
+    picking = { kind: "play", uid, spec, targets: [] };
+    render();
   }
 
-  function cardNode(entry, options = {}) {
-    const card = entry.card;
+  function beginAbility(v, seat, uid, abilityIndex, choice) {
+    const card = compiled(v.objects[uid].cardId);
+    const ability = card.abilities[abilityIndex];
+    if (ability.resourceAbility) {
+      const payload = { uid, abilityIndex };
+      if (choice) payload.choice = choice;
+      return void dispatch("ACTIVATE_RESOURCE_ABILITY", seat, payload);
+    }
+    if (!ability.targetSpec.length) {
+      return void dispatch("ACTIVATE_ABILITY", seat, { uid, abilityIndex, targets: [] });
+    }
+    picking = { kind: "ability", uid, abilityIndex, spec: ability.targetSpec, targets: [] };
+    render();
+  }
+
+  function offerTarget(target) {
+    if (!picking) return false;
+    picking.targets.push(target);
+    if (picking.targets.length < picking.spec.length) {
+      render();
+      return true;
+    }
+    const { kind, uid, abilityIndex, targets } = picking;
+    picking = null;
+    if (kind === "play") dispatch("PLAY_CARD", uiSeat(session.full), { uid, targets });
+    else dispatch("ACTIVATE_ABILITY", uiSeat(session.full), { uid, abilityIndex, targets });
+    return true;
+  }
+
+  const wantsTarget = (v, uid) => {
+    if (!picking) return false;
+    const spec = picking.spec[picking.targets.length];
+    if (!spec) return false;
+    const object = v.objects[uid];
+    if (!object || !object.cardId) return false;
+    const card = compiled(object.cardId);
+    if (spec.kind === "seat") return false;
+    if (spec.kind === "avatar" || spec.kind === "any") return card.isAvatar;
+    if (spec.kind.indexOf("type:") === 0) return card.type.indexOf(spec.kind.slice(5)) >= 0;
+    return true;
+  };
+
+  // ------------------------------------------------------------ card nodes
+
+  function cardNode(v, uid, options) {
+    const object = v.objects[uid];
     const node = el("div", "gcard");
-    if (entry.committed) node.classList.add("committed");
-    if (entry.attacking) node.classList.add("attacking");
-    if (entry.blocking) node.classList.add("blocking");
-    if (options.faceDown) {
-      node.classList.add("facedown");
+    if (!object || !object.cardId) {
+      node.classList.add("facedown"); // a shell: the opponent's Wallet
       return node;
     }
+    const card = CARD_BY_ID[object.cardId];
+    if (object.committed) node.classList.add("committed");
+    if (v.clash.attackers.indexOf(uid) >= 0 || attackers.indexOf(uid) >= 0) node.classList.add("attacking");
+    const blocking = Object.keys(v.clash.blocks).some((a) => v.clash.blocks[a].indexOf(uid) >= 0) ||
+      Object.keys(blocks).some((a) => blocks[a].indexOf(uid) >= 0);
+    if (blocking) node.classList.add("blocking");
+
     const img = el("img");
     img.src = faceUrl(card);
     img.alt = card.name;
     img.loading = "lazy";
     node.append(img);
 
-    if (isAvatar(card)) {
-      const stats = statOf(entry);
-      const badge = el("span", "gstats", `${stats.action}/${stats.resilience - (entry.damage || 0)}`);
-      if (entry.damage) badge.classList.add("hurt");
+    if (compiled(card.id).isAvatar) {
+      const stats = engineStats(v, uid);
+      const badge = el("span", "gstats", `${stats.action}/${stats.resilience - object.damage}`);
+      if (object.damage) badge.classList.add("hurt");
       node.append(badge);
     }
+    if (object.bootDelay) node.append(el("span", "gboot", "⏻"));
     if (card.manual) node.append(el("span", "gmanual", "!"));
-
-    const targetable =
-      pending && pending.options.some((o) => o.type === "entry" && o.entry === entry);
-    if (targetable) node.classList.add("targetable");
+    if (wantsTarget(v, uid)) node.classList.add("targetable");
 
     node.addEventListener("click", () => {
-      if (targetable) {
-        const chosen = pending.options.find((o) => o.type === "entry" && o.entry === entry);
-        const cb = pending.onPick;
-        pending = null;
-        return cb(chosen);
-      }
-      if (options.onClick) options.onClick(entry);
+      if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
+      if (options && options.onClick) options.onClick(uid);
     });
-    node.addEventListener("mouseenter", () => showInspector(entry));
+    node.addEventListener("mouseenter", () => showInspector(v, uid));
     return node;
   }
 
-  function showInspector(entry) {
-    const card = entry.card;
+  /* Stats are computed by the engine so the badge can never disagree with the
+   * rules. The view carries everything statsOf needs. */
+  function engineStats(v, uid) {
+    try {
+      return E.statsOf(v, E.resolveCtx({}), uid);
+    } catch (error) {
+      const card = CARD_BY_ID[v.objects[uid].cardId];
+      return { action: card.action || 0, resilience: card.resilience || 0 };
+    }
+  }
+
+  function showInspector(v, uid) {
+    const object = v.objects[uid];
     const box = document.getElementById("inspector");
     box.innerHTML = "";
+    if (!object || !object.cardId) {
+      box.append(el("span", null, "Face down."));
+      return;
+    }
+    const card = CARD_BY_ID[object.cardId];
+    const seat = uiSeat(session.full);
     const img = el("img");
     img.src = faceUrl(card);
     img.alt = card.name;
     box.append(img);
     const info = el("div", "ibody");
     info.append(el("strong", null, card.name));
-    info.append(el("div", "imeta", `${card.type}${card.subtype ? " — " + card.subtype : ""} · ${card.affinity.join("/")} · Cost ${card.cost || "—"}`));
+    info.append(el("div", "imeta",
+      `${card.type}${card.subtype ? " — " + card.subtype : ""} · ${card.affinity.join("/")} · Cost ${card.cost || "—"}`));
     if (card.text) info.append(el("p", "itext", card.text));
-    if (card.manual) info.append(el("p", "imanualnote", "Assisted: resolve this card's text at the table."));
+    if (card.manual) info.append(el("p", "imanualnote", "Assisted: propose the effect, your opponent sees it."));
+
     const acts = el("div", "iacts");
-    card.abilities.forEach((ability, index) => {
-      if (ability.kind !== "activated") return;
-      const button = el("button", null, `Activate: ${ability.text}`);
-      button.addEventListener("click", () => activateAbility(entry, index));
-      acts.append(button);
-    });
-    if (ownerOf(entry) && ownerOf(entry).network.includes(entry)) {
-      for (const zone of ["archive", "wallet", "cold"]) {
-        const button = el("button", "ghost", `→ ${zone}`);
-        button.addEventListener("click", () => moveEntry(entry, zone));
+    if (object.controller === seat && object.zone.endsWith(":network")) {
+      compiled(card.id).abilities.forEach((ability, index) => {
+        if (ability.kind !== "activated") return;
+        // "generate N Resources of one affinity" needs the affinity picked at
+        // activation. One button per affinity beats a modal: it keeps the whole
+        // table in the page and never blocks the renderer.
+        const needsChoice = ability.resourceAbility && ability.ops.some((op) => op.affinity === "choice");
+        if (needsChoice) {
+          for (const symbol of SYMBOLS) {
+            const button = el("button", null, `Activate → ${SYMBOL_NAME[symbol]}`);
+            button.addEventListener("click", () => beginAbility(v, seat, uid, index, symbol));
+            acts.append(button);
+          }
+          return;
+        }
+        const button = el("button", null, `Activate: ${ability.text}`);
+        button.addEventListener("click", () => beginAbility(v, seat, uid, index));
+        acts.append(button);
+      });
+      /* The inspector's zone and commit buttons used to be unattributed
+       * arbitrary state writes. They are now one-op proposals that land in the
+       * chain with an author, and the opponent sees anything that helps you. */
+      for (const zone of ["archive", "cold"]) {
+        const button = el("button", "ghost", `→ ${zone} (propose)`);
+        button.addEventListener("click", () =>
+          propose(seat, [{ op: "moveObject", uid, toZone: zone }], `move ${card.name} to ${zone}`));
         acts.append(button);
       }
-      const toggle = el("button", "ghost", entry.committed ? "Unlock" : "Commit");
-      toggle.addEventListener("click", () => {
-        entry.committed = !entry.committed;
-        render();
-      });
+      const toggle = el("button", "ghost", (object.committed ? "Unlock" : "Commit") + " (propose)");
+      toggle.addEventListener("click", () =>
+        propose(seat, [{ op: "setCommitted", uid, value: !object.committed }], `toggle ${card.name}`));
       acts.append(toggle);
     }
     info.append(acts);
     box.append(info);
   }
 
-  function renderZone(container, entries, options) {
+  /* Every human override routes through one audited, attributed, consent-aware
+   * door. A free-form warrant is used for the generic table controls, which is
+   * always Tier B and always needs a reason. */
+  function propose(seat, ops, reason) {
+    dispatch("MANUAL_PROPOSE", seat, { warrant: { kind: "freeform", note: reason }, ops, reason });
+  }
+
+  // ---------------------------------------------------------------- render
+
+  function renderZone(id, v, uids, options) {
+    const container = document.getElementById(id);
     container.innerHTML = "";
-    for (const entry of entries) container.append(cardNode(entry, options));
+    const list = Array.isArray(uids) ? uids : [];
+    for (const uid of list) container.append(cardNode(v, uid, options));
+    if (!Array.isArray(uids) && uids && uids.n) {
+      for (let i = 0; i < uids.n; i++) container.append(el("div", "gcard facedown"));
+    }
   }
 
   function render() {
-    const you = active();
-    const foe = inactive();
+    const full = session.full;
+    if (!full) return;
+    const seat = uiSeat(full);
+    const v = E.view(full, seat);      // the table renders the redacted view
+    const foe = 1 - seat;
 
     document.getElementById("turnchip").innerHTML =
-      `Turn <b>${state.turn}</b> · <b>${you.name}</b>` +
-      (state.winner ? ` · <b>${state.winner} wins</b>` : "");
+      `Turn <b>${v.turn.number}</b> · <b>${v.seats[seat].name}</b>` +
+      (v.result ? ` · <b>${v.result.reason === "draw" ? "draw" : v.seats[v.result.winners[0]].name + " wins"}</b>` : "");
 
     const ribbon = document.getElementById("phases");
     ribbon.innerHTML = "";
-    PHASES.forEach((p, index) => {
-      const node = el("div", "phase" + (index === state.phase ? " active" : index < state.phase ? " done" : ""), p.label);
-      ribbon.append(node);
+    const here = E.TURN_RIBBON.findIndex(
+      (slot) => slot.phase === v.turn.phase && (slot.step === null || slot.step === v.turn.step)
+    );
+    E.TURN_RIBBON.forEach((slot, index) => {
+      ribbon.append(el("div", "phase" + (index === here ? " active" : index < here ? " done" : ""), slot.label));
     });
 
-    for (const [side, player] of [["you", you], ["foe", foe]]) {
-      document.getElementById(`${side}Name`).textContent = player.name;
-      document.getElementById(`${side}Uptime`).textContent = player.uptime;
+    for (const [side, who] of [["you", seat], ["foe", foe]]) {
+      document.getElementById(`${side}Name`).textContent = v.seats[who].name;
+      document.getElementById(`${side}Uptime`).textContent = v.seats[who].uptime;
       document.getElementById(`${side}Counts`).textContent =
-        `Stack ${player.stack.length} · Wallet ${player.wallet.length} · Archive ${player.archive.length}`;
+        `Stack ${v.zoneCounts[`${who}:stack`]} · Wallet ${v.zoneCounts[`${who}:wallet`]} · Archive ${v.zoneCounts[`${who}:archive`]}` +
+        (v.seats[who].stats.manualRejected ? ` · rejected ${v.seats[who].stats.manualRejected}` : "");
       const buffer = document.getElementById(`${side}Buffer`);
       buffer.innerHTML = "";
       for (const key of [...SYMBOLS, "N"]) {
-        if (!player.buffer[key]) continue;
-        buffer.append(el("span", "pip pip-" + key, `${player.buffer[key]} ${key}`));
+        if (!v.seats[who].buffer[key]) continue;
+        buffer.append(el("span", "pip pip-" + key, `${v.seats[who].buffer[key]} ${key}`));
       }
     }
 
-    renderZone(document.getElementById("foeNetwork"), foe.network, {
-      onClick: (entry) => toggleBlock(entry),
+    renderZone("foeNetwork", v, v.zones[`${foe}:network`], {
+      onClick: (uid) => toggleBlock(v, uid),
     });
-    renderZone(document.getElementById("youNetwork"), you.network, {
-      onClick: (entry) => {
-        if (phase().id === "clash" && state.clash.stage === "attackers") toggleAttacker(entry);
-        else showInspector(entry);
+    renderZone("youNetwork", v, v.zones[`${seat}:network`], {
+      onClick: (uid) => {
+        if (v.awaiting && v.awaiting.kind === "attackers" && v.awaiting.seat === seat) toggleAttacker(uid);
+        else showInspector(v, uid);
       },
     });
-    renderZone(document.getElementById("youHand"), you.wallet, {
-      onClick: (entry) => playFromWallet(entry),
-    });
-    renderZone(
-      document.getElementById("foeHand"),
-      foe.wallet.map((e) => e),
-      { faceDown: true }
-    );
+    renderZone("youHand", v, v.zones[`${seat}:wallet`], { onClick: (uid) => beginPlay(v, seat, uid) });
+    renderZone("foeHand", v, v.zones[`${foe}:wallet`], {});
 
-    const prompt = document.getElementById("prompt");
-    if (state.winner) {
-      prompt.textContent = `${state.winner} wins. Start a new game to play again.`;
-      prompt.className = "prompt good";
-    } else if (pending) {
-      prompt.textContent = pending.prompt + " — click a highlighted target.";
-      prompt.className = "prompt target";
-    } else if (state.manualNote) {
-      prompt.textContent = "Assisted: " + state.manualNote;
-      prompt.className = "prompt manual";
-    } else if (phase().id === "clash") {
-      const stage = state.clash.stage;
-      prompt.textContent =
-        stage === "attackers"
-          ? `${you.name}: click your Avatars to declare attackers, then Continue.`
-          : stage === "blockers"
-            ? `${foe.name}: click your Avatars to assign blocks, then Continue.`
-            : "Clash resolved.";
-      prompt.className = "prompt target";
-    } else {
-      prompt.textContent = `${you.name} — ${phase().label}. Play cards from your Wallet, then Continue.`;
-      prompt.className = "prompt";
-    }
+    renderPrompt(v, seat);
+    renderManualPanel(v, seat);
 
     const logBox = document.getElementById("log");
     logBox.innerHTML = "";
-    for (const entry of state.log.slice(0, 60)) {
-      logBox.append(el("div", "logline " + (entry.tone || ""), entry.message));
+    for (const event of session.events.slice(0, 70)) {
+      const line = describe(event);
+      if (!line) continue;
+      logBox.append(el("div", "logline " + (line[1] || ""), line[0]));
     }
 
-    document.getElementById("resourceChip").textContent = state.resourcePlayed
-      ? "Resource play used"
-      : "Resource play available";
+    document.getElementById("resourceChip").textContent =
+      v.turn.resourcePlays.used >= v.turn.resourcePlays.allowed
+        ? "Resource play used"
+        : "Resource play available";
+    document.getElementById("continue").textContent = continueLabel(v, seat);
   }
 
-  // -------------------------------------------------------------------- setup
+  function continueLabel(v, seat) {
+    if (v.awaiting && v.awaiting.seat === seat) {
+      if (v.awaiting.kind === "attackers") return "Declare attackers";
+      if (v.awaiting.kind === "blockers") return "Declare blocks";
+      if (v.awaiting.kind === "order") return "Confirm order";
+      if (v.awaiting.kind === "damage") return "Assign damage";
+      if (v.awaiting.kind === "discard") return "Discard";
+    }
+    return "Continue";
+  }
+
+  function renderPrompt(v, seat) {
+    const prompt = document.getElementById("prompt");
+    let text;
+    let tone = "prompt";
+    if (session.notice) {
+      text = session.notice;
+      tone = "prompt bad";
+    } else if (v.result) {
+      text = v.result.reason === "draw"
+        ? "Both players lost during the same state check — the game is a draw."
+        : `${v.seats[v.result.winners[0]].name} wins. Start a new game to play again.`;
+      tone = "prompt good";
+    } else if (v.pendingManual) {
+      text = v.pendingManual.seat === seat
+        ? "Waiting for your opponent to accept or reject your proposal."
+        : `${v.seats[v.pendingManual.seat].name} proposes: ${v.pendingManual.cardText}`;
+      tone = "prompt manual";
+    } else if (picking) {
+      text = `Choose ${picking.spec[picking.targets.length].prompt} — click a highlighted card.`;
+      tone = "prompt target";
+    } else if (v.pendingChoice && v.pendingChoice.options) {
+      text = v.pendingChoice.prompt;
+      tone = "prompt target";
+    } else if (v.awaiting && v.awaiting.seat === seat) {
+      const map = {
+        attackers: "click your Avatars to declare attackers, then Continue.",
+        blockers: "click an attacker, then your Avatar, to block. Then Continue.",
+        order: "confirm the order your blockers take damage in.",
+        damage: "confirm combat damage assignment.",
+        discard: "your Wallet is over the limit — click cards to discard, then Continue.",
+      };
+      text = `${v.seats[seat].name}: ${map[v.awaiting.kind] || "act."}`;
+      tone = "prompt target";
+    } else if (v.manualOpen.length) {
+      const open = v.manualOpen[0];
+      text = `Assisted — ${v.seats[open.seat].name}: ${open.cardText}`;
+      tone = "prompt manual";
+    } else {
+      text = `${v.seats[seat].name} — ${v.turn.phase}/${v.turn.step}. Play from your Wallet, then Continue.`;
+    }
+    prompt.textContent = text;
+    prompt.className = tone;
+  }
+
+  function renderManualPanel(v, seat) {
+    const box = document.getElementById("manualPending");
+    box.innerHTML = "";
+    if (v.pendingManual) {
+      const p = v.pendingManual;
+      box.append(el("div", "mtitle", `Tier ${p.tier} proposal from ${v.seats[p.seat].name}`));
+      box.append(el("div", "mtext", p.cardText || p.reason || ""));
+      box.append(el("div", "mdiff", opsText(p.ops)));
+      if (p.seat !== seat) {
+        const accept = el("button", null, "Accept");
+        accept.addEventListener("click", () => dispatch("MANUAL_ACCEPT", seat, { mid: p.mid }));
+        const reason = el("input", "mreason");
+        reason.placeholder = "reason (optional)";
+        const reject = el("button", "ghost", "Reject (card fizzles)");
+        reject.addEventListener("click", () =>
+          dispatch("MANUAL_REJECT", seat, { mid: p.mid, reason: reason.value }));
+        const row = el("div", "manualgrid");
+        row.append(accept, reject);
+        box.append(reason, row);
+      } else {
+        const withdraw = el("button", "ghost", "Withdraw");
+        withdraw.addEventListener("click", () => dispatch("MANUAL_WITHDRAW", seat, { mid: p.mid }));
+        box.append(withdraw);
+      }
+      return;
+    }
+    for (const open of v.manualOpen) {
+      const row = el("div", "mopen");
+      row.append(el("div", "mtext", `${v.seats[open.seat].name}: ${open.cardText}`));
+      if (open.seat === seat) {
+        const done = el("button", "ghost", "Resolved, no change");
+        done.addEventListener("click", () => dispatch("MANUAL_RESOLVE", seat, { mid: open.mid }));
+        row.append(done);
+      } else {
+        const reason = el("input", "mreason");
+        reason.placeholder = "why is this disputed?";
+        const flag = el("button", "ghost", "⚑ Flag");
+        flag.addEventListener("click", () =>
+          dispatch("MANUAL_FLAG", seat, { mid: open.mid, reason: reason.value || "disputed" }));
+        row.append(reason, flag);
+      }
+      box.append(row);
+    }
+  }
+
+  // ------------------------------------------------------------- clash UI
+
+  /* DECLARE_ATTACKERS is one atomic action (§13.1 "at the same time"), so a
+   * single ineligible card would make the whole declaration illegal. The UI
+   * therefore refuses the click and says why, rather than letting the player
+   * build a set the engine will reject as a unit. */
+  function toggleAttacker(uid) {
+    const index = attackers.indexOf(uid);
+    if (index >= 0) {
+      attackers.splice(index, 1);
+      return void render();
+    }
+    const v = E.view(session.full, uiSeat(session.full));
+    if (!E.canAttack({ state: v, ctx: E.resolveCtx({}) }, uid)) {
+      const object = v.objects[uid];
+      const card = CARD_BY_ID[object.cardId];
+      session.notice = !compiled(card.id).isAvatar
+        ? `${card.name} is not an Avatar and cannot attack.`
+        : object.bootDelay
+          ? `${card.name} has Boot Delay until you begin a turn with it (§5.2).`
+          : object.committed
+            ? `${card.name} is committed and cannot attack.`
+            : `${card.name} cannot attack.`;
+      return void render();
+    }
+    attackers.push(uid);
+    render();
+  }
+
+  let blockTarget = null;
+  function toggleBlock(v, uid) {
+    const seat = uiSeat(session.full);
+    if (!v.awaiting || v.awaiting.kind !== "blockers" || v.awaiting.seat !== seat) {
+      return void showInspector(v, uid);
+    }
+    // Clicking an attacker selects it; clicking your own Avatar assigns it.
+    if (v.clash.attackers.indexOf(uid) >= 0) {
+      blockTarget = uid;
+      session.notice = null;
+      return void render();
+    }
+  }
+
+  function assignBlocker(uid) {
+    if (!blockTarget) {
+      session.notice = "Click the attacker you want to block first.";
+      return void render();
+    }
+    const v = E.view(session.full, uiSeat(session.full));
+    // Same reasoning as attackers: the declaration is atomic, and the keyword
+    // gates of §14 (Broadcast, Shielded, Backchannel) are checked here so the
+    // player learns immediately which blocks are legal.
+    if (!E.canBlock({ state: v, ctx: E.resolveCtx({}) }, uid, blockTarget)) {
+      const card = CARD_BY_ID[v.objects[uid].cardId];
+      session.notice = v.objects[uid].committed
+        ? `${card.name} is committed and cannot block (§13.2).`
+        : `${card.name} cannot block that attacker — check Broadcast, Shielded or Backchannel.`;
+      return void render();
+    }
+    for (const key of Object.keys(blocks)) blocks[key] = blocks[key].filter((u) => u !== uid);
+    blocks[blockTarget] = (blocks[blockTarget] || []).concat([uid]);
+    render();
+  }
+
+  /* One click on Continue submits whatever the current step is waiting for. */
+  function advance() {
+    const full = session.full;
+    if (!full || full.result) return;
+    const seat = uiSeat(full);
+    const awaiting = full.awaiting;
+    if (awaiting && awaiting.seat === seat) {
+      if (awaiting.kind === "attackers") {
+        const declared = attackers.slice();
+        attackers = [];
+        return void dispatch("DECLARE_ATTACKERS", seat, { attackers: declared });
+      }
+      if (awaiting.kind === "blockers") {
+        const declared = {};
+        for (const key of Object.keys(blocks)) if (blocks[key].length) declared[key] = blocks[key];
+        blocks = {};
+        blockTarget = null;
+        return void dispatch("DECLARE_BLOCKERS", seat, { blocks: declared });
+      }
+      if (awaiting.kind === "order") {
+        const order = {};
+        for (const key of Object.keys(full.clash.blocks)) order[key] = full.clash.blocks[key].slice();
+        return void dispatch("ORDER_BLOCKERS", seat, { order });
+      }
+      if (awaiting.kind === "damage") {
+        // null accepts the engine's canonical minimal-lethal-in-order split.
+        return void dispatch("ASSIGN_COMBAT_DAMAGE", seat, { assignment: null });
+      }
+      if (awaiting.kind === "discard") {
+        const wallet = full.zones[`${seat}:wallet`];
+        const over = wallet.length - full.handLimit;
+        return void dispatch("DISCARD_TO_LIMIT", seat, { uids: wallet.slice(0, over) });
+      }
+      if (awaiting.kind === "triggers") {
+        return void dispatch("ORDER_TRIGGERS", seat, {
+          qids: full.pendingTriggers[String(seat)].map((t) => t.pendingId),
+        });
+      }
+    }
+    if (full.priority.seat === null) {
+      session.notice = "Waiting on a pending decision.";
+      return void render();
+    }
+    dispatch("PASS_PRIORITY", full.priority.seat);
+  }
+
+  // -------------------------------------------------------------- setup
 
   function startGame() {
-    const affinityA = document.getElementById("deckA").value;
-    const affinityB = document.getElementById("deckB").value;
-    const seed = Number(document.getElementById("seed").value) || Math.floor(Math.random() * 1e9);
-    uidSeq = 1;
-    state = {
-      players: [
-        newPlayer(document.getElementById("nameA").value || "Player 1", affinityA, seed),
-        newPlayer(document.getElementById("nameB").value || "Player 2", affinityB, seed + 7717),
+    const seedInput = document.getElementById("seed").value.trim();
+    // The engine generates no randomness of its own: every seed is an input.
+    // A blank field is turned into one here, in the UI, where that is allowed.
+    const base = seedInput ? (Number(seedInput) | 0) : (crypto.getRandomValues(new Int32Array(1))[0] | 0);
+    const config = {
+      seats: [
+        { name: document.getElementById("nameA").value || "Player 1", affinity: document.getElementById("deckA").value },
+        { name: document.getElementById("nameB").value || "Player 2", affinity: document.getElementById("deckB").value },
       ],
-      turnPlayer: 0,
+      seeds: { public: base, hidden: [(base ^ 0x5f3759df) | 0, (base + 7717) | 0] },
       firstPlayer: 0,
-      turn: 1,
-      phase: 0,
-      resourcePlayed: false,
-      clash: { stage: null, attackers: [], blocks: {} },
-      untilEndOfTurn: [],
-      log: [],
-      manualNote: null,
-      winner: null,
     };
-    for (const player of state.players) draw(player, 7);
+    try {
+      session.full = E.createGame(config);
+    } catch (error) {
+      document.getElementById("prompt").textContent = String(error.message || error);
+      return;
+    }
+    session.log = [];
+    session.events = [];
+    session.notice = null;
+    attackers = [];
+    blocks = {};
+    picking = null;
     document.getElementById("setup").hidden = true;
     document.getElementById("table").hidden = false;
-    log(`=== Turn 1 · ${active().name} ===`);
-    runPhaseEntry();
+    render();
   }
 
   function init() {
@@ -861,32 +672,86 @@
       select.value = id === "deckA" ? "Power" : "Signal";
     }
     document.getElementById("start").addEventListener("click", startGame);
-    document.getElementById("continue").addEventListener("click", () => {
-      if (pending || state?.winner) return;
-      nextPhase();
-    });
+    document.getElementById("continue").addEventListener("click", advance);
+
     document.getElementById("endturn").addEventListener("click", () => {
-      if (pending || state?.winner) return;
-      state.phase = PHASES.length - 1;
-      runPhaseEntry();
+      // Not a single action: the turn machine advances only via PASS_PRIORITY,
+      // so "End turn" is a burst of them that stops at the first real decision.
+      const startTurn = session.full && session.full.turn.active;
+      for (let i = 0; i < 60; i++) {
+        const full = session.full;
+        if (!full || full.result || full.turn.active !== startTurn) break;
+        if (full.priority.seat === null && !full.awaiting) break;
+        if (full.pendingManual || full.pendingChoice) break;
+        const before = full.seq;
+        advance();
+        if (session.full.seq === before) break; // rejected: stop rather than spin
+      }
     });
+
     document.getElementById("cancelTarget").addEventListener("click", () => {
-      pending = null;
+      picking = null;
+      attackers = [];
+      blocks = {};
+      blockTarget = null;
+      session.notice = null;
       render();
     });
-    document.getElementById("clearManual").addEventListener("click", () => manual("clear", {}));
+
+    document.getElementById("clearManual").addEventListener("click", () => {
+      const full = session.full;
+      if (!full) return;
+      const seat = uiSeat(full);
+      const mine = full.manualOpen.find((entry) => entry.seat === seat);
+      if (mine) dispatch("MANUAL_RESOLVE", seat, { mid: mine.mid });
+    });
+
+    /* Every data-manual button becomes a one-op MANUAL_PROPOSE: same clicks,
+     * same feel, every one now landing in the chain with an author. */
     document.querySelectorAll("[data-manual]").forEach((button) => {
       button.addEventListener("click", () => {
-        const [action, arg] = button.dataset.manual.split(":");
-        const side = button.dataset.side === "foe" ? 1 - state.turnPlayer : state.turnPlayer;
-        if (action === "uptime") manual("uptime", { delta: Number(arg), side });
-        if (action === "generate") manual("generate", { symbol: arg, side });
-        if (action === "draw") manual("draw", { side });
+        const full = session.full;
+        if (!full) return;
+        const seat = uiSeat(full);
+        const [verb, arg] = button.dataset.manual.split(":");
+        const side = button.dataset.side === "foe" ? 1 - seat : seat;
+        if (verb === "uptime") {
+          propose(seat, [{ op: "addUptime", seat: side, delta: Number(arg) }], `Uptime ${arg} for ${full.seats[side].name}`);
+        } else if (verb === "generate") {
+          propose(seat, [{ op: "addBuffer", seat: side, symbol: arg, amount: 1 }], `generate 1 ${SYMBOL_NAME[arg]}`);
+        } else if (verb === "draw") {
+          propose(seat, [{ op: "moveTopOfStack", seat: side, count: 1, toZone: "wallet" }], "draw a card");
+        }
       });
     });
+
+    // Clicking your own Avatar during the blockers step assigns it to the
+    // attacker you selected; the network zone handler routes it here.
+    document.getElementById("youNetwork").addEventListener("click", (event) => {
+      const full = session.full;
+      if (!full || !full.awaiting || full.awaiting.kind !== "blockers") return;
+      const node = event.target.closest(".gcard");
+      if (!node) return;
+      const index = Array.from(node.parentNode.children).indexOf(node);
+      const uid = full.zones[`${uiSeat(full)}:network`][index];
+      if (uid) assignBlocker(uid);
+    }, true);
+
     document.getElementById("cardCount").textContent = CARDS.length;
   }
 
   window.addEventListener("DOMContentLoaded", init);
-  window.E1_GAME = { get state() { return state; }, startGame };
+
+  /* Exposed for the console and for future transport code: `full` is the
+   * authoritative state, `log` is the chained transcript that replays it. */
+  window.E1_GAME = {
+    get state() { return session.full; },
+    get log() { return session.log; },
+    view: (seat) => E.view(session.full, seat),
+    hash: () => E.hashState(session.full),
+    publicHash: () => E.publicHash(session.full),
+    verify: () => E.verifyMatch({ config: null, log: session.log }),
+    startGame,
+    dispatch,
+  };
 })();

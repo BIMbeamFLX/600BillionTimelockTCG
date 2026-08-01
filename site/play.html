@@ -119,6 +119,16 @@ a { color: var(--orange-soft); }
 .manualgrid { display: flex; gap: 4px; flex-wrap: wrap; }
 .manualgrid button { padding: 5px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); cursor: pointer; font-size: 11px; font-weight: 700; }
 .manualgrid button:hover { border-color: var(--orange); }
+.prompt.bad { border-left-color: var(--danger); color: var(--danger); }
+.gboot { position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; display: grid; place-items: center; background: var(--violet); color: var(--black); font-size: 10px; font-weight: 900; }
+#manualPending { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.mtitle { font-weight: 900; letter-spacing: .04em; text-transform: uppercase; font-size: 11px; color: var(--gold); }
+.mtext { color: var(--cream); }
+.mdiff { color: var(--muted); font-family: ui-monospace, monospace; font-size: 11px; word-break: break-word; }
+.mopen { padding: 6px; background: var(--soot); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
+#manualPending button { padding: 5px 8px; color: var(--black); background: var(--orange-soft); border: 0; cursor: pointer; font-size: 11px; font-weight: 700; }
+#manualPending button.ghost { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+.mreason { width: 100%; padding: 5px 7px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font-size: 11px; }
 #log { max-height: 300px; overflow-y: auto; font-size: 11px; }
 .logline { padding: 3px 0; border-bottom: 1px solid rgba(185,145,228,.12); color: var(--muted); }
 .logline.good { color: var(--good); }
@@ -148,8 +158,8 @@ a { color: var(--orange-soft); }
     <p>Two-player hotseat on one machine, with all <b id="cardCount">295</b> Edition One cards.
     Each seat gets a randomised 40-card Stack in the rulebook's recommended prototype shape.
     The engine runs the turn structure, Buffer and resource burn, costs, clash and state checks;
-    cards whose text it cannot fully model are flagged <b>!</b> and resolved by you with the
-    manual controls.</p>
+    cards whose text it cannot fully model are flagged <b>!</b> and resolved by a bounded, attributed
+    proposal your opponent can accept or reject.</p>
     <div class="seats">
       <div class="seat">
         <label for="nameA">Seat one</label>
@@ -240,6 +250,10 @@ a { color: var(--orange-soft); }
           </div>
         </div>
         <div class="panel">
+          <h3>Table proposals</h3>
+          <div id="manualPending"><span style="color:var(--muted);font-size:12px">Assisted abilities and manual edits appear here for both seats.</span></div>
+        </div>
+        <div class="panel">
           <h3>Log</h3>
           <div id="log"></div>
         </div>
@@ -250,6 +264,7 @@ a { color: var(--orange-soft); }
 </div>
 </div>
 <script src="play-data.js"></script>
+<script src="engine.js"></script>
 <script src="play.js"></script>
 </body>
 </html>
