@@ -5,6 +5,12 @@ Decisions locked with FLX 2026-07-28: **moves are WebRTC-only (no move locks, no
 log on relays); Nostr events only for invites/handshake where needed and for match
 results/stats.**
 
+> **Amended 2026-07-31** — see `multiplayer-architecture.md`. The transport and symmetric-engine
+> decisions stand. The `hidden` scheme below is **replaced**: committing `hash(decklist +
+> shuffleSeed)` lets a player read their own draw order from turn one, because they generate their
+> own seed. The commitment prevents changing the order, not knowing it, and the resulting transcript
+> verifies clean. Replaced by per-card commitments plus an opponent-held secret permutation.
+
 ```
 nappletType: 600b-timelock-tcg
 purpose: Play two-player 600B Timelock TCG (E1) matches over shell-mediated WebRTC;
@@ -63,10 +69,14 @@ data flow:
             locks. Both peers run the identical deterministic E1 engine; every
             incoming move is validated locally. Divergence => desync: match void,
             both sides keep their transcript.
-  hidden    commit-reveal, no dealer: at match start each player sends
-            hash(decklist + shuffleSeed); at match end / concede / dispute the seed
-            and decklist are revealed and the opponent's client re-verifies every
-            draw retroactively.
+  hidden    DeckOracle interface, no dealer. Each player publishes a per-card hash
+            commitment for their own decklist; the OPPONENT holds a secret committed
+            permutation over those slots and releases it one slot at a time on draw.
+            Neither player knows their own deck order, so self-knowledge, deck
+            stacking and draw equivocation are PREVENTED, not merely detected.
+            Cost ~80 SHA-256 hashes and a few KB per match. Full reveal at match end
+            still allows retroactive verification. (Superseded design: naive
+            hash(decklist + shuffleSeed) commit-reveal — see amendment above.)
   results   at match end each client offers "publish result": outbox.publish one
             addressable event (d=matchId) with {matchId, players, winner, turns,
             engineVersion, transcriptHash}. Stats view: outbox.query both players'
@@ -94,7 +104,14 @@ relay escape hatches: none.
 5. **Engine**: the deterministic E1 engine (LIFO queue, state checks, resource burn)
    is the core build effort and must be pure/seedable so both peers replay
    identically. Rulebook §9–§17 is the contract; `cards/e1-cards.json` is the card
-   authority.
+   authority. Built as `site/engine.js` — one headless JS module shared by the
+   napplet, the local hotseat table and the optional Table referee.
+6. **Assisted cards**: 204 of 295 cards resolve by human judgement. They carry an assist
+   tier (A scripted / B bounded envelope / C typed proposal). `Certified` = A+B is the
+   ranked format. Free-form manual state edits are not permitted between remote seats.
+7. **Keyword enforcement**: Broadcast, Broadcast Guard, Attach, Shielded, Backchannel,
+   Mesh and Reboot are parsed into card data but not yet enforced by the engine — 68
+   cards whose printed text currently does nothing. Must be closed before P2P play.
 
 ## Explicitly out of scope for v1
 
