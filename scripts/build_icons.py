@@ -103,8 +103,11 @@ for name, (scale, body) in GLYPH.items():
     accent = ACCENT[name]
     # Halo pass: everything painted in the accent and widened, then blurred.
     halo = body.format(f=accent, c=accent, s=accent, w=GLOW["w"], k=GLOW["k"], k2=GLOW["k2"])
-    # Crisp pass: cream glyph, a thin accent edge to keep it from floating.
-    crisp = body.format(f="#FFF7EC", c=accent, s="#FFF7EC", w=1.4, k=5, k2=3)
+    # Crisp pass: the glyph IS the affinity colour, the same value the card's spine,
+    # type chip and circuit ring already carry, so a symbol and its card read as one
+    # thing. Cream is kept only as a thin outline so the glyph does not dissolve into
+    # a same-hue background.
+    crisp = body.format(f=accent, c="#FFF7EC", s=accent, w=1.2, k=5, k2=3)
     alpha = GLOW["signal_alpha"] if name == "signal" else GLOW["alpha"]
     svg = TEMPLATE.format(
         title=TITLE[name], scale=f"{scale:.2f}", halo=halo, crisp=crisp,

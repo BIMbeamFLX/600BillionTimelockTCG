@@ -8,6 +8,6 @@
   </defs>
   <g transform="translate(32 32) scale(1.32) translate(-32 -32)">
     <g filter="url(#glow)" opacity="0.42"><path fill="#FF6A00" stroke="#FF6A00" stroke-width="1.6" stroke-linejoin="round" d="M35.3 8 17.8 35.1h11.4L25.9 56 46.2 27.5H34.4L35.3 8Z"/></g>
-    <path fill="#FFF7EC" stroke="#FF6A00" stroke-width="1.4" stroke-linejoin="round" d="M35.3 8 17.8 35.1h11.4L25.9 56 46.2 27.5H34.4L35.3 8Z"/>
+    <path fill="#FF6A00" stroke="#FFF7EC" stroke-width="1.2" stroke-linejoin="round" d="M35.3 8 17.8 35.1h11.4L25.9 56 46.2 27.5H34.4L35.3 8Z"/>
   </g>
 </svg>
