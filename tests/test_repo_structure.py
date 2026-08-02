@@ -14,6 +14,7 @@ def test_static_site_pages_live_together() -> None:
         "fx-demo.html",
         "index.html",
         "leaderboard.html",
+        "lore.html",
         "play.html",
         "rules.html",
     }
