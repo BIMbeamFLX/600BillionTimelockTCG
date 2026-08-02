@@ -544,9 +544,14 @@ def main() -> None:
         image = render_card(card, index, art_dir, args.border_amp, args.guides)
         if not (art_dir / f"{card['id']}.jpg").exists():
             missing_art.append(card["id"])
+        # Web faces are trimmed to the cut line: the 35px bleed exists for the
+        # printer's blade, and shipping it to the browser reads as a fat dead
+        # margin under the footer. Print masters keep the full bleed.
+        if args.format == "webp":
+            image = image.crop((TRIM_INSET, TRIM_INSET, TRIM_INSET + TRIM_W, TRIM_INSET + TRIM_H))
         if args.scale != 1.0:
             image = image.resize(
-                (round(CARD_W * args.scale), round(CARD_H * args.scale)), Image.LANCZOS
+                (round(image.width * args.scale), round(image.height * args.scale)), Image.LANCZOS
             )
         target = args.out / f"{card['name']}{suffix}"
         image.convert("RGB").save(target, args.format.upper(), **options)
@@ -555,8 +560,12 @@ def main() -> None:
             print(f"  … {index}/{len(entries)}")
 
     back = render_back(args.border_amp, args.guides)
+    if args.format == "webp":
+        back = back.crop((TRIM_INSET, TRIM_INSET, TRIM_INSET + TRIM_W, TRIM_INSET + TRIM_H))
     if args.scale != 1.0:
-        back = back.resize((round(CARD_W * args.scale), round(CARD_H * args.scale)), Image.LANCZOS)
+        back = back.resize(
+            (round(back.width * args.scale), round(back.height * args.scale)), Image.LANCZOS
+        )
     back_target = args.out / f"600B-Timelock-card-back{suffix}"
     back.convert("RGB").save(back_target, args.format.upper(), **options)
     written += back_target.stat().st_size
