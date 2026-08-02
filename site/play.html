@@ -57,6 +57,34 @@ a { color: var(--orange-soft); }
 .btn.rug { margin-top: 10px; padding: 6px 10px; font-size: 11px; color: rgba(255,77,61,.75); border-color: rgba(255,77,61,.3); }
 .btn.rug:hover { color: #ff4d3d; border-color: #ff4d3d; background: transparent; }
 
+/* Hearthstone affordances: what you CAN do glows, and the turn button tells
+   you when the turn is spent. */
+@keyframes canplayPulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 0 10px rgba(243,194,68,.55); }
+  50% { box-shadow: 0 0 0 2px var(--gold), 0 0 20px rgba(243,194,68,.9); }
+}
+.gcard.canplay { animation: canplayPulse 1.6s ease-in-out infinite; }
+.gcard.canact { box-shadow: 0 0 0 2px var(--violet), 0 0 12px rgba(23,190,187,.6); }
+@keyframes turnReady {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243,194,68,.0); }
+  50% { box-shadow: 0 0 0 6px rgba(243,194,68,.35); }
+}
+#endturn.ready { color: var(--black); background: var(--gold); border-color: var(--gold); animation: turnReady 1.8s ease-in-out infinite; }
+#endturn.foeturn { opacity: .45; }
+
+/* The coach: one bubble, one highlighted target, first game only. */
+.coach-target { position: relative; z-index: 61; outline: 3px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
+#coach {
+  position: fixed; z-index: 62; max-width: 320px; padding: 14px 16px;
+  background: var(--panel); border: 1px solid var(--gold); color: var(--cream);
+  font-size: 13.5px; line-height: 1.5; box-shadow: 0 12px 40px rgba(0,0,0,.6);
+}
+#coach b { display: block; color: var(--gold); font: 400 13px Anton600, Impact, sans-serif; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+#coach .row { display: flex; gap: 8px; margin-top: 10px; }
+#coach button { padding: 6px 12px; cursor: pointer; font: 700 11px Arial; letter-spacing: .06em; text-transform: uppercase; }
+#coach .next { color: var(--black); background: var(--gold); border: 0; }
+#coach .skip { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+
 /* Card detail popup: left-click on a card explains it in plain English and,
    from the Wallet, offers the play right there. */
 #cardDetail { border: 1px solid var(--line); background: var(--panel); color: var(--cream); padding: 0; max-width: 720px; width: min(94vw, 720px); }
@@ -384,6 +412,15 @@ a { color: var(--orange-soft); }
 </div>
 </div>
 <script src="play-data.js"></script>
+<div id="coach" hidden>
+  <b id="coachTitle"></b>
+  <span id="coachText"></span>
+  <div class="row">
+    <button class="next" id="coachNext">Next</button>
+    <button class="skip" id="coachSkip">Skip tour</button>
+  </div>
+</div>
+
 <dialog id="cardDetail">
   <div class="wrap">
     <img class="face" alt="">

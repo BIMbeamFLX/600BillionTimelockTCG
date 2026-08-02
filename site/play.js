@@ -545,7 +545,60 @@
       });
     }
     node.addEventListener("mouseenter", () => showInspector(v, uid));
+    if (options && options.canPlay && options.canPlay(uid)) node.classList.add("canplay");
+    if (options && options.canAct && options.canAct(uid)) node.classList.add("canact");
     return node;
+  }
+
+  /* Hearthstone's oldest lesson: show the player what they CAN do. A hand
+   * card glows when it could be played right now; a Network card glows when
+   * an ability of it is worth a click. */
+  function playGlow(v, seat, uid) {
+    const full = session.full;
+    if (!full || full.result || full.turn.active !== seat) return false;
+    const object = v.objects[uid];
+    if (!object || !object.cardId) return false;
+    const card = compiled(object.cardId);
+    if (card.isResource) {
+      return full.turn.resourcePlays.used < full.turn.resourcePlays.allowed;
+    }
+    return E.canPay(v.seats[seat].buffer, card.costParsed);
+  }
+
+  function actGlow(v, seat, uid) {
+    const full = session.full;
+    if (!full || full.result || full.turn.active !== seat) return false;
+    const object = v.objects[uid];
+    if (!object || !object.cardId || object.committed) return false;
+    const card = compiled(object.cardId);
+    return card.abilities.some(
+      (ability) =>
+        ability.kind === "activated" &&
+        !ability.manual &&
+        ability.ops &&
+        (!ability.costParsed || E.canPay(v.seats[seat].buffer, ability.costParsed))
+    );
+  }
+
+  /* The turn button narrates the turn: gold and pulsing when everything is
+   * spent ("job's done"), dimmed when it is not your turn at all. */
+  function renderTurnButton(v, seat) {
+    const button = document.getElementById("endturn");
+    if (!button) return;
+    const full = session.full;
+    button.classList.remove("ready", "foeturn");
+    if (!full || full.result) return void (button.textContent = "End turn");
+    const myTurn = full.turn.active === seat;
+    if (!myTurn) {
+      button.classList.add("foeturn");
+      button.textContent = session.npc !== null ? "NPC turn…" : "Their turn…";
+      return;
+    }
+    button.textContent = "End turn";
+    const anythingLeft =
+      v.zones[`${seat}:wallet`].some((uid) => playGlow(v, seat, uid)) ||
+      v.zones[`${seat}:network`].some((uid) => actGlow(v, seat, uid));
+    if (!anythingLeft) button.classList.add("ready");
   }
 
   /* Stats are computed by the engine so the badge can never disagree with the
@@ -638,6 +691,117 @@
     }
     info.append(acts);
     box.append(info);
+  }
+
+  // ------------------------------------------------------------------ coach
+
+  /* The first-game tour, Hearthstone style: one bubble, one highlighted
+   * element, steps that advance themselves when the board shows the player
+   * did the thing. Runs once; "Skip tour" and finishing both end it for good.
+   * The tour speaks to the hotseat/solo player in seat 0. */
+  const COACH_KEY = "600b:coach";
+  let coachIndex = (() => {
+    try {
+      return localStorage.getItem(COACH_KEY) === "done" ? -1 : 0;
+    } catch (error) {
+      return 0;
+    }
+  })();
+
+  const COACH_STEPS = [
+    {
+      title: "Welcome, runner",
+      text: "Your first table is best against the NPC. Tick “NPC opponent”, then press Start game.",
+      anchor: "#start",
+      done: () => Boolean(session.full),
+    },
+    {
+      title: "Play a Resource",
+      text: "Glowing cards can be played right now. Right-click plays instantly; left-click explains first. Play one Resource.",
+      anchor: "#youHand",
+      done: () => {
+        const full = session.full;
+        return Boolean(full && (full.turn.resourcePlays.used > 0 || full.zones["0:network"].length > 0));
+      },
+    },
+    {
+      title: "Generate",
+      text: "Click your Resource on the Network and pick an affinity. That fills your Buffer — the pips beside your name pay for everything.",
+      anchor: "#youNetwork",
+      done: () => {
+        const full = session.full;
+        return Boolean(full && Object.values(full.seats[0].buffer).some((n) => n > 0));
+      },
+    },
+    {
+      title: "Spend it",
+      text: "Cards you can afford glow gold. Play one — or press Next if nothing glows this turn.",
+      anchor: "#youHand",
+      done: () => {
+        const full = session.full;
+        return Boolean(
+          full &&
+            full.zones["0:network"].some((uid) => {
+              const object = full.objects[uid];
+              return object && object.cardId && !compiled(object.cardId).isResource;
+            })
+        );
+      },
+    },
+    {
+      title: "End your turn",
+      text: "When the turn button glows gold, everything is spent. End the turn and watch the NPC play by the same rules.",
+      anchor: "#endturn",
+      done: () => {
+        const full = session.full;
+        return Boolean(full && full.turn.active !== 0);
+      },
+    },
+    {
+      title: "You are live",
+      text: "Uptime 0 = offline. Attack during Clash, block on defense, and left-click anything you don't understand — every card explains itself. GLHF!",
+      anchor: null,
+      done: () => false,
+    },
+  ];
+
+  function finishCoach() {
+    coachIndex = -1;
+    try {
+      localStorage.setItem(COACH_KEY, "done");
+    } catch (error) {
+      void error;
+    }
+    coachStep();
+  }
+
+  function coachStep() {
+    const bubble = document.getElementById("coach");
+    if (!bubble) return;
+    const previous = document.querySelector(".coach-target");
+    if (previous) previous.classList.remove("coach-target");
+    if (coachIndex < 0) return void (bubble.hidden = true);
+    while (coachIndex < COACH_STEPS.length && COACH_STEPS[coachIndex].done()) coachIndex += 1;
+    if (coachIndex >= COACH_STEPS.length) return void finishCoach();
+    const step = COACH_STEPS[coachIndex];
+    document.getElementById("coachTitle").textContent = step.title;
+    document.getElementById("coachText").textContent = step.text;
+    document.getElementById("coachNext").textContent =
+      coachIndex === COACH_STEPS.length - 1 ? "Done" : "Next";
+    bubble.hidden = false;
+    const anchor = step.anchor ? document.querySelector(step.anchor) : null;
+    bubble.style.left = bubble.style.right = bubble.style.top = bubble.style.bottom = "";
+    if (anchor && anchor.offsetParent !== null) {
+      anchor.classList.add("coach-target");
+      const rect = anchor.getBoundingClientRect();
+      const below = rect.bottom + 12;
+      bubble.style.left = `${Math.max(12, Math.min(window.innerWidth - 340, rect.left))}px`;
+      bubble.style.top =
+        below + 170 < window.innerHeight ? `${below}px` : `${Math.max(12, rect.top - 180)}px`;
+    } else {
+      bubble.style.right = "24px";
+      bubble.style.bottom = "24px";
+    }
   }
 
   /* Every human override routes through one audited, attributed, consent-aware
@@ -736,11 +900,15 @@
         if (v.awaiting && v.awaiting.kind === "attackers" && v.awaiting.seat === seat) toggleAttacker(uid);
         else openCardDetail(v, seat, uid, false);
       },
+      canAct: (uid) => actGlow(v, seat, uid),
     });
     renderZone("youHand", v, v.zones[`${seat}:wallet`], {
       onClick: (uid) => openCardDetail(v, seat, uid, true),
       onContext: (uid) => beginPlay(v, seat, uid),
+      canPlay: (uid) => playGlow(v, seat, uid),
     });
+    renderTurnButton(v, seat);
+    coachStep(v, seat);
     renderZone("foeHand", v, v.zones[`${foe}:wallet`], {});
 
     renderPrompt(v, seat);
@@ -1562,6 +1730,14 @@
     }
     document.getElementById("start").addEventListener("click", startGame);
     document.getElementById("continue").addEventListener("click", advance);
+
+    document.getElementById("coachNext").addEventListener("click", () => {
+      coachIndex += 1;
+      if (coachIndex >= COACH_STEPS.length) finishCoach();
+      else coachStep();
+    });
+    document.getElementById("coachSkip").addEventListener("click", finishCoach);
+    coachStep(); // the lobby step, for a first visit
 
     /* Rugpull = concede with the setting's own word for it. The win goes to
      * the player who did NOT rugpull (§2.2: concession). It lives with the
