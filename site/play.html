@@ -54,8 +54,8 @@ a { color: var(--orange-soft); }
 .startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
 .btn { padding: 12px 18px; color: var(--black); background: var(--orange); border: 0; cursor: pointer; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
 .btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
-.btn.rug { color: #ff4d3d; border-color: rgba(255,77,61,.5); }
-.btn.rug[data-armed] { color: var(--black); background: #ff4d3d; border-color: #ff4d3d; }
+.btn.rug { margin-top: 10px; padding: 6px 10px; font-size: 11px; color: rgba(255,77,61,.75); border-color: rgba(255,77,61,.3); }
+.btn.rug:hover { color: #ff4d3d; border-color: #ff4d3d; background: transparent; }
 
 /* Card detail popup: left-click on a card explains it in plain English and,
    from the Wallet, offers the play right there. */
@@ -307,7 +307,6 @@ a { color: var(--orange-soft); }
         <div class="controls">
           <button class="btn" id="continue">Continue</button>
           <button class="btn ghost" id="endturn">End turn</button>
-          <button class="btn ghost rug" id="rugpull" title="End the game by walking away — the win goes to the player who did not rugpull.">Rugpull</button>
           <button class="btn ghost" id="cancelTarget">Cancel targeting</button>
           <button class="btn ghost" id="clearManual">Clear notice</button>
           <span id="fxControl"></span>
@@ -361,6 +360,10 @@ a { color: var(--orange-soft); }
             <button data-manual="generate:T">+T</button>
             <button data-manual="generate:N">+neutral</button>
           </div>
+          <!-- Not gameplay: the one button that ends the match. Lives with the
+               table admin controls, small, and asks before it fires. -->
+          <button class="btn ghost rug" id="rugpull"
+            title="End the game by walking away — the win goes to the player who did not rugpull.">Rugpull</button>
         </div>
         <div class="panel">
           <h3>Table proposals</h3>
@@ -389,6 +392,9 @@ a { color: var(--orange-soft); }
       <div class="row">
         <button class="btn" id="cdPlay">Play card</button>
         <button class="btn ghost" id="cdClose">Close</button>
+      </div>
+      <div style="margin-top:10px;color:var(--muted);font-size:11.5px">
+        Tip: right-click a card in your Wallet to play it without this popup.
       </div>
     </div>
   </div>

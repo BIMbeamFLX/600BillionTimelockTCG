@@ -489,6 +489,14 @@
       if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
       if (options && options.onClick) options.onClick(uid);
     });
+    // Right-click is the ACT: play the card, no popup. Left-click explains.
+    if (options && options.onContext) {
+      node.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
+        options.onContext(uid);
+      });
+    }
     node.addEventListener("mouseenter", () => showInspector(v, uid));
     return node;
   }
@@ -640,6 +648,7 @@
     });
     renderZone("youHand", v, v.zones[`${seat}:wallet`], {
       onClick: (uid) => openCardDetail(v, seat, uid, true),
+      onContext: (uid) => beginPlay(v, seat, uid),
     });
     renderZone("foeHand", v, v.zones[`${foe}:wallet`], {});
 
@@ -1416,23 +1425,13 @@
     document.getElementById("continue").addEventListener("click", advance);
 
     /* Rugpull = concede with the setting's own word for it. The win goes to
-     * the player who did NOT rugpull (§2.2: concession). Two clicks, because
-     * it is the one button in the game that cannot be answered or undone. */
-    const rugpull = document.getElementById("rugpull");
-    rugpull.addEventListener("click", () => {
+     * the player who did NOT rugpull (§2.2: concession). It lives with the
+     * table admin controls, not the gameplay row, and asks before it fires —
+     * it is the one action in the game that cannot be answered or undone. */
+    document.getElementById("rugpull").addEventListener("click", () => {
       const full = session.full;
       if (!full || full.result || session.role === "spectator") return;
-      if (!rugpull.dataset.armed) {
-        rugpull.dataset.armed = "1";
-        rugpull.textContent = "Confirm — you lose";
-        setTimeout(() => {
-          delete rugpull.dataset.armed;
-          rugpull.textContent = "Rugpull";
-        }, 4000);
-        return;
-      }
-      delete rugpull.dataset.armed;
-      rugpull.textContent = "Rugpull";
+      if (!window.confirm("Rugpull? The game ends immediately and the win goes to the other player.")) return;
       const seat =
         session.seat !== null
           ? session.seat
