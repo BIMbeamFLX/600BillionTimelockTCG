@@ -72,10 +72,22 @@ def parse_stats(action_resilience: str) -> tuple[int | None, int | None]:
 
 
 def parse_keywords(text: str) -> list[dict[str, Any]]:
-    """Collect the static keywords the engine can enforce without scripting."""
+    """Collect the static keywords the engine can enforce without scripting.
+
+    A keyword is printed on the card only when it stands alone on a keyword
+    line ("Broadcast; Mesh.", "First Strike — reminder…"). Matching it anywhere
+    in the rules text used to hand a PERMANENT keyword to every card that
+    merely talks about one — "gains Broadcast until end of turn" made the
+    Avatar broadcast forever.
+    """
     found: list[dict[str, Any]] = []
+    fragments: list[str] = []
+    for line in text.split("\n"):
+        for fragment in re.split(r"[;,]", _strip_reminder(line)):
+            fragments.append(fragment.strip().rstrip("."))
     for keyword in KEYWORDS:
-        if re.search(rf"\b{re.escape(keyword)}\b", text):
+        printed = any(f == keyword or f.startswith(f"{keyword} —") for f in fragments)
+        if printed:
             if keyword == "Broadcast" and any(k["name"] == "Broadcast Guard" for k in found):
                 continue
             found.append({"name": keyword})
@@ -97,14 +109,123 @@ def _strip_reminder(line: str) -> str:
     return re.sub(r"\s*\([^)]*\)", "", line).strip()
 
 
+# Triggered-ability heads the engine can raise (engine.js raiseTriggers). Each
+# entry is (pattern, factory); the factory turns the match into the compiled
+# trigger condition and the rest of the line is the effect.
+TRIGGER_HEADS: list[tuple[re.Pattern[str], Any]] = [
+    (
+        re.compile(r"^At the beginning of your Maintenance,\s*", re.I),
+        lambda m: {"on": "maintenance", "whose": "you"},
+    ),
+    (
+        re.compile(r"^At the beginning of each player's Maintenance,\s*", re.I),
+        lambda m: {"on": "maintenance", "whose": "each"},
+    ),
+    (
+        re.compile(r"^Whenever this Avatar is dealt damage,\s*", re.I),
+        lambda m: {"on": "self-damaged"},
+    ),
+    (
+        re.compile(r"^Whenever this Avatar deals damage to an opponent,\s*", re.I),
+        lambda m: {"on": "self-deals-player-damage"},
+    ),
+    (
+        re.compile(
+            r"^Whenever a (Power|Bitcoin|Keys|Signal|Timelock) Resource an opponent"
+            r" controls becomes committed,\s*",
+            re.I,
+        ),
+        lambda m: {
+            "on": "committed",
+            "what": "Resource",
+            "whose": "opponent",
+            "affinity": m.group(1).capitalize(),
+        },
+    ),
+    (
+        re.compile(r"^Whenever a player commits a Resource for Resource,\s*", re.I),
+        lambda m: {"on": "committed", "what": "Resource"},
+    ),
+    (
+        re.compile(
+            r"^Whenever a (Power|Bitcoin|Keys|Signal|Timelock) Resource is committed"
+            r" for Resource,\s*",
+            re.I,
+        ),
+        lambda m: {"on": "committed", "what": "Resource", "affinity": m.group(1).capitalize()},
+    ),
+    (
+        re.compile(r"^Whenever a Resource enters,\s*", re.I),
+        lambda m: {"on": "enters", "what": "Resource"},
+    ),
+    (
+        re.compile(r"^Whenever a Resource is put into an Archive from the Network,\s*", re.I),
+        lambda m: {"on": "network-archived", "what": "Resource"},
+    ),
+]
+
+
+def parse_trigger_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
+    """Effects inside a trigger, where "that player" is bound at raise time."""
+    text = effect.strip().rstrip(".")
+    damage = re.match(
+        r"^this (?:Protocol|Hardware|Attachment|Avatar) deals (\d+) damage to"
+        r" that (?:player|Resource's controller)$",
+        text,
+        re.I,
+    )
+    if damage:
+        return [{"op": "damage", "amount": int(damage.group(1)), "target": "event-player"}]
+    if re.match(r"^that player discards a card at random$", text, re.I):
+        return [{"op": "discard", "amount": 1, "target": "event-player"}]
+    payout = re.match(
+        r"^its controller generates (\d+) additional"
+        r" (Power|Bitcoin|Keys|Signal|Timelock) Resources?$",
+        text,
+        re.I,
+    )
+    if payout:
+        return [
+            {
+                "op": "generate",
+                "amount": int(payout.group(1)),
+                "affinity": payout.group(2).capitalize(),
+                "target": "event-player",
+            }
+        ]
+    if re.match(r"^put a \+1/\+1 marker on (?:it|this Avatar)$", text, re.I):
+        return [{"op": "addCounter", "name": "+1/+1", "amount": 1, "target": "self-object"}]
+    return parse_ops(text, card_name)
+
+
 def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
     """Match one effect clause against the recurring templates in the set."""
     text = effect.strip().rstrip(".")
     subject = re.escape(card_name)
     ops: list[dict[str, Any]] = []
 
+    # "generate 1 Keys or 1 Power" — the junction shape. The engine restricts
+    # the affinity choice to exactly the named pair.
+    generate_or = re.match(r"^generate (\d+) (\w+) or (\d+) (\w+)$", text, re.I)
+    if generate_or:
+        first, second = generate_or.group(2).capitalize(), generate_or.group(4).capitalize()
+        if (
+            first in AFFINITY_SYMBOL
+            and second in AFFINITY_SYMBOL
+            and generate_or.group(1) == generate_or.group(3)
+        ):
+            return [
+                {
+                    "op": "generate",
+                    "amount": int(generate_or.group(1)),
+                    "affinity": "choice",
+                    "options": [first, second],
+                }
+            ]
+
     generate = re.match(
-        r"^generate (\d+) (neutral Resources?|Resources? of one affinity|\w+)(?: Resources?)?$",
+        r"^generate (\d+) (neutral Resources?|Resources? of (?:one|any) affinity"
+        r"|Resources? of any type|\w+)(?: Resources?)?$",
         text,
         re.I,
     )
@@ -120,8 +241,37 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
             return None
         return [{"op": "generate", "amount": amount, "affinity": affinity}]
 
+    subject_any = rf"(?:{subject}|This (?:Avatar|Hardware|Protocol|Attachment)|It)"
+
+    # "deals N damage to any target and M damage to you" — the self-cost shape.
+    compound = re.match(
+        rf"^{subject_any} deals (\d+) damage to (any target|target Avatar|target player)"
+        r" and (\d+) damage to you$",
+        text,
+        re.I,
+    )
+    if compound:
+        first = {
+            "any target": "any",
+            "target avatar": "avatar",
+            "target player": "player",
+        }[compound.group(2).lower()]
+        return [
+            {"op": "damage", "amount": int(compound.group(1)), "target": first},
+            {"op": "damage", "amount": int(compound.group(3)), "target": "controller"},
+        ]
+
+    sweep = re.match(
+        rf"^{subject_any} deals (\d+) damage to each Avatar and each player$", text, re.I
+    )
+    if sweep:
+        return [
+            {"op": "damage", "amount": int(sweep.group(1)), "target": "each-avatar"},
+            {"op": "damage", "amount": int(sweep.group(1)), "target": "each-player"},
+        ]
+
     damage = re.match(
-        rf"^(?:{subject}|This Avatar|It) deals (\d+) damage to "
+        rf"^{subject_any} deals (\d+) damage to "
         r"(any target|target Avatar|target player|each Avatar|each player)$",
         text,
         re.I,
@@ -190,6 +340,29 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
     if discard:
         return [{"op": "discard", "amount": _count(discard.group(1)), "target": "player"}]
 
+    unlock = re.match(r"^unlock target (Resource|Avatar|Hardware|Protocol)$", text, re.I)
+    if unlock:
+        return [{"op": "unlock", "kind": unlock.group(1).capitalize()}]
+
+    commit_target = re.match(r"^commit target Hardware, Avatar, or Resource$", text, re.I)
+    if commit_target:
+        return [{"op": "commit", "kind": "permanent"}]
+
+    grantable = r"(Broadcast Guard|Broadcast|Mesh|First Strike|Overflow|Firewall)"
+    grant = re.match(
+        rf"^target Avatar gains {grantable} (?:until end of turn|this turn)$", text, re.I
+    )
+    if grant:
+        return [{"op": "grant", "scope": "target", "keyword": grant.group(1), "duration": "eot"}]
+
+    grant_self = re.match(rf"^This Avatar gains {grantable} until end of turn$", text, re.I)
+    if grant_self:
+        return [{"op": "grant", "scope": "self", "keyword": grant_self.group(1), "duration": "eot"}]
+
+    bounce = re.match(r"^Return target Avatar to its owner's Wallet$", text, re.I)
+    if bounce:
+        return [{"op": "bounce"}]
+
     return None
 
 
@@ -219,17 +392,42 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
                 }
             )
         else:
-            ops = parse_ops(line, card["name"])
-            trigger = "triggered" if re.match(r"^(When|Whenever|At)\b", line) else "static"
-            abilities.append(
-                {
-                    "kind": "play" if ops and trigger == "static" else trigger,
-                    "cost": "",
-                    "text": line,
-                    "ops": ops,
-                    "manual": ops is None,
-                }
-            )
+            trigger_cond = None
+            effect_text = line
+            for pattern, make in TRIGGER_HEADS:
+                head = pattern.match(line)
+                if head:
+                    trigger_cond = make(head)
+                    effect_text = line[head.end() :]
+                    break
+            if trigger_cond:
+                ops = parse_trigger_ops(effect_text, card["name"])
+                abilities.append(
+                    {
+                        "kind": "triggered",
+                        "cost": "",
+                        "text": line,
+                        "trigger": trigger_cond,
+                        "ops": ops,
+                        "manual": ops is None,
+                    }
+                )
+            else:
+                ops = parse_ops(line, card["name"])
+                kind = "triggered" if re.match(r"^(When|Whenever|At)\b", line) else "static"
+                if kind == "triggered":
+                    # A trigger whose condition the engine cannot raise must
+                    # stay assisted, even if its effect text would parse.
+                    ops = None
+                abilities.append(
+                    {
+                        "kind": "play" if ops and kind == "static" else kind,
+                        "cost": "",
+                        "text": line,
+                        "ops": ops,
+                        "manual": ops is None,
+                    }
+                )
         manual = manual or abilities[-1]["manual"]
     return abilities, manual
 

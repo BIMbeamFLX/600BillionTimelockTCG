@@ -16,6 +16,8 @@
 (function (globalScope) {
   "use strict";
 
+  const SYMBOL_OF = { Power: "P", Bitcoin: "B", Keys: "K", Signal: "S", Timelock: "T" };
+
   /* Which seat the table is waiting on — the same ladder play.js's uiSeat
    * climbs, restated for an unredacted state. */
   function waitingSeat(state) {
@@ -156,17 +158,26 @@
       card.abilities.forEach((ability, abilityIndex) => {
         if (!ability.resourceAbility || ability.manual) return;
         const payload = { uid, abilityIndex };
-        if (ability.ops.some((op) => op.affinity === "choice")) payload.choice = affinity;
+        const choiceOp = ability.ops.find((op) => op.affinity === "choice");
+        if (choiceOp) {
+          // Prefer the stack's own affinity when the card offers it;
+          // otherwise take the first affinity the card names.
+          const offered =
+            Array.isArray(choiceOp.options) && choiceOp.options.length
+              ? choiceOp.options
+              : ["Power", "Bitcoin", "Keys", "Signal", "Timelock"];
+          const pick = offered.indexOf(affinity) >= 0 ? affinity : offered[0];
+          payload.choice = SYMBOL_OF[pick] ? SYMBOL_OF[pick] : pick;
+        }
         push("ACTIVATE_RESOURCE_ABILITY", payload);
       });
     }
 
-    /* 2b — assisted junctions. A "Commit: generate 1 X or 1 Y" ability is
-     * manual, so the scripted path never fires; the honest route is a
-     * static-warrant proposal of exactly the card text — commit as the cost,
-     * one Resource as the effect — which the engine bounds by the ability's
-     * envelope and the opponent may still reject or flag. */
-    const SYMBOL_OF = { Power: "P", Bitcoin: "B", Keys: "K", Signal: "S", Timelock: "T" };
+    /* 2b — any junction still marked assisted (none since the parser learned
+     * "generate 1 X or 1 Y", but a future card could regress): the honest
+     * route is a static-warrant proposal of exactly the card text — commit as
+     * the cost, one Resource as the effect — which the engine bounds by the
+     * ability's envelope and the opponent may still reject or flag. */
     for (const uid of network) {
       const object = state.objects[uid];
       if (!object || object.committed) continue;

@@ -387,6 +387,21 @@
         case "discard":
           if (op.target === "player") spec.push({ kind: "seat", prompt: "player who discards" });
           break;
+        case "grant":
+          if (op.scope === "target") {
+            spec.push({ kind: "avatar", prompt: `Avatar to gain ${op.keyword}` });
+          }
+          break;
+        case "unlock":
+        case "commit":
+          spec.push({
+            kind: op.kind === "permanent" ? "permanent" : "type:" + op.kind,
+            prompt: `${op.kind === "permanent" ? "card" : op.kind} to ${op.op}`,
+          });
+          break;
+        case "bounce":
+          spec.push({ kind: "avatar", prompt: "Avatar to return to its owner's Wallet" });
+          break;
         default:
           break;
       }
@@ -416,7 +431,9 @@
         resourceAbility:
           ability.resourceAbility !== undefined
             ? ability.resourceAbility
-            : Boolean(ability.ops) && ability.ops.every((op) => op.op === "generate"),
+            : ability.kind === "activated" &&
+              Boolean(ability.ops) &&
+              ability.ops.every((op) => op.op === "generate"),
       });
       compiled.targetSpec = targetSpecFor(compiled.ops);
       if (compiled.manual) {
@@ -654,6 +671,25 @@
     state.objects[record.uid] = record;
     insertIntoZone(state, toKey, record.uid, settings.position);
     pruneReferences(state, uid);
+    // Zone-change triggers, raised after the move so watchers see the settled
+    // board. The moved card never watches its own move (triggerMatches).
+    const movedCard = cardOf(env.ctx, record.cardId);
+    if (toZone === "network" && zoneName(fromKey) !== "network") {
+      raiseTriggers(env, "enters", {
+        uid: record.uid,
+        seat: toSeat,
+        type: movedCard.type,
+        affinity: movedCard.affinity,
+      });
+    }
+    if (zoneName(fromKey) === "network" && toZone === "archive") {
+      raiseTriggers(env, "network-archived", {
+        uid: record.uid,
+        seat: object.controller,
+        type: movedCard.type,
+        affinity: movedCard.affinity,
+      });
+    }
     return record;
   }
 
@@ -1175,7 +1211,10 @@
    * automatic path and a card the Python compiler later learns to script
    * migrates from one author to the other with zero engine change. */
   function frameOps(env, item) {
-    if (item.kind === "manual") return item.ops;
+    // Manual deltas and raised triggers both carry their ops on the item —
+    // a trigger's "that player" was bound at raise time and must not be
+    // re-read from the card.
+    if (item.kind === "manual" || item.kind === "triggered") return item.ops;
     const card = cardOf(env.ctx, item.cardId);
     if (item.kind === "ability") {
       const ability = card.abilities[item.abilityIndex];
@@ -1198,6 +1237,12 @@
     if (target.kind === "seat") {
       state.seats[target.seat].uptime -= amount; // §15.1
       emit(env, "DAMAGE", { to: "seat", seat: target.seat, amount, sourceUid: sourceUid || null });
+      if (amount > 0 && sourceUid) {
+        const source = state.objects[sourceUid];
+        if (source && source.controller !== target.seat) {
+          raiseTriggers(env, "self-deals-player-damage", { sourceUid, seat: target.seat });
+        }
+      }
       return;
     }
     const object = state.objects[target.uid];
@@ -1208,6 +1253,7 @@
     }
     object.damage += amount; // §15.2 marked until Cleanup
     emit(env, "DAMAGE", { to: "object", uid: target.uid, amount, sourceUid: sourceUid || null });
+    if (amount > 0) raiseTriggers(env, "self-damaged", { uid: target.uid, seat: object.controller });
   }
 
   function isShieldedFromSource(env, uid, sourceUid) {
@@ -1265,24 +1311,45 @@
         let key;
         if (op.affinity === "neutral") key = "N";
         else if (op.affinity === "choice") {
+          // A junction offers exactly the affinities it names; an open choice
+          // offers all five. A pre-seeded choice outside the offer is a cheat,
+          // not a preference, and fails rather than resolves.
+          const allowed =
+            Array.isArray(op.options) && op.options.length
+              ? op.options.map((name) => AFFINITY_SYMBOL[name] || name)
+              : SYMBOLS;
           const chosen = item.resume.acc["choice" + item.resume.opIndex];
           if (!chosen) {
             return raiseChoice(env, item, {
               kind: "mode",
               prompt: "Choose an affinity to generate",
-              options: SYMBOLS.map((symbol) => ({ kind: "symbol", symbol })),
+              options: allowed.map((symbol) => ({ kind: "symbol", symbol })),
               min: 1,
               max: 1,
               slot: "choice" + item.resume.opIndex,
             });
           }
+          if (allowed.indexOf(chosen) < 0) fail("BAD_CHOICE", "that affinity is not offered");
           key = chosen;
         } else key = AFFINITY_SYMBOL[op.affinity] || "N";
-        state.seats[controller].buffer[key] += op.amount;
-        emit(env, "GENERATE", { seat: controller, symbol: key, amount: op.amount });
+        // A trigger may generate for the event's player ("its controller
+        // generates…") rather than for the ability's controller.
+        const beneficiary = op.seat !== undefined && op.seat !== null ? op.seat : controller;
+        state.seats[beneficiary].buffer[key] += op.amount;
+        emit(env, "GENERATE", { seat: beneficiary, symbol: key, amount: op.amount });
         return "done";
       }
       case "damage": {
+        // A trigger bound "that player" at raise time.
+        if (op.seat !== undefined && op.seat !== null) {
+          damageTarget(env, { kind: "seat", seat: op.seat }, op.amount, sourceUid);
+          return "done";
+        }
+        // "... and N damage to you" — the card's own controller.
+        if (op.target === "controller") {
+          damageTarget(env, { kind: "seat", seat: controller }, op.amount, sourceUid);
+          return "done";
+        }
         if (op.target === "each-player") {
           for (const seat of seatsOf(state)) damageTarget(env, { kind: "seat", seat }, op.amount, sourceUid);
           return "done";
@@ -1306,8 +1373,14 @@
       case "uptime": {
         // play.js:285 was `op.target === "player" ? controller : controller` —
         // a no-op ternary, so "target player gains N Uptime" always healed the
-        // controller. The target is now a real seat target.
-        const target = op.target === "player" ? nextTarget(env, item) : { kind: "seat", seat: controller };
+        // controller. The target is now a real seat target; a trigger may have
+        // bound the seat already.
+        const target =
+          op.seat !== undefined && op.seat !== null
+            ? { kind: "seat", seat: op.seat }
+            : op.target === "player"
+              ? nextTarget(env, item)
+              : { kind: "seat", seat: controller };
         const seat = target && target.kind === "seat" ? target.seat : controller;
         state.seats[seat].uptime += op.amount;
         emit(env, "UPTIME", { seat, delta: op.amount });
@@ -1316,8 +1389,14 @@
       case "discard": {
         // Seeded from rng.public and honouring op.target. play.js:293 used
         // Math.random(), the one live nondeterminism in the old engine.
-        const target = op.target === "player" ? nextTarget(env, item) : null;
-        const seat = target && target.kind === "seat" ? target.seat : 1 - controller;
+        // A trigger may have bound the discarding seat already.
+        const target = op.target === "player" && op.seat === undefined ? nextTarget(env, item) : null;
+        const seat =
+          op.seat !== undefined && op.seat !== null
+            ? op.seat
+            : target && target.kind === "seat"
+              ? target.seat
+              : 1 - controller;
         for (let i = 0; i < op.amount; i++) {
           const wallet = zoneArray(state, zoneKey(seat, "wallet"));
           if (!wallet.length) break;
@@ -1377,6 +1456,42 @@
         if (target && target.kind === "object" && state.objects[target.uid]) {
           state.objects[target.uid].rebootShields += 1;
           emit(env, "REBOOT_SHIELD", { uid: target.uid });
+        }
+        return "done";
+      }
+      case "grant": {
+        // A keyword grant — on itself, or on a chosen Avatar — delegated to the
+        // one effect factory so expiry works the same everywhere.
+        const uid =
+          op.scope === "self" ? sourceUid : (nextTarget(env, item) || {}).uid;
+        if (uid && state.objects[uid]) {
+          runManualOp(env, item, {
+            op: "grantKeyword",
+            uid,
+            keyword: op.keyword,
+            duration: op.duration || "eot",
+          });
+        }
+        return "done";
+      }
+      case "unlock":
+      case "commit": {
+        const target = nextTarget(env, item);
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          runManualOp(env, item, {
+            op: "setCommitted",
+            uid: target.uid,
+            value: op.op === "commit",
+          });
+        }
+        return "done";
+      }
+      case "bounce": {
+        const target = nextTarget(env, item);
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          const bounced = state.objects[target.uid];
+          emit(env, "MOVE", { uid: target.uid, cardId: bounced.cardId, toZone: "wallet" });
+          moveUid(env, target.uid, "wallet");
         }
         return "done";
       }
@@ -1649,10 +1764,22 @@
         emit(env, "SHUFFLE", { zone: op.zone });
         return "done";
       }
-      case "setCommitted":
-        objectOf(state, op.uid).committed = Boolean(op.value);
+      case "setCommitted": {
+        const target = objectOf(state, op.uid);
+        const wasCommitted = target.committed;
+        target.committed = Boolean(op.value);
         emit(env, "COMMIT", { uid: op.uid, value: Boolean(op.value) });
+        if (!wasCommitted && target.committed) {
+          const card = cardOf(env.ctx, target.cardId);
+          raiseTriggers(env, "committed", {
+            uid: op.uid,
+            seat: target.controller,
+            type: card.type,
+            affinity: card.affinity,
+          });
+        }
         return "done";
+      }
       case "addDamage":
         objectOf(state, op.uid).damage += op.amount;
         emit(env, "DAMAGE", { to: "object", uid: op.uid, amount: op.amount, manual: true });
@@ -1809,6 +1936,7 @@
     if (!spec) return true;
     const card = cardOf(env.ctx, object.cardId);
     if (spec.kind === "avatar" || spec.kind === "any") return card.isAvatar;
+    if (spec.kind === "permanent") return true; // any Network card
     if (spec.kind.indexOf("type:") === 0) return card.type.indexOf(spec.kind.slice(5)) >= 0;
     return true;
   }
@@ -1889,7 +2017,9 @@
     if (item.resume.opIndex === 0) {
       const spec = item.kind === "ability"
         ? card.abilities[item.abilityIndex].targetSpec
-        : card ? card.playTargetSpec : [];
+        : item.kind === "triggered"
+          ? [] // a trigger's references were bound when it was raised
+          : card ? card.playTargetSpec : [];
       if (spec.length) {
         const legal = item.targets.filter((t, i) => targetLegal(env, t, spec[i]));
         if (!legal.length) {
@@ -1959,6 +2089,7 @@
         return "ok";
       }
       case "maintenance":
+        raiseTriggers(env, "maintenance", { active: state.turn.active, seat: state.turn.active });
         return "ok";
       case "draw":
         // §8 the first player does draw during their first turn.
@@ -2186,6 +2317,90 @@
     nextStep(env);
     advanceUntilPriority(env);
     return true;
+  }
+
+  /* ------------------------------------------------------------- triggers
+   *
+   * The produce side of §10.4 — this half simply did not exist: the pending
+   * lists were initialised, ordered and consumed, and nothing ever filled
+   * them, which is why every "When/Whenever/At" card was assisted. Game
+   * moments call raiseTriggers() with an event name and its context; matching
+   * scripted abilities stage themselves, and collectTriggers() below already
+   * queues them at the next checkpoint. Staging is deferred, never recursive:
+   * a trigger's own ops can raise more triggers without reentering the queue.
+   */
+
+  function raiseTriggers(env, on, ctx) {
+    const state = env.state;
+    for (const seat of seatsOf(state)) {
+      for (const uid of zoneArray(state, zoneKey(seat, "network")).slice()) {
+        const object = state.objects[uid];
+        if (!object || !object.cardId) continue;
+        const card = cardOf(env.ctx, object.cardId);
+        card.abilities.forEach((ability, abilityIndex) => {
+          if (ability.kind !== "triggered" || ability.manual) return;
+          if (!ability.ops || !ability.trigger) return;
+          if (!triggerMatches(ability.trigger, on, ctx, uid, seat)) return;
+          state.nextTriggerId = state.nextTriggerId || 1;
+          const pendingId = "t" + state.nextTriggerId;
+          state.nextTriggerId += 1;
+          state.pendingTriggers[String(seat)].push({
+            kind: "triggered",
+            pendingId,
+            controller: seat,
+            sourceUid: uid,
+            cardId: object.cardId,
+            targets: [],
+            ops: bindTriggerOps(ability.ops, ctx, uid),
+            abilityIndex,
+          });
+          emit(env, "TRIGGERED", { seat, uid, cardId: object.cardId, on });
+        });
+      }
+    }
+  }
+
+  function triggerMatches(trigger, on, ctx, uid, seat) {
+    if (trigger.on !== on) return false;
+    switch (on) {
+      case "maintenance":
+        // "your Maintenance" fires only on the controller's own turn;
+        // "each player's" fires on both.
+        return trigger.whose === "each" || ctx.active === seat;
+      case "self-damaged":
+        return ctx.uid === uid;
+      case "self-deals-player-damage":
+        return ctx.sourceUid === uid;
+      case "enters":
+      case "network-archived":
+        if (ctx.uid === uid) return false; // a card never watches itself move
+        return !trigger.what || (ctx.type || "").indexOf(trigger.what) >= 0;
+      case "committed":
+        if (ctx.uid === uid) return false;
+        if (trigger.what && (ctx.type || "").indexOf(trigger.what) < 0) return false;
+        if (trigger.affinity && (ctx.affinity || []).indexOf(trigger.affinity) < 0) return false;
+        if (trigger.whose === "opponent" && ctx.seat === seat) return false;
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /* "that player" and "it" resolve at raise time into the plain seat/uid
+   * fields the op runner honours, so the queued item is self-contained. */
+  function bindTriggerOps(ops, ctx, sourceUid) {
+    return ops.map((op) => {
+      const bound = cloneJson(op);
+      if (bound.target === "event-player") {
+        bound.seat = ctx.seat;
+        delete bound.target;
+      }
+      if (bound.target === "self-object") {
+        bound.uid = sourceUid;
+        delete bound.target;
+      }
+      return bound;
+    });
   }
 
   /* §10.4 the active player places their triggers on the Queue first, then the
@@ -2960,7 +3175,16 @@
       if (object.bootDelay) fail("CANNOT_AFFORD", "Boot Delay: it cannot pay a Commit cost yet");
     }
     const settled = settleCost(env, seat, ability.costParsed, payment);
-    if (ability.commit) object.committed = true;
+    if (ability.commit) {
+      object.committed = true;
+      const card = cardOf(env.ctx, object.cardId);
+      raiseTriggers(env, "committed", {
+        uid: object.uid,
+        seat: object.controller,
+        type: card.type,
+        affinity: card.affinity,
+      });
+    }
     if (ability.archiveSelf) moveUid(env, object.uid, "archive");
     return settled;
   }

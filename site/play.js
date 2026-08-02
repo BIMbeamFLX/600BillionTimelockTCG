@@ -396,12 +396,40 @@
       dialog.close();
       beginPlay(v, seat, uid);
     };
-    /* Own Network cards act from here too — the popup is where a player
-     * actually finds the assisted junction generate. */
+    /* Own Network cards act from here too — the popup is the action hub, so
+     * every activation the inspector offers appears here as well: scripted
+     * abilities directly, and any still-assisted junction as a proposal. */
     const acts = document.getElementById("cdActs");
     acts.innerHTML = "";
     if (object.controller === seat && object.zone.endsWith(":network")) {
       compiled(card.id).abilities.forEach((ability, index) => {
+        if (ability.kind === "activated" && !ability.manual && ability.ops) {
+          const choiceOp = ability.resourceAbility && ability.ops.find((op) => op.affinity === "choice");
+          if (choiceOp) {
+            const offered =
+              Array.isArray(choiceOp.options) && choiceOp.options.length
+                ? choiceOp.options.map((name) => SYMBOLS.find((s) => SYMBOL_NAME[s] === name) || name)
+                : SYMBOLS;
+            for (const symbol of offered) {
+              const button = el("button", "btn ghost", `Activate → ${SYMBOL_NAME[symbol]}`);
+              if (ability.commit && object.committed) button.disabled = true;
+              button.addEventListener("click", () => {
+                dialog.close();
+                beginAbility(v, seat, uid, index, symbol);
+              });
+              acts.append(button);
+            }
+            return;
+          }
+          const button = el("button", "btn ghost", `Activate: ${ability.text}`);
+          if (ability.commit && object.committed) button.disabled = true;
+          button.addEventListener("click", () => {
+            dialog.close();
+            beginAbility(v, seat, uid, index);
+          });
+          acts.append(button);
+          return;
+        }
         const generate = junctionGenerate(ability);
         if (!generate) return;
         for (const name of generate.names) {
@@ -575,9 +603,15 @@
         // "generate N Resources of one affinity" needs the affinity picked at
         // activation. One button per affinity beats a modal: it keeps the whole
         // table in the page and never blocks the renderer.
-        const needsChoice = ability.resourceAbility && ability.ops.some((op) => op.affinity === "choice");
-        if (needsChoice) {
-          for (const symbol of SYMBOLS) {
+        const choiceOp = ability.resourceAbility && ability.ops.find((op) => op.affinity === "choice");
+        if (choiceOp) {
+          // A junction offers exactly the affinities it names; an open choice
+          // offers all five. Mirror the engine's own restriction.
+          const offered =
+            Array.isArray(choiceOp.options) && choiceOp.options.length
+              ? choiceOp.options.map((name) => SYMBOLS.find((s) => SYMBOL_NAME[s] === name) || name)
+              : SYMBOLS;
+          for (const symbol of offered) {
             const button = el("button", null, `Activate → ${SYMBOL_NAME[symbol]}`);
             button.addEventListener("click", () => beginAbility(v, seat, uid, index, symbol));
             acts.append(button);
