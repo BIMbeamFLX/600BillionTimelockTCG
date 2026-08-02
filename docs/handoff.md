@@ -50,6 +50,11 @@ is a one-line edit plus a re-render.
 > The user has rejected several icon iterations. They have seen these as isolated
 > glyphs and on three sample cards, but have **not** given explicit approval of
 > the full render. If the direction is wrong, re-rendering is ~10 minutes.
+>
+> **Superseded 2026-08-02 (later that day):** the user delivered a locked design
+> handoff (`art/Futuristic icon designs for crypto.zip`) — the "Plate" icon set
+> with a remapped palette — and it is now implemented across icons, faces, site
+> and game. Icon approval is no longer open.
 
 ### Rendering — read before you render
 
@@ -72,8 +77,9 @@ uv run python scripts/build_blob_manifest.py --dir art/cards/node-runner-web
 uv run python scripts/build_asset_set.py --blossom-base https://blossom.example
 ```
 
-Box commitment is currently `8de668f7…` (was `f47ea050…`). Box shape unchanged:
-4,536 cards, 3.0% rare, 21,000 msat/card, 95,256 sats/box.
+Box commitment is currently `da276b6a…` (was `8de668f7…`, before that
+`f47ea050…`). Box shape unchanged: 4,536 cards, 3.0% rare, 21,000 msat/card,
+95,256 sats/box.
 
 ### The two-tab bug (the one that would have killed the demo)
 
