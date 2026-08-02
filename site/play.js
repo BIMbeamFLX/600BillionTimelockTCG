@@ -1366,18 +1366,45 @@
     const npcBox = document.getElementById("npcB");
     const solo = Boolean(npcBox && npcBox.checked);
     const nameB = document.getElementById("nameB").value || (solo ? "NPC" : "Player 2");
+    // A "custom:<name>" choice is a Stack saved by the Stack Builder: the
+    // explicit decklist goes to the engine, which validates it (min 40, no
+    // Stake cards) before a single object is minted.
+    const stacks = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("600b:decks")) || {};
+      } catch (error) {
+        return {};
+      }
+    })();
+    const choose = (value) => {
+      if (value && value.startsWith("custom:") && Array.isArray(stacks[value.slice(7)])) {
+        return { deck: stacks[value.slice(7)].slice() };
+      }
+      return { affinity: value };
+    };
     const config = {
       seats: [
-        { name: document.getElementById("nameA").value || "Player 1", affinity: document.getElementById("deckA").value },
-        { name: solo && nameB === "Player 2" ? "NPC" : nameB, affinity: document.getElementById("deckB").value },
+        { name: document.getElementById("nameA").value || "Player 1", ...choose(document.getElementById("deckA").value) },
+        { name: solo && nameB === "Player 2" ? "NPC" : nameB, ...choose(document.getElementById("deckB").value) },
       ],
       seeds: { public: base, hidden: [(base ^ 0x5f3759df) | 0, (base + 7717) | 0] },
       firstPlayer: 0,
     };
     session.npc = solo ? 1 : null;
-    const npcAff = document.getElementById("deckB").value;
-    // "All" is a fine stack but no answer to "generate 1 of one affinity".
-    session.npcAffinity = npcAff && npcAff !== "All" ? npcAff : "Bitcoin";
+    // "All" is a fine stack but no answer to "generate 1 of one affinity";
+    // a custom Stack answers with its own dominant affinity.
+    const prefAffinity = (seatConfig) => {
+      if (seatConfig.affinity) return seatConfig.affinity !== "All" ? seatConfig.affinity : "Bitcoin";
+      const tally = {};
+      for (const cardId of seatConfig.deck) {
+        const card = CARD_BY_ID[cardId];
+        for (const aff of (card && card.affinity) || []) {
+          if (aff !== "Neutral") tally[aff] = (tally[aff] || 0) + 1;
+        }
+      }
+      return Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0] || "Bitcoin";
+    };
+    session.npcAffinity = prefAffinity(config.seats[1]);
     try {
       session.full = E.createGame(config);
     } catch (error) {
@@ -1412,12 +1439,33 @@
       }
     }
     const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock"];
+    // Stacks saved by the Stack Builder (site/deck.html) join the affinity
+    // presets. Custom Stacks are a local-table feature: the referee mints
+    // networked games from affinities, so remote play keeps the presets only.
+    const savedStacks = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("600b:decks")) || {};
+      } catch (error) {
+        return {};
+      }
+    })();
     for (const id of ["deckA", "deckB"]) {
       const select = document.getElementById(id);
       for (const name of affinities) {
         const option = el("option", null, name === "All" ? "All affinities" : name);
         option.value = name;
         select.append(option);
+      }
+      const names = Object.keys(savedStacks).sort();
+      if (names.length) {
+        const group = document.createElement("optgroup");
+        group.label = "Saved Stacks";
+        for (const name of names) {
+          const option = el("option", null, `${name} (${savedStacks[name].length})`);
+          option.value = `custom:${name}`;
+          group.append(option);
+        }
+        select.append(group);
       }
       select.value = id === "deckA" ? "Power" : "Signal";
     }

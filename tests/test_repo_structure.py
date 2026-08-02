@@ -10,6 +10,7 @@ def test_static_site_pages_live_together() -> None:
     assert {path.name for path in (REPO_ROOT / "site").glob("*.html")} == {
         "arena.html",
         "cards.html",
+        "deck.html",
         "e1-card-set.html",
         "fx-demo.html",
         "index.html",
