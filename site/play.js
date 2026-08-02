@@ -776,6 +776,9 @@
   }
 
   function coachStep() {
+    // The client tests run play.js in a DOM shim without querySelector; the
+    // coach is presentation only and simply sits out.
+    if (typeof document.querySelector !== "function") return;
     const bubble = document.getElementById("coach");
     if (!bubble) return;
     const previous = document.querySelector(".coach-target");
