@@ -3,7 +3,7 @@
   "frame": "Node Runner",
   "source": "node-runner-web",
   "count": 297,
-  "total_bytes": 42647368,
+  "total_bytes": 42592146,
   "unmatched": [
     "600B-Timelock-card-back",
     "Global FIPS Balloon Network"
@@ -22,8 +22,8 @@
       "name": "Affinity Rewrite",
       "file": "Affinity Rewrite.webp",
       "mime": "image/webp",
-      "bytes": 156314,
-      "sha256": "5ba176defc9ea8c10e52296ddfa2481d2306125ad51d6792097d9c5531ca4473",
+      "bytes": 156198,
+      "sha256": "3ca27c4e6893361f2e48d4cbd47e1bf775d8c894e60cf46c9c376aba7030cef2",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -35,8 +35,8 @@
       "name": "AJ, First Responder",
       "file": "AJ, First Responder.webp",
       "mime": "image/webp",
-      "bytes": 145734,
-      "sha256": "a558f63a6226ab9168ac6f97aa5a04e943694d7ceaf8f5bd2674a312566affaf",
+      "bytes": 143842,
+      "sha256": "bc847813b8bfd9b9c915e37db63df7bbd03910618cfb401e3271a2dfd636c81f",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -48,8 +48,8 @@
       "name": "AJ, Uptime Anchor",
       "file": "AJ, Uptime Anchor.webp",
       "mime": "image/webp",
-      "bytes": 133076,
-      "sha256": "2308b3a2639efd2a2379e83369f0920e8a0534a35fa6145c88e8104894d422e5",
+      "bytes": 134876,
+      "sha256": "59c508701f82b7368d1b969d613a7863bb6f3c082ec3512479bedc2bd5048d1b",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -61,8 +61,8 @@
       "name": "Arbadacarba, Grid Steward",
       "file": "Arbadacarba, Grid Steward.webp",
       "mime": "image/webp",
-      "bytes": 156490,
-      "sha256": "4b8139e437fdc8dda4ac0812787dc470a521fe5d451a5346aae9f105f3af5dad",
+      "bytes": 156886,
+      "sha256": "fa24163380c2dd979f56612114a90804a28bcc24248c5e9d7a89ad360e811c20",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -74,8 +74,8 @@
       "name": "Arbadacarba, Natural Hashrate",
       "file": "Arbadacarba, Natural Hashrate.webp",
       "mime": "image/webp",
-      "bytes": 147480,
-      "sha256": "3724c413e8b83c572cea9d10b5c5937871d7fa3b60044fd1d476a90ce0641175",
+      "bytes": 148166,
+      "sha256": "26eb1ac850c7162d26aaac5056e718bc65ca3875d7da8a2f425f16a24439ab2e",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -87,8 +87,8 @@
       "name": "Arbadacarba, Protocol Gardener",
       "file": "Arbadacarba, Protocol Gardener.webp",
       "mime": "image/webp",
-      "bytes": 141118,
-      "sha256": "187b0e7ccf236c7af3074494cea833906ecb01af0d1c4520117b3c9dcb9fdc47",
+      "bytes": 141556,
+      "sha256": "0114d8ae27a4906fbb5db88c0c1d64fa06429d403d50896e190a87dabdbfa9dc",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -100,8 +100,8 @@
       "name": "Archive Boot",
       "file": "Archive Boot.webp",
       "mime": "image/webp",
-      "bytes": 131814,
-      "sha256": "c5feae05026342726076b7cd7ebae265d9dbb00189762d7e92e0dff93ccb73f3",
+      "bytes": 131054,
+      "sha256": "1da06e467e93fdee95d95d55ef6f1d1b36772e224c69ca716beefdc47264ee52",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -126,8 +126,8 @@
       "name": "Archive Restore",
       "file": "Archive Restore.webp",
       "mime": "image/webp",
-      "bytes": 143798,
-      "sha256": "98b6210b2dfe2104b195736175d6baba082ce06970afe9c7dd60a5a0622a8c15",
+      "bytes": 141790,
+      "sha256": "bccd520b525f75f7c1ea3c7c94b40738ad4fb4df69d4999a07c73718bf921eea",
       "card_type": "Operation",
       "affinity": [
         "Signal"
@@ -139,8 +139,8 @@
       "name": "Attention Market",
       "file": "Attention Market.webp",
       "mime": "image/webp",
-      "bytes": 184048,
-      "sha256": "7e9c594c86a162edeee682db96f90feb5ae19aed17b65bcad6f9b8af0ccc8be9",
+      "bytes": 184664,
+      "sha256": "affc9ee15f9259c39032539d0ce6f9ed8563f53d6bc43e9b6e6d7498d5e435af",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -152,8 +152,8 @@
       "name": "Bam, Heavy Lifter",
       "file": "Bam, Heavy Lifter.webp",
       "mime": "image/webp",
-      "bytes": 134170,
-      "sha256": "2847b51c9a62a71a6486313300d9cb8559a4030ed5d7fca32ab7c5110db2d143",
+      "bytes": 133516,
+      "sha256": "dc5225f2229064b0abc70e0a954bfb7cf17090e22a48f1d23bbf6dbafda959e9",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -165,8 +165,8 @@
       "name": "Bam, Launch Engineer",
       "file": "Bam, Launch Engineer.webp",
       "mime": "image/webp",
-      "bytes": 157834,
-      "sha256": "00103895c606de73eeca0941046570d9c62d2d504fdaa18e1b7e2476df734f7d",
+      "bytes": 156784,
+      "sha256": "a818a1f04589d9c18c16a3de212856a41caa155b3fe7bf5aaed607498cd62cf5",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -178,8 +178,8 @@
       "name": "Bam, Power Artillery",
       "file": "Bam, Power Artillery.webp",
       "mime": "image/webp",
-      "bytes": 171614,
-      "sha256": "c64eee68f69ee784ea5459533e08083c180eeb71b30c042477fc309e5147a6e4",
+      "bytes": 170850,
+      "sha256": "2c61a8e651e9258c4458346ea93fc67551e2fa548c2f823228f8f274a5fdbdb6",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -191,8 +191,8 @@
       "name": "Bam, Tunnel Builder",
       "file": "Bam, Tunnel Builder.webp",
       "mime": "image/webp",
-      "bytes": 151350,
-      "sha256": "3f4171bee0515db19cf4311f12241145107c4d0f77c721808323123a3471a6bc",
+      "bytes": 150648,
+      "sha256": "eeca426b0d9c89a7c9e919b9a17ab8340df0927a4224312d2ac126de32642cb3",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -217,8 +217,8 @@
       "name": "Benarc, Deep Channel",
       "file": "Benarc, Deep Channel.webp",
       "mime": "image/webp",
-      "bytes": 132298,
-      "sha256": "843b2198cafc6fddec0b0f4ec2d5c43b575514302e7529f007705ff6a04104e1",
+      "bytes": 131958,
+      "sha256": "f3ee85f296ebd0bd256e0877c0b51dbe83c82f03c2167fd70bcb856f2ad76a88",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -230,8 +230,8 @@
       "name": "Benarc, Mirror Client",
       "file": "Benarc, Mirror Client.webp",
       "mime": "image/webp",
-      "bytes": 139700,
-      "sha256": "b336b40f4405be7659c0a187b3ed6e3a672be54d223c36eab129e7b44fada105",
+      "bytes": 139574,
+      "sha256": "0c5a1ec7e810a6173454fa5d97eaa1e09107a1cdfc68cc56688070c0992b5c0d",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -243,8 +243,8 @@
       "name": "Bitcoin Gatekeeper",
       "file": "Bitcoin Gatekeeper.webp",
       "mime": "image/webp",
-      "bytes": 128112,
-      "sha256": "235b0e84f2d1f27d87aceb939155de9599304e3d25c96bb4e80f4d9388597537",
+      "bytes": 128892,
+      "sha256": "e069ca9926b06f3f283a3d87e23d284f426f840bc66f49f5561fc146be657eb2",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -256,8 +256,8 @@
       "name": "Bitcoin Protection Circuit",
       "file": "Bitcoin Protection Circuit.webp",
       "mime": "image/webp",
-      "bytes": 152332,
-      "sha256": "bae77108e36082434855dfa5a06a8fd904fcaba71f0f5399e7369eb1acfd74a2",
+      "bytes": 149852,
+      "sha256": "9e199481b7f79c4211de3c710b12d6e4bd3492a29bcd2195d785e5281562a31a",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -282,8 +282,8 @@
       "name": "Bitcoin Rewrite",
       "file": "Bitcoin Rewrite.webp",
       "mime": "image/webp",
-      "bytes": 145614,
-      "sha256": "3c36eb0d6ed3a681ee29e02edb2fc99649ec5e818e96958cdf318ddef2317db0",
+      "bytes": 146768,
+      "sha256": "13df7fa98bebd14a9c5acb0574e73d831439bee829be2d406caf1f35c30ce4ab",
       "card_type": "Zap",
       "affinity": [
         "Bitcoin"
@@ -308,8 +308,8 @@
       "name": "Bitcoin Shield",
       "file": "Bitcoin Shield.webp",
       "mime": "image/webp",
-      "bytes": 132988,
-      "sha256": "ea7f4d1d8613999e6a210a192bcfb0d6026c59179a9aeda166eec9c8b0cf17d7",
+      "bytes": 131710,
+      "sha256": "fbe57569ac55baf8fd5e4bf2e0c8450e3b076e306183fbb28af1157f531c1678",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -321,8 +321,8 @@
       "name": "Bitcoin–Signal Junction",
       "file": "Bitcoin–Signal Junction.webp",
       "mime": "image/webp",
-      "bytes": 137384,
-      "sha256": "c896a595249685f8ed334aeffed43c51491d94423b6e330db2a1025e373ac700",
+      "bytes": 136462,
+      "sha256": "a8d1777e1cc4d93fd28504998907d51218dd7f9b79965c3090e633e46006f0e0",
       "card_type": "Resource",
       "affinity": [
         "Signal",
@@ -335,8 +335,8 @@
       "name": "Bitcoin–Timelock Junction",
       "file": "Bitcoin–Timelock Junction.webp",
       "mime": "image/webp",
-      "bytes": 138826,
-      "sha256": "630fd3448a4d2a08d9685331f09b408a620dd5f9dc5cfc0f48b911a58f00c322",
+      "bytes": 138302,
+      "sha256": "00459d294f10f5a84b63e0535b1beea835f92ab28e09c665dcea35cec8364318",
       "card_type": "Resource",
       "affinity": [
         "Timelock",
@@ -349,8 +349,8 @@
       "name": "BK, Bear Market Builder",
       "file": "BK, Bear Market Builder.webp",
       "mime": "image/webp",
-      "bytes": 162380,
-      "sha256": "5274bc351a475626af0506df16b1d9448a37c84bfbe484cd38faab3ddd2ed026",
+      "bytes": 162858,
+      "sha256": "caf4e0548465ffc04478f1dd207c5e719f0b8db98645a006eb9b483d4e50c437",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -362,8 +362,8 @@
       "name": "BK, Feedback Grower",
       "file": "BK, Feedback Grower.webp",
       "mime": "image/webp",
-      "bytes": 168976,
-      "sha256": "0bfb1920afb6316dc4ade2332446a94f1ef7f95e5c1977f475c29ceb6c25430f",
+      "bytes": 169646,
+      "sha256": "4f6eea9390e4141fa7d14eaa097b962bb0a635ea0a3de05871d034f2de76922b",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -375,8 +375,8 @@
       "name": "BK, Heavy Settler",
       "file": "BK, Heavy Settler.webp",
       "mime": "image/webp",
-      "bytes": 163548,
-      "sha256": "a916e95a5302e7fb05c41d0d967b1994806dcc398b8d901eb7efade675ed6b45",
+      "bytes": 164096,
+      "sha256": "c68ed7582af815e9c792f17fec2d757b389ae2ad14dc0d0c488c7e185b3eec25",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -388,8 +388,8 @@
       "name": "BK, Mesh Pack",
       "file": "BK, Mesh Pack.webp",
       "mime": "image/webp",
-      "bytes": 160168,
-      "sha256": "c93c49f7723a98c8d8834ef21b99cd20fe7c63e85b04e5ac3fb75129250b2044",
+      "bytes": 160926,
+      "sha256": "104f83aa216e466a2dc40ed7a7a4037b9ddfc22c059bbc23c720471fd6c57531",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -401,8 +401,8 @@
       "name": "BlackCoffee, Backup Firewall",
       "file": "BlackCoffee, Backup Firewall.webp",
       "mime": "image/webp",
-      "bytes": 145954,
-      "sha256": "b7b029600f1256530e4f158e3cfefe284fbbdf9f2ffdd275fdd61247c25714c5",
+      "bytes": 147876,
+      "sha256": "011be79a74e326dab956eda48b57d1eca0c2a6f9e41eb2970ec4d52ebd0db997",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -414,8 +414,8 @@
       "name": "BlackCoffee, Reboot Crew",
       "file": "BlackCoffee, Reboot Crew.webp",
       "mime": "image/webp",
-      "bytes": 148588,
-      "sha256": "2a47cde166939a04b13851592ab96fd5745a1dd5d44de4593584af759c420ed7",
+      "bytes": 150480,
+      "sha256": "27905001528503878998fe8b51da86cb8fa2a68022fed450671c33aa9bc1a74c",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -427,8 +427,8 @@
       "name": "BlackCoffee, Shared Secret Swarm",
       "file": "BlackCoffee, Shared Secret Swarm.webp",
       "mime": "image/webp",
-      "bytes": 128258,
-      "sha256": "5eb32c91cdc1664b639fb2dfb17a50059c23488a7e664fd4766e25fffd6cd929",
+      "bytes": 128098,
+      "sha256": "ac33f5b38c751db9fb955fde83d26a06e863c1d67580dff855d0410c5380d089",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -453,8 +453,8 @@
       "name": "Boot Hardware",
       "file": "Boot Hardware.webp",
       "mime": "image/webp",
-      "bytes": 138788,
-      "sha256": "ffa7d3171c70e2457dc59a0f852f6e492fe81a62cb0eeb4948db9e0c3cf19a43",
+      "bytes": 138602,
+      "sha256": "68ebac7301bf92238a7cf684e007e15a382895c583294f1ebc9afc96088a1820",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -466,8 +466,8 @@
       "name": "Broadcast Storm",
       "file": "Broadcast Storm.webp",
       "mime": "image/webp",
-      "bytes": 149964,
-      "sha256": "d5d96318f1cb0f60f928b1c99190a3c3782e74a7ddf646d6d42232d99dc1547f",
+      "bytes": 153342,
+      "sha256": "08e2062917a609667a48bc93ce9758df5061fa801006b33a1ef947ac5069dbe6",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -479,8 +479,8 @@
       "name": "Broadcast Upgrade",
       "file": "Broadcast Upgrade.webp",
       "mime": "image/webp",
-      "bytes": 143114,
-      "sha256": "dee0cc11bc78acd207fa835afe868af911239445ee26dd1063e5980fcd484330",
+      "bytes": 143174,
+      "sha256": "d23f37b080f823e1e4a9e3af6437e05e360a3a67419a39fd855ccdd4793a7ba8",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -492,8 +492,8 @@
       "name": "Buffer Drain",
       "file": "Buffer Drain.webp",
       "mime": "image/webp",
-      "bytes": 149882,
-      "sha256": "4049726b6faab56b1abd563de1729ee57a916b6f9f91f0bf9231560ed92e0528",
+      "bytes": 149620,
+      "sha256": "50326783f46524d601b12443e249112c09d15fe2b4bf10ca2d7e138811514d6f",
       "card_type": "Operation",
       "affinity": [
         "Timelock"
@@ -505,8 +505,8 @@
       "name": "Buffer Lock",
       "file": "Buffer Lock.webp",
       "mime": "image/webp",
-      "bytes": 128574,
-      "sha256": "2ff3de888410f40d230cd1d4afa008fc69c84bd69215d2647e577f1a410a14c3",
+      "bytes": 128556,
+      "sha256": "05065afd0f8fa3881ad58e9083a9c4c2d71b1a0ded30ea4213509350984c0c5f",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -518,8 +518,8 @@
       "name": "Burst Signature",
       "file": "Burst Signature.webp",
       "mime": "image/webp",
-      "bytes": 152654,
-      "sha256": "f8ef24c46d54b67602f7d171db4df6e3f3961174ab970a2f4e87a897a0a12852",
+      "bytes": 154408,
+      "sha256": "722cf6d9acda7730d62370af3d1a7c5e8c36407f8130b23867e9acf7909434ba",
       "card_type": "Zap",
       "affinity": [
         "Keys"
@@ -531,8 +531,8 @@
       "name": "Call to Relay",
       "file": "Call to Relay.webp",
       "mime": "image/webp",
-      "bytes": 133984,
-      "sha256": "1f04e7e8b9a9ab5db82a2954014915d15b6d58f9f3eb18e2e114e86424f0a1ed",
+      "bytes": 134046,
+      "sha256": "9ef9a00787c8950aa1d2d8b5a1ea16f310a0004517f6026af37e97a8e190ae93",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -557,8 +557,8 @@
       "name": "Clean Slate",
       "file": "Clean Slate.webp",
       "mime": "image/webp",
-      "bytes": 134522,
-      "sha256": "82a0e1e5caee2d239fb319ccc54977a97201a0027712098b50864300d01e9e80",
+      "bytes": 133724,
+      "sha256": "73189c468354a3f84824a587d763aa1e8dda33c95b7ee035f7071bd0adade902",
       "card_type": "Operation",
       "affinity": [
         "Signal"
@@ -570,8 +570,8 @@
       "name": "Cognitive Surge",
       "file": "Cognitive Surge.webp",
       "mime": "image/webp",
-      "bytes": 152508,
-      "sha256": "e2de1c56549884404b3ae880021cfb011d64f47568ef48e59154eac5c08055da",
+      "bytes": 152296,
+      "sha256": "4b73f4b76df8d866f1527d2ab7c2c5e819975a9f493ced51c1c979b11d21568d",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -596,8 +596,8 @@
       "name": "Committed Growth",
       "file": "Committed Growth.webp",
       "mime": "image/webp",
-      "bytes": 168370,
-      "sha256": "1195b11ef472857425bc5d1d0a43394e640a5abeb50f2ec560084432335abc4c",
+      "bytes": 168842,
+      "sha256": "e7de242e9cc0ac41ea64ac4c789d9183783af084423b9f1b4d9102957dfb2f71",
       "card_type": "Zap",
       "affinity": [
         "Bitcoin"
@@ -609,8 +609,8 @@
       "name": "Community Strength",
       "file": "Community Strength.webp",
       "mime": "image/webp",
-      "bytes": 142668,
-      "sha256": "c6eb0cf61c25d37724c7312f2fb56096e35cc65180b5bf3ebb3458353839dac5",
+      "bytes": 143424,
+      "sha256": "2abd0e39d5749cfb505757e85150d924e0daed5efc6112bb60d2d05f98d6db99",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -622,8 +622,8 @@
       "name": "Consensus Pause",
       "file": "Consensus Pause.webp",
       "mime": "image/webp",
-      "bytes": 129952,
-      "sha256": "697ff8d04a602a8ac654ef167c84c007018a4cfb924dc97bfd239eb501032e68",
+      "bytes": 129814,
+      "sha256": "7b2535b27165b3cf9d2eb5c6a575d4e0b142fe0dce3c5d17153de4aa861d9b20",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -635,8 +635,8 @@
       "name": "Consequence Ledger",
       "file": "Consequence Ledger.webp",
       "mime": "image/webp",
-      "bytes": 175178,
-      "sha256": "8bb9da955120ecd0ee5b3ec9225d425537c849701c32abdae595cc2cf9841268",
+      "bytes": 175714,
+      "sha256": "d772184453a345c11e716bfbba63d6281a249ee3a822415845a8e58e827752d5",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -648,8 +648,8 @@
       "name": "Convert Uptime",
       "file": "Convert Uptime.webp",
       "mime": "image/webp",
-      "bytes": 142034,
-      "sha256": "30f7e62a0714be66b48b50d4356c9d825df70c325586cdc8b0cb4418411d1409",
+      "bytes": 141446,
+      "sha256": "1efaca851e5c10d23aa8148736708d99a8a6382e798b3fdf958d1cb0699b79ff",
       "card_type": "Zap",
       "affinity": [
         "Keys"
@@ -661,8 +661,8 @@
       "name": "Courage Under Load",
       "file": "Courage Under Load.webp",
       "mime": "image/webp",
-      "bytes": 173054,
-      "sha256": "7cbbd95808f29492bb25c248e66b63baf6870cb711f6d3eb4f3cf94caebb6a4a",
+      "bytes": 171256,
+      "sha256": "0825624e077dec2819298c90b1d6c057f967eb5cec64d7986961575a8ac6abb0",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -687,8 +687,8 @@
       "name": "Cuddy, Fast Starter",
       "file": "Cuddy, Fast Starter.webp",
       "mime": "image/webp",
-      "bytes": 136026,
-      "sha256": "2e47fadf7985b687f3990a128e7456ff6a61d5c3125c21aa6eba3bad0b5cf943",
+      "bytes": 137790,
+      "sha256": "f0c80666e2ec8293ce37eed88abbaf1b6dde7c83f6af335b3e0c90ae5e49973f",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -700,8 +700,8 @@
       "name": "Cuddy, Signal Organizer",
       "file": "Cuddy, Signal Organizer.webp",
       "mime": "image/webp",
-      "bytes": 134850,
-      "sha256": "3e972961339c3df49c060f4a6aa0e1732c47362287eeb924a43fe13e5871ae32",
+      "bytes": 136762,
+      "sha256": "9bd5aea96a022a8fddcf23def2fe06a1c842a75ad3630baed4c4bfd0c345a984",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -739,8 +739,8 @@
       "name": "Damage Refund",
       "file": "Damage Refund.webp",
       "mime": "image/webp",
-      "bytes": 170974,
-      "sha256": "de7876663908abb4362d56a55b58b42366efc2576006cbff3a9f419b27094ed1",
+      "bytes": 171916,
+      "sha256": "ad2d5f12677d35d1e71ee1843f5127fa2221497cb955aa623c6b1ba32f813b52",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -765,8 +765,8 @@
       "name": "Darren, Channel Operator",
       "file": "Darren, Channel Operator.webp",
       "mime": "image/webp",
-      "bytes": 139164,
-      "sha256": "d5578861fb22ac78732d88482be3bd9778d95f19e074cc257e90ea5d78000bdd",
+      "bytes": 138886,
+      "sha256": "6d9f77791a29003504c445712bf2aaaa7087258102db75723907d0c3a6f66655",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -778,8 +778,8 @@
       "name": "Darren, Channel Raider",
       "file": "Darren, Channel Raider.webp",
       "mime": "image/webp",
-      "bytes": 138198,
-      "sha256": "affd930e6089927bd6d40b6a6c6fa13957530ddf3b48915b31bd52d4f05f4e71",
+      "bytes": 138142,
+      "sha256": "d5e7e5dfe49b79f8f7d74621b33a9c6c311e692adbac27ed2ad9db22c24daa05",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -791,8 +791,8 @@
       "name": "Darren, Flow Controller",
       "file": "Darren, Flow Controller.webp",
       "mime": "image/webp",
-      "bytes": 124234,
-      "sha256": "640f9297327efd04ee0401329107a2f535e33b8c7640bd0b54ff512d32522e4a",
+      "bytes": 123916,
+      "sha256": "4003f4db5e12d7a06cb02ff2bcc9a8fc0a95a42993633b41c92264387d9394fb",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -804,8 +804,8 @@
       "name": "Deep Search",
       "file": "Deep Search.webp",
       "mime": "image/webp",
-      "bytes": 135992,
-      "sha256": "4262d7231d78f2c10fe3b27564be8df3590d806c6c9fcb8a7b9e8cfe5378d15d",
+      "bytes": 134872,
+      "sha256": "9acaeea223a4b52a978a55a5ed13c03c3ab6044d052027b6db61e14e8dd68a40",
       "card_type": "Operation",
       "affinity": [
         "Keys"
@@ -830,8 +830,8 @@
       "name": "DNI, Self-Custody Giant",
       "file": "DNI, Self-Custody Giant.webp",
       "mime": "image/webp",
-      "bytes": 128426,
-      "sha256": "19499743a22205a3a59d69d674da96ae427a20cc2c47ae0d2abfe981244dae71",
+      "bytes": 126232,
+      "sha256": "ec0a9463ed0176796aa7f459e33b7490f02ee5e05f9babc4a375674d233e4bdb",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -843,8 +843,8 @@
       "name": "DNI, Sovereign Accumulator",
       "file": "DNI, Sovereign Accumulator.webp",
       "mime": "image/webp",
-      "bytes": 134330,
-      "sha256": "45c12e2520adea8dc056a4aefd240bddf48fb190af9eed1e9a2e9e4015df120c",
+      "bytes": 133788,
+      "sha256": "a68eef601d2fbe49e0fc75c3515444475fa03130cc165821d5c940ae2db4be7f",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -856,8 +856,8 @@
       "name": "DNI, Sovereign Knight",
       "file": "DNI, Sovereign Knight.webp",
       "mime": "image/webp",
-      "bytes": 155370,
-      "sha256": "ecdb93b8a61435fca7179c779d0e3d5d431560557209a77c8647737e9d0c6189",
+      "bytes": 155494,
+      "sha256": "d145253aa588f31484d9f24fb199cc590f9b4597ac215f857408a33d4dec0083",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -869,8 +869,8 @@
       "name": "Emergency Reboot",
       "file": "Emergency Reboot.webp",
       "mime": "image/webp",
-      "bytes": 141638,
-      "sha256": "bb48f4a4f72fb347e4173c9f83488fef2bd47591623d1c5a14a5945b0508582b",
+      "bytes": 142444,
+      "sha256": "d5fef29f9c3c9b81dbcf74cf450aa4d982a995dcd8c3bbcdf53cc564d9b4150d",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -895,8 +895,8 @@
       "name": "Essex, Bull Runner",
       "file": "Essex, Bull Runner.webp",
       "mime": "image/webp",
-      "bytes": 162478,
-      "sha256": "1e32df4b89a11ca9884b2f5943fe722aeb9ffcf00b1b85aed87817ec906841dc",
+      "bytes": 159830,
+      "sha256": "4f52997650e43ff492a320fc53154bbb7b7975f0a04166e57df711d8e9061b0a",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -908,8 +908,8 @@
       "name": "Essex, Grid Rebooter",
       "file": "Essex, Grid Rebooter.webp",
       "mime": "image/webp",
-      "bytes": 145846,
-      "sha256": "93ea152115d10adffddd90de117abb3b03dd13adb7946b1c8a6549ebdab86dd6",
+      "bytes": 145104,
+      "sha256": "1921d7dd78dc419d80541ee31dc5cd6fa912e85c26f62bd3106ba12f3b77d1a7",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -921,8 +921,8 @@
       "name": "Essex, Resilient Operator",
       "file": "Essex, Resilient Operator.webp",
       "mime": "image/webp",
-      "bytes": 145604,
-      "sha256": "a70706bc102a63133d3673cd5bba47c1ffe585c1a8b37a32c489a11d8c3db463",
+      "bytes": 144858,
+      "sha256": "efdc4763d1a6a4a93c97d273b3bfe67cc9a7630255212769f0b64338633272a2",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -934,8 +934,8 @@
       "name": "Essex, Thermal Operator",
       "file": "Essex, Thermal Operator.webp",
       "mime": "image/webp",
-      "bytes": 141556,
-      "sha256": "4bf7695da8f48712d75106291bb596986c94e9a253d2e799c7a1ad8768cd223a",
+      "bytes": 142478,
+      "sha256": "b76462d1b18d110c5c11b943446e016da67fa74fa0aaed10c7a2043a72b5c4c4",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -947,8 +947,8 @@
       "name": "Exit Fee",
       "file": "Exit Fee.webp",
       "mime": "image/webp",
-      "bytes": 144110,
-      "sha256": "a54fa53b5099bdca1f3a7cea5e6d1243861407d7a1c605a5cb33f4c5a1123418",
+      "bytes": 142778,
+      "sha256": "ccfb17d8f88169c12b9ed4bb255eaeed23e50427a612bd7841079aa9a99b9f66",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -960,8 +960,8 @@
       "name": "Fair State",
       "file": "Fair State.webp",
       "mime": "image/webp",
-      "bytes": 149764,
-      "sha256": "87d8b28dd39754baaaf3b0e05d150aa49034f588979297b5b921c3432a6b3ec5",
+      "bytes": 147054,
+      "sha256": "4337ea30daa7f06722e2ff2b552c46bd3a28676462cbbd938c25f2722c2aebb6",
       "card_type": "Operation",
       "affinity": [
         "Signal"
@@ -973,8 +973,8 @@
       "name": "Fast Channel",
       "file": "Fast Channel.webp",
       "mime": "image/webp",
-      "bytes": 168640,
-      "sha256": "356d5bc088883e4601faf3bdad3a08646fc8aab19a87a4892c76c9ad37eeb2e5",
+      "bytes": 168918,
+      "sha256": "7cc3c93e3c0cec1ce980a1a158e968b95473684f4a236476324845e816c11ac7",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -986,8 +986,8 @@
       "name": "Fast Path",
       "file": "Fast Path.webp",
       "mime": "image/webp",
-      "bytes": 128650,
-      "sha256": "bbeca602b7371c2acf07e9f842c0e444763117cbedd80d3b97060fda2420704e",
+      "bytes": 129504,
+      "sha256": "1aecf4462635a5e92f998008202e1e61c9b60881227a82698438986c43cf6ff6",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -1012,8 +1012,8 @@
       "name": "Fee Spike",
       "file": "Fee Spike.webp",
       "mime": "image/webp",
-      "bytes": 155064,
-      "sha256": "22c4a875d04c7806481cca160200d822674c315ab3be49b080e3b7a7050d824e",
+      "bytes": 155168,
+      "sha256": "1e07ef4ceb16d645242ef433f55441eaafa132b7d45fcc4642463c478491df0a",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -1025,8 +1025,8 @@
       "name": "Final Settlement",
       "file": "Final Settlement.webp",
       "mime": "image/webp",
-      "bytes": 150302,
-      "sha256": "3af7a3c02de7d00fed0178f5eb701972e62936a9f80d72422e7cd727162aa777",
+      "bytes": 149672,
+      "sha256": "8401d9ed06cda9723228df7735c7c41bb24641a5a0fc1ef3227a7aa7a6c15f55",
       "card_type": "Operation",
       "affinity": [
         "Power"
@@ -1038,8 +1038,8 @@
       "name": "Firewall Tunnel",
       "file": "Firewall Tunnel.webp",
       "mime": "image/webp",
-      "bytes": 168818,
-      "sha256": "f638752cbf84faddcedd19fe800d5a67b589f563cfa1e62281bda9ed4b5b86fc",
+      "bytes": 166892,
+      "sha256": "f89eb1505215fee318c46127250f7a7bb27ec5b7f6ec2c0f505ab4fe568491d1",
       "card_type": "Zap",
       "affinity": [
         "Power"
@@ -1051,8 +1051,8 @@
       "name": "Firmware for Firewalls",
       "file": "Firmware for Firewalls.webp",
       "mime": "image/webp",
-      "bytes": 146004,
-      "sha256": "933229e745be61499c73784ca294ca829dd748a369a4dc2c2ee82d48f00ba8cf",
+      "bytes": 146772,
+      "sha256": "5c7033e8cc8c72361ea5d449999e2f4278320ac4832e01e86e3b10f89bf93535",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -1064,8 +1064,8 @@
       "name": "First Memory",
       "file": "First Memory.webp",
       "mime": "image/webp",
-      "bytes": 146904,
-      "sha256": "155fcda808305d4f974bef3697652d505e1b30b0d9ea484e4cfb08f1d9a5d00c",
+      "bytes": 146680,
+      "sha256": "dd1b1fcb961a39f88165a7430d768382f0834bd9413c8c11f020084444226fd8",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -1077,8 +1077,8 @@
       "name": "FLX, Culture Curator",
       "file": "FLX, Culture Curator.webp",
       "mime": "image/webp",
-      "bytes": 159688,
-      "sha256": "3da16c0e2fae739bdfe0b87d089d4c37b06db33ff9ce38dd0df727a897101349",
+      "bytes": 162326,
+      "sha256": "5e840e74ed26ab29a5ab0e21b7ed7a20c05eef2ec70d1e3add3eff0f15775fae",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -1103,8 +1103,8 @@
       "name": "Freedom Market",
       "file": "Freedom Market.webp",
       "mime": "image/webp",
-      "bytes": 170222,
-      "sha256": "0ca7dfcc95c93792841d5cf6cc07492266dad567050cdfaaada6bf8d260a66b7",
+      "bytes": 169480,
+      "sha256": "55cb11a8485147346b86276389d2167de1a046af0df8df5db5ce27b0a3f0ebec",
       "card_type": "Operation",
       "affinity": [
         "Power"
@@ -1116,8 +1116,8 @@
       "name": "Gadaj, Archive Maintainer",
       "file": "Gadaj, Archive Maintainer.webp",
       "mime": "image/webp",
-      "bytes": 148682,
-      "sha256": "63886e80932377314e197ef4d3affa626cbb8d93da145cfd4fcaf79f2107e21b",
+      "bytes": 150068,
+      "sha256": "66cdf1435fb40eb8e3f16517a6fbec7e47aa3abaec1224397e52f7a3dd541d99",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -1129,8 +1129,8 @@
       "name": "Gadaj, Commit Auditor",
       "file": "Gadaj, Commit Auditor.webp",
       "mime": "image/webp",
-      "bytes": 132354,
-      "sha256": "b57ec1d45e07c7cc91914c9021cf961ee565ed5452bc42c1a5120159156f1e77",
+      "bytes": 131834,
+      "sha256": "2a7508c1c4f9a776e3444e4d15222171c3e2c28a3bf000b46f6a16d113f53cbb",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -1142,8 +1142,8 @@
       "name": "Gadaj, Wallet Whisperer",
       "file": "Gadaj, Wallet Whisperer.webp",
       "mime": "image/webp",
-      "bytes": 125332,
-      "sha256": "98bc704f9f4e5e944dee16a02ad2259cd5ab8992839deede76bd524ff5d608dc",
+      "bytes": 123370,
+      "sha256": "aeb920f03c1b7be36e7bea09c61f735c5a5eb97ae9b8cee8f98eda2d5a06aacb",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -1194,16 +1194,16 @@
       "name": "Global FIPS Balloon Network",
       "file": "Global FIPS Balloon Network.webp",
       "mime": "image/webp",
-      "bytes": 133628,
-      "sha256": "f48994defdba938865ef803693497f475264f6161e6a783a8b2d43860997d5c8"
+      "bytes": 132880,
+      "sha256": "96818d8aec8ae37647a73ae1ba8e730470ec20bcd57b707cffe88ceab964132a"
     },
     {
       "id": "E1-164",
       "name": "Grid Amplifier",
       "file": "Grid Amplifier.webp",
       "mime": "image/webp",
-      "bytes": 175752,
-      "sha256": "47b67675f35508ce7a2c7153604ea6a1aecf03bf3d6d9587adddbab5c78b236e",
+      "bytes": 176944,
+      "sha256": "199bfb22d6bcc177af8b375f80aff760775e09ada3013f10d16c5b15be8a8a03",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -1215,8 +1215,8 @@
       "name": "Grid Conversion",
       "file": "Grid Conversion.webp",
       "mime": "image/webp",
-      "bytes": 150330,
-      "sha256": "4ad53f2983bbf2e8a0f4fe99cf23e08d4adb1c9c177991b945dafb96f69a910c",
+      "bytes": 147198,
+      "sha256": "435541c9c77dbca8e3f121deba5e2019f7ff4fa4b840f9907115f28da3992844",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -1228,8 +1228,8 @@
       "name": "Grid Eruption",
       "file": "Grid Eruption.webp",
       "mime": "image/webp",
-      "bytes": 148814,
-      "sha256": "0432adac321ce0c9634c6296b74f2f50ada85516d56ab15738f1431f0584f818",
+      "bytes": 148758,
+      "sha256": "a49d1c8823fc60f37c3bc2fe113630e0fa54bc081f6e008c42d124618c4372f1",
       "card_type": "Operation",
       "affinity": [
         "Timelock"
@@ -1241,8 +1241,8 @@
       "name": "Grid Reset",
       "file": "Grid Reset.webp",
       "mime": "image/webp",
-      "bytes": 134568,
-      "sha256": "6f423528defad9b70b157d0c98bd11058b56aca849921dd0f88eb694df0a0977",
+      "bytes": 133518,
+      "sha256": "df9a16691658a913a6969317c853b76958b669889feb2c0e9a6bfb53f7fe8b47",
       "card_type": "Operation",
       "affinity": [
         "Signal"
@@ -1254,8 +1254,8 @@
       "name": "Grounded Signal",
       "file": "Grounded Signal.webp",
       "mime": "image/webp",
-      "bytes": 147868,
-      "sha256": "025c00e1848a3fe911a05372de6b802d2084a2d501cccd5685de7dea25779ab7",
+      "bytes": 146940,
+      "sha256": "2e742160cb8c729aede0721e2a9016a988516e3e3247693036b04c6db0ded6ca",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -1267,8 +1267,8 @@
       "name": "Guardian Signal",
       "file": "Guardian Signal.webp",
       "mime": "image/webp",
-      "bytes": 153082,
-      "sha256": "ae14500bd1060f921ac6917b84853b6e146829fd6bb1b94c1d1c57967bc3d35d",
+      "bytes": 150362,
+      "sha256": "2783847dd8649d9860f3eca4bd2f9a3a3dc91a254c376d0237e957c0562005e1",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -1280,8 +1280,8 @@
       "name": "Hard Shutdown",
       "file": "Hard Shutdown.webp",
       "mime": "image/webp",
-      "bytes": 123782,
-      "sha256": "25fcd8391c2961f8d65c04ea7c1cb661183131edc3d1f61a1b3922fdb03160f9",
+      "bytes": 122918,
+      "sha256": "f5ab94fc9dd75541e026cf7705f224e2d942110353b99136546bd6b2cfd76c04",
       "card_type": "Zap",
       "affinity": [
         "Keys"
@@ -1293,8 +1293,8 @@
       "name": "Hardened Identity",
       "file": "Hardened Identity.webp",
       "mime": "image/webp",
-      "bytes": 152904,
-      "sha256": "574de3de0b7f82f0b916ac448c84705f33dd556746ac559db214d98815fe4ce4",
+      "bytes": 150634,
+      "sha256": "f13a0b7eccfc995562b01f1fe3977a5cd56dcc2fc58044d19293211e6b7feb99",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -1306,8 +1306,8 @@
       "name": "Hardened Resource",
       "file": "Hardened Resource.webp",
       "mime": "image/webp",
-      "bytes": 178020,
-      "sha256": "7df98047948b21c04c61037d407f208450ae74bc068ded6d4b0b4a400971f75a",
+      "bytes": 178502,
+      "sha256": "cd856803ea6b60c5f0f92114c23337717d19100a958dba6b1df23b56f32e77ef",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -1319,8 +1319,8 @@
       "name": "Hardware Clone",
       "file": "Hardware Clone.webp",
       "mime": "image/webp",
-      "bytes": 146038,
-      "sha256": "dac26face683a84adbe1a9945b89674d75da14c12cd9ab7210a9ebbe64bace29",
+      "bytes": 146144,
+      "sha256": "a2e5c39751cb2ce01a5e6c9a4444dce4ac859d4bf0d4c44894221c8fdc4d9847",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -1332,8 +1332,8 @@
       "name": "Hardware Leak",
       "file": "Hardware Leak.webp",
       "mime": "image/webp",
-      "bytes": 141460,
-      "sha256": "948b95a71bdd77d354d08390aa3f5f49a5b8292e236d3cbdd8575f4b2ac83c49",
+      "bytes": 141860,
+      "sha256": "3a821e3bb7c6159667499f670c5029f677e3aea2a72faf756d432b3a09d0d8ea",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -1345,8 +1345,8 @@
       "name": "Hardware Shatter",
       "file": "Hardware Shatter.webp",
       "mime": "image/webp",
-      "bytes": 170910,
-      "sha256": "4401b9fe85a97e4d625d4a0d614de7ad826d2a15d3cdfaebda61bb3613380f39",
+      "bytes": 170328,
+      "sha256": "7432d369eaee913eb44977694060e4a6c491f64c6cbcbee9434b46ab4590391d",
       "card_type": "Zap",
       "affinity": [
         "Power"
@@ -1358,8 +1358,8 @@
       "name": "Hashquake",
       "file": "Hashquake.webp",
       "mime": "image/webp",
-      "bytes": 187676,
-      "sha256": "e378f337047ae801b0c33f6e30fd844e9861a03d8f4571e389dcb68160859573",
+      "bytes": 186964,
+      "sha256": "e281442ea893e7a659e8e604d73be6501356e76c27529a480130a768276ef7e1",
       "card_type": "Operation",
       "affinity": [
         "Power"
@@ -1371,8 +1371,8 @@
       "name": "Hashrate Aura",
       "file": "Hashrate Aura.webp",
       "mime": "image/webp",
-      "bytes": 187066,
-      "sha256": "664c6a4353e8aec8a06cab6bcafcd2f77a3489457b0f88dd45c25643d53504c8",
+      "bytes": 185234,
+      "sha256": "428f86edf8c8271c2e91f6cd2e0a29c7fa0f7c2892a6dc847c3ce4e7ebe3adde",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -1397,8 +1397,8 @@
       "name": "Hidden Route",
       "file": "Hidden Route.webp",
       "mime": "image/webp",
-      "bytes": 143586,
-      "sha256": "d27e376067bb4349c0be564b96e0412911bad791254eae57d0fc46441504f3d2",
+      "bytes": 143068,
+      "sha256": "48d32c608087436773d7281306fa78d5ac5e3dab11c79af183d0fef07dabae89",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -1410,8 +1410,8 @@
       "name": "Home Miner",
       "file": "Home Miner.webp",
       "mime": "image/webp",
-      "bytes": 156652,
-      "sha256": "232a34d239f11907aee089cc55386ae25e401f5184ad5ac3148d969a74612cf7",
+      "bytes": 154734,
+      "sha256": "cb9dba947798825e78bc55ad2c02f694ff3fa2400adf646e91d6328c0cd4a9d9",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -1423,8 +1423,8 @@
       "name": "Hot Grid",
       "file": "Hot Grid.webp",
       "mime": "image/webp",
-      "bytes": 163992,
-      "sha256": "8e4292f282401fe5dbd95207dfe830822905fae61ee98bc7be883c0731542737",
+      "bytes": 163182,
+      "sha256": "b5a4f74fe72ed4616a1c06042056b88a37e128cb1db2e36744820f5880f91f7d",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -1436,8 +1436,8 @@
       "name": "Hot Resource",
       "file": "Hot Resource.webp",
       "mime": "image/webp",
-      "bytes": 147504,
-      "sha256": "065796966d7634be8ec5a6a127bc946738f0b35503bc5b04ac3f8ddb5118ef65",
+      "bytes": 147498,
+      "sha256": "48a5dd8311c9c86a44caba11c311600c0c25c78cbe5e94a1924e06da36f0ad5b",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -1462,8 +1462,8 @@
       "name": "Human Hashrate",
       "file": "Human Hashrate.webp",
       "mime": "image/webp",
-      "bytes": 153180,
-      "sha256": "bfff8fd55f82d4ec06acbe6662ab8f91ac6479f09102a8d01d17a1e076a93682",
+      "bytes": 153862,
+      "sha256": "f6ca355dd097cec27d2d0a5699888f7df59f80f9c38c01a075a0dbe7b702d040",
       "card_type": "Operation",
       "affinity": [
         "Bitcoin"
@@ -1488,8 +1488,8 @@
       "name": "Idle Grid Penalty",
       "file": "Idle Grid Penalty.webp",
       "mime": "image/webp",
-      "bytes": 147896,
-      "sha256": "8face437559e3beb711343e32ab856ebf92eb6273ca31802c28883d76d3719eb",
+      "bytes": 147458,
+      "sha256": "2e8988ff71b2c7b2088b95a7fa84af937d043cbc45fec0b2610a9411fa55a8fc",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -1501,8 +1501,8 @@
       "name": "Instant Boot",
       "file": "Instant Boot.webp",
       "mime": "image/webp",
-      "bytes": 142490,
-      "sha256": "5308cc0b08d16800bc0d10d12c6d4f26eee3cf9a11d6a390d99e95f95288d0fb",
+      "bytes": 142872,
+      "sha256": "9982d0e28a6ccbf81a2684e66f50e6fd5685bf852243b7f5a7984162f723fe76",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -1514,8 +1514,8 @@
       "name": "Invalid Signature",
       "file": "Invalid Signature.webp",
       "mime": "image/webp",
-      "bytes": 154108,
-      "sha256": "0aa3999ca3ce00a888fefcfb520203fd20ebdc64155a524088e485519e1e197a",
+      "bytes": 153866,
+      "sha256": "72f6e64962ef7eaec000ca05d2b704e23f46d9a1d3d390ae04637390cc6a0206",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -1527,8 +1527,8 @@
       "name": "Jedai, Adaptive Client",
       "file": "Jedai, Adaptive Client.webp",
       "mime": "image/webp",
-      "bytes": 156552,
-      "sha256": "6ba1a3892f8450021cf08d200c8245175b8fde0cc3e40c4da6aa4dc09209a638",
+      "bytes": 156356,
+      "sha256": "5bf7c91cffe4d3182679ff003a221d673b5b082fc8e8ad3b6fd79176083c50b7",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -1540,8 +1540,8 @@
       "name": "Jedai, Protocol Architect",
       "file": "Jedai, Protocol Architect.webp",
       "mime": "image/webp",
-      "bytes": 152764,
-      "sha256": "fdd80083370b9c750b77da3f1b5c6fee29e61bbef51fb3d38ebe91c80c47b066",
+      "bytes": 151104,
+      "sha256": "26d4468459a8b3bd8d8159c329af64e590577cfe9837c8dc2607e02120d8fb88",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -1553,8 +1553,8 @@
       "name": "Key Vault — Cold Room",
       "file": "Key Vault — Cold Room.webp",
       "mime": "image/webp",
-      "bytes": 125022,
-      "sha256": "721bd78d723a14450550df389f3da646b02319ac818e3ee0f4bd01658eeaf58d",
+      "bytes": 124916,
+      "sha256": "2a736fc136e1254c28929464d84ce659352b7b6c9da0c36e16f3e55838b93744",
       "card_type": "Basic Resource",
       "affinity": [
         "Keys"
@@ -1566,8 +1566,8 @@
       "name": "Key Vault — Workshop",
       "file": "Key Vault — Workshop.webp",
       "mime": "image/webp",
-      "bytes": 124268,
-      "sha256": "8bc1c32e84591b8201d3028e5cd64a0f0d700c78363bb77a8f3ce7d367a0840f",
+      "bytes": 124556,
+      "sha256": "f3bc9255482150e13c66124dd1322b742d4c392482b8981acfdeedaf4c2a19a7",
       "card_type": "Basic Resource",
       "affinity": [
         "Keys"
@@ -1592,8 +1592,8 @@
       "name": "Keys Invalidation",
       "file": "Keys Invalidation.webp",
       "mime": "image/webp",
-      "bytes": 173596,
-      "sha256": "44e4271834bb7f4973696ad85ff71c29f3ee5cd67767f3daa09e619eacb4cbcd",
+      "bytes": 174172,
+      "sha256": "1cce21980852fe4fa79ac95e841138509b9d4e80bef84cbb95e2fc00f9bcdd99",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -1618,8 +1618,8 @@
       "name": "Keys Rewrite",
       "file": "Keys Rewrite.webp",
       "mime": "image/webp",
-      "bytes": 148352,
-      "sha256": "537815b4b533cf00c6f160f415705841ba9f5dbddc486a8b5a54514f084d7233",
+      "bytes": 151074,
+      "sha256": "de00cc19f38b833d309ede4f8209b03120794a62ddbe67df307878b8390924c0",
       "card_type": "Zap",
       "affinity": [
         "Keys"
@@ -1644,8 +1644,8 @@
       "name": "Keys Shield",
       "file": "Keys Shield.webp",
       "mime": "image/webp",
-      "bytes": 136004,
-      "sha256": "c903c39a3d77ee166550423695b21c8ef065e8f7c07ebc096ada4d0cdcdc7554",
+      "bytes": 136690,
+      "sha256": "327f37ebd89a2f5cc4bc49a27caf06a7063bbdee4800def35498c52bc29c6188",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -1657,8 +1657,8 @@
       "name": "Keys–Bitcoin Junction",
       "file": "Keys–Bitcoin Junction.webp",
       "mime": "image/webp",
-      "bytes": 146320,
-      "sha256": "3f7f520bde782cb95d6cc50d7f5570093403b43e922916342f0046b952f80e01",
+      "bytes": 148690,
+      "sha256": "2022e09078d17e343441fa8c99c113598d3b1de320c8aff9f1af68e6fe68ea7c",
       "card_type": "Resource",
       "affinity": [
         "Keys",
@@ -1671,8 +1671,8 @@
       "name": "Last Broadcast",
       "file": "Last Broadcast.webp",
       "mime": "image/webp",
-      "bytes": 156322,
-      "sha256": "491035687e114ec9d2c30c2accfbbdae0bebc197aa77a4322ec7adf77c59f633",
+      "bytes": 152670,
+      "sha256": "1d5f67caef26043d9e238617f547415ba2467c318db38cef99a33a4bbb7d3c38",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -1684,8 +1684,8 @@
       "name": "Leaking Key Vault",
       "file": "Leaking Key Vault.webp",
       "mime": "image/webp",
-      "bytes": 136550,
-      "sha256": "b4435a44575600db61d9159dd6911b7684e7c371e4249832772444faffacfb6b",
+      "bytes": 136966,
+      "sha256": "2fcc6af5fcb78b16a048da1e6bf1053f6d9c52dd7a87920d76f37a7efb7f65a6",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -1697,8 +1697,8 @@
       "name": "Leon, Grid Stabilizer",
       "file": "Leon, Grid Stabilizer.webp",
       "mime": "image/webp",
-      "bytes": 150366,
-      "sha256": "a0ef651ad3605ec4a54d011343e2f2bfe71b4bea9ea9bf58dfe6107144a81603",
+      "bytes": 149946,
+      "sha256": "0ad2688446fc8c16ab3efbfec5d481e3a17fa64cb0e8a9c0ae2842c01efce8ac",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -1710,8 +1710,8 @@
       "name": "Leon, High Relay Rider",
       "file": "Leon, High Relay Rider.webp",
       "mime": "image/webp",
-      "bytes": 142776,
-      "sha256": "4a80bc3e097b1bcb8c458aa6ead4ba3e840b2892c3bd5254963fa088fcb24e8b",
+      "bytes": 142390,
+      "sha256": "19304a6208776160894907463039b9e2201a801785bd72aa13c4febcc3c956f9",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -1723,8 +1723,8 @@
       "name": "Leon, Shift Worker",
       "file": "Leon, Shift Worker.webp",
       "mime": "image/webp",
-      "bytes": 138998,
-      "sha256": "687453223053a013d3ba81de4e79a6bb21d0e9796b8afb143d40d932c0d909cf",
+      "bytes": 138736,
+      "sha256": "2979fa9cea263e1d11b32ca343b6ce41e0c66ccb8ae3e133bcc97f8c79e152d7",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -1736,8 +1736,8 @@
       "name": "Living Hardware",
       "file": "Living Hardware.webp",
       "mime": "image/webp",
-      "bytes": 164076,
-      "sha256": "1f32dbe79f8019935033bbce30219f5834687f878f9983815095cf87ad7d6d27",
+      "bytes": 164494,
+      "sha256": "7e369933ea94497077b576eecff23ece224c0de4df0d015cc6b162513b8c5e79",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -1749,8 +1749,8 @@
       "name": "Local Citadel",
       "file": "Local Citadel.webp",
       "mime": "image/webp",
-      "bytes": 152036,
-      "sha256": "b87b7c130ffb5ac987945d58614376bb254127978cf928176fafead520968fa5",
+      "bytes": 150426,
+      "sha256": "c56c7d2065d74fc9317e48142354f715e7ae12ece38c349ac6a40ae61ba8068a",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -1762,8 +1762,8 @@
       "name": "Locked Process",
       "file": "Locked Process.webp",
       "mime": "image/webp",
-      "bytes": 143270,
-      "sha256": "075bdc7fca7b3e92120d5398fdb45b52f70799e49c84d7fece518831fb3b999f",
+      "bytes": 143900,
+      "sha256": "1e47bc96ef9099f51a16c5cae934761c7306e543c6cb440f3c64b940ccfdf2ab",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -1775,8 +1775,8 @@
       "name": "Longy, Deep Node",
       "file": "Longy, Deep Node.webp",
       "mime": "image/webp",
-      "bytes": 132070,
-      "sha256": "ca79a98c010dfc85b84853175fd2b7e23be55b33b75ae4925d5b191c4ea8abff",
+      "bytes": 132286,
+      "sha256": "f53779a065cac45a668701ea9de01ea2868187bbdb18c1e4a4ab2537300a97e4",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -1788,8 +1788,8 @@
       "name": "Longy, Resource Sovereign",
       "file": "Longy, Resource Sovereign.webp",
       "mime": "image/webp",
-      "bytes": 158282,
-      "sha256": "87187997ce7f89592bf730b64ab1d73b984fd0c62ba4fef690f73e1e9ade7ada",
+      "bytes": 156612,
+      "sha256": "f3752b492128656d665e217bf18b7bf4fb29d558a5847e302b356435a9b3e766",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -1801,8 +1801,8 @@
       "name": "Longy, Thorn Firewall",
       "file": "Longy, Thorn Firewall.webp",
       "mime": "image/webp",
-      "bytes": 157102,
-      "sha256": "786d9fab183bb9b0d657a3a86555efea6aaefe169807b353bc8aaefacf6b8df7",
+      "bytes": 157404,
+      "sha256": "a3d9957ea802f0bca5159ff536b14dec6cf5e574d84a6fe373020ae4b23e5f6b",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -1827,8 +1827,8 @@
       "name": "MadMunky, Chaos Coordinator",
       "file": "MadMunky, Chaos Coordinator.webp",
       "mime": "image/webp",
-      "bytes": 163484,
-      "sha256": "3b6b2bea15969a02e1fbadc7b262b7db1c3613ca459cf6b62bfd4bc5cf53db15",
+      "bytes": 164508,
+      "sha256": "ff4b85e0a92ec1571018cab4f7ac109db0104fee4b115856d67ab9786dc71b52",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -1840,8 +1840,8 @@
       "name": "MadMunky, Hashrate Dragon",
       "file": "MadMunky, Hashrate Dragon.webp",
       "mime": "image/webp",
-      "bytes": 140822,
-      "sha256": "77b51192f027b9bf4f65623d6d4ca0f6b73491cc4153660210a19b0fba944600",
+      "bytes": 140158,
+      "sha256": "e3bbc90cc821d7bbf0a2c3b30391f70d358c0d7b8adc880f61a1051549468429",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -1853,8 +1853,8 @@
       "name": "MadMunky, Meme Raider",
       "file": "MadMunky, Meme Raider.webp",
       "mime": "image/webp",
-      "bytes": 146152,
-      "sha256": "80b841fb2907258ca02ca7d7e0d788f0b7e1758a14e372378187b10db3993e63",
+      "bytes": 149348,
+      "sha256": "3b757c4ae4997b69e100fcbeb008bc78fa951cb10cc592df712ab532c8f23ac2",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -1866,8 +1866,8 @@
       "name": "MadMunky, Young Overclocker",
       "file": "MadMunky, Young Overclocker.webp",
       "mime": "image/webp",
-      "bytes": 144522,
-      "sha256": "2e333183f4cb04d6c38c7b6738a73796085001d0597df3907fd434d198eff968",
+      "bytes": 143980,
+      "sha256": "e3c5d46f62396abd63dfae53e157ba12b8d99bfee46af48ff6683b540bc039ff",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -1879,8 +1879,8 @@
       "name": "Maintenance Leak",
       "file": "Maintenance Leak.webp",
       "mime": "image/webp",
-      "bytes": 126562,
-      "sha256": "c559d353d6d52f44869bdf20a87dce6d2442cdf44c9a47b415815d48de1ff7f5",
+      "bytes": 126332,
+      "sha256": "fb7de60a8a592e52e5a457cc5369bf5c4e7c3daa35ce93623855db84e44cb119",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -1918,8 +1918,8 @@
       "name": "Mesh Upgrade",
       "file": "Mesh Upgrade.webp",
       "mime": "image/webp",
-      "bytes": 168596,
-      "sha256": "4c34369650ff129546a4c46005cb4e5d738318b7493e2c084dc1686027c6e443",
+      "bytes": 169098,
+      "sha256": "f4f2c4edc1c07dc6030a4cd048b890bbbd76c4c404ea86c2645c728b9be4dc2e",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -1931,8 +1931,8 @@
       "name": "MHB, Community Shield",
       "file": "MHB, Community Shield.webp",
       "mime": "image/webp",
-      "bytes": 158982,
-      "sha256": "da978fde72f28339c3c064fc9f52a971466a5f36fb1bbf17831866bc77d55121",
+      "bytes": 154846,
+      "sha256": "8d748f255f495bf91edd0cb11485dee65b97755c41623c72ef2cf72c06d49d72",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -1944,8 +1944,8 @@
       "name": "MHB, Keys Auditor",
       "file": "MHB, Keys Auditor.webp",
       "mime": "image/webp",
-      "bytes": 154216,
-      "sha256": "d33388d4cb6502b53e8846233951397f09c1aed67cfd5c7db117ad46141ea613",
+      "bytes": 151436,
+      "sha256": "a265764e33f9c2ebd74b693587b224f27e2630c714bb371cef93f5a214f15fdb",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -1970,8 +1970,8 @@
       "name": "Michael1011, Debugger",
       "file": "Michael1011, Debugger.webp",
       "mime": "image/webp",
-      "bytes": 128408,
-      "sha256": "aa869648dc845cfd51805f9ce6e05fabca06937a459e8272c0f438c7a14f9c48",
+      "bytes": 128300,
+      "sha256": "fd593b22406a1fad934d9f3e928c26e0613e9b653e140defdce397f7cdfb8fc9",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -1996,8 +1996,8 @@
       "name": "Michael1011, Packet Shaper",
       "file": "Michael1011, Packet Shaper.webp",
       "mime": "image/webp",
-      "bytes": 138076,
-      "sha256": "4da52d04538b3805064a99a37f33845ced79440b843bfe707767cd9d21752c37",
+      "bytes": 137860,
+      "sha256": "1e5d2cb62d27ba8b3530b60e35a200a8e6793113f58d28dc7f19e477830ba026",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -2009,8 +2009,8 @@
       "name": "Migrating Workload",
       "file": "Migrating Workload.webp",
       "mime": "image/webp",
-      "bytes": 163332,
-      "sha256": "37b10eb5c3ce32e574537006e1cf69c9e681448249b4cdd0e36446d8c8f7d123",
+      "bytes": 163666,
+      "sha256": "747b94433569d7e114fa461922508fa40df2aaa62d9815fd554d28b0e9153555",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -2022,8 +2022,8 @@
       "name": "Miner Rally",
       "file": "Miner Rally.webp",
       "mime": "image/webp",
-      "bytes": 146086,
-      "sha256": "f998e67c79b51d1bc8f54fa4b3150037fa992f2502ddeee64efbb422816a56ee",
+      "bytes": 145538,
+      "sha256": "d23a0646a8e915e8013f19ffe980c01d4bec7057c63daf16a06a6c80f7d3e2a1",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -2035,8 +2035,8 @@
       "name": "Morgs, Friendly Fork",
       "file": "Morgs, Friendly Fork.webp",
       "mime": "image/webp",
-      "bytes": 140596,
-      "sha256": "dd6e1e08406c2ca8a4c0bef95c04bff8a02cd8c13a455a928d2df5139e533195",
+      "bytes": 138828,
+      "sha256": "6f6b0b53f1a8d755e8e4ea89e467d2dbd11de3d53c4caf2a566965312032b0e8",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -2048,8 +2048,8 @@
       "name": "Morgs, Signal Knight",
       "file": "Morgs, Signal Knight.webp",
       "mime": "image/webp",
-      "bytes": 162220,
-      "sha256": "c5c4d5e8bcbf0cf999494b694cfa060112100d060db627c0399deff657bcb88a",
+      "bytes": 162150,
+      "sha256": "cf1f1a4f0e8387ef67f0be3e1c2cad0b11ee557b12d0c94bc11cde7e0ba1ecbd",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -2061,8 +2061,8 @@
       "name": "Mtoshi, Finality Keeper",
       "file": "Mtoshi, Finality Keeper.webp",
       "mime": "image/webp",
-      "bytes": 154376,
-      "sha256": "fbfffb21a81f81f7ca8a56099c0ec63b30456e273a1c4a7a48daf0bd04aee83e",
+      "bytes": 154782,
+      "sha256": "286b30ebe1bf0aee7ac3c64b6c17e8cbabc914570a6333fdf6218fbd13f1ea8d",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -2074,8 +2074,8 @@
       "name": "Mtoshi, Lethal Courier",
       "file": "Mtoshi, Lethal Courier.webp",
       "mime": "image/webp",
-      "bytes": 156552,
-      "sha256": "763ef2a2c1ae2dc3d14a63bd6b2fde47cdbbdfe8848a5aceac39ae4d2010b33c",
+      "bytes": 156708,
+      "sha256": "7f5718799031ec3db0ecf4d549802c555eef87af0a01f66f7ca95308f6938a29",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -2087,8 +2087,8 @@
       "name": "Mtoshi, Rooted Node",
       "file": "Mtoshi, Rooted Node.webp",
       "mime": "image/webp",
-      "bytes": 145538,
-      "sha256": "0f0ae43e1a47464245b29d6bc1c62c7bd34be36831b8ef9bb06f94d2f7961082",
+      "bytes": 146050,
+      "sha256": "c600f902da9b77047da264b3f82d4aad646e552a1de2b6b5b69e006f6aacd250",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -2100,8 +2100,8 @@
       "name": "Multisig Quorum",
       "file": "Multisig Quorum.webp",
       "mime": "image/webp",
-      "bytes": 140472,
-      "sha256": "28c3cbf85ad395e8597bd58f6b857395bde0529e2d0efb42c5170ff163c19885",
+      "bytes": 141834,
+      "sha256": "5ef933185a90517ca6309643dd432bb8659c7ef2575f18b156f0dfe17536b25c",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -2113,8 +2113,8 @@
       "name": "NC, Forced Signal",
       "file": "NC, Forced Signal.webp",
       "mime": "image/webp",
-      "bytes": 134720,
-      "sha256": "5494bf35b581704c92dc94abf3757955d55f97b49544c4cba0951306bfbd8da2",
+      "bytes": 132698,
+      "sha256": "400d45128bb4d428c91c21c9d4d4f3326aa427950ab187e67007e7629d5df647",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2126,8 +2126,8 @@
       "name": "NC, Offline Operator",
       "file": "NC, Offline Operator.webp",
       "mime": "image/webp",
-      "bytes": 116652,
-      "sha256": "90b5cb9b5e85c7a6afa429b20dde54c7524b08da3c93e65539a1dfa58a789872",
+      "bytes": 116006,
+      "sha256": "3b1ce005796c22b395df581d0dbe0b7584ebfd91b40ec87d5766760e8a23d8b3",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2139,8 +2139,8 @@
       "name": "NC, Resource Reclaimer",
       "file": "NC, Resource Reclaimer.webp",
       "mime": "image/webp",
-      "bytes": 135988,
-      "sha256": "de4a8716999790b1e49699c76cb39a1d8e512a9cf6ee2ca405cb6d9feacf7378",
+      "bytes": 135014,
+      "sha256": "b95c49ecb4cda3faf5c9004e7fabcf39b2cfbe665d1f0e453395aa7b41cd4f95",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2165,8 +2165,8 @@
       "name": "Network Storm",
       "file": "Network Storm.webp",
       "mime": "image/webp",
-      "bytes": 142366,
-      "sha256": "7d38d5668e67e834a0d03c6640d56c71e4efd747d159731601326025b9b14e1a",
+      "bytes": 142918,
+      "sha256": "a2760f171c05181879a18cd8f8b321b44b35eca3d35202efdae9abc6ce152023",
       "card_type": "Operation",
       "affinity": [
         "Bitcoin"
@@ -2178,8 +2178,8 @@
       "name": "Next Block",
       "file": "Next Block.webp",
       "mime": "image/webp",
-      "bytes": 142904,
-      "sha256": "c8d4298a325cc7fb324dd2450ebebb1082a0e6a2672d972a6b32af150e00c787",
+      "bytes": 142940,
+      "sha256": "cbdf50068ad3da378e24a264555357564c49ddb6de3c9dbc7c3e940c6735a0b8",
       "card_type": "Operation",
       "affinity": [
         "Timelock"
@@ -2191,8 +2191,8 @@
       "name": "Nind, Archive Collector",
       "file": "Nind, Archive Collector.webp",
       "mime": "image/webp",
-      "bytes": 139234,
-      "sha256": "468dc3106722dbed2a6ec3372c1c2095047fc794ffa4ab7c74602e70005a811e",
+      "bytes": 136754,
+      "sha256": "eb644f8712f86e0f1ff103d3413c8cdb84b75ba2490782a721006125938e688e",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2204,8 +2204,8 @@
       "name": "Nind, Archive Returner",
       "file": "Nind, Archive Returner.webp",
       "mime": "image/webp",
-      "bytes": 126254,
-      "sha256": "6bc38feca2484c3af3d7bfe3d9f950761e46ce1f9961a331733c1ad5f8ada4b9",
+      "bytes": 125786,
+      "sha256": "d8f58c7fc92f18377d1dfb657976f8a68bbd4bf7b3d501d0bc83a330e0a4270e",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2217,8 +2217,8 @@
       "name": "Nind, Backchannel Walker",
       "file": "Nind, Backchannel Walker.webp",
       "mime": "image/webp",
-      "bytes": 127006,
-      "sha256": "52250e8c43fd927afd485e748966c9b3cf209c5eb06788ba616e168b53a42801",
+      "bytes": 125468,
+      "sha256": "896efdb611699b7906a2cb6aff3004ac8e04ab953016c48f07c953a894cade27",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2230,8 +2230,8 @@
       "name": "Number Go Up",
       "file": "Number Go Up.webp",
       "mime": "image/webp",
-      "bytes": 156456,
-      "sha256": "ddbdca278f2978dbf2d19fdd967b1427c245b69a2d44df87d3e938f431357627",
+      "bytes": 156700,
+      "sha256": "9134531922da6631a446b73e36fc56fa1a48f991d4b95bfca2fe2973201ed301",
       "card_type": "Zap",
       "affinity": [
         "Bitcoin"
@@ -2243,8 +2243,8 @@
       "name": "Obfuscated Formation",
       "file": "Obfuscated Formation.webp",
       "mime": "image/webp",
-      "bytes": 168750,
-      "sha256": "d0be522c2c95f9269a7ea8622e9f483e1d20cde69ac899dd6d03d2ba9b36d535",
+      "bytes": 168830,
+      "sha256": "a6a468a31f026d3c9484c34b3df8265533a17c46e4a690df074776620b8453dd",
       "card_type": "Zap",
       "affinity": [
         "Bitcoin"
@@ -2256,8 +2256,8 @@
       "name": "Offline Sanctuary",
       "file": "Offline Sanctuary.webp",
       "mime": "image/webp",
-      "bytes": 151294,
-      "sha256": "6e4f39c995741dbb341ac47893796dfd1ae72cdad5149f023c3fae1e8d9e7fb7",
+      "bytes": 149374,
+      "sha256": "0a2b4d04adb2530945c407d41cff24b5718a82b29ba22fa0f830072db9b68677",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -2269,8 +2269,8 @@
       "name": "Onion Route",
       "file": "Onion Route.webp",
       "mime": "image/webp",
-      "bytes": 136858,
-      "sha256": "a8d271eab88cfca6689ed24e892831176eb84cc74fd63e4b4b1fce91fb09e264",
+      "bytes": 139264,
+      "sha256": "b323d7dbce91c030d4513678e1daa17f9fd4c4240c2820be8f499be44f89fdb5",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -2295,8 +2295,8 @@
       "name": "Overclock",
       "file": "Overclock.webp",
       "mime": "image/webp",
-      "bytes": 175874,
-      "sha256": "188acd171911f39546f58c9baa906e6236edda0a293d5387dbf3f7543ef7353c",
+      "bytes": 175296,
+      "sha256": "1d3fa586fe4e91d6fb58085b60d53da82059049fd3c4ccdeeca0b9dd1ea62d9b",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -2308,8 +2308,8 @@
       "name": "Peaceful Exit",
       "file": "Peaceful Exit.webp",
       "mime": "image/webp",
-      "bytes": 157276,
-      "sha256": "ad8dd7d57e85008cc3b8e6c392d01dd9ebf175b3442d6a3f4275ec4b02766979",
+      "bytes": 154410,
+      "sha256": "bff7e25c8a365632375113026c3cb21caeb8b1104e3585b4a6586ccdf8bcc6d7",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -2321,8 +2321,8 @@
       "name": "Power Burst",
       "file": "Power Burst.webp",
       "mime": "image/webp",
-      "bytes": 161214,
-      "sha256": "5a5c2fd53d179a50b6486c51e4f5ad8b24512acc26e9c6ddb812acd849f9f981",
+      "bytes": 163242,
+      "sha256": "e82a85213f92af0b350c8a7cbb1247f48493f5767733e616725febe3d9956a28",
       "card_type": "Operation",
       "affinity": [
         "Power"
@@ -2347,8 +2347,8 @@
       "name": "Power Invalidation",
       "file": "Power Invalidation.webp",
       "mime": "image/webp",
-      "bytes": 147434,
-      "sha256": "10636fe8298d377e15bb9c2aa6fcc9bd7558f5f35c33c965b6d0a11fe0b7987b",
+      "bytes": 147100,
+      "sha256": "727669b3391c0ede8c3f6172872a28cc20bd56c5b935d32a9be639ec6e3ddd48",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -2360,8 +2360,8 @@
       "name": "Power Plant — Hydro",
       "file": "Power Plant — Hydro.webp",
       "mime": "image/webp",
-      "bytes": 162566,
-      "sha256": "e8578724d6b81c4d7958685a1d67c0d108e3285d647a35bebc5682f4869c8d30",
+      "bytes": 160638,
+      "sha256": "aa09cffdc60c0a61a69ec411aacf2ddf2219addd92315f17e1d448b66791ba38",
       "card_type": "Basic Resource",
       "affinity": [
         "Power"
@@ -2373,8 +2373,8 @@
       "name": "Power Plant — Solar",
       "file": "Power Plant — Solar.webp",
       "mime": "image/webp",
-      "bytes": 139756,
-      "sha256": "95a0ab96417ad677f1032f89be66889ef50c50d30f55e18d0c230823ded3f480",
+      "bytes": 139266,
+      "sha256": "53d1ce2f6aa961136be5eca7ecfc326e50ff5724a29c951fe5fecb8c68e67983",
       "card_type": "Basic Resource",
       "affinity": [
         "Power"
@@ -2386,8 +2386,8 @@
       "name": "Power Protection Circuit",
       "file": "Power Protection Circuit.webp",
       "mime": "image/webp",
-      "bytes": 169024,
-      "sha256": "eeb7dacf3a26b16c45d9ab3431fca1cf80064d1112329996f2e957a205a98b22",
+      "bytes": 169684,
+      "sha256": "26eecf82bbd021e1f2e2383cd679170dba85326436a8754042b3e97a8527157c",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -2412,8 +2412,8 @@
       "name": "Power Rewrite",
       "file": "Power Rewrite.webp",
       "mime": "image/webp",
-      "bytes": 154810,
-      "sha256": "55ced27b9ea7e09bf45f0668e478b9e221e244c590101dc32b74e6ce9d7e35f2",
+      "bytes": 154300,
+      "sha256": "2d09e20692bafde01f895c3261bb9f2a806225e34834c3eff684790b6b48ebfd",
       "card_type": "Zap",
       "affinity": [
         "Power"
@@ -2425,8 +2425,8 @@
       "name": "Power Shield",
       "file": "Power Shield.webp",
       "mime": "image/webp",
-      "bytes": 140644,
-      "sha256": "0787eb2f33576c99029b71a1276815132a666bd1f78b28ae7e0ddc29fb98167e",
+      "bytes": 141266,
+      "sha256": "7f1c78f4fe54516d7431ecaad70162c71dcff42e2359790d44209d765fae7806",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -2438,8 +2438,8 @@
       "name": "Power–Bitcoin Junction",
       "file": "Power–Bitcoin Junction.webp",
       "mime": "image/webp",
-      "bytes": 154318,
-      "sha256": "19135992701d8a5d360dbfdf83e49c17556b679d6d8951d27ba659da81056228",
+      "bytes": 153180,
+      "sha256": "9e5bf274aef5d0da7efb8cff31f259f6ac15d64c38dd7d6a8b5e50ba223eab7b",
       "card_type": "Resource",
       "affinity": [
         "Power",
@@ -2452,8 +2452,8 @@
       "name": "Power–Keys Junction",
       "file": "Power–Keys Junction.webp",
       "mime": "image/webp",
-      "bytes": 137720,
-      "sha256": "8cd4c7da3e3c1295499b42dc17d25288ca01555a61e54220a266b4175bcb1406",
+      "bytes": 138406,
+      "sha256": "a45f07883d33312450f886010b3ef5ef78b2267ecd112e67758b07af45ea07ab",
       "card_type": "Resource",
       "affinity": [
         "Keys",
@@ -2466,8 +2466,8 @@
       "name": "Power–Signal Junction",
       "file": "Power–Signal Junction.webp",
       "mime": "image/webp",
-      "bytes": 157390,
-      "sha256": "bd7ce1d113b269c6a88e5c813d99dde32766d7dbcade2aad09feaf0b5d367f58",
+      "bytes": 156204,
+      "sha256": "cdb62bba38270bb2dedf2cf643b07935f7ebd88aa2c777134e7972fec31a078d",
       "card_type": "Resource",
       "affinity": [
         "Signal",
@@ -2480,8 +2480,8 @@
       "name": "Process Fork",
       "file": "Process Fork.webp",
       "mime": "image/webp",
-      "bytes": 172222,
-      "sha256": "3103ca702fe7b7f0f9a6cfef7823f799dbe36e1473af1a9bf890884ce1eda374",
+      "bytes": 171690,
+      "sha256": "7b083a15b6d99132debe563d4706941ca2cb3dc324bf8a58a6e5d5da5631fc06",
       "card_type": "Zap",
       "affinity": [
         "Power"
@@ -2493,8 +2493,8 @@
       "name": "Proof of Work",
       "file": "Proof of Work.webp",
       "mime": "image/webp",
-      "bytes": 147866,
-      "sha256": "a4c0e92f93c8aa1c5e4ed10e81e4f92fe96f02a0013d6ad64e899d7ebf09b8ed",
+      "bytes": 149312,
+      "sha256": "9f31dcc65df76f8bca303909e8f546a7247ac3ba3b58b7c4b6092f2f6ec41652",
       "card_type": "Zap",
       "affinity": [
         "Keys"
@@ -2506,8 +2506,8 @@
       "name": "Protocol Cleanup",
       "file": "Protocol Cleanup.webp",
       "mime": "image/webp",
-      "bytes": 147452,
-      "sha256": "0d36c79b08ca99e266b7091d78317205d2668f160811e4b9ebf5cbed2d79ee8a",
+      "bytes": 146122,
+      "sha256": "2c03389f529ddcb7ec62ec79e765c12b6877ce057cb39b5b1f8e6e65ce37b952",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -2519,8 +2519,8 @@
       "name": "Protocol Reset",
       "file": "Protocol Reset.webp",
       "mime": "image/webp",
-      "bytes": 151624,
-      "sha256": "ca2587fb56af3c5ee135fc7a17c8528b79c50375400d748cb8f355c95eb3b213",
+      "bytes": 152066,
+      "sha256": "b8fe6465e2285f4ee138e37687ca7bc2d46c54e0ed0200e75995c37f8ddba373",
       "card_type": "Operation",
       "affinity": [
         "Bitcoin"
@@ -2532,8 +2532,8 @@
       "name": "Proton, Cold Signer",
       "file": "Proton, Cold Signer.webp",
       "mime": "image/webp",
-      "bytes": 136074,
-      "sha256": "b80ab0b8983681b2c808b69953054567f83cc7bf8c7a2b39c9461aa6c8cff790",
+      "bytes": 136184,
+      "sha256": "7859999205441efd83665be8742f00cb9210520f5e898a870e97242981b1f21f",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2545,8 +2545,8 @@
       "name": "Proton, Ephemeral Signer",
       "file": "Proton, Ephemeral Signer.webp",
       "mime": "image/webp",
-      "bytes": 152440,
-      "sha256": "bb1f553fd0c4904ca5105a98ddb6a5a45b9132613605f230110f441b76149c03",
+      "bytes": 152498,
+      "sha256": "06b9b5b8ccd664ac98d2f665f1c957f6c3e84e5a97a65e8195be01830d2e10e3",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2558,8 +2558,8 @@
       "name": "Proton, Keyed Nightmare",
       "file": "Proton, Keyed Nightmare.webp",
       "mime": "image/webp",
-      "bytes": 134234,
-      "sha256": "c5a60b6947dfa4669afa959aedfbbf936f735e4007dc6bc5acaf04f2019db891",
+      "bytes": 133628,
+      "sha256": "cb36dd9bce64b808ab430c50ed4717cd7baf59062378a85c74977c121e05cf40",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2571,8 +2571,8 @@
       "name": "Public Goods Drive",
       "file": "Public Goods Drive.webp",
       "mime": "image/webp",
-      "bytes": 152828,
-      "sha256": "0b399f0c74270196435fdd899a40a426fdda906b9c3df831f54210409e4bd4fe",
+      "bytes": 150730,
+      "sha256": "26680eaa45ac33ac8638fc8b84e6b5992849fe73903567f2851f22f8334e892d",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -2597,8 +2597,8 @@
       "name": "Query Burst",
       "file": "Query Burst.webp",
       "mime": "image/webp",
-      "bytes": 137700,
-      "sha256": "7a8f2f6d58a2106beddb226704249133186ae851b3a44810b539d876dc5698bf",
+      "bytes": 137628,
+      "sha256": "ecef01885b803d2ab14f92f6ecdfe1b5540e7a3722e2da3d2910c888f71f3d05",
       "card_type": "Operation",
       "affinity": [
         "Timelock"
@@ -2610,8 +2610,8 @@
       "name": "Queue Filter",
       "file": "Queue Filter.webp",
       "mime": "image/webp",
-      "bytes": 138062,
-      "sha256": "09e2d8d79d317d6711718e089bccf530f202433f2e123f9083661a9f7e85adcf",
+      "bytes": 138126,
+      "sha256": "5997f3a01fac0a23378571c3eb170bdfa584b7b9c57972225757e461018f2ef0",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -2623,8 +2623,8 @@
       "name": "Quick Uplink",
       "file": "Quick Uplink.webp",
       "mime": "image/webp",
-      "bytes": 131836,
-      "sha256": "b8c417d64deb67890175a6b8c6d7c9cd245677134d56b0dd5abfd6e388643e9f",
+      "bytes": 131778,
+      "sha256": "5a80aceea2728c11c67045a4870893588945fe1b8fd25c58a7875dd235daef72",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -2636,8 +2636,8 @@
       "name": "Quiet Block",
       "file": "Quiet Block.webp",
       "mime": "image/webp",
-      "bytes": 142994,
-      "sha256": "e2cb490d9c5f5667ff9bcc092717b16ec23875f593ab920ca67f133b73f80e3d",
+      "bytes": 143442,
+      "sha256": "9b1376ca433a738e95d7d58a469f5ee54e86644f319e6b8c08fbfa9515737eed",
       "card_type": "Zap",
       "affinity": [
         "Bitcoin"
@@ -2649,8 +2649,8 @@
       "name": "Reboot Protocol",
       "file": "Reboot Protocol.webp",
       "mime": "image/webp",
-      "bytes": 154568,
-      "sha256": "cbff3e53a80ca73352ee2a56b75fd8386fb763bdd4a914fa132f435ad37a9037",
+      "bytes": 155206,
+      "sha256": "d56c617896cf4bef34eb1e78e8e84d28395f44483ce2ef415fcbdfa469bbe01b",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -2662,8 +2662,8 @@
       "name": "Recovery Phrase",
       "file": "Recovery Phrase.webp",
       "mime": "image/webp",
-      "bytes": 140034,
-      "sha256": "3ca597b3c3d67f2574fdf499a208a60014854693646d5c354e1dfde9306890f3",
+      "bytes": 140464,
+      "sha256": "341a0aa97dee898a13ec0c23fc53c6fba980dc0c0fe5a5183b691a138a23b4fd",
       "card_type": "Operation",
       "affinity": [
         "Bitcoin"
@@ -2675,8 +2675,8 @@
       "name": "Reduced Permissions",
       "file": "Reduced Permissions.webp",
       "mime": "image/webp",
-      "bytes": 133542,
-      "sha256": "4521e5ccff3043a367260ccca0c4b91cf815219fc1fdf5a6e46edb195e35576b",
+      "bytes": 133768,
+      "sha256": "28cde9b223e4f2ed44e63f4361d5c245106830a9cc23fd0d0037a11c764d015c",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -2688,8 +2688,8 @@
       "name": "Relay Feedback",
       "file": "Relay Feedback.webp",
       "mime": "image/webp",
-      "bytes": 130940,
-      "sha256": "6a2654fbf79f031ba5d7cabf975769a5e76b41e0786c6979c841b63c6fb14f64",
+      "bytes": 130714,
+      "sha256": "92b3feb0056cb12aacdde915d68fe90c8652a8e37944bbda529f1a10257aebb5",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -2701,8 +2701,8 @@
       "name": "Remote Command",
       "file": "Remote Command.webp",
       "mime": "image/webp",
-      "bytes": 139822,
-      "sha256": "858bf90a2c50537c16aae456598bc67c2d53fdb177e05ec3c72fde116dcbc0a7",
+      "bytes": 140956,
+      "sha256": "9bebc4e5de5f01e6947b1e7b81bddae74698bb923549b90524235ffd75961817",
       "card_type": "Zap",
       "affinity": [
         "Keys"
@@ -2714,8 +2714,8 @@
       "name": "Remote Control",
       "file": "Remote Control.webp",
       "mime": "image/webp",
-      "bytes": 136790,
-      "sha256": "25580f5fd531301b99f5743ddb918111cac2fc7e7d28d7ebb3b65b736778a1c1",
+      "bytes": 136492,
+      "sha256": "a31104103e19ec8efd752431e365c341a7403cce1746224d189ee660069835ff",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -2727,8 +2727,8 @@
       "name": "Remote Hardware Control",
       "file": "Remote Hardware Control.webp",
       "mime": "image/webp",
-      "bytes": 142716,
-      "sha256": "5acdf752dd1d4bbf2da8b306a2dfb5e79b7a45072100427428bc95e5d2dd2ec8",
+      "bytes": 142610,
+      "sha256": "cbc91b13b491edbde887874b3e549e8185cd3a087a52eef4bc62249d52475d3b",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -2740,8 +2740,8 @@
       "name": "Repair Packet",
       "file": "Repair Packet.webp",
       "mime": "image/webp",
-      "bytes": 138700,
-      "sha256": "5c7b9fa3bc416c581a9a6c5abdb2a2bea829e391e4ab46a1c06a70479890e8ca",
+      "bytes": 139450,
+      "sha256": "93ff2ca179b53f1251af0d7ece9752cd461c2f3fbc8c94f45b9771693ce3a734",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -2753,8 +2753,8 @@
       "name": "Resource Awakening",
       "file": "Resource Awakening.webp",
       "mime": "image/webp",
-      "bytes": 182236,
-      "sha256": "30b2e77fab503b8fdc14b3abdac85a134e6ed73a8aea275e5669ba19773caffe",
+      "bytes": 182702,
+      "sha256": "8c72386bd0c9d72bce0a03187b7110b93a0417b83407e574890aa2e22c948650",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -2779,8 +2779,8 @@
       "name": "Resource Corruption",
       "file": "Resource Corruption.webp",
       "mime": "image/webp",
-      "bytes": 152916,
-      "sha256": "ed9050addd7d2b0705218df98038e102786c8ce8bd649e840f52e902a6ce1f08",
+      "bytes": 154692,
+      "sha256": "8b96bb2f2ce2ddf58e2e4ea75183ef126ecb51924ba5cbc4c3d563af279a688a",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -2792,8 +2792,8 @@
       "name": "Resource Cut",
       "file": "Resource Cut.webp",
       "mime": "image/webp",
-      "bytes": 133258,
-      "sha256": "1f1cd2fb1505a869e9a79ac207865611c4afddc436c68d29584d41a9cbe29195",
+      "bytes": 134492,
+      "sha256": "9045544ddcb648c91f7c0986ec55b1758f7efb0694e589768802a4323f3e1d34",
       "card_type": "Operation",
       "affinity": [
         "Power"
@@ -2818,8 +2818,8 @@
       "name": "Resource Freeze",
       "file": "Resource Freeze.webp",
       "mime": "image/webp",
-      "bytes": 161518,
-      "sha256": "9e167c4cc5d0fd59c7c3f598152dc79ed1bded847e02377d70164ebc3b06e3db",
+      "bytes": 162040,
+      "sha256": "5e94b839437e66dd2a66d37b38684d7ea41d4144974bc7ee4923d6bc3e89cfbb",
       "card_type": "Operation",
       "affinity": [
         "Bitcoin"
@@ -2844,8 +2844,8 @@
       "name": "Resource Reclassification",
       "file": "Resource Reclassification.webp",
       "mime": "image/webp",
-      "bytes": 148804,
-      "sha256": "aa15c642aee6e78619f18243657952a3e31e369f44c943aed4a7edc0dd5cf950",
+      "bytes": 148664,
+      "sha256": "0bcef9046814a0b00462c185d6dd3ab1ef708c252e64846db4bdc32eb0a953e7",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -2857,8 +2857,8 @@
       "name": "Resource Rewrite",
       "file": "Resource Rewrite.webp",
       "mime": "image/webp",
-      "bytes": 137258,
-      "sha256": "69983f714e53fa87a36dfd5fbb979032c666c91fa6a4da2e99ad04439d7b46a4",
+      "bytes": 137356,
+      "sha256": "0ad119c8577cfa97024a7b0d34bcaf46477e5c42f725276bf4a95d9f05e34c20",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -2870,8 +2870,8 @@
       "name": "Resource Sink",
       "file": "Resource Sink.webp",
       "mime": "image/webp",
-      "bytes": 120314,
-      "sha256": "a9e7fe8342027440db78cc7feef8821064e6f8bde7262b25089f2c9368894034",
+      "bytes": 118858,
+      "sha256": "48e4dd7751f26d85c92f87d0ce95db60003aed60a2788e3a5ef98ebf9ac39ba5",
       "card_type": "Operation",
       "affinity": [
         "Keys"
@@ -2883,8 +2883,8 @@
       "name": "Resource Tap",
       "file": "Resource Tap.webp",
       "mime": "image/webp",
-      "bytes": 136420,
-      "sha256": "7f9a98a4e197171287c8726dd803db625b40e9beb0dcce782c09a3e94b99c804",
+      "bytes": 136266,
+      "sha256": "ae26430c226489a38c6ad058259545f5ee62c32d216f26c2b14e99ab78bb7d02",
       "card_type": "Protocol",
       "affinity": [
         "Timelock"
@@ -2909,8 +2909,8 @@
       "name": "Restless Client",
       "file": "Restless Client.webp",
       "mime": "image/webp",
-      "bytes": 160860,
-      "sha256": "75a1bbac6a948537602d068ef4edacfec65ca3c76ba305adc407182f7432b320",
+      "bytes": 161242,
+      "sha256": "cdeb52cd97728fbefa0798c7f2934b91b1a31e14bf60c970c4b60e6df8a162d8",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -2922,8 +2922,8 @@
       "name": "Restore Backup",
       "file": "Restore Backup.webp",
       "mime": "image/webp",
-      "bytes": 122136,
-      "sha256": "27158b212735666cdaa07d502464fcdbb5934593f177cc6c16af0cda58cbea36",
+      "bytes": 121072,
+      "sha256": "bd06dc5d2b169fd08f22e6c515950bec40cb30bf38889415c7076994f063d47c",
       "card_type": "Operation",
       "affinity": [
         "Keys"
@@ -2935,8 +2935,8 @@
       "name": "Return to Wallet",
       "file": "Return to Wallet.webp",
       "mime": "image/webp",
-      "bytes": 128168,
-      "sha256": "782d4994101fc8b05e2fcb595d437f44c93c640c71da6dd916f132bb8e170d50",
+      "bytes": 128058,
+      "sha256": "154025a7aa03ff153a27c1014367694b8df9b4208ad5874f696b62993b2b8949",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -2948,8 +2948,8 @@
       "name": "Rootzoll & Leon, Dual Operator",
       "file": "Rootzoll & Leon, Dual Operator.webp",
       "mime": "image/webp",
-      "bytes": 169486,
-      "sha256": "701f0a77fdafbc36a1e8a8b1211b875ffcecf52d0d7e2b30d9fe83d51c5851d0",
+      "bytes": 168654,
+      "sha256": "fdc3055417f996cdeb8d64deedb4bed5032b043aebc5574456af244eff1c6b06",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -2961,8 +2961,8 @@
       "name": "Rootzoll, Crew Multiplier",
       "file": "Rootzoll, Crew Multiplier.webp",
       "mime": "image/webp",
-      "bytes": 164520,
-      "sha256": "6bb0861ecf319cad3423a5d5882223444c079fd126492bfac848df29f7ed6a1d",
+      "bytes": 161206,
+      "sha256": "958aede2542766f8dd8291f6837c02d10faaa5d0dfbca7e7f79d8b5c2860d015",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -2974,8 +2974,8 @@
       "name": "Rootzoll, Hardware Breaker",
       "file": "Rootzoll, Hardware Breaker.webp",
       "mime": "image/webp",
-      "bytes": 137398,
-      "sha256": "0bca736bba4d52aa9a15d47ac29d5308cbc3b0c7393cc23c1df12f6ecec0dad9",
+      "bytes": 136252,
+      "sha256": "3edaaad3f8f1a26997413d0b9695a4e7252bcae249d8205c6bdfb9d9654aca53",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -2987,8 +2987,8 @@
       "name": "Rootzoll, Stone Firewall",
       "file": "Rootzoll, Stone Firewall.webp",
       "mime": "image/webp",
-      "bytes": 138600,
-      "sha256": "8fca8583142f1fbc398221c7ac171d9c794ad4ce00d1a951aec187f442b79e31",
+      "bytes": 137540,
+      "sha256": "ab52e811b25104cd9ed3592ebdffc95c998b79f319e71bea644e3980bb61a0ce",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -3000,8 +3000,8 @@
       "name": "Rootzoll, Stone Sentinel",
       "file": "Rootzoll, Stone Sentinel.webp",
       "mime": "image/webp",
-      "bytes": 136378,
-      "sha256": "748191ee4f8d4863c860b9f17e5a04ff926c70fc3f07b64c7a90905e5c6682d2",
+      "bytes": 135466,
+      "sha256": "7677a8ba01b25d83a49c714b303e7924668fcdb9074946703c3f0f6dd0a0fb0e",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -3013,8 +3013,8 @@
       "name": "Route Misdirection",
       "file": "Route Misdirection.webp",
       "mime": "image/webp",
-      "bytes": 179388,
-      "sha256": "92bcfc0927f18beebdd501c2b3e1645bedbfdf1fb78a84f89055292e1a434cd8",
+      "bytes": 178996,
+      "sha256": "9abbb5a9c7ce4e746e44746f2cee57e3a7067fde10bf0d3c1aec338c1b8353b2",
       "card_type": "Zap",
       "affinity": [
         "Power"
@@ -3026,8 +3026,8 @@
       "name": "Sat, Blade Firewall",
       "file": "Sat, Blade Firewall.webp",
       "mime": "image/webp",
-      "bytes": 131920,
-      "sha256": "f012b5f7ba85235174831931fec9b0d76010dc0685e954d20795d27e40191810",
+      "bytes": 132218,
+      "sha256": "479912269a38419bdac6f4e8fa4a0fc11d28988d9c7b0bf5f3b255bcdf62a7cd",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -3039,8 +3039,8 @@
       "name": "Sat, Relay Rider",
       "file": "Sat, Relay Rider.webp",
       "mime": "image/webp",
-      "bytes": 130864,
-      "sha256": "6d2a30837889d7e0566d497859f472edbe81e94bd9cad8e821189e93129a8108",
+      "bytes": 132354,
+      "sha256": "6e8c00f2a5c1891e2b643c4e9bd8604a476453de2c77036e1d9d83c58ec567e2",
       "card_type": "Avatar",
       "affinity": [
         "Signal"
@@ -3052,8 +3052,8 @@
       "name": "Satoshi Orchard — Commons",
       "file": "Satoshi Orchard — Commons.webp",
       "mime": "image/webp",
-      "bytes": 149948,
-      "sha256": "7d384643fd73258d6dc200a21b42e49d8244dd73e024eb407752ad9013aa2c5a",
+      "bytes": 149882,
+      "sha256": "0c68de2552bb9b8f795b3ac8ed78a00d17d31d3e155d1d318e5c374485ace334",
       "card_type": "Basic Resource",
       "affinity": [
         "Bitcoin"
@@ -3065,8 +3065,8 @@
       "name": "Satoshi Orchard",
       "file": "Satoshi Orchard.webp",
       "mime": "image/webp",
-      "bytes": 162690,
-      "sha256": "ba03dcbc423c854c4711da05ba33f95c74bd7b41ad0733e124fa736ec5cc6fa7",
+      "bytes": 162544,
+      "sha256": "ac104442e73517e9ad927c850e5e4f0f7fd73e0426e24221f616c3f19e643f0f",
       "card_type": "Basic Resource",
       "affinity": [
         "Bitcoin"
@@ -3078,8 +3078,8 @@
       "name": "Shared Uptime",
       "file": "Shared Uptime.webp",
       "mime": "image/webp",
-      "bytes": 138886,
-      "sha256": "20e2e5578aad7b4afdd2e50b311006a4d0ec81626559e1bf65a7f9efd829d048",
+      "bytes": 137944,
+      "sha256": "fde482b9a689df8b3a307028999b1f1f3904ea37ee6fb0debdf3c2cf6d15aa6c",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -3091,8 +3091,8 @@
       "name": "Shillie, Cold Firewall",
       "file": "Shillie, Cold Firewall.webp",
       "mime": "image/webp",
-      "bytes": 144870,
-      "sha256": "45796ba63241104f9bc277c3cf5f0f0bbb30d55bd9c54fb0a5575437a482d0eb",
+      "bytes": 145394,
+      "sha256": "3c6e6b475f086577fec2c0a5c093c0770badf8a77155746a4df9a34ee3ba40d3",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -3104,8 +3104,8 @@
       "name": "Shillie, Mesh Sentinel",
       "file": "Shillie, Mesh Sentinel.webp",
       "mime": "image/webp",
-      "bytes": 140230,
-      "sha256": "b60f307d354906f72ce9b131999995d1f58a89cc1007f93e72a0e5736b538c63",
+      "bytes": 140902,
+      "sha256": "d4cd9f6ac09e5555d79e0ad56768766b74b15b3213076a2b89bbd2f3493e1758",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -3117,8 +3117,8 @@
       "name": "Shillie, Multisource Scout",
       "file": "Shillie, Multisource Scout.webp",
       "mime": "image/webp",
-      "bytes": 147936,
-      "sha256": "995c4f2da98e2e20631b2dd5e5bb3708f1f52546628b44d2ee71d7cabefb0b33",
+      "bytes": 148398,
+      "sha256": "56f65096b521063d53c98194defb0fb8d4e0639b2a6d62b80b738135c4e2161e",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -3130,8 +3130,8 @@
       "name": "Shillie, Tiny Broadcaster",
       "file": "Shillie, Tiny Broadcaster.webp",
       "mime": "image/webp",
-      "bytes": 151544,
-      "sha256": "99c16f8c22b753a5b725f92261156590c2251925423a0126dc1c1ede668f1492",
+      "bytes": 152440,
+      "sha256": "1344dd06892802736888a5568be4fc1ddc7435185d51af86e2872b8829908792",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -3156,8 +3156,8 @@
       "name": "Signal Commons — Rooftop",
       "file": "Signal Commons — Rooftop.webp",
       "mime": "image/webp",
-      "bytes": 144962,
-      "sha256": "0b12fc40203b9a4239ced68bcd118da77386db8ac9519e3cfaef1864590d4280",
+      "bytes": 143646,
+      "sha256": "011c069588e3701ffddccc75986e83ecd1c5e2289ea5cf0298e12c1041ecef3f",
       "card_type": "Basic Resource",
       "affinity": [
         "Signal"
@@ -3169,8 +3169,8 @@
       "name": "Signal Commons — Sunrise",
       "file": "Signal Commons — Sunrise.webp",
       "mime": "image/webp",
-      "bytes": 136314,
-      "sha256": "6eeae436a90f703ee9867fcda539b1eb0cd961a5032b1d1c0ad999d8c1d58021",
+      "bytes": 136122,
+      "sha256": "3d3a0d8a6bbcedb8306f9277b67f3bd2ea8a728a989e00b4ed82615a3d7978a8",
       "card_type": "Basic Resource",
       "affinity": [
         "Signal"
@@ -3182,8 +3182,8 @@
       "name": "Signal Outage",
       "file": "Signal Outage.webp",
       "mime": "image/webp",
-      "bytes": 147922,
-      "sha256": "bb7d1c2472bbb50ef362a8a784cb60b6f4cd304a5a59a3b22a252c0e966c533f",
+      "bytes": 147114,
+      "sha256": "5660712437d151426fdbe047633488cdee074befa3f70b1bb76511ac79986d3e",
       "card_type": "Operation",
       "affinity": [
         "Power"
@@ -3195,8 +3195,8 @@
       "name": "Signal Protection Circuit",
       "file": "Signal Protection Circuit.webp",
       "mime": "image/webp",
-      "bytes": 136402,
-      "sha256": "7addbe7317587a86675dae862adbe64c362eac8a110904b236a0ecde17ac801c",
+      "bytes": 136898,
+      "sha256": "7712ca507bac71ca3e5519753956a8589bfd11b2f078168233a1ef23bc9b7a99",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -3221,8 +3221,8 @@
       "name": "Signal Rewrite",
       "file": "Signal Rewrite.webp",
       "mime": "image/webp",
-      "bytes": 171072,
-      "sha256": "4b12f2ef0ac9aa00874815dd7dc92ee57bfa0ef6a6512cc8b73729e949563202",
+      "bytes": 171874,
+      "sha256": "ee5cf588d91bc0d77046c39eab7959f48741ad743f029db92b2bb9169a484ee1",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -3234,8 +3234,8 @@
       "name": "Signal Shield",
       "file": "Signal Shield.webp",
       "mime": "image/webp",
-      "bytes": 147374,
-      "sha256": "88dc9cec253483be2252e02dae3b3e0e4f39280a6fdd60dbb06e18c3b723b140",
+      "bytes": 144530,
+      "sha256": "243c8196c644a9d604fcfa11b1a4bc4c6b7ef0de45443763073ffd3eba4dd3e4",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -3247,8 +3247,8 @@
       "name": "Signal Tax",
       "file": "Signal Tax.webp",
       "mime": "image/webp",
-      "bytes": 135884,
-      "sha256": "86c15371d7c7f614721d3ef17eef1b8a91cc729b64c22653c3bc50abcb027b6d",
+      "bytes": 135156,
+      "sha256": "0d1292e303c642db93eb0ecbbaeaab13781552351a5d9190bb2c929420cba00f",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -3260,8 +3260,8 @@
       "name": "Signal–Keys Junction",
       "file": "Signal–Keys Junction.webp",
       "mime": "image/webp",
-      "bytes": 152994,
-      "sha256": "593a4c04e9335befc4cd1dd22404ec72cf2dc57126ed502062f83528184a6c2b",
+      "bytes": 150760,
+      "sha256": "d4f92093da20e28f8f39ed5e60ecf905876a2a383e735152b280bb7ccb6e19b5",
       "card_type": "Resource",
       "affinity": [
         "Signal",
@@ -3274,8 +3274,8 @@
       "name": "Signal–Timelock Junction",
       "file": "Signal–Timelock Junction.webp",
       "mime": "image/webp",
-      "bytes": 126278,
-      "sha256": "fc0cf440aa9427a4eed824ff1770dd8320a8b315d4b36ad632912b6c29f57576",
+      "bytes": 124986,
+      "sha256": "64a47ed8088be72c613250e7bfe34c9103c1a2fb954285910560c18b22b1c4a1",
       "card_type": "Resource",
       "affinity": [
         "Signal",
@@ -3288,8 +3288,8 @@
       "name": "Snick, Airgap Firewall",
       "file": "Snick, Airgap Firewall.webp",
       "mime": "image/webp",
-      "bytes": 128706,
-      "sha256": "44998bfcda8f20545533982294fb3fd12b6b12ee814a07151df503b883438209",
+      "bytes": 130180,
+      "sha256": "38a688f5ad223e01e214bd5e7c0c62366bca29601af20fc1332bd9cb363039eb",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -3301,8 +3301,8 @@
       "name": "Snick, Phantom Process",
       "file": "Snick, Phantom Process.webp",
       "mime": "image/webp",
-      "bytes": 127294,
-      "sha256": "7127bbf7d44839dd5915c1b60f58efb5d4018e52a52e2c5efcd686c8a61df01e",
+      "bytes": 127276,
+      "sha256": "42a2d0b9e280859812aa78041d32a2f7148fe4f18ae06270d732b79c690dfa5c",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -3314,8 +3314,8 @@
       "name": "Sovereign Mode",
       "file": "Sovereign Mode.webp",
       "mime": "image/webp",
-      "bytes": 135400,
-      "sha256": "c4231ac3f524462474601775349dda50ebe0687244335814d4d10b18c6a12717",
+      "bytes": 134254,
+      "sha256": "ef36dbc671e5dcfe582863a455da3d552aea9f5f506e15c47b7979fb9032d836",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -3327,8 +3327,8 @@
       "name": "Sovereign Strength",
       "file": "Sovereign Strength.webp",
       "mime": "image/webp",
-      "bytes": 138822,
-      "sha256": "60c01d04765b03624d4dfa83857c4b49d74a94ea82edcf736e8556ec4f305a85",
+      "bytes": 137938,
+      "sha256": "b487baf5cd4ace6c9c67a4378aa3aa3ded00954660e261aadf85a563371365a7",
       "card_type": "Protocol",
       "affinity": [
         "Keys"
@@ -3340,8 +3340,8 @@
       "name": "Split Route",
       "file": "Split Route.webp",
       "mime": "image/webp",
-      "bytes": 160188,
-      "sha256": "845a3ddde6d0a8a123f4c32917cf46ea97acb7d6927cc5eb2375c9548f297a31",
+      "bytes": 159792,
+      "sha256": "8fe9b2cf029012f9f2301e46251917e919b7e6c14c6735191835a9d1b000f4bb",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -3353,8 +3353,8 @@
       "name": "Stake Arbitration",
       "file": "Stake Arbitration.webp",
       "mime": "image/webp",
-      "bytes": 139392,
-      "sha256": "53bdcfd7a1ad924f3aa685482b34044d27b4119de16a8a441e0dc9caf1178b0b",
+      "bytes": 138046,
+      "sha256": "65c52cb108856f3eb92bdedf33d9e5c10cf744ee69de111f12efcd6e97539a02",
       "card_type": "Operation",
       "affinity": [
         "Keys"
@@ -3366,8 +3366,8 @@
       "name": "Stake Contract",
       "file": "Stake Contract.webp",
       "mime": "image/webp",
-      "bytes": 125334,
-      "sha256": "fb9fe7c726307ee60387433d89c1838588e479adc1dddfd71a38d7ef1efed621",
+      "bytes": 124472,
+      "sha256": "ab3d7b5aecdce2ac8eaca803c87545c9c3ed145673d2e9e97b4430e60be2efaa",
       "card_type": "Operation",
       "affinity": [
         "Keys"
@@ -3379,8 +3379,8 @@
       "name": "Stake Swap",
       "file": "Stake Swap.webp",
       "mime": "image/webp",
-      "bytes": 136412,
-      "sha256": "46224cac75a72e35e64b39f8b5a2d10715ca0bb91df21c3fcfa7e33b9504de40",
+      "bytes": 136800,
+      "sha256": "ae29c6cbed65129d2447595509e9d4648c63ea1afb4cae503aed940ea8dcbf2d",
       "card_type": "Operation",
       "affinity": [
         "Keys"
@@ -3392,8 +3392,8 @@
       "name": "State Mirror",
       "file": "State Mirror.webp",
       "mime": "image/webp",
-      "bytes": 138488,
-      "sha256": "e5541a87dee495fd9cb36eadc91747a04767fc451fc5dfe9133f2c4bd8f3165b",
+      "bytes": 141212,
+      "sha256": "eaeaf146f90eb9ac8de2a1a22d6165867aa272c1bdb1c11ab29c55f3dfac3371",
       "card_type": "Zap",
       "affinity": [
         "Keys"
@@ -3405,8 +3405,8 @@
       "name": "State Reset",
       "file": "State Reset.webp",
       "mime": "image/webp",
-      "bytes": 134406,
-      "sha256": "6cce33bf5564d063f09f3b0ecb2b81f7ce5eaec5c3e05015cc13688eb09ad2b2",
+      "bytes": 134412,
+      "sha256": "1b778db3a97d31a6162043f8de59d09844dbc4f1a9e2f807327c3a670b32c5f2",
       "card_type": "Operation",
       "affinity": [
         "Timelock"
@@ -3431,8 +3431,8 @@
       "name": "Tal, Ghost Router",
       "file": "Tal, Ghost Router.webp",
       "mime": "image/webp",
-      "bytes": 147698,
-      "sha256": "5d81a92f0f4a1e08dbc166168f7c375dfce3b96ebdc3c91cd1cf9184fabad2a9",
+      "bytes": 147538,
+      "sha256": "acda5cbf2f5ccccb7da1923989bf40ae65fef1a733841cbe521fa68e5146647d",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -3444,8 +3444,8 @@
       "name": "Tal, Liquid Firewall",
       "file": "Tal, Liquid Firewall.webp",
       "mime": "image/webp",
-      "bytes": 156558,
-      "sha256": "93f5bb52bf4643179695e15196ddeaf30dbdbbbd4fb5ac9b391d4184ba7b7d19",
+      "bytes": 156366,
+      "sha256": "5a07557efc0c60bd9cb03654015f5758032859f2276b20734d419afdc1fa2d55",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -3457,8 +3457,8 @@
       "name": "Tal, Relay Captain",
       "file": "Tal, Relay Captain.webp",
       "mime": "image/webp",
-      "bytes": 150054,
-      "sha256": "76b4c684508c69e7a265f913a855a4c21cd63a4cf42700028dc4c6b0d36c7043",
+      "bytes": 149644,
+      "sha256": "51486bf322b48802fb42a317b284089a871ee687f4eb06cc84f56ec8494abb96",
       "card_type": "Avatar",
       "affinity": [
         "Timelock"
@@ -3470,8 +3470,8 @@
       "name": "Thermal Throttle",
       "file": "Thermal Throttle.webp",
       "mime": "image/webp",
-      "bytes": 147362,
-      "sha256": "067cb9655e54298653dbcdc3a7be96face370d63976063e60363f464f1c6ec71",
+      "bytes": 146798,
+      "sha256": "9a5dde6a3d59409fd3894ce3e8604d7357fc94fccfd04b385d7374741006868e",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -3483,8 +3483,8 @@
       "name": "Timelock Channel — Dawn",
       "file": "Timelock Channel — Dawn.webp",
       "mime": "image/webp",
-      "bytes": 134792,
-      "sha256": "3ee60b0f539c763b4cb6ca72a1fdb16ac40e0301f1d97fe9cf6f0038fcb160f5",
+      "bytes": 134098,
+      "sha256": "2044b946eeffad6855e2d94c3835d34a369dd7beaf78a35a16252c6550a9381a",
       "card_type": "Basic Resource",
       "affinity": [
         "Timelock"
@@ -3496,8 +3496,8 @@
       "name": "Timelock Channel — Midnight",
       "file": "Timelock Channel — Midnight.webp",
       "mime": "image/webp",
-      "bytes": 101822,
-      "sha256": "df5cd39135de425cf910fd42d0bf3852d7d2afd37395852b82976220384d8586",
+      "bytes": 100930,
+      "sha256": "3f14d60723410a2138de38a5ea37dfcef9f8ce04ab6acca806576d310c68a887",
       "card_type": "Basic Resource",
       "affinity": [
         "Timelock"
@@ -3522,8 +3522,8 @@
       "name": "Timelock Invalidation",
       "file": "Timelock Invalidation.webp",
       "mime": "image/webp",
-      "bytes": 163834,
-      "sha256": "d19964f7065948010cf110f4affdf9d0d7917dfdf5167cdc71d2d17fcd0d3be7",
+      "bytes": 163226,
+      "sha256": "e5035a327becb2f6f98d11be9480b93283d2c79cee5a7d051211b0633da69e24",
       "card_type": "Zap",
       "affinity": [
         "Power"
@@ -3535,8 +3535,8 @@
       "name": "Timelock Outage",
       "file": "Timelock Outage.webp",
       "mime": "image/webp",
-      "bytes": 153358,
-      "sha256": "986271b2389bef7b381c286488e613db851294650ba6d1a972c206f3202e92e3",
+      "bytes": 153872,
+      "sha256": "1d92757c96fbf414cfb274ab827968cb6d1e929eec0fe7f9ffe773ae65640474",
       "card_type": "Operation",
       "affinity": [
         "Bitcoin"
@@ -3548,8 +3548,8 @@
       "name": "Timelock Protection Circuit",
       "file": "Timelock Protection Circuit.webp",
       "mime": "image/webp",
-      "bytes": 160004,
-      "sha256": "39bc9f2fa62166d5757842e854b844d7f06d41f58bc36b67f88ff232c0871a70",
+      "bytes": 157944,
+      "sha256": "67073eefe9a21a65f9ee0310bfc8320b460829f74a3ef83101d0527bb62a2e6a",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -3574,8 +3574,8 @@
       "name": "Timelock Rewrite",
       "file": "Timelock Rewrite.webp",
       "mime": "image/webp",
-      "bytes": 136864,
-      "sha256": "8b47e0c68eace65a8ad6d1e035114db48bbb9968919f0f8558327e4a91a1be63",
+      "bytes": 136660,
+      "sha256": "8d09cc627ba4262ebc29bf500ec3e1afeb7bd344863ea8e4d2d0b014c098957a",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -3587,8 +3587,8 @@
       "name": "Timelock Shield",
       "file": "Timelock Shield.webp",
       "mime": "image/webp",
-      "bytes": 130442,
-      "sha256": "65c0c39b885d6b58a4ca0f5cb6b10a3f6aae955df8e2a618c94039164e9c0b5c",
+      "bytes": 129508,
+      "sha256": "dc540b72ef6c89f0b25276e6125e928c3578fe7d0e78d82c55637c9b136271f0",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -3613,8 +3613,8 @@
       "name": "Timelock–Keys Junction",
       "file": "Timelock–Keys Junction.webp",
       "mime": "image/webp",
-      "bytes": 123938,
-      "sha256": "9f2ea81041bc3c097f686e7cc8b23dd773830db00d27fa2d8f60095dd246df7b",
+      "bytes": 123952,
+      "sha256": "f81e22010c2cddceb463d7dbd2217397425f0473db92bdd40b3c4373929dfc76",
       "card_type": "Resource",
       "affinity": [
         "Timelock",
@@ -3627,8 +3627,8 @@
       "name": "Tobo, Bitcoin Backchanneler",
       "file": "Tobo, Bitcoin Backchanneler.webp",
       "mime": "image/webp",
-      "bytes": 148720,
-      "sha256": "52967e77ed03d10500f4d1a0da6bc3a4a115efa3a9faf12bf4fc7311fcb52add",
+      "bytes": 149284,
+      "sha256": "23ad432d300fd4195308c43d218966171099ced0739419366ee0314aca3c473a",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -3640,8 +3640,8 @@
       "name": "Tobo, First-Strike Archer",
       "file": "Tobo, First-Strike Archer.webp",
       "mime": "image/webp",
-      "bytes": 141718,
-      "sha256": "8a4b37c69135463aa4eb59d3c897ff77ab2eebc86c357a7bf4290ae0ea21c51b",
+      "bytes": 142172,
+      "sha256": "883d9183148e6f39f58ddd619217fb3ba733f402c77aff6faf12f17351851aa6",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -3653,8 +3653,8 @@
       "name": "Tobo, Resource Unlocker",
       "file": "Tobo, Resource Unlocker.webp",
       "mime": "image/webp",
-      "bytes": 165630,
-      "sha256": "a15e05627d369e62938110c9265b2356d07f235e088ca7df5639f2381c716ea3",
+      "bytes": 164810,
+      "sha256": "345bc8bf0ce9b20b93c0b618d13327ee75222934bbb8cb977da1a0381c8d3cc4",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -3666,8 +3666,8 @@
       "name": "Tobo, Wooden Firewall",
       "file": "Tobo, Wooden Firewall.webp",
       "mime": "image/webp",
-      "bytes": 155424,
-      "sha256": "8d1ab089cda5b9daf41bbfe8c2069d79bd29e438814e4e370c9371d02593e2b4",
+      "bytes": 155880,
+      "sha256": "358cdbaf04b97f60cfa4892572d1576e0e281d4a7d7bae9aba0ec3c471c36309",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -3679,8 +3679,8 @@
       "name": "Toggle State",
       "file": "Toggle State.webp",
       "mime": "image/webp",
-      "bytes": 133308,
-      "sha256": "c58cd0400a90169e575697193fc89c34411859e89ade1556452297ada6e512de",
+      "bytes": 133158,
+      "sha256": "f13745d86b125907960ab2502e7388bc38ff92f7bd489ae24d4a5ecf45c5e7e5",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -3692,8 +3692,8 @@
       "name": "Toni China, Hot-Air Relay",
       "file": "Toni China, Hot-Air Relay.webp",
       "mime": "image/webp",
-      "bytes": 156970,
-      "sha256": "8413a6de8cf03192b13b7898ba29b8f5aaffe640ddfece6cc905a18ff8268191",
+      "bytes": 156282,
+      "sha256": "801f27ae312b2e2fb5d4035f9326b38f2c38676c59fe8b362df74304246e7f2c",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -3705,8 +3705,8 @@
       "name": "Toni China, Multihead Miner",
       "file": "Toni China, Multihead Miner.webp",
       "mime": "image/webp",
-      "bytes": 137034,
-      "sha256": "fc83afeaa583652ffa811f9623935d52e20c883b70f6acde43005cd37a76de94",
+      "bytes": 138176,
+      "sha256": "1861e9d1784f5a0b4edaa77cbe486e9d21205439606877a1147f32da85f4fb08",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -3718,8 +3718,8 @@
       "name": "Toni China, Rough Miner",
       "file": "Toni China, Rough Miner.webp",
       "mime": "image/webp",
-      "bytes": 162306,
-      "sha256": "f280914a0895aa9895cbb56c576a9c303afca0ac131c3741c5ec1b3d2c865031",
+      "bytes": 161008,
+      "sha256": "1bafba2ec19b091b287d46c72c261f257909a255984a7a7de4eeefa332b48801",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -3731,8 +3731,8 @@
       "name": "Toni China, Thermal Firewall",
       "file": "Toni China, Thermal Firewall.webp",
       "mime": "image/webp",
-      "bytes": 147960,
-      "sha256": "ee52f01cb4e443e3f65aa7d1a800205a97ceb41503dee0d33f9b93ac9bd86296",
+      "bytes": 149386,
+      "sha256": "d5ff15c12f8b28b1678acfd3e3fd9f6c252ea14d2c5942149d9ae99533e7f612",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -3744,8 +3744,8 @@
       "name": "Topology Scan",
       "file": "Topology Scan.webp",
       "mime": "image/webp",
-      "bytes": 187056,
-      "sha256": "d39aad01ae031c17c06b74de8b8677af4161ce0ebb004160f9e16c1f81033968",
+      "bytes": 187420,
+      "sha256": "8c6bde1db6b52bdbac9ba78a89ddf65d829700fac868511b30810bda8169a8cc",
       "card_type": "Zap",
       "affinity": [
         "Bitcoin"
@@ -3757,8 +3757,8 @@
       "name": "Tunneling Patch",
       "file": "Tunneling Patch.webp",
       "mime": "image/webp",
-      "bytes": 151014,
-      "sha256": "b59d72568806fafbec56799e23d07246f94786095f2cc58fa3e45a19e9d2e230",
+      "bytes": 150320,
+      "sha256": "d0884a4944e339ad57e909a7b4b655a356fd387d5a93e2d660f9f6b9a5308b9f",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -3770,8 +3770,8 @@
       "name": "Uptime Channel",
       "file": "Uptime Channel.webp",
       "mime": "image/webp",
-      "bytes": 143222,
-      "sha256": "16b69f3420bfcdcaa59ec2072414b28f38757e04d5ac9df4282919459b495950",
+      "bytes": 142268,
+      "sha256": "aa61be41e8961eed4542319acad5a38b3d5951cf753b2ea5f8506f0b7114bc12",
       "card_type": "Operation",
       "affinity": [
         "Keys"
@@ -3796,8 +3796,8 @@
       "name": "Uptime Stream",
       "file": "Uptime Stream.webp",
       "mime": "image/webp",
-      "bytes": 170308,
-      "sha256": "4b073d1d302d0147afb8496626ebbb4d8abac5cc4e1273fd20a6a9393ca61ca3",
+      "bytes": 170678,
+      "sha256": "76bfaf727f1a6c1e71ce62575fefe00e33a354be004e8fa12b8b51d44b7ffd48",
       "card_type": "Operation",
       "affinity": [
         "Bitcoin"
@@ -3822,8 +3822,8 @@
       "name": "Wallet Scramble",
       "file": "Wallet Scramble.webp",
       "mime": "image/webp",
-      "bytes": 130324,
-      "sha256": "4beeb5b1889a51cf02829f0a9bd6d302b1cc32156a5432978bcc52b452aceb71",
+      "bytes": 129186,
+      "sha256": "26e93b8a582ecd8dcb033025d140e76c5f7417a524ab94e9b147fac13e2cbdb8",
       "card_type": "Operation",
       "affinity": [
         "Keys"
@@ -3848,8 +3848,8 @@
       "name": "Yield Router",
       "file": "Yield Router.webp",
       "mime": "image/webp",
-      "bytes": 166620,
-      "sha256": "fe783219820489488e5b257d5d12fc24de3df711096175c90178e94c2ce14ec5",
+      "bytes": 166924,
+      "sha256": "d3cc5d24a771127bd442b0f270ac1ff4b002028d5461e57c031106fc08a8542e",
       "card_type": "Protocol",
       "affinity": [
         "Bitcoin"
@@ -3861,8 +3861,8 @@
       "name": "Zap",
       "file": "Zap.webp",
       "mime": "image/webp",
-      "bytes": 144232,
-      "sha256": "4794e95445e5c32c6af235111e9c8dc64f6aa69bde85c562ef39070f581de931",
+      "bytes": 143598,
+      "sha256": "162417a44da71c65b6a1c2e5a8dea50314730b229c1a489e628ae184f7c08b75",
       "card_type": "Zap",
       "affinity": [
         "Power"
