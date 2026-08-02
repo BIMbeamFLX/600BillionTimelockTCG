@@ -43,6 +43,10 @@
     seat: null,
     role: "hotseat",     // hotseat | seat | spectator
     awaitingSeq: null,
+    /* Solo mode: the seat the NPC policy drives (site/npc.js), or null. Only
+     * ever set for the hotseat game — a networked table never hosts a bot. */
+    npc: null,
+    npcAffinity: "Bitcoin",
   };
 
   /* Local click-gathering. None of this is game state: it is the half-formed
@@ -62,11 +66,13 @@
   const uiSeat = (s) =>
     s && s.redacted
       ? (s.forSeat === null ? 0 : s.forSeat)
-      : (s.pendingChoice && s.pendingChoice.seat) ??
-        (s.pendingManual ? 1 - s.pendingManual.seat : null) ??
-        (s.awaiting && s.awaiting.seat) ??
-        s.priority.seat ??
-        s.turn.active;
+      : session.npc !== null
+        ? 1 - session.npc // solo: the table always shows the human's side
+        : (s.pendingChoice && s.pendingChoice.seat) ??
+          (s.pendingManual ? 1 - s.pendingManual.seat : null) ??
+          (s.awaiting && s.awaiting.seat) ??
+          s.priority.seat ??
+          s.turn.active;
 
   /* Hotseat holds the unredacted state and renders the redaction of it, so the
    * fog-of-war path runs every frame of the local game. A remote seat was SENT
@@ -132,7 +138,73 @@
     }
     if (session.events.length > 240) session.events.length = 240;
     render();
+    scheduleNpc();
     return true;
+  }
+
+  // ------------------------------------------------------------------ npc
+
+  /* The bot plays through the same dispatch() as a human click — same engine
+   * validation, same log, same FX. A short delay per action keeps its turns
+   * readable instead of instantaneous. */
+  let npcTimer = null;
+
+  function npcTurnPending() {
+    const full = session.full;
+    return (
+      session.npc !== null &&
+      session.seat === null &&
+      full &&
+      !full.result &&
+      globalThis.E1Npc &&
+      globalThis.E1Npc.waitingSeat(full) === session.npc
+    );
+  }
+
+  /* The bot's assisted abilities arrive as Tier B proposals the HUMAN would
+   * have to ack — a junction commit every single turn. A warrant-backed
+   * proposal is already bounded by the card's own envelope, so solo mode
+   * accepts those automatically; it stays in the log and can still be flagged.
+   * Free-form proposals (the bot never makes one) would still wait. */
+  function npcAutoConsent() {
+    const full = session.full;
+    return (
+      session.npc !== null &&
+      session.seat === null &&
+      full &&
+      !full.result &&
+      full.pendingManual &&
+      full.pendingManual.seat === session.npc &&
+      full.pendingManual.warrant &&
+      (full.pendingManual.warrant.kind === "static" || full.pendingManual.warrant.kind === "open")
+    );
+  }
+
+  function scheduleNpc() {
+    if (npcTimer) { clearTimeout(npcTimer); npcTimer = null; }
+    if (!npcTurnPending() && !npcAutoConsent()) return;
+    npcTimer = setTimeout(npcStep, 550);
+  }
+
+  function npcStep() {
+    npcTimer = null;
+    if (npcAutoConsent()) {
+      dispatch("MANUAL_ACCEPT", 1 - session.npc, { mid: session.full.pendingManual.mid });
+      return;
+    }
+    if (!npcTurnPending()) return;
+    const seat = session.npc;
+    const list = globalThis.E1Npc.candidates(E, session.full, seat, compiled, {
+      affinity: session.npcAffinity,
+    });
+    const notice = session.notice;
+    for (const move of list) {
+      if (dispatch(move.type, seat, move.payload)) return; // dispatch reschedules
+    }
+    /* Nothing applied: restore whatever notice the human was reading — the
+     * bot's rejected attempts are its own problem, not a message. */
+    session.notice = notice;
+    render();
   }
 
   // -------------------------------------------------------------- effects
@@ -1229,14 +1301,21 @@
     // The engine generates no randomness of its own: every seed is an input.
     // A blank field is turned into one here, in the UI, where that is allowed.
     const base = seedInput ? (Number(seedInput) | 0) : (crypto.getRandomValues(new Int32Array(1))[0] | 0);
+    const npcBox = document.getElementById("npcB");
+    const solo = Boolean(npcBox && npcBox.checked);
+    const nameB = document.getElementById("nameB").value || (solo ? "NPC" : "Player 2");
     const config = {
       seats: [
         { name: document.getElementById("nameA").value || "Player 1", affinity: document.getElementById("deckA").value },
-        { name: document.getElementById("nameB").value || "Player 2", affinity: document.getElementById("deckB").value },
+        { name: solo && nameB === "Player 2" ? "NPC" : nameB, affinity: document.getElementById("deckB").value },
       ],
       seeds: { public: base, hidden: [(base ^ 0x5f3759df) | 0, (base + 7717) | 0] },
       firstPlayer: 0,
     };
+    session.npc = solo ? 1 : null;
+    const npcAff = document.getElementById("deckB").value;
+    // "All" is a fine stack but no answer to "generate 1 of one affinity".
+    session.npcAffinity = npcAff && npcAff !== "All" ? npcAff : "Bitcoin";
     try {
       session.full = E.createGame(config);
     } catch (error) {
@@ -1256,6 +1335,7 @@
     document.getElementById("table").hidden = false;
     if (globalThis.E1FX) globalThis.E1FX.emit("game:start", {});
     render();
+    scheduleNpc();
   }
 
   function init() {

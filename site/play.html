@@ -195,6 +195,10 @@ a { color: var(--orange-soft); }
         <input id="nameB" value="Player 2" autocomplete="off">
         <label for="deckB">Stack affinity</label>
         <select id="deckB"></select>
+        <label for="npcB" style="display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--muted);font-size:12px;cursor:pointer">
+          <input id="npcB" type="checkbox" style="accent-color:var(--orange)">
+          NPC opponent — seat two plays itself
+        </label>
       </div>
     </div>
     <div class="startrow">
@@ -356,6 +360,7 @@ a { color: var(--orange-soft); }
 </div>
 <script src="play-data.js"></script>
 <script src="engine.js"></script>
+<script src="npc.js"></script>
 <script src="fx.js"></script>
 <!-- The transport. It opens no socket unless this page already holds a match or
      the player asks for one, so play.html stays a working offline hotseat. -->
