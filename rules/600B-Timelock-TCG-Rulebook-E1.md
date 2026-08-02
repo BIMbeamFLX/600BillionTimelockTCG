@@ -14,6 +14,8 @@ language: "English"
 Edition One is a two-player trading card game about open systems, resilient communities
 and positive cypherpunk culture. Players deploy Avatars, Hardware and Protocols, route
 fast Zaps, and commit five kinds of Resources to keep their side of the Network alive.
+The world these rules are played in — the runners, the five tools and the night the
+grid sang — lives on the [lore page](../site/lore.html).
 
 The first rules profile deliberately preserves the strategic shape of first-generation
 dueling card games: 20 starting Uptime, seven cards in the opening Wallet, forty-card
@@ -54,6 +56,11 @@ You can learn the core loop in one page.
 
 The E1 Classic Profile is written for exactly two players. A player may concede at any
 time. A concession takes effect immediately and cannot be answered.
+
+> **Solo practice.** The digital table offers an NPC opponent for seat two. The NPC
+> plays by these same rules through the same referee — nothing in this book changes for
+> solo play. It is a practice mode: NPC results carry no standing, no stake and no
+> signed transcript.
 
 ### 2.2 The objective
 

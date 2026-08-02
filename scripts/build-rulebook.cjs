@@ -42,6 +42,7 @@ function renderWebsite() {
   markdown = markdown
     .replaceAll("600B-rulebook-assets/", "../art/rulebook/")
     .replaceAll("600B-resource-icons/", "../art/resources/")
+    .replaceAll("../site/lore.html", "lore.html")
     .replaceAll(
       "600B-E1-iconic-six-contact-sheet.png",
       "../art/cards/600B-E1-iconic-six-contact-sheet.png",
