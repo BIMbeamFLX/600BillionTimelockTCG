@@ -20,15 +20,19 @@ from __future__ import annotations
 
 import os
 
+from build_card_set import AFFINITY_ACCENT
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO_ROOT, "art", "resources")
 
+# The affinity hue has ONE definition, in build_card_set.AFFINITY_ACCENT, which
+# is what paints the spine, type chip, circuit border and cost pips. The icons
+# read it rather than restating it: a symbol drawn in a colour its own card no
+# longer uses is a silent desync, and the palette was already duplicated across
+# four scripts.
 ACCENT = {
-    "power": "#FF6A00",
-    "bitcoin": "#F3C244",
-    "keys": "#7447B8",
-    "signal": "#FFF7EC",
-    "timelock": "#17BEBB",
+    name.lower(): AFFINITY_ACCENT[name]
+    for name in ("Power", "Bitcoin", "Keys", "Signal", "Timelock")
 }
 
 # The shine is a lighter tone of the glyph's own hue. Power and Keys reuse the

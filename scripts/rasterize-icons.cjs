@@ -8,7 +8,11 @@ const path = require("node:path");
 const REPO_ROOT = path.resolve(__dirname, "..");
 const SOURCE = path.join(REPO_ROOT, "art", "resources");
 const OUT = path.join(SOURCE, "png");
-const SIZE = 256; // 4x the largest on-card use (64px), so downscaling stays clean
+/* 4x the largest on-card use, so every downscale stays clean. That used to be
+ * 256 against a 64px cost pip — but Basic Resource now prints one giant 200px
+ * symbol, which left the master only 1.28x its biggest use and no headroom at
+ * 300 dpi. */
+const SIZE = 800;
 
 fs.mkdirSync(OUT, { recursive: true });
 
