@@ -121,10 +121,12 @@
       // Every rejection used to be a log(..., "warn") line and the click
       // silently did nothing. Now it is a code with a message.
       session.notice = result.error.message;
+      session.lastErrorCode = result.error.code;
       render();
       return false;
     }
     session.notice = null;
+    session.lastErrorCode = null;
     const prev = session.log.length ? session.log[session.log.length - 1].hash : state.gameId;
     const stateHash = E.hashState(result.state);
     const entry = { seq: action.seq, seat, at: "", action, prev, stateHash };
@@ -312,6 +314,7 @@
       case "MANUAL_WITHDRAWN": return ["Proposal withdrawn.", "manual"];
       case "MANUAL_FLAGGED": return [`⚑ ${seatName(p.seat)} flags a manual edit: ${p.reason}`, "bad"];
       case "NOTE": return [p.text, "manual"];
+      case "CONCEDE": return [`${seatName(p.seat)} rugpulls — the network routes on without them.`, "bad"];
       case "TOKEN": return ["A token is created.", "good"];
       case "GAME_OVER":
         return [p.reason === "draw" ? "The game is a draw." : `${seatName(p.winners[0])} wins (${p.reason}).`, "good"];
@@ -349,13 +352,61 @@
 
   // ------------------------------------------------------- click intentions
 
+  /* Clicking a card during Unlock/Maintenance/Draw used to answer only "Build
+   * I or Build II only" — technically true, practically a wall in front of the
+   * first thing every new player tries. If the phase is the ONLY objection and
+   * the table is waiting on this seat anyway, walk Continue toward Build and
+   * retry the same play at each step. */
+  function playAdvancing(seat, attempt) {
+    if (attempt()) return;
+    for (let i = 0; i < 6; i++) {
+      if (session.lastErrorCode !== "WRONG_PHASE") return;
+      const full = session.full;
+      if (!full || full.result || session.seat !== null) return;
+      if (full.turn.active !== seat || uiSeat(full) !== seat) return;
+      const before = full.seq;
+      advance();
+      if (!session.full || session.full.seq === before) return;
+      if (attempt()) return;
+    }
+  }
+
+  /* Left-click on a card: the detail popup. Rules text as printed, then the
+   * same plain-English help the gallery shows, and — from the Wallet — the
+   * play button right where the explanation is. Targeting and clash clicks
+   * never reach this: they are handled before the zone onClick fires. */
+  function openCardDetail(v, seat, uid, canPlay) {
+    const object = v.objects[uid];
+    if (!object || !object.cardId) return;
+    const card = CARD_BY_ID[object.cardId];
+    const dialog = document.getElementById("cardDetail");
+    dialog.querySelector(".face").src = faceUrl(card);
+    dialog.querySelector(".face").alt = card.name;
+    dialog.querySelector(".cd-name").textContent = card.name;
+    dialog.querySelector(".cd-meta").textContent =
+      `${card.id} · ${card.type}${card.subtype ? " — " + card.subtype : ""}` +
+      ` · ${card.affinity.join("/")} · Cost ${card.cost || "—"}`;
+    dialog.querySelector(".cd-rules").textContent = card.text || "";
+    dialog.querySelector(".cd-flavor").textContent = card.flavor ? `“${card.flavor}”` : "";
+    dialog.querySelector(".cd-help").textContent =
+      card.help || "No extra help for this one — the rules text is the whole story.";
+    const play = document.getElementById("cdPlay");
+    play.hidden = !canPlay;
+    play.onclick = () => {
+      dialog.close();
+      beginPlay(v, seat, uid);
+    };
+    document.getElementById("cdClose").onclick = () => dialog.close();
+    dialog.showModal();
+  }
+
   function beginPlay(v, seat, uid) {
     const object = v.objects[uid];
     if (!object || !object.cardId) return;
     const card = compiled(object.cardId);
-    if (card.isResource) return void dispatch("PLAY_RESOURCE", seat, { uid });
+    if (card.isResource) return void playAdvancing(seat, () => dispatch("PLAY_RESOURCE", seat, { uid }));
     const spec = card.playTargetSpec;
-    if (!spec.length) return void dispatch("PLAY_CARD", seat, { uid, targets: [] });
+    if (!spec.length) return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, { uid, targets: [] }));
     picking = { kind: "play", uid, spec, targets: [] };
     render();
   }
@@ -584,10 +635,12 @@
     renderZone("youNetwork", v, v.zones[`${seat}:network`], {
       onClick: (uid) => {
         if (v.awaiting && v.awaiting.kind === "attackers" && v.awaiting.seat === seat) toggleAttacker(uid);
-        else showInspector(v, uid);
+        else openCardDetail(v, seat, uid, false);
       },
     });
-    renderZone("youHand", v, v.zones[`${seat}:wallet`], { onClick: (uid) => beginPlay(v, seat, uid) });
+    renderZone("youHand", v, v.zones[`${seat}:wallet`], {
+      onClick: (uid) => openCardDetail(v, seat, uid, true),
+    });
     renderZone("foeHand", v, v.zones[`${foe}:wallet`], {});
 
     renderPrompt(v, seat);
@@ -1361,6 +1414,33 @@
     }
     document.getElementById("start").addEventListener("click", startGame);
     document.getElementById("continue").addEventListener("click", advance);
+
+    /* Rugpull = concede with the setting's own word for it. The win goes to
+     * the player who did NOT rugpull (§2.2: concession). Two clicks, because
+     * it is the one button in the game that cannot be answered or undone. */
+    const rugpull = document.getElementById("rugpull");
+    rugpull.addEventListener("click", () => {
+      const full = session.full;
+      if (!full || full.result || session.role === "spectator") return;
+      if (!rugpull.dataset.armed) {
+        rugpull.dataset.armed = "1";
+        rugpull.textContent = "Confirm — you lose";
+        setTimeout(() => {
+          delete rugpull.dataset.armed;
+          rugpull.textContent = "Rugpull";
+        }, 4000);
+        return;
+      }
+      delete rugpull.dataset.armed;
+      rugpull.textContent = "Rugpull";
+      const seat =
+        session.seat !== null
+          ? session.seat
+          : session.npc !== null
+            ? 1 - session.npc
+            : uiSeat(full);
+      dispatch("CONCEDE", seat, {});
+    });
 
     document.getElementById("endturn").addEventListener("click", () => {
       // Not a single action: the turn machine advances only via PASS_PRIORITY,

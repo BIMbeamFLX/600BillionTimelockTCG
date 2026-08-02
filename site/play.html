@@ -54,6 +54,23 @@ a { color: var(--orange-soft); }
 .startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
 .btn { padding: 12px 18px; color: var(--black); background: var(--orange); border: 0; cursor: pointer; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
 .btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
+.btn.rug { color: #ff4d3d; border-color: rgba(255,77,61,.5); }
+.btn.rug[data-armed] { color: var(--black); background: #ff4d3d; border-color: #ff4d3d; }
+
+/* Card detail popup: left-click on a card explains it in plain English and,
+   from the Wallet, offers the play right there. */
+#cardDetail { border: 1px solid var(--line); background: var(--panel); color: var(--cream); padding: 0; max-width: 720px; width: min(94vw, 720px); }
+#cardDetail::backdrop { background: rgba(9,8,11,.78); backdrop-filter: blur(4px); }
+#cardDetail .wrap { display: grid; grid-template-columns: 250px 1fr; gap: 18px; padding: 18px; }
+#cardDetail img.face { width: 100%; border: 1px solid var(--line); }
+#cardDetail h3 { margin: 0 0 2px; font: 22px/1.1 Anton600, Impact, sans-serif; letter-spacing: .03em; text-transform: uppercase; }
+#cardDetail .meta { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px; }
+#cardDetail .rules { font-size: 14px; line-height: 1.5; margin-bottom: 10px; white-space: pre-line; }
+#cardDetail .flavor { color: var(--muted); font: italic 400 13px/1.5 Georgia, serif; margin-bottom: 12px; }
+#cardDetail .help { padding: 12px 14px; background: var(--soot); border-left: 3px solid var(--gold); font-size: 13.5px; line-height: 1.55; margin-bottom: 14px; }
+#cardDetail .help b { display: block; color: var(--gold); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 5px; }
+#cardDetail .row { display: flex; gap: 10px; }
+@media (max-width: 620px) { #cardDetail .wrap { grid-template-columns: 1fr; } #cardDetail img.face { max-width: 250px; margin: 0 auto; } }
 .btn:hover { background: var(--gold); }
 .btn.ghost:hover { background: var(--panel-2); }
 
@@ -290,6 +307,7 @@ a { color: var(--orange-soft); }
         <div class="controls">
           <button class="btn" id="continue">Continue</button>
           <button class="btn ghost" id="endturn">End turn</button>
+          <button class="btn ghost rug" id="rugpull" title="End the game by walking away — the win goes to the player who did not rugpull.">Rugpull</button>
           <button class="btn ghost" id="cancelTarget">Cancel targeting</button>
           <button class="btn ghost" id="clearManual">Clear notice</button>
           <span id="fxControl"></span>
@@ -359,6 +377,23 @@ a { color: var(--orange-soft); }
 </div>
 </div>
 <script src="play-data.js"></script>
+<dialog id="cardDetail">
+  <div class="wrap">
+    <img class="face" alt="">
+    <div>
+      <h3 class="cd-name"></h3>
+      <div class="meta cd-meta"></div>
+      <div class="rules cd-rules"></div>
+      <div class="flavor cd-flavor"></div>
+      <div class="help"><b>What it does</b><span class="cd-help"></span></div>
+      <div class="row">
+        <button class="btn" id="cdPlay">Play card</button>
+        <button class="btn ghost" id="cdClose">Close</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
 <script src="engine.js"></script>
 <script src="npc.js"></script>
 <script src="fx.js"></script>
