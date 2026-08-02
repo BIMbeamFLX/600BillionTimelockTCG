@@ -396,6 +396,25 @@
       dialog.close();
       beginPlay(v, seat, uid);
     };
+    /* Own Network cards act from here too — the popup is where a player
+     * actually finds the assisted junction generate. */
+    const acts = document.getElementById("cdActs");
+    acts.innerHTML = "";
+    if (object.controller === seat && object.zone.endsWith(":network")) {
+      compiled(card.id).abilities.forEach((ability, index) => {
+        const generate = junctionGenerate(ability);
+        if (!generate) return;
+        for (const name of generate.names) {
+          const button = el("button", "btn ghost", `Generate → ${name}`);
+          if (object.committed) button.disabled = true;
+          button.addEventListener("click", () => {
+            dialog.close();
+            proposeJunctionGenerate(seat, uid, index, ability, name);
+          });
+          acts.append(button);
+        }
+      });
+    }
     document.getElementById("cdClose").onclick = () => dialog.close();
     dialog.showModal();
   }
@@ -537,6 +556,22 @@
     if (object.controller === seat && object.zone.endsWith(":network")) {
       compiled(card.id).abilities.forEach((ability, index) => {
         if (ability.kind !== "activated") return;
+        /* Assisted junctions — "Commit: generate 1 X or 1 Y." carries no
+         * script, so a plain activation only announces "resolve at the table"
+         * and generates NOTHING. Offer the honest one-click proposal the NPC
+         * already uses: commit as the cost, one Resource as the effect,
+         * bounded by the ability's envelope, Tier B for the opponent. */
+        const generate = junctionGenerate(ability);
+        if (generate) {
+          for (const name of generate.names) {
+            const button = el("button", null, `Generate → ${name} (assisted)`);
+            if (object.committed) button.disabled = true;
+            button.addEventListener("click", () =>
+              proposeJunctionGenerate(seat, uid, index, ability, name));
+            acts.append(button);
+          }
+          return;
+        }
         // "generate N Resources of one affinity" needs the affinity picked at
         // activation. One button per affinity beats a modal: it keeps the whole
         // table in the page and never blocks the renderer.
@@ -576,6 +611,28 @@
    * always Tier B and always needs a reason. */
   function propose(seat, ops, reason) {
     dispatch("MANUAL_PROPOSE", seat, { warrant: { kind: "freeform", note: reason }, ops, reason });
+  }
+
+  /* "Commit: generate 1 X or 1 Y." — the shape of every assisted junction.
+   * Returns the affinity names it offers, or null for anything else. */
+  const GENERATE_SYMBOL = { Power: "P", Bitcoin: "B", Keys: "K", Signal: "S", Timelock: "T" };
+  function junctionGenerate(ability) {
+    if (!ability.manual || !/^commit:/i.test((ability.text || "").trim())) return null;
+    const match = /generate 1 (\w+)(?: or 1 (\w+))?/i.exec(ability.text);
+    if (!match) return null;
+    const names = [match[1], match[2]].filter((name) => GENERATE_SYMBOL[name]);
+    return names.length ? { names } : null;
+  }
+
+  function proposeJunctionGenerate(seat, uid, abilityIndex, ability, name) {
+    dispatch("MANUAL_PROPOSE", seat, {
+      warrant: { kind: "static", uid, abilityIndex },
+      ops: [
+        { op: "setCommitted", uid, value: true },
+        { op: "addBuffer", seat, symbol: GENERATE_SYMBOL[name], amount: 1 },
+      ],
+      reason: `assisted: ${ability.text}`,
+    });
   }
 
   // ---------------------------------------------------------------- render
