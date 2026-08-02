@@ -9,6 +9,11 @@ __pycache__/
 Thumbs.db
 *.db
 *.sqlite
+# SQLite's sidecars do NOT end in .db, so the rule above never covered them and
+# both ended up committed: 4 MB of live match state, seat tokens included,
+# redirtied by every local run. A clone also got a WAL with no database.
+*.db-wal
+*.db-shm
 .env
 .art-build.*.log
 .audit/
