@@ -159,10 +159,13 @@ function chooseAction(view, seat, banned) {
       : act("MANUAL_REJECT", { mid: view.pendingManual.mid, reason: "scripted client" });
   }
   if (view.pendingChoice && view.pendingChoice.seat === seat) {
+    // CHOOSE takes INDICES into the options list, never the option values —
+    // sending values earned an endless REJECT loop and a referee kick the
+    // moment remote matches contained real choices.
     const options = view.pendingChoice.options || [];
     return act("CHOOSE", {
       choiceId: view.pendingChoice.id,
-      selection: options.slice(0, 1).map((o) => (o && o.value !== undefined ? o.value : o)),
+      selection: options.length ? [0] : [],
     });
   }
 

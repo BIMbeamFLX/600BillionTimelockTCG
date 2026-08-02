@@ -915,6 +915,7 @@
     renderZone("foeHand", v, v.zones[`${foe}:wallet`], {});
 
     renderPrompt(v, seat);
+    renderChoice(v, seat);
     renderManualPanel(v, seat);
 
     const logBox = document.getElementById("log");
@@ -941,6 +942,26 @@
       if (v.awaiting.kind === "discard") return "Discard";
     }
     return "Continue";
+  }
+
+  /* A pending choice gets real buttons. Until now the only choices were
+   * pre-seeded by the affinity buttons, so a raised choice soft-locked the
+   * human — with optional costs ("you may pay 1…") they are routine. */
+  function renderChoice(v, seat) {
+    const row = document.getElementById("choiceRow");
+    if (!row) return;
+    row.innerHTML = "";
+    const choice = v.pendingChoice;
+    if (!choice || !choice.options || choice.seat !== seat) return;
+    choice.options.forEach((option, index) => {
+      const label =
+        option.label ||
+        (option.symbol ? SYMBOL_NAME[option.symbol] || option.symbol : option.value || `Option ${index + 1}`);
+      const button = el("button", "btn ghost", label);
+      button.addEventListener("click", () =>
+        dispatch("CHOOSE", seat, { choiceId: choice.id, selection: [index] }));
+      row.append(button);
+    });
   }
 
   function renderPrompt(v, seat) {

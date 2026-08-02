@@ -162,12 +162,90 @@ TRIGGER_HEADS: list[tuple[re.Pattern[str], Any]] = [
         re.compile(r"^Whenever a Resource is put into an Archive from the Network,\s*", re.I),
         lambda m: {"on": "network-archived", "what": "Resource"},
     ),
+    (
+        re.compile(r"^Whenever an Avatar is decommissioned,\s*", re.I),
+        lambda m: {"on": "network-archived", "what": "Avatar"},
+    ),
+    (
+        # The printed text says "a player play a … card" — matched as printed.
+        re.compile(
+            r"^Whenever a players? plays? a (Power|Bitcoin|Keys|Signal|Timelock) card"
+            r" on the Queue,\s*",
+            re.I,
+        ),
+        lambda m: {"on": "card-queued", "affinity": m.group(1).capitalize()},
+    ),
 ]
 
 
 def parse_trigger_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
     """Effects inside a trigger, where "that player" is bound at raise time."""
     text = effect.strip().rstrip(".")
+
+    # Optional costs. "You may pay X. If you do, …" runs the effect on payment;
+    # "… unless you pay X" runs it on refusal. Both compile to one mayPay op
+    # whose branches hold plain, choice-free ops.
+    may_pay = re.match(r"^you may pay ([0-9PBKST]+)\. If you do, (.+)$", text, re.I)
+    if may_pay:
+        cost = parse_cost(may_pay.group(1))
+        then_ops = parse_trigger_ops(may_pay.group(2), card_name)
+        if cost and then_ops:
+            return [
+                {
+                    "op": "mayPay",
+                    "cost": cost,
+                    "then": then_ops,
+                    "prompt": f"Pay {may_pay.group(1)}? If you do: {may_pay.group(2)}",
+                    "payLabel": f"Pay {may_pay.group(1)}",
+                }
+            ]
+        return None
+
+    unless_archive = re.match(
+        r"^archive this (?:Protocol|Avatar|Hardware) unless you pay ([0-9PBKST]+)$",
+        text,
+        re.I,
+    )
+    if unless_archive:
+        cost = parse_cost(unless_archive.group(1))
+        if cost:
+            return [
+                {
+                    "op": "mayPay",
+                    "cost": cost,
+                    "then": [],
+                    "else": [{"op": "moveObject", "target": "self-object", "toZone": "archive"}],
+                    "prompt": f"Pay {unless_archive.group(1)}, or this card is archived",
+                    "payLabel": f"Pay {unless_archive.group(1)}",
+                }
+            ]
+        return None
+
+    unless_damage = re.match(
+        r"^this Avatar deals (\d+) damage to you unless you pay ([0-9PBKST]+)$", text, re.I
+    )
+    if unless_damage:
+        cost = parse_cost(unless_damage.group(2))
+        if cost:
+            return [
+                {
+                    "op": "mayPay",
+                    "cost": cost,
+                    "then": [],
+                    "else": [
+                        {
+                            "op": "damage",
+                            "amount": int(unless_damage.group(1)),
+                            "target": "controller",
+                        }
+                    ],
+                    "prompt": (
+                        f"Pay {unless_damage.group(2)}, or take {unless_damage.group(1)} damage"
+                    ),
+                    "payLabel": f"Pay {unless_damage.group(2)}",
+                }
+            ]
+        return None
     damage = re.match(
         r"^this (?:Protocol|Hardware|Attachment|Avatar) deals (\d+) damage to"
         r" that (?:player|Resource's controller)$",

@@ -1459,6 +1459,34 @@
         }
         return "done";
       }
+      case "mayPay": {
+        /* "You may pay X. If you do, …" / "… unless you pay X." One optional
+         * cost, a pay/decline choice, and two nested op lists. Nested ops must
+         * never pause — the parser only emits bound, choice-free ops, and the
+         * runner fails loudly rather than corrupt the resume state. */
+        const buffer = state.seats[controller].buffer;
+        const chosen = item.resume.acc["choice" + item.resume.opIndex];
+        if (chosen === undefined) {
+          if (!canPay(buffer, op.cost)) return runNested(env, item, op.else || []);
+          return raiseChoice(env, item, {
+            kind: "mayPay",
+            prompt: op.prompt || "Pay the optional cost?",
+            options: [
+              { kind: "option", value: "pay", label: op.payLabel || "Pay" },
+              { kind: "option", value: "decline", label: "Decline" },
+            ],
+            min: 1,
+            max: 1,
+            slot: "choice" + item.resume.opIndex,
+          });
+        }
+        const pick = Array.isArray(chosen) ? chosen[0] && chosen[0].value : chosen;
+        if (pick === "pay" && canPay(buffer, op.cost)) {
+          settleCost(env, controller, op.cost, null);
+          return runNested(env, item, op.then || []);
+        }
+        return runNested(env, item, op.else || []);
+      }
       case "grant": {
         // A keyword grant — on itself, or on a chosen Avatar — delegated to the
         // one effect factory so expiry works the same everywhere.
@@ -1498,6 +1526,17 @@
       default:
         return runManualOp(env, item, op);
     }
+  }
+
+  /* Run a mayPay branch inline. A nested op that tried to pause would leave
+   * the outer op's resume cursor pointing at the wrong frame — that is a
+   * compiler bug, and it fails loudly instead of resolving wrongly. */
+  function runNested(env, item, ops) {
+    for (const nested of ops) {
+      const outcome = runOp(env, item, nested);
+      if (outcome !== "done") fail("SCHEMA", "a nested optional-cost op may not pause");
+    }
+    return "done";
   }
 
   function raiseChoice(env, item, request) {
@@ -2375,6 +2414,9 @@
       case "network-archived":
         if (ctx.uid === uid) return false; // a card never watches itself move
         return !trigger.what || (ctx.type || "").indexOf(trigger.what) >= 0;
+      case "card-queued":
+        if (trigger.affinity && (ctx.affinity || []).indexOf(trigger.affinity) < 0) return false;
+        return !trigger.what || (ctx.type || "").indexOf(trigger.what) >= 0;
       case "committed":
         if (ctx.uid === uid) return false;
         if (trigger.what && (ctx.type || "").indexOf(trigger.what) < 0) return false;
@@ -2387,7 +2429,9 @@
   }
 
   /* "that player" and "it" resolve at raise time into the plain seat/uid
-   * fields the op runner honours, so the queued item is self-contained. */
+   * fields the op runner honours, so the queued item is self-contained.
+   * Recurses into optional-cost branches — a nested op is as bound as a
+   * top-level one, or the archive-self of an unless-cost dies of UNKNOWN_OBJECT. */
   function bindTriggerOps(ops, ctx, sourceUid) {
     return ops.map((op) => {
       const bound = cloneJson(op);
@@ -2399,6 +2443,8 @@
         bound.uid = sourceUid;
         delete bound.target;
       }
+      if (Array.isArray(bound.then)) bound.then = bindTriggerOps(bound.then, ctx, sourceUid);
+      if (Array.isArray(bound.else)) bound.else = bindTriggerOps(bound.else, ctx, sourceUid);
       return bound;
     });
   }
@@ -2728,6 +2774,13 @@
         x: payload.x || 0,
         paid: payment,
         manual: null,
+      });
+      // "Whenever a player plays a … card on the Queue" — raised after the
+      // push, so the triggers land above it and resolve first (§10.2 LIFO).
+      raiseTriggers(env, "card-queued", {
+        seat: action.seat,
+        type: card.type,
+        affinity: card.affinity,
       });
     },
 
