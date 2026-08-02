@@ -24,26 +24,31 @@ TRIM_INSET = 35
 TRIM_W = 744
 TRIM_H = 1039
 
+# The locked E1 "Plate" palette (art handoff 2026-08-02). Remapped by RESOURCE,
+# never by find-and-replace: old Bitcoin's hex is new Power's, and Keys/Signal
+# swapped hexes, so a blind substitution corrupts three of the five.
 AFFINITY_ACCENT = {
-    "Power": "#FF6A00",
-    "Bitcoin": "#F3C244",
-    "Keys": "#7447B8",
-    "Signal": "#FFF7EC",
-    # Timelock was #5E5ACB, a blue-violet only deltaE 12 from Keys' #7447B8 — the
+    "Power": "#F3C244",
+    "Bitcoin": "#F7931A",
+    "Keys": "#FFF7EC",
+    "Signal": "#7447B8",
+    # Timelock was #5E5ACB, a blue-violet only deltaE 12 from violet #7447B8 — the
     # two were indistinguishable on a board while every other pair sat above 64.
     # Teal is the palette's one open hue and reads as clock rather than key.
     "Timelock": "#17BEBB",
-    # Neutral was #f7931a, a shade off Power's #FF6A00 — the two read as the same
-    # orange on a shelf, and 47 Hardware cards were being mistaken for Power. Grey
-    # is the project's own neutral, from the world plates in site/arena.html.
+    # Grey is the project's own neutral, from the world plates in site/arena.html.
+    # It must stay clear of Bitcoin's #F7931A: 47 Hardware cards were once
+    # mistaken for an affinity when Neutral sat too close to an orange.
     "Neutral": "#8a8f98",
 }
 AFFINITY_BADGE_FG = {
     "Power": "#050403",
     "Bitcoin": "#050403",
-    "Signal": "#050403",
+    # Signal's violet chip is the one dark accent, so it takes the light ink;
+    # Keys is now white and needs dark ink to survive on its own chip.
+    "Signal": "#FFF7EC",
     "Neutral": "#050403",
-    "Keys": "#FFF7EC",
+    "Keys": "#050403",
     "Timelock": "#050403",
 }
 # Per the Node Runner handoff: common bone, uncommon orange, rare gold.

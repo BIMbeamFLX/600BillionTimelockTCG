@@ -15,6 +15,9 @@
   const E = globalThis.E1Engine;
   const CARDS = globalThis.E1_CARDS || [];
   const SYMBOLS = ["P", "B", "K", "S", "T"];
+  // The locked Plate icon per symbol — shown in the buffer pips so a resource
+  // reads by shape, not just by colour.
+  const SYMBOL_ICON = { P: "power", B: "bitcoin", K: "keys", S: "signal", T: "timelock" };
   const SYMBOL_NAME = { P: "Power", B: "Bitcoin", K: "Keys", S: "Signal", T: "Timelock", N: "neutral" };
   const CARD_BY_ID = Object.create(null);
   const COMPILED = Object.create(null);
@@ -490,7 +493,16 @@
       buffer.innerHTML = "";
       for (const key of [...SYMBOLS, "N"]) {
         if (!v.seats[who].buffer[key]) continue;
-        buffer.append(el("span", "pip pip-" + key, `${v.seats[who].buffer[key]} ${key}`));
+        const pip = el("span", "pip pip-" + key, `${v.seats[who].buffer[key]}`);
+        if (SYMBOL_ICON[key]) {
+          const icon = el("img", null);
+          icon.src = `../art/resources/${SYMBOL_ICON[key]}.svg`;
+          icon.alt = key;
+          pip.append(icon);
+        } else {
+          pip.append(` ${key}`);
+        }
+        buffer.append(pip);
       }
     }
 

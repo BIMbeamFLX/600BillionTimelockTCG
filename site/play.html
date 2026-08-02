@@ -95,11 +95,13 @@ a { color: var(--orange-soft); }
 .uptime b { color: var(--orange); font-size: 17px; }
 .counts { color: var(--muted); font-size: 12px; }
 .buffer { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
-.pip { padding: 3px 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; background: var(--soot); border: 1px solid var(--line); }
-.pip-P { border-color: var(--orange); color: var(--orange); }
-.pip-B { border-color: var(--gold); color: var(--gold); }
-.pip-K { border-color: var(--purple-deep); color: var(--purple); }
-.pip-S { border-color: var(--cream); color: var(--cream); }
+.pip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; background: var(--soot); border: 1px solid var(--line); }
+.pip img { width: 13px; height: 13px; }
+/* Locked E1 "Plate" palette, remapped by resource — Keys is white, Signal violet. */
+.pip-P { border-color: var(--gold); color: var(--gold); }
+.pip-B { border-color: var(--orange-soft); color: var(--orange-soft); }
+.pip-K { border-color: var(--cream); color: var(--cream); }
+.pip-S { border-color: var(--purple-deep); color: var(--purple); }
 .pip-T { border-color: var(--violet); color: var(--violet); }
 
 .zlabel { font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--purple); margin-bottom: 5px; }

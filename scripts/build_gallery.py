@@ -261,7 +261,10 @@ def render_html(records: list[dict[str, Any]]) -> str:
       gap: 7px;
     }}
     .chip {{
-      padding: 7px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
       color: var(--muted);
       background: transparent;
       border: 1px solid var(--line);
@@ -271,6 +274,17 @@ def render_html(records: list[dict[str, Any]]) -> str:
       letter-spacing: .06em;
       text-transform: uppercase;
     }}
+    /* The icon keeps its own dark disc so the white Keys plate never sits on
+       the light active/hover chip surface. */
+    .chip .aff {{
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--black);
+    }}
+    .chip .aff img {{ width: 14px; height: 14px; }}
     .chip:hover, .chip.active {{
       color: var(--black);
       background: var(--purple);
@@ -528,10 +542,26 @@ def render_html(records: list[dict[str, Any]]) -> str:
       Timelock: "Timelock",
       Neutral: "Neutral",
     }};
+    const affinityIcons = {{
+      Power: "power",
+      Bitcoin: "bitcoin",
+      Keys: "keys",
+      Signal: "signal",
+      Timelock: "timelock",
+    }};
     for (const item of affinities) {{
       const button = document.createElement("button");
       button.className = "chip" + (item === "All" ? " active" : "");
-      button.textContent = labels[item];
+      if (affinityIcons[item]) {{
+        const disc = document.createElement("span");
+        disc.className = "aff";
+        const icon = document.createElement("img");
+        icon.src = "../art/resources/" + affinityIcons[item] + ".svg";
+        icon.alt = "";
+        disc.append(icon);
+        button.append(disc);
+      }}
+      button.append(labels[item]);
       button.addEventListener("click", () => {{
         affinity = item;
         [...chips.children].forEach((chip) => chip.classList.toggle("active", chip === button));

@@ -1,11 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
      role="img" aria-labelledby="title">
   <title id="title">Power resource</title>
-  <defs>
-    <filter id="shine" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur stdDeviation="0.7"/>
-    </filter>
-  </defs>
-  <g filter="url(#shine)" opacity="0.5"><path d="M43 6 17 34h16L21 58" fill="none" stroke="#FFA733" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="43" cy="6" r="4.2" fill="#FFA733"/><circle cx="21" cy="58" r="4.2" fill="#FFA733"/></g>
-  <path d="M43 6 17 34h16L21 58" fill="none" stroke="#FF6A00" stroke-width="4.0" stroke-linecap="round" stroke-linejoin="round"/><circle cx="43" cy="6" r="3.4" fill="#FF6A00"/><circle cx="21" cy="58" r="3.4" fill="#FF6A00"/>
+  <path fill="#F3C244" d="M37 4 10 36h20l-3 24L54 26H33Z"/>
 </svg>

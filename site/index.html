@@ -75,6 +75,12 @@ h1 span { color: var(--ember); }
 .stats { display: flex; gap: 26px; flex-wrap: wrap; margin-top: 44px; }
 .stat b { display: block; font: 34px/1 Anton600, Impact, sans-serif; color: var(--orange); }
 .stat span { color: var(--muted); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+/* The five locked Plate resource icons. Each keeps a dark disc so the white
+   Keys plate always sits on a dark surface. */
+.resrow { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 28px; }
+.res { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.res .disc { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--soot); border: 2px solid var(--aff); }
+.res .disc img { width: 24px; height: 24px; }
 
 section { max-width: 1280px; margin: 0 auto; padding: clamp(48px, 7vw, 96px) clamp(16px, 4vw, 56px); }
 h2 { font: clamp(30px, 4.5vw, 52px)/1 Anton600, Impact, sans-serif; text-transform: uppercase; letter-spacing: .01em; margin-bottom: 10px; }
@@ -153,6 +159,13 @@ footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; colo
     <div class="stat"><b>5</b><span>Resources</span></div>
     <div class="stat"><b>20</b><span>Uptime</span></div>
     <div class="stat"><b>0</b><span>Permissions</span></div>
+  </div>
+  <div class="resrow" aria-label="The five Resources">
+    <div class="res"><span class="disc" style="--aff:#f3c244"><img src="../art/resources/power.svg" alt=""></span>Power</div>
+    <div class="res"><span class="disc" style="--aff:#f7931a"><img src="../art/resources/bitcoin.svg" alt=""></span>Bitcoin</div>
+    <div class="res"><span class="disc" style="--aff:#fff7ec"><img src="../art/resources/keys.svg" alt=""></span>Keys</div>
+    <div class="res"><span class="disc" style="--aff:#7447b8"><img src="../art/resources/signal.svg" alt=""></span>Signal</div>
+    <div class="res"><span class="disc" style="--aff:#17bebb"><img src="../art/resources/timelock.svg" alt=""></span>Timelock</div>
   </div>
 </header>
 

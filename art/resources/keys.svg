@@ -1,11 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
      role="img" aria-labelledby="title">
   <title id="title">Keys resource</title>
-  <defs>
-    <filter id="shine" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur stdDeviation="0.7"/>
-    </filter>
-  </defs>
-  <g filter="url(#shine)" opacity="0.5"><circle cx="21" cy="22" r="10" fill="none" stroke="#B991E4" stroke-width="5.6"/><path d="M28 29 52 53M40 41l-6 6M46 47l-6 6" fill="none" stroke="#B991E4" stroke-width="5.6" stroke-linecap="round"/><circle cx="21" cy="22" r="4.2" fill="#B991E4"/><circle cx="52" cy="53" r="4.2" fill="#B991E4"/></g>
-  <circle cx="21" cy="22" r="10" fill="none" stroke="#7447B8" stroke-width="4.0"/><path d="M28 29 52 53M40 41l-6 6M46 47l-6 6" fill="none" stroke="#7447B8" stroke-width="4.0" stroke-linecap="round"/><circle cx="21" cy="22" r="3.4" fill="#7447B8"/><circle cx="52" cy="53" r="3.4" fill="#7447B8"/>
+  <g transform="rotate(45 32 32)"><path fill="#FFF7EC" fill-rule="evenodd" d="M4 32 9.5 22.5h11L26 32l-5.5 9.5h-11ZM19 32a4 4 0 1 0-8 0 4 4 0 1 0 8 0Z"/><path fill="#FFF7EC" d="M24 29h33v6H24ZM43 35h6v10h-6ZM52 35h5v10h-5Z"/></g>
 </svg>

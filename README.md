@@ -253,9 +253,10 @@ Open `site/cards.html` for the searchable, filterable 295-card E1 set plus promo
 `art/cards/final/600B-Timelock-card-back.jpg`.
 
 The official circular 600B mark is rebuilt from the unmodified source artwork as a
-small, low-opacity lower-right watermark. Card frames use print-safe resource stripes:
-Bitcoin orange, Signal/Nostr purple, Power cyan, Keys green, Timelock cobalt and
-Neutral slate. Multi-affinity cards divide the stripe into equal color segments.
+small, low-opacity lower-right watermark. Card frames use print-safe resource stripes
+in the locked E1 "Plate" palette: Power yellow, Bitcoin orange, Keys white, Signal
+violet, Timelock teal and Neutral slate. Multi-affinity cards divide the stripe into
+equal color segments.
 
 ## Cockatrice playtesting
 

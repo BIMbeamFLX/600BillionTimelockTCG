@@ -56,8 +56,8 @@ theme: optional. Map theme.colors.background/text onto :root, html, body and app
        muted -> secondary text. Subscribe themeOnChanged and repaint all tokens.
        Fallback palette: bg #09080B, text #FFF7EC, primary #FF6A00, surface #19151F,
        border rgba(185,145,228,.27), muted #C7BBCC. The five affinity accent colors
-       (P #FF6A00, B #F3C244, K #7447B8, S #FFF7EC, T #17BEBB) are brand-fixed and
-       never follow the shell theme.
+       (P #F3C244, B #F7931A, K #FFF7EC, S #7447B8, T #17BEBB — the locked E1
+       "Plate" palette) are brand-fixed and never follow the shell theme.
 
 data flow:
   invite    dm message carrying {matchId, protocolVersion, deckFormat} (optional;

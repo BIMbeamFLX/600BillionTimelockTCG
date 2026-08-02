@@ -267,10 +267,10 @@ body {
     <div class="buffer">
       <h3>Buffer</h3>
       <div class="bufrow">
-        <div class="buf" style="--aff:#ff6a00">1</div>
-        <div class="buf zero" style="--aff:#f3c244">0</div>
-        <div class="buf zero" style="--aff:#7447b8">0</div>
+        <div class="buf" style="--aff:#f3c244">1</div>
+        <div class="buf zero" style="--aff:#f7931a">0</div>
         <div class="buf zero" style="--aff:#fff7ec">0</div>
+        <div class="buf zero" style="--aff:#7447b8">0</div>
         <div class="buf zero" style="--aff:#17bebb">0</div>
       </div>
       <div class="burn">⚠ burns at end of Clash · −1 Uptime</div>
@@ -296,9 +296,10 @@ body {
 </div>
 
 <script>
+/* Locked E1 "Plate" palette — remapped by resource, never by hex. */
 const PLATES = [
-  ["power", "#ff6a00"], ["bitcoin", "#f3c244"], ["keys", "#7447b8"],
-  ["signal", "#fff7ec"], ["timelock", "#17bebb"], ["neutral", "#8a8f98"],
+  ["power", "#f3c244"], ["bitcoin", "#f7931a"], ["keys", "#fff7ec"],
+  ["signal", "#7447b8"], ["timelock", "#17bebb"], ["neutral", "#8a8f98"],
 ];
 const skins = document.getElementById("skins");
 for (const [name, color] of PLATES) {

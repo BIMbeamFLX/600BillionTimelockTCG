@@ -1,11 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
      role="img" aria-labelledby="title">
   <title id="title">Signal resource</title>
-  <defs>
-    <filter id="shine" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur stdDeviation="0.7"/>
-    </filter>
-  </defs>
-  <g filter="url(#shine)" opacity="0.5"><path d="M19 39a18 18 0 0 1 26 0M11 30a30 30 0 0 1 42 0M4 21a41 41 0 0 1 56 0" fill="none" stroke="#FFFFFF" stroke-width="5.6" stroke-linecap="round"/><circle cx="32" cy="50" r="5.2" fill="#FFFFFF"/></g>
-  <path d="M19 39a18 18 0 0 1 26 0M11 30a30 30 0 0 1 42 0M4 21a41 41 0 0 1 56 0" fill="none" stroke="#FFF7EC" stroke-width="4.0" stroke-linecap="round"/><circle cx="32" cy="50" r="4.4" fill="#FFF7EC"/>
+  <path fill="#7447B8" d="M32 5 57 25l-6 7-19-15-19 15-6-7ZM32 21l17 13-6 7-11-9-11 9-6-7ZM32 39l9 9-9 9-9-9Z"/>
 </svg>

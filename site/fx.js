@@ -41,7 +41,9 @@
     danger: '#ff4d3d', good: '#6ee7a8'
   };
 
-  var AFF_COLOR = { P: '#ff6a00', B: '#f3c244', K: '#7447b8', S: '#fff7ec', T: '#5e5acb', N: '#c7bbcc' };
+  /* Locked E1 "Plate" palette, remapped by RESOURCE (build_card_set.AFFINITY_ACCENT):
+   * old-Bitcoin's hex is new-Power's, and Keys/Signal swapped hexes. */
+  var AFF_COLOR = { P: '#f3c244', B: '#f7931a', K: '#fff7ec', S: '#7447b8', T: '#17bebb', N: '#c7bbcc' };
   var AFF_NAME = { P: 'Power', B: 'Bitcoin', K: 'Keys', S: 'Signal', T: 'Timelock', N: 'Neutral' };
 
   /* C# Dorian grid. A4 = 440, equal temperament. Every sustained pitch lives here. */
@@ -648,7 +650,7 @@
         nz({ src: 'pink', dur: 0.040, attack: 0.004, gain: 0.03 * k,
              filt: { type: 'bandpass', f: 3000, q: 1 }, seat: seat, send: sd, t: t });
         break;
-      case 'T': /* deep purple calm — the only affinity with a two-beat rhythm */
+      case 'T': /* teal calm — the only affinity with a two-beat rhythm */
         for (var beat = 0; beat < 2; beat++) {
           var bt = t + beat * 0.180;
           var bg = beat === 0 ? 1 : 0.55;

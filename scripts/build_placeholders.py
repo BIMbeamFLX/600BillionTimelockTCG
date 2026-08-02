@@ -25,10 +25,11 @@ CARD_W, CARD_H = 750, 1050
 
 # Official ring colors from art/resources/*.svg.
 ACCENTS = {
-    "P": "#FF6A00",
-    "B": "#F3C244",
-    "K": "#7447B8",
-    "S": "#FFF7EC",
+    # Locked E1 "Plate" palette — remapped by resource, never by hex.
+    "P": "#F3C244",
+    "B": "#F7931A",
+    "K": "#FFF7EC",
+    "S": "#7447B8",
     "T": "#17BEBB",
 }
 SUBTYPE_TO_AFFINITY = {

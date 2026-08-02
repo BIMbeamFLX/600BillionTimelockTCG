@@ -1,16 +1,13 @@
-"""Build the five resource icons in the card frame's own drawing language.
+"""Build the five resource icons from the locked E1 "Plate" set.
 
-The frame is thin single-weight line, right angles, and a small filled node at
-every junction — see the letterbox rails and the circuit ring in
-`render_card_pngs.paint_frame`, which draw 2px links with r4 dots. Earlier icon
-passes ignored that and produced heavy filled glyphs inside a container, so a
-symbol read as something stuck onto the card rather than something drawn by the
-same hand.
+Direction 1b "Plate" with the 2a "Forged" bitcoin, delivered in the 2026-08-02
+art handoff (`art/Futuristic icon designs for crypto.zip`). Solid faceted
+silhouettes with 45-degree chamfers, one flat fill per icon, no filters — built
+to hold from the 128 px art use down to 16 px inline rules text, where the
+earlier line-and-node drawing thinned into noise.
 
-These are built from the frame's vocabulary: one stroke weight, round terminals,
-a node where a line begins or meets another, and a shine rather than a glow — a
-single lighter-toned pass at low alpha, tight enough that it reads as sheen on the
-line instead of fog around it.
+The geometry is the handoff's, verbatim. Do not redraw it here; a change to a
+silhouette goes through the design side and comes back as a new locked set.
 
 Timelock is a clock, not a padlock. A key and a padlock are the same idea to a
 player, and Keys already owns that idea; duration is what Timelock actually means.
@@ -35,65 +32,37 @@ ACCENT = {
     for name in ("Power", "Bitcoin", "Keys", "Signal", "Timelock")
 }
 
-# The shine is a lighter tone of the glyph's own hue. Power and Keys reuse the
-# design system's own bright values (--orange-bright, --purple in site/play.html).
-SHINE = {
-    "power": "#FFA733",
-    "bitcoin": "#FFE08A",
-    "keys": "#B991E4",
-    "signal": "#FFFFFF",
-    "timelock": "#5FF0EC",
-}
-
-# One weight for every line in every icon, matching the frame's 2px links once an
-# icon is drawn at pip size. NODE is the frame's r4 junction dot, scaled to match.
-W = 4.0
-NODE = 3.4
-SHINE_BLUR = 0.7
-SHINE_ALPHA = 0.5
-
-# Each body is drawn twice: once as the shine pass, once crisp. `{c}` is the colour
-# and `{w}` the weight, so one description renders both.
+# Locked silhouettes from the handoff. `{c}` is the affinity fill — the one
+# colour each icon is allowed.
 BODY = {
-    # A bolt as an open zigzag rather than a filled arrow, with a node at each end.
-    "power": (
-        '<path d="M43 6 17 34h16L21 58" fill="none" stroke="{c}" stroke-width="{w}"'
-        ' stroke-linecap="round" stroke-linejoin="round"/>'
-        '<circle cx="43" cy="6" r="{n}" fill="{c}"/>'
-        '<circle cx="21" cy="58" r="{n}" fill="{c}"/>'
-    ),
-    # The mark drawn as line: one stem, two open bowls, the four ticks kept.
+    # A faceted bolt: one solid strike, chamfered like the frame's corners.
+    "power": '<path fill="{c}" d="M37 4 10 36h20l-3 24L54 26H33Z"/>',
+    # The "Forged" mark: slab B with chamfered bowls, the four ticks kept.
     "bitcoin": (
-        '<path d="M25 13v38M25 17h12a8 8 0 0 1 0 16H25M25 33h14a8 8 0 0 1 0 16H25"'
-        ' fill="none" stroke="{c}" stroke-width="{w}" stroke-linecap="round"'
-        ' stroke-linejoin="round"/>'
-        '<path d="M31 7v6M39 7v6M31 51v6M39 51v6" fill="none" stroke="{c}"'
-        ' stroke-width="{w}" stroke-linecap="round"/>'
-        '<circle cx="25" cy="13" r="{n}" fill="{c}"/>'
-        '<circle cx="25" cy="51" r="{n}" fill="{c}"/>'
+        '<path fill="{c}" fill-rule="evenodd" d="M22 10H38L46 17V25L42 30L48 36V47'
+        'L40 54H22ZM29 17H36L39 20V23L36 26H29ZM29 33H38L41 36V44L38 47H29Z"/>'
+        '<path fill="{c}" d="M27 4h4v6h-4ZM35 4h4v6h-4ZM27 54h4v6h-4ZM35 54h4v6h-4Z"/>'
     ),
-    # Ring, shaft, two teeth. The bow is a node, the way the frame terminates a run.
+    # Hex-cut bow with a punched core, slab shaft, two square teeth, at 45 deg.
     "keys": (
-        '<circle cx="21" cy="22" r="10" fill="none" stroke="{c}" stroke-width="{w}"/>'
-        '<path d="M28 29 52 53M40 41l-6 6M46 47l-6 6" fill="none" stroke="{c}"'
-        ' stroke-width="{w}" stroke-linecap="round"/>'
-        '<circle cx="21" cy="22" r="{n}" fill="{c}"/>'
-        '<circle cx="52" cy="53" r="{n}" fill="{c}"/>'
+        '<g transform="rotate(45 32 32)">'
+        '<path fill="{c}" fill-rule="evenodd" d="M4 32 9.5 22.5h11L26 32l-5.5 9.5'
+        'h-11ZM19 32a4 4 0 1 0-8 0 4 4 0 1 0 8 0Z"/>'
+        '<path fill="{c}" d="M24 29h33v6H24ZM43 35h6v10h-6ZM52 35h5v10h-5Z"/>'
+        "</g>"
     ),
-    # Three arcs from one node: the frame's own idea of a link leaving a junction.
+    # Two chevron waves over a solid diamond emitter.
     "signal": (
-        '<path d="M19 39a18 18 0 0 1 26 0M11 30a30 30 0 0 1 42 0M4 21a41 41 0 0 1 56 0"'
-        ' fill="none" stroke="{c}" stroke-width="{w}" stroke-linecap="round"/>'
-        '<circle cx="32" cy="50" r="{n2}" fill="{c}"/>'
+        '<path fill="{c}" d="M32 5 57 25l-6 7-19-15-19 15-6-7ZM32 21l17 13-6 7'
+        '-11-9-11 9-6-7ZM32 39l9 9-9 9-9-9Z"/>'
     ),
-    # A clock: duration, which is what Timelock means. Not a lock — Keys owns that.
+    # A clock in a hex plate: duration, which is what Timelock means.
     "timelock": (
-        '<circle cx="32" cy="32" r="23" fill="none" stroke="{c}" stroke-width="{w}"/>'
-        '<path d="M32 32V18M32 32l11 7" fill="none" stroke="{c}" stroke-width="{w}"'
-        ' stroke-linecap="round"/>'
-        '<path d="M32 9v4M55 32h-4M32 55v-4M9 32h4" fill="none" stroke="{c}"'
-        ' stroke-width="{w}" stroke-linecap="round"/>'
-        '<circle cx="32" cy="32" r="{n}" fill="{c}"/>'
+        '<path fill="{c}" fill-rule="evenodd" d="M32 8 52.8 20v24L32 56 11.2 44V20'
+        'ZM47 32a15 15 0 1 0-30 0 15 15 0 1 0 30 0Z"/>'
+        '<path d="M32 33V21M32 33l8 5" fill="none" stroke="{c}" stroke-width="5"'
+        ' stroke-linecap="square"/>'
+        '<rect x="29.5" y="30.5" width="5" height="5" fill="{c}"/>'
     ),
 }
 
@@ -108,13 +77,7 @@ TITLE = {
 TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
      role="img" aria-labelledby="title">
   <title id="title">{title} resource</title>
-  <defs>
-    <filter id="shine" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur stdDeviation="{blur}"/>
-    </filter>
-  </defs>
-  <g filter="url(#shine)" opacity="{alpha}">{shine}</g>
-  {crisp}
+  {body}
 </svg>
 """
 
@@ -123,19 +86,11 @@ def build() -> None:
     """Write the five icons."""
     os.makedirs(OUT, exist_ok=True)
     for name, body in BODY.items():
-        accent, shine_colour = ACCENT[name], SHINE[name]
-        shine = body.format(c=shine_colour, w=W + 1.6, n=NODE + 0.8, n2=5.2)
-        crisp = body.format(c=accent, w=W, n=NODE, n2=4.4)
-        svg = TEMPLATE.format(
-            title=TITLE[name],
-            blur=SHINE_BLUR,
-            alpha=SHINE_ALPHA,
-            shine=shine,
-            crisp=crisp,
-        )
+        accent = ACCENT[name]
+        svg = TEMPLATE.format(title=TITLE[name], body=body.format(c=accent))
         open(os.path.join(OUT, f"{name}.svg"), "w", encoding="utf-8").write(svg)
-        print(f"  {name}.svg  line {W}  node {NODE}  {accent} / shine {shine_colour}")
-    print("5 icons rebuilt in the frame's line-and-node language")
+        print(f"  {name}.svg  plate fill {accent}")
+    print("5 icons rebuilt from the locked Plate set")
 
 
 if __name__ == "__main__":
