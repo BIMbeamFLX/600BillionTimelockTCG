@@ -21,6 +21,7 @@ import sqlite3
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -43,11 +44,13 @@ PANEL = (241, 236, 247)
 INK = (20, 17, 24)
 MUTED = (84, 70, 102)
 
+# The locked E1 "Plate" palette (build_card_set.AFFINITY_ACCENT as RGB),
+# remapped by RESOURCE, never by hex.
 AFFINITY_COLORS = {
-    "Signal": (155, 81, 224),
-    "Timelock": (61, 90, 254),
-    "Keys": (45, 190, 96),
-    "Power": (0, 184, 217),
+    "Signal": (116, 71, 184),
+    "Timelock": (23, 190, 187),
+    "Keys": (255, 247, 236),
+    "Power": (243, 194, 68),
     "Bitcoin": (247, 147, 26),
     "Neutral": (148, 163, 184),
 }
@@ -117,169 +120,40 @@ def affinity_from_code(code: str) -> str:
     }[code]
 
 
+# Compositing masters, not hand geometry: the five icons are the locked E1
+# "Plate" set, rasterized once by scripts/rasterize-icons.cjs. Redrawing them
+# here is exactly the desync the lock forbids — this file used to carry its own
+# padlock Timelock two metaphor generations after the clock decision.
+ICON_DIR = Path(__file__).resolve().parents[1] / "art" / "resources" / "png"
+
+
+@lru_cache(maxsize=64)
+def resource_icon_at(affinity: str, side: int) -> Image.Image:
+    """Load the locked icon master for one affinity, resized to side px."""
+    with Image.open(ICON_DIR / f"{affinity.lower()}.png") as master:
+        return master.convert("RGBA").resize((side, side), Image.Resampling.LANCZOS)
+
+
 def draw_resource_icon(
-    draw: ImageDraw.ImageDraw,
+    canvas: Image.Image,
     center: tuple[int, int],
     radius: int,
     affinity: str,
 ) -> None:
-    """Draw one optically centered resource icon from the official geometry."""
+    """Composite one locked resource icon, ringed in its affinity accent."""
     cx, cy = center
     accent = AFFINITY_COLORS[affinity]
     line = max(2, radius // 9)
+    draw = ImageDraw.Draw(canvas)
     draw.ellipse(
         (cx - radius, cy - radius, cx + radius, cy + radius),
         fill=BLACK,
         outline=accent,
         width=line,
     )
-    cream = CREAM
-
-    if affinity == "Power":
-        points = [
-            (cx + radius * 0.12, cy - radius * 0.68),
-            (cx - radius * 0.40, cy + radius * 0.10),
-            (cx - radius * 0.04, cy + radius * 0.10),
-            (cx - radius * 0.16, cy + radius * 0.70),
-            (cx + radius * 0.46, cy - radius * 0.08),
-            (cx + radius * 0.08, cy - radius * 0.08),
-        ]
-        draw.polygon(points, fill=cream)
-        return
-
-    if affinity == "Bitcoin":
-        glyph_font = body_font(round(radius * 1.30), bold=True)
-        draw.text((cx, cy + 1), "B", font=glyph_font, fill=cream, anchor="mm")
-        stem_x = radius * 0.20
-        for x_offset in (-stem_x, stem_x):
-            draw.line(
-                (
-                    cx + x_offset,
-                    cy - radius * 0.68,
-                    cx + x_offset,
-                    cy + radius * 0.68,
-                ),
-                fill=cream,
-                width=max(2, radius // 10),
-            )
-        return
-
-    if affinity == "Keys":
-        ring_center = (cx - round(radius * 0.28), cy - round(radius * 0.18))
-        ring_radius = round(radius * 0.23)
-        draw.ellipse(
-            (
-                ring_center[0] - ring_radius,
-                ring_center[1] - ring_radius,
-                ring_center[0] + ring_radius,
-                ring_center[1] + ring_radius,
-            ),
-            outline=cream,
-            width=line,
-        )
-        start = (
-            ring_center[0] + round(ring_radius * 0.7),
-            ring_center[1] + round(ring_radius * 0.7),
-        )
-        end = (cx + round(radius * 0.55), cy + round(radius * 0.52))
-        draw.line((start, end), fill=cream, width=line)
-        draw.line(
-            (
-                cx + round(radius * 0.26),
-                cy + round(radius * 0.23),
-                cx + round(radius * 0.26),
-                cy + round(radius * 0.50),
-            ),
-            fill=cream,
-            width=line,
-        )
-        draw.line(
-            (
-                cx + round(radius * 0.43),
-                cy + round(radius * 0.39),
-                cx + round(radius * 0.43),
-                cy + round(radius * 0.62),
-            ),
-            fill=cream,
-            width=line,
-        )
-        return
-
-    if affinity == "Signal":
-        dot_radius = max(2, radius // 10)
-        draw.ellipse(
-            (
-                cx - dot_radius,
-                cy + round(radius * 0.38) - dot_radius,
-                cx + dot_radius,
-                cy + round(radius * 0.38) + dot_radius,
-            ),
-            fill=cream,
-        )
-        for factor in (0.42, 0.68, 0.92):
-            arc_radius = round(radius * factor)
-            box = (
-                cx - arc_radius,
-                cy - round(arc_radius * 0.50),
-                cx + arc_radius,
-                cy + round(arc_radius * 1.50),
-            )
-            draw.arc(box, start=215, end=325, fill=cream, width=line)
-        return
-
-    lock_width = round(radius * 0.95)
-    lock_height = round(radius * 0.70)
-    left = cx - lock_width // 2
-    top = cy - round(radius * 0.02)
-    draw.rounded_rectangle(
-        (left, top, left + lock_width, top + lock_height),
-        radius=max(3, radius // 8),
-        outline=cream,
-        width=line,
-    )
-    draw.arc(
-        (
-            cx - round(radius * 0.34),
-            cy - round(radius * 0.62),
-            cx + round(radius * 0.34),
-            cy + round(radius * 0.12),
-        ),
-        start=180,
-        end=360,
-        fill=cream,
-        width=line,
-    )
-    clock_radius = round(radius * 0.22)
-    clock_center = (cx, cy + round(radius * 0.32))
-    draw.ellipse(
-        (
-            clock_center[0] - clock_radius,
-            clock_center[1] - clock_radius,
-            clock_center[0] + clock_radius,
-            clock_center[1] + clock_radius,
-        ),
-        outline=cream,
-        width=max(1, line - 1),
-    )
-    draw.line(
-        (
-            clock_center,
-            (clock_center[0], clock_center[1] - round(clock_radius * 0.60)),
-        ),
-        fill=cream,
-        width=max(1, line - 1),
-    )
-    draw.line(
-        (
-            clock_center,
-            (
-                clock_center[0] + round(clock_radius * 0.50),
-                clock_center[1] + round(clock_radius * 0.25),
-            ),
-        ),
-        fill=cream,
-        width=max(1, line - 1),
-    )
+    side = round(radius * 1.26)
+    icon = resource_icon_at(affinity, side)
+    canvas.paste(icon, (cx - side // 2, cy - side // 2), icon)
 
 
 def draw_generic_cost(
@@ -569,6 +443,7 @@ def bottom_aligned_text_y(line_count: int, line_height: int, bottom: int) -> int
 
 
 def draw_cost_row(
+    canvas: Image.Image,
     draw: ImageDraw.ImageDraw,
     card: dict[str, Any],
     display_font: Path,
@@ -587,7 +462,7 @@ def draw_cost_row(
     for index, token in enumerate(tokens):
         center = (start_x + index * (radius * 2 + gap), 66)
         if token in "STKPB":
-            draw_resource_icon(draw, center, radius, affinity_from_code(token))
+            draw_resource_icon(canvas, center, radius, affinity_from_code(token))
         else:
             draw_generic_cost(draw, center, radius, token, display_font)
     return width, start_x
@@ -677,7 +552,7 @@ def draw_card(
 
     affinity = card_affinity(card)
     accent = AFFINITY_COLORS[affinity]
-    cost_width, _ = draw_cost_row(draw, card, display_font)
+    cost_width, _ = draw_cost_row(canvas, draw, card, display_font)
     max_title_width = CARD_WIDTH - 92 - cost_width - (18 if cost_width else 0)
     title_font, title_size = fit_title(draw, card["name"], display_font, max_title_width)
     draw.text((50, 66), card["name"], font=title_font, fill=CREAM, anchor="lm")
@@ -850,7 +725,7 @@ def draw_card_back(
             round(center[0] + math.cos(angle) * orbit_radius),
             round(center[1] + math.sin(angle) * orbit_radius),
         )
-        draw_resource_icon(draw, icon_center, icon_radius, affinity)
+        draw_resource_icon(canvas, icon_center, icon_radius, affinity)
     return canvas
 
 

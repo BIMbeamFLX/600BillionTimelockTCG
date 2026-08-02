@@ -34,11 +34,14 @@ def test_safe_filename_preserves_readable_names():
 
 
 def test_affinity_cost_rings_use_the_locked_resource_palette():
+    # The locked E1 "Plate" palette, remapped by resource in the 2026-08-02
+    # art handoff: Power yellow, Bitcoin orange, Keys white, Signal violet,
+    # Timelock teal.
     assert AFFINITY_COLORS == {
-        "Signal": (155, 81, 224),
-        "Timelock": (61, 90, 254),
-        "Keys": (45, 190, 96),
-        "Power": (0, 184, 217),
+        "Signal": (116, 71, 184),
+        "Timelock": (23, 190, 187),
+        "Keys": (255, 247, 236),
+        "Power": (243, 194, 68),
         "Bitcoin": (247, 147, 26),
         "Neutral": (148, 163, 184),
     }
