@@ -398,7 +398,7 @@
     const info = el("div", "ibody");
     info.append(el("strong", null, card.name));
     info.append(el("div", "imeta",
-      `${card.type}${card.subtype ? " — " + card.subtype : ""} · ${card.affinity.join("/")} · Cost ${card.cost || "—"}`));
+      `${card.id} · ${card.type}${card.subtype ? " — " + card.subtype : ""} · ${card.affinity.join("/")} · Cost ${card.cost || "—"}`));
     if (card.text) info.append(el("p", "itext", card.text));
     if (card.manual) info.append(el("p", "imanualnote", "Assisted: propose the effect, your opponent sees it."));
 

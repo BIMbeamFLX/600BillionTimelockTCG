@@ -184,7 +184,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
     .brand {{ margin-right: auto; }}
     .brand strong {{
       display: block;
-      font: 24px/1 Anton600, Impact, sans-serif;
+      font: 17px/1 Anton600, Impact, sans-serif;
       letter-spacing: .03em;
     }}
     .brand span {{
@@ -275,14 +275,15 @@ def render_html(records: list[dict[str, Any]]) -> str:
       text-transform: uppercase;
     }}
     /* The icon keeps its own dark disc so the white Keys plate never sits on
-       the light active/hover chip surface. */
+       the light active/hover chip surface. Each disc carries a dark tint of
+       its own affinity hue, so resources differ by field colour too. */
     .chip .aff {{
       display: grid;
       place-items: center;
       width: 22px;
       height: 22px;
       border-radius: 50%;
-      background: var(--black);
+      background: color-mix(in srgb, var(--aff, var(--black)) 22%, var(--black));
     }}
     .chip .aff img {{ width: 14px; height: 14px; }}
     .chip:hover, .chip.active {{
@@ -549,12 +550,21 @@ def render_html(records: list[dict[str, Any]]) -> str:
       Signal: "signal",
       Timelock: "timelock",
     }};
+    /* Locked E1 "Plate" accents, remapped by resource. */
+    const affinityAccents = {{
+      Power: "#F3C244",
+      Bitcoin: "#F7931A",
+      Keys: "#FFF7EC",
+      Signal: "#7447B8",
+      Timelock: "#17BEBB",
+    }};
     for (const item of affinities) {{
       const button = document.createElement("button");
       button.className = "chip" + (item === "All" ? " active" : "");
       if (affinityIcons[item]) {{
         const disc = document.createElement("span");
         disc.className = "aff";
+        disc.style.setProperty("--aff", affinityAccents[item]);
         const icon = document.createElement("img");
         icon.src = "../art/resources/" + affinityIcons[item] + ".svg";
         icon.alt = "";
