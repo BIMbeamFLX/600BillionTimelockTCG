@@ -208,6 +208,10 @@ TRIGGER_HEADS: list[tuple[re.Pattern[str], Any]] = [
         re.compile(r"^Whenever attached Resource becomes committed,\s*", re.I),
         lambda m: {"on": "committed", "whose": "host"},
     ),
+    (
+        re.compile(r"^Whenever you play a Protocol card on the Queue,\s*", re.I),
+        lambda m: {"on": "card-queued", "what": "Protocol", "whose": "you"},
+    ),
 ]
 
 # "Attached Avatar has First Strike." — statics that flow to the host. The
@@ -247,6 +251,25 @@ def parse_attach_static(line: str) -> dict[str, Any] | None:
         if stats.group(3):
             grants["keywords"] = [stats.group(3)]
         return grants
+    return None
+
+
+def parse_stat_static(line: str, card_name: str) -> dict[str, Any] | None:
+    """ "Action and Resilience are each equal to the number of …" — live stats."""
+    text = _strip_reminder(line).rstrip(".")
+    subject = re.escape(card_name)
+    head = rf"^(?:{subject}|This Avatar)'s Action and Resilience are each equal to the number of "
+    resource = re.match(
+        head + r"(Power|Bitcoin|Keys|Signal|Timelock) Resources you control$", text, re.I
+    )
+    if resource:
+        return {"type": "Resource", "affinity": resource.group(1).capitalize(), "whose": "you"}
+    named = re.match(head + rf"Avatars named {subject} on the Network$", text, re.I)
+    if named:
+        return {"namedSelf": True}
+    non_firewall = re.match(head + r"non-Firewall Avatars you control$", text, re.I)
+    if non_firewall:
+        return {"avatars": True, "notKeyword": "Firewall", "whose": "you"}
     return None
 
 
@@ -328,6 +351,17 @@ def parse_trigger_ops(effect: str, card_name: str) -> list[dict[str, Any]] | Non
         return [{"op": "damage", "amount": int(damage.group(1)), "target": "event-player"}]
     if re.match(r"^that player discards a card at random$", text, re.I):
         return [{"op": "discard", "amount": 1, "target": "event-player"}]
+    if re.match(r"^you may draw a card$", text, re.I):
+        # A free optional — mayPay with a zero cost keeps the one choice door.
+        return [
+            {
+                "op": "mayPay",
+                "cost": {"generic": 0},
+                "then": [{"op": "draw", "amount": 1}],
+                "prompt": "Draw a card?",
+                "payLabel": "Draw",
+            }
+        ]
     ledger = re.match(
         r"^this (?:Protocol|Hardware) deals damage to that player equal to the number of"
         r" (Power|Bitcoin|Keys|Signal|Timelock) Resources they control$",
@@ -564,7 +598,7 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
     if cold:
         return [{"op": "coldStorage", "gainAction": True}]
 
-    reboot = re.match(r"^Reboot (this|target) Avatar$", text, re.I)
+    reboot = re.match(r"^Reboot (this|target|attached) Avatar$", text, re.I)
     if reboot:
         return [{"op": "reboot", "scope": reboot.group(1).lower()}]
 
@@ -635,6 +669,19 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
                 }
             )
         else:
+            stat_static = parse_stat_static(line, card["name"])
+            if stat_static:
+                abilities.append(
+                    {
+                        "kind": "stat-static",
+                        "cost": "",
+                        "text": line,
+                        "statCount": stat_static,
+                        "ops": None,
+                        "manual": False,
+                    }
+                )
+                continue
             grants = parse_attach_static(line)
             if grants:
                 abilities.append(

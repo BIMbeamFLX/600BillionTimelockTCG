@@ -764,6 +764,13 @@
     if (!card.isAvatar) return { action: 0, resilience: 0 };
     let action = card.action || 0;
     let resilience = card.resilience || 0;
+    // "Action and Resilience are each equal to the number of …" — a live base.
+    const statStatic = card.abilities.find((a) => a.kind === "stat-static" && a.statCount);
+    if (statStatic) {
+      const n = statStaticCount(state, ctx, statStatic.statCount, object);
+      action = n;
+      resilience = n;
+    }
     const plusOne = object.counters["+1/+1"] || 0; // §18.2
     action += plusOne;
     resilience += plusOne;
@@ -793,6 +800,25 @@
       }
     }
     return grants;
+  }
+
+  function statStaticCount(state, ctx, spec, object) {
+    let n = 0;
+    const seats = spec.whose === "you" ? [object.controller] : seatsOf(state);
+    for (const seat of seats) {
+      for (const uid of zoneArray(state, zoneKey(seat, "network"))) {
+        const other = state.objects[uid];
+        if (!other || !other.cardId) continue;
+        const card = cardOf(ctx, other.cardId);
+        if (spec.type && card.type.indexOf(spec.type) < 0) continue;
+        if (spec.affinity && card.affinity.indexOf(spec.affinity) < 0) continue;
+        if (spec.namedSelf && other.cardId !== object.cardId) continue;
+        if (spec.avatars && !card.isAvatar) continue;
+        if (spec.notKeyword && hasKeywordUid(state, ctx, uid, spec.notKeyword)) continue;
+        n += 1;
+      }
+    }
+    return n;
   }
 
   function keywordsOf(state, ctx, uid) {
@@ -1534,8 +1560,13 @@
         // §14 Reboot creates a replacement shield for the rest of the turn.
         // play.js:334 unlocked and cleared damage instead, which is a different
         // (and strictly better) effect than the printed keyword.
-        const target = op.scope === "target" ? nextTarget(env, item) : { kind: "object", uid: sourceUid };
-        if (target && target.kind === "object" && state.objects[target.uid]) {
+        const target =
+          op.scope === "target"
+            ? nextTarget(env, item)
+            : op.scope === "attached"
+              ? { kind: "object", uid: (state.objects[sourceUid] || {}).attachedTo }
+              : { kind: "object", uid: sourceUid };
+        if (target && target.uid && target.kind === "object" && state.objects[target.uid]) {
           state.objects[target.uid].rebootShields += 1;
           emit(env, "REBOOT_SHIELD", { uid: target.uid });
         }
@@ -2570,6 +2601,7 @@
         if (ctx.uid === uid) return false; // a card never watches itself move
         return !trigger.what || (ctx.type || "").indexOf(trigger.what) >= 0;
       case "card-queued":
+        if (trigger.whose === "you" && ctx.seat !== seat) return false;
         if (trigger.affinity && (ctx.affinity || []).indexOf(trigger.affinity) < 0) return false;
         return !trigger.what || (ctx.type || "").indexOf(trigger.what) >= 0;
       case "committed":
