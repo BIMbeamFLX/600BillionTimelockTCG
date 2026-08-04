@@ -452,9 +452,15 @@
     if (!object || !object.cardId) return;
     const card = compiled(object.cardId);
     if (card.isResource) return void playAdvancing(seat, () => dispatch("PLAY_RESOURCE", seat, { uid }));
+    let x = 0;
+    if (card.costParsed && card.costParsed.x) {
+      const raw = window.prompt(`Choose X for ${card.name} (each X costs ${card.costParsed.x})`, "1");
+      if (raw === null) return; // changed their mind
+      x = Math.max(0, Number(raw) | 0);
+    }
     const spec = card.playTargetSpec;
-    if (!spec.length) return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, { uid, targets: [] }));
-    picking = { kind: "play", uid, spec, targets: [] };
+    if (!spec.length) return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, { uid, targets: [], x }));
+    picking = { kind: "play", uid, spec, targets: [], x };
     render();
   }
 
@@ -480,9 +486,9 @@
       render();
       return true;
     }
-    const { kind, uid, abilityIndex, targets } = picking;
+    const { kind, uid, abilityIndex, targets, x } = picking;
     picking = null;
-    if (kind === "play") dispatch("PLAY_CARD", uiSeat(session.full), { uid, targets });
+    if (kind === "play") dispatch("PLAY_CARD", uiSeat(session.full), { uid, targets, x: x || 0 });
     else dispatch("ACTIVATE_ABILITY", uiSeat(session.full), { uid, abilityIndex, targets });
     return true;
   }

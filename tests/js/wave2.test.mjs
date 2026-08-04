@@ -142,7 +142,12 @@ function receiverMoment() {
   let state = game();
   seed(state, 0, byName["Timelock Receiver"].id);
   const zap = CARDS.find(
-    (c) => c.type === "Zap" && (c.affinity || []).includes("Timelock") && c.costParsed
+    (c) =>
+      c.type === "Zap" &&
+      (c.affinity || []).includes("Timelock") &&
+      c.costParsed &&
+      !c.costParsed.x &&
+      compiled(c.id).playTargetSpec.length === 0
   );
   assert.ok(zap, "a Timelock Zap exists");
   const uid = seed(state, 1, zap.id, {}, "wallet");
@@ -177,7 +182,12 @@ test("Receiver, broke: no choice is even raised", () => {
   let state = game();
   seed(state, 0, byName["Timelock Receiver"].id);
   const zap = CARDS.find(
-    (c) => c.type === "Zap" && (c.affinity || []).includes("Timelock") && c.costParsed
+    (c) =>
+      c.type === "Zap" &&
+      (c.affinity || []).includes("Timelock") &&
+      c.costParsed &&
+      !c.costParsed.x &&
+      compiled(c.id).playTargetSpec.length === 0
   );
   const uid = seed(state, 1, zap.id, {}, "wallet");
   state = passUntil(state, (s) => s.priority.seat === 1);

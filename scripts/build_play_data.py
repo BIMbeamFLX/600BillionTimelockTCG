@@ -47,7 +47,12 @@ def _count(token: str) -> int:
 
 
 def parse_cost(cost: str) -> dict[str, int] | None:
-    """Split a printed cost such as `3SS` into generic and per-affinity amounts."""
+    """Split a printed cost such as `3SS` or `XB` into its parts.
+
+    Each printed X charges X generic at the value the player announces; the
+    engine's costWithX() does the multiplication. Dropping the X silently — as
+    this function used to — made every X card play for its colored part alone.
+    """
     if cost == "":
         return None
     generic = "".join(ch for ch in cost if ch.isdigit())
@@ -55,7 +60,18 @@ def parse_cost(cost: str) -> dict[str, int] | None:
     for symbol in cost:
         if symbol in SYMBOL_AFFINITY:
             parsed[symbol] = parsed.get(symbol, 0) + 1
+    x_count = cost.count("X")
+    if x_count:
+        parsed["x"] = x_count
     return parsed
+
+
+def _amt(token: str) -> Any:
+    """An op amount: a number, a number word, or the X the player paid for."""
+    token = token.strip()
+    if token.upper() == "X":
+        return "x"
+    return _count(token)
 
 
 def parse_stats(action_resilience: str) -> tuple[int | None, int | None]:
@@ -256,6 +272,21 @@ def parse_trigger_ops(effect: str, card_name: str) -> list[dict[str, Any]] | Non
         return [{"op": "damage", "amount": int(damage.group(1)), "target": "event-player"}]
     if re.match(r"^that player discards a card at random$", text, re.I):
         return [{"op": "discard", "amount": 1, "target": "event-player"}]
+    ledger = re.match(
+        r"^this (?:Protocol|Hardware) deals damage to that player equal to the number of"
+        r" (Power|Bitcoin|Keys|Signal|Timelock) Resources they control$",
+        text,
+        re.I,
+    )
+    if ledger:
+        return [
+            {
+                "op": "damage",
+                "amount": {"count": {"type": "Resource", "affinity": ledger.group(1).capitalize()}},
+                "target": "event-player",
+            }
+        ]
+
     payout = re.match(
         r"^its controller generates (\d+) additional"
         r" (Power|Bitcoin|Keys|Signal|Timelock) Resources?$",
@@ -340,16 +371,34 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
         ]
 
     sweep = re.match(
-        rf"^{subject_any} deals (\d+) damage to each Avatar and each player$", text, re.I
+        rf"^{subject_any} deals (\d+|X) damage to each Avatar and each player$", text, re.I
     )
     if sweep:
         return [
-            {"op": "damage", "amount": int(sweep.group(1)), "target": "each-avatar"},
-            {"op": "damage", "amount": int(sweep.group(1)), "target": "each-player"},
+            {"op": "damage", "amount": _amt(sweep.group(1)), "target": "each-avatar"},
+            {"op": "damage", "amount": _amt(sweep.group(1)), "target": "each-player"},
+        ]
+
+    # "X damage to each Avatar with/without Broadcast and each player".
+    filtered = re.match(
+        rf"^{subject_any} deals (\d+|X) damage to each Avatar (with|without) Broadcast"
+        r" and each player$",
+        text,
+        re.I,
+    )
+    if filtered:
+        return [
+            {
+                "op": "damage",
+                "amount": _amt(filtered.group(1)),
+                "target": "each-avatar",
+                "filter": {"keyword": "Broadcast", "has": filtered.group(2).lower() == "with"},
+            },
+            {"op": "damage", "amount": _amt(filtered.group(1)), "target": "each-player"},
         ]
 
     damage = re.match(
-        rf"^{subject_any} deals (\d+) damage to "
+        rf"^{subject_any} deals (\d+|X) damage to "
         r"(any target|target Avatar|target player|each Avatar|each player)$",
         text,
         re.I,
@@ -365,7 +414,7 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
         return [
             {
                 "op": "damage",
-                "amount": int(damage.group(1)),
+                "amount": _amt(damage.group(1)),
                 "target": targets[damage.group(2).lower()],
             }
         ]
@@ -405,10 +454,59 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
             }
         ]
 
-    uptime = re.match(r"^(?:(?:you|target player) )?gains? (\d+) Uptime$", text, re.I)
+    uptime = re.match(r"^(?:(?:you|target player) )?gains? (\d+|X) Uptime$", text, re.I)
     if uptime:
         who = "player" if text.lower().startswith("target player") else "you"
-        return [{"op": "uptime", "amount": int(uptime.group(1)), "target": who}]
+        return [{"op": "uptime", "amount": _amt(uptime.group(1)), "target": who}]
+
+    # "+X/+0" slash pumps, including negatives: "Target Avatar gets +X/+0 …".
+    slash_pump = re.match(
+        r"^(target Avatar|this Avatar) gets ([+-](?:\d+|X))/([+-](?:\d+|X))"
+        r"(?: until end of turn)?$",
+        text,
+        re.I,
+    )
+    if slash_pump:
+
+        def signed(token: str) -> Any:
+            sign = -1 if token[0] == "-" else 1
+            value = _amt(token[1:])
+            return value if value == "x" and sign == 1 else sign * value if value != "x" else "x"
+
+        return [
+            {
+                "op": "pump",
+                "target": slash_pump.group(1).lower().replace(" ", "-"),
+                "action": signed(slash_pump.group(2)),
+                "resilience": signed(slash_pump.group(3)),
+                "duration": "eot" if "until end of turn" in text.lower() else "static",
+            }
+        ]
+
+    move_top = re.match(
+        r"^Target player moves the top (\w+|X) cards? of their Stack into their Wallet$",
+        text,
+        re.I,
+    )
+    if move_top:
+        return [{"op": "moveTop", "amount": _amt(move_top.group(1)), "toZone": "wallet"}]
+
+    scramble = re.match(
+        r"^Randomly choose (X|\d+) cards from target player's Wallet;"
+        r" that player discards them$",
+        text,
+        re.I,
+    )
+    if scramble:
+        return [{"op": "discard", "amount": _amt(scramble.group(1)), "target": "player"}]
+
+    cold = re.match(
+        r"^Cold Storage target Avatar\. Its controller gains Uptime equal to its Action$",
+        text,
+        re.I,
+    )
+    if cold:
+        return [{"op": "coldStorage", "gainAction": True}]
 
     reboot = re.match(r"^Reboot (this|target) Avatar$", text, re.I)
     if reboot:

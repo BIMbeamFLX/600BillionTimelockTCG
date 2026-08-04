@@ -220,7 +220,22 @@
       const cb = compiled(state.objects[b].cardId);
       return (cb.isAvatar ? 1 : 0) - (ca.isAvatar ? 1 : 0);
     });
-    for (const uid of playable) push("PLAY_CARD", { uid, targets: [] });
+    for (const uid of playable) {
+      const card = compiled(state.objects[uid].cardId);
+      const payload = { uid, targets: [] };
+      if (card.costParsed && card.costParsed.x) {
+        // Announce the biggest X the Buffer covers after the fixed part,
+        // capped so the bot never dumps its whole economy into one card.
+        const pool = Object.values(buffer).reduce((total, n) => total + n, 0);
+        const fixed = Object.entries(card.costParsed)
+          .filter(([key]) => key !== "x")
+          .reduce((total, entry) => total + entry[1], 0);
+        const x = Math.max(0, Math.min(3, Math.floor((pool - fixed) / card.costParsed.x)));
+        if (!x) continue; // an X card at X=0 is a wasted card
+        payload.x = x;
+      }
+      push("PLAY_CARD", payload);
+    }
 
     /* 4 — nothing left worth doing. */
     push("PASS_PRIORITY");

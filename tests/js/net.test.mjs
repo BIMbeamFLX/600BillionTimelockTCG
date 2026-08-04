@@ -24,6 +24,8 @@ E.setCatalog(CARDS);
 
 const CATALOG = E.buildCatalog(CARDS);
 const card = (id) => CATALOG.byId[id] || null;
+const COMPILED_CACHE = {};
+const compiledOf = (id) => COMPILED_CACHE[id] || (COMPILED_CACHE[id] = E.compileCard(card(id)));
 const WIRE = 1;
 
 // --------------------------------------------------------------- test client
@@ -250,6 +252,16 @@ function chooseAction(view, seat, banned) {
 
   const castable = wallet
     .filter((uid) => !isResource(uid) && view.objects[uid] && view.objects[uid].cardId && !vetoed(uid))
+    // Probe-free: targeted and X cards need choices this scripted client does
+    // not make. Probing them every seq inflated the reject rate until the
+    // referee (correctly) kicked the client for it.
+    .filter((uid) => {
+      const compiledCard = compiledOf(view.objects[uid].cardId);
+      return (
+        compiledCard.playTargetSpec.length === 0 &&
+        !(compiledCard.costParsed && compiledCard.costParsed.x)
+      );
+    })
     .sort((a, b) => costOf(view.objects[a].cardId) - costOf(view.objects[b].cardId));
   if (castable.length) return act("PLAY_CARD", { uid: castable[0] });
   return act("PASS_PRIORITY");

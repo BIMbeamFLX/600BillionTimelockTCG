@@ -402,6 +402,12 @@
         case "bounce":
           spec.push({ kind: "avatar", prompt: "Avatar to return to its owner's Wallet" });
           break;
+        case "moveTop":
+          if (op.seat === undefined) spec.push({ kind: "seat", prompt: "player who draws from their Stack" });
+          break;
+        case "coldStorage":
+          spec.push({ kind: "avatar", prompt: "Avatar to Cold Storage" });
+          break;
         default:
           break;
       }
@@ -1302,6 +1308,26 @@
     return "done";
   }
 
+  /* Amounts may be a number, "x" (the X the player paid for), or a live count
+   * of Network cards: {count:{type,affinity}} counted for op.seat when a
+   * trigger bound one, else for the controller. */
+  function resolveAmount(env, item, op, raw) {
+    if (raw === "x") return item.x || 0;
+    if (raw && typeof raw === "object" && raw.count) {
+      const state = env.state;
+      const seat = op.seat !== undefined && op.seat !== null ? op.seat : item.controller;
+      let n = 0;
+      for (const uid of zoneArray(state, zoneKey(seat, "network"))) {
+        const card = cardOf(env.ctx, state.objects[uid].cardId);
+        if (raw.count.type && card.type.indexOf(raw.count.type) < 0) continue;
+        if (raw.count.affinity && card.affinity.indexOf(raw.count.affinity) < 0) continue;
+        n += 1;
+      }
+      return n;
+    }
+    return typeof raw === "number" ? raw : 0;
+  }
+
   function runOp(env, item, op) {
     const state = env.state;
     const controller = item.controller;
@@ -1340,31 +1366,36 @@
         return "done";
       }
       case "damage": {
+        const amount = resolveAmount(env, item, op, op.amount);
         // A trigger bound "that player" at raise time.
         if (op.seat !== undefined && op.seat !== null) {
-          damageTarget(env, { kind: "seat", seat: op.seat }, op.amount, sourceUid);
+          damageTarget(env, { kind: "seat", seat: op.seat }, amount, sourceUid);
           return "done";
         }
         // "... and N damage to you" — the card's own controller.
         if (op.target === "controller") {
-          damageTarget(env, { kind: "seat", seat: controller }, op.amount, sourceUid);
+          damageTarget(env, { kind: "seat", seat: controller }, amount, sourceUid);
           return "done";
         }
         if (op.target === "each-player") {
-          for (const seat of seatsOf(state)) damageTarget(env, { kind: "seat", seat }, op.amount, sourceUid);
+          for (const seat of seatsOf(state)) damageTarget(env, { kind: "seat", seat }, amount, sourceUid);
           return "done";
         }
         if (op.target === "each-avatar") {
           for (const seat of seatsOf(state)) {
             for (const uid of zoneArray(state, zoneKey(seat, "network")).slice()) {
-              if (cardOf(env.ctx, state.objects[uid].cardId).isAvatar) {
-                damageTarget(env, { kind: "object", uid }, op.amount, sourceUid);
+              if (!cardOf(env.ctx, state.objects[uid].cardId).isAvatar) continue;
+              // "each Avatar with/without Broadcast" — a keyword filter.
+              if (op.filter && op.filter.keyword) {
+                const has = hasKeywordUid(state, env.ctx, uid, op.filter.keyword);
+                if (has !== Boolean(op.filter.has)) continue;
               }
+              damageTarget(env, { kind: "object", uid }, amount, sourceUid);
             }
           }
           return "done";
         }
-        damageTarget(env, nextTarget(env, item), op.amount, sourceUid);
+        damageTarget(env, nextTarget(env, item), amount, sourceUid);
         return "done";
       }
       case "draw":
@@ -1382,8 +1413,9 @@
               ? nextTarget(env, item)
               : { kind: "seat", seat: controller };
         const seat = target && target.kind === "seat" ? target.seat : controller;
-        state.seats[seat].uptime += op.amount;
-        emit(env, "UPTIME", { seat, delta: op.amount });
+        const delta = resolveAmount(env, item, op, op.amount);
+        state.seats[seat].uptime += delta;
+        emit(env, "UPTIME", { seat, delta });
         return "done";
       }
       case "discard": {
@@ -1397,7 +1429,8 @@
             : target && target.kind === "seat"
               ? target.seat
               : 1 - controller;
-        for (let i = 0; i < op.amount; i++) {
+        const count = resolveAmount(env, item, op, op.amount);
+        for (let i = 0; i < count; i++) {
           const wallet = zoneArray(state, zoneKey(seat, "wallet"));
           if (!wallet.length) break;
           const index = nextInt(state.rng.public, wallet.length);
@@ -1406,27 +1439,29 @@
           emit(env, "RANDOM_PICK", { seat, eligible: wallet.slice(), picked: uid, stream: "public" });
           moveUid(env, uid, "archive");
         }
-        emit(env, "DISCARD", { seat, count: op.amount });
+        emit(env, "DISCARD", { seat, count });
         return "done";
       }
       case "pump": {
+        const action = resolveAmount(env, item, op, op.action);
+        const resilience = resolveAmount(env, item, op, op.resilience);
         if (op.target === "target-avatar") {
           const target = nextTarget(env, item);
           if (target && target.kind === "object" && state.objects[target.uid]) {
-            addModEffect(env, target.uid, op.action, op.resilience, op.duration, sourceUid, "object");
-            emit(env, "PUMP", { uid: target.uid, action: op.action, resilience: op.resilience });
+            addModEffect(env, target.uid, action, resilience, op.duration, sourceUid, "object");
+            emit(env, "PUMP", { uid: target.uid, action, resilience });
           }
           return "done";
         }
         if (op.target === "this-avatar" && sourceUid && state.objects[sourceUid]) {
-          addModEffect(env, sourceUid, op.action, op.resilience, op.duration, sourceUid, "object");
-          emit(env, "PUMP", { uid: sourceUid, action: op.action, resilience: op.resilience });
+          addModEffect(env, sourceUid, action, resilience, op.duration, sourceUid, "object");
+          emit(env, "PUMP", { uid: sourceUid, action, resilience });
           return "done";
         }
         // "Avatars you control get +A/+R" is a scope, not a snapshot: it must
         // keep applying to whatever the controller has, so it is an effect.
-        addModEffect(env, null, op.action, op.resilience, op.duration, sourceUid, "controlledAvatars", controller);
-        emit(env, "PUMP", { scope: "controlledAvatars", seat: controller, action: op.action, resilience: op.resilience });
+        addModEffect(env, null, action, resilience, op.duration, sourceUid, "controlledAvatars", controller);
+        emit(env, "PUMP", { scope: "controlledAvatars", seat: controller, action, resilience });
         return "done";
       }
       case "decommission": {
@@ -1520,6 +1555,36 @@
           const bounced = state.objects[target.uid];
           emit(env, "MOVE", { uid: target.uid, cardId: bounced.cardId, toZone: "wallet" });
           moveUid(env, target.uid, "wallet");
+        }
+        return "done";
+      }
+      case "moveTop": {
+        // "Target player moves the top N cards of their Stack into their Wallet."
+        const target = op.seat !== undefined && op.seat !== null
+          ? { kind: "seat", seat: op.seat }
+          : nextTarget(env, item);
+        const seat = target && target.kind === "seat" ? target.seat : controller;
+        return runManualOp(env, item, {
+          op: "moveTopOfStack",
+          seat,
+          toZone: op.toZone || "wallet",
+          count: resolveAmount(env, item, op, op.amount),
+        });
+      }
+      case "coldStorage": {
+        // "Cold Storage target Avatar. Its controller gains Uptime equal to
+        // its Action." The stat is read BEFORE the move, as printed.
+        const target = nextTarget(env, item);
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          const object = state.objects[target.uid];
+          const owner = object.controller;
+          const gain = op.gainAction ? statsOf(state, env.ctx, target.uid).action : 0;
+          emit(env, "MOVE", { uid: target.uid, cardId: object.cardId, toZone: "cold" });
+          moveUid(env, target.uid, "cold");
+          if (gain > 0) {
+            state.seats[owner].uptime += gain;
+            emit(env, "UPTIME", { seat: owner, delta: gain });
+          }
         }
         return "done";
       }
@@ -2760,7 +2825,7 @@
       }
       const targets = normalizeTargets(payload.targets);
       validateTargets(env, card.playTargetSpec, targets, card.affinity);
-      const payment = settleCost(env, action.seat, card.costParsed, payload.payment);
+      const payment = settleCost(env, action.seat, costWithX(card.costParsed, payload.x), payload.payment);
       const record = moveUid(env, payload.uid, "queue", { seat: action.seat });
       pushQueue(env, {
         kind: "card",
@@ -3209,6 +3274,18 @@
         announceManual(env, item, record.uid);
       }
     }
+  }
+
+  /* An X in the printed cost ("XB") charges X generic per X symbol, at the
+   * value the player announced. Without this, X cards silently played for
+   * their colored part alone — free damage is not a rules profile. */
+  function costWithX(cost, x) {
+    if (!cost || !cost.x) return cost;
+    const announced = Number.isInteger(x) && x >= 0 ? x : 0;
+    const effective = Object.assign({}, cost);
+    effective.generic = (effective.generic || 0) + announced * cost.x;
+    delete effective.x;
+    return effective;
   }
 
   function settleCost(env, seat, cost, payment) {
