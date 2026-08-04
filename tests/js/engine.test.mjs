@@ -155,9 +155,12 @@ test("no ambient nondeterminism anywhere in the engine source", () => {
   const banned = /Math\.random|Date\.now|performance\.now|new Date\(|toLocaleString|localeCompare|Intl\./;
   // Comments are stripped first: the engine documents the bugs it fixed by
   // naming them, and a prose mention of Math.random is not a call to it.
+  // Split on either line ending: a Windows checkout leaves a trailing \r that
+  // `.` will not match and `$` will not stand before, so the line comments
+  // survived the strip and this test found its own documentation.
   const source = readFileSync(path.join(siteDir, "engine.js"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")
-    .split("\n")
+    .split(/\r?\n/)
     .map((line) => line.replace(/\/\/.*$/, ""));
   const hits = [];
   source.forEach((line, i) => {
