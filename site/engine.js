@@ -458,6 +458,11 @@
       return compiled;
     });
     card.playOps = cardPlayOps(card);
+    // "Choose one —": each mode carries its own ops and target spec.
+    const modal = card.abilities.find((a) => a.kind === "modal" && !a.manual && a.modes);
+    card.playModes = modal
+      ? modal.modes.map((mode) => ({ text: mode.text, ops: mode.ops, targetSpec: targetSpecFor(mode.ops) }))
+      : null;
     card.playTargetSpec = targetSpecFor(card.playOps);
     // An Attachment is played AT a host: the host is the play's target.
     const attach = (card.keywords || []).find((k) => k.name === "Attach");
@@ -1301,6 +1306,10 @@
     if (item.kind === "ability") {
       const ability = card.abilities[item.abilityIndex];
       return (ability && ability.ops) || [];
+    }
+    if (card.playModes && item.modes && item.modes.length) {
+      const mode = card.playModes[item.modes[0]];
+      return (mode && mode.ops) || [];
     }
     return card.playOps;
   }
@@ -2279,7 +2288,9 @@
         ? card.abilities[item.abilityIndex].targetSpec
         : item.kind === "triggered"
           ? [] // a trigger's references were bound when it was raised
-          : card ? card.playTargetSpec : [];
+          : card && card.playModes && item.modes && item.modes.length
+            ? card.playModes[item.modes[0]].targetSpec
+            : card ? card.playTargetSpec : [];
       if (spec.length) {
         const legal = item.targets.filter((t, i) => targetLegal(env, t, spec[i]));
         if (!legal.length) {
@@ -3036,7 +3047,15 @@
         if (state.queue.length) fail("QUEUE_NOT_EMPTY", "the Queue must be empty");
       }
       const targets = normalizeTargets(payload.targets);
-      validateTargets(env, card.playTargetSpec, targets, card.affinity);
+      let playSpec = card.playTargetSpec;
+      if (card.playModes) {
+        const mode = Array.isArray(payload.modes) ? payload.modes[0] : undefined;
+        if (!Number.isInteger(mode) || mode < 0 || mode >= card.playModes.length) {
+          fail("SCHEMA", "choose one of this card's modes");
+        }
+        playSpec = card.playModes[mode].targetSpec;
+      }
+      validateTargets(env, playSpec, targets, card.affinity);
       const payment = settleCost(env, action.seat, costWithX(card.costParsed, payload.x), payload.payment);
       const record = moveUid(env, payload.uid, "queue", { seat: action.seat });
       pushQueue(env, {

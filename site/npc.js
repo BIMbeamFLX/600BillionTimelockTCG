@@ -211,6 +211,7 @@
         card &&
         !card.isResource &&
         !card.manual &&
+        !card.playModes && // modes are a judgement call this policy skips
         card.playTargetSpec.length === 0 &&
         E.canPay(buffer, card.costParsed)
       );

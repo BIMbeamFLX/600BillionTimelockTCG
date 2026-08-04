@@ -147,6 +147,7 @@ function receiverMoment() {
       (c.affinity || []).includes("Timelock") &&
       c.costParsed &&
       !c.costParsed.x &&
+      !compiled(c.id).playModes &&
       compiled(c.id).playTargetSpec.length === 0
   );
   assert.ok(zap, "a Timelock Zap exists");
@@ -187,6 +188,7 @@ test("Receiver, broke: no choice is even raised", () => {
       (c.affinity || []).includes("Timelock") &&
       c.costParsed &&
       !c.costParsed.x &&
+      !compiled(c.id).playModes &&
       compiled(c.id).playTargetSpec.length === 0
   );
   const uid = seed(state, 1, zap.id, {}, "wallet");

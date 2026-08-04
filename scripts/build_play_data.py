@@ -699,8 +699,31 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
     """Split rules text into abilities, auto-scripting the ones we recognise."""
     abilities: list[dict[str, Any]] = []
     manual = False
-    for raw_line in card["rules_text"].split("\n"):
-        line = _strip_reminder(raw_line)
+    lines = [_strip_reminder(raw) for raw in card["rules_text"].split("\n")]
+    # "Choose one —" followed by bullet modes compiles to ONE modal ability;
+    # it is scripted only when every mode's effect parses.
+    if any(ln.startswith("Choose one") for ln in lines):
+        modes = []
+        ok = True
+        for ln in lines:
+            if not ln.startswith("•"):
+                continue
+            effect = ln.lstrip("• ").strip()
+            ops = parse_ops(effect, card["name"])
+            ok = ok and ops is not None
+            modes.append({"text": effect, "ops": ops})
+        abilities.append(
+            {
+                "kind": "modal",
+                "cost": "",
+                "text": card["rules_text"],
+                "modes": modes,
+                "ops": None,
+                "manual": not (ok and modes),
+            }
+        )
+        return abilities, abilities[-1]["manual"]
+    for line in lines:
         if not line or line == "No special ability.":
             continue
         if any(re.fullmatch(rf"{re.escape(k)}[.;,]?", line) for k in KEYWORDS):

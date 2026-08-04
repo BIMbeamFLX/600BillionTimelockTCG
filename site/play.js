@@ -458,9 +458,20 @@
       if (raw === null) return; // changed their mind
       x = Math.max(0, Number(raw) | 0);
     }
-    const spec = card.playTargetSpec;
-    if (!spec.length) return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, { uid, targets: [], x }));
-    picking = { kind: "play", uid, spec, targets: [], x };
+    let modes;
+    let spec = card.playTargetSpec;
+    if (card.playModes) {
+      const menu = card.playModes.map((m, i) => `${i + 1}) ${m.text}`).join("\n");
+      const raw = window.prompt(`Choose one:\n${menu}`, "1");
+      if (raw === null) return;
+      const mode = Math.min(card.playModes.length - 1, Math.max(0, (Number(raw) | 0) - 1));
+      modes = [mode];
+      spec = card.playModes[mode].targetSpec;
+    }
+    if (!spec.length) {
+      return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, { uid, targets: [], x, modes }));
+    }
+    picking = { kind: "play", uid, spec, targets: [], x, modes };
     render();
   }
 
@@ -486,9 +497,9 @@
       render();
       return true;
     }
-    const { kind, uid, abilityIndex, targets, x } = picking;
+    const { kind, uid, abilityIndex, targets, x, modes } = picking;
     picking = null;
-    if (kind === "play") dispatch("PLAY_CARD", uiSeat(session.full), { uid, targets, x: x || 0 });
+    if (kind === "play") dispatch("PLAY_CARD", uiSeat(session.full), { uid, targets, x: x || 0, modes });
     else dispatch("ACTIVATE_ABILITY", uiSeat(session.full), { uid, abilityIndex, targets });
     return true;
   }
