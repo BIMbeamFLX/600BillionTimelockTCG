@@ -242,6 +242,9 @@ def parse_attach_static(line: str) -> dict[str, Any] | None:
     shielded = ATTACH_STATIC_RES[1].match(text)
     if shielded:
         return {"shieldedFrom": shielded.group(1).capitalize()}
+    only_blocked = re.match(r"^Attached Avatar can't be blocked except by Firewalls$", text, re.I)
+    if only_blocked:
+        return {"onlyBlockedBy": "Firewall"}
     stats = ATTACH_STATIC_RES[2].match(text)
     if stats:
         grants: dict[str, Any] = {
@@ -251,6 +254,25 @@ def parse_attach_static(line: str) -> dict[str, Any] | None:
         if stats.group(3):
             grants["keywords"] = [stats.group(3)]
         return grants
+    return None
+
+
+def parse_clash_static(line: str) -> dict[str, Any] | None:
+    """Clash rules the engine's canAttack/canBlock enforce directly."""
+    text = _strip_reminder(line).rstrip(".")
+    if re.match(r"^This Avatar can't be blocked by Firewalls$", text, re.I):
+        return {"cantBeBlockedBy": "Firewall"}
+    ge = re.match(r"^This Avatar can't block Avatars with Action (\d+) or greater$", text, re.I)
+    if ge:
+        return {"cantBlockActionGE": int(ge.group(1))}
+    needs = re.match(
+        r"^This Avatar can't attack unless defending player controls an?"
+        r" (Power|Bitcoin|Keys|Signal|Timelock) Resource$",
+        text,
+        re.I,
+    )
+    if needs:
+        return {"attackNeedsDefender": {"affinity": needs.group(1).capitalize()}}
     return None
 
 
@@ -629,6 +651,36 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
     if bounce:
         return [{"op": "bounce"}]
 
+    prevent = re.match(
+        r"^Prevent the next (\d+|X) damage that would be dealt to (you|any target) this turn$",
+        text,
+        re.I,
+    )
+    if prevent:
+        return [
+            {
+                "op": "prevent",
+                "amount": _amt(prevent.group(1)),
+                "target": "you" if prevent.group(2).lower() == "you" else "any",
+            }
+        ]
+
+    circuit = re.match(
+        r"^The next time a (Power|Bitcoin|Keys|Signal|Timelock) source of your choice"
+        r" would deal damage to you this turn, prevent that damage$",
+        text,
+        re.I,
+    )
+    if circuit:
+        return [
+            {
+                "op": "prevent",
+                "amount": 0,
+                "target": "you",
+                "fromAffinity": circuit.group(1).capitalize(),
+            }
+        ]
+
     invalidate = re.match(r"^Invalidate target card on the Queue$", text, re.I)
     if invalidate:
         return [{"op": "invalidate"}]
@@ -669,6 +721,19 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
                 }
             )
         else:
+            clash_rule = parse_clash_static(line)
+            if clash_rule:
+                abilities.append(
+                    {
+                        "kind": "clash-static",
+                        "cost": "",
+                        "text": line,
+                        "rule": clash_rule,
+                        "ops": None,
+                        "manual": False,
+                    }
+                )
+                continue
             stat_static = parse_stat_static(line, card["name"])
             if stat_static:
                 abilities.append(

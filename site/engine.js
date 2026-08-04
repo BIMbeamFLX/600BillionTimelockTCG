@@ -408,6 +408,9 @@
         case "coldStorage":
           spec.push({ kind: "avatar", prompt: "Avatar to Cold Storage" });
           break;
+        case "prevent":
+          if (op.target !== "you") spec.push({ kind: "any", prompt: "target to shield" });
+          break;
         case "invalidate":
           spec.push({
             kind: "queue",
@@ -1310,9 +1313,42 @@
 
   const seatsOf = (state) => [0, 1];
 
+  /* Turn-scoped prevention shields, consumed before damage lands. A shield
+   * may be capped ("the next 2") or affinity-gated ("the next time a Keys
+   * source would…"); cleanup sweeps them with the turn. */
+  function consumePrevention(env, target, amount, sourceUid) {
+    const state = env.state;
+    const shields = state.prevention || [];
+    for (let i = 0; i < shields.length && amount > 0; i++) {
+      const shield = shields[i];
+      if (shield.turn !== state.turn.number) continue;
+      const matches =
+        (shield.kind === "seat" && target.kind === "seat" && shield.seat === target.seat) ||
+        (shield.kind === "object" && target.kind === "object" && shield.uid === target.uid);
+      if (!matches) continue;
+      if (shield.fromAffinity) {
+        const source = sourceUid && state.objects[sourceUid];
+        const sourceCard = source && cardOf(env.ctx, source.cardId);
+        if (!sourceCard || sourceCard.affinity.indexOf(shield.fromAffinity) < 0) continue;
+        shields.splice(i, 1);
+        emit(env, "PREVENTED", { amount, reason: "shield" });
+        return 0; // the whole event
+      }
+      const used = Math.min(shield.amount, amount);
+      shield.amount -= used;
+      amount -= used;
+      emit(env, "PREVENTED", { amount: used, reason: "shield" });
+      if (!shield.amount) shields.splice(i, 1);
+      i -= 1;
+    }
+    return amount;
+  }
+
   function damageTarget(env, target, amount, sourceUid) {
     if (!target) return;
     const state = env.state;
+    amount = consumePrevention(env, target, amount, sourceUid);
+    if (amount <= 0) return;
     if (target.kind === "seat") {
       state.seats[target.seat].uptime -= amount; // §15.1
       emit(env, "DAMAGE", { to: "seat", seat: target.seat, amount, sourceUid: sourceUid || null });
@@ -1648,6 +1684,23 @@
           toZone: op.toZone || "wallet",
           count: resolveAmount(env, item, op, op.amount),
         });
+      }
+      case "prevent": {
+        // A shield for the rest of the turn, on the controller or a chosen target.
+        const shieldTarget =
+          op.target === "you" ? { kind: "seat", seat: controller } : nextTarget(env, item);
+        if (shieldTarget) {
+          state.prevention = state.prevention || [];
+          state.prevention.push({
+            kind: shieldTarget.kind === "seat" ? "seat" : "object",
+            seat: shieldTarget.seat !== undefined ? shieldTarget.seat : null,
+            uid: shieldTarget.uid || null,
+            amount: resolveAmount(env, item, op, op.amount) || 0,
+            fromAffinity: op.fromAffinity || null,
+            turn: state.turn.number,
+          });
+        }
+        return "done";
       }
       case "invalidate": {
         // The set's counterspell. The queue target was validated on play; the
@@ -2398,6 +2451,9 @@
     state.effects = state.effects.filter(
       (effect) => !(effect.expires && effect.expires.kind === "eot")
     );
+    if (state.prevention) {
+      state.prevention = state.prevention.filter((s) => s.turn === state.turn.number + 1);
+    }
     emit(env, "CLEANUP", { seat: state.turn.active });
   }
 
@@ -2670,7 +2726,30 @@
     if (object.bootDelay) return false; // §5.2
     const keywords = keywordsOf(state, env.ctx, uid);
     if (keywords.indexOf("Firewall") >= 0) return false; // §14 Firewall
+    // "can't attack unless defending player controls a … Resource"
+    for (const ability of card.abilities) {
+      const need = ability.kind === "clash-static" && ability.rule && ability.rule.attackNeedsDefender;
+      if (!need) continue;
+      const defender = 1 - object.controller;
+      const holds = zoneArray(state, zoneKey(defender, "network")).some((other) => {
+        const otherCard = cardOf(env.ctx, state.objects[other].cardId);
+        return otherCard.type.indexOf("Resource") >= 0 && otherCard.affinity.indexOf(need.affinity) >= 0;
+      });
+      if (!holds) return false;
+    }
     return true;
+  }
+
+  /* Clash rules a card or its attachments impose. */
+  function clashRules(state, ctx, uid) {
+    const rules = [];
+    for (const ability of cardOf(ctx, objectOf(state, uid).cardId).abilities) {
+      if (ability.kind === "clash-static" && ability.rule) rules.push(ability.rule);
+    }
+    for (const grants of attachmentGrants(state, ctx, uid)) {
+      if (grants.onlyBlockedBy) rules.push({ onlyBlockedBy: grants.onlyBlockedBy });
+    }
+    return rules;
   }
 
   function canBlock(env, blockerUid, attackerUid) {
@@ -2691,6 +2770,17 @@
     // §14 Shielded from [Affinity] cannot be blocked by that affinity
     const shield = shieldedFrom(state, env.ctx, attackerUid);
     if (shield && cardOf(env.ctx, blocker.cardId).affinity.indexOf(shield) >= 0) return false;
+    // Scripted clash rules: "can't be blocked by …", "… except by …",
+    // "can't block Avatars with Action N or greater".
+    for (const rule of clashRules(state, env.ctx, attackerUid)) {
+      if (rule.cantBeBlockedBy && blockerKeywords.indexOf(rule.cantBeBlockedBy) >= 0) return false;
+      if (rule.onlyBlockedBy && blockerKeywords.indexOf(rule.onlyBlockedBy) < 0) return false;
+    }
+    for (const rule of clashRules(state, env.ctx, blockerUid)) {
+      if (rule.cantBlockActionGE !== undefined) {
+        if (statsOf(state, env.ctx, attackerUid).action >= rule.cantBlockActionGE) return false;
+      }
+    }
     // §14 Backchannel — [Resource]
     const backchannel = cardOf(env.ctx, attacker.cardId).keywords.find((k) => k.name === "Backchannel");
     if (backchannel) {
