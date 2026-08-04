@@ -31,8 +31,11 @@ KEYWORDS = (
     "Mesh",
     "Reboot",
 )
-ATTACH_RE = re.compile(r"^Attach to (\w+)")
-SHIELDED_RE = re.compile(r"Shielded from (\w+)")
+ATTACH_RE = re.compile(r"^Attach to (?:an? )?(\w+)")
+# Line-anchored: "Attached Avatar has Shielded from Keys" is a GRANT for the
+# host, not a shield on the attachment itself — matching anywhere gave every
+# Shield card its own shield.
+SHIELDED_RE = re.compile(r"^Shielded from (\w+)$")
 BACKCHANNEL_RE = re.compile(r"Backchannel\s*[—-]\s*(\w+)")
 
 NUMBER_WORDS = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
@@ -111,9 +114,11 @@ def parse_keywords(text: str) -> list[dict[str, Any]]:
         attach = ATTACH_RE.match(line.strip())
         if attach:
             found.append({"name": "Attach", "to": attach.group(1)})
-    shielded = SHIELDED_RE.search(text)
-    if shielded:
-        found.append({"name": "Shielded", "from": shielded.group(1)})
+    for line in text.split("\n"):
+        shielded = SHIELDED_RE.match(_strip_reminder(line))
+        if shielded:
+            found.append({"name": "Shielded", "from": shielded.group(1)})
+            break
     backchannel = BACKCHANNEL_RE.search(text)
     if backchannel:
         found.append({"name": "Backchannel", "resource": backchannel.group(1)})
@@ -191,7 +196,58 @@ TRIGGER_HEADS: list[tuple[re.Pattern[str], Any]] = [
         ),
         lambda m: {"on": "card-queued", "affinity": m.group(1).capitalize()},
     ),
+    (
+        re.compile(
+            r"^At the beginning of the Maintenance of attached"
+            r" (?:Protocol|Resource|Hardware|Avatar)'s controller,\s*",
+            re.I,
+        ),
+        lambda m: {"on": "maintenance", "whose": "host"},
+    ),
+    (
+        re.compile(r"^Whenever attached Resource becomes committed,\s*", re.I),
+        lambda m: {"on": "committed", "whose": "host"},
+    ),
 ]
+
+# "Attached Avatar has First Strike." — statics that flow to the host. The
+# engine reads these live from the attachment, so they arrive when it attaches
+# and leave when it leaves.
+GRANTABLE = r"(Broadcast Guard|Broadcast|First Strike|Mesh|Overflow|Firewall)"
+ATTACH_STATIC_RES = [
+    re.compile(rf"^Attached (?:Avatar|Resource|Hardware|Firewall) has {GRANTABLE}$", re.I),
+    re.compile(
+        r"^Attached Avatar has Shielded from (\w+)(?:\. This effect doesn't remove"
+        r" this Attachment)?$",
+        re.I,
+    ),
+    re.compile(
+        rf"^Attached Avatar gets ([+-]\d+) Action and ([+-]\d+) Resilience"
+        rf"(?: and has {GRANTABLE})?$",
+        re.I,
+    ),
+]
+
+
+def parse_attach_static(line: str) -> dict[str, Any] | None:
+    """Compile one attachment static into the grants the engine applies live."""
+    text = line.strip().rstrip(".")
+    keyword = ATTACH_STATIC_RES[0].match(text)
+    if keyword:
+        return {"keywords": [keyword.group(1)]}
+    shielded = ATTACH_STATIC_RES[1].match(text)
+    if shielded:
+        return {"shieldedFrom": shielded.group(1).capitalize()}
+    stats = ATTACH_STATIC_RES[2].match(text)
+    if stats:
+        grants: dict[str, Any] = {
+            "action": int(stats.group(1)),
+            "resilience": int(stats.group(2)),
+        }
+        if stats.group(3):
+            grants["keywords"] = [stats.group(3)]
+        return grants
+    return None
 
 
 def parse_trigger_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
@@ -539,6 +595,17 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
     if bounce:
         return [{"op": "bounce"}]
 
+    invalidate = re.match(r"^Invalidate target card on the Queue$", text, re.I)
+    if invalidate:
+        return [{"op": "invalidate"}]
+
+    # "marker target Power card on the Queue" — the set's word for countering.
+    marker = re.match(
+        r"^marker target (Power|Bitcoin|Keys|Signal|Timelock) card on the Queue$", text, re.I
+    )
+    if marker:
+        return [{"op": "invalidate", "filter": {"affinity": marker.group(1).capitalize()}}]
+
     return None
 
 
@@ -568,6 +635,19 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
                 }
             )
         else:
+            grants = parse_attach_static(line)
+            if grants:
+                abilities.append(
+                    {
+                        "kind": "attach-static",
+                        "cost": "",
+                        "text": line,
+                        "grants": grants,
+                        "ops": None,
+                        "manual": False,
+                    }
+                )
+                continue
             trigger_cond = None
             effect_text = line
             for pattern, make in TRIGGER_HEADS:

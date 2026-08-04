@@ -500,9 +500,12 @@
     const object = v.objects[uid];
     if (!object || !object.cardId) return false;
     const card = compiled(object.cardId);
-    if (spec.kind === "seat") return false;
+    if (spec.kind === "seat" || spec.kind === "queue") return false;
     if (spec.kind === "avatar" || spec.kind === "any") return card.isAvatar;
     if (spec.kind.indexOf("type:") === 0) return card.type.indexOf(spec.kind.slice(5)) >= 0;
+    if (spec.kind.indexOf("keyword:") === 0) {
+      return E.keywordsOf(v, E.resolveCtx({}), uid).indexOf(spec.kind.slice(8)) >= 0;
+    }
     return true;
   };
 
@@ -957,6 +960,17 @@
     const row = document.getElementById("choiceRow");
     if (!row) return;
     row.innerHTML = "";
+    /* Picking a card ON THE QUEUE (the set's counterspells): the Queue has no
+     * board zone of its own, so its items appear here as buttons. */
+    if (picking && picking.spec[picking.targets.length] && picking.spec[picking.targets.length].kind === "queue") {
+      for (const item of v.queue) {
+        if (!item.cardId) continue;
+        const button = el("button", "btn ghost", `→ ${nameOf(item.cardId)}`);
+        button.addEventListener("click", () => offerTarget({ kind: "queue", qid: item.qid }));
+        row.append(button);
+      }
+      return;
+    }
     const choice = v.pendingChoice;
     if (!choice || !choice.options || choice.seat !== seat) return;
     choice.options.forEach((option, index) => {

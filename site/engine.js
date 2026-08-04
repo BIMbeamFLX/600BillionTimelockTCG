@@ -408,6 +408,13 @@
         case "coldStorage":
           spec.push({ kind: "avatar", prompt: "Avatar to Cold Storage" });
           break;
+        case "invalidate":
+          spec.push({
+            kind: "queue",
+            affinity: op.filter && op.filter.affinity,
+            prompt: (op.filter && op.filter.affinity ? op.filter.affinity + " " : "") + "card on the Queue",
+          });
+          break;
         default:
           break;
       }
@@ -449,6 +456,14 @@
     });
     card.playOps = cardPlayOps(card);
     card.playTargetSpec = targetSpecFor(card.playOps);
+    // An Attachment is played AT a host: the host is the play's target.
+    const attach = (card.keywords || []).find((k) => k.name === "Attach");
+    if (attach && !card.playTargetSpec.length) {
+      const to = attach.to || "Avatar";
+      const kind =
+        to === "Avatar" ? "avatar" : to === "Firewall" ? "keyword:Firewall" : "type:" + to;
+      card.playTargetSpec = [{ kind, prompt: `${to} to attach ${card.name} to` }];
+    }
     card.isResource = isResourceCard(card);
     card.isAvatar = isAvatarCard(card);
     card.isPermanent = isPermanentCard(card);
@@ -757,7 +772,27 @@
       action += effect.action || 0;
       resilience += effect.resilience || 0;
     }
+    for (const grants of attachmentGrants(state, ctx, uid)) {
+      action += grants.action || 0;
+      resilience += grants.resilience || 0;
+    }
     return { action, resilience };
+  }
+
+  /* Everything a live attachment grants its host, read fresh each time — the
+   * grants arrive when the Attachment fastens and leave when it leaves. */
+  function attachmentGrants(state, ctx, uid) {
+    const grants = [];
+    for (const seat of seatsOf(state)) {
+      for (const attachUid of zoneArray(state, zoneKey(seat, "network"))) {
+        const object = state.objects[attachUid];
+        if (!object || object.attachedTo !== uid || !object.cardId) continue;
+        for (const ability of cardOf(ctx, object.cardId).abilities) {
+          if (ability.kind === "attach-static" && ability.grants) grants.push(ability.grants);
+        }
+      }
+    }
+    return grants;
   }
 
   function keywordsOf(state, ctx, uid) {
@@ -773,6 +808,11 @@
         names.push(effect.keyword);
       }
     }
+    for (const grants of attachmentGrants(state, ctx, uid)) {
+      for (const name of grants.keywords || []) {
+        if (names.indexOf(name) < 0) names.push(name);
+      }
+    }
     // Firewall is printed as a subtype on several cards, never as a keyword.
     if (/Firewall/.test(card.subtype || "") && names.indexOf("Firewall") < 0) names.push("Firewall");
     return names;
@@ -783,7 +823,11 @@
   function shieldedFrom(state, ctx, uid) {
     const card = cardOf(ctx, objectOf(state, uid).cardId);
     const entry = card.keywords.find((k) => k.name === "Shielded");
-    return entry ? entry.from : null;
+    if (entry) return entry.from;
+    for (const grants of attachmentGrants(state, ctx, uid)) {
+      if (grants.shieldedFrom) return grants.shieldedFrom;
+    }
+    return null;
   }
 
   // ------------------------------------------------------------- costs (§11, §12)
@@ -1118,8 +1162,11 @@
               continue;
             }
           }
-          if (object.attachedTo) {
-            const host = state.objects[object.attachedTo];
+          /* An Attachment without a living host archives. Checking attachedTo
+           * alone was dead code: pruneReferences nulls it the moment the host
+           * remints, so the orphan looked "never attached" and floated on. */
+          if (cardOf(env.ctx, object.cardId).keywords.some((k) => k.name === "Attach")) {
+            const host = object.attachedTo ? state.objects[object.attachedTo] : null;
             if (!host || zoneName(host.zone) !== "network") {
               moveUid(env, uid, "archive");
               emit(env, "ARCHIVED", { uid, cardId: object.cardId, reason: "attachment" });
@@ -1570,6 +1617,23 @@
           toZone: op.toZone || "wallet",
           count: resolveAmount(env, item, op, op.amount),
         });
+      }
+      case "invalidate": {
+        // The set's counterspell. The queue target was validated on play; the
+        // affinity filter is re-checked here in case the Queue changed.
+        const target = nextTarget(env, item);
+        if (target && target.kind === "queue") {
+          const index = state.queue.findIndex((q) => q.qid === target.qid);
+          if (index >= 0) {
+            const queued = state.queue[index];
+            const queuedCard = queued.cardId ? cardOf(env.ctx, queued.cardId) : null;
+            const wanted = op.filter && op.filter.affinity;
+            if (!wanted || (queuedCard && queuedCard.affinity.indexOf(wanted) >= 0)) {
+              invalidateQueueItem(env, index, "invalidated");
+            }
+          }
+        }
+        return "done";
       }
       case "coldStorage": {
         // "Cold Storage target Avatar. Its controller gains Uptime equal to
@@ -2033,7 +2097,15 @@
     const state = env.state;
     if (!target) return false;
     if (target.kind === "seat") return target.seat === 0 || target.seat === 1;
-    if (target.kind === "queue") return state.queue.some((q) => q.qid === target.qid);
+    if (target.kind === "queue") {
+      const queued = state.queue.find((q) => q.qid === target.qid);
+      if (!queued) return false;
+      if (spec && spec.affinity) {
+        const queuedCard = queued.cardId ? cardOf(env.ctx, queued.cardId) : null;
+        return Boolean(queuedCard && queuedCard.affinity.indexOf(spec.affinity) >= 0);
+      }
+      return true;
+    }
     if (target.kind !== "object") return false;
     const object = state.objects[target.uid];
     if (!object || zoneName(object.zone) !== "network") return false;
@@ -2142,6 +2214,16 @@
         // §11.4 the card enters the Network under its controller's control.
         const record = moveUid(env, item.objectUid, "network", { seat: item.controller });
         emit(env, "ENTERS", { uid: record.uid, cardId: item.cardId, seat: item.controller });
+        // An Attachment fastens to the host it targeted. A host that left in
+        // response leaves the Attachment unattached, and the state check
+        // archives orphans — §11.2 do as much as possible.
+        const attach = (card.keywords || []).find((k) => k.name === "Attach");
+        const host = attach && item.targets[0];
+        if (host && host.kind === "object" && state.objects[host.uid]) {
+          if (zoneName(state.objects[host.uid].zone) === "network") {
+            record.attachedTo = host.uid;
+          }
+        }
         announceManual(env, item, record.uid);
       } else {
         // §9.4 archived first, then announced, so a manual delta that moves the
@@ -2444,7 +2526,7 @@
         card.abilities.forEach((ability, abilityIndex) => {
           if (ability.kind !== "triggered" || ability.manual) return;
           if (!ability.ops || !ability.trigger) return;
-          if (!triggerMatches(ability.trigger, on, ctx, uid, seat)) return;
+          if (!triggerMatches(state, ability.trigger, on, ctx, uid, seat, object)) return;
           state.nextTriggerId = state.nextTriggerId || 1;
           const pendingId = "t" + state.nextTriggerId;
           state.nextTriggerId += 1;
@@ -2464,8 +2546,16 @@
     }
   }
 
-  function triggerMatches(trigger, on, ctx, uid, seat) {
+  function triggerMatches(state, trigger, on, ctx, uid, seat, object) {
     if (trigger.on !== on) return false;
+    // "attached X's controller" — the watcher rides a host; no host, no watch.
+    if (trigger.whose === "host") {
+      const host = object && object.attachedTo ? state.objects[object.attachedTo] : null;
+      if (!host) return false;
+      if (on === "maintenance") return ctx.active === host.controller;
+      if (on === "committed") return ctx.uid === object.attachedTo;
+      return false;
+    }
     switch (on) {
       case "maintenance":
         // "your Maintenance" fires only on the controller's own turn;
@@ -3827,6 +3917,7 @@
     newStream,
     statsOf,
     keywordsOf,
+    shieldedFrom,
     canAttack,
     canBlock,
     canPay,
