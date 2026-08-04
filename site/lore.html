@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="The world of 600B Timelock TCG — positive cypherpunk lore: the five tools, the runners, and the night the grid sang.">
+<title>600B Timelock TCG — Lore</title>
+<style>
+@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+:root {
+  --orange: #f7931a; --ember: #ff6a00; --gold: #f3c244;
+  --purple: #b991e4; --purple-deep: #7447b8; --violet: #17bebb;
+  --black: #09080b; --soot: #111014; --panel: #19151f;
+  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
+}
+* { box-sizing: border-box; margin: 0; }
+html { color-scheme: dark; scroll-behavior: smooth; }
+body { background: var(--black); color: var(--cream); font: 16px/1.6 Georgia, "Times New Roman", serif; }
+a { color: var(--orange); }
+
+.nav {
+  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
+  padding: 12px clamp(16px, 4vw, 56px); background: rgba(9,8,11,.9);
+  border-bottom: 1px solid var(--line); backdrop-filter: blur(16px);
+}
+.nav img { width: 42px; height: 42px; }
+.nav .brand { margin-right: auto; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; }
+.nav .brand small { display: block; color: var(--purple); font: 700 9px/1.4 Arial; letter-spacing: .22em; }
+.nav a.link {
+  color: var(--cream); text-decoration: none; font: 13px/1 Anton600, Impact, sans-serif;
+  letter-spacing: .08em; text-transform: uppercase; padding: 9px 12px; border: 1px solid transparent;
+}
+.nav a.link:hover { border-color: var(--purple-deep); }
+
+.hero {
+  position: relative; overflow: hidden; min-height: 52vh; display: grid; align-content: center;
+  padding: clamp(48px, 8vw, 110px) clamp(16px, 4vw, 56px);
+}
+.hero::before {
+  content: ""; position: absolute; inset: 0;
+  background: url("../art/world-plates/signal.png") center 35% / cover no-repeat;
+  filter: brightness(.6);
+}
+.hero::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(9,8,11,.85), rgba(9,8,11,.45) 45%, var(--black) 96%);
+}
+.hero > * { position: relative; z-index: 1; }
+.eyebrow { color: var(--gold); font: 700 13px/1 Arial; letter-spacing: .24em; text-transform: uppercase; }
+h1 {
+  max-width: 900px; margin: 12px 0 16px;
+  font: clamp(44px, 7.5vw, 96px)/.92 Anton600, Impact, sans-serif; letter-spacing: -.01em; text-transform: uppercase;
+}
+h1 span { color: var(--ember); }
+.hero .sub { max-width: 640px; color: var(--cream); font-size: clamp(17px, 2vw, 19px); }
+
+main { max-width: 860px; margin: 0 auto; padding: clamp(40px, 6vw, 80px) clamp(16px, 4vw, 56px); }
+h2 {
+  margin: 56px 0 18px;
+  font: clamp(26px, 4vw, 42px)/1 Anton600, Impact, sans-serif; text-transform: uppercase; letter-spacing: .01em;
+}
+h2:first-child { margin-top: 0; }
+h2 span { color: var(--ember); }
+p { margin: 0 0 18px; color: var(--cream); }
+p.dim { color: var(--muted); }
+em { color: var(--gold); font-style: italic; }
+.pull {
+  margin: 30px 0; padding: 18px 22px; border-left: 3px solid var(--orange);
+  background: var(--soot); color: var(--cream);
+  font: italic 400 clamp(18px, 2.4vw, 22px)/1.5 Georgia, serif;
+}
+.pull small { display: block; margin-top: 8px; color: var(--muted); font: 700 11px/1 Arial; letter-spacing: .18em; text-transform: uppercase; font-style: normal; }
+
+.tools { display: grid; gap: 14px; margin: 26px 0 8px; }
+.tool { display: flex; gap: 16px; align-items: flex-start; padding: 16px 18px; background: var(--soot); border: 1px solid var(--line); }
+.tool .disc {
+  flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
+  background: color-mix(in srgb, var(--aff) 22%, #111014); border: 2px solid var(--aff);
+}
+.tool .disc img { width: 30px; height: 30px; }
+.tool b { display: block; font: 400 17px/1.2 Anton600, Impact, sans-serif; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 4px; }
+.tool p { margin: 0; color: var(--muted); font-size: 14.5px; font-family: Arial, sans-serif; line-height: 1.55; }
+
+.runners { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 26px 0 8px; }
+.runner { padding: 16px 18px; background: var(--soot); border: 1px solid var(--line); border-top: 3px solid var(--purple-deep); }
+.runner b { display: block; font: 400 16px/1.2 Anton600, Impact, sans-serif; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; color: var(--cream); }
+.runner p { margin: 0; color: var(--muted); font-size: 14px; font-family: Arial, sans-serif; line-height: 1.55; }
+
+.story { margin-top: 10px; }
+.story p:first-of-type::first-letter {
+  float: left; padding: 6px 10px 0 0;
+  font: 400 64px/0.8 Anton600, Impact, sans-serif; color: var(--ember);
+}
+
+.cta { display: flex; gap: 12px; flex-wrap: wrap; margin: 44px 0 8px; }
+.cta a {
+  text-decoration: none; padding: 14px 24px; font: 15px/1 Anton600, Impact, sans-serif;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.cta .primary { background: var(--ember); color: var(--black); }
+.cta .ghost { color: var(--cream); border: 1px solid var(--purple-deep); }
+.cta a:hover { filter: brightness(1.12); }
+
+footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 30px clamp(16px,4vw,56px); display: flex; gap: 18px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 13px; font-family: Arial, sans-serif; }
+footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; color: var(--orange); letter-spacing: .08em; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <img src="../art/brand/600B-logo-primary.png" alt="600B">
+  <div class="brand">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></div>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="play.html">Play</a>
+  <a class="link" href="cards.html">Cards</a>
+  <a class="link" href="rules.html">Rulebook</a>
+</nav>
+
+<header class="hero">
+  <p class="eyebrow">Lore · Edition One</p>
+  <h1>The future<br><span>already works.</span></h1>
+  <p class="sub">600 Billion is not a dystopia with a Bitcoin sticker. It is the morning after the
+  night shift where everything finally synced — and the people who built it are still on the roof.</p>
+</header>
+
+<main>
+  <h2>The number</h2>
+  <p>Nobody remembers who first said <em>six hundred billion</em> out loud. It was a block-height
+  joke, then a toast, then a promise: the number of heartbeats a network earns if enough people keep
+  it alive, one block at a time. The old world measured everything in quarters. The builders started
+  measuring in <em>uptime</em>.</p>
+  <p class="dim">Uptime is the only score that matters in 600B. You do not destroy your rivals — you
+  take their nodes offline, kindly, and you keep yours humming. When the dust settles, whoever kept
+  the network alive gets the zap.</p>
+
+  <h2>The five <span>tools</span></h2>
+  <p>The world runs on five things you can hold in your hand or feel on your skin. Every card in
+  Edition One spends them, routes them, or protects them.</p>
+  <div class="tools">
+    <div class="tool" style="--aff:#f3c244"><span class="disc"><img src="../art/resources/power.svg" alt=""></span>
+      <div><b>Power</b><p>Work made honest. Microgrids on rooftops, heat that warms the greenhouse
+      after it secures the chain. Nothing in 600B is wasted twice.</p></div></div>
+    <div class="tool" style="--aff:#f7931a"><span class="disc"><img src="../art/resources/bitcoin.svg" alt=""></span>
+      <div><b>Bitcoin</b><p>Native money and durable settlement. Grown patiently in Satoshi Orchards,
+      spent bravely at festival markets, never asked for permission.</p></div></div>
+    <div class="tool" style="--aff:#fff7ec"><span class="disc"><img src="../art/resources/keys.svg" alt=""></span>
+      <div><b>Keys</b><p>Ownership you can feel click. A key is a promise you make to yourself —
+      and the only signature the network has ever trusted.</p></div></div>
+    <div class="tool" style="--aff:#7447b8"><span class="disc"><img src="../art/resources/signal.svg" alt=""></span>
+      <div><b>Signal</b><p>People, reaching each other. Antennas at sunrise, relays with names,
+      identity that lives in your pocket instead of somebody's terms of service.</p></div></div>
+    <div class="tool" style="--aff:#17bebb"><span class="disc"><img src="../art/resources/timelock.svg" alt=""></span>
+      <div><b>Timelock</b><p>Patience, weaponized into certainty. The block clock does not argue,
+      does not hurry, and has never once been wrong about the future.</p></div></div>
+  </div>
+
+  <div class="pull">"YOLO, but verify."<small>— written above the door of every workshop worth entering</small></div>
+
+  <h2>The <span>runners</span></h2>
+  <p>Node runners are not soldiers and not CEOs. They are the friends who show up with tests,
+  snacks and exactly one spare antenna. A few of them you will meet on the cards:</p>
+  <div class="runners">
+    <div class="runner"><b>FLX, Culture Curator</b><p>Runs the set, stacks the chairs, and is somehow
+    already on the roof rewiring the lights. Where FLX broadcasts, people show up.</p></div>
+    <div class="runner"><b>Arbadacarba, Protocol Gardener</b><p>Plants infrastructure the way others
+    plant trees: for the people who come after, and for the shade at noon.</p></div>
+    <div class="runner"><b>DNI, Sovereign Knight</b><p>Carries no sword — carries keys. Holds the
+    line the modern way: by never holding anyone else's coins.</p></div>
+    <div class="runner"><b>Bam, Launch Engineer</b><p>Heavy lifting, light heart. If it can be
+    shipped, Bam ships it; if it cannot, Bam builds the tunnel it ships through.</p></div>
+    <div class="runner"><b>AJ, First Responder</b><p>The uptime anchor. When a node goes dark
+    anywhere in the mesh, AJ is already rebooting it before the alert finishes sounding.</p></div>
+    <div class="runner"><b>Nind, Backchannel Walker</b><p>Knows every quiet route through the
+    network. Messages handed to Nind arrive — that is the whole biography.</p></div>
+  </div>
+
+  <h2>The story: <span>the night the grid sang</span></h2>
+  <div class="story">
+    <p>The storm took the old grid first, the way storms always do — politely, region by region,
+    with a spokesperson promising restoration windows. In Timelock City nobody waited for the
+    windows. The rooftops lit up one by one, solar spilling from battery walls, mining heat rerouted
+    into bakery ovens, and the mesh came alive with the sound the runners call <em>the singing</em>:
+    ten thousand relays finding each other in the dark.</p>
+    <p>FLX called it from the festival roof: "We stack, we build — tonight we route." Bam had the
+    heavy cable over one shoulder before the sentence ended. DNI stood at the cold vault making the
+    only speech DNI ever makes: <em>not your keys, not your city</em>. And in the middle of it all
+    the block clock kept its teal, unbothered time — nine hundred seconds to the next block,
+    then six hundred, then the quiet click of a timelock opening exactly when it promised to.</p>
+    <p>By sunrise the old grid was still down and nothing important had stopped. Orchards traded
+    fruit for sats. The balloons of the FIPS network drifted overhead, relaying for anyone below.
+    A snail crossed the commons, slowly, carrying the same message as everyone else: <em>no
+    permission, just builders.</em></p>
+    <p>That night is why the game is played the way it is. You do not raze the other side's city —
+    everyone lives in it. You take a node offline, kindly, to prove you can; they reroute, to prove
+    you cannot. The network gets stronger either way. The next block is ours to build.</p>
+  </div>
+
+  <div class="pull">"Keys ready. Future open."<small>— Edition One</small></div>
+
+  <div class="cta">
+    <a class="primary" href="play.html">Play the game</a>
+    <a class="ghost" href="cards.html">Browse the cards</a>
+    <a class="ghost" href="rules.html">Read the rulebook</a>
+  </div>
+</main>
+
+<footer>
+  <span>600 000 000 000 · Edition One · E1.0-draft</span>
+  <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
+  <span class="tag">WE STACK. WE BUILD. WE MEME. WE REPEAT.</span>
+</footer>
+
+</body>
+</html>

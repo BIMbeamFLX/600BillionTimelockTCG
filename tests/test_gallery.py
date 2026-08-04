@@ -17,7 +17,7 @@ def test_gallery_joins_all_final_card_files():
 
     assert len(records) == 295
     assert records[0]["id"] == "E1-001"
-    assert records[0]["faceFile"] == "Genesis Lotus.jpg"
+    assert records[0]["faceFile"] == "Genesis Lotus.webp"
     assert records[201]["id"] == "E1-202"
     assert "fips.network" in records[201]["searchTags"]
     assert all(
@@ -44,8 +44,8 @@ def test_built_gallery_contains_complete_set_and_rulebook_link():
     gallery = (REPO_ROOT / "site" / "cards.html").read_text(encoding="utf-8")
 
     assert "All Cards." in gallery
-    assert "Genesis Lotus.jpg" in gallery
-    assert "../art/cards/final/" in gallery
+    assert "Genesis Lotus.webp" in gallery
+    assert "../art/cards/node-runner-web/" in gallery
     assert "Global FIPS Balloon Network" in gallery
     assert 'href="rules.html"' in gallery
     assert 'href="leaderboard.html"' in gallery

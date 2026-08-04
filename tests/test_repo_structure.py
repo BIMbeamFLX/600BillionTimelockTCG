@@ -10,8 +10,13 @@ def test_static_site_pages_live_together() -> None:
     assert {path.name for path in (REPO_ROOT / "site").glob("*.html")} == {
         "arena.html",
         "cards.html",
+        "deck.html",
+        "e1-card-set.html",
+        "fx-demo.html",
         "index.html",
         "leaderboard.html",
+        "lore.html",
+        "play.html",
         "rules.html",
     }
     assert not any(REPO_ROOT.glob("*.html"))
@@ -31,7 +36,7 @@ def test_landing_page_links_to_rules_and_final_cards() -> None:
 
     assert 'href="rules.html"' in landing
     assert 'href="leaderboard.html"' in landing
-    assert "../art/cards/final/" in landing
+    assert "../art/cards/node-runner-web/" in landing
     assert "../art/generated/" not in landing
     assert "../art/illustrations/" not in landing
 

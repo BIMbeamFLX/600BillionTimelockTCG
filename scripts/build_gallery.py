@@ -14,8 +14,14 @@ def gallery_records(
     cards: list[dict[str, Any]],
     face_manifest: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Join card text with rendered card-face filenames."""
-    face_files = {item["id"]: item["file"] for item in face_manifest["files"]}
+    """Join card text with its Node Runner face.
+
+    Faces are keyed by card name rather than by the manifest's filenames: the
+    manifest is still required as proof the art lock is complete, but the
+    rendered set is one flat directory of `<name>.webp`.
+    """
+    if len(face_manifest["files"]) != len(cards):
+        raise ValueError("card text and the face lock disagree on card count")
     return [
         {
             "id": card["id"],
@@ -26,7 +32,7 @@ def gallery_records(
             "cost": card["cost"] or "—",
             "stats": card["action_resilience"],
             "rarity": card["rarity"],
-            "faceFile": face_files[card["id"]],
+            "faceFile": f"{card['name']}.webp",
             "rules": card["rules_text"],
             "flavor": card["flavor_text"],
             "help": card["help_text"],
@@ -46,7 +52,8 @@ def promo_gallery_records(
     promo_manifest: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Convert separately locked promo cards into gallery records."""
-    files = {item["id"]: item for item in promo_manifest["files"]}
+    if len(promo_manifest["files"]) != len(cards):
+        raise ValueError("promo text and the promo face lock disagree on card count")
     return [
         {
             "id": card["id"],
@@ -57,7 +64,7 @@ def promo_gallery_records(
             "cost": card["cost"] or "—",
             "stats": card["action_resilience"],
             "rarity": card["rarity"],
-            "faceFile": files[card["id"]]["face_file"],
+            "faceFile": f"{card['name']}.webp",
             "rules": card["rules_text"],
             "flavor": card["flavor_text"],
             "help": card["help_text"],
@@ -177,7 +184,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
     .brand {{ margin-right: auto; }}
     .brand strong {{
       display: block;
-      font: 24px/1 Anton600, Impact, sans-serif;
+      font: 17px/1 Anton600, Impact, sans-serif;
       letter-spacing: .03em;
     }}
     .brand span {{
@@ -254,7 +261,10 @@ def render_html(records: list[dict[str, Any]]) -> str:
       gap: 7px;
     }}
     .chip {{
-      padding: 7px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
       color: var(--muted);
       background: transparent;
       border: 1px solid var(--line);
@@ -264,6 +274,18 @@ def render_html(records: list[dict[str, Any]]) -> str:
       letter-spacing: .06em;
       text-transform: uppercase;
     }}
+    /* The icon keeps its own dark disc so the white Keys plate never sits on
+       the light active/hover chip surface. Each disc carries a dark tint of
+       its own affinity hue, so resources differ by field colour too. */
+    .chip .aff {{
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--aff, var(--black)) 22%, var(--black));
+    }}
+    .chip .aff img {{ width: 14px; height: 14px; }}
     .chip:hover, .chip.active {{
       color: var(--black);
       background: var(--purple);
@@ -521,10 +543,35 @@ def render_html(records: list[dict[str, Any]]) -> str:
       Timelock: "Timelock",
       Neutral: "Neutral",
     }};
+    const affinityIcons = {{
+      Power: "power",
+      Bitcoin: "bitcoin",
+      Keys: "keys",
+      Signal: "signal",
+      Timelock: "timelock",
+    }};
+    /* Locked E1 "Plate" accents, remapped by resource. */
+    const affinityAccents = {{
+      Power: "#F3C244",
+      Bitcoin: "#F7931A",
+      Keys: "#FFF7EC",
+      Signal: "#7447B8",
+      Timelock: "#17BEBB",
+    }};
     for (const item of affinities) {{
       const button = document.createElement("button");
       button.className = "chip" + (item === "All" ? " active" : "");
-      button.textContent = labels[item];
+      if (affinityIcons[item]) {{
+        const disc = document.createElement("span");
+        disc.className = "aff";
+        disc.style.setProperty("--aff", affinityAccents[item]);
+        const icon = document.createElement("img");
+        icon.src = "../art/resources/" + affinityIcons[item] + ".svg";
+        icon.alt = "";
+        disc.append(icon);
+        button.append(disc);
+      }}
+      button.append(labels[item]);
       button.addEventListener("click", () => {{
         affinity = item;
         [...chips.children].forEach((chip) => chip.classList.toggle("active", chip === button));
@@ -541,8 +588,7 @@ def render_html(records: list[dict[str, Any]]) -> str:
     }});
 
     function faceUrl(card) {{
-      const base = card.promo ? "../art/cards/promos/" : "../art/cards/final/";
-      return base + encodeURIComponent(card.faceFile);
+      return "../art/cards/node-runner-web/" + encodeURIComponent(card.faceFile);
     }}
 
     function metaText(card) {{

@@ -1,9 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     role="img" aria-labelledby="title">
   <title id="title">Keys resource</title>
-  <circle cx="32" cy="32" r="28" fill="#111111" stroke="#7447B8" stroke-width="4"/>
-  <g transform="translate(.8 -1.2)">
-    <path d="M20 37a11 11 0 1 1 10.2-15.2L53 44.6V52h-7v-5h-6v-5h-6.6l-3.2-3.2A11 11 0 0 1 20 37Z"
-          fill="none" stroke="#FFF7EC" stroke-width="5" stroke-linejoin="round"/>
-    <circle cx="20" cy="26" r="3.5" fill="#FFF7EC"/>
-  </g>
+  <g transform="rotate(45 32 32)"><path fill="#FFF7EC" fill-rule="evenodd" d="M4 32 9.5 22.5h11L26 32l-5.5 9.5h-11ZM19 32a4 4 0 1 0-8 0 4 4 0 1 0 8 0Z"/><path fill="#FFF7EC" d="M24 29h33v6H24ZM43 35h6v10h-6ZM52 35h5v10h-5Z"/></g>
 </svg>

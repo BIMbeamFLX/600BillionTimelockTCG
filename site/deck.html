@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="600B Timelock TCG — Stack Builder. Build, save and play your own 40+ card Stacks.">
+<title>600B Timelock TCG — Stack Builder</title>
+<style>
+@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+:root {
+  --orange: #f7931a; --ember: #ff6a00; --gold: #f3c244;
+  --purple: #b991e4; --purple-deep: #7447b8; --violet: #17bebb;
+  --black: #09080b; --soot: #111014; --panel: #19151f;
+  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
+}
+* { box-sizing: border-box; margin: 0; }
+html { color-scheme: dark; }
+body { background: var(--black); color: var(--cream); font: 14px/1.5 Arial, sans-serif; }
+a { color: var(--orange); }
+
+.nav {
+  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
+  padding: 12px clamp(16px, 3vw, 40px); background: rgba(9,8,11,.92);
+  border-bottom: 1px solid var(--line); backdrop-filter: blur(16px);
+}
+.nav img { width: 38px; height: 38px; }
+.nav .brand { margin-right: auto; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; }
+.nav .brand small { display: block; color: var(--purple); font: 700 9px/1.4 Arial; letter-spacing: .22em; }
+.nav a.link {
+  color: var(--cream); text-decoration: none; font: 13px/1 Anton600, Impact, sans-serif;
+  letter-spacing: .08em; text-transform: uppercase; padding: 9px 12px; border: 1px solid transparent;
+}
+.nav a.link:hover { border-color: var(--purple-deep); }
+
+.layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; padding: 18px clamp(16px, 3vw, 40px) 80px; max-width: 1560px; margin: 0 auto; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .deckpane { position: static !important; } }
+
+.browser .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.search {
+  flex: 1 1 240px; min-height: 40px; padding: 8px 12px;
+  color: var(--cream); background: var(--panel); border: 1px solid var(--line); outline: none; font: inherit;
+}
+.search:focus, select:focus { border-color: var(--orange); }
+select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--panel); border: 1px solid var(--line); font: inherit; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+  color: var(--muted); background: transparent; border: 1px solid var(--line); cursor: pointer;
+  font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase;
+}
+.chip:hover, .chip.active { color: var(--black); background: var(--purple); border-color: var(--purple); }
+.chip .aff { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: color-mix(in srgb, var(--aff, var(--black)) 22%, var(--black)); }
+.chip .aff img { width: 13px; height: 13px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.cardtile { position: relative; cursor: pointer; border: 1px solid var(--line); background: var(--soot); }
+.cardtile img { display: block; width: 100%; aspect-ratio: 744/1039; object-fit: cover; }
+.cardtile:hover { border-color: var(--gold); }
+.cardtile .n { position: absolute; right: 4px; top: 4px; min-width: 22px; text-align: center; padding: 3px 5px; background: var(--ember); color: var(--black); font: 900 12px/1 Arial; border-radius: 3px; }
+.cardtile .meta { padding: 5px 7px; font-size: 10.5px; color: var(--muted); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cardtile.stake { opacity: .35; }
+.cardtile.stake::after { content: "STAKE MODULE — NOT IN E1"; position: absolute; inset: auto 0 22px 0; padding: 4px; text-align: center; background: rgba(9,8,11,.85); color: #ff4d3d; font: 900 9px/1.2 Arial; letter-spacing: .1em; }
+
+.deckpane { position: sticky; top: 76px; align-self: start; background: var(--panel); border: 1px solid var(--line); padding: 14px; max-height: calc(100vh - 96px); display: flex; flex-direction: column; }
+.deckpane h2 { font: 18px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 10px; }
+.deckpane .row { display: flex; gap: 8px; margin-bottom: 8px; }
+.deckpane input[type=text] { flex: 1; min-height: 36px; padding: 6px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font: inherit; }
+.count { font: 900 26px/1 Anton600, Impact, sans-serif; }
+.count.ok { color: #6ee7a8; }
+.count.low { color: #ff4d3d; }
+.countrow { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.countrow span { color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.decklist { flex: 1; overflow-y: auto; border-top: 1px solid var(--line); margin-bottom: 10px; }
+.deckrow { display: flex; align-items: center; gap: 8px; padding: 6px 2px; border-bottom: 1px solid rgba(185,145,228,.12); }
+.deckrow .qty { min-width: 26px; text-align: center; font-weight: 900; color: var(--gold); }
+.deckrow .nm { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; }
+.deckrow .id { color: var(--muted); font-size: 10px; }
+.deckrow button { width: 24px; height: 24px; padding: 0; cursor: pointer; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font-weight: 900; }
+.deckrow button:hover { border-color: var(--orange); }
+.btn { padding: 10px 14px; color: var(--black); background: var(--orange); border: 0; cursor: pointer; font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
+.btn:hover { background: var(--gold); }
+.btn.ghost:hover { background: var(--soot); }
+.note { color: var(--muted); font-size: 11.5px; margin-top: 8px; }
+.saved { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.saved h3 { font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.savedrow { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.savedrow .nm { flex: 1; font-size: 13px; }
+.savedrow button { padding: 4px 8px; font-size: 11px; cursor: pointer; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
+.savedrow button:hover { border-color: var(--orange); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <img src="../art/brand/600B-logo-primary.png" alt="600B">
+  <div class="brand">STACK BUILDER<small>600B TIMELOCK TCG · EDITION ONE</small></div>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="play.html">Play</a>
+  <a class="link" href="cards.html">Cards</a>
+  <a class="link" href="rules.html">Rulebook</a>
+</nav>
+
+<div class="layout">
+  <section class="browser">
+    <div class="controls">
+      <input class="search" id="search" placeholder="Search name, ID, rules text …" autocomplete="off">
+      <select id="typeFilter"><option value="">All card types</option></select>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <aside class="deckpane">
+    <h2>Your Stack</h2>
+    <div class="row"><input type="text" id="deckName" placeholder="Stack name" autocomplete="off"></div>
+    <div class="countrow"><b class="count low" id="count">0</b><span>cards · minimum 40 · copies unrestricted (§7)</span></div>
+    <div class="decklist" id="decklist"></div>
+    <div class="row">
+      <button class="btn" id="save">Save</button>
+      <button class="btn ghost" id="clear">Clear</button>
+    </div>
+    <div class="note">Click a card to add it, right-click to remove one copy. Saved Stacks appear
+    as options on the <a href="play.html">Play</a> page for both seats — hotseat and vs NPC.</div>
+    <div class="saved">
+      <h3>Saved stacks</h3>
+      <div id="savedList"></div>
+    </div>
+  </aside>
+</div>
+
+<script src="play-data.js"></script>
+<script>
+(() => {
+  "use strict";
+  const CARDS = globalThis.E1_CARDS || [];
+  const byId = Object.fromEntries(CARDS.map((c) => [c.id, c]));
+  const STORE = "600b:decks";
+  // Mirrors the engine's own gate: Stake-text cards never construct in E1.
+  const isStake = (c) => /\bStake\b/.test(c.text || "");
+
+  const AFFINITIES = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock", "Neutral"];
+  const AFF_ICON = { Power: "power", Bitcoin: "bitcoin", Keys: "keys", Signal: "signal", Timelock: "timelock" };
+  const AFF_ACCENT = { Power: "#F3C244", Bitcoin: "#F7931A", Keys: "#FFF7EC", Signal: "#7447B8", Timelock: "#17BEBB" };
+
+  let affinity = "All";
+  let deck = {}; // cardId -> copies
+
+  const loadAll = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } };
+  const saveAll = (all) => localStorage.setItem(STORE, JSON.stringify(all));
+
+  // ---- browser ----
+  const grid = document.getElementById("grid");
+  const search = document.getElementById("search");
+  const typeFilter = document.getElementById("typeFilter");
+
+  [...new Set(CARDS.map((c) => c.type))].sort().forEach((t) => {
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t;
+    typeFilter.append(o);
+  });
+
+  const chips = document.getElementById("chips");
+  for (const item of AFFINITIES) {
+    const b = document.createElement("button");
+    b.className = "chip" + (item === "All" ? " active" : "");
+    if (AFF_ICON[item]) {
+      const disc = document.createElement("span");
+      disc.className = "aff";
+      disc.style.setProperty("--aff", AFF_ACCENT[item]);
+      const img = document.createElement("img");
+      img.src = "../art/resources/" + AFF_ICON[item] + ".svg";
+      img.alt = "";
+      disc.append(img);
+      b.append(disc);
+    }
+    b.append(item);
+    b.addEventListener("click", () => {
+      affinity = item;
+      [...chips.children].forEach((c) => c.classList.toggle("active", c === b));
+      renderGrid();
+    });
+    chips.append(b);
+  }
+
+  const matches = (c) => {
+    if (affinity !== "All" && !(c.affinity || ["Neutral"]).includes(affinity)) return false;
+    if (typeFilter.value && c.type !== typeFilter.value) return false;
+    const q = search.value.trim().toLowerCase();
+    if (q && !`${c.name} ${c.id} ${c.text} ${(c.affinity || []).join(" ")}`.toLowerCase().includes(q)) return false;
+    return true;
+  };
+
+  function renderGrid() {
+    grid.innerHTML = "";
+    for (const c of CARDS.filter(matches)) {
+      const tile = document.createElement("div");
+      tile.className = "cardtile" + (isStake(c) ? " stake" : "");
+      tile.title = `${c.name} — ${c.text || ""}`;
+      const img = document.createElement("img");
+      img.src = "../art/cards/node-runner-web/" + encodeURIComponent(c.face);
+      img.alt = c.name;
+      img.loading = "lazy";
+      tile.append(img);
+      if (deck[c.id]) {
+        const n = document.createElement("span");
+        n.className = "n";
+        n.textContent = deck[c.id];
+        tile.append(n);
+      }
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `${c.id} · ${c.name}`;
+      tile.append(meta);
+      tile.addEventListener("click", () => {
+        if (isStake(c)) return;
+        deck[c.id] = (deck[c.id] || 0) + 1;
+        renderDeck(); renderGrid();
+      });
+      tile.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (!deck[c.id]) return;
+        deck[c.id] -= 1;
+        if (!deck[c.id]) delete deck[c.id];
+        renderDeck(); renderGrid();
+      });
+      grid.append(tile);
+    }
+  }
+  search.addEventListener("input", renderGrid);
+  typeFilter.addEventListener("change", renderGrid);
+
+  // ---- deck pane ----
+  const decklist = document.getElementById("decklist");
+  const countEl = document.getElementById("count");
+
+  const total = () => Object.values(deck).reduce((a, n) => a + n, 0);
+
+  function renderDeck() {
+    decklist.innerHTML = "";
+    const ids = Object.keys(deck).sort((a, b) => byId[a].name.localeCompare(byId[b].name));
+    for (const id of ids) {
+      const c = byId[id];
+      const row = document.createElement("div");
+      row.className = "deckrow";
+      const minus = document.createElement("button");
+      minus.textContent = "−";
+      minus.addEventListener("click", () => {
+        deck[id] -= 1;
+        if (!deck[id]) delete deck[id];
+        renderDeck(); renderGrid();
+      });
+      const qty = document.createElement("span");
+      qty.className = "qty";
+      qty.textContent = deck[id];
+      const plus = document.createElement("button");
+      plus.textContent = "+";
+      plus.addEventListener("click", () => { deck[id] += 1; renderDeck(); renderGrid(); });
+      const nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = c.name;
+      const idEl = document.createElement("span");
+      idEl.className = "id";
+      idEl.textContent = id;
+      row.append(minus, qty, plus, nm, idEl);
+      decklist.append(row);
+    }
+    const n = total();
+    countEl.textContent = n;
+    countEl.className = "count " + (n >= 40 ? "ok" : "low");
+  }
+
+  function renderSaved() {
+    const box = document.getElementById("savedList");
+    box.innerHTML = "";
+    const all = loadAll();
+    const names = Object.keys(all).sort();
+    if (!names.length) {
+      box.innerHTML = '<span style="color:var(--muted);font-size:12px">Nothing saved yet.</span>';
+      return;
+    }
+    for (const name of names) {
+      const row = document.createElement("div");
+      row.className = "savedrow";
+      const nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = `${name} (${all[name].length})`;
+      const load = document.createElement("button");
+      load.textContent = "Load";
+      load.addEventListener("click", () => {
+        deck = {};
+        for (const id of all[name]) if (byId[id]) deck[id] = (deck[id] || 0) + 1;
+        document.getElementById("deckName").value = name;
+        renderDeck(); renderGrid();
+      });
+      const del = document.createElement("button");
+      del.textContent = "Delete";
+      del.addEventListener("click", () => {
+        if (!confirm(`Delete Stack "${name}"?`)) return;
+        const current = loadAll();
+        delete current[name];
+        saveAll(current);
+        renderSaved();
+      });
+      row.append(nm, load, del);
+      box.append(row);
+    }
+  }
+
+  document.getElementById("save").addEventListener("click", () => {
+    const name = document.getElementById("deckName").value.trim();
+    if (!name) return alert("Give the Stack a name first.");
+    if (total() < 40) return alert(`A Stack needs at least 40 cards (§7) — this one has ${total()}.`);
+    const list = [];
+    for (const id of Object.keys(deck)) for (let i = 0; i < deck[id]; i += 1) list.push(id);
+    const all = loadAll();
+    all[name] = list;
+    saveAll(all);
+    renderSaved();
+  });
+
+  document.getElementById("clear").addEventListener("click", () => {
+    deck = {};
+    renderDeck(); renderGrid();
+  });
+
+  renderGrid();
+  renderDeck();
+  renderSaved();
+})();
+</script>
+</body>
+</html>

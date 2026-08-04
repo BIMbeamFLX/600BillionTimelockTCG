@@ -4,9 +4,13 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "node scripts/build-rulebook.cjs"
+    "build": "node scripts/build-rulebook.cjs",
+    "table": "node server/table.js",
+    "test:js": "node --test tests/js/*.test.mjs"
   },
   "dependencies": {
-    "marked": "^17.0.5"
+    "@resvg/resvg-js": "^2.6.2",
+    "marked": "^17.0.5",
+    "ws": "^8.21.1"
   }
 }

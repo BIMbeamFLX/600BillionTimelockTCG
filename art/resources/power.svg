@@ -1,7 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     role="img" aria-labelledby="title">
   <title id="title">Power resource</title>
-  <circle cx="32" cy="32" r="28" fill="#111111" stroke="#FF6A00" stroke-width="4"/>
-  <g transform="translate(.5 .55)">
-    <path fill="#FFF7EC" d="M35.3 8 17.8 35.1h11.4L25.9 56 46.2 27.5H34.4L35.3 8Z"/>
-  </g>
+  <path fill="#F3C244" d="M37 4 10 36h20l-3 24L54 26H33Z"/>
 </svg>

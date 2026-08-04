@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="Play the 600B Timelock TCG Edition One locally: two-player hotseat with all 295 cards.">
+<title>600B Timelock TCG — Play</title>
+<style>
+@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+:root {
+  --orange: #ff6a00; --orange-soft: #f7931a; --gold: #f3c244;
+  --purple: #b991e4; --purple-deep: #7447b8; --violet: #17bebb;
+  --black: #09080b; --soot: #111014; --panel: #19151f; --panel-2: #1f1a27;
+  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
+  --danger: #ff4d3d; --good: #6ee7a8;
+  --card-w: clamp(64px, 6.4vw, 104px);
+}
+* { box-sizing: border-box; margin: 0; }
+html { color-scheme: dark; background: var(--black); }
+body { min-height: 100vh; color: var(--cream); font: 14px/1.45 Arial, sans-serif; }
+button, select, input { font: inherit; }
+a { color: var(--orange-soft); }
+
+.stage { position: relative; min-height: 100vh; }
+.stage::before {
+  content: ""; position: fixed; inset: 0; z-index: 0;
+  background: url("../art/world-plates/power.png") center / cover no-repeat;
+  filter: saturate(.9) brightness(.55);
+}
+.stage::after {
+  content: ""; position: fixed; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse at 50% 42%, rgba(9,8,11,.4) 0%, rgba(9,8,11,.9) 62%, rgba(9,8,11,.98) 100%);
+}
+.wrap { position: relative; z-index: 1; max-width: 1680px; margin: 0 auto; padding: 12px clamp(10px, 2vw, 24px) 24px; }
+
+.masthead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; }
+.masthead img { width: 40px; height: 40px; }
+.brand strong { display: block; font: 16px/1 Anton600, Impact, sans-serif; letter-spacing: .03em; }
+.brand span { color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+.navlink { margin-left: auto; padding: 8px 11px; color: var(--cream); border: 1px solid var(--purple-deep); text-decoration: none; font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.turnchip { padding: 7px 12px; background: rgba(17,16,20,.85); border: 1px solid var(--line); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+.turnchip b { color: var(--orange); }
+
+/* ---------- setup ---------- */
+.setup { max-width: 720px; margin: 6vh auto; padding: 28px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
+.setup h1 { font: clamp(34px, 5vw, 58px)/.95 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 10px; }
+.setup h1 span { color: var(--orange); }
+.setup p { color: var(--muted); margin-bottom: 20px; }
+.seats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.seat { padding: 14px; background: var(--panel); border: 1px solid var(--line); }
+.seat label { display: block; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
+.seat input, .seat select { width: 100%; min-height: 40px; margin-bottom: 12px; padding: 8px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
+.startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+.btn { padding: 12px 18px; color: var(--black); background: var(--orange); border: 0; cursor: pointer; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
+.btn.rug { margin-top: 10px; padding: 6px 10px; font-size: 11px; color: rgba(255,77,61,.75); border-color: rgba(255,77,61,.3); }
+.btn.rug:hover { color: #ff4d3d; border-color: #ff4d3d; background: transparent; }
+
+/* Hearthstone affordances: what you CAN do glows, and the turn button tells
+   you when the turn is spent. */
+@keyframes canplayPulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 0 10px rgba(243,194,68,.55); }
+  50% { box-shadow: 0 0 0 2px var(--gold), 0 0 20px rgba(243,194,68,.9); }
+}
+.gcard.canplay { animation: canplayPulse 1.6s ease-in-out infinite; }
+.gcard.canact { box-shadow: 0 0 0 2px var(--violet), 0 0 12px rgba(23,190,187,.6); }
+@keyframes turnReady {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243,194,68,.0); }
+  50% { box-shadow: 0 0 0 6px rgba(243,194,68,.35); }
+}
+#endturn.ready { color: var(--black); background: var(--gold); border-color: var(--gold); animation: turnReady 1.8s ease-in-out infinite; }
+#endturn.foeturn { opacity: .45; }
+
+/* The coach: one bubble, one highlighted target, first game only. */
+.coach-target { position: relative; z-index: 61; outline: 3px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
+#coach {
+  position: fixed; z-index: 62; max-width: 320px; padding: 14px 16px;
+  background: var(--panel); border: 1px solid var(--gold); color: var(--cream);
+  font-size: 13.5px; line-height: 1.5; box-shadow: 0 12px 40px rgba(0,0,0,.6);
+}
+#coach b { display: block; color: var(--gold); font: 400 13px Anton600, Impact, sans-serif; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+#coach .row { display: flex; gap: 8px; margin-top: 10px; }
+#coach button { padding: 6px 12px; cursor: pointer; font: 700 11px Arial; letter-spacing: .06em; text-transform: uppercase; }
+#coach .next { color: var(--black); background: var(--gold); border: 0; }
+#coach .skip { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+
+/* Card detail popup: left-click on a card explains it in plain English and,
+   from the Wallet, offers the play right there. */
+#cardDetail { border: 1px solid var(--line); background: var(--panel); color: var(--cream); padding: 0; max-width: 720px; width: min(94vw, 720px); }
+#cardDetail::backdrop { background: rgba(9,8,11,.78); backdrop-filter: blur(4px); }
+#cardDetail .wrap { display: grid; grid-template-columns: 250px 1fr; gap: 18px; padding: 18px; }
+#cardDetail img.face { width: 100%; border: 1px solid var(--line); }
+#cardDetail h3 { margin: 0 0 2px; font: 22px/1.1 Anton600, Impact, sans-serif; letter-spacing: .03em; text-transform: uppercase; }
+#cardDetail .meta { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px; }
+#cardDetail .rules { font-size: 14px; line-height: 1.5; margin-bottom: 10px; white-space: pre-line; }
+#cardDetail .flavor { color: var(--muted); font: italic 400 13px/1.5 Georgia, serif; margin-bottom: 12px; }
+#cardDetail .help { padding: 12px 14px; background: var(--soot); border-left: 3px solid var(--gold); font-size: 13.5px; line-height: 1.55; margin-bottom: 14px; }
+#cardDetail .help b { display: block; color: var(--gold); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 5px; }
+#cardDetail .row { display: flex; gap: 10px; }
+@media (max-width: 620px) { #cardDetail .wrap { grid-template-columns: 1fr; } #cardDetail img.face { max-width: 250px; margin: 0 auto; } }
+.btn:hover { background: var(--gold); }
+.btn.ghost:hover { background: var(--panel-2); }
+
+/* ---------- lobby ---------- */
+.online { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); }
+.online h2 { font: clamp(22px, 3vw, 34px)/1 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 8px; }
+.online h2 span { color: var(--purple); }
+.online p { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+.netid { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.joinrow { display: flex; gap: 6px; margin-bottom: 12px; }
+.joinrow input { flex: 1; min-width: 0; margin-bottom: 0 !important; text-transform: uppercase; letter-spacing: .18em; font-weight: 900; }
+.hostpanel { margin-top: 16px; padding: 14px; background: var(--soot); border: 1px solid var(--orange); }
+.tablecode { font: clamp(30px, 6vw, 54px)/1 Anton600, Impact, sans-serif; letter-spacing: .16em; color: var(--orange); }
+.netlist { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.netrow { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; background: var(--soot); border: 1px solid var(--line); font-size: 12px; }
+.netrow .btn { padding: 6px 10px; font-size: 12px; }
+.netline { color: var(--muted); font-size: 12px; padding: 2px 0; word-break: break-word; }
+.netchip { color: var(--good); border-color: var(--good); }
+.netchip.stale { color: var(--gold); border-color: var(--gold); }
+#netInfo { display: flex; flex-direction: column; gap: 2px; }
+
+/* ---------- table ---------- */
+.phases { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
+.phase { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: rgba(17,16,20,.8); border: 1px solid var(--line); }
+.phase.active { color: var(--black); background: var(--orange); border-color: var(--orange); }
+.phase.done { color: var(--purple); }
+
+.prompt { padding: 10px 12px; margin-bottom: 10px; background: rgba(17,16,20,.9); border-left: 4px solid var(--purple-deep); font-weight: 700; }
+.prompt.target { border-left-color: var(--orange); }
+.prompt.manual { border-left-color: var(--gold); color: var(--gold); }
+.prompt.good { border-left-color: var(--good); color: var(--good); }
+
+.layout { display: grid; grid-template-columns: 1fr 300px; gap: 14px; align-items: start; }
+.board { display: flex; flex-direction: column; gap: 10px; }
+.side { padding: 10px; background: rgba(17,16,20,.82); border: 1px solid var(--line); }
+.playerbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.playerbar .name { font: 17px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; }
+.uptime { padding: 4px 10px; background: var(--panel-2); border: 1px solid var(--line); font-weight: 900; }
+.uptime b { color: var(--orange); font-size: 17px; }
+.counts { color: var(--muted); font-size: 12px; }
+.buffer { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
+.pip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; background: var(--soot); border: 1px solid var(--line); }
+.pip img { width: 13px; height: 13px; }
+/* Locked E1 "Plate" palette, remapped by resource — Keys is white, Signal violet.
+   Each pip keeps a dark tint of its own hue as the background, so a resource
+   reads by field colour as well as by icon. */
+.pip-P { border-color: var(--gold); color: var(--gold); background: color-mix(in srgb, var(--gold) 20%, var(--soot)); }
+.pip-B { border-color: var(--orange-soft); color: var(--orange-soft); background: color-mix(in srgb, var(--orange-soft) 20%, var(--soot)); }
+.pip-K { border-color: var(--cream); color: var(--cream); background: color-mix(in srgb, var(--cream) 20%, var(--soot)); }
+.pip-S { border-color: var(--purple-deep); color: var(--purple); background: color-mix(in srgb, var(--purple-deep) 26%, var(--soot)); }
+.pip-T { border-color: var(--violet); color: var(--violet); background: color-mix(in srgb, var(--violet) 20%, var(--soot)); }
+
+.zlabel { font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--purple); margin-bottom: 5px; }
+.zone { display: flex; gap: 6px; flex-wrap: wrap; min-height: calc(var(--card-w) * 1.4); padding: 6px; background: rgba(9,8,11,.55); border: 1px dashed var(--line); }
+
+.gcard { position: relative; width: var(--card-w); cursor: pointer; border: 2px solid transparent; transition: transform .12s ease, border-color .12s ease; }
+.gcard img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
+.gcard:hover { transform: translateY(-4px); border-color: var(--orange-soft); }
+.gcard.committed { transform: rotate(8deg); filter: brightness(.72); }
+.gcard.attacking { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.35); }
+.gcard.blocking { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(94,90,203,.4); }
+.gcard.targetable { border-color: var(--good); box-shadow: 0 0 0 3px rgba(110,231,168,.45); animation: pulse 1s infinite alternate; }
+@keyframes pulse { to { box-shadow: 0 0 0 6px rgba(110,231,168,.2); } }
+.gcard.facedown { aspect-ratio: 5/7; background: linear-gradient(150deg, #1a1420, #0b0a0e); border: 1px solid var(--line); }
+.gstats { position: absolute; right: 3px; bottom: 3px; padding: 1px 5px; background: rgba(9,8,11,.9); border: 1px solid var(--orange); font-size: 11px; font-weight: 900; }
+.gstats.hurt { color: var(--danger); border-color: var(--danger); }
+.gmanual { position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; display: grid; place-items: center; background: var(--gold); color: var(--black); font-size: 11px; font-weight: 900; }
+
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px; background: rgba(17,16,20,.9); border: 1px solid var(--line); }
+.chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
+
+/* ---------- right rail ---------- */
+.rail { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 10px; }
+.panel { padding: 10px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
+.panel h3 { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); margin-bottom: 8px; }
+#inspector { display: flex; gap: 10px; }
+#inspector img { width: 108px; aspect-ratio: 5/7; object-fit: cover; border: 1px solid var(--line); }
+.ibody { flex: 1; min-width: 0; }
+.imeta { color: var(--muted); font-size: 11px; margin: 4px 0 6px; }
+.itext { font-size: 12px; white-space: pre-line; }
+.imanualnote { margin-top: 6px; color: var(--gold); font-size: 11px; }
+.iacts { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.iacts button { padding: 6px 8px; text-align: left; color: var(--black); background: var(--orange-soft); border: 0; cursor: pointer; font-size: 11px; font-weight: 700; }
+.iacts button.ghost { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+.manualgrid { display: flex; gap: 4px; flex-wrap: wrap; }
+.manualgrid button { padding: 5px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); cursor: pointer; font-size: 11px; font-weight: 700; }
+.manualgrid button:hover { border-color: var(--orange); }
+.prompt.bad { border-left-color: var(--danger); color: var(--danger); }
+.gboot { position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; display: grid; place-items: center; background: var(--violet); color: var(--black); font-size: 10px; font-weight: 900; }
+#manualPending { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.mtitle { font-weight: 900; letter-spacing: .04em; text-transform: uppercase; font-size: 11px; color: var(--gold); }
+.mtext { color: var(--cream); }
+.mdiff { color: var(--muted); font-family: ui-monospace, monospace; font-size: 11px; word-break: break-word; }
+.mopen { padding: 6px; background: var(--soot); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
+#manualPending button { padding: 5px 8px; color: var(--black); background: var(--orange-soft); border: 0; cursor: pointer; font-size: 11px; font-weight: 700; }
+#manualPending button.ghost { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+.mreason { width: 100%; padding: 5px 7px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font-size: 11px; }
+#log { max-height: 300px; overflow-y: auto; font-size: 11px; }
+.logline { padding: 3px 0; border-bottom: 1px solid rgba(185,145,228,.12); color: var(--muted); }
+.logline.good { color: var(--good); }
+.logline.warn { color: var(--gold); }
+.logline.bad { color: var(--danger); }
+.logline.manual { color: var(--purple); }
+
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .rail { position: static; } .seats { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="stage">
+<div class="wrap">
+
+  <header class="masthead">
+    <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
+    <div class="brand"><strong>TIMELOCK TCG</strong><span>Edition One · Local Table</span></div>
+    <div class="turnchip" id="turnchip">Not started</div>
+    <div class="turnchip netchip" id="netchip" hidden></div>
+    <a class="navlink" href="rules.html">Rulebook</a>
+    <a class="navlink" href="cards.html">Cards</a>
+  </header>
+
+  <!-- ---------------- setup ---------------- -->
+  <section class="setup" id="setup">
+    <h1>Play <span>locally</span></h1>
+    <p>Two-player hotseat on one machine, with all <b id="cardCount">295</b> Edition One cards.
+    Each seat gets a randomised 40-card Stack in the rulebook's recommended prototype shape.
+    The engine runs the turn structure, Buffer and resource burn, costs, clash and state checks;
+    cards whose text it cannot fully model are flagged <b>!</b> and resolved by a bounded, attributed
+    proposal your opponent can accept or reject.</p>
+    <div class="seats">
+      <div class="seat">
+        <label for="nameA">Seat one</label>
+        <input id="nameA" value="Player 1" autocomplete="off">
+        <label for="deckA">Stack affinity</label>
+        <select id="deckA"></select>
+      </div>
+      <div class="seat">
+        <label for="nameB">Seat two</label>
+        <input id="nameB" value="Player 2" autocomplete="off">
+        <label for="deckB">Stack affinity</label>
+        <select id="deckB"></select>
+        <label for="npcB" style="display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--muted);font-size:12px;cursor:pointer">
+          <input id="npcB" type="checkbox" style="accent-color:var(--orange)">
+          NPC opponent — seat two plays itself
+        </label>
+      </div>
+    </div>
+    <div style="margin:2px 0 12px;color:var(--muted);font-size:12px">
+      Want your own 40? Build and save Stacks in the <a href="deck.html">Stack Builder</a> —
+      they appear in both seat menus here.
+    </div>
+    <div class="startrow">
+      <button class="btn" id="start">Start game</button>
+      <label for="seed" style="color:var(--muted);font-size:12px">Seed
+        <input id="seed" style="width:110px;margin-left:6px;padding:6px 8px;color:var(--cream);background:var(--soot);border:1px solid var(--line)" placeholder="random" autocomplete="off">
+      </label>
+    </div>
+
+    <!-- ---------------- lobby ----------------
+         A panel, not a page: navigating away mid-demo would lose the socket and
+         the seat. The local game above keeps working with this whole block
+         untouched — and with no server at all. -->
+    <div class="online" id="online">
+      <h2>Or play <span>across the table</span></h2>
+      <p>One referee runs the rules and deals both seats; every play travels over a socket, and only the
+      invite, the accept and the signed result ever touch a relay. Sign in to be named — or stay anonymous,
+      it changes nothing about the game.</p>
+
+      <div class="netid">
+        <button class="btn ghost" id="nostrLogin">Sign in with nostr</button>
+        <span class="chip" id="nostrWho" hidden></span>
+        <button class="btn ghost" id="nostrLogout" hidden>Sign out</button>
+        <span class="chip" id="netTable"></span>
+      </div>
+
+      <div class="seats" style="margin-top:14px">
+        <div class="seat">
+          <label for="netName">Your name</label>
+          <input id="netName" value="Player" autocomplete="off">
+          <label for="netAffinity">Stack affinity</label>
+          <select id="netAffinity"></select>
+        </div>
+        <div class="seat">
+          <label for="joinCode">Join with a table code</label>
+          <div class="joinrow">
+            <input id="joinCode" placeholder="K7M2QF" maxlength="6" autocomplete="off" spellcheck="false">
+            <button class="btn" id="joinTable">Join</button>
+          </div>
+          <label for="challengeNpub">Challenge an npub (optional)</label>
+          <input id="challengeNpub" placeholder="npub1… — blank makes an open invite" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+
+      <div class="startrow">
+        <button class="btn" id="createTable">Create table</button>
+        <button class="btn ghost" id="refreshTables">Open tables</button>
+        <button class="btn ghost" id="checkInvites">Check invites</button>
+      </div>
+
+      <div class="prompt" id="netNotice" hidden></div>
+
+      <div class="hostpanel" id="hostPanel" hidden>
+        <div class="zlabel">Table code — read it aloud</div>
+        <div class="tablecode" id="tableCode">------</div>
+        <div class="startrow" style="margin-top:10px">
+          <button class="btn ghost" id="copyCode">Copy join link</button>
+          <button class="btn ghost" id="publishInvite">Publish invite to nostr</button>
+          <span class="chip">waiting for a second seat</span>
+        </div>
+      </div>
+
+      <div id="tableList" class="netlist"></div>
+      <div id="inviteList" class="netlist"></div>
+    </div>
+  </section>
+
+  <!-- ---------------- table ---------------- -->
+  <section id="table" hidden>
+    <div class="phases" id="phases"></div>
+    <div class="prompt" id="prompt"></div>
+    <div id="choiceRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+
+    <div class="layout">
+      <div class="board">
+
+        <div class="side">
+          <div class="playerbar">
+            <span class="name" id="foeName">Opponent</span>
+            <span class="uptime">Uptime <b id="foeUptime">20</b></span>
+            <span class="counts" id="foeCounts"></span>
+            <span class="buffer" id="foeBuffer"></span>
+          </div>
+          <div class="zlabel">Wallet</div>
+          <div class="zone" id="foeHand"></div>
+          <div class="zlabel" style="margin-top:8px">Network</div>
+          <div class="zone" id="foeNetwork"></div>
+        </div>
+
+        <div class="controls">
+          <button class="btn" id="continue">Continue</button>
+          <button class="btn ghost" id="endturn">End turn</button>
+          <button class="btn ghost" id="cancelTarget">Cancel targeting</button>
+          <button class="btn ghost" id="clearManual">Clear notice</button>
+          <span id="fxControl"></span>
+          <span class="chip" id="resourceChip">Resource play available</span>
+        </div>
+
+        <div class="side">
+          <div class="playerbar">
+            <span class="name" id="youName">You</span>
+            <span class="uptime">Uptime <b id="youUptime">20</b></span>
+            <span class="counts" id="youCounts"></span>
+            <span class="buffer" id="youBuffer"></span>
+          </div>
+          <div class="zlabel">Network</div>
+          <div class="zone" id="youNetwork"></div>
+          <div class="zlabel" style="margin-top:8px">Wallet — click a card to play it</div>
+          <div class="zone" id="youHand"></div>
+        </div>
+
+      </div>
+
+      <aside class="rail">
+        <div class="panel" id="netPanel" hidden>
+          <h3>Table</h3>
+          <div id="netInfo"></div>
+          <div class="manualgrid" style="margin-top:8px">
+            <button id="publishAccept" hidden>Publish accept</button>
+            <button id="publishResult" hidden>Publish result</button>
+            <button class="ghost" id="forceResume">Force resync</button>
+            <button class="ghost" id="leaveTable">Leave table</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Card</h3>
+          <div id="inspector"><span style="color:var(--muted);font-size:12px">Hover a card.</span></div>
+        </div>
+        <div class="panel">
+          <h3>Manual controls</h3>
+          <div class="manualgrid">
+            <button data-manual="uptime:1">+1 Uptime</button>
+            <button data-manual="uptime:-1">−1 Uptime</button>
+            <button data-manual="uptime:1" data-side="foe">+1 foe</button>
+            <button data-manual="uptime:-1" data-side="foe">−1 foe</button>
+            <button data-manual="draw:1">Draw</button>
+          </div>
+          <div class="manualgrid" style="margin-top:6px">
+            <button data-manual="generate:P">+P</button>
+            <button data-manual="generate:B">+B</button>
+            <button data-manual="generate:K">+K</button>
+            <button data-manual="generate:S">+S</button>
+            <button data-manual="generate:T">+T</button>
+            <button data-manual="generate:N">+neutral</button>
+          </div>
+          <!-- Not gameplay: the one button that ends the match. Lives with the
+               table admin controls, small, and asks before it fires. -->
+          <button class="btn ghost rug" id="rugpull"
+            title="End the game by walking away — the win goes to the player who did not rugpull.">Rugpull</button>
+        </div>
+        <div class="panel">
+          <h3>Table proposals</h3>
+          <div id="manualPending"><span style="color:var(--muted);font-size:12px">Assisted abilities and manual edits appear here for both seats.</span></div>
+        </div>
+        <div class="panel">
+          <h3>Log</h3>
+          <div id="log"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+</div>
+</div>
+<script src="play-data.js"></script>
+<div id="coach" hidden>
+  <b id="coachTitle"></b>
+  <span id="coachText"></span>
+  <div class="row">
+    <button class="next" id="coachNext">Next</button>
+    <button class="skip" id="coachSkip">Skip tour</button>
+  </div>
+</div>
+
+<dialog id="cardDetail">
+  <div class="wrap">
+    <img class="face" alt="">
+    <div>
+      <h3 class="cd-name"></h3>
+      <div class="meta cd-meta"></div>
+      <div class="rules cd-rules"></div>
+      <div class="flavor cd-flavor"></div>
+      <div class="help"><b>What it does</b><span class="cd-help"></span></div>
+      <div class="row" id="cdActs" style="flex-wrap:wrap;margin-bottom:10px"></div>
+      <div class="row">
+        <button class="btn" id="cdPlay">Play card</button>
+        <button class="btn ghost" id="cdClose">Close</button>
+      </div>
+      <div style="margin-top:10px;color:var(--muted);font-size:11.5px">
+        Tip: right-click a card in your Wallet to play it without this popup.
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script src="engine.js"></script>
+<script src="npc.js"></script>
+<script src="fx.js"></script>
+<!-- The transport. It opens no socket unless this page already holds a match or
+     the player asks for one, so play.html stays a working offline hotseat. -->
+<script src="net.js"></script>
+<script src="play.js"></script>
+</body>
+</html>

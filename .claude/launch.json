@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tcg-table",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server/table.js"],
+      "port": 8777,
+      "url": "http://localhost:8777"
+    }
+  ]
+}

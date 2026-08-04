@@ -845,8 +845,8 @@ PROTOCOL_FACTS = {
     ),
 }
 
+# Matched case-INSENSITIVELY: legacy terms that are wrong in any casing.
 FORBIDDEN_PUBLIC_PATTERNS = (
-    r"\bWalls?\b",
     r"\bregenerat\w*\b",
     r"\bhaste\b",
     r"\bnonblack\b",
@@ -855,6 +855,10 @@ FORBIDDEN_PUBLIC_PATTERNS = (
     r"\bBullish\b",
     r"\bWeb5\b",
 )
+# Matched case-SENSITIVELY. "Wall" is a legacy creature type and is capitalised;
+# a lowercase "wall" is an ordinary noun that flavour text may use. Matching it
+# without regard to case rejected lines like "Turns out the wall had opinions."
+FORBIDDEN_PUBLIC_PATTERNS_CASED = (r"\bWalls?\b",)
 
 
 def flavor_subject(card: dict[str, Any]) -> str:
@@ -888,17 +892,29 @@ def apply_editorial_copy(cards: list[dict[str, Any]]) -> None:
         if card_id in RULES_BY_ID:
             card["rules_text"] = RULES_BY_ID[card_id]
 
+        # Flavour and protocol notes are AUTHORED copy, not generated copy. The
+        # templates and the fact pool below remain only as a bootstrap for a card
+        # that has none yet — they must never overwrite a written line.
+        #
+        # They used to overwrite unconditionally, and the shape of that is still
+        # measurable in the old data: the template list was cycled per category,
+        # so 290 of 295 flavour lines shared a three-word opening, and the note
+        # index below advances once per TWO cards, so all but one protocol note
+        # was printed on a second card as well. Re-enabling either assignment
+        # restores the phrase bank on the next build.
         category = flavor_category(card["card_type"])
         templates = FLAVOR_TEMPLATES[category]
         template_index = flavor_offsets[category] % len(templates)
         flavor_offsets[category] += 1
-        card["flavor_text"] = templates[template_index].format(subject=flavor_subject(card))
+        if not card.get("flavor_text"):
+            card["flavor_text"] = templates[template_index].format(subject=flavor_subject(card))
 
         note_category = card["affinity"][0] if len(card["affinity"]) == 1 else "Neutral / Multi"
         note_pool = PROTOCOL_FACTS[note_category]
         note_index = note_offsets[note_category] // 2
         note_offsets[note_category] += 1
-        card["protocol_note"], card["protocol_source"] = note_pool[note_index]
+        if not card.get("protocol_note"):
+            card["protocol_note"], card["protocol_source"] = note_pool[note_index]
 
         for field in ("art_direction", "art_prompt"):
             text = card[field]
@@ -955,6 +971,9 @@ def validate_editorial_copy(cards: list[dict[str, Any]]) -> list[str]:
         )
         for pattern in FORBIDDEN_PUBLIC_PATTERNS:
             if re.search(pattern, public_text, flags=re.IGNORECASE):
+                findings.append(f"{card['id']}: forbidden term matches {pattern}")
+        for pattern in FORBIDDEN_PUBLIC_PATTERNS_CASED:
+            if re.search(pattern, public_text):
                 findings.append(f"{card['id']}: forbidden term matches {pattern}")
     return findings
 

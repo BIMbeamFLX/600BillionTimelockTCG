@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="Audition harness for the 600B Timelock TCG FX layer — every event, every primitive, a scripted turn.">
+<title>600B Timelock TCG — FX Layer Harness</title>
+<style>
+@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+
+/* ---- :root copied verbatim from play.html — single source of palette ---- */
+:root {
+  --orange: #ff6a00; --orange-soft: #f7931a; --gold: #f3c244;
+  --purple: #b991e4; --purple-deep: #7447b8; --violet: #5e5acb;
+  --black: #09080b; --soot: #111014; --panel: #19151f; --panel-2: #1f1a27;
+  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
+  --danger: #ff4d3d; --good: #6ee7a8;
+  --card-w: clamp(64px, 6.4vw, 104px);
+}
+* { box-sizing: border-box; margin: 0; }
+html { color-scheme: dark; background: var(--black); }
+body { min-height: 100vh; color: var(--cream); font: 14px/1.45 Arial, sans-serif; }
+button, select, input { font: inherit; }
+code, .mono { font-family: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace; }
+
+.stage { position: relative; min-height: 100vh; }
+.wrap { position: relative; z-index: 1; max-width: 1680px; margin: 0 auto; padding: 12px clamp(10px, 2vw, 24px) 120px; }
+
+.masthead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding: 8px 0 12px; border-bottom: 1px solid var(--line); }
+.masthead strong { font: 22px/1 Anton600, Impact, sans-serif; letter-spacing: .03em; }
+.masthead strong span { color: var(--orange); }
+.masthead em { font-style: normal; color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+.navlink { margin-left: auto; padding: 8px 11px; color: var(--cream); border: 1px solid var(--purple-deep); text-decoration: none; font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+
+h2 { font: 14px/1 Anton600, Impact, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); margin: 22px 0 8px; }
+h2 small { color: var(--muted); font: 400 11px/1 Arial, sans-serif; letter-spacing: 0; text-transform: none; margin-left: 8px; }
+.panel { padding: 12px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
+.note { color: var(--muted); font-size: 12px; max-width: 78ch; }
+
+/* ---- controls ---- */
+.steppers { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.stepper { display: flex; flex-direction: column; gap: 4px; }
+.stepper label { font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--purple); }
+.stepper input, .stepper select { min-height: 32px; padding: 4px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); border-radius: 0; }
+.stepper input[type=range] { padding: 0; width: 160px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 5px; }
+.grid button {
+  padding: 9px 10px; text-align: left; cursor: pointer; border-radius: 0;
+  color: var(--cream); background: var(--soot); border: 1px solid var(--line);
+  font: 900 11px/1.25 ui-monospace, monospace; letter-spacing: .02em;
+}
+.grid button:hover { border-color: var(--orange); background: var(--panel-2); }
+.grid button b { display: block; color: var(--orange-soft); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 3px; }
+.btn { padding: 11px 16px; color: var(--black); background: var(--orange); border: 0; border-radius: 0; cursor: pointer; font: 14px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
+.btn:hover { background: var(--gold); }
+.btn.ghost:hover { background: var(--panel-2); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* ---- mock board — mirrors play.html structure and ids exactly ---- */
+.layout { display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: start; }
+.board { display: flex; flex-direction: column; gap: 10px; }
+.side { padding: 10px; background: rgba(17,16,20,.82); border: 1px solid var(--line); }
+.playerbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.playerbar .name { font: 17px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; }
+.uptime { padding: 4px 10px; background: var(--panel-2); border: 1px solid var(--line); font-weight: 900; }
+.uptime b { color: var(--orange); font-size: 17px; }
+.counts { color: var(--muted); font-size: 12px; }
+.buffer { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
+.pip { padding: 3px 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; background: var(--soot); border: 1px solid var(--line); }
+.pip-P { border-color: var(--orange); color: var(--orange); }
+.pip-B { border-color: var(--gold); color: var(--gold); }
+.pip-K { border-color: var(--purple-deep); color: var(--purple); }
+.pip-S { border-color: var(--cream); color: var(--cream); }
+.pip-T { border-color: var(--violet); color: var(--violet); }
+.zlabel { font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--purple); margin-bottom: 5px; }
+.zone { display: flex; gap: 6px; flex-wrap: wrap; min-height: calc(var(--card-w) * 1.4); padding: 6px; background: rgba(9,8,11,.55); border: 1px dashed var(--line); }
+.phases { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
+.phase { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: rgba(17,16,20,.8); border: 1px solid var(--line); }
+.phase.active { color: var(--black); background: var(--orange); border-color: var(--orange); }
+.prompt { padding: 10px 12px; margin-bottom: 10px; background: rgba(17,16,20,.9); border-left: 4px solid var(--purple-deep); font-weight: 700; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px; background: rgba(17,16,20,.9); border: 1px solid var(--line); }
+.turnchip { padding: 7px 12px; background: rgba(17,16,20,.85); border: 1px solid var(--line); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+
+/* ---- .gcard rules copied from play.html so additive composite is verified
+        against the REAL host transforms (rotate on .committed, hover lift) ---- */
+.gcard { position: relative; width: var(--card-w); cursor: pointer; border: 2px solid transparent; transition: transform .12s ease, border-color .12s ease; }
+.gcard:hover { transform: translateY(-4px); border-color: var(--orange-soft); }
+.gcard.committed { transform: rotate(8deg); filter: brightness(.72); }
+.gcard.attacking { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.35); }
+.gcard.blocking { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(94,90,203,.4); }
+.gcard.targetable { border-color: var(--good); box-shadow: 0 0 0 3px rgba(110,231,168,.45); animation: pulse 1s infinite alternate; }
+@keyframes pulse { to { box-shadow: 0 0 0 6px rgba(110,231,168,.2); } }
+.gstats { position: absolute; right: 3px; bottom: 3px; padding: 1px 5px; background: rgba(9,8,11,.9); border: 1px solid var(--orange); font-size: 11px; font-weight: 900; }
+.gstats.hurt { color: var(--danger); border-color: var(--danger); }
+/* stand-in for the card face — no binary assets on this page either */
+.gcard .face { display: block; width: 100%; aspect-ratio: 5/7; background: linear-gradient(150deg, #1a1420, #0b0a0e); border: 1px solid var(--line); padding: 5px; font: 900 8px/1.2 ui-monospace, monospace; letter-spacing: .04em; color: var(--muted); overflow: hidden; }
+.gcard .face i { display: block; font-style: normal; color: var(--orange-soft); }
+
+/* ---- readouts ---- */
+.rail { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 10px; }
+.meters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.meter { padding: 7px 9px; background: var(--soot); border: 1px solid var(--line); }
+.meter span { display: block; font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--purple); }
+.meter b { font: 900 17px/1.2 ui-monospace, monospace; color: var(--cream); }
+.meter b.hot { color: var(--danger); }
+.meter b.ok { color: var(--good); }
+canvas { display: block; width: 100%; height: 68px; background: var(--soot); border: 1px solid var(--line); }
+
+/* ---- token sheet ---- */
+table.tok { width: 100%; border-collapse: collapse; font: 11px/1.4 ui-monospace, monospace; }
+table.tok th { text-align: left; font: 900 9px/1 Anton600, Impact, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--purple); padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line); }
+table.tok td { padding: 4px 8px 4px 0; border-bottom: 1px solid rgba(185,145,228,.12); color: var(--muted); }
+table.tok td.k { color: var(--cream); font-weight: 900; }
+.sw { display: inline-block; width: 34px; height: 12px; border: 1px solid rgba(255,247,236,.3); vertical-align: -1px; margin-right: 7px; }
+.cols3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+
+#slot { position: relative; }
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .rail { position: static; } }
+
+/* play.html ships exactly this. It kills every CSS animation and transition
+   under reduced motion — which is precisely why the FX layer is WAAPI-only.
+   Turn reduced motion on in your OS: the page goes still, FX keeps working. */
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="stage">
+<div class="wrap">
+
+  <header class="masthead">
+    <strong>FX LAYER <span>HARNESS</span></strong>
+    <em>Warm Terminal · v1.0.0 · audition every event</em>
+    <a class="navlink" href="play.html">Play</a>
+    <a class="navlink" href="rules.html">Rulebook</a>
+  </header>
+
+  <p class="note" style="margin:12px 0">
+    Every sound on this page is synthesised at runtime — no audio files exist in the repo.
+    Browsers block audio until you interact, so <b>click anything once</b> to arm the context.
+    This page loads <code>fx.js</code> only; it never loads or touches <code>play.js</code>.
+    All buttons dispatch the same <code>document</code> CustomEvent the game will use, so nothing here
+    is exercised only in the lab.
+  </p>
+
+  <h2>Parameters <small>shared by every button below</small></h2>
+  <div class="panel steppers">
+    <div class="stepper"><label for="pSeat">seat</label>
+      <select id="pSeat"><option value="0">0 (active)</option><option value="1">1 (foe)</option>
+        <option value="you">"you"</option><option value="foe">"foe"</option></select></div>
+    <div class="stepper"><label for="pAmount">amount</label>
+      <input id="pAmount" type="number" min="1" max="12" value="3" style="width:78px"></div>
+    <div class="stepper"><label for="pCount">count</label>
+      <input id="pCount" type="number" min="0" max="12" value="3" style="width:78px"></div>
+    <div class="stepper"><label for="pAff">affinity</label>
+      <select id="pAff"><option value="P">Power</option><option value="B">Bitcoin</option>
+        <option value="K">Keys</option><option value="S">Signal</option><option value="T">Timelock</option>
+        <option value="N">Neutral</option><option value='["P","T"]'>Power + Timelock (dual)</option></select></div>
+    <div class="stepper"><label for="pType">cardType</label>
+      <select id="pType"><option>Avatar — Builder</option><option>Hardware</option><option>Protocol</option>
+        <option>Operation</option><option>Zap</option><option>Basic Resource</option></select></div>
+    <div class="stepper"><label for="pPhase">phase</label>
+      <select id="pPhase"><option>unlock</option><option>maintenance</option><option>draw</option>
+        <option selected>build1</option><option>clash</option><option>build2</option>
+        <option>end</option><option>cleanup</option></select></div>
+    <div class="stepper"><label for="pCardName">cardName</label>
+      <input id="pCardName" value="Rooftop Relay" style="width:150px"></div>
+    <div class="stepper"><label for="pNote">note</label>
+      <input id="pNote" value="Verified by hand" style="width:150px"></div>
+  </div>
+
+  <h2>Event book <small>23 events — the entire vocabulary</small></h2>
+  <div class="grid" id="eventGrid"></div>
+
+  <h2>Sequences <small>a sound design lives or dies in sequence, not in a button grid</small></h2>
+  <div class="panel row">
+    <button class="btn" id="runTurn">Run a scripted turn</button>
+    <button class="btn ghost" id="stress">Stress: 9 × damage:avatar in one frame</button>
+    <button class="btn ghost" id="stopAll">Stop everything</button>
+    <div class="stepper" style="margin-left:auto">
+      <label for="bufSlider">buffer:set — audition the pressure drone in isolation
+        (<b class="mono" id="bufVal">0</b>)</label>
+      <input id="bufSlider" type="range" min="0" max="8" step="1" value="0">
+    </div>
+  </div>
+  <p class="note" style="margin-top:8px">
+    The pressure drone is <b>on by default and silent at buffer 0</b> — it speaks only when you have
+    unspent Resources, which is exactly when burn is a risk. Drag the slider up and listen to the
+    room tighten; that is the burn rule made anticipatable at zero UI cost. The ambient bed is a
+    separate, opt-in layer (<code>FX600.bed(true)</code>).
+  </p>
+
+  <h2>Board <small>20 mock cards on real geometry — two are <code>.committed</code>, so additive composite is visible</small></h2>
+  <div class="layout">
+    <div class="board">
+      <div class="turnchip" id="turnchip">Turn <b>1</b></div>
+      <div class="phases" id="phases"></div>
+      <div class="prompt" id="prompt">Prompt line — target and manual cues land here.</div>
+
+      <div class="side">
+        <div class="playerbar">
+          <span class="name" id="foeName">Seat two</span>
+          <span class="uptime">Uptime <b id="foeUptime">20</b></span>
+          <span class="counts" id="foeCounts">Stack 33 · Archive 2</span>
+          <span class="buffer" id="foeBuffer"></span>
+        </div>
+        <div class="zlabel">Wallet</div><div class="zone" id="foeHand"></div>
+        <div class="zlabel" style="margin-top:8px">Network</div><div class="zone" id="foeNetwork"></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn ghost" data-ev="priority:pass">Continue</button>
+        <button class="btn ghost" data-ev="turn:begin">End turn</button>
+        <span class="mono" style="color:var(--muted);font-size:11px">.controls — priority:pass flickers this</span>
+      </div>
+
+      <div class="side">
+        <div class="playerbar">
+          <span class="name" id="youName">Seat one</span>
+          <span class="uptime">Uptime <b id="youUptime">20</b></span>
+          <span class="counts" id="youCounts">Stack 31 · Archive 4</span>
+          <span class="buffer" id="youBuffer"></span>
+        </div>
+        <div class="zlabel">Network</div><div class="zone" id="youNetwork"></div>
+        <div class="zlabel" style="margin-top:8px">Wallet</div><div class="zone" id="youHand"></div>
+      </div>
+    </div>
+
+    <aside class="rail">
+      <div class="panel">
+        <h2 style="margin-top:0">Live state <small>FX600.get()</small></h2>
+        <div class="meters">
+          <div class="meter"><span>voices / 24</span><b id="mVoices">0</b></div>
+          <div class="meter"><span>anims / 32</span><b id="mAnims">0</b></div>
+          <div class="meter"><span>ctx.state</span><b id="mCtx" class="mono" style="font-size:13px">none</b></div>
+          <div class="meter"><span>bufferTotal</span><b id="mBuf">0</b></div>
+          <div class="meter"><span>activeSeat</span><b id="mSeat">0</b></div>
+          <div class="meter"><span>motion</span><b id="mMotion" class="mono" style="font-size:13px">auto</b></div>
+        </div>
+        <p class="note" style="margin:8px 0 4px">frame time · the line is 16.7 ms</p>
+        <canvas id="fps" width="600" height="68"></canvas>
+        <p class="note" id="fpsText" style="margin-top:6px">—</p>
+      </div>
+      <div class="panel">
+        <h2 style="margin-top:0">Audio controls</h2>
+        <div id="slot"></div>
+        <p class="note" style="margin-top:8px">Press <b>M</b> anywhere to toggle mute. State persists to
+        <code>localStorage['600b.fx.v1']</code>.</p>
+        <div class="row" style="margin-top:8px">
+          <label class="mono" style="font-size:11px"><input type="checkbox" id="cbBed"> ambient bed</label>
+          <label class="mono" style="font-size:11px"><input type="checkbox" id="cbPressure" checked> pressure drone</label>
+        </div>
+      </div>
+      <div class="panel">
+        <h2 style="margin-top:0">Log</h2>
+        <div id="log" class="mono" style="max-height:220px;overflow-y:auto;font-size:11px;color:var(--muted)"></div>
+      </div>
+    </aside>
+  </div>
+
+  <h2>Tokens <small>rendered straight from <code>FX600.TOKENS</code>, so this sheet cannot drift from the code</small></h2>
+  <div class="panel cols3" id="tokens"></div>
+
+</div>
+</div>
+
+<script src="fx.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var FX = window.FX600;
+
+  /* ---------- mock board ---------------------------------------------- */
+  var CARD_NAMES = [
+    'Rooftop Relay', 'Block Clock', 'Solar Shed', 'Cold Card', 'Orchard Node',
+    'Signal Kite', 'Hash Kettle', 'Vault Timer', 'Mesh Mast', 'Copper Bus',
+    'Seed Tin', 'Dawn Array', 'Patch Bay', 'Ledger Bench', 'Key Fob',
+    'Relay Yard', 'Watt Loom', 'Slow Vault', 'Peer Beacon', 'Spare Antenna'
+  ];
+  var AFFS = ['P', 'B', 'K', 'S', 'T'];
+  var made = 0;
+  function card(zone, cls) {
+    var d = document.createElement('div');
+    d.className = 'gcard' + (cls ? ' ' + cls : '');
+    d.setAttribute('data-uid', 'u' + made);
+    var a = AFFS[made % 5];
+    d.innerHTML = '<span class="face"><i>' + a + '</i>' + CARD_NAMES[made % CARD_NAMES.length] +
+      '</span><span class="gstats">' + (1 + made % 4) + '/' + (2 + made % 3) + '</span>';
+    zone.appendChild(d);
+    made++;
+    return d;
+  }
+  /* 20 cards: youNetwork 6 (two committed), youHand 5, foeNetwork 5, foeHand 4 */
+  card($('#youNetwork'), 'committed'); card($('#youNetwork'));
+  card($('#youNetwork'), 'committed'); card($('#youNetwork'), 'attacking');
+  card($('#youNetwork')); card($('#youNetwork'), 'targetable');
+  for (var i = 0; i < 5; i++) card($('#youHand'));
+  card($('#foeNetwork'), 'blocking'); card($('#foeNetwork')); card($('#foeNetwork'));
+  card($('#foeNetwork'), 'targetable'); card($('#foeNetwork'));
+  for (var j = 0; j < 4; j++) card($('#foeHand'));
+
+  var PHASES = ['unlock', 'maintenance', 'draw', 'build1', 'clash', 'build2', 'end', 'cleanup'];
+  var LABELS = ['Unlock', 'Maintenance', 'Draw', 'Build I', 'Clash', 'Build II', 'End', 'Cleanup'];
+  PHASES.forEach(function (p, k) {
+    var c = document.createElement('div');
+    c.className = 'phase' + (k === 3 ? ' active' : '');
+    c.dataset.phase = p; c.textContent = LABELS[k];
+    $('#phases').appendChild(c);
+  });
+  function setPhase(p) {
+    var kids = $('#phases').children;
+    for (var k = 0; k < kids.length; k++) kids[k].classList.toggle('active', kids[k].dataset.phase === p);
+  }
+  function pip(zoneId, aff) {
+    var s = document.createElement('span');
+    s.className = 'pip pip-' + aff; s.textContent = aff;
+    $(zoneId).appendChild(s);
+    return s;
+  }
+  function clearPips(zoneId) { $(zoneId).textContent = ''; }
+
+  /* ---------- mount ---------------------------------------------------- */
+  FX.mount({ control: false });
+  FX.mountControls($('#slot'));
+  FX.debug = false;
+
+  /* Exactly the helper the play.js refactor will add — one line, no import. */
+  function fx(name, d) {
+    var detail = { name: name };
+    if (d) for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) detail[k] = d[k];
+    document.dispatchEvent(new CustomEvent('fx', { detail: detail }));
+    log(name, d);
+  }
+
+  var logBox = $('#log');
+  function log(name, d) {
+    var line = document.createElement('div');
+    var extra = '';
+    if (d) {
+      var parts = [];
+      for (var k in d) if (k !== 'el' && Object.prototype.hasOwnProperty.call(d, k)) {
+        parts.push(k + '=' + JSON.stringify(d[k]));
+      }
+      extra = parts.length ? '  ' + parts.join(' ') : '';
+    }
+    line.textContent = name + extra;
+    line.style.padding = '2px 0';
+    line.style.borderBottom = '1px solid rgba(185,145,228,.12)';
+    logBox.insertBefore(line, logBox.firstChild);
+    while (logBox.children.length > 120) logBox.removeChild(logBox.lastChild);
+  }
+
+  /* ---------- parameters ----------------------------------------------- */
+  function P() {
+    var seatRaw = $('#pSeat').value;
+    var affRaw = $('#pAff').value;
+    return {
+      seat: (seatRaw === 'you' || seatRaw === 'foe') ? seatRaw : Number(seatRaw),
+      amount: Number($('#pAmount').value) || 1,
+      count: Number($('#pCount').value) || 0,
+      affinity: affRaw.charAt(0) === '[' ? JSON.parse(affRaw) : affRaw,
+      cardType: $('#pType').value,
+      phase: $('#pPhase').value,
+      cardName: $('#pCardName').value,
+      note: $('#pNote').value
+    };
+  }
+  function someCard(sel) {
+    var list = document.querySelectorAll(sel || '#youNetwork .gcard');
+    return list.length ? list[Math.floor(Math.random() * list.length)] : null;
+  }
+
+  /* ---------- the 23 buttons -------------------------------------------- */
+  var BOOK = [
+    ['game:start', 'the machine wakes', function () { fx('game:start'); }],
+    ['turn:begin', 'flips the you/foe map', function () {
+      var p = P(); fx('turn:begin', { seat: p.seat });
+    }],
+    ['phase:enter', 'auto phases at ×0.70', function () {
+      var p = P(); setPhase(p.phase); fx('phase:enter', { phase: p.phase });
+    }],
+    ['priority:pass', 'throttled, self-quieting', function () { fx('priority:pass', { seat: P().seat }); }],
+    ['card:draw', 'ghost flight + wipe', function () {
+      var p = P(); fx('card:draw', { seat: p.seat, count: Math.min(5, p.count || 1) });
+    }],
+    ['card:play', 'FLIP + affinity ring', function () {
+      var p = P(); fx('card:play', { seat: p.seat, cardType: p.cardType, affinity: p.affinity, el: someCard() });
+    }],
+    ['card:archive', 'filed sideways, not down', function () {
+      fx('card:archive', { seat: P().seat, el: someCard() });
+    }],
+    ['resource:play', 'a moment of agency', function () {
+      var p = P();
+      var a = Array.isArray(p.affinity) ? p.affinity[0] : p.affinity;
+      pip(p.seat === 1 || p.seat === 'foe' ? '#foeBuffer' : '#youBuffer', a);
+      fx('resource:play', { seat: p.seat, affinity: p.affinity, el: someCard() });
+    }],
+    ['resource:generate', 'ascending Dorian run', function () {
+      var p = P();
+      var a = Array.isArray(p.affinity) ? p.affinity[0] : p.affinity;
+      var id = (p.seat === 1 || p.seat === 'foe') ? '#foeBuffer' : '#youBuffer';
+      var before = $(id).children.length;
+      for (var k = 0; k < Math.min(6, p.amount); k++) pip(id, a);
+      fx('resource:generate', { seat: p.seat, affinity: p.affinity, amount: p.amount, index: before });
+    }],
+    ['buffer:burn', 'the signature sound', function () {
+      var p = P();
+      var id = (p.seat === 1 || p.seat === 'foe') ? '#foeBuffer' : '#youBuffer';
+      fx('buffer:burn', { seat: p.seat, amount: p.amount });
+      setTimeout(function () { clearPips(id); }, 700);
+    }],
+    ['buffer:set', 'absolute drone level', function () {
+      fx('buffer:set', { seat: P().seat, total: P().amount });
+      $('#bufSlider').value = String(Math.min(8, P().amount));
+      $('#bufVal').textContent = $('#bufSlider').value;
+    }],
+    ['ability:activate', 'deterministic per card name', function () {
+      var p = P(); fx('ability:activate', { seat: p.seat, cardName: p.cardName, el: someCard() });
+    }],
+    ['target:request', 'the machine audibly waits', function () { fx('target:request'); }],
+    ['target:choose', 'hold tone released', function () {
+      fx('target:choose', { el: someCard('.gcard.targetable') });
+    }],
+    ['clash:begin', 'a competitive move', function () { setPhase('clash'); fx('clash:begin'); }],
+    ['clash:declareAttackers', 'a rack spinning up', function () { fx('clash:declareAttackers', { count: P().count }); }],
+    ['clash:declareBlockers', '0 = an open door', function () { fx('clash:declareBlockers', { count: P().count }); }],
+    ['damage:player', 'jitter scales with amount', function () {
+      var p = P(); fx('damage:player', { seat: p.seat, amount: p.amount });
+    }],
+    ['damage:avatar', 'batched per frame', function () {
+      var c = someCard();
+      fx('damage:avatar', { uid: c && c.getAttribute('data-uid'), amount: P().amount, el: c });
+    }],
+    ['avatar:decommission', 'a graceful shutdown', function () {
+      var c = someCard();
+      fx('avatar:decommission', { uid: c && c.getAttribute('data-uid'), el: c });
+    }],
+    ['uptime:gain', 'the one clean sound', function () {
+      var p = P(); fx('uptime:gain', { seat: p.seat, amount: p.amount });
+    }],
+    ['manual:resolve', 'a human decided', function () {
+      var p = P(); fx('manual:resolve', { seat: p.seat, note: p.note });
+    }],
+    ['game:win', 'no loss sting, ever', function () { fx('game:win', { seat: P().seat }); }]
+  ];
+
+  var grid = $('#eventGrid');
+  BOOK.forEach(function (row) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<b>' + row[0] + '</b>' + row[1];
+    b.addEventListener('click', row[2]);
+    grid.appendChild(b);
+  });
+  if (BOOK.length !== FX.EVENTS.length) log('WARNING: button count ' + BOOK.length + ' != EVENTS ' + FX.EVENTS.length);
+
+  document.querySelectorAll('[data-ev]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var n = b.dataset.ev;
+      fx(n, n === 'turn:begin' ? { seat: FX.get().activeSeat === 0 ? 1 : 0 } : { seat: 0 });
+    });
+  });
+
+  /* ---------- scripted turn --------------------------------------------- */
+  /* One realistic turn at rulebook timings: Unlock -> Maintenance -> Draw ->
+     Build I (two resource plays, three generates, a card) -> Clash (3 attackers,
+     2 blockers, First Strike then regular damage) -> a 3-Resource burn ->
+     Build II -> End -> Cleanup, then the seat flip and the win. */
+  var timers = [];
+  function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+  function clearScript() { timers.forEach(clearTimeout); timers.length = 0; }
+
+  function runTurn() {
+    clearScript();
+    clearPips('#youBuffer'); clearPips('#foeBuffer');
+    var netCards = document.querySelectorAll('#youNetwork .gcard');
+
+    at(0,     function () { fx('game:start'); });
+    at(700,   function () { fx('turn:begin', { seat: 0 }); });
+
+    at(1000,  function () { setPhase('unlock');      fx('phase:enter', { phase: 'unlock' }); });
+    at(1350,  function () { setPhase('maintenance'); fx('phase:enter', { phase: 'maintenance' }); });
+    at(1700,  function () { setPhase('draw');        fx('phase:enter', { phase: 'draw' }); });
+    at(1790,  function () { fx('card:draw', { seat: 0, count: 1 }); });
+
+    at(2150,  function () { setPhase('build1');      fx('phase:enter', { phase: 'build1' }); });
+    at(2400,  function () { pip('#youBuffer', 'P'); fx('resource:play', { seat: 0, affinity: 'P', el: netCards[1] }); });
+    at(2620,  function () { pip('#youBuffer', 'P'); fx('resource:generate', { seat: 0, affinity: 'P', amount: 1, index: 1 }); });
+    at(3050,  function () { pip('#youBuffer', 'T'); fx('resource:play', { seat: 0, affinity: 'T', el: netCards[4] }); });
+    at(3280,  function () { pip('#youBuffer', 'T'); fx('resource:generate', { seat: 0, affinity: 'T', amount: 1, index: 3 }); });
+    at(3700,  function () { pip('#youBuffer', 'B'); pip('#youBuffer', 'B');
+                            fx('resource:generate', { seat: 0, affinity: 'B', amount: 2, index: 4 }); });
+    at(4150,  function () { fx('buffer:set', { seat: 0, total: 6 }); });
+    at(4300,  function () { fx('card:play', { seat: 0, cardType: 'Avatar — Builder', affinity: 'P', el: netCards[1] }); });
+    at(4950,  function () { fx('ability:activate', { seat: 0, cardName: 'Rooftop Relay', el: netCards[1] }); });
+    at(5350,  function () { fx('target:request'); });
+    at(6100,  function () { fx('target:choose', { el: document.querySelector('.gcard.targetable') }); });
+    at(6400,  function () { fx('priority:pass', { seat: 0 }); });
+
+    at(6600,  function () { setPhase('clash'); fx('phase:enter', { phase: 'clash' }); });
+    at(6700,  function () { fx('clash:begin'); });
+    at(7350,  function () { fx('clash:declareAttackers', { count: 3 }); });
+    at(8000,  function () { fx('clash:declareBlockers', { count: 2 }); });
+    /* First Strike damage — simultaneous, resolved in ONE scheduler frame */
+    at(8700,  function () {
+      FX.emitAll([
+        ['damage:avatar', { uid: 'u7', amount: 2, el: document.querySelectorAll('#foeNetwork .gcard')[0] }],
+        ['damage:avatar', { uid: 'u8', amount: 3, el: document.querySelectorAll('#foeNetwork .gcard')[1] }]
+      ]);
+      log('emitAll  first strike ×2 in one frame');
+    });
+    /* then regular damage */
+    at(9200,  function () {
+      FX.emitAll([
+        ['damage:avatar', { uid: 'u9', amount: 4, el: document.querySelectorAll('#foeNetwork .gcard')[2] }],
+        ['damage:avatar', { uid: 'u3', amount: 1, el: document.querySelectorAll('#youNetwork .gcard')[3] }]
+      ]);
+      log('emitAll  regular damage ×2 in one frame');
+    });
+    at(9700,  function () { fx('avatar:decommission', { uid: 'u9', el: document.querySelectorAll('#foeNetwork .gcard')[2] }); });
+    at(10200, function () { fx('damage:player', { seat: 1, amount: 4 }); });
+
+    at(10900, function () { setPhase('build2'); fx('phase:enter', { phase: 'build2' }); });
+    at(11200, function () { fx('card:play', { seat: 0, cardType: 'Zap', affinity: 'K', el: netCards[5] }); });
+
+    at(11900, function () { setPhase('end'); fx('phase:enter', { phase: 'end' }); });
+    /* three unspent Resources burn — this is the moment the whole palette exists for */
+    at(12300, function () { fx('buffer:burn', { seat: 0, amount: 3 }); });
+    at(13100, function () { clearPips('#youBuffer'); });
+    at(13300, function () { fx('uptime:gain', { seat: 0, amount: 1 }); });
+
+    at(13900, function () { setPhase('cleanup'); fx('phase:enter', { phase: 'cleanup' }); });
+    at(14200, function () { fx('card:archive', { seat: 0, el: document.querySelectorAll('#youHand .gcard')[0] }); });
+    at(14700, function () { fx('manual:resolve', { seat: 0, note: 'Spare antenna, verified' }); });
+
+    at(15500, function () { fx('turn:begin', { seat: 1 }); });
+    at(15800, function () { setPhase('unlock'); fx('phase:enter', { phase: 'unlock' }); });
+    at(16150, function () { fx('card:draw', { seat: 1, count: 2 }); });
+    at(16800, function () { fx('resource:play', { seat: 1, affinity: 'S', el: document.querySelectorAll('#foeNetwork .gcard')[1] }); });
+    at(17400, function () { fx('damage:player', { seat: 0, amount: 6 }); });
+    at(18300, function () { fx('game:win', { seat: 1 }); });
+  }
+  $('#runTurn').addEventListener('click', runTurn);
+
+  /* ---------- stress ---------------------------------------------------- */
+  $('#stress').addEventListener('click', function () {
+    var cards = document.querySelectorAll('.gcard');
+    var pairs = [];
+    for (var k = 0; k < 9; k++) {
+      var c = cards[k % cards.length];
+      pairs.push(['damage:avatar', { uid: c.getAttribute('data-uid'), amount: 1 + k, el: c }]);
+    }
+    FX.emitAll(pairs);
+    log('emitAll  9 × damage:avatar in ONE frame → 5 batched voices, 5 jitters, 9 chips');
+  });
+  $('#stopAll').addEventListener('click', function () { clearScript(); FX.stopAll(); log('stopAll()'); });
+
+  /* ---------- buffer slider --------------------------------------------- */
+  $('#bufSlider').addEventListener('input', function (e) {
+    $('#bufVal').textContent = e.target.value;
+    /* the drone tracks the ACTIVE seat's Buffer, so address that seat */
+    fx('buffer:set', { seat: FX.get().activeSeat, total: Number(e.target.value) });
+  });
+  $('#cbBed').addEventListener('change', function (e) { FX.bed(e.target.checked); });
+  $('#cbPressure').addEventListener('change', function (e) { FX.pressure(e.target.checked); });
+
+  /* ---------- live readouts + frame-time meter --------------------------- */
+  var cv = $('#fps'), cx = cv.getContext('2d');
+  var hist = new Array(150).fill(0), hi = 0, prev = performance.now(), worst = 0;
+  function frame(t) {
+    var dt = t - prev; prev = t;
+    hist[hi = (hi + 1) % hist.length] = dt;
+    if (dt > worst && dt < 400) worst = dt;
+
+    var g = FX.get();
+    setMeter('#mVoices', g.voices, 24);
+    setMeter('#mAnims', g.animationsCapped, 32);
+    $('#mCtx').textContent = g.ctxState;
+    $('#mBuf').textContent = g.bufferTotal;
+    $('#mSeat').textContent = g.activeSeat;
+    $('#mMotion').textContent = g.motion + (g.motion === 'auto' ? ' → ' + g.motionActive : '');
+
+    var W = cv.width, H = cv.height;
+    cx.clearRect(0, 0, W, H);
+    var scale = H / 50;                                    /* 50 ms full height */
+    cx.strokeStyle = 'rgba(243,194,68,.55)'; cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(0, H - 16.7 * scale); cx.lineTo(W, H - 16.7 * scale); cx.stroke();
+    var bw = W / hist.length;
+    for (var k = 0; k < hist.length; k++) {
+      var v = hist[(hi + 1 + k) % hist.length];
+      var h = Math.min(H, v * scale);
+      cx.fillStyle = v > 16.7 ? '#ff4d3d' : '#6ee7a8';
+      cx.fillRect(k * bw, H - h, Math.max(1, bw - 0.5), h);
+    }
+    var avg = hist.reduce(function (a, b) { return a + b; }, 0) / hist.length;
+    $('#fpsText').textContent = 'avg ' + avg.toFixed(1) + ' ms (' + (1000 / avg).toFixed(0) +
+      ' fps) · worst since load ' + worst.toFixed(1) + ' ms · additive composite ' +
+      (g.additive ? 'supported' : 'UNSUPPORTED — card transforms degrade to opacity');
+    requestAnimationFrame(frame);
+  }
+  function setMeter(sel, v, cap) {
+    var b = $(sel); b.textContent = v + ' / ' + cap;
+    b.className = v >= cap ? 'hot' : (v > 0 ? 'ok' : '');
+  }
+  requestAnimationFrame(frame);
+
+  /* ---------- token sheet, rendered from FX600.TOKENS -------------------- */
+  var T = FX.TOKENS, out = [];
+  function table(title, rows) {
+    return '<div><table class="tok"><thead><tr><th colspan="2">' + title + '</th></tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr><td class="k">' + r[0] + '</td><td>' + r[1] + '</td></tr>'; }).join('') +
+      '</tbody></table></div>';
+  }
+  function swatch(hex) { return '<span class="sw" style="background:' + hex + '"></span>' + hex; }
+
+  out.push(table('Palette', Object.keys(T.palette).map(function (k) { return [k, swatch(T.palette[k])]; })));
+  out.push(table('Affinity colour', Object.keys(T.affinity).map(function (k) {
+    return [T.affinityNames[k] + ' (' + k + ')', swatch(T.affinity[k])];
+  })));
+  out.push(table('Durations (ms)', Object.keys(T.durations).map(function (k) { return [k, T.durations[k]]; })));
+  out.push(table('Easings', Object.keys(T.easings).map(function (k) { return [k, T.easings[k]]; })));
+  out.push(table('Staggers (ms) — audio and motion share these numbers',
+    Object.keys(T.staggers).map(function (k) { return [k, T.staggers[k]]; })));
+  out.push(table('Bus gains', Object.keys(T.busGain).map(function (k) { return [k, T.busGain[k]]; })));
+  out.push(table('Caps', Object.keys(T.caps).map(function (k) { return [k, T.caps[k]]; })));
+  out.push(table('Phase pitch (Hz)', Object.keys(T.phasePitch).map(function (k) { return [k, T.phasePitch[k]]; })));
+  out.push(table('Dorian step ratios', T.dorian.map(function (v, k) { return ['step ' + k, v.toFixed(5)]; })));
+  out.push(table('C# Dorian grid (Hz) — every sustained pitch lives here',
+    Object.keys(T.pitches).map(function (k) { return [k, T.pitches[k]]; })));
+  out.push(table('Seat transposition', [['seat 1 ×', T.seatTranspose + ' (down a perfect fourth → G# Dorian, identical note set)']]));
+  $('#tokens').innerHTML = out.join('');
+
+  log('harness ready — click anything to arm the AudioContext');
+})();
+</script>
+</body>
+</html>

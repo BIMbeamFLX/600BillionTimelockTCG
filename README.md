@@ -14,7 +14,9 @@ rulebook.
 art/
   E1-ART-AND-VOICE-DIRECTION.md  positive-cypherpunk visual and writing lock
   brand/       official 600B identity assets
-  cards/final/ 295 rendered card faces, shared back and readability manifest
+  cards/node-runner-web/ 296 card faces + back in the Node Runner frame, shipped
+  cards/node-runner-print/ ignored 300 dpi print masters, rebuilt on demand
+  cards/final/ superseded first-generation card faces
   cards/promos/ separately locked promotional card faces
   fonts/       local open-source display fonts
   generated/   ignored local raw ImageGen sources and high-resolution exports
@@ -42,13 +44,115 @@ scripts/
   build_cards.py
   build_promos.py
   build_gallery.py
+  build_card_set.py
+  render_card_pngs.py
+  build_blob_manifest.py
+  build_play_data.py
+  rasterize-icons.cjs
   build-rulebook.cjs
 site/
   arena.html    static play-area mockup
   cards.html    searchable image-and-text catalog
+  e1-card-set.html  Node Runner frame proof sheet, print-ready
   index.html    landing page
+  play.html     playable two-player hotseat table
+  play.js       local rules engine
+  play-data.js  generated playable card data
   rules.html    designed rulebook
 ```
+
+## Playing locally
+
+`site/play.html` is a two-player hotseat table for the full 295-card set. Serve the
+repository and open it — the page needs no build step of its own beyond `play-data.js`.
+
+```bash
+python -m http.server 8777
+```
+
+Then open <http://localhost:8777/site/play.html>.
+
+The engine enforces the rules framework from `rules/600B-Timelock-TCG-Rulebook-E1.md`:
+the eight-step turn structure, the once-per-turn Resource play, Buffer generation and
+classic resource burn, printed costs, clash with First Strike and Overflow, and the
+state checks. `scripts/build_play_data.py` compiles the locked catalog and auto-scripts
+the ability templates that recur across the set; the remaining cards are marked `!` and
+resolved at the table with the manual controls, so no card is locked out of play.
+
+```bash
+uv run python scripts/build_play_data.py
+```
+
+## Node Runner frame proof sheet
+
+`cards/e1-node-runner-set.json` locks the 18-card playtest set (E1 · 007–024) in the
+Node Runner frame ported from the claude.ai design canvas. The generative border is
+emitted as static SVG paths, so a build is deterministic and reviewable in the diff.
+
+```bash
+uv run python scripts/build_card_set.py
+uv run python scripts/build_card_set.py --border-amp 11 --no-guides --no-fable
+```
+
+Cards print at 63 × 88 mm trim inside a 3 mm bleed at 300 dpi. Drop artwork into
+`art/cards/node-runner/` named after each card to fill its art window.
+
+### Rendering the whole set
+
+`scripts/render_card_pngs.py` draws the same frame straight to a bitmap with Pillow,
+reusing the geometry functions from `build_card_set.py` so a render and the HTML proof
+sheet agree. Artwork comes from the raw ImageGen exports and is contain-fitted into the
+art window exactly as the canvas specifies.
+
+Two masters are produced from the same render. Print is lossless PNG tagged at its real
+resolution so prepress reads the physical size; web is WebP, visually identical at a
+fraction of the bytes.
+
+```bash
+uv run python scripts/render_card_pngs.py --format png --out art/cards/node-runner-print
+uv run python scripts/render_card_pngs.py --format webp --quality 88 \
+  --out art/cards/node-runner-web
+```
+
+### Reading a card at a glance
+
+Affinity owns the spine, type chip, circuit border and cost pips. Card type owns
+the one channel affinity leaves free — the base dark — so two cards of the same
+affinity still sort by what they do:
+
+| Group | Types | Base |
+| --- | --- | --- |
+| Resource | Basic Resource, Resource | warm amber-black `#0d0803` |
+| Avatar | Avatar, Hardware Avatar | neutral `#050403` (the handoff default) |
+| Spell | Zap, Operation | cool blue-black `#03060f` |
+| Device | Hardware, Protocol | violet-black `#080412` |
+
+`TYPE_GROUP` and `TYPE_BASE` live in `scripts/build_card_set.py`, so the HTML proof
+sheet and the rendered PNGs stay in step.
+
+| Set | Format | Size | Per card | Use |
+| --- | --- | --- | --- | --- |
+| `node-runner-print/` | PNG, 300 dpi | 814 × 1109 | ~670 KB | 63 × 88 mm trim, 3 mm bleed |
+| `node-runner-web/` | WebP q90 | 814 × 1109 | ~140 KB | site, game table, Blossom |
+
+The web set ships and is what the site and game table load. The print masters are
+ignored and rebuilt on demand. Add `--guides` for a trim proof, `--scale` for a
+smaller web set.
+
+## Content-addressed publishing
+
+Blossom addresses every blob by the SHA-256 of its bytes, so the digest is the
+identifier: a server answers `GET /<sha256>` and any mirror holding the same bytes
+answers identically. That digest is also what a NIP-94 file event carries, so one
+manifest covers storage and the event that points at it.
+
+```bash
+uv run python scripts/build_blob_manifest.py --dir art/cards/node-runner-web \
+  --blossom-base https://blossom.example
+```
+
+Each entry records the card id and name, mime type, byte length, SHA-256 and the
+resolved Blossom URL.
 
 ## Build
 
@@ -149,9 +253,10 @@ Open `site/cards.html` for the searchable, filterable 295-card E1 set plus promo
 `art/cards/final/600B-Timelock-card-back.jpg`.
 
 The official circular 600B mark is rebuilt from the unmodified source artwork as a
-small, low-opacity lower-right watermark. Card frames use print-safe resource stripes:
-Bitcoin orange, Signal/Nostr purple, Power cyan, Keys green, Timelock cobalt and
-Neutral slate. Multi-affinity cards divide the stripe into equal color segments.
+small, low-opacity lower-right watermark. Card frames use print-safe resource stripes
+in the locked E1 "Plate" palette: Power yellow, Bitcoin orange, Keys white, Signal
+violet, Timelock teal and Neutral slate. Multi-affinity cards divide the stripe into
+equal color segments.
 
 ## Cockatrice playtesting
 
