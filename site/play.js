@@ -493,21 +493,73 @@
       });
     }
     document.getElementById("cdClose").onclick = () => dialog.close();
+    void event; // the card window is centred; only the action menu follows the pointer
     dialog.showModal();
-    /* Open where the hand is, not in the middle of the screen: a modal that
-     * jumps to the centre loses the card you were pointing at. */
-    if (event) {
-      dialog.style.margin = "0";
-      const box = dialog.getBoundingClientRect();
-      const left = Math.max(8, Math.min(window.innerWidth - box.width - 8, event.clientX + 14));
-      const top = Math.max(8, Math.min(window.innerHeight - box.height - 8, event.clientY - box.height / 2));
-      dialog.style.left = `${left}px`;
-      dialog.style.top = `${top}px`;
-    } else {
-      dialog.style.margin = "";
-      dialog.style.left = "";
-      dialog.style.top = "";
+  }
+
+  /* The choice menu: which affinity a junction makes, which of several
+   * abilities to fire. Centred, like the card window — a menu that chases the
+   * pointer is a menu you hunt for. */
+  function openActionMenu(title, entries) {
+    closeActionMenu();
+    const menu = el("div", "ctxmenu");
+    menu.append(el("div", "ctxtitle", title));
+    for (const entry of entries) {
+      const button = el("button", entry.disabled ? "disabled" : null, entry.label);
+      if (entry.disabled) button.disabled = true;
+      else
+        button.addEventListener("click", () => {
+          closeActionMenu();
+          entry.run();
+        });
+      menu.append(button);
     }
+    document.body.append(menu);
+    setTimeout(() => document.addEventListener("click", closeActionMenu, { once: true }), 0);
+  }
+
+  function closeActionMenu() {
+    const open = document.querySelector(".ctxmenu");
+    if (open) open.remove();
+  }
+
+  /* Right-click on your own Network card: fire what it can do. One unambiguous
+   * ability runs immediately; a junction's two affinities, or several
+   * abilities, open the menu. Nothing activatable falls back to the card. */
+  function activateFromBoard(v, seat, uid) {
+    const object = v.objects[uid];
+    if (!object || !object.cardId) return;
+    const card = compiled(object.cardId);
+    const entries = [];
+    card.abilities.forEach((ability, index) => {
+      if (ability.kind !== "activated" || ability.manual || !ability.ops) return;
+      const blocked = ability.commit && object.committed;
+      const choiceOp = ability.resourceAbility && ability.ops.find((op) => op.affinity === "choice");
+      if (choiceOp) {
+        const offered =
+          Array.isArray(choiceOp.options) && choiceOp.options.length
+            ? choiceOp.options.map((name) => SYMBOLS.find((s) => SYMBOL_NAME[s] === name) || name)
+            : SYMBOLS;
+        for (const symbol of offered) {
+          entries.push({
+            label: `Generate ${SYMBOL_NAME[symbol]}`,
+            disabled: blocked,
+            run: () => beginAbility(v, seat, uid, index, symbol),
+          });
+        }
+        return;
+      }
+      entries.push({
+        label: ability.text,
+        disabled: blocked,
+        run: () => beginAbility(v, seat, uid, index),
+      });
+    });
+    if (!entries.length) return void openCardDetail(v, seat, uid, false);
+    const live = entries.filter((e) => !e.disabled);
+    if (live.length === 1 && entries.length === 1) return void live[0].run();
+    entries.push({ label: "Card details…", run: () => openCardDetail(v, seat, uid, false) });
+    openActionMenu(CARD_BY_ID[object.cardId].name, entries);
   }
 
   function beginPlay(v, seat, uid) {
@@ -640,6 +692,7 @@
     node.addEventListener("mouseenter", () => showInspector(v, uid));
     if (options && options.canPlay && options.canPlay(uid)) node.classList.add("canplay");
     if (options && options.canAct && options.canAct(uid)) node.classList.add("canact");
+    if (options && options.canAttack && options.canAttack(uid)) node.classList.add("canattack");
     return node;
   }
 
@@ -671,6 +724,18 @@
         ability.ops &&
         (!ability.costParsed || E.canPay(v.seats[seat].buffer, ability.costParsed))
     );
+  }
+
+  /* During the attackers step, every Avatar that may legally swing says so.
+   * The rules were always enforced; nothing ever pointed at them. */
+  function attackGlow(v, seat, uid) {
+    if (!v.awaiting || v.awaiting.kind !== "attackers" || v.awaiting.seat !== seat) return false;
+    if (attackers.indexOf(uid) >= 0) return false; // already declared: it reads as attacking
+    try {
+      return E.canAttack({ state: v, ctx: E.resolveCtx({}) }, uid);
+    } catch (error) {
+      return false;
+    }
   }
 
   /* The turn button narrates the turn: gold and pulsing when everything is
@@ -992,16 +1057,19 @@
       onClick: (uid) => toggleBlock(v, uid),
     });
     renderZone("youNetwork", v, v.zones[`${seat}:network`], {
+      // Same hand as the Wallet: left acts, right explains. During the
+      // attackers step the left click is the attack declaration instead.
       onClick: (uid) => {
         if (v.awaiting && v.awaiting.kind === "attackers" && v.awaiting.seat === seat) toggleAttacker(uid);
-        else openCardDetail(v, seat, uid, false);
+        else activateFromBoard(v, seat, uid);
       },
-      onContext: (uid, event) => openCardDetail(v, seat, uid, false, event),
+      onContext: (uid) => openCardDetail(v, seat, uid, false),
       canAct: (uid) => actGlow(v, seat, uid),
+      canAttack: (uid) => attackGlow(v, seat, uid),
     });
     renderZone("youHand", v, v.zones[`${seat}:wallet`], {
       onClick: (uid) => beginPlay(v, seat, uid),
-      onContext: (uid, event) => openCardDetail(v, seat, uid, true, event),
+      onContext: (uid) => openCardDetail(v, seat, uid, true),
       canPlay: (uid) => playGlow(v, seat, uid),
     });
     renderQueue(v);
@@ -1095,7 +1163,9 @@
       tone = "prompt target";
     } else if (v.awaiting && v.awaiting.seat === seat) {
       const map = {
-        attackers: "click your Avatars to declare attackers, then Continue.",
+        attackers:
+          "CLASH — click the glowing Avatars to send them at your opponent, then Continue. " +
+          "An Avatar that arrived this turn has Boot Delay and must wait (§5.2).",
         blockers: "click an attacker, then your Avatar, to block. Then Continue.",
         order: "confirm the order your blockers take damage in.",
         damage: "confirm combat damage assignment.",
