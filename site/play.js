@@ -322,6 +322,8 @@
     }
   }
 
+  const bufferTotal = (buffer) => Object.values(buffer).reduce((sum, n) => sum + n, 0);
+
   const bufferText = (buffer) =>
     Object.keys(buffer)
       .filter((key) => buffer[key])
@@ -364,6 +366,18 @@
       const full = session.full;
       if (!full || full.result || session.seat !== null) return;
       if (full.turn.active !== seat || uiSeat(full) !== seat) return;
+      /* Never walk the turn forward over a full Buffer: §12.1 burns unspent
+       * Resources at every phase boundary, so "helpfully" advancing to reach
+       * Build I destroyed the very Buffer the card was about to be paid with
+       * — and charged Uptime for the privilege. An empty Buffer has nothing
+       * to lose, which is the case at the start of a turn where this help is
+       * actually wanted. */
+      if (bufferTotal(full.seats[seat].buffer) > 0) {
+        session.notice =
+          "Resources burn when the phase ends — press Continue to reach Build I, then spend them there.";
+        render();
+        return;
+      }
       const before = full.seq;
       advance();
       if (!session.full || session.full.seq === before) return;
@@ -375,7 +389,42 @@
    * same plain-English help the gallery shows, and — from the Wallet — the
    * play button right where the explanation is. Targeting and clash clicks
    * never reach this: they are handled before the zone onClick fires. */
-  function openCardDetail(v, seat, uid, canPlay) {
+  /* The Queue, rendered. A played card waits here until priority passes, and
+   * a zone nobody can see is a card that vanished. */
+  function renderQueue(v) {
+    const wrap = document.getElementById("queueWrap");
+    const zone = document.getElementById("queue");
+    if (!wrap || !zone) return;
+    const items = v.queue || [];
+    wrap.hidden = !items.length;
+    zone.innerHTML = "";
+    for (const item of items) {
+      if (!item.cardId) continue;
+      const card = CARD_BY_ID[item.cardId];
+      const node = el("div", "gcard");
+      const img = el("img");
+      img.src = faceUrl(card);
+      img.alt = card.name;
+      node.append(img);
+      node.append(el("span", "gstats", v.seats[item.controller].name));
+      node.addEventListener("mouseenter", () => {
+        const box = document.getElementById("inspector");
+        box.innerHTML = "";
+        const face = el("img");
+        face.src = faceUrl(card);
+        face.alt = card.name;
+        box.append(face);
+        const info = el("div", "ibody");
+        info.append(el("strong", null, card.name));
+        info.append(el("div", "imeta", `${card.id} · on the Queue · ${v.seats[item.controller].name}`));
+        if (card.text) info.append(el("p", "itext", card.text));
+        box.append(info);
+      });
+      zone.append(node);
+    }
+  }
+
+  function openCardDetail(v, seat, uid, canPlay, event) {
     const object = v.objects[uid];
     if (!object || !object.cardId) return;
     const card = CARD_BY_ID[object.cardId];
@@ -445,6 +494,20 @@
     }
     document.getElementById("cdClose").onclick = () => dialog.close();
     dialog.showModal();
+    /* Open where the hand is, not in the middle of the screen: a modal that
+     * jumps to the centre loses the card you were pointing at. */
+    if (event) {
+      dialog.style.margin = "0";
+      const box = dialog.getBoundingClientRect();
+      const left = Math.max(8, Math.min(window.innerWidth - box.width - 8, event.clientX + 14));
+      const top = Math.max(8, Math.min(window.innerHeight - box.height - 8, event.clientY - box.height / 2));
+      dialog.style.left = `${left}px`;
+      dialog.style.top = `${top}px`;
+    } else {
+      dialog.style.margin = "";
+      dialog.style.left = "";
+      dialog.style.top = "";
+    }
   }
 
   function beginPlay(v, seat, uid) {
@@ -469,10 +532,20 @@
       spec = card.playModes[mode].targetSpec;
     }
     if (!spec.length) {
-      return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, { uid, targets: [], x, modes }));
+      return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, playPayload(uid, [], x, modes)));
     }
     picking = { kind: "play", uid, spec, targets: [], x, modes };
     render();
+  }
+
+  /* canonicalJSON refuses `undefined` — that is what keeps a replay honest.
+   * So an absent mode must be ABSENT from the payload, not present-and-
+   * undefined: passing `modes: undefined` threw on every non-modal card and
+   * took the whole click with it. */
+  function playPayload(uid, targets, x, modes) {
+    const payload = { uid, targets, x: x || 0 };
+    if (Array.isArray(modes)) payload.modes = modes;
+    return payload;
   }
 
   function beginAbility(v, seat, uid, abilityIndex, choice) {
@@ -499,7 +572,7 @@
     }
     const { kind, uid, abilityIndex, targets, x, modes } = picking;
     picking = null;
-    if (kind === "play") dispatch("PLAY_CARD", uiSeat(session.full), { uid, targets, x: x || 0, modes });
+    if (kind === "play") dispatch("PLAY_CARD", uiSeat(session.full), playPayload(uid, targets, x, modes));
     else dispatch("ACTIVATE_ABILITY", uiSeat(session.full), { uid, abilityIndex, targets });
     return true;
   }
@@ -561,7 +634,7 @@
       node.addEventListener("contextmenu", (event) => {
         event.preventDefault();
         if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
-        options.onContext(uid);
+        options.onContext(uid, event);
       });
     }
     node.addEventListener("mouseenter", () => showInspector(v, uid));
@@ -737,7 +810,7 @@
     },
     {
       title: "Play a Resource",
-      text: "Glowing cards can be played right now. Right-click plays instantly; left-click explains first. Play one Resource.",
+      text: "Glowing cards can be played right now. Left-click plays it; right-click opens the card and explains it. Play one Resource.",
       anchor: "#youHand",
       done: () => {
         const full = session.full;
@@ -923,13 +996,15 @@
         if (v.awaiting && v.awaiting.kind === "attackers" && v.awaiting.seat === seat) toggleAttacker(uid);
         else openCardDetail(v, seat, uid, false);
       },
+      onContext: (uid, event) => openCardDetail(v, seat, uid, false, event),
       canAct: (uid) => actGlow(v, seat, uid),
     });
     renderZone("youHand", v, v.zones[`${seat}:wallet`], {
-      onClick: (uid) => openCardDetail(v, seat, uid, true),
-      onContext: (uid) => beginPlay(v, seat, uid),
+      onClick: (uid) => beginPlay(v, seat, uid),
+      onContext: (uid, event) => openCardDetail(v, seat, uid, true, event),
       canPlay: (uid) => playGlow(v, seat, uid),
     });
+    renderQueue(v);
     renderTurnButton(v, seat);
     coachStep(v, seat);
     renderZone("foeHand", v, v.zones[`${foe}:wallet`], {});
