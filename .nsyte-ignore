@@ -1,0 +1,4 @@
+# The print manifest inside the card directory carries 297 SHA-256 hashes,
+# which the secrets scanner reads as potential private keys. It is repo
+# metadata, not a card face - the canonical blob list is cards/e1-blob-manifest.json.
+manifest.json
