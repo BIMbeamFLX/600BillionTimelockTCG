@@ -128,6 +128,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     <div class="note">Click a card to add it, right-click to remove one copy. Saved Stacks appear
     as options on the <a href="play.html">Play</a> page for both seats — hotseat and vs NPC.</div>
     <div class="saved">
+      <h3>Starter library</h3>
+      <div id="preconList"></div>
+    </div>
+    <div class="saved">
       <h3>Saved stacks</h3>
       <div id="savedList"></div>
     </div>
@@ -137,6 +141,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 <script src="play-data.js"></script>
 <script src="blob-map.js"></script>
 <script src="faces.js"></script>
+<script src="precons.js"></script>
 <script>
 (() => {
   "use strict";
@@ -332,9 +337,41 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     renderDeck(); renderGrid();
   });
 
+  /* The precon library: one click loads a curated, fully scripted 40 into the
+   * pane — tweak it, rename it, save it as your own. */
+  function renderPrecons() {
+    const box = document.getElementById("preconList");
+    const precons = globalThis.E1_PRECONS || {};
+    const names = Object.keys(precons);
+    if (!names.length) {
+      box.parentElement.hidden = true;
+      return;
+    }
+    for (const name of names) {
+      const p = precons[name];
+      const row = document.createElement("div");
+      row.className = "savedrow";
+      const nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = `${name} · ${p.affinity} (${p.cards.length})`;
+      nm.title = p.tagline;
+      const load = document.createElement("button");
+      load.textContent = "Load";
+      load.addEventListener("click", () => {
+        deck = {};
+        for (const id of p.cards) if (byId[id]) deck[id] = (deck[id] || 0) + 1;
+        document.getElementById("deckName").value = name;
+        renderDeck(); renderGrid();
+      });
+      row.append(nm, load);
+      box.append(row);
+    }
+  }
+
   renderGrid();
   renderDeck();
   renderSaved();
+  renderPrecons();
 })();
 </script>
 </body>

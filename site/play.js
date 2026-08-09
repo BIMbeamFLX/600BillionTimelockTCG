@@ -2033,6 +2033,10 @@
       }
     })();
     const choose = (value) => {
+      const precons = globalThis.E1_PRECONS || {};
+      if (value && value.startsWith("precon:") && precons[value.slice(7)]) {
+        return { deck: precons[value.slice(7)].cards.slice() };
+      }
       if (value && value.startsWith("custom:") && Array.isArray(stacks[value.slice(7)])) {
         return { deck: stacks[value.slice(7)].slice() };
       }
@@ -2111,12 +2115,26 @@
         return {};
       }
     })();
+    const precons = globalThis.E1_PRECONS || {};
     for (const id of ["deckA", "deckB"]) {
       const select = document.getElementById(id);
       for (const name of affinities) {
         const option = el("option", null, name === "All" ? "All affinities" : name);
         option.value = name;
         select.append(option);
+      }
+      // The precon library: curated, fully scripted Stacks, ready on turn one.
+      for (const shelf of ["Starter", "Classic"]) {
+        const names = Object.keys(precons).filter((name) => precons[name].group === shelf);
+        if (!names.length) continue;
+        const group = document.createElement("optgroup");
+        group.label = shelf === "Starter" ? "Starter Stacks" : "Classic library";
+        for (const name of names) {
+          const option = el("option", null, `${name} · ${precons[name].affinity}`);
+          option.value = `precon:${name}`;
+          group.append(option);
+        }
+        select.append(group);
       }
       const names = Object.keys(savedStacks).sort();
       if (names.length) {
