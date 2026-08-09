@@ -169,6 +169,15 @@ a { color: var(--orange-soft); }
 .phase.active { color: var(--black); background: var(--orange); border-color: var(--orange); }
 .phase.done { color: var(--purple); }
 
+/* The HUD: one line that answers "where are we, what can I do". */
+.hud { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 8px; }
+.hud-phase { padding: 6px 14px; background: var(--orange); color: var(--black); font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+.hud-who { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--cream); }
+.hud-can { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.hud .cando { padding: 4px 9px 5px; border: 1px solid var(--gold); color: var(--gold); font-size: 11px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.hud .cando.attack { border-color: var(--orange); color: var(--orange); background: color-mix(in srgb, var(--orange) 12%, transparent); animation: canattackPulse 1.6s ease-in-out infinite; }
+.hud .cando.quiet { border-color: var(--line); color: var(--muted); background: transparent; animation: none; }
+
 .prompt { padding: 10px 12px; margin-bottom: 10px; background: rgba(17,16,20,.84); backdrop-filter: blur(7px); border-left: 4px solid var(--purple-deep); font-weight: 700; }
 .prompt.target { border-left-color: var(--orange); }
 .prompt.manual { border-left-color: var(--gold); color: var(--gold); }
@@ -254,6 +263,9 @@ a { color: var(--orange-soft); }
 }
 .gcard.attacking { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.35); }
 .gcard.blocking { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(94,90,203,.4); }
+/* The attacker you picked to block: violet pulse until you name the blocker. */
+@keyframes blockpickPulse { 0%,100% { box-shadow: 0 0 0 3px var(--violet), 0 0 10px rgba(23,190,187,.5); } 50% { box-shadow: 0 0 0 3px var(--violet), 0 0 22px rgba(23,190,187,.95); } }
+.gcard.blockpick { animation: blockpickPulse 1s ease-in-out infinite; }
 .gcard.targetable { border-color: var(--good); box-shadow: 0 0 0 3px rgba(110,231,168,.45); animation: pulse 1s infinite alternate; }
 @keyframes pulse { to { box-shadow: 0 0 0 6px rgba(110,231,168,.2); } }
 /* The player as a target: same green pulse as a targetable card, on the bar. */
@@ -424,6 +436,13 @@ a { color: var(--orange-soft); }
   <!-- ---------------- table ---------------- -->
   <section id="table" hidden>
     <div class="phases" id="phases"></div>
+    <!-- Where we are and what there is to do, at one glance. -->
+    <div class="hud" id="hud">
+      <span class="hud-phase" id="hudPhase"></span>
+      <span class="hud-who" id="hudWho"></span>
+      <span class="hud-can" id="hudCan"></span>
+      <span class="cando quiet" id="resourceChip">Resource play available</span>
+    </div>
     <div class="prompt" id="prompt"></div>
     <div id="choiceRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
 
@@ -469,7 +488,6 @@ a { color: var(--orange-soft); }
           <button class="btn ghost" id="cancelTarget">Cancel targeting</button>
           <button class="btn ghost" id="clearManual">Clear notice</button>
           <span id="fxControl"></span>
-          <span class="chip" id="resourceChip">Resource play available</span>
         </div>
 
         <div class="tfooter">TIMELOCK_TCG&nbsp;::&nbsp;600B <span>LOCAL&nbsp;TABLE&nbsp;·&nbsp;E1</span></div>
@@ -526,6 +544,19 @@ a { color: var(--orange-soft); }
 
 </div>
 </div>
+<!-- Clash arrows: attacks and blocks drawn as lines over the table. -->
+<svg id="arrows" aria-hidden="true"
+  style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:40">
+  <defs>
+    <marker id="arrowAtk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#ff6a00"></path>
+    </marker>
+    <marker id="arrowBlk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#17bebb"></path>
+    </marker>
+  </defs>
+  <g id="arrowLines"></g>
+</svg>
 <script src="play-data.js"></script>
 <div id="coach" hidden>
   <b id="coachTitle"></b>

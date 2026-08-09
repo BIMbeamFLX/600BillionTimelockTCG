@@ -715,6 +715,8 @@
     if (object.bootDelay) node.append(el("span", "gboot", "⏻"));
     if (card.manual) node.append(el("span", "gmanual", "!"));
     if (wantsTarget(v, uid)) node.classList.add("targetable");
+    node.dataset.uid = uid; // the arrow layer finds its endpoints by uid
+    if (blockTarget === uid) node.classList.add("blockpick");
 
     node.addEventListener("click", (event) => {
       if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
@@ -1157,10 +1159,10 @@
       logBox.append(el("div", "logline " + (line[1] || ""), line[0]));
     }
 
-    document.getElementById("resourceChip").textContent =
-      v.turn.resourcePlays.used >= v.turn.resourcePlays.allowed
-        ? "Resource play used"
-        : "Resource play available";
+    const resourceChip = document.getElementById("resourceChip");
+    const resourceSpent = v.turn.resourcePlays.used >= v.turn.resourcePlays.allowed;
+    resourceChip.textContent = resourceSpent ? "Resource play used" : "Resource play free";
+    resourceChip.classList.toggle("quiet", resourceSpent);
     document.getElementById("continue").textContent = continueLabel(v, seat);
 
     /* The simplest UI is the one that is not there: escape hatches appear
@@ -1169,6 +1171,96 @@
       !picking && !attackers.length && !Object.keys(blocks).length && blockTarget === null;
     document.getElementById("clearManual").hidden =
       !(v.manualOpen || []).some((entry) => entry.seat === seat);
+
+    renderHud(v, seat);
+    drawClashArrows();
+  }
+
+  /* One line that answers "where are we, and what can I do": the active
+   * phase, whose move it is, and live counts fed by the same glow logic
+   * the cards themselves use. */
+  function renderHud(v, seat) {
+    const slot = E.TURN_RIBBON.find(
+      (entry) => entry.phase === v.turn.phase && (entry.step === null || entry.step === v.turn.step)
+    );
+    document.getElementById("hudPhase").textContent = slot ? slot.label : v.turn.phase;
+    document.getElementById("hudWho").textContent = v.result
+      ? "Game over"
+      : v.turn.active === seat
+        ? `${v.seats[seat].name} — your move`
+        : `${v.seats[v.turn.active].name}'s turn`;
+    const can = document.getElementById("hudCan");
+    can.innerHTML = "";
+    const chip = (text, cls) => can.append(el("span", `cando${cls ? " " + cls : ""}`, text));
+    if (v.result) return;
+    const playable = (v.zones[`${seat}:wallet`] || []).filter((uid) => playGlow(v, seat, uid)).length;
+    if (picking) chip("pick a target", "attack");
+    if (v.awaiting && v.awaiting.seat === seat && v.awaiting.kind === "attackers") {
+      const ready = (v.zones[`${seat}:network`] || []).filter((uid) => attackGlow(v, seat, uid)).length;
+      chip(ready + attackers.length ? `${ready + attackers.length} can attack` : "no attackers ready", ready + attackers.length ? "attack" : "quiet");
+    }
+    if (v.awaiting && v.awaiting.seat === seat && v.awaiting.kind === "blockers") chip("assign blocks", "attack");
+    chip(playable ? `${playable} playable` : "nothing to play", playable ? "" : "quiet");
+  }
+
+  /* Attacks and blocks are lines you can see: ember arrows from attackers to
+   * the player they are sent at, violet arrows from blockers to attackers.
+   * Pending declarations are dashed; the engine's word is solid. */
+  function drawClashArrows() {
+    if (!document.createElementNS || !document.querySelector) return; // test DOM
+    const lines = document.getElementById("arrowLines");
+    if (!lines) return;
+    while (lines.firstChild) lines.removeChild(lines.firstChild);
+    const full = session.full;
+    if (!full || full.result) return;
+    const v = viewNow();
+    const seat = uiSeat(full);
+    const inClash = v.turn.phase === "clash";
+    const rectOf = (sel) => {
+      const node = document.querySelector(sel);
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      return rect.width || rect.height ? rect : null;
+    };
+    const top = (r) => ({ x: r.x + r.width / 2, y: r.y + 6 });
+    const bottom = (r) => ({ x: r.x + r.width / 2, y: r.y + r.height - 6 });
+    const center = (r) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+    const draw = (from, to, kind, pending) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      path.setAttribute("d", `M ${from.x} ${from.y} Q ${from.x + dx / 2 - dy * 0.12} ${from.y + dy / 2 + dx * 0.12} ${to.x} ${to.y}`);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", kind === "atk" ? "#ff6a00" : "#17bebb");
+      path.setAttribute("stroke-width", "2.5");
+      path.setAttribute("opacity", ".9");
+      if (pending) path.setAttribute("stroke-dasharray", "7 5");
+      path.setAttribute("marker-end", `url(#arrow${kind === "atk" ? "Atk" : "Blk"})`);
+      lines.append(path);
+    };
+    const cardRect = (uid) => rectOf(`.gcard[data-uid="${uid}"]`);
+    const declared = inClash ? v.clash.attackers : [];
+    for (const uid of new Set([...declared, ...attackers])) {
+      const rect = cardRect(uid);
+      const object = v.objects[uid];
+      if (!rect || !object) continue;
+      const mine = object.controller === seat;
+      const barRect = rectOf(mine ? "#foeBar" : "#youBar");
+      if (!barRect) continue;
+      draw(mine ? top(rect) : bottom(rect), center(barRect), "atk", declared.indexOf(uid) < 0);
+    }
+    const pairs = [];
+    for (const [atk, list] of Object.entries(inClash ? v.clash.blocks : {})) {
+      for (const blocker of list) pairs.push([blocker, atk, false]);
+    }
+    for (const [atk, list] of Object.entries(blocks)) {
+      for (const blocker of list) pairs.push([blocker, atk, true]);
+    }
+    for (const [blocker, atk, pending] of pairs) {
+      const from = cardRect(blocker);
+      const to = cardRect(atk);
+      if (from && to) draw(center(from), center(to), "blk", pending);
+    }
   }
 
   function continueLabel(v, seat) {
@@ -2080,6 +2172,19 @@
     // Fewer clicks: the waiting Queue is itself the Continue button, and the
     // space bar is Continue for hands that never leave the keyboard.
     document.getElementById("queue").addEventListener("click", advance);
+
+    // The arrow layer measures screen positions, so scrolling or resizing
+    // moves the endpoints out from under it: redraw on both, coalesced.
+    let arrowFrame = null;
+    const redrawArrows = () => {
+      if (arrowFrame !== null || typeof requestAnimationFrame !== "function") return;
+      arrowFrame = requestAnimationFrame(() => {
+        arrowFrame = null;
+        drawClashArrows();
+      });
+    };
+    window.addEventListener("scroll", redrawArrows, { passive: true });
+    window.addEventListener("resize", redrawArrows);
     window.addEventListener("keydown", (event) => {
       if (event.key !== " " || !session.full) return;
       const tag = ((event.target && event.target.tagName) || "").toLowerCase();
