@@ -351,6 +351,13 @@
   };
 
   const faceUrl = (card) => "../art/cards/node-runner-web/" + encodeURIComponent(card.face);
+  /* Blossom resolver with local cache (faces.js). Absent — the stub DOM of
+   * the tests, or a build without the blob map — every face is the repo file. */
+  const FACES = globalThis.E1Faces || null;
+  const setFace = (img, card, badgeHost) => {
+    if (FACES) FACES.setFace(img, card.face, badgeHost);
+    else img.src = faceUrl(card);
+  };
 
   // ------------------------------------------------------- click intentions
 
@@ -403,7 +410,7 @@
       const card = CARD_BY_ID[item.cardId];
       const node = el("div", "gcard");
       const img = el("img");
-      img.src = faceUrl(card);
+      setFace(img, card, node);
       img.alt = card.name;
       node.append(img);
       node.append(el("span", "gstats", v.seats[item.controller].name));
@@ -411,7 +418,7 @@
         const box = document.getElementById("inspector");
         box.innerHTML = "";
         const face = el("img");
-        face.src = faceUrl(card);
+        setFace(face, card);
         face.alt = card.name;
         box.append(face);
         const info = el("div", "ibody");
@@ -429,8 +436,28 @@
     if (!object || !object.cardId) return;
     const card = CARD_BY_ID[object.cardId];
     const dialog = document.getElementById("cardDetail");
-    dialog.querySelector(".face").src = faceUrl(card);
+    setFace(dialog.querySelector(".face"), card);
     dialog.querySelector(".face").alt = card.name;
+    /* The card's home on Blossom: the hash is the address, the links prove it. */
+    const blobBox = document.getElementById("cdBlossom");
+    if (blobBox) {
+      const sha = FACES && FACES.blobs ? FACES.blobs[card.face] : null;
+      if (sha) {
+        blobBox.innerHTML = "";
+        blobBox.append("blossom ");
+        blobBox.append(el("span", "sha", sha.slice(0, 12) + "…"));
+        for (const server of FACES.mirrors) {
+          blobBox.append(" · ");
+          const link = el("a", null, new URL(server).host);
+          link.href = `${server}/${sha}`;
+          link.target = "_blank";
+          link.rel = "noopener";
+          blobBox.append(link);
+        }
+      } else {
+        blobBox.textContent = "";
+      }
+    }
     dialog.querySelector(".cd-name").textContent = card.name;
     dialog.querySelector(".cd-meta").textContent =
       `${card.id} · ${card.type}${card.subtype ? " — " + card.subtype : ""}` +
@@ -701,7 +728,7 @@
     if (blocking) node.classList.add("blocking");
 
     const img = el("img");
-    img.src = faceUrl(card);
+    setFace(img, card, node);
     img.alt = card.name;
     img.loading = "lazy";
     node.append(img);
@@ -823,7 +850,7 @@
     const card = CARD_BY_ID[object.cardId];
     const seat = uiSeat(session.full);
     const img = el("img");
-    img.src = faceUrl(card);
+    setFace(img, card);
     img.alt = card.name;
     box.append(img);
     const info = el("div", "ibody");
