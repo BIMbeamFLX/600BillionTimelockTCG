@@ -185,6 +185,34 @@ test("BK, Feedback Grower grows a +1/+1 marker when damaged", () => {
   assert.equal(state.objects[bk].damage, 1, "the damage that caused it is marked");
 });
 
+test("a trigger whose source died raising it fizzles - it must not wedge the pass", () => {
+  /* The full-game soak found this as an unbreakable stall: lethal damage
+   * decommissions Feedback Grower AND stages its "grow a marker" trigger.
+   * The zone change mints a new uid, so at resolution the bound op points
+   * at nothing - and rejecting that PASS_PRIORITY froze the whole match. */
+  let state = game();
+  const bk = seed(state, 0, byName["BK, Feedback Grower"].id);
+  const injector = seed(state, 1, byName["Fault Injector"].id);
+  const res = E.statsOf(state, E.resolveCtx({}), bk).resilience;
+  state = passUntil(state, (s) => s.priority.seat === 1);
+  state.seats[1].buffer.N = 3;
+  state.objects[bk].damage = res - 1; // the injector's point is lethal
+  state = ok(
+    act(state, "ACTIVATE_ABILITY", 1, {
+      uid: injector,
+      abilityIndex: 0,
+      targets: [{ kind: "object", uid: bk }],
+    })
+  );
+  // Passing here used to die of UNKNOWN_OBJECT once the orphan trigger hit
+  // the top of the Queue. passUntil passes for both seats, so reaching the
+  // empty Queue IS the regression assertion.
+  state = passUntil(state, (s) => !s.queue.length && !s.objects[bk]);
+  assert.ok(!state.objects[bk], "the Grower was decommissioned");
+  assert.equal(state.queue.length, 0, "the orphan trigger resolved off the Queue");
+  assert.equal(state.result, null, "the match is still alive");
+});
+
 test("compound damage: Bam, Power Artillery hits the target and its own player", () => {
   let state = game();
   const bam = seed(state, 0, byName["Bam, Power Artillery"].id);

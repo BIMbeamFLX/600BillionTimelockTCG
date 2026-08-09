@@ -1961,6 +1961,17 @@
 
   function runManualOp(env, item, op) {
     const state = env.state;
+    /* Resolution does as much as it can (the spirit of §11.2): an op whose
+     * bound object has left play SKIPS instead of failing the action that is
+     * resolving the Queue. Lethal damage that both decommissions a card and
+     * raises its trigger mints a new uid on the zone change, so the bound op
+     * points at nothing — rejecting the resolving PASS_PRIORITY with
+     * UNKNOWN_OBJECT wedged the whole match. Action payloads still validate
+     * their uids up front; this guard is for resolution time only. */
+    if (op.uid && !state.objects[op.uid]) {
+      emit(env, "OP_SKIPPED", { op: op.op, uid: op.uid, cardId: (item && item.cardId) || null });
+      return "done";
+    }
     switch (op.op) {
       case "addUptime":
         state.seats[op.seat].uptime += op.delta;

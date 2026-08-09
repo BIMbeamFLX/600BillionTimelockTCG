@@ -47,6 +47,7 @@
      * ever set for the hotseat game — a networked table never hosts a bot. */
     npc: null,
     npcAffinity: "Bitcoin",
+    config: null,        // the hotseat createGame config, kept so verify() can replay
   };
 
   /* Local click-gathering. None of this is game state: it is the half-formed
@@ -283,6 +284,7 @@
       case "ENTERS": return [`${nameOf(p.cardId)} enters the Network.`, ""];
       case "RESOLVED": return [`${nameOf(p.cardId)} resolves.`, ""];
       case "INVALIDATED": return [`${nameOf(p.cardId)} is invalidated (${p.reason}) and archived.`, "warn"];
+      case "OP_SKIPPED": return [`${p.cardId ? nameOf(p.cardId) + "'s" : "A"} leftover effect fizzles — its object left play.`, "warn"];
       case "ARCHIVED": return [`${nameOf(p.cardId)} is archived.`, "warn"];
       case "DECOMMISSIONED": return [`${nameOf(p.cardId)} is decommissioned.`, "warn"];
       case "REBOOT": return [`${nameOf(p.cardId)} Reboots instead of being decommissioned.`, "good"];
@@ -2067,6 +2069,7 @@
     session.npcAffinity = prefAffinity(config.seats[1]);
     try {
       session.full = E.createGame(config);
+      session.config = config; // kept so E1_GAME.verify() can replay the hotseat
     } catch (error) {
       document.getElementById("prompt").textContent = String(error.message || error);
       return;
@@ -2308,7 +2311,7 @@
     view: (seat) => E.view(session.full, seat),
     hash: () => E.hashState(session.full),
     publicHash: () => E.publicHash(session.full),
-    verify: () => E.verifyMatch({ config: null, log: session.log }),
+    verify: () => E.verifyMatch({ config: session.config, log: session.log }),
     startGame,
     dispatch,
   };
