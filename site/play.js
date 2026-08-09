@@ -424,7 +424,7 @@
     }
   }
 
-  function openCardDetail(v, seat, uid, canPlay, event) {
+  function openCardDetail(v, seat, uid, canPlay, at) {
     const object = v.objects[uid];
     if (!object || !object.cardId) return;
     const card = CARD_BY_ID[object.cardId];
@@ -436,7 +436,8 @@
       `${card.id} · ${card.type}${card.subtype ? " — " + card.subtype : ""}` +
       ` · ${card.affinity.join("/")} · Cost ${card.cost || "—"}`;
     dialog.querySelector(".cd-rules").textContent = card.text || "";
-    dialog.querySelector(".cd-flavor").textContent = card.flavor ? `“${card.flavor}”` : "";
+    // The card face writes flavor as a code comment; the window does the same.
+    dialog.querySelector(".cd-flavor").textContent = card.flavor || "";
     dialog.querySelector(".cd-help").textContent =
       card.help || "No extra help for this one — the rules text is the whole story.";
     const play = document.getElementById("cdPlay");
@@ -493,14 +494,34 @@
       });
     }
     document.getElementById("cdClose").onclick = () => dialog.close();
-    void event; // the card window is centred; only the action menu follows the pointer
     dialog.showModal();
+    placeWindow(dialog, at);
+  }
+
+  /* Both windows hang at the hand that opened them: near the pointer, clamped
+   * to the viewport. No pointer (keyboard, small screen) means centred. */
+  function placeWindow(box, at) {
+    if (!box.getBoundingClientRect || !box.style) return;
+    const small = window.innerWidth < 700;
+    if (!at || typeof at.x !== "number" || small) {
+      box.classList.remove("at-pointer");
+      box.style.left = "";
+      box.style.top = "";
+      box.style.margin = "";
+      return;
+    }
+    box.classList.add("at-pointer");
+    box.style.margin = "0";
+    const rect = box.getBoundingClientRect();
+    const left = Math.max(8, Math.min(window.innerWidth - rect.width - 8, at.x + 16));
+    const top = Math.max(8, Math.min(window.innerHeight - rect.height - 8, at.y - rect.height / 3));
+    box.style.left = `${left}px`;
+    box.style.top = `${top}px`;
   }
 
   /* The choice menu: which affinity a junction makes, which of several
-   * abilities to fire. Centred, like the card window — a menu that chases the
-   * pointer is a menu you hunt for. */
-  function openActionMenu(title, entries) {
+   * abilities to fire, which X. It opens where the mouse already is. */
+  function openActionMenu(title, entries, at) {
     closeActionMenu();
     const menu = el("div", "ctxmenu");
     menu.append(el("div", "ctxtitle", title));
@@ -515,6 +536,7 @@
       menu.append(button);
     }
     document.body.append(menu);
+    placeWindow(menu, at);
     setTimeout(() => document.addEventListener("click", closeActionMenu, { once: true }), 0);
   }
 
@@ -526,7 +548,7 @@
   /* Right-click on your own Network card: fire what it can do. One unambiguous
    * ability runs immediately; a junction's two affinities, or several
    * abilities, open the menu. Nothing activatable falls back to the card. */
-  function activateFromBoard(v, seat, uid) {
+  function activateFromBoard(v, seat, uid, at) {
     const object = v.objects[uid];
     if (!object || !object.cardId) return;
     const card = compiled(object.cardId);
@@ -555,39 +577,42 @@
         run: () => beginAbility(v, seat, uid, index),
       });
     });
-    if (!entries.length) return void openCardDetail(v, seat, uid, false);
+    if (!entries.length) return void openCardDetail(v, seat, uid, false, at);
     const live = entries.filter((e) => !e.disabled);
     if (live.length === 1 && entries.length === 1) return void live[0].run();
-    entries.push({ label: "Card details…", run: () => openCardDetail(v, seat, uid, false) });
-    openActionMenu(CARD_BY_ID[object.cardId].name, entries);
+    entries.push({ label: "Card details…", run: () => openCardDetail(v, seat, uid, false, at) });
+    openActionMenu(CARD_BY_ID[object.cardId].name, entries, at);
   }
 
-  function beginPlay(v, seat, uid) {
+  /* No browser prompt() anywhere: an X and a mode are one styled menu each,
+   * at the pointer, so the common card is one click and the rare one is two. */
+  function beginPlay(v, seat, uid, at) {
     const object = v.objects[uid];
     if (!object || !object.cardId) return;
     const card = compiled(object.cardId);
     if (card.isResource) return void playAdvancing(seat, () => dispatch("PLAY_RESOURCE", seat, { uid }));
-    let x = 0;
+    const finish = (x, modes) => {
+      const spec = modes ? card.playModes[modes[0]].targetSpec : card.playTargetSpec;
+      if (!spec.length) {
+        return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, playPayload(uid, [], x, modes)));
+      }
+      picking = { kind: "play", uid, spec, targets: [], x, modes };
+      render();
+    };
+    const chooseMode = (x) => {
+      if (!card.playModes) return finish(x, undefined);
+      openActionMenu(
+        `${card.name} — choose one`,
+        card.playModes.map((mode, index) => ({ label: mode.text, run: () => finish(x, [index]) })),
+        at
+      );
+    };
     if (card.costParsed && card.costParsed.x) {
-      const raw = window.prompt(`Choose X for ${card.name} (each X costs ${card.costParsed.x})`, "1");
-      if (raw === null) return; // changed their mind
-      x = Math.max(0, Number(raw) | 0);
+      const options = [];
+      for (let n = 0; n <= 6; n++) options.push({ label: `X = ${n}`, run: () => chooseMode(n) });
+      return void openActionMenu(`${card.name} — each X costs ${card.costParsed.x}`, options, at);
     }
-    let modes;
-    let spec = card.playTargetSpec;
-    if (card.playModes) {
-      const menu = card.playModes.map((m, i) => `${i + 1}) ${m.text}`).join("\n");
-      const raw = window.prompt(`Choose one:\n${menu}`, "1");
-      if (raw === null) return;
-      const mode = Math.min(card.playModes.length - 1, Math.max(0, (Number(raw) | 0) - 1));
-      modes = [mode];
-      spec = card.playModes[mode].targetSpec;
-    }
-    if (!spec.length) {
-      return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, playPayload(uid, [], x, modes)));
-    }
-    picking = { kind: "play", uid, spec, targets: [], x, modes };
-    render();
+    chooseMode(0);
   }
 
   /* canonicalJSON refuses `undefined` — that is what keeps a replay honest.
@@ -655,6 +680,10 @@
     return Boolean(spec && (spec.kind === "seat" || spec.kind === "any"));
   };
 
+  // Where the hand is: a mouse event becomes an anchor for menus and windows.
+  const pt = (event) =>
+    event && typeof event.clientX === "number" ? { x: event.clientX, y: event.clientY } : null;
+
   // ------------------------------------------------------------ card nodes
 
   function cardNode(v, uid, options) {
@@ -687,9 +716,9 @@
     if (card.manual) node.append(el("span", "gmanual", "!"));
     if (wantsTarget(v, uid)) node.classList.add("targetable");
 
-    node.addEventListener("click", () => {
+    node.addEventListener("click", (event) => {
       if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
-      if (options && options.onClick) options.onClick(uid);
+      if (options && options.onClick) options.onClick(uid, event);
     });
     // LEFT acts, RIGHT explains — and while a pick is open, either button
     // lands the target, because a click on a glowing card means the target.
@@ -1090,24 +1119,24 @@
       // block), right explains. Details were left-click-only here before,
       // which broke the one rule the rest of the table teaches.
       onClick: (uid) => toggleBlock(v, uid),
-      onContext: (uid) => openCardDetail(v, seat, uid, false),
+      onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
       arc: { mode: "ring", spread: -4, depth: 14 },
     });
     renderZone("youNetwork", v, v.zones[`${seat}:network`], {
       // Same hand as the Wallet: left acts, right explains. During the
       // attackers step the left click is the attack declaration instead.
-      onClick: (uid) => {
+      onClick: (uid, event) => {
         if (v.awaiting && v.awaiting.kind === "attackers" && v.awaiting.seat === seat) toggleAttacker(uid);
-        else activateFromBoard(v, seat, uid);
+        else activateFromBoard(v, seat, uid, pt(event));
       },
-      onContext: (uid) => openCardDetail(v, seat, uid, false),
+      onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
       canAct: (uid) => actGlow(v, seat, uid),
       canAttack: (uid) => attackGlow(v, seat, uid),
       arc: { mode: "ring", spread: 4, depth: -14 },
     });
     renderZone("youHand", v, v.zones[`${seat}:wallet`], {
-      onClick: (uid) => beginPlay(v, seat, uid),
-      onContext: (uid) => openCardDetail(v, seat, uid, true),
+      onClick: (uid, event) => beginPlay(v, seat, uid, pt(event)),
+      onContext: (uid, event) => openCardDetail(v, seat, uid, true, pt(event)),
       canPlay: (uid) => playGlow(v, seat, uid),
       arc: { mode: "fan", spread: 13, depth: 20 },
     });
@@ -2047,6 +2076,20 @@
         offerTarget({ kind: "seat", seat: side === "you" ? seat : 1 - seat });
       });
     }
+
+    // Fewer clicks: the waiting Queue is itself the Continue button, and the
+    // space bar is Continue for hands that never leave the keyboard.
+    document.getElementById("queue").addEventListener("click", advance);
+    window.addEventListener("keydown", (event) => {
+      if (event.key !== " " || !session.full) return;
+      const tag = ((event.target && event.target.tagName) || "").toLowerCase();
+      if (["input", "textarea", "select", "button", "summary", "a"].indexOf(tag) >= 0) return;
+      if (document.querySelector && document.querySelector(".ctxmenu")) return;
+      const detail = document.getElementById("cardDetail");
+      if (detail && detail.open) return;
+      event.preventDefault();
+      advance();
+    });
 
     document.getElementById("clearManual").addEventListener("click", () => {
       const full = session.full;

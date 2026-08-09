@@ -72,18 +72,26 @@ a { color: var(--orange-soft); }
 }
 .gcard.canattack { animation: canattackPulse 1.1s ease-in-out infinite; }
 
-/* The pointer menu: which affinity, which ability. */
+/* The pointer menu wears the card frame and opens where the mouse already is. */
+@keyframes windowIn { from { opacity: 0; transform: translate(-50%,-50%) scale(.94); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+@keyframes windowInAt { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
 .ctxmenu {
   position: fixed; z-index: 70; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  min-width: 240px; padding: 6px;
-  background: var(--panel); border: 1px solid var(--gold); box-shadow: 0 14px 44px rgba(0,0,0,.7);
+  min-width: 240px; padding: 0 6px 6px;
+  background: rgba(19,17,24,.94); backdrop-filter: blur(8px);
+  border: 1px solid rgba(185,145,228,.4); outline: 1px solid rgba(255,106,0,.28); outline-offset: 3px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.75);
+  animation: windowIn .13s ease-out;
 }
-.ctxtitle { padding: 5px 8px 7px; color: var(--gold); font: 400 11px Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.ctxmenu.at-pointer { transform: none; animation: windowInAt .13s ease-out; }
+.ctxmenu::before, .ctxmenu::after { content: ""; position: absolute; width: 9px; height: 9px; border: 1px solid var(--purple); background: var(--orange); }
+.ctxmenu::before { top: -5px; left: -5px; } .ctxmenu::after { bottom: -5px; right: -5px; }
+.ctxtitle { margin: 0 -6px 5px; padding: 6px 12px 7px; background: #262330; color: #cfd6dd; font: 400 10px Anton600, Impact, sans-serif; letter-spacing: .22em; text-transform: uppercase; }
 .ctxmenu button {
   display: block; width: 100%; padding: 8px 10px; text-align: left; cursor: pointer;
   color: var(--cream); background: transparent; border: 0; font: 13px Arial, sans-serif;
 }
-.ctxmenu button:hover:not(:disabled) { background: var(--soot); color: var(--gold); }
+.ctxmenu button:hover:not(:disabled) { background: rgba(255,106,0,.14); color: var(--gold); box-shadow: inset 2px 0 0 var(--orange); }
 .ctxmenu button:disabled { color: var(--muted); opacity: .45; cursor: default; }
 @keyframes turnReady {
   0%, 100% { box-shadow: 0 0 0 0 rgba(243,194,68,.0); }
@@ -105,16 +113,27 @@ a { color: var(--orange-soft); }
 #coach .next { color: var(--black); background: var(--gold); border: 0; }
 #coach .skip { color: var(--muted); background: transparent; border: 1px solid var(--line); }
 
-/* Card detail popup: left-click on a card explains it in plain English and,
-   from the Wallet, offers the play right there. */
-#cardDetail { position: fixed; border: 1px solid var(--line); background: var(--panel); color: var(--cream); padding: 0; max-width: 720px; width: min(94vw, 720px); }
-#cardDetail::backdrop { background: rgba(9,8,11,.78); backdrop-filter: blur(4px); }
-#cardDetail .wrap { display: grid; grid-template-columns: 250px 1fr; gap: 18px; padding: 18px; }
+/* Card window: right-click explains the card in its own frame — double line,
+   corner pads, type banner — and hangs at the mouse that asked. */
+#cardDetail {
+  position: fixed; padding: 0; max-width: 720px; width: min(94vw, 720px);
+  color: var(--cream); background: rgba(15,13,19,.96); backdrop-filter: blur(10px);
+  border: 1px solid rgba(185,145,228,.42); outline: 1px solid rgba(255,106,0,.26); outline-offset: 4px;
+  box-shadow: 0 22px 70px rgba(0,0,0,.8);
+}
+#cardDetail[open] { animation: windowInAt .15s ease-out; }
+#cardDetail::backdrop { background: rgba(9,8,11,.66); backdrop-filter: blur(4px); }
+#cardDetail .wrap { display: grid; grid-template-columns: 250px 1fr; gap: 18px; padding: 16px 18px 14px; }
 #cardDetail img.face { width: 100%; border: 1px solid var(--line); }
-#cardDetail h3 { margin: 0 0 2px; font: 22px/1.1 Anton600, Impact, sans-serif; letter-spacing: .03em; text-transform: uppercase; }
-#cardDetail .meta { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px; }
+#cardDetail h3 { margin: 0 0 6px; font: 24px/1.05 Anton600, Impact, sans-serif; letter-spacing: .03em; text-transform: uppercase; text-shadow: 1px 1px 0 rgba(255,106,0,.5), -1px -1px 0 rgba(116,71,184,.5); }
+#cardDetail .meta { display: inline-block; padding: 3px 10px 4px; margin-bottom: 12px; background: #262330; color: #cfd6dd; font: 10px/1.3 Anton600, Impact, sans-serif; letter-spacing: .2em; text-transform: uppercase; }
 #cardDetail .rules { font-size: 14px; line-height: 1.5; margin-bottom: 10px; white-space: pre-line; }
-#cardDetail .flavor { color: var(--muted); font: italic 400 13px/1.5 Georgia, serif; margin-bottom: 12px; }
+#cardDetail .flavor { color: var(--muted); font: italic 400 12.5px/1.5 ui-monospace, Consolas, monospace; margin-bottom: 12px; }
+#cardDetail .flavor:not(:empty)::before { content: "// "; color: var(--orange-soft); font-style: normal; }
+#cardDetail .cd-foot { display: flex; justify-content: space-between; margin: 0 18px; padding: 8px 0 10px; border-top: 1px solid rgba(185,145,228,.3); font: 10px/1 Anton600, Impact, sans-serif; letter-spacing: .2em; color: var(--cream); opacity: .7; }
+#cardDetail .cdpad { position: absolute; width: 10px; height: 10px; border: 1px solid var(--purple); background: var(--orange); }
+#cardDetail .cdpad.tl { top: -5px; left: -5px; } #cardDetail .cdpad.tr { top: -5px; right: -5px; }
+#cardDetail .cdpad.bl { bottom: -5px; left: -5px; } #cardDetail .cdpad.br { bottom: -5px; right: -5px; }
 #cardDetail .help { padding: 12px 14px; background: var(--soot); border-left: 3px solid var(--gold); font-size: 13.5px; line-height: 1.55; margin-bottom: 14px; }
 #cardDetail .help b { display: block; color: var(--gold); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 5px; }
 #cardDetail .row { display: flex; gap: 10px; }
@@ -150,7 +169,7 @@ a { color: var(--orange-soft); }
 .phase.active { color: var(--black); background: var(--orange); border-color: var(--orange); }
 .phase.done { color: var(--purple); }
 
-.prompt { padding: 10px 12px; margin-bottom: 10px; background: rgba(17,16,20,.9); border-left: 4px solid var(--purple-deep); font-weight: 700; }
+.prompt { padding: 10px 12px; margin-bottom: 10px; background: rgba(17,16,20,.84); backdrop-filter: blur(7px); border-left: 4px solid var(--purple-deep); font-weight: 700; }
 .prompt.target { border-left-color: var(--orange); }
 .prompt.manual { border-left-color: var(--gold); color: var(--gold); }
 .prompt.good { border-left-color: var(--good); color: var(--good); }
@@ -206,7 +225,8 @@ a { color: var(--orange-soft); }
 /* Zone names wear the card's type banner: a steel chip, spaced capitals. */
 .zonechip { display: inline-block; margin: 2px 0 0; padding: 3px 12px 4px; background: #262330; color: #cfd6dd; font: 10px/1.3 Anton600, Impact, sans-serif; letter-spacing: .24em; text-transform: uppercase; }
 /* The Queue is the clash lane between the two Networks: centred, in flight. */
-.zone.queue { justify-content: center; border: 1px dashed rgba(243,194,68,.6); background: rgba(243,194,68,.07); animation: queueWait 2s ease-in-out infinite; min-height: calc(var(--card-w) * 1.15); }
+.zone.queue { justify-content: center; cursor: pointer; border: 1px dashed rgba(243,194,68,.6); background: rgba(243,194,68,.07); animation: queueWait 2s ease-in-out infinite; min-height: calc(var(--card-w) * 1.15); }
+.zone.queue:hover { border-color: var(--gold); }
 @keyframes queueWait { 0%,100% { background: rgba(243,194,68,.05); } 50% { background: rgba(243,194,68,.12); } }
 #queueWrap { text-align: center; margin: 2px 0; }
 .zone { display: flex; gap: 6px; flex-wrap: wrap; min-height: calc(var(--card-w) * 1.42); padding: 8px 6px; }
@@ -257,7 +277,7 @@ a { color: var(--orange-soft); }
 
 /* ---------- right rail ---------- */
 .rail { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 10px; }
-.panel { padding: 10px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
+.panel { padding: 10px; background: rgba(17,16,20,.86); backdrop-filter: blur(7px); border: 1px solid var(--line); }
 .panel h3 { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); margin-bottom: 8px; }
 .panel summary { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); cursor: pointer; }
 #inspector { display: flex; gap: 10px; }
@@ -517,6 +537,8 @@ a { color: var(--orange-soft); }
 </div>
 
 <dialog id="cardDetail">
+  <span class="cdpad tl"></span><span class="cdpad tr"></span>
+  <span class="cdpad bl"></span><span class="cdpad br"></span>
   <div class="wrap">
     <img class="face" alt="">
     <div>
@@ -535,6 +557,7 @@ a { color: var(--orange-soft); }
       </div>
     </div>
   </div>
+  <div class="cd-foot">TIMELOCK_TCG&nbsp;::&nbsp;600B<span>EDITION&nbsp;ONE</span></div>
 </dialog>
 
 <script src="engine.js"></script>
