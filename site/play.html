@@ -140,9 +140,13 @@ a { color: var(--orange-soft); }
 .netchip.stale { color: var(--gold); border-color: var(--gold); }
 #netInfo { display: flex; flex-direction: column; gap: 2px; }
 
-/* ---------- table ---------- */
+/* ---------- table ----------
+   The board speaks the card frame's language: one thin double frame with
+   circuit corners around the whole battlefield, chip squares for numbers,
+   type-banner chips for zone names — and no straight ranks. Networks and
+   hands sit on arcs; the straight line is godless. */
 .phases { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
-.phase { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: rgba(17,16,20,.8); border: 1px solid var(--line); }
+.phase { padding: 5px 10px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); background: rgba(24,22,30,.85); border: 1px solid var(--line); font-family: Anton600, Impact, sans-serif; }
 .phase.active { color: var(--black); background: var(--orange); border-color: var(--orange); }
 .phase.done { color: var(--purple); }
 
@@ -152,13 +156,40 @@ a { color: var(--orange-soft); }
 .prompt.good { border-left-color: var(--good); color: var(--good); }
 
 .layout { display: grid; grid-template-columns: 1fr 300px; gap: 14px; align-items: start; }
-.board { display: flex; flex-direction: column; gap: 10px; }
-.side { padding: 10px; background: rgba(17,16,20,.82); border: 1px solid var(--line); }
-.playerbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
-.playerbar .name { font: 17px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; }
-.uptime { padding: 4px 10px; background: var(--panel-2); border: 1px solid var(--line); font-weight: 900; }
-.uptime b { color: var(--orange); font-size: 17px; }
-.counts { color: var(--muted); font-size: 12px; }
+
+/* The battlefield carries the Node Runner frame: double line, corner pads,
+   faint circuit traces running up both margins — the card, blown up to a table. */
+.board {
+  position: relative; display: flex; flex-direction: column; gap: 2px;
+  padding: 14px 16px 10px; background: rgba(9,8,11,.58);
+  border: 1px solid rgba(185,145,228,.4); outline: 1px solid rgba(255,106,0,.22); outline-offset: 5px;
+}
+.board::before, .board::after {
+  content: ""; position: absolute; top: 8px; bottom: 8px; width: 30px; z-index: 0; pointer-events: none; opacity: .5;
+  background:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="220" viewBox="0 0 30 220"><g fill="none" stroke="%23f7931a" stroke-width="1.4"><path d="M15 6v38h-8v30"/><path d="M7 96v26h10v34"/><path d="M15 178v36"/></g><g fill="%23f7931a"><circle cx="15" cy="6" r="2.4"/><circle cx="7" cy="74" r="2.4"/><circle cx="7" cy="96" r="2.4"/><circle cx="17" cy="156" r="2.4"/><circle cx="15" cy="214" r="2.4"/></g><g fill="none" stroke="%23b991e4" stroke-width="1"><rect x="10" y="52" width="9" height="9"/><rect x="12" y="132" width="8" height="8"/></g></svg>') repeat-y center / 30px 220px;
+}
+.board::before { left: 3px; }
+.board::after { right: 3px; transform: scaleX(-1); }
+.board > * { position: relative; z-index: 1; }
+/* PCB corner pads, like the frame corners of every card face. */
+.bcorner { position: absolute; width: 12px; height: 12px; border: 1px solid var(--purple); background: rgba(9,8,11,.9); z-index: 2; pointer-events: none; }
+.bcorner::after { content: ""; position: absolute; inset: 3px; background: var(--orange); opacity: .8; }
+.bcorner.tl { top: -6px; left: -6px; } .bcorner.tr { top: -6px; right: -6px; }
+.bcorner.bl { bottom: -6px; left: -6px; } .bcorner.br { bottom: -6px; right: -6px; }
+
+.side { padding: 2px 26px; }
+.playerbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0; }
+.playerbar .name { font: 18px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; text-shadow: 1px 1px 0 rgba(255,106,0,.55), -1px -1px 0 rgba(116,71,184,.55); }
+/* The number wears the same chip square as a card's cost and ACT/RES. */
+.uptime {
+  display: inline-grid; place-items: center; min-width: 44px; padding: 3px 6px 5px;
+  background: rgba(9,8,11,.92); border: 1px solid var(--line); box-shadow: inset 0 0 0 1px rgba(255,247,236,.12);
+  text-align: center; line-height: 1;
+}
+.uptime b { display: block; color: var(--cream); font: 20px/1 Anton600, Impact, sans-serif; }
+.uptime::after { content: "UPTIME"; font-size: 7.5px; letter-spacing: .18em; color: var(--orange); font-weight: 900; }
+.counts { color: var(--muted); font-size: 11px; font-family: ui-monospace, Consolas, monospace; letter-spacing: .04em; }
 .buffer { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
 .pip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; background: var(--soot); border: 1px solid var(--line); }
 .pip img { width: 13px; height: 13px; }
@@ -172,15 +203,35 @@ a { color: var(--orange-soft); }
 .pip-T { border-color: var(--violet); color: var(--violet); background: color-mix(in srgb, var(--violet) 20%, var(--soot)); }
 
 .zlabel { font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--purple); margin-bottom: 5px; }
-/* The Queue reads as in-flight, not settled: gold dashes and a soft pulse. */
-.zone.queue { border-color: var(--gold); border-style: dashed; background: rgba(243,194,68,.07); animation: queueWait 2s ease-in-out infinite; }
+/* Zone names wear the card's type banner: a steel chip, spaced capitals. */
+.zonechip { display: inline-block; margin: 2px 0 0; padding: 3px 12px 4px; background: #262330; color: #cfd6dd; font: 10px/1.3 Anton600, Impact, sans-serif; letter-spacing: .24em; text-transform: uppercase; }
+/* The Queue is the clash lane between the two Networks: centred, in flight. */
+.zone.queue { justify-content: center; border: 1px dashed rgba(243,194,68,.6); background: rgba(243,194,68,.07); animation: queueWait 2s ease-in-out infinite; min-height: calc(var(--card-w) * 1.15); }
 @keyframes queueWait { 0%,100% { background: rgba(243,194,68,.05); } 50% { background: rgba(243,194,68,.12); } }
-.zone { display: flex; gap: 6px; flex-wrap: wrap; min-height: calc(var(--card-w) * 1.4); padding: 6px; background: rgba(9,8,11,.55); border: 1px dashed var(--line); }
+#queueWrap { text-align: center; margin: 2px 0; }
+.zone { display: flex; gap: 6px; flex-wrap: wrap; min-height: calc(var(--card-w) * 1.42); padding: 8px 6px; }
 
-.gcard { position: relative; width: var(--card-w); cursor: pointer; border: 2px solid transparent; transition: transform .12s ease, border-color .12s ease; }
+/* Cards on an arc: the render writes --rot/--lift per card, the classes
+   compose on top. Non-arc zones fall back to 0/0. */
+.gcard { position: relative; width: var(--card-w); cursor: pointer; border: 2px solid transparent; transition: transform .14s ease, border-color .12s ease; transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)); }
 .gcard img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
-.gcard:hover { transform: translateY(-4px); border-color: var(--orange-soft); }
-.gcard.committed { transform: rotate(8deg); filter: brightness(.72); }
+.gcard:hover { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 14px)) scale(1.05); border-color: var(--orange-soft); z-index: 5; }
+.gcard.committed { transform: rotate(calc(var(--rot, 0deg) + 90deg)) translateY(var(--lift, 0px)) scale(.94); filter: brightness(.72); }
+.gcard.committed:hover { transform: rotate(90deg) translateY(calc(var(--lift, 0px) - 8px)) scale(.98); }
+.zone.arc { flex-wrap: nowrap; justify-content: center; overflow: visible; }
+/* A committed (turned) card needs elbow room in a nowrap arc. */
+.zone.arc .gcard.committed { margin: 0 calc(var(--card-w) * .12); }
+/* Your hand is a real fan: overlap, pivot low, pop on hover. */
+.zone.fan .gcard { width: calc(var(--card-w) * 1.16); margin: 0 calc(var(--card-w) * -0.13); transform-origin: 50% 118%; }
+.zone.fan .gcard:hover { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 26px)) scale(1.18); }
+.zone.fan { padding-bottom: 14px; }
+/* The opponent's hand is information, not furniture: small, face down, inverted. */
+.zone.foehand { min-height: calc(var(--card-w) * .9); }
+.zone.foehand .gcard { width: calc(var(--card-w) * .68); }
+@media (max-width: 900px) {
+  .zone.arc { flex-wrap: wrap; }
+  .zone.fan .gcard { margin: 0 calc(var(--card-w) * -0.05); }
+}
 .gcard.attacking { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.35); }
 .gcard.blocking { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(94,90,203,.4); }
 .gcard.targetable { border-color: var(--good); box-shadow: 0 0 0 3px rgba(110,231,168,.45); animation: pulse 1s infinite alternate; }
@@ -193,13 +244,22 @@ a { color: var(--orange-soft); }
 .gstats.hurt { color: var(--danger); border-color: var(--danger); }
 .gmanual { position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; display: grid; place-items: center; background: var(--gold); color: var(--black); font-size: 11px; font-weight: 900; }
 
-.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px; background: rgba(17,16,20,.9); border: 1px solid var(--line); }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 4px 2px; }
 .chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
+/* The card face's bottom line, table-sized. */
+.tfooter { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(185,145,228,.3); font: 11px/1 Anton600, Impact, sans-serif; letter-spacing: .2em; color: var(--cream); opacity: .75; }
+.tfooter span { color: var(--muted); letter-spacing: .14em; }
+/* The affinity plates: the stage wears seat one's world. */
+.stage.plate-Bitcoin::before { background-image: url("../art/world-plates/bitcoin.png"); }
+.stage.plate-Keys::before { background-image: url("../art/world-plates/keys.png"); }
+.stage.plate-Signal::before { background-image: url("../art/world-plates/signal.png"); }
+.stage.plate-Timelock::before { background-image: url("../art/world-plates/timelock.png"); }
 
 /* ---------- right rail ---------- */
 .rail { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 10px; }
 .panel { padding: 10px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
 .panel h3 { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); margin-bottom: 8px; }
+.panel summary { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); cursor: pointer; }
 #inspector { display: flex; gap: 10px; }
 #inspector img { width: 108px; aspect-ratio: 5/7; object-fit: cover; border: 1px solid var(--line); }
 .ibody { flex: 1; min-width: 0; }
@@ -349,26 +409,38 @@ a { color: var(--orange-soft); }
 
     <div class="layout">
       <div class="board">
+        <span class="bcorner tl"></span><span class="bcorner tr"></span>
+        <span class="bcorner bl"></span><span class="bcorner br"></span>
 
-        <div class="side">
+        <div class="side foe">
           <div class="playerbar" id="foeBar">
             <span class="name" id="foeName">Opponent</span>
-            <span class="uptime">Uptime <b id="foeUptime">20</b></span>
+            <span class="uptime"><b id="foeUptime">20</b></span>
             <span class="counts" id="foeCounts"></span>
             <span class="buffer" id="foeBuffer"></span>
           </div>
-          <div class="zlabel">Wallet</div>
-          <div class="zone" id="foeHand"></div>
-          <div class="zlabel" style="margin-top:8px">Network</div>
-          <div class="zone" id="foeNetwork"></div>
+          <div class="zone arc foehand" id="foeHand"></div>
+          <div class="zonechip">Their Network</div>
+          <div class="zone arc" id="foeNetwork"></div>
         </div>
 
         <!-- The Queue is shared information (§6) and the one zone a played
-             card passes through. Unrendered, an Avatar left the Wallet and
-             appeared nowhere: "I can't play my Avatars." -->
+             card passes through: the clash lane between the two Networks. -->
         <div id="queueWrap" hidden>
-          <div class="zlabel">Queue — waiting to resolve · press Continue</div>
+          <div class="zonechip">Queue // resolves on Continue</div>
           <div class="zone queue" id="queue"></div>
+        </div>
+
+        <div class="side you">
+          <div class="zonechip">Your Network</div>
+          <div class="zone arc" id="youNetwork"></div>
+          <div class="playerbar" id="youBar">
+            <span class="name" id="youName">You</span>
+            <span class="uptime"><b id="youUptime">20</b></span>
+            <span class="counts" id="youCounts"></span>
+            <span class="buffer" id="youBuffer"></span>
+          </div>
+          <div class="zone arc fan" id="youHand"></div>
         </div>
 
         <div class="controls">
@@ -380,19 +452,7 @@ a { color: var(--orange-soft); }
           <span class="chip" id="resourceChip">Resource play available</span>
         </div>
 
-        <div class="side">
-          <div class="playerbar" id="youBar">
-            <span class="name" id="youName">You</span>
-            <span class="uptime">Uptime <b id="youUptime">20</b></span>
-            <span class="counts" id="youCounts"></span>
-            <span class="buffer" id="youBuffer"></span>
-          </div>
-          <div class="zlabel">Network — left-click uses a card · right-click for details</div>
-          <div class="zone" id="youNetwork"></div>
-          <div class="zlabel" style="margin-top:8px">Wallet — left-click plays · right-click for details</div>
-          <div class="zone" id="youHand"></div>
-        </div>
-
+        <div class="tfooter">TIMELOCK_TCG&nbsp;::&nbsp;600B <span>LOCAL&nbsp;TABLE&nbsp;·&nbsp;E1</span></div>
       </div>
 
       <aside class="rail">
@@ -410,9 +470,9 @@ a { color: var(--orange-soft); }
           <h3>Card</h3>
           <div id="inspector"><span style="color:var(--muted);font-size:12px">Hover a card.</span></div>
         </div>
-        <div class="panel">
-          <h3>Manual controls</h3>
-          <div class="manualgrid">
+        <details class="panel">
+          <summary>Manual controls</summary>
+          <div class="manualgrid" style="margin-top:8px">
             <button data-manual="uptime:1">+1 Uptime</button>
             <button data-manual="uptime:-1">−1 Uptime</button>
             <button data-manual="uptime:1" data-side="foe">+1 foe</button>
@@ -431,7 +491,7 @@ a { color: var(--orange-soft); }
                table admin controls, small, and asks before it fires. -->
           <button class="btn ghost rug" id="rugpull"
             title="End the game by walking away — the win goes to the player who did not rugpull.">Rugpull</button>
-        </div>
+        </details>
         <div class="panel">
           <h3>Table proposals</h3>
           <div id="manualPending"><span style="color:var(--muted);font-size:12px">Assisted abilities and manual edits appear here for both seats.</span></div>

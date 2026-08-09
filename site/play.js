@@ -691,7 +691,8 @@
       if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
       if (options && options.onClick) options.onClick(uid);
     });
-    // Right-click is the ACT: play the card, no popup. Left-click explains.
+    // LEFT acts, RIGHT explains — and while a pick is open, either button
+    // lands the target, because a click on a glowing card means the target.
     if (options && options.onContext) {
       node.addEventListener("contextmenu", (event) => {
         event.preventDefault();
@@ -1009,10 +1010,30 @@
   function renderZone(id, v, uids, options) {
     const container = document.getElementById(id);
     container.innerHTML = "";
+    const nodes = [];
     const list = Array.isArray(uids) ? uids : [];
-    for (const uid of list) container.append(cardNode(v, uid, options));
+    for (const uid of list) nodes.push(cardNode(v, uid, options));
     if (!Array.isArray(uids) && uids && uids.n) {
-      for (let i = 0; i < uids.n; i++) container.append(el("div", "gcard facedown"));
+      for (let i = 0; i < uids.n; i++) nodes.push(el("div", "gcard facedown"));
+    }
+    for (const node of nodes) container.append(node);
+    arcZone(nodes, options && options.arc);
+  }
+
+  /* Cards sit on an arc, never a rank. "ring": the row bows toward the clash
+   * lane, centre card proud. "fan": a held hand — edges drop away and every
+   * card tilts around a low pivot. Written as CSS vars per card so committed
+   * rotation and hover pop compose on top instead of fighting inline styles. */
+  function arcZone(nodes, arc) {
+    if (!arc) return;
+    const n = nodes.length;
+    for (let i = 0; i < n; i++) {
+      const style = nodes[i].style;
+      if (!style || !style.setProperty) continue; // the test DOM has no CSSOM
+      const t = n > 1 ? (i / (n - 1)) * 2 - 1 : 0; // -1 … 1 across the row
+      const lift = arc.mode === "fan" ? t * t * arc.depth : (1 - t * t) * arc.depth;
+      style.setProperty("--rot", `${(t * arc.spread).toFixed(2)}deg`);
+      style.setProperty("--lift", `${lift.toFixed(1)}px`);
     }
   }
 
@@ -1065,7 +1086,12 @@
     }
 
     renderZone("foeNetwork", v, v.zones[`${foe}:network`], {
+      // Same hand on the enemy board: left acts (select the attacker to
+      // block), right explains. Details were left-click-only here before,
+      // which broke the one rule the rest of the table teaches.
       onClick: (uid) => toggleBlock(v, uid),
+      onContext: (uid) => openCardDetail(v, seat, uid, false),
+      arc: { mode: "ring", spread: -4, depth: 14 },
     });
     renderZone("youNetwork", v, v.zones[`${seat}:network`], {
       // Same hand as the Wallet: left acts, right explains. During the
@@ -1077,16 +1103,18 @@
       onContext: (uid) => openCardDetail(v, seat, uid, false),
       canAct: (uid) => actGlow(v, seat, uid),
       canAttack: (uid) => attackGlow(v, seat, uid),
+      arc: { mode: "ring", spread: 4, depth: -14 },
     });
     renderZone("youHand", v, v.zones[`${seat}:wallet`], {
       onClick: (uid) => beginPlay(v, seat, uid),
       onContext: (uid) => openCardDetail(v, seat, uid, true),
       canPlay: (uid) => playGlow(v, seat, uid),
+      arc: { mode: "fan", spread: 13, depth: 20 },
     });
     renderQueue(v);
     renderTurnButton(v, seat);
     coachStep(v, seat);
-    renderZone("foeHand", v, v.zones[`${foe}:wallet`], {});
+    renderZone("foeHand", v, v.zones[`${foe}:wallet`], { arc: { mode: "fan", spread: -8, depth: -10 } });
 
     renderPrompt(v, seat);
     renderChoice(v, seat);
@@ -1105,6 +1133,13 @@
         ? "Resource play used"
         : "Resource play available";
     document.getElementById("continue").textContent = continueLabel(v, seat);
+
+    /* The simplest UI is the one that is not there: escape hatches appear
+     * only while there is something to escape from. */
+    document.getElementById("cancelTarget").hidden =
+      !picking && !attackers.length && !Object.keys(blocks).length && blockTarget === null;
+    document.getElementById("clearManual").hidden =
+      !(v.manualOpen || []).some((entry) => entry.seat === seat);
   }
 
   function continueLabel(v, seat) {
@@ -1883,6 +1918,12 @@
     } catch (error) {
       document.getElementById("prompt").textContent = String(error.message || error);
       return;
+    }
+    /* The stage wears seat one's world plate — the board opens onto the
+     * affinity it is about to play. (The test DOM has no querySelector.) */
+    if (document.querySelector) {
+      const stage = document.querySelector(".stage");
+      if (stage) stage.className = `stage plate-${prefAffinity(config.seats[0])}`;
     }
     session.log = [];
     session.events = [];
