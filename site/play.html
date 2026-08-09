@@ -185,6 +185,9 @@ a { color: var(--orange-soft); }
 .gcard.blocking { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(94,90,203,.4); }
 .gcard.targetable { border-color: var(--good); box-shadow: 0 0 0 3px rgba(110,231,168,.45); animation: pulse 1s infinite alternate; }
 @keyframes pulse { to { box-shadow: 0 0 0 6px rgba(110,231,168,.2); } }
+/* The player as a target: same green pulse as a targetable card, on the bar. */
+.playerbar.seat-target { cursor: pointer; outline: 2px solid var(--good); outline-offset: 2px; animation: pulse 1s infinite alternate; border-radius: 4px; }
+.playerbar.seat-target .name { color: var(--good); }
 .gcard.facedown { aspect-ratio: 5/7; background: linear-gradient(150deg, #1a1420, #0b0a0e); border: 1px solid var(--line); }
 .gstats { position: absolute; right: 3px; bottom: 3px; padding: 1px 5px; background: rgba(9,8,11,.9); border: 1px solid var(--orange); font-size: 11px; font-weight: 900; }
 .gstats.hurt { color: var(--danger); border-color: var(--danger); }
@@ -348,7 +351,7 @@ a { color: var(--orange-soft); }
       <div class="board">
 
         <div class="side">
-          <div class="playerbar">
+          <div class="playerbar" id="foeBar">
             <span class="name" id="foeName">Opponent</span>
             <span class="uptime">Uptime <b id="foeUptime">20</b></span>
             <span class="counts" id="foeCounts"></span>
@@ -378,7 +381,7 @@ a { color: var(--orange-soft); }
         </div>
 
         <div class="side">
-          <div class="playerbar">
+          <div class="playerbar" id="youBar">
             <span class="name" id="youName">You</span>
             <span class="uptime">Uptime <b id="youUptime">20</b></span>
             <span class="counts" id="youCounts"></span>

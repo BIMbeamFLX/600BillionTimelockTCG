@@ -645,6 +645,16 @@
     return true;
   };
 
+  /* A player can BE the target — Zap's "any target", Wallet Scramble's
+   * "player". The engine accepts {kind:"seat"} for both (§11.2); the Queue
+   * already showed the shape for non-object targets: give the thing its own
+   * clickable surface. The playerbar IS the player. */
+  const wantsSeatTarget = () => {
+    if (!picking) return false;
+    const spec = picking.spec[picking.targets.length];
+    return Boolean(spec && (spec.kind === "seat" || spec.kind === "any"));
+  };
+
   // ------------------------------------------------------------ card nodes
 
   function cardNode(v, uid, options) {
@@ -1031,6 +1041,7 @@
     });
 
     for (const [side, who] of [["you", seat], ["foe", foe]]) {
+      document.getElementById(`${side}Bar`).classList.toggle("seat-target", wantsSeatTarget());
       document.getElementById(`${side}Name`).textContent = v.seats[who].name;
       document.getElementById(`${side}Uptime`).textContent = v.seats[who].uptime;
       document.getElementById(`${side}Counts`).textContent =
@@ -1156,7 +1167,10 @@
         : `${v.seats[v.pendingManual.seat].name} proposes: ${v.pendingManual.cardText}`;
       tone = "prompt manual";
     } else if (picking) {
-      text = `Choose ${picking.spec[picking.targets.length].prompt} — click a highlighted card.`;
+      const spec = picking.spec[picking.targets.length];
+      const surface =
+        spec.kind === "seat" ? "player bar" : spec.kind === "any" ? "card or player bar" : "card";
+      text = `Choose ${spec.prompt} — click a highlighted ${surface}.`;
       tone = "prompt target";
     } else if (v.pendingChoice && v.pendingChoice.options) {
       text = v.pendingChoice.prompt;
@@ -1982,6 +1996,16 @@
       session.notice = null;
       render();
     });
+
+    // The playerbars are static HTML, so the target handler installs once and
+    // checks at click time whether a player is currently a legal choice.
+    for (const side of ["you", "foe"]) {
+      document.getElementById(`${side}Bar`).addEventListener("click", () => {
+        if (!wantsSeatTarget() || !session.full) return;
+        const seat = uiSeat(session.full);
+        offerTarget({ kind: "seat", seat: side === "you" ? seat : 1 - seat });
+      });
+    }
 
     document.getElementById("clearManual").addEventListener("click", () => {
       const full = session.full;

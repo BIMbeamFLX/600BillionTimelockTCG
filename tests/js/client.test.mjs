@@ -427,3 +427,45 @@ test("a finished match can be published from a STATE alone — no live OVER need
   assert.equal(game.over, null, "the previous match's result survived into a new one");
   assert.equal(byId("publishResult").hidden, true);
 });
+
+test("a player is a clickable target: Zap resolves at the opponent's face", () => {
+  const { byId, game } = loadPlay(netStub());
+
+  /* Seed 70's Power opening hand holds Zap ("any target") and Power Plant —
+   * Hydro. Before the playerbar became a target surface, an "any" pick could
+   * only land on an Avatar node: an empty enemy Network left NOTHING
+   * clickable and the play was stuck at "Cancel targeting". */
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = "70";
+  byId("start").click();
+  assert.ok(game.state, "the hotseat game must start");
+
+  // A stub zone never clears its children, so the freshest render sits at the
+  // END: scan backwards for the node whose face is the named card.
+  const lastCard = (zoneId, name) => {
+    const kids = byId(zoneId).children;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const img = kids[i].children && kids[i].children[0];
+      if (img && img.alt === name) return kids[i];
+    }
+    return null;
+  };
+
+  // Resource down, then commit it for the 1 Power that Zap costs.
+  lastCard("youHand", "Power Plant — Hydro").click();
+  lastCard("youNetwork", "Power Plant — Hydro").click(); // one ability: fires immediately
+  assert.equal(game.state.seats[0].buffer.P, 1, "the plant must bank 1 Power");
+
+  lastCard("youHand", "Zap").click();
+  byId("foeBar").click();
+
+  const item = game.state.queue[0];
+  assert.ok(item, "Zap must be announced onto the Queue");
+  assert.deepEqual(item.targets, [{ kind: "seat", seat: 1 }], "the chosen target is the opponent");
+
+  // Resolve through the same button the player presses.
+  for (let i = 0; i < 6 && game.state.queue.length; i++) byId("continue").click();
+  assert.equal(game.state.queue.length, 0, "the Queue must resolve");
+  assert.equal(game.state.seats[1].uptime, 17, "Zap's 3 damage lands on the chosen player");
+});
