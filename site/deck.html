@@ -60,6 +60,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 .cardtile .n { position: absolute; right: 4px; top: 4px; min-width: 22px; text-align: center; padding: 3px 5px; background: var(--ember); color: var(--black); font: 900 12px/1 Arial; border-radius: 3px; }
 .cardtile .meta { padding: 5px 7px; font-size: 10.5px; color: var(--muted); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cardtile.stake { opacity: .35; }
+/* Face source: ember = fresh from a Blossom mirror, violet = local cache. */
+.gsrc { position: absolute; left: 4px; bottom: 26px; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(9,8,11,.85); pointer-events: none; }
+.gsrc-blossom { background: #F7931A; box-shadow: 0 0 6px rgba(247,147,26,.8); }
+.gsrc-cache { background: #B991E4; box-shadow: 0 0 5px rgba(185,145,228,.7); }
 .cardtile.stake::after { content: "STAKE MODULE — NOT IN E1"; position: absolute; inset: auto 0 22px 0; padding: 4px; text-align: center; background: rgba(9,8,11,.85); color: #ff4d3d; font: 900 9px/1.2 Arial; letter-spacing: .1em; }
 
 .deckpane { position: sticky; top: 76px; align-self: start; background: var(--panel); border: 1px solid var(--line); padding: 14px; max-height: calc(100vh - 96px); display: flex; flex-direction: column; }
@@ -131,6 +135,8 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 </div>
 
 <script src="play-data.js"></script>
+<script src="blob-map.js"></script>
+<script src="faces.js"></script>
 <script>
 (() => {
   "use strict";
@@ -199,7 +205,8 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       tile.className = "cardtile" + (isStake(c) ? " stake" : "");
       tile.title = `${c.name} — ${c.text || ""}`;
       const img = document.createElement("img");
-      img.src = "../art/cards/node-runner-web/" + encodeURIComponent(c.face);
+      if (globalThis.E1Faces) E1Faces.setFace(img, c.face, tile);
+      else img.src = "../art/cards/node-runner-web/" + encodeURIComponent(c.face);
       img.alt = c.name;
       img.loading = "lazy";
       tile.append(img);

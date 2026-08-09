@@ -148,58 +148,100 @@
       }
     }
 
-    /* 2 — commit resources for Buffer. Junctions answer "choice" ops with the
-     * stack's own affinity. */
-    for (const uid of network) {
-      const object = state.objects[uid];
-      if (!object || object.committed) continue;
-      const card = compiled(object.cardId);
-      if (!card) continue;
-      card.abilities.forEach((ability, abilityIndex) => {
-        if (!ability.resourceAbility || ability.manual) return;
-        const payload = { uid, abilityIndex };
-        const choiceOp = ability.ops.find((op) => op.affinity === "choice");
-        if (choiceOp) {
-          // Prefer the stack's own affinity when the card offers it;
-          // otherwise take the first affinity the card names.
-          const offered =
-            Array.isArray(choiceOp.options) && choiceOp.options.length
-              ? choiceOp.options
-              : ["Power", "Bitcoin", "Keys", "Signal", "Timelock"];
-          const pick = offered.indexOf(affinity) >= 0 ? affinity : offered[0];
-          payload.choice = SYMBOL_OF[pick] ? SYMBOL_OF[pick] : pick;
-        }
-        push("ACTIVATE_RESOURCE_ABILITY", payload);
-      });
-    }
-
-    /* 2b — any junction still marked assisted (none since the parser learned
-     * "generate 1 X or 1 Y", but a future card could regress): the honest
-     * route is a static-warrant proposal of exactly the card text — commit as
-     * the cost, one Resource as the effect — which the engine bounds by the
-     * ability's envelope and the opponent may still reject or flag. */
-    for (const uid of network) {
-      const object = state.objects[uid];
-      if (!object || object.committed) continue;
-      const card = compiled(object.cardId);
-      if (!card) continue;
-      card.abilities.forEach((ability, abilityIndex) => {
-        if (!ability.manual || !ability.text) return;
-        const match = /generate 1 (\w+)(?: or 1 (\w+))?/i.exec(ability.text);
-        if (!match || !/^commit:/i.test(ability.text.trim())) return;
-        const names = [match[1], match[2]].filter(Boolean);
-        const pick = names.indexOf(affinity) >= 0 ? affinity : names[0];
-        const symbol = SYMBOL_OF[pick];
-        if (!symbol) return;
-        push("MANUAL_PROPOSE", {
-          warrant: { kind: "static", uid, abilityIndex },
-          ops: [
-            { op: "setCommitted", uid, value: true },
-            { op: "addBuffer", seat, symbol, amount: 1 },
-          ],
-          reason: `assisted: ${ability.text}`,
+    /* 2 — commit resources for Buffer, but only toward a live plan, and only
+     * in the bot's own Build phases. Buffer with no purpose is not thrift —
+     * it is §12.1 burn, and the old unconditional commit bled the bot a point
+     * of Uptime at nearly every phase boundary (also in the OPPONENT's turn,
+     * where it generated with nothing it could legally play). The bot now
+     * simulates its generators one by one and stops at the first prefix that
+     * makes some hand card payable; no reachable card, no generation. */
+    const inOwnBuild =
+      state.turn.active === seat &&
+      (state.turn.phase === "build1" || state.turn.phase === "build2");
+    if (inOwnBuild) {
+      const generators = [];
+      for (const uid of network) {
+        const object = state.objects[uid];
+        if (!object || object.committed) continue;
+        const card = compiled(object.cardId);
+        if (!card) continue;
+        card.abilities.forEach((ability, abilityIndex) => {
+          if (!ability.resourceAbility || ability.manual) return;
+          const payload = { uid, abilityIndex };
+          let symbol = null;
+          let amount = 0;
+          for (const op of ability.ops) {
+            if (op.op !== "generate") continue;
+            if (op.affinity === "choice") {
+              // Prefer the stack's own affinity when the card offers it;
+              // otherwise take the first affinity the card names.
+              const offered =
+                Array.isArray(op.options) && op.options.length
+                  ? op.options
+                  : ["Power", "Bitcoin", "Keys", "Signal", "Timelock"];
+              const pick = offered.indexOf(affinity) >= 0 ? affinity : offered[0];
+              payload.choice = SYMBOL_OF[pick] ? SYMBOL_OF[pick] : pick;
+              symbol = payload.choice;
+            } else {
+              symbol = SYMBOL_OF[op.affinity] || op.affinity || "N";
+            }
+            amount += op.amount || 1;
+          }
+          if (symbol && amount) generators.push({ payload, symbol, amount });
         });
-      });
+      }
+      /* The plan: scripted, target-free, non-X cards only — the same shape
+       * step 3 is willing to play. X cards are excluded on purpose: paying
+       * into an open-ended X invites exactly the leftover that burns. */
+      const wants = wallet
+        .map((uid) => compiled(state.objects[uid].cardId))
+        .filter(
+          (card) =>
+            card &&
+            !card.isResource &&
+            !card.manual &&
+            !card.playModes &&
+            card.playTargetSpec.length === 0 &&
+            !(card.costParsed && card.costParsed.x)
+        );
+      const sim = Object.assign({}, buffer);
+      let need = wants.some((card) => E.canPay(sim, card.costParsed)) ? 0 : -1;
+      for (let i = 0; need === -1 && i < generators.length; i++) {
+        sim[generators[i].symbol] = (sim[generators[i].symbol] || 0) + generators[i].amount;
+        if (wants.some((card) => E.canPay(sim, card.costParsed))) need = i + 1;
+      }
+      for (let i = 0; i < Math.max(0, need); i++) {
+        push("ACTIVATE_RESOURCE_ABILITY", generators[i].payload);
+      }
+
+      /* 2b — any junction still marked assisted (none since the parser learned
+       * "generate 1 X or 1 Y", but a future card could regress): the honest
+       * route is a static-warrant proposal of exactly the card text — commit as
+       * the cost, one Resource as the effect — which the engine bounds by the
+       * ability's envelope and the opponent may still reject or flag. */
+      for (const uid of network) {
+        const object = state.objects[uid];
+        if (!object || object.committed) continue;
+        const card = compiled(object.cardId);
+        if (!card) continue;
+        card.abilities.forEach((ability, abilityIndex) => {
+          if (!ability.manual || !ability.text) return;
+          const match = /generate 1 (\w+)(?: or 1 (\w+))?/i.exec(ability.text);
+          if (!match || !/^commit:/i.test(ability.text.trim())) return;
+          const names = [match[1], match[2]].filter(Boolean);
+          const pick = names.indexOf(affinity) >= 0 ? affinity : names[0];
+          const symbol = SYMBOL_OF[pick];
+          if (!symbol) return;
+          push("MANUAL_PROPOSE", {
+            warrant: { kind: "static", uid, abilityIndex },
+            ops: [
+              { op: "setCommitted", uid, value: true },
+              { op: "addBuffer", seat, symbol, amount: 1 },
+            ],
+            reason: `assisted: ${ability.text}`,
+          });
+        });
+      }
     }
 
     /* 3 — play what the Buffer can afford. Scripted cards with no targeting

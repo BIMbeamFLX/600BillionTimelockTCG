@@ -351,6 +351,13 @@
   };
 
   const faceUrl = (card) => "../art/cards/node-runner-web/" + encodeURIComponent(card.face);
+  /* Blossom resolver with local cache (faces.js). Absent — the stub DOM of
+   * the tests, or a build without the blob map — every face is the repo file. */
+  const FACES = globalThis.E1Faces || null;
+  const setFace = (img, card, badgeHost) => {
+    if (FACES) FACES.setFace(img, card.face, badgeHost);
+    else img.src = faceUrl(card);
+  };
 
   // ------------------------------------------------------- click intentions
 
@@ -403,7 +410,7 @@
       const card = CARD_BY_ID[item.cardId];
       const node = el("div", "gcard");
       const img = el("img");
-      img.src = faceUrl(card);
+      setFace(img, card, node);
       img.alt = card.name;
       node.append(img);
       node.append(el("span", "gstats", v.seats[item.controller].name));
@@ -411,7 +418,7 @@
         const box = document.getElementById("inspector");
         box.innerHTML = "";
         const face = el("img");
-        face.src = faceUrl(card);
+        setFace(face, card);
         face.alt = card.name;
         box.append(face);
         const info = el("div", "ibody");
@@ -424,19 +431,40 @@
     }
   }
 
-  function openCardDetail(v, seat, uid, canPlay, event) {
+  function openCardDetail(v, seat, uid, canPlay, at) {
     const object = v.objects[uid];
     if (!object || !object.cardId) return;
     const card = CARD_BY_ID[object.cardId];
     const dialog = document.getElementById("cardDetail");
-    dialog.querySelector(".face").src = faceUrl(card);
+    setFace(dialog.querySelector(".face"), card);
     dialog.querySelector(".face").alt = card.name;
+    /* The card's home on Blossom: the hash is the address, the links prove it. */
+    const blobBox = document.getElementById("cdBlossom");
+    if (blobBox) {
+      const sha = FACES && FACES.blobs ? FACES.blobs[card.face] : null;
+      if (sha) {
+        blobBox.innerHTML = "";
+        blobBox.append("blossom ");
+        blobBox.append(el("span", "sha", sha.slice(0, 12) + "…"));
+        for (const server of FACES.mirrors) {
+          blobBox.append(" · ");
+          const link = el("a", null, new URL(server).host);
+          link.href = `${server}/${sha}`;
+          link.target = "_blank";
+          link.rel = "noopener";
+          blobBox.append(link);
+        }
+      } else {
+        blobBox.textContent = "";
+      }
+    }
     dialog.querySelector(".cd-name").textContent = card.name;
     dialog.querySelector(".cd-meta").textContent =
       `${card.id} · ${card.type}${card.subtype ? " — " + card.subtype : ""}` +
       ` · ${card.affinity.join("/")} · Cost ${card.cost || "—"}`;
     dialog.querySelector(".cd-rules").textContent = card.text || "";
-    dialog.querySelector(".cd-flavor").textContent = card.flavor ? `“${card.flavor}”` : "";
+    // The card face writes flavor as a code comment; the window does the same.
+    dialog.querySelector(".cd-flavor").textContent = card.flavor || "";
     dialog.querySelector(".cd-help").textContent =
       card.help || "No extra help for this one — the rules text is the whole story.";
     const play = document.getElementById("cdPlay");
@@ -493,14 +521,34 @@
       });
     }
     document.getElementById("cdClose").onclick = () => dialog.close();
-    void event; // the card window is centred; only the action menu follows the pointer
     dialog.showModal();
+    placeWindow(dialog, at);
+  }
+
+  /* Both windows hang at the hand that opened them: near the pointer, clamped
+   * to the viewport. No pointer (keyboard, small screen) means centred. */
+  function placeWindow(box, at) {
+    if (!box.getBoundingClientRect || !box.style) return;
+    const small = window.innerWidth < 700;
+    if (!at || typeof at.x !== "number" || small) {
+      box.classList.remove("at-pointer");
+      box.style.left = "";
+      box.style.top = "";
+      box.style.margin = "";
+      return;
+    }
+    box.classList.add("at-pointer");
+    box.style.margin = "0";
+    const rect = box.getBoundingClientRect();
+    const left = Math.max(8, Math.min(window.innerWidth - rect.width - 8, at.x + 16));
+    const top = Math.max(8, Math.min(window.innerHeight - rect.height - 8, at.y - rect.height / 3));
+    box.style.left = `${left}px`;
+    box.style.top = `${top}px`;
   }
 
   /* The choice menu: which affinity a junction makes, which of several
-   * abilities to fire. Centred, like the card window — a menu that chases the
-   * pointer is a menu you hunt for. */
-  function openActionMenu(title, entries) {
+   * abilities to fire, which X. It opens where the mouse already is. */
+  function openActionMenu(title, entries, at) {
     closeActionMenu();
     const menu = el("div", "ctxmenu");
     menu.append(el("div", "ctxtitle", title));
@@ -515,6 +563,7 @@
       menu.append(button);
     }
     document.body.append(menu);
+    placeWindow(menu, at);
     setTimeout(() => document.addEventListener("click", closeActionMenu, { once: true }), 0);
   }
 
@@ -526,7 +575,7 @@
   /* Right-click on your own Network card: fire what it can do. One unambiguous
    * ability runs immediately; a junction's two affinities, or several
    * abilities, open the menu. Nothing activatable falls back to the card. */
-  function activateFromBoard(v, seat, uid) {
+  function activateFromBoard(v, seat, uid, at) {
     const object = v.objects[uid];
     if (!object || !object.cardId) return;
     const card = compiled(object.cardId);
@@ -555,39 +604,42 @@
         run: () => beginAbility(v, seat, uid, index),
       });
     });
-    if (!entries.length) return void openCardDetail(v, seat, uid, false);
+    if (!entries.length) return void openCardDetail(v, seat, uid, false, at);
     const live = entries.filter((e) => !e.disabled);
     if (live.length === 1 && entries.length === 1) return void live[0].run();
-    entries.push({ label: "Card details…", run: () => openCardDetail(v, seat, uid, false) });
-    openActionMenu(CARD_BY_ID[object.cardId].name, entries);
+    entries.push({ label: "Card details…", run: () => openCardDetail(v, seat, uid, false, at) });
+    openActionMenu(CARD_BY_ID[object.cardId].name, entries, at);
   }
 
-  function beginPlay(v, seat, uid) {
+  /* No browser prompt() anywhere: an X and a mode are one styled menu each,
+   * at the pointer, so the common card is one click and the rare one is two. */
+  function beginPlay(v, seat, uid, at) {
     const object = v.objects[uid];
     if (!object || !object.cardId) return;
     const card = compiled(object.cardId);
     if (card.isResource) return void playAdvancing(seat, () => dispatch("PLAY_RESOURCE", seat, { uid }));
-    let x = 0;
+    const finish = (x, modes) => {
+      const spec = modes ? card.playModes[modes[0]].targetSpec : card.playTargetSpec;
+      if (!spec.length) {
+        return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, playPayload(uid, [], x, modes)));
+      }
+      picking = { kind: "play", uid, spec, targets: [], x, modes };
+      render();
+    };
+    const chooseMode = (x) => {
+      if (!card.playModes) return finish(x, undefined);
+      openActionMenu(
+        `${card.name} — choose one`,
+        card.playModes.map((mode, index) => ({ label: mode.text, run: () => finish(x, [index]) })),
+        at
+      );
+    };
     if (card.costParsed && card.costParsed.x) {
-      const raw = window.prompt(`Choose X for ${card.name} (each X costs ${card.costParsed.x})`, "1");
-      if (raw === null) return; // changed their mind
-      x = Math.max(0, Number(raw) | 0);
+      const options = [];
+      for (let n = 0; n <= 6; n++) options.push({ label: `X = ${n}`, run: () => chooseMode(n) });
+      return void openActionMenu(`${card.name} — each X costs ${card.costParsed.x}`, options, at);
     }
-    let modes;
-    let spec = card.playTargetSpec;
-    if (card.playModes) {
-      const menu = card.playModes.map((m, i) => `${i + 1}) ${m.text}`).join("\n");
-      const raw = window.prompt(`Choose one:\n${menu}`, "1");
-      if (raw === null) return;
-      const mode = Math.min(card.playModes.length - 1, Math.max(0, (Number(raw) | 0) - 1));
-      modes = [mode];
-      spec = card.playModes[mode].targetSpec;
-    }
-    if (!spec.length) {
-      return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, playPayload(uid, [], x, modes)));
-    }
-    picking = { kind: "play", uid, spec, targets: [], x, modes };
-    render();
+    chooseMode(0);
   }
 
   /* canonicalJSON refuses `undefined` — that is what keeps a replay honest.
@@ -645,6 +697,20 @@
     return true;
   };
 
+  /* A player can BE the target — Zap's "any target", Wallet Scramble's
+   * "player". The engine accepts {kind:"seat"} for both (§11.2); the Queue
+   * already showed the shape for non-object targets: give the thing its own
+   * clickable surface. The playerbar IS the player. */
+  const wantsSeatTarget = () => {
+    if (!picking) return false;
+    const spec = picking.spec[picking.targets.length];
+    return Boolean(spec && (spec.kind === "seat" || spec.kind === "any"));
+  };
+
+  // Where the hand is: a mouse event becomes an anchor for menus and windows.
+  const pt = (event) =>
+    event && typeof event.clientX === "number" ? { x: event.clientX, y: event.clientY } : null;
+
   // ------------------------------------------------------------ card nodes
 
   function cardNode(v, uid, options) {
@@ -662,7 +728,7 @@
     if (blocking) node.classList.add("blocking");
 
     const img = el("img");
-    img.src = faceUrl(card);
+    setFace(img, card, node);
     img.alt = card.name;
     img.loading = "lazy";
     node.append(img);
@@ -676,12 +742,15 @@
     if (object.bootDelay) node.append(el("span", "gboot", "⏻"));
     if (card.manual) node.append(el("span", "gmanual", "!"));
     if (wantsTarget(v, uid)) node.classList.add("targetable");
+    node.dataset.uid = uid; // the arrow layer finds its endpoints by uid
+    if (blockTarget === uid) node.classList.add("blockpick");
 
-    node.addEventListener("click", () => {
+    node.addEventListener("click", (event) => {
       if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
-      if (options && options.onClick) options.onClick(uid);
+      if (options && options.onClick) options.onClick(uid, event);
     });
-    // Right-click is the ACT: play the card, no popup. Left-click explains.
+    // LEFT acts, RIGHT explains — and while a pick is open, either button
+    // lands the target, because a click on a glowing card means the target.
     if (options && options.onContext) {
       node.addEventListener("contextmenu", (event) => {
         event.preventDefault();
@@ -781,7 +850,7 @@
     const card = CARD_BY_ID[object.cardId];
     const seat = uiSeat(session.full);
     const img = el("img");
-    img.src = faceUrl(card);
+    setFace(img, card);
     img.alt = card.name;
     box.append(img);
     const info = el("div", "ibody");
@@ -999,10 +1068,30 @@
   function renderZone(id, v, uids, options) {
     const container = document.getElementById(id);
     container.innerHTML = "";
+    const nodes = [];
     const list = Array.isArray(uids) ? uids : [];
-    for (const uid of list) container.append(cardNode(v, uid, options));
+    for (const uid of list) nodes.push(cardNode(v, uid, options));
     if (!Array.isArray(uids) && uids && uids.n) {
-      for (let i = 0; i < uids.n; i++) container.append(el("div", "gcard facedown"));
+      for (let i = 0; i < uids.n; i++) nodes.push(el("div", "gcard facedown"));
+    }
+    for (const node of nodes) container.append(node);
+    arcZone(nodes, options && options.arc);
+  }
+
+  /* Cards sit on an arc, never a rank. "ring": the row bows toward the clash
+   * lane, centre card proud. "fan": a held hand — edges drop away and every
+   * card tilts around a low pivot. Written as CSS vars per card so committed
+   * rotation and hover pop compose on top instead of fighting inline styles. */
+  function arcZone(nodes, arc) {
+    if (!arc) return;
+    const n = nodes.length;
+    for (let i = 0; i < n; i++) {
+      const style = nodes[i].style;
+      if (!style || !style.setProperty) continue; // the test DOM has no CSSOM
+      const t = n > 1 ? (i / (n - 1)) * 2 - 1 : 0; // -1 … 1 across the row
+      const lift = arc.mode === "fan" ? t * t * arc.depth : (1 - t * t) * arc.depth;
+      style.setProperty("--rot", `${(t * arc.spread).toFixed(2)}deg`);
+      style.setProperty("--lift", `${lift.toFixed(1)}px`);
     }
   }
 
@@ -1031,6 +1120,7 @@
     });
 
     for (const [side, who] of [["you", seat], ["foe", foe]]) {
+      document.getElementById(`${side}Bar`).classList.toggle("seat-target", wantsSeatTarget());
       document.getElementById(`${side}Name`).textContent = v.seats[who].name;
       document.getElementById(`${side}Uptime`).textContent = v.seats[who].uptime;
       document.getElementById(`${side}Counts`).textContent =
@@ -1054,28 +1144,35 @@
     }
 
     renderZone("foeNetwork", v, v.zones[`${foe}:network`], {
+      // Same hand on the enemy board: left acts (select the attacker to
+      // block), right explains. Details were left-click-only here before,
+      // which broke the one rule the rest of the table teaches.
       onClick: (uid) => toggleBlock(v, uid),
+      onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
+      arc: { mode: "ring", spread: -4, depth: 14 },
     });
     renderZone("youNetwork", v, v.zones[`${seat}:network`], {
       // Same hand as the Wallet: left acts, right explains. During the
       // attackers step the left click is the attack declaration instead.
-      onClick: (uid) => {
+      onClick: (uid, event) => {
         if (v.awaiting && v.awaiting.kind === "attackers" && v.awaiting.seat === seat) toggleAttacker(uid);
-        else activateFromBoard(v, seat, uid);
+        else activateFromBoard(v, seat, uid, pt(event));
       },
-      onContext: (uid) => openCardDetail(v, seat, uid, false),
+      onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
       canAct: (uid) => actGlow(v, seat, uid),
       canAttack: (uid) => attackGlow(v, seat, uid),
+      arc: { mode: "ring", spread: 4, depth: -14 },
     });
     renderZone("youHand", v, v.zones[`${seat}:wallet`], {
-      onClick: (uid) => beginPlay(v, seat, uid),
-      onContext: (uid) => openCardDetail(v, seat, uid, true),
+      onClick: (uid, event) => beginPlay(v, seat, uid, pt(event)),
+      onContext: (uid, event) => openCardDetail(v, seat, uid, true, pt(event)),
       canPlay: (uid) => playGlow(v, seat, uid),
+      arc: { mode: "fan", spread: 13, depth: 20 },
     });
     renderQueue(v);
     renderTurnButton(v, seat);
     coachStep(v, seat);
-    renderZone("foeHand", v, v.zones[`${foe}:wallet`], {});
+    renderZone("foeHand", v, v.zones[`${foe}:wallet`], { arc: { mode: "fan", spread: -8, depth: -10 } });
 
     renderPrompt(v, seat);
     renderChoice(v, seat);
@@ -1089,11 +1186,108 @@
       logBox.append(el("div", "logline " + (line[1] || ""), line[0]));
     }
 
-    document.getElementById("resourceChip").textContent =
-      v.turn.resourcePlays.used >= v.turn.resourcePlays.allowed
-        ? "Resource play used"
-        : "Resource play available";
+    const resourceChip = document.getElementById("resourceChip");
+    const resourceSpent = v.turn.resourcePlays.used >= v.turn.resourcePlays.allowed;
+    resourceChip.textContent = resourceSpent ? "Resource play used" : "Resource play free";
+    resourceChip.classList.toggle("quiet", resourceSpent);
     document.getElementById("continue").textContent = continueLabel(v, seat);
+
+    /* The simplest UI is the one that is not there: escape hatches appear
+     * only while there is something to escape from. */
+    document.getElementById("cancelTarget").hidden =
+      !picking && !attackers.length && !Object.keys(blocks).length && blockTarget === null;
+    document.getElementById("clearManual").hidden =
+      !(v.manualOpen || []).some((entry) => entry.seat === seat);
+
+    renderHud(v, seat);
+    drawClashArrows();
+  }
+
+  /* One line that answers "where are we, and what can I do": the active
+   * phase, whose move it is, and live counts fed by the same glow logic
+   * the cards themselves use. */
+  function renderHud(v, seat) {
+    const slot = E.TURN_RIBBON.find(
+      (entry) => entry.phase === v.turn.phase && (entry.step === null || entry.step === v.turn.step)
+    );
+    document.getElementById("hudPhase").textContent = slot ? slot.label : v.turn.phase;
+    document.getElementById("hudWho").textContent = v.result
+      ? "Game over"
+      : v.turn.active === seat
+        ? `${v.seats[seat].name} — your move`
+        : `${v.seats[v.turn.active].name}'s turn`;
+    const can = document.getElementById("hudCan");
+    can.innerHTML = "";
+    const chip = (text, cls) => can.append(el("span", `cando${cls ? " " + cls : ""}`, text));
+    if (v.result) return;
+    const playable = (v.zones[`${seat}:wallet`] || []).filter((uid) => playGlow(v, seat, uid)).length;
+    if (picking) chip("pick a target", "attack");
+    if (v.awaiting && v.awaiting.seat === seat && v.awaiting.kind === "attackers") {
+      const ready = (v.zones[`${seat}:network`] || []).filter((uid) => attackGlow(v, seat, uid)).length;
+      chip(ready + attackers.length ? `${ready + attackers.length} can attack` : "no attackers ready", ready + attackers.length ? "attack" : "quiet");
+    }
+    if (v.awaiting && v.awaiting.seat === seat && v.awaiting.kind === "blockers") chip("assign blocks", "attack");
+    chip(playable ? `${playable} playable` : "nothing to play", playable ? "" : "quiet");
+  }
+
+  /* Attacks and blocks are lines you can see: ember arrows from attackers to
+   * the player they are sent at, violet arrows from blockers to attackers.
+   * Pending declarations are dashed; the engine's word is solid. */
+  function drawClashArrows() {
+    if (!document.createElementNS || !document.querySelector) return; // test DOM
+    const lines = document.getElementById("arrowLines");
+    if (!lines) return;
+    while (lines.firstChild) lines.removeChild(lines.firstChild);
+    const full = session.full;
+    if (!full || full.result) return;
+    const v = viewNow();
+    const seat = uiSeat(full);
+    const inClash = v.turn.phase === "clash";
+    const rectOf = (sel) => {
+      const node = document.querySelector(sel);
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      return rect.width || rect.height ? rect : null;
+    };
+    const top = (r) => ({ x: r.x + r.width / 2, y: r.y + 6 });
+    const bottom = (r) => ({ x: r.x + r.width / 2, y: r.y + r.height - 6 });
+    const center = (r) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+    const draw = (from, to, kind, pending) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      path.setAttribute("d", `M ${from.x} ${from.y} Q ${from.x + dx / 2 - dy * 0.12} ${from.y + dy / 2 + dx * 0.12} ${to.x} ${to.y}`);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", kind === "atk" ? "#ff6a00" : "#17bebb");
+      path.setAttribute("stroke-width", "2.5");
+      path.setAttribute("opacity", ".9");
+      if (pending) path.setAttribute("stroke-dasharray", "7 5");
+      path.setAttribute("marker-end", `url(#arrow${kind === "atk" ? "Atk" : "Blk"})`);
+      lines.append(path);
+    };
+    const cardRect = (uid) => rectOf(`.gcard[data-uid="${uid}"]`);
+    const declared = inClash ? v.clash.attackers : [];
+    for (const uid of new Set([...declared, ...attackers])) {
+      const rect = cardRect(uid);
+      const object = v.objects[uid];
+      if (!rect || !object) continue;
+      const mine = object.controller === seat;
+      const barRect = rectOf(mine ? "#foeBar" : "#youBar");
+      if (!barRect) continue;
+      draw(mine ? top(rect) : bottom(rect), center(barRect), "atk", declared.indexOf(uid) < 0);
+    }
+    const pairs = [];
+    for (const [atk, list] of Object.entries(inClash ? v.clash.blocks : {})) {
+      for (const blocker of list) pairs.push([blocker, atk, false]);
+    }
+    for (const [atk, list] of Object.entries(blocks)) {
+      for (const blocker of list) pairs.push([blocker, atk, true]);
+    }
+    for (const [blocker, atk, pending] of pairs) {
+      const from = cardRect(blocker);
+      const to = cardRect(atk);
+      if (from && to) draw(center(from), center(to), "blk", pending);
+    }
   }
 
   function continueLabel(v, seat) {
@@ -1156,7 +1350,10 @@
         : `${v.seats[v.pendingManual.seat].name} proposes: ${v.pendingManual.cardText}`;
       tone = "prompt manual";
     } else if (picking) {
-      text = `Choose ${picking.spec[picking.targets.length].prompt} — click a highlighted card.`;
+      const spec = picking.spec[picking.targets.length];
+      const surface =
+        spec.kind === "seat" ? "player bar" : spec.kind === "any" ? "card or player bar" : "card";
+      text = `Choose ${spec.prompt} — click a highlighted ${surface}.`;
       tone = "prompt target";
     } else if (v.pendingChoice && v.pendingChoice.options) {
       text = v.pendingChoice.prompt;
@@ -1870,6 +2067,12 @@
       document.getElementById("prompt").textContent = String(error.message || error);
       return;
     }
+    /* The stage wears seat one's world plate — the board opens onto the
+     * affinity it is about to play. (The test DOM has no querySelector.) */
+    if (document.querySelector) {
+      const stage = document.querySelector(".stage");
+      if (stage) stage.className = `stage plate-${prefAffinity(config.seats[0])}`;
+    }
     session.log = [];
     session.events = [];
     session.notice = null;
@@ -1981,6 +2184,43 @@
       blockTarget = null;
       session.notice = null;
       render();
+    });
+
+    // The playerbars are static HTML, so the target handler installs once and
+    // checks at click time whether a player is currently a legal choice.
+    for (const side of ["you", "foe"]) {
+      document.getElementById(`${side}Bar`).addEventListener("click", () => {
+        if (!wantsSeatTarget() || !session.full) return;
+        const seat = uiSeat(session.full);
+        offerTarget({ kind: "seat", seat: side === "you" ? seat : 1 - seat });
+      });
+    }
+
+    // Fewer clicks: the waiting Queue is itself the Continue button, and the
+    // space bar is Continue for hands that never leave the keyboard.
+    document.getElementById("queue").addEventListener("click", advance);
+
+    // The arrow layer measures screen positions, so scrolling or resizing
+    // moves the endpoints out from under it: redraw on both, coalesced.
+    let arrowFrame = null;
+    const redrawArrows = () => {
+      if (arrowFrame !== null || typeof requestAnimationFrame !== "function") return;
+      arrowFrame = requestAnimationFrame(() => {
+        arrowFrame = null;
+        drawClashArrows();
+      });
+    };
+    window.addEventListener("scroll", redrawArrows, { passive: true });
+    window.addEventListener("resize", redrawArrows);
+    window.addEventListener("keydown", (event) => {
+      if (event.key !== " " || !session.full) return;
+      const tag = ((event.target && event.target.tagName) || "").toLowerCase();
+      if (["input", "textarea", "select", "button", "summary", "a"].indexOf(tag) >= 0) return;
+      if (document.querySelector && document.querySelector(".ctxmenu")) return;
+      const detail = document.getElementById("cardDetail");
+      if (detail && detail.open) return;
+      event.preventDefault();
+      advance();
     });
 
     document.getElementById("clearManual").addEventListener("click", () => {
