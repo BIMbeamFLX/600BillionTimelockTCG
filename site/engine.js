@@ -3730,19 +3730,32 @@
     let prev = state.gameId;
     for (let i = 0; i < log.length; i++) {
       const entry = log[i];
-      const result = apply(state, entry.action, ctx);
-      if (result.error) {
-        return { ok: false, result: state.result, headHash: hashState(state), divergedAt: i, error: result.error };
+      /* The transcript is untrusted input from a relay: a non-object entry, a
+       * missing action, or a payload canonicalJSON refuses must fail the way a
+       * rejected action does — as a value at index i — never as an uncaught
+       * throw out of the verifier. apply() already returns rules failures as
+       * values; this catch covers the shape failures around it (hashState,
+       * entryHash) so the whole boundary is exception-free. */
+      try {
+        if (!entry || typeof entry !== "object" || !entry.action || typeof entry.action !== "object") {
+          return { ok: false, result: state.result, headHash: hashState(state), divergedAt: i, error: { code: "SCHEMA", message: "malformed transcript entry", detail: null } };
+        }
+        const result = apply(state, entry.action, ctx);
+        if (result.error) {
+          return { ok: false, result: state.result, headHash: hashState(state), divergedAt: i, error: result.error };
+        }
+        state = result.state;
+        const stateHash = hashState(state);
+        if (entry.stateHash && entry.stateHash !== stateHash) {
+          return { ok: false, result: state.result, headHash: stateHash, divergedAt: i, error: { code: "SEQ_MISMATCH", message: "state hash mismatch", detail: null } };
+        }
+        if (entry.prev && entry.prev !== prev) {
+          return { ok: false, result: state.result, headHash: stateHash, divergedAt: i, error: { code: "SEQ_MISMATCH", message: "chain break", detail: null } };
+        }
+        prev = entryHash({ seq: entry.seq, seat: entry.seat, at: entry.at, action: entry.action, prev, stateHash });
+      } catch (error) {
+        return { ok: false, result: state.result, headHash: hashState(state), divergedAt: i, error: errorValue(error) };
       }
-      state = result.state;
-      const stateHash = hashState(state);
-      if (entry.stateHash && entry.stateHash !== stateHash) {
-        return { ok: false, result: state.result, headHash: stateHash, divergedAt: i, error: { code: "SEQ_MISMATCH", message: "state hash mismatch", detail: null } };
-      }
-      if (entry.prev && entry.prev !== prev) {
-        return { ok: false, result: state.result, headHash: stateHash, divergedAt: i, error: { code: "SEQ_MISMATCH", message: "chain break", detail: null } };
-      }
-      prev = entryHash({ seq: entry.seq, seat: entry.seat, at: entry.at, action: entry.action, prev, stateHash });
     }
     return { ok: true, result: state.result, headHash: hashState(state), divergedAt: null, error: null };
   }
