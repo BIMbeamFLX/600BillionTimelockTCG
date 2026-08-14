@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="Open 600B Timelock TCG booster packs. One committed box, published odds, auditable pulls — free demo packs during alpha.">
+<meta property="og:title" content="600B Timelock TCG — Booster Shop">
+<meta property="og:description" content="One box, one committed order, published odds. Open a pack and check the maths yourself.">
+<meta property="og:type" content="website">
+<title>600B Timelock TCG — Booster Shop</title>
+<link rel="icon" href="../art/brand/600B-logo-primary.png">
+<link rel="stylesheet" href="600b.css">
+<style>
+.shop-head { display: grid; gap: 26px; grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr); align-items: start; }
+@media (max-width: 900px) { .shop-head { grid-template-columns: 1fr; } }
+
+.mode-demo { border-color: var(--power); }
+.mode-mint { border-color: var(--bitcoin); }
+
+/* The pack: five backs that turn over one after another. */
+.tray { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin: 28px 0 14px; perspective: 1400px; }
+.pull { width: clamp(96px, 15vw, 152px); aspect-ratio: 5/7; position: relative; }
+.pull__inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .5s cubic-bezier(.2,.7,.3,1); }
+.pull.flipped .pull__inner { transform: rotateY(180deg); }
+.pull__face { position: absolute; inset: 0; backface-visibility: hidden; border: 1px solid var(--line); }
+.pull__face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pull__front { transform: rotateY(180deg); }
+.pull__rarity {
+  position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%);
+  padding: 3px 8px; background: var(--steel); color: #cfd6dd;
+  font: 9px/1 var(--display); letter-spacing: .16em; opacity: 0; transition: opacity .3s ease .45s;
+}
+.pull.flipped .pull__rarity { opacity: 1; }
+.pull.rarity-uncommon.flipped .pull__front { box-shadow: 0 0 0 2px var(--purple), 0 0 22px rgba(185,145,228,.5); }
+.pull.rarity-rare.flipped .pull__front { box-shadow: 0 0 0 2px var(--ember), 0 0 34px rgba(255,106,0,.75); }
+.pull.rarity-rare.flipped .pull__rarity { background: var(--ember); color: var(--black); }
+
+.pack-note { min-height: 24px; text-align: center; color: var(--muted); font-size: 14px; }
+.pack-cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 8px; }
+
+.facts { display: grid; gap: 10px; }
+.fact { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.fact span { color: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-size: 11px; font-weight: 900; }
+.fact b { font-family: var(--mono); font-weight: 400; font-size: 12px; word-break: break-all; text-align: right; }
+.odds { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
+.odd { text-align: center; padding: 8px 12px; background: var(--soot); border: 1px solid var(--line); }
+.odd b { display: block; font: 20px/1 var(--display); color: var(--power); }
+.odd span { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+
+.owned-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.owned { position: relative; border: 1px solid var(--line); }
+.owned img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
+.owned.rarity-uncommon { border-color: var(--purple); }
+.owned.rarity-rare { border-color: var(--ember); }
+.owned__n { position: absolute; right: 3px; top: 3px; padding: 2px 5px; background: var(--ember); color: var(--black); font: 900 11px/1 var(--body); }
+.muted { color: var(--muted); font-size: 14px; }
+.counters { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav">
+  <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
+  <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
+  <div class="nav__links">
+    <a class="link" href="play.html">Play</a>
+    <a class="link" href="shop.html" aria-current="page">Shop</a>
+    <a class="link" href="cards.html">Cards</a>
+    <a class="link" href="deck.html">Stacks</a>
+    <a class="link" href="rules.html">Rules</a>
+    <a class="link" href="lore.html">Lore</a>
+    <a class="link" href="leaderboard.html">Leaderboard</a>
+  </div>
+</nav>
+
+<main id="main">
+  <section class="section">
+    <p class="eyebrow">Edition One · Booster Box</p>
+    <h2>Open a pack. <span class="accent">Check the maths.</span></h2>
+    <p class="lead">One box of <b id="boxSize">—</b> cards was shuffled once, from a published seed, and
+    the SHA-256 over that exact order was committed before a single pack was opened. Every pull comes off
+    the top. Nobody can reshuffle to keep a rare back — and when the box is empty the order is revealed so
+    you can replay it yourself.</p>
+
+    <div class="shop-head">
+      <div class="framed">
+        <span class="pad tl"></span><span class="pad tr"></span>
+        <span class="pad bl"></span><span class="pad br"></span>
+        <div class="banner">Booster // <span id="packSize">5</span> cards · <span id="packPrice">free</span></div>
+        <div class="note" id="modeNote" style="margin-top:12px"></div>
+        <div class="tray" id="packTray" hidden></div>
+        <p class="pack-note" id="packNote"></p>
+        <div class="pack-cta">
+          <button class="btn" id="openPack">Open a free pack</button>
+          <button class="btn btn--ghost btn--small" id="resetBox">Reset demo box</button>
+        </div>
+        <div class="terminal-line" style="margin-top:18px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span><span id="boxLeft">—</span>&nbsp;LEFT&nbsp;IN&nbsp;BOX</span></div>
+      </div>
+
+      <aside class="panel panel--act">
+        <h3>The commitment</h3>
+        <p style="margin-bottom:12px">Published before the first sale. Anyone holding the revealed order can recompute it.</p>
+        <div class="facts">
+          <div class="fact"><span>Box sha256</span><b id="boxCommit">—</b></div>
+          <div class="fact"><span>Shuffle seed</span><b id="boxSeed">—</b></div>
+        </div>
+        <h3 style="margin-top:20px">Pull odds</h3>
+        <div class="odds" id="odds"></div>
+        <p class="muted" style="margin-top:12px">Rarity is copies in the box, exactly like a printed booster box — not a hidden dice roll.</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="section section--tight">
+    <h2>Your <span class="accent">collection</span></h2>
+    <div class="counters">
+      <div><b class="chip-num"><b id="ownedCount">0</b><span>CARDS</span></b></div>
+      <div><b class="chip-num"><b id="uniqueCount">0</b><span>UNIQUE</span></b></div>
+    </div>
+    <div class="owned-grid" id="collection"></div>
+    <p class="muted" style="margin-top:14px">Right-click any pulled card to open it in the gallery.
+    During alpha your collection is stored in this browser only — it is a playground, not a ledger.
+    Build decks from the full set any time in the <a href="deck.html">Stack Builder</a>.</p>
+  </section>
+
+  <section class="section section--tight">
+    <h2>How the <span class="accent">real thing</span> will work</h2>
+    <div class="grid grid--3">
+      <div class="panel"><h3>1 · Pay yourself</h3><p>The mint hands you a Lightning invoice. Your wallet pays it — this site never sees a key, a card number or a balance.</p></div>
+      <div class="panel"><h3>2 · The box pulls</h3><p>A settled payment claims the next card off the same committed box. Same order, same odds, no re-roll on the operator's side.</p></div>
+      <div class="panel"><h3>3 · It is yours</h3><p>The card is issued as a signed event and the art is content-addressed on Blossom — the hash is the address, so any mirror serves the same bytes.</p></div>
+    </div>
+    <p class="note" style="margin-top:20px"><strong>Alpha status:</strong> packs are free and local while the mint is being wired up.
+    Nothing on this page moves money, and no purchase is implied. When the mint goes live, this same button asks for an invoice instead.</p>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <span>600 000 000 000 · Edition One · E1.0-draft</span>
+  <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
+  <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
+</footer>
+
+<script src="play-data.js"></script>
+<script src="blob-map.js"></script>
+<script src="faces.js"></script>
+<script src="shop-data.js"></script>
+<script src="shop.js"></script>
+</body>
+</html>
