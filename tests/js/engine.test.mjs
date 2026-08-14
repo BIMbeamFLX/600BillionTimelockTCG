@@ -780,3 +780,32 @@ test("a tampered transcript is caught at the exact action that diverges", () => 
   assert.equal(verdict.ok, false);
   assert.equal(verdict.divergedAt, 3);
 });
+
+test("a malformed transcript is an error value, never an exception", () => {
+  /* The transcript arrives from a relay, which §-untrusted-input says we do
+   * not trust. A missing action, a non-object entry, a payload that
+   * canonicalJSON refuses — any of these used to throw an uncaught RulesError
+   * out of verifyMatch and take the verifier down. A verification boundary
+   * must fail the way apply() does: as a value. */
+  const cfg = baseConfig();
+  const good = () => {
+    const state = E.createGame(cfg);
+    const action = { type: "PASS_PRIORITY", seat: state.priority.seat, seq: state.seq, at: "", payload: {} };
+    const next = ok(E.apply(state, action));
+    return { seq: action.seq, seat: action.seat, at: "", action, prev: state.gameId, stateHash: E.hashState(next) };
+  };
+  const malformed = [
+    [{ notAnAction: true }], // no .action at all
+    ["nonsense"], // entry is not even an object
+    [{ ...good(), action: { type: "PASS_PRIORITY", seat: undefined, seq: 0, at: "", payload: {} } }], // undefined seat
+    [good(), null], // a hole in the middle
+  ];
+  for (const log of malformed) {
+    let verdict;
+    assert.doesNotThrow(() => {
+      verdict = E.verifyMatch({ config: cfg, log });
+    }, `verifyMatch threw on ${JSON.stringify(log).slice(0, 60)}`);
+    assert.equal(verdict.ok, false, "a malformed transcript cannot verify");
+    assert.ok(verdict.error, "and it must say why");
+  }
+});

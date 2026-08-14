@@ -47,6 +47,7 @@
      * ever set for the hotseat game — a networked table never hosts a bot. */
     npc: null,
     npcAffinity: "Bitcoin",
+    config: null,        // the hotseat createGame config, kept so verify() can replay
   };
 
   /* Local click-gathering. None of this is game state: it is the half-formed
@@ -283,6 +284,7 @@
       case "ENTERS": return [`${nameOf(p.cardId)} enters the Network.`, ""];
       case "RESOLVED": return [`${nameOf(p.cardId)} resolves.`, ""];
       case "INVALIDATED": return [`${nameOf(p.cardId)} is invalidated (${p.reason}) and archived.`, "warn"];
+      case "OP_SKIPPED": return [`${p.cardId ? nameOf(p.cardId) + "'s" : "A"} leftover effect fizzles — its object left play.`, "warn"];
       case "ARCHIVED": return [`${nameOf(p.cardId)} is archived.`, "warn"];
       case "DECOMMISSIONED": return [`${nameOf(p.cardId)} is decommissioned.`, "warn"];
       case "REBOOT": return [`${nameOf(p.cardId)} Reboots instead of being decommissioned.`, "good"];
@@ -2033,6 +2035,10 @@
       }
     })();
     const choose = (value) => {
+      const precons = globalThis.E1_PRECONS || {};
+      if (value && value.startsWith("precon:") && precons[value.slice(7)]) {
+        return { deck: precons[value.slice(7)].cards.slice() };
+      }
       if (value && value.startsWith("custom:") && Array.isArray(stacks[value.slice(7)])) {
         return { deck: stacks[value.slice(7)].slice() };
       }
@@ -2063,6 +2069,7 @@
     session.npcAffinity = prefAffinity(config.seats[1]);
     try {
       session.full = E.createGame(config);
+      session.config = config; // kept so E1_GAME.verify() can replay the hotseat
     } catch (error) {
       document.getElementById("prompt").textContent = String(error.message || error);
       return;
@@ -2111,12 +2118,26 @@
         return {};
       }
     })();
+    const precons = globalThis.E1_PRECONS || {};
     for (const id of ["deckA", "deckB"]) {
       const select = document.getElementById(id);
       for (const name of affinities) {
         const option = el("option", null, name === "All" ? "All affinities" : name);
         option.value = name;
         select.append(option);
+      }
+      // The precon library: curated, fully scripted Stacks, ready on turn one.
+      for (const shelf of ["Starter", "Classic"]) {
+        const names = Object.keys(precons).filter((name) => precons[name].group === shelf);
+        if (!names.length) continue;
+        const group = document.createElement("optgroup");
+        group.label = shelf === "Starter" ? "Starter Stacks" : "Classic library";
+        for (const name of names) {
+          const option = el("option", null, `${name} · ${precons[name].affinity}`);
+          option.value = `precon:${name}`;
+          group.append(option);
+        }
+        select.append(group);
       }
       const names = Object.keys(savedStacks).sort();
       if (names.length) {
@@ -2290,7 +2311,7 @@
     view: (seat) => E.view(session.full, seat),
     hash: () => E.hashState(session.full),
     publicHash: () => E.publicHash(session.full),
-    verify: () => E.verifyMatch({ config: null, log: session.log }),
+    verify: () => E.verifyMatch({ config: session.config, log: session.log }),
     startGame,
     dispatch,
   };

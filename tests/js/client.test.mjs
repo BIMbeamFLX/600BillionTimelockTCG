@@ -468,4 +468,11 @@ test("a player is a clickable target: Zap resolves at the opponent's face", () =
   for (let i = 0; i < 6 && game.state.queue.length; i++) byId("continue").click();
   assert.equal(game.state.queue.length, 0, "the Queue must resolve");
   assert.equal(game.state.seats[1].uptime, 17, "Zap's 3 damage lands on the chosen player");
+
+  /* The console verify() must replay this hotseat: it needs the createGame
+   * config, which the table now keeps. Before, it passed config:null and
+   * every hotseat verify died of SCHEMA before replaying a single action. */
+  const verdict = game.verify();
+  assert.equal(verdict.ok, true, JSON.stringify(verdict.error));
+  assert.equal(verdict.divergedAt, null, "a self-played transcript must not diverge");
 });
