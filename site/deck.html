@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#09080b">
 <meta name="description" content="600B Timelock TCG — Stack Builder. Build, save and play your own 40+ card Stacks.">
 <title>600B Timelock TCG — Stack Builder</title>
+<link rel="icon" href="../art/brand/600B-logo-primary.png">
+<link rel="stylesheet" href="600b.css">
 <style>
 @font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
 :root {
@@ -19,19 +21,7 @@ html { color-scheme: dark; }
 body { background: var(--black); color: var(--cream); font: 14px/1.5 Arial, sans-serif; }
 a { color: var(--orange); }
 
-.nav {
-  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
-  padding: 12px clamp(16px, 3vw, 40px); background: rgba(9,8,11,.92);
-  border-bottom: 1px solid var(--line); backdrop-filter: blur(16px);
-}
-.nav img { width: 38px; height: 38px; }
-.nav .brand { margin-right: auto; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; }
-.nav .brand small { display: block; color: var(--purple); font: 700 9px/1.4 Arial; letter-spacing: .22em; }
-.nav a.link {
-  color: var(--cream); text-decoration: none; font: 13px/1 Anton600, Impact, sans-serif;
-  letter-spacing: .08em; text-transform: uppercase; padding: 9px 12px; border: 1px solid transparent;
-}
-.nav a.link:hover { border-color: var(--purple-deep); }
+/* The nav lives in the design system (600b.css) — nothing page-local here. */
 
 .layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; padding: 18px clamp(16px, 3vw, 40px) 80px; max-width: 1560px; margin: 0 auto; }
 @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .deckpane { position: static !important; } }
@@ -66,7 +56,8 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 .gsrc-cache { background: #B991E4; box-shadow: 0 0 5px rgba(185,145,228,.7); }
 .cardtile.stake::after { content: "STAKE MODULE — NOT IN E1"; position: absolute; inset: auto 0 22px 0; padding: 4px; text-align: center; background: rgba(9,8,11,.85); color: #ff4d3d; font: 900 9px/1.2 Arial; letter-spacing: .1em; }
 
-.deckpane { position: sticky; top: 76px; align-self: start; background: var(--panel); border: 1px solid var(--line); padding: 14px; max-height: calc(100vh - 96px); display: flex; flex-direction: column; }
+/* Clears the shared 59px nav bar — see .nav in 600b.css. */
+.deckpane { position: sticky; top: 71px; align-self: start; background: var(--panel); border: 1px solid var(--line); padding: 14px; max-height: calc(100vh - 91px); display: flex; flex-direction: column; }
 .deckpane h2 { font: 18px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 10px; }
 .deckpane .row { display: flex; gap: 8px; margin-bottom: 8px; }
 .deckpane input[type=text] { flex: 1; min-height: 36px; padding: 6px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font: inherit; }
@@ -97,16 +88,22 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 </head>
 <body>
 
+<a class="skip" href="#main">Skip to content</a>
 <nav class="nav">
-  <img src="../art/brand/600B-logo-primary.png" alt="600B">
-  <div class="brand">STACK BUILDER<small>600B TIMELOCK TCG · EDITION ONE</small></div>
-  <a class="link" href="index.html">Home</a>
-  <a class="link" href="play.html">Play</a>
-  <a class="link" href="cards.html">Cards</a>
-  <a class="link" href="rules.html">Rulebook</a>
+  <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
+  <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
+  <div class="nav__links">
+    <a class="link" href="play.html">Play</a>
+    <a class="link" href="shop.html">Shop</a>
+    <a class="link" href="cards.html">Cards</a>
+    <a class="link" href="deck.html" aria-current="page">Stacks</a>
+    <a class="link" href="rules.html">Rules</a>
+    <a class="link" href="lore.html">Lore</a>
+    <a class="link" href="leaderboard.html">Leaderboard</a>
+  </div>
 </nav>
 
-<div class="layout">
+<div class="layout" id="main">
   <section class="browser">
     <div class="controls">
       <input class="search" id="search" placeholder="Search name, ID, rules text …" autocomplete="off">
@@ -137,6 +134,13 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     </div>
   </aside>
 </div>
+
+<footer class="site-footer">
+  <span>600 000 000 000 · Edition One · E1.0-draft</span>
+  <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
+  <a href="quickstart.html">Quick start</a>
+  <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
+</footer>
 
 <script src="play-data.js"></script>
 <script src="blob-map.js"></script>
