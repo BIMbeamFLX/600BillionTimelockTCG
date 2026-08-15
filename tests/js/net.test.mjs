@@ -1167,16 +1167,42 @@ test("CREATE, JOIN, RESUME, and NOSTR share a connection rate limit", async (t) 
   assert.equal((await (await fetch(`${table.url}/api/health`)).json()).ok, true);
 });
 
-test("control budgets survive reconnects and ignore untrusted forwarding headers", async (t) => {
+test("a budget survives reconnects and ignores untrusted forwarding headers", async (t) => {
+  /* Reconnecting must not mint fresh capacity, and a spoofed X-Forwarded-For
+   * must not either — the TCP peer and the authenticated key are the only
+   * things that count, and a header an attacker writes is neither. Both
+   * connections here are the SAME identity, which is the case the rule is
+   * actually about. */
   const table = await boot(t, "t25.db", { controlMax: 1 });
-  const first = await table.client({ headers: { "X-Forwarded-For": "198.51.100.10" } });
+  const first = await table.client({ identity: "same", headers: { "X-Forwarded-For": "198.51.100.10" } });
   first.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power", pubkey: first.pubkey });
   assert.equal((await first.type("ERROR")).code, "NO_SUCH_MATCH");
   await first.close();
 
-  const second = await table.client({ headers: { "X-Forwarded-For": "203.0.113.20" } });
+  const second = await table.client({ identity: "same", headers: { "X-Forwarded-For": "203.0.113.20" } });
   second.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power", pubkey: second.pubkey });
   assert.equal((await second.type("ERROR")).code, "RATE_LIMITED");
+});
+
+test("one player's chatter cannot close another player's socket", async (t) => {
+  /* THE DEPLOYMENT THE DOCS PRESCRIBE PUTS EVERY PLAYER BEHIND ONE REVERSE
+   * PROXY, so bucketing on the TCP peer gave the entire server a single
+   * 30-per-10s allowance. A stranger's traffic kicked a seated host, and a
+   * reconnect storm — precisely what bad wifi produces — shut the door on
+   * everyone at once. An authenticated connection is metered as its identity. */
+  const table = await boot(t, "t25b.db", { controlMax: 2 });
+  const host = await table.client({ identity: "host" });
+  host.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: host.pubkey });
+  const open = await host.type("STATE");
+
+  const noisy = await table.client({ identity: "noisy" });
+  for (let i = 0; i < 12; i++) noisy.send({ t: "UNQUEUE" });
+  assert.equal((await noisy.type("ERROR")).code, "RATE_LIMITED", "the noisy one is metered");
+
+  // The host, who did nothing, is still seated and still able to act.
+  host.send({ t: "JOIN", code: open.code, name: "felix", affinity: "Power", pubkey: host.pubkey });
+  const reply = await host.next((m) => m.t === "ERROR");
+  assert.equal(reply.code, "MATCH_FULL", "and is answered on the rules, not kicked for a stranger's noise");
 });
 
 test("malformed, bad-version, and unknown messages share the address budget", async (t) => {
@@ -1886,4 +1912,104 @@ test("a staked match, queued to signed result, carries everything the closing sc
   assert.equal(back.status, "over");
   assert.equal(back.stake, 210, "and the wager is still on the record");
   assert.equal(back.resultContent, over.resultContent, "the identical bytes its opponent signed");
+});
+
+// -------------------------------------------- sitting down leaves the line
+
+test("a forgotten queue entry cannot hand a live match to a stranger", async (t) => {
+  /* THE ONE-CLICK PATH THAT LOST A WHOLE MATCH. Press "Find opponent", get
+   * bored, host a table instead — and the queue entry stayed standing, because
+   * only LEAVE, UNQUEUE and a dropped socket ever removed one. The next
+   * stranger to queue was paired with it, which detached the player from the
+   * game they were actually playing and dealt them into one against someone
+   * they had never met, while their real opponent watched them go offline
+   * mid-turn. */
+  const table = await boot(t, "qa1.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 0 });
+  await a.type("QUEUED");
+
+  // Bored of waiting: host a table instead, and play a real match on it.
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const open = await a.type("STATE");
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal" });
+  await b.type("STATE");
+  const live = await a.type("STATE");
+  assert.equal(live.status, "playing");
+
+  // A stranger queues. Nothing at all may happen to the match in progress.
+  const c = await table.client({ identity: "c" });
+  c.send({ t: "QUEUE", name: "cara", affinity: "Keys", stake: 0 });
+  const waiting = await c.type("QUEUED");
+  assert.equal(waiting.queued, true, "the stranger waits, because nobody is free");
+  assert.equal(waiting.waiting, 1, "and the seated player is no longer in the line");
+
+  /* The decisive check: the seated player must not have been handed a new
+   * match, and must still be able to act in the one they are in. */
+  const reply = await a.act({
+    type: "PASS_PRIORITY", seat: 0, seq: a.view.seq, at: "", payload: {},
+  });
+  assert.ok(reply.t === "FRAME" || reply.t === "REJECT", `got ${reply.t}`);
+  assert.equal(a.matchId, live.matchId, "still the same match");
+  assert.equal(
+    table.db.prepare("SELECT status FROM matches WHERE match_id=?").get(live.matchId).status,
+    "playing"
+  );
+});
+
+test("every match a connection sits at issues its own seat credential", async (t) => {
+  /* `tokenSent` was a flag on the SOCKET, so the second match a connection ever
+   * joined — every rematch, every queue into a new game — was seated with no
+   * token at all. Recovery then depended entirely on the weaker identity rung,
+   * which is refused while a zombie socket still looks alive. The second match
+   * of an evening was materially less reload-safe than the first. */
+  const table = await boot(t, "qa2.db");
+  const a = await table.client({ identity: "a" });
+  const b = await table.client({ identity: "b" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 0 });
+  await a.type("QUEUED");
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 0 });
+  const first = await a.type("STATE");
+  await b.type("STATE");
+  assert.ok(first.token, "the first match is credentialed");
+
+  // Finish it, then take a rematch on the very same sockets.
+  await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
+  await a.next((m) => m.t === "OVER");
+  await b.next((m) => m.t === "OVER");
+
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 0 });
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 0 });
+  const second = await a.next((m) => m.t === "STATE" && m.matchId !== first.matchId);
+  const secondB = await b.next((m) => m.t === "STATE" && m.matchId !== first.matchId);
+
+  assert.ok(second.token, "the rematch must be credentialed too");
+  assert.ok(secondB.token, "for both seats");
+  assert.notEqual(second.token, first.token, "and with its own credential, not the old one");
+
+  // And that credential actually works, which is the whole point of having one.
+  const back = await Client.open(table.wsUrl, { identity: "a" });
+  t.after(() => back.close());
+  back.send({ t: "RESUME", matchId: second.matchId, token: second.token });
+  const resumed = await back.type("STATE");
+  assert.equal(resumed.seat, 0);
+  assert.equal(resumed.matchId, second.matchId);
+});
+
+test("hosting twice does not leave an advertised table nobody is sitting at", async (t) => {
+  const table = await boot(t, "qa3.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const first = await a.type("STATE");
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const second = await a.type("STATE");
+  assert.notEqual(second.matchId, first.matchId);
+
+  const listed = await (await fetch(table.url + "/api/tables")).json();
+  assert.deepEqual(
+    listed.map((row) => row.matchId),
+    [second.matchId],
+    "the abandoned first table must not still be advertised"
+  );
 });

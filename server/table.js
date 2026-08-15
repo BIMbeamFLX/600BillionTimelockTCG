@@ -684,6 +684,9 @@ async function createTable(opts) {
     if (!spectator && !conn.tokenSent) {
       msg.token = rec.players[seat].token;
       conn.tokenSent = true;
+      // Remembered per match, so moving to a new one re-issues rather than
+      // silently seating a player with no way back into it.
+      conn.tokenSentFor = rec.matchId;
     }
     return msg;
   }
@@ -819,13 +822,23 @@ async function createTable(opts) {
 
   const rateOk = (rec, seat) => meter(rec.rate, seat, rateMax);
   const rejectOk = (rec, seat) => meter(rec.rejectRate, seat, rejectMax);
+  /* WHO A BUDGET BELONGS TO. This bucketed on the TCP peer — which, in the
+   * deployment the docs prescribe, is a reverse proxy on 127.0.0.1, so EVERY
+   * PLAYER SHARED ONE 30-PER-10s BUDGET. A stranger's chatter closed a seated
+   * host's socket, and thirty reconnects across all players in one window shut
+   * the door on everybody. Flaky wifi produces reconnect storms, so the failure
+   * landed hardest exactly when the game most needed to look reliable.
+   *
+   * Once a connection has proved an identity, that identity is who it is; the
+   * address is only the fallback for traffic that has not authenticated yet,
+   * which is where a shared bucket is actually the correct answer. */
+  const budgetKey = (conn) => (conn.pubkey ? `k:${conn.pubkey}` : `a:${conn.address}`);
   const addressOk = (rates, conn, max) => {
     const now = Date.now();
-    const hits = (rates.get(conn.address) || []).filter(
-      (timestamp) => now - timestamp < RATE_WINDOW_MS
-    );
+    const key = budgetKey(conn);
+    const hits = (rates.get(key) || []).filter((timestamp) => now - timestamp < RATE_WINDOW_MS);
     hits.push(now);
-    rates.set(conn.address, hits);
+    rates.set(key, hits);
     return hits.length <= max;
   };
   const controlOk = (conn) => addressOk(controlRates, conn, controlMax);
@@ -1001,6 +1014,13 @@ async function createTable(opts) {
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
     const pubkey = authenticatedPubkey(conn, msg);
     if (!pubkey) return;
+    /* An open table this connection is still hosting is closed first. Two
+     * CREATEs on one socket used to leave the first as an advertised row with
+     * nobody sitting at it — exactly the trap LEAVE exists to prevent, arrived
+     * at by a different door. */
+    if (conn.rec && conn.seat === 0 && conn.rec.status === "open" && !conn.rec.players[1]) {
+      handleLeave(conn);
+    }
     const matchId = "m_" + hex(6);
     let code = makeCode();
     for (let i = 0; i < 20 && q.byCode.get(code); i++) code = makeCode();
@@ -1240,7 +1260,21 @@ async function createTable(opts) {
   // ---------------------------------------------------------------- resume
 
   function seat(conn, rec, n) {
+    /* SITTING DOWN LEAVES THE LINE. Nothing else did this: CREATE, JOIN and
+     * RESUME all seated a connection while leaving its queue entry standing,
+     * and pumpQueue only pruned entries whose socket had died. So a player who
+     * pressed "Find opponent", got bored, and then hosted a table or joined a
+     * friend's code stayed in the queue — and the next stranger to queue was
+     * PAIRED WITH THEM, yanking them out of a live match and into a game
+     * against someone they had never met, while their real opponent watched
+     * them go offline mid-turn. */
+    leaveQueue(conn, false);
     if (conn.rec && conn.rec !== rec) detach(conn);
+    /* A credential is per MATCH, not per connection. `tokenSent` was a flag on
+     * the socket, so the second match a connection ever sat at — every rematch,
+     * every queue-into-a-new-game — was seated with no token at all, and could
+     * only be recovered through the weaker identity rung. */
+    if (conn.rec !== rec || conn.tokenSentFor !== rec.matchId) conn.tokenSent = false;
     conn.rec = rec;
     conn.seat = n;
     if (n === null) {
@@ -1292,7 +1326,14 @@ async function createTable(opts) {
       }
       if (granted === null && !downgradeReason) downgradeReason = "seat held by a live connection";
     }
-    if (granted === null && !token) downgradeReason = "NIP-07 identity does not own a seat";
+    /* Only when nothing more specific was learned. This used to overwrite the
+     * true reason unconditionally, so a player whose own seat was held by their
+     * own zombie socket was told their identity did not own it — pointing the
+     * diagnosis in precisely the wrong direction, in the one message a stuck
+     * player actually reads. */
+    if (granted === null && !token && !downgradeReason) {
+      downgradeReason = "NIP-07 identity does not own a seat";
+    }
 
     if (granted === null) {
       /* NEVER a hard error: a stranger opening the link mid-match becomes an
@@ -1434,7 +1475,7 @@ async function createTable(opts) {
      * deployment explicitly establishes and validates a trusted proxy chain. */
     const address = req.socket.remoteAddress || "unknown";
     const conn = {
-      ws, rec: null, seat: null, tokenSent: false, address,
+      ws, rec: null, seat: null, tokenSent: false, tokenSentFor: null, address,
       pubkey: null, authChallenge: hex(32), authRelay: publicTableUrl(),
     };
     ws.conn = conn;

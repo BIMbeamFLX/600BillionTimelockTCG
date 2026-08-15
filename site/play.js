@@ -1490,7 +1490,9 @@
       title: "Play a Resource",
       // Never name a gesture the device in the player's hands does not have:
       // a phone has no right button, so the hold is named alongside it.
-      text: "Glowing cards can be played right now. Click or tap plays it; right-click — or press and hold — opens the card and explains it. Play one Resource.",
+      // And "a Resource" means nothing to someone who has never played: on turn
+      // one the glow IS the answer, so the instruction says so outright.
+      text: "The glowing cards are the ones you can play right now — on turn one that is your Resources, the cards that pay for everything else. Click or tap one to play it; right-click, or press and hold, to read any card first.",
       anchor: "#youHand",
       done: () => {
         const full = session.full;
@@ -1499,7 +1501,12 @@
     },
     {
       title: "Generate",
-      text: "Click your Resource on the Network and pick an affinity. That fills your Buffer — the pips beside your name pay for everything.",
+      /* It used to say "pick an affinity", which was wrong twice over: the word
+       * appears nowhere in the quickstart, and a Resource with a single ability
+       * fires INSTANTLY with no menu (see activateFromBoard), so the player was
+       * told to make a choice that never appeared and would reasonably conclude
+       * the game was broken. */
+      text: "Now click that Resource where it sits on your Network. It fills your Buffer — the little pips beside your name, which are what you spend. Some Resources ask which kind to make; most just make it.",
       anchor: "#youNetwork",
       done: () => {
         const full = session.full;
@@ -1508,7 +1515,9 @@
     },
     {
       title: "Spend it",
-      text: "Cards you can afford glow gold. Play one — or press Next if nothing glows this turn.",
+      // Step 2 already taught "glowing = playable"; saying "glow gold" here
+      // invented a second meaning for the same cue on the same screen.
+      text: "Anything you can now afford is glowing again. Play one — or press Next if nothing is glowing this turn.",
       anchor: "#youHand",
       done: () => {
         const full = session.full;
