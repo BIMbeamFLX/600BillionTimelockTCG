@@ -1,0 +1,17 @@
+# 600B Timelock TCG — a positive cypherpunk card game. MIT licensed.
+# Everything a player would want to read is open; the two disallowed paths are
+# a developer harness and an 18-card playtest slice that predates the released
+# 295-card set, and would misrepresent it if served to someone as the real one.
+
+User-agent: *
+Allow: /
+Disallow: /fx-demo.html
+Disallow: /e1-card-set.html
+
+# The referee's socket and JSON API are not documents.
+Disallow: /ws
+Disallow: /api/
+
+# No Sitemap line on purpose: a sitemap must carry absolute URLs, and no
+# canonical domain is fixed yet. Add it at publish time, when the answer is
+# known, rather than shipping one pointing at a guess.
