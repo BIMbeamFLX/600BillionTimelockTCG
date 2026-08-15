@@ -11,12 +11,23 @@
 <title>600B Timelock TCG — Lore</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
+<script src="napplet.js"></script>
+<script>
+/* Painted before the first frame, so a shell-themed napplet never shows the
+   600B fallback palette and then jumps to the shell's. No shell present is not
+   a failure: theme.start() falls back to the palette 600b.css already ships. */
+if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
+</script>
 <style>
 /* Page-local only. Palette, type scale, nav, footer, .framed / .banner /
    .disc / .terminal-line come from 600b.css — nothing new is invented here. */
 
+/* min-height is a floor, not a fixed viewport assumption: 52vh alone would
+   claim half of somebody else's window for a napplet panel that may be a
+   third of it, so it is bounded at both ends. */
 .hero {
-  position: relative; overflow: hidden; min-height: 52vh; display: grid; align-content: center;
+  position: relative; overflow: hidden; min-height: clamp(280px, 52vh, 560px);
+  display: grid; align-content: center;
   padding: clamp(48px, 8vw, 110px) var(--pad);
 }
 .hero::before {
@@ -58,23 +69,33 @@ em { color: var(--gold); font-style: italic; }
 /* ------------------------------------------------------------- the runners */
 /* "Die gerade Linie ist gottlos." Six real Edition One cards, bent into the
    same arc the table gives your Network. Static transforms only — there is
-   nothing animated here for prefers-reduced-motion to disable. */
+   nothing animated here for prefers-reduced-motion to disable.
 
-.arc { display: flex; justify-content: center; align-items: flex-end; margin: 30px auto 8px; padding-top: 30px; }
-.arc a { display: block; transform-origin: 50% 150%; text-decoration: none; }
+   The overlap is a fraction of the card width rather than a flat 14px, so the
+   whole arc scales as ONE object: six cards pulled in by .06 of their own
+   width on each side occupy 5.3 × --fw, and the 15° tilt on the outer two
+   adds .33 × --fw of bleed — 5.6 × --fw all told, which is the number the
+   ladder further down is measured against at every step. A fixed 14px inset
+   only holds at the width it was measured at, and a panel is not that. */
+
+.arc { --fw: 118px; display: flex; justify-content: center; align-items: flex-end; margin: 30px auto 8px; padding-top: 30px; }
+.arc a { flex: 0 0 auto; display: block; transform-origin: 50% 150%; text-decoration: none; margin-inline: calc(var(--fw) * -0.06); }
 .arc img {
-  display: block; width: clamp(54px, 13vw, 118px); aspect-ratio: 5/7; object-fit: cover;
+  display: block; width: var(--fw); aspect-ratio: 5/7; object-fit: cover;
   border: 1px solid var(--line-strong); box-shadow: 0 14px 34px rgba(0,0,0,.62);
 }
-.arc a:nth-child(1) { transform: rotate(-15deg) translateY(22px); margin-right: -14px; }
-.arc a:nth-child(2) { transform: rotate(-9deg) translateY(9px); margin-right: -14px; }
-.arc a:nth-child(3) { transform: rotate(-3deg); margin-right: -14px; z-index: 2; }
-.arc a:nth-child(4) { transform: rotate(3deg); margin-right: -14px; z-index: 2; }
-.arc a:nth-child(5) { transform: rotate(9deg) translateY(9px); margin-right: -14px; }
+.arc a:nth-child(1) { transform: rotate(-15deg) translateY(22px); }
+.arc a:nth-child(2) { transform: rotate(-9deg) translateY(9px); }
+.arc a:nth-child(3) { transform: rotate(-3deg); z-index: 2; }
+.arc a:nth-child(4) { transform: rotate(3deg); z-index: 2; }
+.arc a:nth-child(5) { transform: rotate(9deg) translateY(9px); }
 .arc a:nth-child(6) { transform: rotate(15deg) translateY(22px); }
 .arc-caption { text-align: center; color: var(--ink-dim); font-size: 11px; letter-spacing: .13em; text-transform: uppercase; }
 
-.runners { display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); gap: 12px; margin: 24px 0 8px; }
+/* min() on every auto-fit track: without it the named minimum is a floor the
+   grid will overflow its box to honour, which is exactly the "no horizontal
+   overflow at any size" clause failing in a narrow napplet panel. */
+.runners { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(238px, 100%), 1fr)); gap: 12px; margin: 24px 0 8px; }
 .runner { padding: 16px 18px; background: var(--soot); border: 1px solid var(--line); border-top: 3px solid var(--purple-deep); }
 .runner b { display: block; font: 16px/1.2 var(--display); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; color: var(--cream); }
 .runner .aff { display: inline-block; margin-bottom: 8px; padding: 3px 8px 4px; background: var(--steel); color: #cfd6dd; font: 9.5px/1.3 var(--display); letter-spacing: .2em; text-transform: uppercase; }
@@ -85,7 +106,62 @@ em { color: var(--gold); font-style: italic; }
   font: 64px/0.8 var(--display); color: var(--ember);
 }
 
-.onward { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 26px 0 0; }
+.onward { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 14px; margin: 26px 0 0; }
+
+/* --------------------------------------------------- the layout contract */
+/* docs/napplet-spec.md: no fixed viewport assumptions, no horizontal overflow
+   at any size, collapsed presentation below ~360px. A napplet is a panel
+   inside somebody else's window, so the breakpoints below read THIS page's
+   box, not the device — on the plain website the two are the same number,
+   which is why one set of rules serves both. */
+body { container-type: inline-size; container-name: page; }
+
+/* Two nbsp-joined halves that cannot break inside themselves. Given one line
+   they push the page sideways; given two they simply stack. */
+.terminal-line { flex-wrap: wrap; }
+
+/* Always true wherever container queries exist, which is the point: --pad is
+   4vw in 600b.css and that reads the WINDOW. A 320px panel on a 27" monitor
+   gets 56px of gutter on each side and 208px to live in. Same formula, same
+   numbers on the open website, measured against the panel. */
+@container page (min-width: 0px) {
+  .nav, .hero, main, .site-footer { --pad: clamp(16px, 4cqi, 56px); }
+  .hero { padding-block: clamp(40px, 8cqi, 110px); }
+  .hero .sub { font-size: clamp(17px, 2cqi, 19px); }
+}
+
+@container page (max-width: 900px) {
+  /* 600b.css sizes headings against the viewport too; in a narrow panel on a
+     wide screen that is a 92px word in a 300px box. Same scale, measured
+     against what the words actually have to fit into. */
+  h1 { font-size: clamp(36px, 10cqi, 70px); }
+  h2 { font-size: clamp(24px, 6cqi, 44px); }
+  .arc { --fw: 96px; }
+}
+@container page (max-width: 720px) {
+  .nav__brand small { display: none; }
+  .nav a.link { padding: 8px 9px; font-size: 12px; }
+  .site-footer .tag { margin-left: 0; }
+  .arc { --fw: 78px; }
+}
+@container page (max-width: 560px) { .arc { --fw: 66px; } }
+@container page (max-width: 480px) {
+  .arc { --fw: 54px; }
+  .tool { gap: 12px; padding: 13px 14px; }
+}
+@container page (max-width: 359px) {
+  /* Tiny, per the spec's collapsed presentation. The arc is the only thing
+     that goes, and it costs nothing: all six runners are named, badged with
+     their affinity and described in the cards directly beneath it, and the
+     gallery is in the nav. Dropping it is the only way to promise no
+     horizontal overflow at ANY width. */
+  .arc, .arc-caption { display: none; }
+  .tool { flex-direction: column; gap: 10px; }
+  .nav a.link { padding: 6px 7px; font-size: 11px; letter-spacing: .04em; }
+  .btn { padding: 11px 14px; font-size: 13px; }
+  .hero { min-height: 0; }
+  h2 { margin-top: 40px; }
+}
 </style>
 </head>
 <body>
@@ -245,12 +321,34 @@ em { color: var(--gold); font-style: italic; }
 <script src="faces.js"></script>
 <script>
 /* Card art comes from Blossom by hash when the page is served, and from the
-   repo when it is opened from a file:// path — same resolver the table uses. */
-for (const img of document.querySelectorAll("img[data-face]")) {
-  const face = img.dataset.face;
-  if (globalThis.E1Faces) globalThis.E1Faces.setFace(img, face);
-  else img.src = "../art/cards/node-runner-web/" + encodeURIComponent(face);
-}
+   repo when it is opened from a file:// path — same resolver the table uses.
+ *
+ * Three things can be missing here and none of them may leave an empty frame:
+ * a shell that blocks outbound fetch skips the mirrors entirely and reads the
+ * bundled file; a mirror that accepts the connection and then never answers is
+ * overtaken by the repo file after four seconds; a face that is genuinely gone
+ * falls back to the card back. Every path ends in a picture. */
+(function () {
+  "use strict";
+  const LOCAL = "../art/cards/node-runner-web/";
+  const BACK = LOCAL + "600B-Timelock-card-back.webp";
+  const nap = globalThis.E1Napplet;
+  const sandboxed = Boolean(nap) && !nap.canReachInternet();
+  const viaBlossom = Boolean(globalThis.E1Faces) && !sandboxed;
+
+  for (const img of document.querySelectorAll("img[data-face]")) {
+    const face = img.dataset.face;
+    const local = LOCAL + encodeURIComponent(face);
+    img.addEventListener("error", function onError() {
+      img.removeEventListener("error", onError);
+      if (img.src.indexOf("600B-Timelock-card-back.webp") < 0) img.src = BACK;
+    });
+    if (!viaBlossom) { img.src = local; continue; }
+    const guard = setTimeout(() => { if (!img.getAttribute("src")) img.src = local; }, 4000);
+    img.addEventListener("load", () => clearTimeout(guard), { once: true });
+    globalThis.E1Faces.setFace(img, face);
+  }
+})();
 </script>
 </body>
 </html>

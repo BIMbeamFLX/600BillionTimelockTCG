@@ -9,6 +9,14 @@
   <title>600B Timelock TCG — All Cards</title>
   <link rel="icon" href="../art/brand/600B-logo-primary.png">
   <link rel="stylesheet" href="600b.css">
+  <!-- The napplet adapter, loaded before anything paints. It maps a shell's
+       palette onto the very custom properties 600b.css already uses (and never
+       onto the five affinity Plate colours, which are brand-fixed), and it is
+       where this page asks for storage rather than reaching at localStorage.
+       On the plain website every optional domain is simply absent, which is
+       the fallback path — not a special mode. -->
+  <script src="napplet.js"></script>
+  <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
   <style>
     /* Page-local only: the catalog grid, the filter console and the detail
        dialog. Tokens, type, nav, footer and the card DNA (framed + pads,
@@ -36,11 +44,16 @@
       backdrop-filter: blur(14px);
     }
     .console .framed { padding: 14px; background: rgba(17, 16, 20, .94); }
+    /* auto-fit, so the console reflows at ANY width instead of assuming one:
+       empty tracks collapse, the five selects share whatever room there is, and
+       the floor is min(100%, …) so a single column can never be wider than its
+       container. There is no width at which this row overflows sideways. */
     .control-grid {
       display: grid;
       gap: 10px;
-      grid-template-columns: minmax(230px, 2fr) repeat(5, minmax(112px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
     }
+    .field--search { grid-column: 1 / -1; }
     .field { display: grid; gap: 6px; min-width: 0; }
     .field > .banner { justify-self: start; }
     .field input, .field select {
@@ -75,6 +88,16 @@
     .aff img { width: 13px; height: 13px; }
     .status { margin-top: 13px; opacity: 1; }
     .status .side { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    /* LEFT CLICK = ACT. One press swaps every face between artwork and the
+       text cards, which is also the presentation a shell without the resource
+       domain gets by itself. */
+    .status .chip { min-height: 38px; cursor: pointer; }
+    .status .chip:not(.chip--on) { background: transparent; }
+    .status .chip:hover:not(:disabled):not(.chip--on) {
+      color: var(--cream);
+      border-color: var(--line-strong);
+    }
+    .status .chip:disabled { cursor: not-allowed; opacity: .72; }
     #counter { color: var(--cream); }
     .flash { color: var(--ember); }
     .hint { color: var(--ink-dim); letter-spacing: .12em; }
@@ -111,10 +134,14 @@
     /* Beats .catalog-card's display, so filtering can hide with one attribute. */
     .catalog-card[hidden] { display: none; }
     .catalog-card:hover { border-color: var(--ember); transform: translateY(-4px); }
+    /* The box is reserved by the button, not by whatever ends up inside it, so
+       a face that arrives late — or never, and is drawn as text instead — moves
+       nothing on the page. */
     .art-button {
       position: relative;
       display: block;
       width: 100%;
+      aspect-ratio: 5 / 7;
       padding: 0;
       overflow: hidden;
       color: inherit;
@@ -123,6 +150,7 @@
       border-bottom: 1px solid var(--line);
       cursor: zoom-in;
     }
+    .art-button--text { background: var(--soot); cursor: pointer; }
     .art-button::after {
       position: absolute;
       right: 10px;
@@ -134,15 +162,74 @@
       font: 11px/1 var(--display);
       letter-spacing: .08em;
     }
-    .art-button img {
-      display: block;
+    .art-button img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+    /* ----------------------------------------------- the text-card fallback */
+    /* Card faces are NOT bundled (napplet spec, "cards"): they come from the
+       published asset location. When that cannot be reached — a shell with no
+       resource domain, a sandbox that blocks outbound fetch, or one file that
+       simply 404s — the spec's fallback is a text-rendered card. So the tile
+       draws the card itself, out of data it already has, wearing the printed
+       frame: corner pads, steel type banner, chip squares, terminal footer. */
+    .text-face {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
       width: 100%;
+      height: 100%;
       aspect-ratio: 5 / 7;
-      object-fit: contain;
+      padding: 16px 15px 42px;
+      overflow: hidden;
+      text-align: left;
+      background:
+        repeating-linear-gradient(122deg, rgba(185, 145, 228, .07) 0 1px, transparent 1px 14px),
+        linear-gradient(178deg, var(--panel-2), var(--soot));
+      border: 1px solid var(--line-strong);
+      outline: 1px solid rgba(255, 106, 0, .2);
+      outline-offset: -7px;
+    }
+    .text-face > .pad {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: var(--ember);
+      border: 1px solid var(--purple);
+    }
+    .text-face > .pad.tl { top: 3px; left: 3px; }
+    .text-face > .pad.tr { top: 3px; right: 3px; }
+    .text-face > .pad.bl { bottom: 3px; left: 3px; }
+    .text-face > .pad.br { bottom: 3px; right: 3px; }
+    .tf-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .tf-name {
+      min-width: 0;
+      color: var(--cream);
+      font: clamp(19px, 2.3vw, 26px)/1.02 var(--display);
+      text-transform: uppercase;
+      overflow-wrap: anywhere;
+    }
+    .tf-line { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+    .tf-rules {
+      margin: 0;
+      overflow: hidden;
+      color: var(--cream);
+      font-size: 13.5px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+    /* Pinned left so the DETAILS chip in the corner never lands on top of it. */
+    .tf-foot {
+      position: absolute;
+      right: 96px;
+      bottom: 12px;
+      left: 15px;
+      justify-content: flex-start;
+      gap: 14px;
     }
     .card-copy { display: flex; flex: 1; flex-direction: column; padding: 16px 18px 20px; }
     .card-kicker {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 10px;
       color: var(--purple);
@@ -150,7 +237,23 @@
       letter-spacing: .11em;
       text-transform: uppercase;
     }
+    .card-kicker .rarity { margin-left: auto; }
     .card-kicker .promo-tag { color: var(--ember); }
+    /* TOUCH HAS NO RIGHT CLICK. Same menu, reachable with one tap or one tab. */
+    .card-kicker .more {
+      flex: none;
+      min-width: 34px;
+      min-height: 34px;
+      margin: -8px -7px -8px 0;
+      padding: 0;
+      color: var(--purple);
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font: 17px/1 var(--body);
+      letter-spacing: 0;
+    }
+    .card-kicker .more:hover { color: var(--ember); border-color: var(--line); }
     .card-copy h2 { margin: 9px 0 0; font-size: clamp(24px, 2.4vw, 29px); letter-spacing: .005em; }
     .meta {
       display: flex;
@@ -188,8 +291,8 @@
     .menu {
       position: fixed;
       z-index: 60;
-      min-width: 214px;
-      max-width: 260px;
+      min-width: min(214px, calc(100% - 24px));
+      max-width: min(260px, calc(100% - 24px));
       padding: 5px;
       background: var(--soot);
       border: 1px solid var(--purple-deep);
@@ -220,9 +323,14 @@
     .menu button:hover { color: var(--ember); background: var(--panel-2); }
 
     /* -------------------------------------------------------- the dialog */
+    /* Percentages, not vw/vh: a top-layer dialog resolves them against the
+       viewport WITHOUT the scrollbar, so the page never gains a sideways
+       scroll just because the dialog is open. dvh keeps a phone's collapsing
+       address bar from cropping the bottom. */
     dialog {
-      width: min(1180px, calc(100vw - 24px));
-      max-height: calc(100vh - 24px);
+      width: min(1180px, calc(100% - 24px));
+      max-height: calc(100% - 24px);
+      max-height: calc(100dvh - 24px);
       padding: 0;
       overflow: auto;
       color: var(--cream);
@@ -232,9 +340,11 @@
       box-shadow: 0 30px 120px #000;
     }
     dialog::backdrop { background: rgba(0, 0, 0, .84); backdrop-filter: blur(8px); }
-    .modal-grid { display: grid; grid-template-columns: minmax(320px, 540px) 1fr; }
-    .modal-grid > img { width: 100%; min-height: 100%; object-fit: contain; background: #000; }
-    .details { position: relative; padding: clamp(24px, 5vw, 50px); }
+    .modal-grid { display: grid; grid-template-columns: minmax(320px, 540px) minmax(0, 1fr); }
+    .modal-art { display: grid; min-width: 0; background: #000; }
+    .modal-art > img { width: 100%; min-height: 100%; object-fit: contain; }
+    .modal-art > .text-face { height: auto; align-self: start; }
+    .details { position: relative; min-width: 0; padding: clamp(24px, 5vw, 50px); }
     .close {
       position: absolute;
       top: 15px;
@@ -262,17 +372,29 @@
     .detail-block .modal-rules { color: var(--cream); font-weight: 700; }
     .modal-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 
-    @media (max-width: 900px) {
-      .control-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .field--search { grid-column: 1 / -1; }
-    }
     @media (max-width: 760px) {
       /* The shared nav wraps to a variable height here, so no fixed offset is
          right — let the console scroll with the gallery instead. */
       .console { position: static; }
       .hint { display: none; }
-      .modal-grid { grid-template-columns: 1fr; }
-      .modal-grid > img { max-height: 72vh; object-fit: contain; }
+      .modal-grid { grid-template-columns: minmax(0, 1fr); }
+      .modal-art > img { max-height: 72vh; max-height: 72dvh; object-fit: contain; }
+    }
+    /* The napplet's TINY shape (spec: below ~360px). Nothing is cut off and
+       nothing scrolls sideways — the console stacks, the affinity chips
+       collapse to their icons, and each tile keeps name, cost, type and rules. */
+    @media (max-width: 360px) {
+      .hero { padding-top: 26px; }
+      .hero .lead { font-size: 15px; }
+      .console .framed { padding: 10px; }
+      .chips .chip { padding: 6px 8px; }
+      .chips .chip--icon .lbl { display: none; }
+      .card-copy { padding: 12px 13px 15px; }
+      .card-copy h2 { font-size: 23px; }
+      .flavor { display: none; }
+      .text-face { padding: 12px 12px 38px; }
+      .tf-foot { right: 90px; left: 12px; }
+      .details { padding: 20px 15px 26px; }
     }
     @media (prefers-reduced-motion: reduce) {
       * { scroll-behavior: auto !important; transition: none !important; }
@@ -304,7 +426,8 @@
       <h1>All Cards. <span class="accent">Artwork + Text.</span></h1>
       <p class="lead">Search name, rules, flavour, type line and tags, then filter by
       affinity, card type, cost, rarity and printing. Press <b>/</b> to search,
-      <b>Esc</b> to clear. Left-click a card for details, right-click for its menu.
+      <b>Esc</b> to clear. Left-click a card for details; right-click — or press
+      <b>⋯</b>, which is the same menu without a mouse — for its menu.
       Every filtered view has its own link, so a search can be shared as it stands.</p>
     </section>
     <section class="console" aria-label="Card search and filters">
@@ -376,12 +499,12 @@
           </label>
         </div>
         <div class="chips" id="affinityChips" role="group" aria-label="Filter by affinity">
-        <button class="chip" type="button" data-aff="Power" aria-pressed="false" style="--aff: var(--power)"><span class="aff"><img src="../art/resources/power.svg" alt=""></span><span>Power</span></button>
-        <button class="chip" type="button" data-aff="Bitcoin" aria-pressed="false" style="--aff: var(--bitcoin)"><span class="aff"><img src="../art/resources/bitcoin.svg" alt=""></span><span>Bitcoin</span></button>
-        <button class="chip" type="button" data-aff="Keys" aria-pressed="false" style="--aff: var(--keys)"><span class="aff"><img src="../art/resources/keys.svg" alt=""></span><span>Keys</span></button>
-        <button class="chip" type="button" data-aff="Signal" aria-pressed="false" style="--aff: var(--signal)"><span class="aff"><img src="../art/resources/signal.svg" alt=""></span><span>Signal</span></button>
-        <button class="chip" type="button" data-aff="Timelock" aria-pressed="false" style="--aff: var(--timelock)"><span class="aff"><img src="../art/resources/timelock.svg" alt=""></span><span>Timelock</span></button>
-        <button class="chip" type="button" data-aff="Neutral" aria-pressed="false" style="--aff: var(--neutral)"><span>Neutral</span></button>
+        <button class="chip chip--icon" type="button" data-aff="Power" aria-pressed="false" aria-label="Power" style="--aff: var(--power)"><span class="aff"><img src="../art/resources/power.svg" alt=""></span><span class="lbl">Power</span></button>
+        <button class="chip chip--icon" type="button" data-aff="Bitcoin" aria-pressed="false" aria-label="Bitcoin" style="--aff: var(--bitcoin)"><span class="aff"><img src="../art/resources/bitcoin.svg" alt=""></span><span class="lbl">Bitcoin</span></button>
+        <button class="chip chip--icon" type="button" data-aff="Keys" aria-pressed="false" aria-label="Keys" style="--aff: var(--keys)"><span class="aff"><img src="../art/resources/keys.svg" alt=""></span><span class="lbl">Keys</span></button>
+        <button class="chip chip--icon" type="button" data-aff="Signal" aria-pressed="false" aria-label="Signal" style="--aff: var(--signal)"><span class="aff"><img src="../art/resources/signal.svg" alt=""></span><span class="lbl">Signal</span></button>
+        <button class="chip chip--icon" type="button" data-aff="Timelock" aria-pressed="false" aria-label="Timelock" style="--aff: var(--timelock)"><span class="aff"><img src="../art/resources/timelock.svg" alt=""></span><span class="lbl">Timelock</span></button>
+        <button class="chip" type="button" data-aff="Neutral" aria-pressed="false" aria-label="Neutral" style="--aff: var(--neutral)"><span class="lbl">Neutral</span></button>
         </div>
         <div class="terminal-line status">
           <div class="side">
@@ -389,7 +512,9 @@
             <span class="flash" id="flash"></span>
           </div>
           <div class="side">
-            <span class="hint">RIGHT-CLICK A CARD FOR ITS MENU</span>
+            <span class="hint">RIGHT-CLICK OR PRESS ⋯ FOR A CARD'S MENU</span>
+            <button class="chip" id="faceToggle" type="button"
+              aria-pressed="false">Text cards</button>
             <button class="clear" id="clearFilters" type="button" hidden>Clear ✕</button>
           </div>
         </div>
@@ -401,7 +526,7 @@
   </main>
   <dialog id="cardDialog">
     <div class="modal-grid">
-      <img id="modalImage" alt="">
+      <div class="modal-art" id="modalArt"><img id="modalImage" alt=""></div>
       <div class="details">
         <button class="close" id="closeDialog" aria-label="Close details">×</button>
         <div class="modal-id" id="modalId"></div>
@@ -448,7 +573,15 @@
     const FACETS = {"affinities": [{"value": "Power", "label": "Power", "count": 51}, {"value": "Bitcoin", "label": "Bitcoin", "count": 53}, {"value": "Keys", "label": "Keys", "count": 52}, {"value": "Signal", "label": "Signal", "count": 52}, {"value": "Timelock", "label": "Timelock", "count": 51}, {"value": "Neutral", "label": "Neutral", "count": 47}], "types": [{"value": "Avatar", "label": "Avatar", "count": 88}, {"value": "Basic Resource", "label": "Basic Resource", "count": 10}, {"value": "Hardware", "label": "Hardware", "count": 43}, {"value": "Hardware Avatar", "label": "Hardware Avatar", "count": 4}, {"value": "Operation", "label": "Operation", "count": 30}, {"value": "Protocol", "label": "Protocol", "count": 69}, {"value": "Resource", "label": "Resource", "count": 9}, {"value": "Zap", "label": "Zap", "count": 43}], "rarities": [{"value": "common", "label": "Common", "count": 150}, {"value": "uncommon", "label": "Uncommon", "count": 100}, {"value": "rare", "label": "Rare", "count": 45}, {"value": "promo", "label": "Promo", "count": 1}], "costs": [{"value": "0", "label": "Cost 0", "count": 6}, {"value": "1", "label": "Cost 1", "count": 79}, {"value": "2", "label": "Cost 2", "count": 57}, {"value": "3", "label": "Cost 3", "count": 49}, {"value": "4", "label": "Cost 4", "count": 45}, {"value": "5", "label": "Cost 5", "count": 15}, {"value": "6", "label": "Cost 6", "count": 11}, {"value": "7", "label": "Cost 7", "count": 1}, {"value": "X", "label": "Cost X", "count": 14}, {"value": "none", "label": "No cost", "count": 19}], "printings": [{"value": "e1", "label": "Edition One", "count": 295}, {"value": "promo", "label": "Promo", "count": 1}], "affinityIcons": {"Power": "power", "Bitcoin": "bitcoin", "Keys": "keys", "Signal": "signal", "Timelock": "timelock"}, "affinityTokens": {"Power": "--power", "Bitcoin": "--bitcoin", "Keys": "--keys", "Signal": "--signal", "Timelock": "--timelock", "Neutral": "--neutral"}};
     const FACES = "../art/cards/node-runner-web/";
     const SORTS = ["id", "name", "cost", "rarity"];
+    const FACE_KEY = "600b:gallery-faces";
     const byId = (id) => document.getElementById(id);
+
+    /* THE ONE SEAM. Storage, identity and the palette are asked of the adapter,
+       never of the platform: inside a shell those are NAPs, on the website they
+       are localStorage and the stylesheet's own tokens. This page keeps no
+       identity of its own — a catalog has nobody to be — so the only domain it
+       spends is storage, for one remembered preference. */
+    const nap = globalThis.E1Napplet || null;
 
     const gallery = byId("gallery");
     const emptyState = byId("emptyState");
@@ -457,6 +590,7 @@
     const counter = byId("counter");
     const flash = byId("flash");
     const clearButton = byId("clearFilters");
+    const faceToggle = byId("faceToggle");
     const dialog = byId("cardDialog");
     const menu = byId("cardMenu");
     const selects = {
@@ -489,25 +623,93 @@
       return FACES + encodeURIComponent(card.faceFile);
     }
 
+    /* ------------------------------------------------------------- faces */
+
+    /* Card faces are not bundled: the spec fetches them from the published
+       asset location and falls back to a TEXT-RENDERED CARD when it cannot.
+       Three ways that happens, and this answers all three the same way:
+         - a shell that was handed no resource domain (assets unreachable),
+         - a sandbox that blocks outbound fetch (canReachInternet is false),
+         - one file that simply is not there (the img errors; that tile alone
+           becomes text, so a dead mirror is never a grid of broken images).
+       On the plain website there is no shell and ordinary URLs work, which is
+       why the absence of an adapter means artwork rather than text. */
+    function facesReachable() {
+      if (!nap) return true;
+      if (!nap.canReachInternet()) return false;
+      if (nap.present && !nap.has("resource")) return false;
+      return true;
+    }
+
+    const artHosts = new Array(CARDS.length);
+    let faceMode = facesReachable() ? "art" : "text";
+
     /* Faces resolve only when a tile nears the viewport. E1Faces.setFace()
        fetches from Blossom the moment it is called, so calling it for all 296
-       cards up front would be 296 requests before the first scroll. */
+       cards up front would be 296 requests before the first scroll. The host
+       button is what is observed, so a text card is built just as lazily. */
     const observer = "IntersectionObserver" in window
       ? new IntersectionObserver((entries) => {
           for (const entry of entries) {
             if (!entry.isIntersecting) continue;
             observer.unobserve(entry.target);
-            loadFace(entry.target);
+            paintFace(Number(entry.target.dataset.index));
           }
         }, { rootMargin: "700px 0px" })
       : null;
 
-    function loadFace(image) {
-      if (image.dataset.loaded) return;
-      image.dataset.loaded = "1";
-      const file = image.dataset.face;
-      if (globalThis.E1Faces) E1Faces.setFace(image, file);
-      else image.src = FACES + encodeURIComponent(file);
+    function paintFace(index) {
+      const host = artHosts[index];
+      if (!host || host.dataset.mode) return;
+      const card = CARDS[index];
+      if (faceMode === "text") return drawTextFace(host, card);
+      host.dataset.mode = "art";
+      const image = document.createElement("img");
+      image.alt = card.name + " card";
+      image.loading = "lazy";
+      image.decoding = "async";
+      image.addEventListener("error", () => {
+        host.dataset.mode = "text";
+        drawTextFace(host, card);
+      }, { once: true });
+      host.append(image);
+      if (globalThis.E1Faces) E1Faces.setFace(image, card.faceFile);
+      else image.src = faceUrl(card);
+    }
+
+    function drawTextFace(host, card) {
+      host.dataset.mode = "text";
+      host.classList.add("art-button--text");
+      host.replaceChildren(textFace(card));
+    }
+
+    /* Empty every host and hand them back to the observer, so a mode change
+       costs one repaint of what is on screen rather than 296 of everything. */
+    function repaintFaces() {
+      for (let index = 0; index < artHosts.length; index += 1) {
+        const host = artHosts[index];
+        host.dataset.mode = "";
+        host.classList.remove("art-button--text");
+        host.replaceChildren();
+        if (observer) observer.observe(host);
+        else paintFace(index);
+      }
+    }
+
+    function syncFaceToggle() {
+      const isText = faceMode === "text";
+      faceToggle.setAttribute("aria-pressed", String(isText));
+      faceToggle.classList.toggle("chip--on", isText);
+    }
+
+    function setFaceMode(mode, remember) {
+      const next = mode === "text" ? "text" : "art";
+      if (next === faceMode) return;
+      faceMode = next;
+      syncFaceToggle();
+      repaintFaces();
+      if (dialog.open && openCard.current) paintModalFace(openCard.current);
+      if (remember && nap) nap.storage.set(FACE_KEY, faceMode).catch(() => {});
     }
 
     function affinityDisc(name) {
@@ -554,7 +756,53 @@
       return meta;
     }
 
-    function buildTile(card) {
+    /* The card, drawn from the data the page already carries: name, cost, type
+       line, affinities, rules text, set number. Same frame the printed face
+       wears, so a catalog with no artwork still reads as a catalog of cards.
+       role="img" because the copy block below repeats all of it in prose — a
+       screen reader should hear this card once, not twice. */
+    function textFace(card) {
+      const face = document.createElement("div");
+      face.className = "text-face";
+      face.setAttribute("role", "img");
+      face.setAttribute("aria-label", card.name + " card, drawn as text");
+      for (const corner of ["tl", "tr", "bl", "br"]) {
+        const pad = document.createElement("span");
+        pad.className = "pad " + corner;
+        face.append(pad);
+      }
+      const head = document.createElement("div");
+      head.className = "tf-head";
+      const name = document.createElement("span");
+      name.className = "tf-name";
+      name.textContent = card.name;
+      head.append(name, chipNum(card.cost, "COST"));
+
+      const line = document.createElement("div");
+      line.className = "tf-line";
+      const banner = document.createElement("span");
+      banner.className = "banner";
+      banner.textContent = card.typeLine;
+      line.append(banner);
+      for (const affinity of card.affinity) line.append(affinityDisc(affinity));
+
+      const rules = document.createElement("p");
+      rules.className = "tf-rules";
+      rules.textContent = card.rules;
+
+      const foot = document.createElement("div");
+      foot.className = "terminal-line tf-foot";
+      const set = document.createElement("span");
+      set.textContent = card.id;
+      const stats = document.createElement("span");
+      stats.textContent = card.stats || card.rarity.toUpperCase();
+      foot.append(set, stats);
+
+      face.append(head, line, rules, foot);
+      return face;
+    }
+
+    function buildTile(card, index) {
       const article = document.createElement("article");
       article.className = "catalog-card";
       article.dataset.id = card.id;
@@ -562,16 +810,13 @@
       const button = document.createElement("button");
       button.className = "art-button";
       button.type = "button";
+      button.dataset.index = String(index);
+      button.dataset.mode = "";
       button.setAttribute("aria-label", "Open details for " + card.name);
-      const face = document.createElement("img");
-      face.dataset.face = card.faceFile;
-      face.alt = card.name + " card";
-      face.loading = "lazy";
-      face.decoding = "async";
-      button.append(face);
       button.addEventListener("click", () => openCard(card));
-      if (observer) observer.observe(face);
-      else loadFace(face);
+      artHosts[index] = button;
+      if (observer) observer.observe(button);
+      else paintFace(index);
 
       const copy = document.createElement("div");
       copy.className = "card-copy";
@@ -581,9 +826,17 @@
       id.className = "mono";
       id.textContent = card.id;
       const rarity = document.createElement("span");
-      rarity.className = card.promo ? "promo-tag" : "";
+      rarity.className = card.promo ? "rarity promo-tag" : "rarity";
       rarity.textContent = card.rarity;
-      kicker.append(id, rarity);
+      /* Right-click is a mouse. This is the same menu for the other half. */
+      const more = document.createElement("button");
+      more.className = "more";
+      more.type = "button";
+      more.setAttribute("aria-haspopup", "menu");
+      more.setAttribute("aria-label", "Menu for " + card.name);
+      more.textContent = "⋯";
+      more.addEventListener("click", (event) => openMenu(event, card, more));
+      kicker.append(id, rarity, more);
       const title = document.createElement("h2");
       title.textContent = card.name;
       const rules = document.createElement("p");
@@ -595,10 +848,7 @@
       copy.append(kicker, title, metaRow(card), rules, flavor);
 
       article.append(button, copy);
-      article.addEventListener("contextmenu", (event) => {
-        event.preventDefault();
-        openMenu(event, card);
-      });
+      article.addEventListener("contextmenu", (event) => openMenu(event, card, article));
       return article;
     }
 
@@ -756,11 +1006,35 @@
 
     /* ------------------------------------------------------------ dialog */
 
-    function openCard(card) {
+    /* The dialog gets the same treatment as a tile: artwork when it can be
+       had, the text card when it cannot. #modalImage stays in the DOM either
+       way — it is hidden, not replaced. */
+    function paintModalFace(card) {
+      const box = byId("modalArt");
       const image = byId("modalImage");
+      const previous = box.querySelector(".text-face");
+      if (previous) previous.remove();
+      image.alt = card.name + " card";
+      /* No point offering a rendered face nobody here can fetch. */
+      byId("modalFace").hidden = faceMode === "text";
+      if (faceMode === "text") {
+        image.hidden = true;
+        image.removeAttribute("src");
+        box.append(textFace(card));
+        return;
+      }
+      image.hidden = false;
+      image.onerror = () => {
+        image.hidden = true;
+        if (!box.querySelector(".text-face")) box.append(textFace(card));
+      };
       if (globalThis.E1Faces) E1Faces.setFace(image, card.faceFile);
       else image.src = faceUrl(card);
-      image.alt = card.name + " card";
+    }
+
+    function openCard(card) {
+      openCard.current = card;
+      paintModalFace(card);
       byId("modalId").textContent = card.id + " · " + card.rarity;
       byId("modalName").textContent = card.name;
       byId("modalMeta").textContent = metaText(card);
@@ -814,7 +1088,9 @@
       menu.replaceChildren();
     }
 
-    function openMenu(event, card) {
+    function openMenu(event, card, anchor) {
+      event.preventDefault();
+      event.stopPropagation();
       menu.replaceChildren();
       const head = document.createElement("strong");
       head.textContent = card.id + " · " + card.name;
@@ -848,12 +1124,23 @@
         syncControls();
         update();
       });
-      item("Open rendered card", () => window.open(faceUrl(card), "_blank", "noopener"));
+      if (faceMode !== "text") {
+        item("Open rendered card", () => window.open(faceUrl(card), "_blank", "noopener"));
+      }
       menu.style.left = "0px";
       menu.style.top = "0px";
       menu.hidden = false;
-      const x = Math.min(event.clientX, window.innerWidth - menu.offsetWidth - 8);
-      const y = Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 8);
+      /* A keyboard press reports 0,0 — anchor to the button that was pressed
+         so the menu opens where the player is looking, not in the corner. */
+      let px = event.clientX;
+      let py = event.clientY;
+      if (anchor && !px && !py) {
+        const box = anchor.getBoundingClientRect();
+        px = box.left;
+        py = box.bottom;
+      }
+      const x = Math.min(px, window.innerWidth - menu.offsetWidth - 8);
+      const y = Math.min(py, window.innerHeight - menu.offsetHeight - 8);
       menu.style.left = Math.max(8, x) + "px";
       menu.style.top = Math.max(8, y) + "px";
     }
@@ -881,6 +1168,10 @@
       update();
     });
     clearButton.addEventListener("click", clearAll);
+    faceToggle.addEventListener("click", () => {
+      setFaceMode(faceMode === "text" ? "art" : "text", true);
+      say(faceMode === "text" ? "TEXT CARDS" : "CARD ART");
+    });
     byId("closeDialog").addEventListener("click", () => dialog.close());
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) dialog.close();
@@ -919,6 +1210,21 @@
     const deepLink = readState();
     syncControls();
     render();
+
+    /* The automatic answer first, so nothing waits on storage to draw. Then the
+       saved preference, if there is one and if it is still possible: a shell
+       that cannot fetch anything is not talked into trying by an old choice. */
+    syncFaceToggle();
+    if (!facesReachable()) {
+      faceToggle.disabled = true;
+      faceToggle.title = "Card art cannot be fetched from here, so every card is drawn as text.";
+      say("NO CARD ART HERE — TEXT CARDS");
+    } else if (nap) {
+      nap.storage.get(FACE_KEY).then((saved) => {
+        if (saved === "text" || saved === "art") setFaceMode(saved, false);
+      }).catch(() => {});
+    }
+
     if (deepLink) {
       const card = CARDS.find((entry) => entry.id === deepLink);
       if (card) openCard(card);

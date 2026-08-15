@@ -26,6 +26,15 @@
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="apple-touch-icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
+<script src="napplet.js"></script>
+<script>
+/* Painted before the first frame, so a shell-themed napplet never shows the
+   600B fallback palette and then jumps to the shell's. No shell present is not
+   a failure: theme.start() falls back to the palette 600b.css already ships,
+   and the five affinity Plate colours are re-asserted afterwards either way —
+   a shell may repaint the chrome, never what an affinity looks like. */
+if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
+</script>
 <style>
 /* ---------------------------------------------------------------------------
  * The front door. Everything here is local to this page — 600b.css owns the
@@ -112,7 +121,10 @@
 /* --------------------------------------------------------------- the doors */
 /* Five steps in the order a new player should take them. Ember tops the first
    one only — ember means act, and acting here means: press play. */
-.doors { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(248px, 1fr)); gap: 14px; }
+/* min() on every auto-fit track: without it the named minimum is a floor the
+   grid will overflow its box to honour, which is exactly the "no horizontal
+   overflow at any size" clause failing in a narrow napplet panel. */
+.doors { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(248px, 100%), 1fr)); gap: 14px; }
 .doors > li { display: grid; }
 .door {
   display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px;
@@ -132,13 +144,13 @@
 .alsorow a:hover { color: var(--bitcoin); }
 
 /* ------------------------------------------------------------- card teaser */
-.teaser { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+.teaser { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 16px; }
 .teaser figure { margin: 0; }
 .teaser img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; background: var(--soot); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.5); }
 .teaser figcaption { margin-top: 8px; text-align: center; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 
 /* ------------------------------------------------------------- turn strip */
-.turnstrip { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.turnstrip { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
 .turnstrip figure { margin: 0; border: 1px solid var(--line); background: rgba(17,16,20,.86); }
 .turnstrip img { display: block; width: 100%; aspect-ratio: 10/3; object-fit: cover; border-bottom: 1px solid var(--line); }
 .turnstrip figcaption { padding: 14px 16px 16px; }
@@ -168,6 +180,11 @@
 #who .n { font-weight: 700; font-size: 13px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #who .k { color: var(--muted); font-size: 10px; font-family: var(--mono); }
 #who button { cursor: pointer; background: none; border: 1px solid var(--line); color: var(--muted); padding: 5px 7px; font-size: 11px; }
+/* Whatever sign-in has to say, said in place. A napplet shell need not grant
+   modal dialogs, so alert() is not a thing this page may depend on to tell
+   somebody their extension is missing. */
+#loginNote { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+#loginNote b { color: var(--power); }
 
 /* -------------------------------------------------------------- narrow up */
 @media (max-width: 900px) {
@@ -187,6 +204,73 @@
 @media (max-width: 420px) {
   .doors { grid-template-columns: 1fr; }
   .teaser { grid-template-columns: 1fr 1fr; }
+}
+
+/* --------------------------------------------------- the layout contract */
+/* docs/napplet-spec.md: no fixed viewport assumptions, no horizontal overflow
+   at any size, collapsed presentation below ~360px. A napplet is a panel
+   inside somebody else's window, so the breakpoints below read THIS page's
+   box, not the device — on the plain website the two are the same number,
+   which is why one set of rules serves both. The @media rules above stay as
+   they are; these only ever narrow things further. */
+body { container-type: inline-size; container-name: page; }
+
+/* Two nbsp-joined halves that cannot break inside themselves. Given one line
+   they push the page sideways; given two they simply stack. */
+.terminal-line { flex-wrap: wrap; }
+
+/* The shared four-up grid, given the same min() floor as the page's own. */
+.grid--4 { grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); }
+
+/* Always true wherever container queries exist, which is the point: every
+   clamp() below is the SAME formula with cqi in place of vw. --pad is 4vw in
+   600b.css and that reads the WINDOW: a 320px panel on a 27" monitor gets
+   56px of gutter on each side and 208px to live in. Identical numbers on the
+   open website, measured against the panel inside a shell. */
+@container page (min-width: 0px) {
+  .nav, .hero, .section, .site-footer { --pad: clamp(16px, 4cqi, 56px); }
+  .hero { padding-block: clamp(40px, 7cqi, 96px); }
+  .hero .sub { font-size: clamp(16px, 1.7cqi, 20px); }
+  .fan { --fw: clamp(72px, 9.5cqi, 124px); }
+  .stat b { font-size: clamp(26px, 3.4cqi, 34px); }
+}
+
+@container page (max-width: 900px) {
+  /* 600b.css sizes headings against the viewport too; in a narrow panel on a
+     wide screen that is a 92px word in a 300px box. Same scale, measured
+     against what the words actually have to fit into. */
+  h1 { font-size: clamp(36px, 10cqi, 70px); }
+  h2 { font-size: clamp(24px, 6cqi, 44px); }
+  .hero__grid { grid-template-columns: 1fr; }
+  .fan { --fw: clamp(76px, 20cqi, 132px); padding: 4px 0 34px; order: 2; }
+}
+@container page (max-width: 720px) {
+  .nav { position: static; }
+  .nav__brand small { display: none; }
+  .nav a.link { padding: 8px 9px; font-size: 12px; }
+  .site-footer .tag { margin-left: 0; }
+  .duel { grid-template-columns: 1fr; }
+  .bolt { text-align: center; }
+  .stats { gap: 14px 20px; }
+  .hero .sub { font-size: 16px; }
+}
+@container page (max-width: 420px) {
+  .doors { grid-template-columns: 1fr; }
+  .teaser { grid-template-columns: 1fr 1fr; }
+}
+@container page (max-width: 359px) {
+  /* Tiny, per the spec's collapsed presentation. The two things that go are
+     both aria-hidden illustrations — the hand of five and the staked-duel
+     mock — and neither carries a fact the text does not: six real card faces
+     survive in the teaser below, and the stake is described in words. The
+     five doors, every promise chip and every link stay. */
+  .fan, .duel, .duelcap { display: none; }
+  .teaser { grid-template-columns: 1fr; }
+  .nav a.link { padding: 6px 7px; font-size: 11px; letter-spacing: .04em; }
+  .btn { padding: 11px 14px; font-size: 13px; }
+  #loginBtn { padding: 8px 10px; font-size: 12px; }
+  .stats { gap: 12px 16px; }
+  .door { padding: 16px; }
 }
 
 /* --------------------------------------------------------- reduced motion */
@@ -222,6 +306,7 @@
     <div><div class="n" id="whoName"></div><div class="k" id="whoNpub"></div></div>
     <button id="logoutBtn" type="button">sign out</button>
   </div>
+  <p id="loginNote" role="status" hidden></p>
 </nav>
 
 <header class="hero">
@@ -487,10 +572,14 @@
 })();
 </script>
 <script>
-/* Optional nostr identity. Signing in here is a convenience only: it stores the
-   pubkey under 600b:pubkey, which the online lobby in play.html reads so the
-   seat is ready. Every path on this page works with no extension, no relay and
-   no server — if any of it fails, the page just keeps the sign-in button. */
+/* Optional nostr identity, through the napplet adapter and only through it.
+   E1Napplet.identity is the shell's identity NAP when there is a shell and
+   NIP-07 writing 600b:pubkey when there is not — the same key the online lobby
+   in play.html and net.js read, so one login seats you in both builds.
+
+   Signing in here is a convenience: every path on this page works with no
+   extension, no relay, no shell and no server. If any of it is missing the
+   page keeps the sign-in button and says one sentence about why. */
 (function () {
   "use strict";
 
@@ -522,8 +611,8 @@
     if (bits) out.push((acc << (5 - bits)) & 31);
     return out;
   }
-  /* Returns "" for anything that is not 32 hex bytes, so a junk localStorage
-     value degrades to a blank chip instead of throwing on load. */
+  /* Returns "" for anything that is not 32 hex bytes, so a junk saved value
+     degrades to a blank chip instead of throwing on load. */
   function npubEncode(hex) {
     if (typeof hex !== "string" || !/^[0-9a-f]{64}$/i.test(hex)) return "";
     const bytes = hex.match(/../g).map(h => parseInt(h, 16));
@@ -535,20 +624,28 @@
     return "npub1" + words.map(w => B32[w]).join("") + checksum;
   }
 
-  // --- NIP-07 login + kind-0 profile over public relays ---
+  // --- login + kind-0 profile over public relays ---
   const RELAYS = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
-  const KEY = "600b:pubkey";
   const els = {
     login: document.getElementById("loginBtn"), who: document.getElementById("who"),
     pic: document.getElementById("whoPic"), name: document.getElementById("whoName"),
     npub: document.getElementById("whoNpub"), logout: document.getElementById("logoutBtn"),
+    note: document.getElementById("loginNote"),
   };
   if (!els.login || !els.who) return;
 
-  const store = {
-    get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } },
-    set(v) { try { localStorage.setItem(KEY, v); } catch (e) { /* private mode */ } },
-    clear() { try { localStorage.removeItem(KEY); } catch (e) { /* private mode */ } },
+  /* The one seam. Identity and the key it is stored under belong to the
+     adapter, not to this page: inside a shell it is the identity NAP, on the
+     open web it is NIP-07 writing 600b:pubkey — the same key net.js reads to
+     seat you at a table. Reaching past it, straight to the extension or to
+     browser storage, would give the two builds two different notions of who
+     is signed in. */
+  const nap = globalThis.E1Napplet;
+
+  const say = (text) => {
+    if (!els.note) return;
+    els.note.textContent = text || "";
+    els.note.hidden = !text;
   };
 
   els.pic.addEventListener("error", () => { els.pic.style.display = "none"; });
@@ -563,10 +660,17 @@
     else els.pic.style.display = "none";
   }
 
-  /* Best-effort only: no relay, no WebSocket or a four-second silence all end
-     the same way — a signed-in chip with the default name. */
+  function showSignedOut() {
+    els.who.style.display = "none";
+    els.login.style.display = "inline-block";
+  }
+
+  /* Best-effort only: a sandbox with no way out, no relay, no WebSocket or a
+     four-second silence all end the same way — a signed-in chip with the
+     default name. Nothing on this page ever waits on a relay to render. */
   function fetchProfile(pubkey) {
     return new Promise(resolve => {
+      if (nap && !nap.canReachInternet()) { resolve(null); return; }
       if (typeof WebSocket === "undefined") { resolve(null); return; }
       let done = false; const sockets = [];
       const finish = p => {
@@ -593,29 +697,49 @@
   }
 
   async function login() {
-    if (!globalThis.nostr) {
-      alert("No NIP-07 signer found.\nInstall Alby or nos2x and reload — or just play the local hotseat, which never needs one.");
+    say("");
+    if (!nap) { say("Sign-in is not available on this page — the local hotseat never needs it."); return; }
+    let pubkey;
+    try {
+      pubkey = await nap.identity.login();
+    } catch (err) {
+      /* A missing signer is the ordinary case, not an error: the whole site
+         works without one. Say which of the two it was, in place — a shell
+         need not grant this page a modal dialog, so alert() is not available
+         to lean on. */
+      say(nap.identity.source() === "none"
+        ? "No signer here. Install Alby or nos2x and reload — or just play the local hotseat, which never needs one."
+        : "Sign-in did not complete: " + String((err && err.message) || err));
       return;
     }
-    try {
-      const pubkey = await globalThis.nostr.getPublicKey();
-      store.set(pubkey);
-      showUser(pubkey, null);
-      showUser(pubkey, await fetchProfile(pubkey));
-    } catch (e) {
-      console.warn("login cancelled", e);
-    }
+    showUser(pubkey, null);
+    showUser(pubkey, await fetchProfile(pubkey));
   }
 
   els.login.addEventListener("click", login);
-  els.logout.addEventListener("click", () => {
-    store.clear();
-    els.who.style.display = "none";
-    els.login.style.display = "inline-block";
+
+  els.logout.addEventListener("click", async () => {
+    if (!nap) return void showSignedOut();
+    nap.identity.forget();
+    /* When the shell owns the identity there is nothing here to forget, and a
+       button that visibly does nothing is worse than one that says why. */
+    if (await nap.identity.current()) {
+      say("This identity comes from the app shell — sign out there.");
+      return;
+    }
+    showSignedOut();
+    say("");
   });
 
-  const saved = store.get();
-  if (saved) { showUser(saved, null); fetchProfile(saved).then(p => showUser(saved, p)); }
+  /* Never prompts. A signed-in chip on load means the adapter already had a
+     key; no key means the button, which is exactly the signed-out state. */
+  (async () => {
+    if (!nap) return;
+    const saved = await nap.identity.current();
+    if (!saved) return;
+    showUser(saved, null);
+    showUser(saved, await fetchProfile(saved));
+  })();
 })();
 </script>
 </body>

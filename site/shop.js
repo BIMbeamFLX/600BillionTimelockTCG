@@ -15,10 +15,19 @@
  *
  * While MINT_URL is null there IS no paid mode. Rather than leave a button
  * that quietly does nothing, the page says so in words, falls back to the free
- * pull, and keeps the box, the odds and the commitment honest.
+ * pull, and keeps the box, the odds and the commitment honest. A sandboxed
+ * napplet cannot reach a mint at all, which is precisely why sats stakes are
+ * out of scope for napplet v1 (docs/napplet-spec.md) — so the page ASKS before
+ * it offers, and says something true instead of failing at a wall.
  *
  * This file never sees a payment credential. It requests an invoice and shows
  * it; the wallet that pays it is the buyer's.
+ *
+ * Nothing here touches browser storage, a nostr extension or a bare palette:
+ * it all goes through the napplet adapter, which is async, so state is read at
+ * boot and every write is a queued read-modify-write. Neither this page nor
+ * the Stack Builder needs an identity — no pull is signed, no collection is
+ * published — so the identity domain is simply never asked for.
  * ------------------------------------------------------------------------ */
 (function (root) {
   "use strict";
@@ -28,13 +37,51 @@
   const BY_ID = Object.fromEntries(CARDS.map((c) => [c.id, c]));
   const FACES = root.E1Faces || null;
   const STORE = "600b:shop";
+  const PROBE = "600b:probe";
   const BACK = "600B-Timelock-card-back.webp";
 
   /* The Stack Builder's own store, written in its own shape ({ name: [ids] }).
    * A pulled card has somewhere to go the moment it lands. */
   const DECK_STORE = "600b:decks";
   const DRAFT_NAME = "Booster pulls";
+
+  /* ------------------------------------------------------------ the budget
+   * A shell gives the WHOLE napplet 512 KB (docs/napplet-spec.md, flagged gap
+   * 4), so this page takes a share and lives inside it rather than discovering
+   * the ceiling as a silent loss. The log is a ring buffer; if the record is
+   * still over budget the OLDEST packs are dropped until it fits, because the
+   * cursor, the counters and the collection are what a player would actually
+   * miss. DECK_* mirror the same four constants in deck.html, which owns the
+   * other side of this key. */
   const HISTORY_MAX = 60; // packs kept in the log; the counters keep counting
+  const SHOP_BUDGET = 96 * 1024;
+  const DECK_BUDGET = 160 * 1024;
+  const MAX_DRAFT = 4600; // one whole box, so "send everything" never truncates
+  const MAX_STACKS = 32;
+  const kb = (n) => `${Math.max(1, Math.round(n / 1024))} KB`;
+
+  /* ------------------------------------------------------ the napplet seam
+   * The shell's storage NAP inside a shell, localStorage on the website, and —
+   * if napplet.js itself never loaded — a memory store that forgets honestly
+   * rather than one that pretends to save. */
+  const NAP = root.E1Napplet || null;
+  const memory = new Map();
+  const store = (NAP && NAP.storage) || {
+    async get(key) { return memory.has(key) ? memory.get(key) : null; },
+    async json(key, fallback) { const raw = memory.get(key); return raw ? JSON.parse(raw) : fallback; },
+    async set(key, value) { memory.set(key, String(value)); return false; },
+    async remove(key) { memory.delete(key); return true; },
+  };
+  /* A sandbox that blocks outbound fetch is detectable before anything is
+   * tried, so the paid path can be withdrawn with an explanation instead of
+   * throwing a network error in a buyer's face. */
+  const ONLINE = NAP ? NAP.canReachInternet() : true;
+
+  const NO_STORE =
+    "This shell keeps no storage, so your collection and pull history live only until you close the page. " +
+    "The box, the odds and the fingerprint are unaffected.";
+  const REFUSED =
+    "This browser refused to save (private mode, or the disk is full), so your collection will not survive a reload.";
 
   /* The live mint's base URL. Null until the operator has one — the shop then
    * explains itself instead of pretending to sell. */
@@ -43,9 +90,10 @@
 
   const params = new URLSearchParams(root.location.search);
   const MODE = params.get("shop") === "mint" ? "mint" : "demo";
-  /* What the button will ACTUALLY do. Asking for mint mode without a mint
-   * gets the free pull and a notice, never a control that no-ops. */
-  const PULL_MODE = MODE === "mint" && PAID_LIVE ? "mint" : "demo";
+  /* What the button will ACTUALLY do. Asking for mint mode without a mint —
+   * or from a sandbox that cannot reach one — gets the free pull and a notice,
+   * never a control that no-ops or dies at a wall. */
+  const PULL_MODE = MODE === "mint" && PAID_LIVE && ONLINE ? "mint" : "demo";
 
   const RANK = { promo: 3, rare: 3, uncommon: 2, common: 1 };
   const SATS = Math.round(((BOX.priceMsat || 0) * (BOX.packSize || 0)) / 1000);
@@ -67,51 +115,96 @@
 
   // ------------------------------------------------------------- storage
 
-  const load = () => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORE));
-      if (saved && typeof saved.cursor === "number" && saved.pulls) {
-        return {
-          cursor: saved.cursor,
-          pulls: saved.pulls,
-          packs: typeof saved.packs === "number" ? saved.packs : 0,
-          history: Array.isArray(saved.history) ? saved.history : [],
-        };
-      }
-    } catch (error) {
-      /* a corrupt record is a fresh box, not a crash */
-    }
-    return { cursor: 0, pulls: {}, packs: 0, history: [] };
-  };
-  const save = (state) => {
-    try {
-      localStorage.setItem(STORE, JSON.stringify(state));
-    } catch (error) {
-      /* private mode: the session still works, it just will not persist */
-    }
+  const fresh = () => ({ cursor: 0, pulls: {}, packs: 0, history: [] });
+
+  /* A corrupt or hostile record is a fresh box, not a crash — and a shell may
+   * hand back anything at all, so the shape is rebuilt rather than trusted. */
+  const normalize = (saved) => {
+    if (!saved || typeof saved !== "object") return fresh();
+    if (typeof saved.cursor !== "number" || !saved.pulls || typeof saved.pulls !== "object") return fresh();
+    return {
+      cursor: saved.cursor,
+      pulls: saved.pulls,
+      packs: typeof saved.packs === "number" ? saved.packs : 0,
+      history: (Array.isArray(saved.history) ? saved.history : []).slice(0, HISTORY_MAX),
+    };
   };
 
-  let state = load();
+  /* One writer at a time, across both keys: a click on a pulled card and a
+   * click on "send everything" would otherwise read the same copy of the deck
+   * store and the second would undo the first. */
+  let chain = Promise.resolve();
+  function queue(job) {
+    const run = chain.then(job, job);
+    chain = run.catch(() => {});
+    return run;
+  }
+
+  /** Writes the shop record inside its budget. Returns "" or a sentence. */
+  function persist() {
+    return queue(async () => {
+      try {
+        while (state.history.length > HISTORY_MAX) state.history.pop();
+        let text = JSON.stringify(state);
+        /* The log is what gets sacrificed, oldest first, and only far enough
+         * to fit. The collection and the box cursor are never trimmed. */
+        while (text.length > SHOP_BUDGET && state.history.length) {
+          state.history.pop();
+          text = JSON.stringify(state);
+        }
+        if (text.length > SHOP_BUDGET) {
+          return `Your collection is ${kb(text.length)} against a ${kb(SHOP_BUDGET)} budget — reset the box to clear it.`;
+        }
+        let ok = false;
+        try { ok = await store.set(STORE, text); }
+        catch (error) { return String((error && error.message) || error); }
+        if (ok === false) return durable ? REFUSED : NO_STORE;
+        return "";
+      } catch (error) {
+        return String((error && error.message) || error);
+      }
+    });
+  }
+
+  /* Can this environment persist at all? A shell WITHOUT the storage domain
+   * falls through to localStorage, which in a sandbox is missing or mute, so
+   * the only honest test is a tiny write — do one and clean it up. */
+  async function probeStorage() {
+    try {
+      const ok = await store.set(PROBE, "1");
+      if (ok !== false) await store.remove(PROBE);
+      return ok !== false;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  let state = fresh();
+  let durable = false;
+  let booting = true;
   let busy = false;
+  let lastStoreProblem = "";
 
   // ----------------------------------------------------------- the pull
 
   /* Everything a pack needs to be checked later: which cards, which slice of
    * the box they came off, and which of them were new. Written once, on the
    * pull, so the log can never drift from the collection. */
-  function record(cards, from) {
+  async function record(cards, from) {
     const seen = {};
-    const fresh = cards.map((id) => {
+    const isNew = cards.map((id) => {
       const had = (state.pulls[id] || 0) + (seen[id] || 0);
       seen[id] = (seen[id] || 0) + 1;
       return had === 0;
     });
     for (const id of cards) state.pulls[id] = (state.pulls[id] || 0) + 1;
     state.packs = (state.packs || 0) + 1;
-    const entry = { n: state.packs, at: Date.now(), from, ids: cards.slice(), fresh };
+    const entry = { n: state.packs, at: Date.now(), from, ids: cards.slice(), fresh: isNew };
     state.history.unshift(entry);
     if (state.history.length > HISTORY_MAX) state.history.length = HISTORY_MAX;
-    save(state);
+    /* Awaited, not fired: the pack is not recorded until the bytes have landed
+     * or the budget has said no, and the answer is carried to the caller. */
+    lastStoreProblem = await persist();
     return entry;
   }
 
@@ -122,7 +215,9 @@
     if (PULL_MODE === "mint") {
       /* Live path, deliberately thin: ask for an invoice, show it, wait for
        * the mint to confirm. The buyer's wallet pays; nothing here handles
-       * their credentials. */
+       * their credentials. Unreachable unless ONLINE — kept as a belt so a
+       * future edit cannot quietly reintroduce a fetch into a sandbox. */
+      if (!ONLINE) throw new Error("This shell blocks outbound requests, so no mint can be reached from here.");
       const res = await fetch(`${MINT_URL}/pack?count=${n}`, { method: "POST" });
       if (!res.ok) throw new Error(`the mint refused the request (${res.status})`);
       const cards = (await res.json()).cards || [];
@@ -167,13 +262,16 @@
   function bindCardHands(node, cardId, isFaceDown) {
     node.tabIndex = 0;
     node.setAttribute("role", "button");
-    const act = () => {
+    const act = async () => {
       if (isFaceDown && !node.classList.contains("flipped")) {
         node.classList.remove("charging");
         node.classList.add("flipped");
         return;
       }
-      addToStack(cardId);
+      /* The write is awaited so the note under the collection is the ANSWER,
+       * not an optimistic guess made before the bytes landed. */
+      stackNote("Saving…");
+      await addToStack(cardId);
     };
     node.addEventListener("click", act);
     node.addEventListener("keydown", (event) => {
@@ -321,25 +419,46 @@
 
   // ------------------------------------------------- into the Stack Builder
 
-  const readDecks = () => {
-    try {
-      return JSON.parse(localStorage.getItem(DECK_STORE)) || {};
-    } catch (error) {
-      return {};
+  /* The Stack Builder owns this key and must not lose a Stack to a pull, so
+   * every handoff is a read-modify-write inside the shared budget rather than
+   * a blind overwrite of a copy that may be minutes old. */
+  const readDecks = (raw) => {
+    const out = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    for (const [name, ids] of Object.entries(raw)) {
+      if (Array.isArray(ids)) out[String(name)] = ids.filter((id) => typeof id === "string");
     }
+    return out;
   };
 
-  /* Write the draft in the Stack Builder's own format, under one fixed name,
-   * so sending twice replaces instead of piling up. */
-  function writeDraft(ids) {
-    try {
-      const all = readDecks();
-      all[DRAFT_NAME] = ids;
-      localStorage.setItem(DECK_STORE, JSON.stringify(all));
-      return ids.length;
-    } catch (error) {
-      return -1;
-    }
+  /** `make(current)` returns the draft's new card list. Resolves to
+   *  { n, problem } — n is the draft length, problem is "" or a sentence. */
+  function writeDraft(make) {
+    return queue(async () => {
+      try {
+        const all = readDecks(await store.json(DECK_STORE, {}));
+        const list = make(Array.isArray(all[DRAFT_NAME]) ? all[DRAFT_NAME] : []);
+        if (list.length > MAX_DRAFT) {
+          return { n: -1, problem: `That would be ${list.length} cards; ${MAX_DRAFT} is the most one Stack can hold. Trim "${DRAFT_NAME}" in the Stack Builder.` };
+        }
+        if (!(DRAFT_NAME in all) && Object.keys(all).length >= MAX_STACKS) {
+          return { n: -1, problem: `The Stack Builder already holds ${MAX_STACKS} Stacks — delete one there before sending cards over.` };
+        }
+        const text = JSON.stringify(Object.assign({}, all, { [DRAFT_NAME]: list }));
+        if (text.length > DECK_BUDGET) {
+          return { n: -1, problem: `Your saved Stacks are full — ${kb(text.length)} against a ${kb(DECK_BUDGET)} budget. Delete a Stack in the Stack Builder to make room.` };
+        }
+        let ok = false;
+        try { ok = await store.set(DECK_STORE, text); }
+        catch (error) { return { n: -1, problem: String((error && error.message) || error) }; }
+        if (ok === false) {
+          return { n: -1, problem: durable ? "This browser refused to save the Stack (private mode?)." : NO_STORE };
+        }
+        return { n: list.length, problem: "" };
+      } catch (error) {
+        return { n: -1, problem: String((error && error.message) || error) };
+      }
+    });
   }
 
   function stackNote(text) {
@@ -347,28 +466,28 @@
     if (node) node.textContent = text;
   }
 
-  function addToStack(cardId) {
-    const all = readDecks();
-    const list = Array.isArray(all[DRAFT_NAME]) ? all[DRAFT_NAME].slice() : [];
-    list.push(cardId);
-    const n = writeDraft(list);
+  function storeNote(text) {
+    const node = $("storeNote");
+    if (node) node.textContent = text || "";
+  }
+
+  async function addToStack(cardId) {
+    const res = await writeDraft((list) => list.concat(cardId));
     stackNote(
-      n < 0
-        ? "This browser will not let the shop save a Stack (private mode?)."
-        : `${nameOf(cardId)} added — "${DRAFT_NAME}" holds ${n} cards. Load it in the Stack Builder.`
+      res.problem ||
+        `${nameOf(cardId)} added — "${DRAFT_NAME}" holds ${res.n} cards. Load it in the Stack Builder.`
     );
   }
 
-  function sendCollection() {
+  async function sendCollection() {
     const ids = [];
     for (const id of Object.keys(state.pulls)) {
       for (let i = 0; i < state.pulls[id]; i += 1) ids.push(id);
     }
-    const n = writeDraft(ids);
+    const res = await writeDraft(() => ids);
     stackNote(
-      n < 0
-        ? "This browser will not let the shop save a Stack (private mode?)."
-        : `Sent — "${DRAFT_NAME}" now holds ${n} cards. Open the Stack Builder and press Load.`
+      res.problem ||
+        `Sent — "${DRAFT_NAME}" now holds ${res.n} cards. Open the Stack Builder and press Load.`
     );
   }
 
@@ -430,7 +549,7 @@
         const chip = el("span", `hist__c rarity-${rarityOf(id)}`, nameOf(id));
         chip.title = `${id} — ${rarityOf(id)}. Click to add to a Stack, right-click for details.`;
         if (entry.fresh[i]) chip.append(el("i", null, "NEW"));
-        chip.addEventListener("click", () => addToStack(id));
+        chip.addEventListener("click", async () => { stackNote("Saving…"); await addToStack(id); });
         chip.addEventListener("contextmenu", (event) => {
           event.preventDefault();
           openGallery(id);
@@ -525,12 +644,30 @@
         ? "<strong>Mint mode.</strong> Packs are paid in sats with your own Lightning wallet; the mint issues each card as a signed event. This page never sees your wallet or your keys."
         : "<strong>Alpha — free demo packs.</strong> The box, the order, the odds and the fingerprint below are the real ones; only the payment is skipped. Your collection lives in this browser. When the mint goes live the same packs cost sats and the cards become yours on Nostr.";
 
+    /* Two different truths, and the page must not tell the wrong one: there is
+     * no mint, or there is a mint this sandbox cannot reach. */
     const paidNote = $("paidNote");
     const stranded = MODE === "mint" && !PAID_LIVE;
-    paidNote.hidden = !stranded;
+    const walled = MODE === "mint" && PAID_LIVE && !ONLINE;
+    paidNote.hidden = !(stranded || walled);
     if (stranded) {
       paidNote.innerHTML =
         "<strong>Paid packs are not live yet.</strong> You asked for mint mode, but no mint is connected to this page — nothing here can request an invoice, and nothing can take a payment. The button below opens a <b>free</b> pack off the same committed box at the same odds. Nothing is owed and no purchase is implied.";
+    } else if (walled) {
+      paidNote.innerHTML =
+        "<strong>Paid packs cannot run here.</strong> This shell does not let the page make outbound requests, so no invoice can be fetched and no payment can settle — sats stakes are out of scope for this build for exactly that reason. The button below opens a <b>free</b> pack off the same committed box at the same odds.";
+    }
+
+    /* Said once, plainly, whenever the page is walled off — the box, the odds
+     * and the fingerprint all ship inside the page, so almost everything here
+     * still works and the player deserves to know which part does not. */
+    const netNote = $("netNote");
+    if (netNote) {
+      netNote.hidden = ONLINE;
+      if (!ONLINE) {
+        netNote.innerHTML =
+          "<strong>No internet from this shell.</strong> The box, its order, the odds and the fingerprint all ship inside this page, so packs, the collection and the in-browser verification work exactly as they do online. Card art falls back to the copies bundled with the game, and anything that needs a mint is unavailable.";
+      }
     }
 
     const button = $("openPack");
@@ -544,8 +681,12 @@
     $("boxFill").style.width = `${BOX.box.length ? (left / BOX.box.length) * 100 : 0}%`;
     $("resetBox").hidden = !(PULL_MODE === "demo" && state.cursor > 0);
     const button = $("openPack");
-    button.disabled = busy || empty;
-    if (empty) {
+    button.disabled = booting || busy || empty;
+    if (booting) {
+      /* Until storage answers, the cursor is unknown — pulling now would open
+       * the top of the box a second time and then be overwritten. */
+      button.textContent = "Opening the shop…";
+    } else if (empty) {
       /* A disabled button must say why. The note only explains when there is
        * nothing else there — the last pack's own summary outranks it. */
       button.textContent = "The box is empty";
@@ -562,6 +703,21 @@
     }
   }
 
+  /* Storage is async, so the page paints its bundled facts first, binds every
+   * control, and only then reads the cursor and the collection. The button
+   * stays disabled until that read lands — a pull against an unknown cursor
+   * would open the top of the box twice. */
+  async function boot() {
+    try { state = normalize(await store.json(STORE, null)); }
+    catch (error) { state = fresh(); }
+    durable = await probeStorage();
+    booting = false;
+    renderCollection();
+    renderHistory();
+    syncControls();
+    if (!durable) storeNote(NO_STORE);
+  }
+
   function init() {
     if (!BOX.box.length) return;
     renderBoxFacts();
@@ -569,7 +725,11 @@
     renderCollection();
     renderHistory();
     syncControls();
+    bindControls();
+    boot();
+  }
 
+  function bindControls() {
     $("openPack").addEventListener("click", async () => {
       busy = true;
       syncControls();
@@ -577,9 +737,12 @@
       note.className = "pack-note";
       note.textContent = "";
       try {
+        lastStoreProblem = "";
         await revealPack(await pullPack(BOX.packSize));
         renderCollection();
         renderHistory();
+        /* Whatever storage said about THIS pack, said now — never swallowed. */
+        storeNote(lastStoreProblem || (durable ? "" : NO_STORE));
       } catch (error) {
         clearTray();
         note.className = "pack-note is-error";
@@ -599,18 +762,24 @@
       $("revealAll").hidden = true;
     });
 
-    $("resetBox").addEventListener("click", () => {
+    $("resetBox").addEventListener("click", async () => {
       if (!root.confirm("Reset the demo box and your local collection?")) return;
-      state = { cursor: 0, pulls: {}, packs: 0, history: [] };
-      save(state);
+      state = fresh();
       clearTray();
       stackNote("");
       renderCollection();
       renderHistory();
       syncControls();
+      storeNote(await persist());
     });
 
-    $("sendStack").addEventListener("click", sendCollection);
+    $("sendStack").addEventListener("click", async () => {
+      const button = $("sendStack");
+      button.disabled = true;
+      stackNote("Sending…");
+      await sendCollection();
+      button.disabled = false;
+    });
 
     $("verifyBox").addEventListener("click", async () => {
       const button = $("verifyBox");
@@ -661,8 +830,14 @@
     mode: MODE,
     pullMode: PULL_MODE,
     paidLive: PAID_LIVE,
+    online: ONLINE,
     box: BOX,
+    budget: { shop: SHOP_BUDGET, decks: DECK_BUDGET, history: HISTORY_MAX, draft: MAX_DRAFT },
+    boot,
+    persist,
+    writeDraft,
     pullPack,
     recomputeCommitment,
+    napplet: () => (NAP ? NAP.report() : null),
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

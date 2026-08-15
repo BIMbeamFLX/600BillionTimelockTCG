@@ -8,14 +8,18 @@
 <title>600B Timelock TCG — Stack Builder</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
+<script src="napplet.js"></script>
+<script>
+/* Painted before the first frame. Inside a shell this is the shell's palette;
+ * on the website there is no shell, so it paints the 600B fallback — which is
+ * 600b.css's palette already, and the five Plate colours never move either way. */
+if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
+</script>
 <style>
 @font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
-:root {
-  --orange: #f7931a; --ember: #ff6a00; --gold: #f3c244;
-  --purple: #b991e4; --purple-deep: #7447b8; --violet: #17bebb;
-  --black: #09080b; --soot: #111014; --panel: #19151f;
-  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
-}
+/* No palette is defined here. Every token below is 600b.css's, so a shell theme
+ * repainting :root reaches this page too — a local copy would silently outrank
+ * it and leave one page unthemed. */
 * { box-sizing: border-box; margin: 0; }
 /* Several controls here carry an author `display`, which outranks the UA's
  * [hidden] rule — this page hides by attribute, so it has to win. */
@@ -26,8 +30,14 @@ a { color: var(--orange); }
 
 /* The nav lives in the design system (600b.css) — nothing page-local here. */
 
-.layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; padding: 18px clamp(16px, 3vw, 40px) 80px; max-width: 1560px; margin: 0 auto; }
-@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .deckpane { position: static !important; max-height: none !important; } }
+/* A napplet is a panel inside somebody else's window, so the pane collapses on
+ * the CONTAINER's width as well as the viewport's. The media queries keep the
+ * plain website behaving exactly as it did; the container queries cover a shell
+ * that hands this page less room than the screen has. */
+.page { container-type: inline-size; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 18px; padding: 18px clamp(16px, 3vw, 40px) 80px; max-width: 1560px; margin: 0 auto; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } .deckpane { position: static !important; max-height: none !important; } }
+@container (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } .deckpane { position: static !important; max-height: none !important; } }
 
 /* ------------------------------------------------------------- the bench */
 /* The filter bench wears the card frame: double line, PCB corner pads. */
@@ -111,7 +121,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 
 /* -------------------------------------------------------------- the pane */
 /* Clears the shared 59px nav bar — see .nav in 600b.css. */
-.deckpane { position: sticky; top: 71px; align-self: start; background: var(--panel); border: 1px solid var(--line); padding: 14px; max-height: calc(100vh - 91px); display: flex; flex-direction: column; }
+.deckpane { position: sticky; top: 71px; align-self: start; min-width: 0; background: var(--panel); border: 1px solid var(--line); padding: 14px; max-height: calc(100vh - 91px); max-height: calc(100dvh - 91px); display: flex; flex-direction: column; }
 .deckpane h2 { font: 18px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 10px; }
 .deckpane .row { display: flex; gap: 8px; margin-bottom: 8px; }
 .deckpane input[type=text] { flex: 1; min-width: 0; min-height: 36px; padding: 6px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font: inherit; }
@@ -146,6 +156,8 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 .btn.ghost:hover { background: var(--soot); }
 .btn.sm { padding: 6px 10px; font-size: 11px; }
 .note { color: var(--muted); font-size: 11.5px; margin-top: 8px; }
+.note.bad { color: var(--danger, #ff4d3d); }
+.note.good { color: var(--good, #6ee7a8); }
 .saved { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
 .saved h3 { font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 .savedrow { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
@@ -167,6 +179,24 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 .dlghelp { margin-bottom: 8px; color: var(--muted); font-size: 12px; }
 .dlgflavor { margin-bottom: 10px; color: var(--ink-dim, #9b90a4); font-size: 12px; font-style: italic; }
 .dlgfoot { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0 12px; border-top: 1px solid var(--line); color: var(--muted); font: 11px/1 Anton600, Impact, sans-serif; letter-spacing: .16em; text-transform: uppercase; }
+
+/* Below ~360px the bench collapses: the tiles shrink, the secondary counters
+ * and hints go, and the page still never scrolls sideways. Both queries carry
+ * the same rules so it holds on a phone AND in a narrow shell panel. */
+@media (max-width: 360px) {
+  .layout { padding-left: 10px; padding-right: 10px; gap: 12px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+  .cardtile .meta { font-size: 9.5px; }
+  .resultbar .sub { display: none; }
+  .deckpane { padding: 10px; }
+}
+@container (max-width: 360px) {
+  .layout { padding-left: 10px; padding-right: 10px; gap: 12px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+  .cardtile .meta { font-size: 9.5px; }
+  .resultbar .sub { display: none; }
+  .deckpane { padding: 10px; }
+}
 
 /* ------------------------------------------------------------------ touch */
 /* A finger has no second button and no hover, so every control here is a
@@ -203,7 +233,8 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   </div>
 </nav>
 
-<div class="layout" id="main">
+<div class="page" id="main">
+<div class="layout">
   <section class="browser">
     <div class="bench">
       <span class="pad tl"></span><span class="pad tr"></span><span class="pad bl"></span><span class="pad br"></span>
@@ -263,8 +294,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     <div class="saved">
       <h3>Saved stacks</h3>
       <div id="savedList"></div>
+      <p class="note" id="savedNote" role="status" aria-live="polite" hidden></p>
     </div>
   </aside>
+</div>
 </div>
 
 <dialog id="cardDialog" aria-label="Card details">
@@ -301,7 +334,29 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   const CARDS = globalThis.E1_CARDS || [];
   const byId = Object.fromEntries(CARDS.map((c) => [c.id, c]));
   const STORE = "600b:decks";
+  const PROBE = "600b:probe";
   const MIN_STACK = 40;
+
+  /* ------------------------------------------------------------ the budget
+   * Inside a shell the WHOLE napplet lives in 512 KB (docs/napplet-spec.md,
+   * flagged gap 4). A Stack is a card-ID list — forty ids is about 360 bytes —
+   * so these caps are lavish for play and still leave the shop's collection,
+   * the pull log and the match history room inside the same budget. They are
+   * checked on the serialised record, not guessed from the card count, and a
+   * refusal is a sentence the player can act on: never a silent truncation of
+   * somebody's saved Stacks. Kept in step with the same four constants in
+   * shop.js, which writes this key too. */
+  const LIB_BUDGET = 160 * 1024;
+  const MAX_STACKS = 32;
+  const MAX_CARDS = 4600; // one whole booster box, so the shop's handoff never truncates
+  const MAX_NAME = 60;
+  const kb = (n) => `${Math.max(1, Math.round(n / 1024))} KB`;
+
+  const NO_STORE =
+    "Nothing can be saved here: this shell offers no storage, so the starter library is what there is. " +
+    "Your Stack still plays for this session.";
+  const REFUSED =
+    "This browser refused to save (private mode, or the disk is full). Your Stack still plays for this session.";
   // Mirrors the engine's own gate: Stake-text cards never construct in E1.
   const isStake = (c) => /\bStake\b/.test(c.text || "");
 
@@ -347,10 +402,99 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     inStack: false, sort: "id",
   };
   let deck = {}; // cardId -> copies
-
-  const loadAll = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } };
-  const saveAll = (all) => localStorage.setItem(STORE, JSON.stringify(all));
   const total = () => Object.values(deck).reduce((a, n) => a + n, 0);
+
+  /* ----------------------------------------------------------- persistence
+   * Every read and write goes through the napplet adapter: the shell's storage
+   * NAP inside a shell, localStorage on the website, and — if napplet.js itself
+   * never loaded — a memory store that is HONEST about forgetting rather than
+   * one that pretends. The adapter is async and localStorage is not, so the
+   * library is read once at boot into `library` and every mutation is a queued
+   * read-modify-write through the adapter; nothing here fires a promise and
+   * hopes. */
+  const memory = new Map();
+  const store = (globalThis.E1Napplet && globalThis.E1Napplet.storage) || {
+    async json(key, fallback) { const raw = memory.get(key); return raw ? JSON.parse(raw) : fallback; },
+    async set(key, value) { memory.set(key, String(value)); return false; },
+    async setJson(key, value) { memory.set(key, JSON.stringify(value)); return false; },
+    async remove(key) { memory.delete(key); return true; },
+  };
+
+  let library = {};       // name -> [cardId], the Stack Builder's own format
+  let libraryReady = false;
+  let durable = false;    // does anything written here actually survive a reload?
+
+  /* Whatever comes back is untrusted: the shop writes this key too, and a shell
+   * may hand back anything at all. Shape it before it is shown or re-saved. */
+  function sanitize(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    for (const [name, ids] of Object.entries(raw)) {
+      if (!Array.isArray(ids)) continue;
+      const clean = String(name).slice(0, MAX_NAME);
+      if (clean) out[clean] = ids.filter((id) => typeof id === "string").slice(0, MAX_CARDS);
+    }
+    return out;
+  }
+
+  /* One writer at a time. Two fast clicks on Save and Delete would otherwise
+   * both read the same copy and the second would undo the first. */
+  let chain = Promise.resolve();
+  function queue(job) {
+    const run = chain.then(job, job);
+    chain = run.catch(() => {});
+    return run;
+  }
+
+  /** Applies `change` to the STORED library and writes it back.
+   *  Returns "" on success, or a sentence the player can act on. */
+  function commit(change) {
+    return queue(async () => {
+      try {
+        const all = sanitize(await store.json(STORE, {}));
+        const next = change(all);
+        if (typeof next === "string") return next; // the change refused itself
+        const text = JSON.stringify(next);
+        if (text.length > LIB_BUDGET) {
+          return `Your saved Stacks are full — ${kb(text.length)} against a ${kb(LIB_BUDGET)} budget. ` +
+            "Delete a Stack to make room.";
+        }
+        let ok = false;
+        try { ok = await store.set(STORE, text); }
+        catch (err) { return String((err && err.message) || err); }
+        /* A failed write must not leave the list showing a Stack that is not
+         * there: the library only moves when the bytes actually landed. */
+        if (ok === false) return durable ? REFUSED : NO_STORE;
+        library = next;
+        renderSaved();
+        return "";
+      } catch (err) {
+        return String((err && err.message) || err);
+      }
+    });
+  }
+
+  /* Can this environment persist at all? A shell with the storage domain
+   * absent falls through to localStorage, which in a sandbox is missing or
+   * mute — the only honest test is a tiny write, so do one and clean it up. */
+  async function probeStorage() {
+    try {
+      const ok = await store.set(PROBE, "1");
+      if (ok !== false) await store.remove(PROBE);
+      return ok !== false;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  async function bootLibrary() {
+    try { library = sanitize(await store.json(STORE, {})); }
+    catch (err) { library = {}; }
+    durable = await probeStorage();
+    libraryReady = true;
+    renderSaved();
+    if (!durable) say(NO_STORE, "bad");
+  }
 
   const grid = document.getElementById("grid");
   const emptyEl = document.getElementById("empty");
@@ -837,53 +981,80 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     afterDeckChange();
   }
 
+  const savedNote = document.getElementById("savedNote");
+  const saveBtn = document.getElementById("save");
+
+  /* One line for everything storage has to say. It replaces the old alert():
+   * a save is now asynchronous, so the answer has to arrive where the player is
+   * already looking rather than in a modal that interrupts the build. */
+  function say(text, tone) {
+    savedNote.className = "note" + (tone ? " " + tone : "");
+    savedNote.textContent = text || "";
+    savedNote.hidden = !text;
+  }
+
   function renderSaved() {
     const box = document.getElementById("savedList");
     box.replaceChildren();
-    const all = loadAll();
-    const names = Object.keys(all).sort();
+    const names = Object.keys(library).sort();
     if (!names.length) {
       const hint = document.createElement("span");
       hint.style.cssText = "color:var(--muted);font-size:12px";
-      hint.textContent = "Nothing saved yet.";
+      hint.textContent = !libraryReady ? "Reading…" : durable ? "Nothing saved yet." : "Not available here.";
       box.append(hint);
+      saveBtn.disabled = libraryReady && !durable;
       return;
     }
+    saveBtn.disabled = libraryReady && !durable;
     for (const name of names) {
+      const ids = library[name];
       const row = document.createElement("div");
       row.className = "savedrow";
       const nm = document.createElement("span");
       nm.className = "nm";
-      nm.textContent = `${name} (${all[name].length})`;
+      nm.textContent = `${name} (${ids.length})`;
       const load = document.createElement("button");
       load.type = "button";
       load.textContent = "Load";
-      load.addEventListener("click", () => loadDeck(name, all[name]));
+      load.addEventListener("click", () => loadDeck(name, ids));
       const del = document.createElement("button");
       del.type = "button";
       del.textContent = "Delete";
-      del.addEventListener("click", () => {
+      del.addEventListener("click", async () => {
         if (!confirm(`Delete Stack "${name}"?`)) return;
-        const current = loadAll();
-        delete current[name];
-        saveAll(current);
-        renderSaved();
+        del.disabled = true;
+        const problem = await commit((all) => {
+          const next = Object.assign({}, all);
+          delete next[name];
+          return next;
+        });
+        del.disabled = false;
+        say(problem || `Deleted "${name}".`, problem ? "bad" : "");
       });
       row.append(nm, load, del);
       box.append(row);
     }
   }
 
-  document.getElementById("save").addEventListener("click", () => {
-    const name = document.getElementById("deckName").value.trim();
-    if (!name) return alert("Give the Stack a name first.");
-    if (total() < MIN_STACK) return alert(`A Stack needs at least ${MIN_STACK} cards (§7) — this one has ${total()}.`);
+  saveBtn.addEventListener("click", async () => {
+    const nameEl = document.getElementById("deckName");
+    const name = nameEl.value.trim().slice(0, MAX_NAME);
+    if (!name) { say("Give the Stack a name first.", "bad"); nameEl.focus(); return; }
+    const n = total();
+    if (n < MIN_STACK) { say(`A Stack needs at least ${MIN_STACK} cards (§7) — this one has ${n}.`, "bad"); return; }
+    if (n > MAX_CARDS) { say(`That is ${n} cards; ${MAX_CARDS} is the most one Stack can hold.`, "bad"); return; }
     const list = [];
     for (const id of Object.keys(deck)) for (let i = 0; i < deck[id]; i += 1) list.push(id);
-    const all = loadAll();
-    all[name] = list;
-    saveAll(all);
-    renderSaved();
+    saveBtn.disabled = true;
+    say("Saving…");
+    const problem = await commit((all) => {
+      if (!(name in all) && Object.keys(all).length >= MAX_STACKS) {
+        return `Only ${MAX_STACKS} saved Stacks fit in the budget — delete one before saving "${name}".`;
+      }
+      return Object.assign({}, all, { [name]: list });
+    });
+    saveBtn.disabled = libraryReady && !durable;
+    say(problem || `Saved "${name}" — ${list.length} cards.`, problem ? "bad" : "good");
   });
 
   document.getElementById("clear").addEventListener("click", () => {
@@ -924,8 +1095,12 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   renderDeck();
   syncChips();
   renderGrid();
-  renderSaved();
+  /* The precon library is bundled, so it is there before storage answers — and
+   * it is ALL there is when a shell withholds the storage domain, which is
+   * exactly the spec's fallback: "preconstructed decks only". */
   renderPrecons();
+  renderSaved();
+  bootLibrary();
 })();
 </script>
 </body>

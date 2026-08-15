@@ -8,6 +8,13 @@
 <title>600B Timelock TCG — The Ladder</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
+<!-- The napplet adapter, before anything paints. It maps a shell's palette onto
+     the same custom properties 600b.css already uses (never onto the five
+     affinity Plate colours, which are brand-fixed), and it is the only place
+     this page is allowed to reach for storage. On the plain website every
+     optional domain is absent, which is the fallback path, not a special mode. -->
+<script src="napplet.js"></script>
+<script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
 <style>
 /* Page-local only. Palette, type, nav, footer, buttons, .framed / .banner /
    .chip-num / .terminal-line all come from 600b.css — this page defines no
@@ -181,6 +188,19 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
   .npub { max-width: none; }
   .player .nm { max-width: none; }
 }
+
+/* The napplet's TINY shape (spec: below ~360px). Nothing is cut off and nothing
+   scrolls sideways — the page just gives back the room its padding was using. */
+@media (max-width: 360px) {
+  main { width: calc(100% - 16px); padding-top: 26px; }
+  .trust { padding: 13px; }
+  .toolbar { padding: 10px; gap: 6px; }
+  .toolbar button, .file-label { padding: 0 10px; }
+  .empty { padding: 22px 14px; }
+  .rejected ul { padding: 0 14px 14px 26px; }
+  tbody tr { padding: 10px 12px; }
+  .terminal-line { flex-wrap: wrap; }
+}
 </style>
 </head>
 <body>
@@ -328,8 +348,10 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
       <code>settledSats</code> (a whole number of sats, zero or more), <code>verified: true</code> and
       <code>createdAt</code>. A player is either a hex pubkey string or an object with
       <code>pubkey</code> and <code>name</code>. Anything that fails those checks is counted by nobody.</p>
-      <p><b>Where it lives.</b> In this browser only, under <code>600b:match-results</code>. NPC
-      practice games carry no standing and belong on no leaderboard.</p>
+      <p><b>Where it lives.</b> In this browser only, under <code>600b:match-results</code> — or,
+      when this page runs inside a napplet shell, in that shell's own storage under the same name
+      and inside the same 512 KB the rest of the game shares. NPC practice games carry no standing
+      and belong on no leaderboard.</p>
     </div>
   </section>
 
@@ -362,7 +384,8 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
  *
  * Two things below the ladder are TOOLS, not the record, and are drawn that way:
  *   - a single-match pull from this page's referee (GET /api/match/:id)
- *   - a JSON import into a localStorage scratch board (600b:match-results)
+ *   - a JSON import into a scratch board held by the napplet adapter's storage
+ *     (600b:match-results — the shell's storage NAP, else this browser's own)
  * Neither can change a rating. The referee's real HTTP surface is three routes
  * (server/table.js): /api/health, /api/tables, /api/match/:id. There is no
  * ranking endpoint anywhere, so none is called — and there is nothing to call,
@@ -371,6 +394,14 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
  * EVERY string that came off a relay, out of a file, or out of the URL is put on
  * screen with textContent. Names now arrive from strangers, so innerHTML never
  * touches one.
+ *
+ * NOTHING HERE PUBLISHES. This page only reads: the relays for signed results,
+ * a referee for one finished match, a file the reader picked. If a publish is
+ * ever added it goes through E1Napplet.outbox — the shell's outbox first, this
+ * site's own relay fan-out second, "results stay local" third — and never
+ * straight at E1Net.nostr.publish, because a napplet shell owns that decision.
+ * The same rule holds for storage below, which is why localStorage is not
+ * touched anywhere on this page.
  * ------------------------------------------------------------------------ */
 const CACHE_KEY = "600b:match-results";
 const MATCH_ID = /^m_[0-9a-f]{12}$/i;
@@ -384,8 +415,15 @@ const FETCH_MS = 6000;
 const LADDER_MS = 4500;
 const LADDER_LIMIT = 150;
 
+/* The scratch board's store. Inside a shell this is the storage NAP and its
+   512 KB budget; on the website it is the same localStorage as before. One
+   surface either way, so this page has one path rather than two. If the adapter
+   itself did not load there is no store at all, and the board says so instead
+   of pretending it saved something. */
+const store = globalThis.E1Napplet ? E1Napplet.storage : null;
+
 let sortMode = "won";
-let results = readCache();
+let results = [];
 let busy = false;
 
 const $ = (id) => document.getElementById(id);
@@ -393,15 +431,18 @@ const nf = new Intl.NumberFormat("en-GB");
 const formatSats = (value) => nf.format(value) + " sats";
 const plural = (n, one, many) => nf.format(n) + " " + (n === 1 ? one : many);
 
-function readCache() {
-  try {
-    const value = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch { return []; }
+async function readCache() {
+  if (!store) return [];
+  const value = await store.json(CACHE_KEY, []);
+  return Array.isArray(value) ? value : [];
 }
-function writeCache() {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(results)); }
-  catch { /* private mode: the board still works for this session */ }
+async function writeCache() {
+  if (!store) return false;
+  /* Private mode throws on write and a shell refuses anything over its budget.
+     Neither is worth losing the session over, so this reports rather than
+     raises — and never resolves true unless the record really was stored. */
+  try { return await store.setJson(CACHE_KEY, results); }
+  catch { return false; }
 }
 
 /* A display name signed by a stranger. textContent already makes it inert as
@@ -609,6 +650,17 @@ function ladderBlocker() {
   if (typeof globalThis.WebSocket !== "function") {
     return "This browser has no WebSocket, which is the only way to speak to a nostr relay.";
   }
+  /* Appended AFTER the checks above so none of their answers change. Same
+     honesty as the crypto.subtle guard, for the other way a load can be
+     impossible before it is attempted: a sandboxed napplet cannot open an
+     outbound connection at all, and an empty ladder would read as "nobody has
+     played yet", which is a different claim and a false one. */
+  if (globalThis.E1Napplet && !globalThis.E1Napplet.canReachInternet()) {
+    return "This napplet runs in a sandbox that blocks outbound connections, so no relay can be " +
+      "asked and no signed result can be read. The ladder is not shown rather than shown empty — " +
+      "an empty board and an unreachable relay are not the same statement. Open the same page in " +
+      "a browser over https to read it.";
+  }
   return null;
 }
 
@@ -712,6 +764,14 @@ async function getJSON(url) {
 async function checkReferee() {
   const line = $("referee");
   const text = $("refereeText");
+  if (globalThis.E1Napplet && !globalThis.E1Napplet.canReachInternet()) {
+    line.classList.add("down");
+    text.textContent = "This napplet is sandboxed, so no referee can be asked from here — that is " +
+      "a wall, not a referee that is down. Importing a file still works.";
+    $("pullBtn").disabled = true;
+    $("matchId").disabled = true;
+    return;
+  }
   if (!ORIGIN) {
     line.classList.add("down");
     text.textContent = "This page was not served by a referee, so no match can be pulled. " +
@@ -849,7 +909,7 @@ $("pullForm").addEventListener("submit", async event => {
     if (outcome.error === "no-pubkeys") return say(`${id} has no signed-in players, so it cannot be ranked.`, true);
     const fresh = outcome.record;
     results = results.filter(record => !record || record.id !== fresh.id).concat([fresh]);
-    writeCache();
+    await writeCache();
     renderLocal();
     say(fresh.verified
       ? `Pulled ${id} · the referee's replay verified it · stake not recorded, so 0 sats.`
@@ -870,7 +930,7 @@ $("importFile").addEventListener("change", async event => {
     const imported = Array.isArray(payload) ? payload : payload && payload.results;
     if (!Array.isArray(imported)) throw new Error("the JSON must be an array, or hold a results array");
     results = imported;
-    writeCache();
+    await writeCache();
     renderLocal();
     const counted = verifiedRows(results).verified.length;
     say(`Source: ${file.name} · ${nf.format(counted)} of ${nf.format(imported.length)} records counted`,
@@ -882,10 +942,10 @@ $("importFile").addEventListener("change", async event => {
   }
 });
 
-$("clearBtn").addEventListener("click", () => {
+$("clearBtn").addEventListener("click", async () => {
   if (!results.length) return say("Nothing to clear — this browser holds no records.");
   results = [];
-  writeCache();
+  await writeCache();
   renderLocal();
   say("Board cleared. This browser holds no match records.");
 });
@@ -896,6 +956,17 @@ $("relayList").textContent = relayList().join("  ·  ") || "none — site/net.js
 renderLocal();
 loadLadder();
 checkReferee();
+
+/* The scratch board is read asynchronously because a shell's storage is async.
+   The markup already shows the empty state, so nothing flickers while it
+   arrives, and nothing above it waits on it. */
+readCache().then(saved => {
+  results = saved;
+  renderLocal();
+  if (!store) {
+    say("Source: this session only — site/napplet.js did not load, so nothing here is kept.", true);
+  }
+});
 </script>
 </body>
 </html>

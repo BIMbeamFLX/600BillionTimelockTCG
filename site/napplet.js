@@ -224,6 +224,58 @@
     },
   };
 
+  // ----------------------------------------------------------------- resource
+
+  /* Card art. Inside a shell it arrives as bytes through the resource NAP; on
+   * the website it is simply a URL. A page that could only ASK whether the
+   * domain existed, without being able to fetch through it, had to fall back to
+   * text cards in exactly the case the NAP was built for — a shell that
+   * provides art and forbids direct fetch.
+   *
+   * The spec asks for an in-memory LRU, and the reason is object URLs: each one
+   * pins its blob for the life of the document, so 296 card faces held forever
+   * is a leak with a number attached. Evicted entries are revoked. */
+  const RESOURCE_CACHE = 64;
+  const artCache = new Map(); // path -> object URL, insertion-ordered = LRU
+
+  function rememberArt(path, url) {
+    artCache.set(path, url);
+    while (artCache.size > RESOURCE_CACHE) {
+      const oldest = artCache.keys().next().value;
+      const stale = artCache.get(oldest);
+      artCache.delete(oldest);
+      try { URL.revokeObjectURL(stale); } catch (err) { /* already gone */ }
+    }
+  }
+
+  const resource = {
+    available: () => has("resource"),
+    /** Raw bytes through the shell, or null when there is no resource domain. */
+    async bytes(path) {
+      if (!has("resource") || typeof shell.resource.bytes !== "function") return null;
+      try { return await shell.resource.bytes(path); } catch (err) { return null; }
+    },
+    /** Something an <img src> can use: an object URL in a shell, else the path. */
+    async url(path) {
+      if (!has("resource")) return path;
+      if (artCache.has(path)) {
+        const held = artCache.get(path);
+        artCache.delete(path); // re-inserted below, so it becomes the newest
+        artCache.set(path, held);
+        return held;
+      }
+      const bytes = await resource.bytes(path);
+      if (!bytes) return path; // the domain exists but had nothing: fall back
+      try {
+        const url = URL.createObjectURL(new Blob([bytes]));
+        rememberArt(path, url);
+        return url;
+      } catch (err) {
+        return path;
+      }
+    },
+  };
+
   // ------------------------------------------------------------------ network
 
   /* A sandboxed napplet may not reach arbitrary hosts, which is exactly the
@@ -258,6 +310,7 @@
     identity,
     theme,
     outbox,
+    resource,
     canReachInternet,
     shape,
     applyTheme,

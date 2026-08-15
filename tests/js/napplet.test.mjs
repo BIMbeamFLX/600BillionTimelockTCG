@@ -237,3 +237,54 @@ test("a sandbox that blocks outbound fetch is detectable before anything is trie
   });
   assert.equal(closed.canReachInternet(), false);
 });
+
+// ---------------------------------------------------------------- resource
+
+test("without a resource domain, art is just a path", async () => {
+  const N = load({ localStorage: memoryStorage().api, document: stubRoot() });
+  assert.equal(N.resource.available(), false);
+  assert.equal(await N.resource.url("../art/cards/x.webp"), "../art/cards/x.webp");
+  assert.equal(await N.resource.bytes("../art/cards/x.webp"), null);
+});
+
+test("a shell resource domain delivers bytes, cached and bounded", async () => {
+  /* The page could previously only ASK whether this domain existed, and had to
+   * fall back to text cards in exactly the case it was built for. */
+  const asked = [];
+  const revoked = [];
+  const N = load({
+    localStorage: memoryStorage().api,
+    document: stubRoot(),
+    URL: {
+      createObjectURL: (blob) => `blob:${asked.length}:${blob.size}`,
+      revokeObjectURL: (url) => revoked.push(url),
+    },
+    Blob: class { constructor(parts) { this.size = parts[0].length; } },
+    napplet: {
+      resource: {
+        bytes: async (path) => { asked.push(path); return new Uint8Array([1, 2, 3]); },
+      },
+    },
+  });
+  assert.equal(N.resource.available(), true);
+
+  const first = await N.resource.url("a.webp");
+  assert.match(first, /^blob:/);
+  const again = await N.resource.url("a.webp");
+  assert.equal(again, first, "a second look is served from cache");
+  assert.equal(asked.length, 1, "and does not ask the shell twice");
+
+  /* Each object URL pins its blob for the life of the document, so an unbounded
+   * cache of 296 card faces is a leak with a number attached. */
+  for (let i = 0; i < 70; i++) await N.resource.url(`fill-${i}.webp`);
+  assert.ok(revoked.length > 0, "evicted entries must be revoked, not merely dropped");
+});
+
+test("a resource domain that returns nothing falls back to the path", async () => {
+  const N = load({
+    localStorage: memoryStorage().api,
+    document: stubRoot(),
+    napplet: { resource: { bytes: async () => { throw new Error("gone"); } } },
+  });
+  assert.equal(await N.resource.url("b.webp"), "b.webp", "a broken domain is a fallback, not a failure");
+});

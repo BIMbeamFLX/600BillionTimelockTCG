@@ -1245,7 +1245,11 @@
       for (const name of (options.mark(uid) || "").split(" ")) if (name) node.classList.add(name);
     }
 
+    /* A hold that opened the reader must not ALSO play the card: the click that
+     * follows the release is swallowed exactly once. */
+    let held = false;
     node.addEventListener("click", (event) => {
+      if (held) { held = false; return; }
       if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
       if (options && options.onClick) options.onClick(uid, event);
     });
@@ -1256,6 +1260,35 @@
         event.preventDefault();
         if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
         options.onContext(uid, event);
+      });
+      /* A FINGER HAS NO SECOND BUTTON. iOS Safari never fires contextmenu, so
+       * on a phone the only thing a card could do was be played — for a
+       * 295-card set, "tap to find out what it does" is the wrong game. Press
+       * and hold is the touch right click, at the same 420 ms the Stack Builder
+       * uses, so the two pages answer to the same gesture.
+       *
+       * The clash drag lives on the same pointer, and it wins: any real travel
+       * gives up the hold (installCardHold), so dragging an Avatar at the
+       * enemy still declares the attack. A press that never moves was never a
+       * drag — its pointerup is a no-op there — so the two cannot both fire.
+       * The mouse is untouched: it already has a right button.
+       *
+       * `held` is cleared on every press, so the swallow can only ever eat the
+       * one click that belongs to the hold that set it. */
+      node.addEventListener("pointerdown", (event) => {
+        held = false;
+        if (event.pointerType === "mouse") return;
+        dropCardHold();
+        // The light reader answers the moment the finger lands; the heavy one
+        // needs the hold. Neither costs the player a turn.
+        showInspector(v, uid);
+        const timer = setTimeout(() => {
+          cardHold = null;
+          held = true;
+          if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
+          options.onContext(uid, event);
+        }, 420);
+        cardHold = { timer, x: event.clientX, y: event.clientY };
       });
     }
     node.addEventListener("mouseenter", () => showInspector(v, uid));
@@ -1443,7 +1476,9 @@
     },
     {
       title: "Play a Resource",
-      text: "Glowing cards can be played right now. Left-click plays it; right-click opens the card and explains it. Play one Resource.",
+      // Never name a gesture the device in the player's hands does not have:
+      // a phone has no right button, so the hold is named alongside it.
+      text: "Glowing cards can be played right now. Click or tap plays it; right-click — or press and hold — opens the card and explains it. Play one Resource.",
       anchor: "#youHand",
       done: () => {
         const full = session.full;
@@ -1485,7 +1520,7 @@
     },
     {
       title: "You are live",
-      text: "Uptime 0 = offline. Attack during Clash, block on defense, and left-click anything you don't understand — every card explains itself. GLHF!",
+      text: "Uptime 0 = offline. Attack during Clash, block on defense, and right-click — or press and hold — anything you don't understand: every card explains itself. GLHF!",
       anchor: null,
       done: () => false,
     },
@@ -2598,19 +2633,30 @@
   const ANNOUNCED_KEY = "600b:announced";
   const STAKE_KEY = "600b:stake";
 
+  /* What we ANNOUNCED, and what we announced it FOR. The wager we sign at the
+   * start is the only number both players consented to before either knew how
+   * the match would go, so it — not whatever the referee reports at settlement
+   * time — is what a loser should be asked to pay. Records are objects; the
+   * older builds' bare-string entries are migrated rather than discarded, since
+   * dropping them would re-open the signer popup on a match already announced. */
   const readAnnounced = () => {
     if (remote.announced) return remote.announced;
-    try {
-      const raw = JSON.parse(localStorage.getItem(ANNOUNCED_KEY));
-      remote.announced = Array.isArray(raw) ? raw.slice(-60) : [];
-    } catch (error) {
-      remote.announced = [];
-    }
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem(ANNOUNCED_KEY)); } catch (error) { raw = null; }
+    remote.announced = (Array.isArray(raw) ? raw : [])
+      .map((entry) => (typeof entry === "string" ? { matchId: entry, stake: null } : entry))
+      .filter((entry) => entry && typeof entry.matchId === "string")
+      .slice(-60);
     return remote.announced;
   };
-  const markAnnounced = (matchId) => {
+  const wasAnnounced = (matchId) => readAnnounced().some((entry) => entry.matchId === matchId);
+  const signedStakeFor = (matchId) => {
+    const held = readAnnounced().find((entry) => entry.matchId === matchId);
+    return held && Number.isInteger(held.stake) ? held.stake : null;
+  };
+  const markAnnounced = (matchId, stake) => {
     const list = readAnnounced();
-    if (list.indexOf(matchId) < 0) list.push(matchId);
+    if (!wasAnnounced(matchId)) list.push({ matchId, stake: Number.isInteger(stake) ? stake : null });
     while (list.length > 60) list.shift();
     try { localStorage.setItem(ANNOUNCED_KEY, JSON.stringify(list)); } catch (error) { /* private mode */ }
   };
@@ -3300,8 +3346,10 @@
         ? `Published to ${res.accepted.length}/${res.tried} relays.`
         : `No relay accepted the ${role}. The match is unaffected — nostr is the announcement, never the gate.`,
         res.ok ? "good" : "");
+      return true;
     } catch (error) {
       netNotice(`Signing was declined — ${role} not published. The match is unaffected.`, "");
+      return false;
     }
   }
 
@@ -3340,10 +3388,10 @@
   }
 
   function publishResult() {
-    if (!remote.over) return;
+    if (!remote.over) return Promise.resolve(false);
     // Both players sign the referee's exact bytes, so agreement is a string
     // compare rather than two browsers hoping to re-serialise identically.
-    signAndSend("result", nostr().resultEvent(remote.over));
+    return signAndSend("result", nostr().resultEvent(remote.over));
   }
 
   // ---- identity -----------------------------------------------------------
@@ -3410,9 +3458,13 @@
     $("findMatch").addEventListener("click", findMatch);
     $("cancelFind").addEventListener("click", cancelFind);
     $("endClose").addEventListener("click", closeEndgame);
-    $("endPublish").addEventListener("click", () => {
-      publishResult();
+    /* Disabled only while the signer is open, and re-enabled if it was refused:
+     * declining a popup by accident must not permanently cost a player their
+     * place on the ladder. */
+    $("endPublish").addEventListener("click", async () => {
       $("endPublish").disabled = true;
+      const sent = await publishResult();
+      $("endPublish").disabled = Boolean(sent);
     });
     $("endRematch").addEventListener("click", () => {
       closeEndgame();
