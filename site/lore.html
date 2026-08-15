@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#09080b">
 <meta name="description" content="The world of 600B Timelock TCG — positive cypherpunk lore: the five tools, the runners, and the night the grid sang.">
 <title>600B Timelock TCG — Lore</title>
+<link rel="icon" href="../art/brand/600B-logo-primary.png">
+<link rel="stylesheet" href="600b.css">
 <style>
 @font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
 :root {
@@ -19,19 +21,7 @@ html { color-scheme: dark; scroll-behavior: smooth; }
 body { background: var(--black); color: var(--cream); font: 16px/1.6 Georgia, "Times New Roman", serif; }
 a { color: var(--orange); }
 
-.nav {
-  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
-  padding: 12px clamp(16px, 4vw, 56px); background: rgba(9,8,11,.9);
-  border-bottom: 1px solid var(--line); backdrop-filter: blur(16px);
-}
-.nav img { width: 42px; height: 42px; }
-.nav .brand { margin-right: auto; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; }
-.nav .brand small { display: block; color: var(--purple); font: 700 9px/1.4 Arial; letter-spacing: .22em; }
-.nav a.link {
-  color: var(--cream); text-decoration: none; font: 13px/1 Anton600, Impact, sans-serif;
-  letter-spacing: .08em; text-transform: uppercase; padding: 9px 12px; border: 1px solid transparent;
-}
-.nav a.link:hover { border-color: var(--purple-deep); }
+/* The nav lives in 600b.css — the shared bar, mark and links. */
 
 .hero {
   position: relative; overflow: hidden; min-height: 52vh; display: grid; align-content: center;
@@ -108,13 +98,19 @@ footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; colo
 </head>
 <body>
 
+<a class="skip" href="#main">Skip to content</a>
 <nav class="nav">
-  <img src="../art/brand/600B-logo-primary.png" alt="600B">
-  <div class="brand">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></div>
-  <a class="link" href="index.html">Home</a>
-  <a class="link" href="play.html">Play</a>
-  <a class="link" href="cards.html">Cards</a>
-  <a class="link" href="rules.html">Rulebook</a>
+  <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
+  <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
+  <div class="nav__links">
+    <a class="link" href="play.html">Play</a>
+    <a class="link" href="shop.html">Shop</a>
+    <a class="link" href="cards.html">Cards</a>
+    <a class="link" href="deck.html">Stacks</a>
+    <a class="link" href="rules.html">Rules</a>
+    <a class="link" href="lore.html" aria-current="page">Lore</a>
+    <a class="link" href="leaderboard.html">Leaderboard</a>
+  </div>
 </nav>
 
 <header class="hero">
@@ -124,7 +120,7 @@ footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; colo
   night shift where everything finally synced — and the people who built it are still on the roof.</p>
 </header>
 
-<main>
+<main id="main">
   <h2>The number</h2>
   <p>Nobody remembers who first said <em>six hundred billion</em> out loud. It was a block-height
   joke, then a toast, then a promise: the number of heartbeats a network earns if enough people keep
@@ -205,10 +201,10 @@ footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; colo
   </div>
 </main>
 
-<footer>
+<footer class="site-footer">
   <span>600 000 000 000 · Edition One · E1.0-draft</span>
   <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
-  <span class="tag">WE STACK. WE BUILD. WE MEME. WE REPEAT.</span>
+  <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
 </footer>
 
 </body>

@@ -1,0 +1,276 @@
+/* ---------------------------------------------------------------------------
+ * 600B Timelock TCG — the one design system.
+ *
+ * Every page links this file. It owns the tokens, the chrome (nav, footer,
+ * buttons, panels) and the card-frame DNA the board and the windows already
+ * speak: a double line with PCB corner pads, steel type banners, chip squares
+ * for numbers, a terminal footer. Page files keep only what is theirs.
+ *
+ * The palette is the locked E1 "Plate" palette. Affinity owns the accent;
+ * ember is the one action colour, so a player learns "ember means act" once
+ * and it holds on every page.
+ * ------------------------------------------------------------------------ */
+
+@font-face {
+  font-family: Anton600;
+  src: url("../art/fonts/Anton-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  /* affinities — locked E1 Plate palette */
+  --power: #f3c244;
+  --bitcoin: #f7931a;
+  --keys: #fff7ec;
+  --signal: #7447b8;
+  --timelock: #17bebb;
+  --neutral: #8a8f98;
+
+  /* brand */
+  --ember: #ff6a00;          /* the single action colour */
+  --purple: #b991e4;         /* structure, light */
+  --purple-deep: #7447b8;    /* structure, deep */
+  --gold: #f3c244;
+
+  /* surfaces, darkest to lightest */
+  --black: #09080b;
+  --soot: #111014;
+  --panel: #19151f;
+  --panel-2: #1f1a27;
+  --steel: #262330;          /* the card's type-banner grey */
+
+  /* ink */
+  --cream: #fff7ec;
+  --muted: #c7bbcc;
+  --ink-dim: #9b90a4;
+
+  /* state */
+  --good: #6ee7a8;
+  --danger: #ff4d3d;
+  --line: rgba(185, 145, 228, .28);
+  --line-strong: rgba(185, 145, 228, .45);
+
+  /* type */
+  --display: Anton600, Impact, "Haettenschweiler", sans-serif;
+  --body: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* rhythm */
+  --gap: 12px;
+  --pad: clamp(16px, 4vw, 56px);
+  --measure: 68ch;
+  --radius: 0px;             /* the frame is square, like the cards */
+
+  /* aliases kept so page-local CSS written before the system still resolves */
+  --orange: #ff6a00;
+  --orange-soft: #f7931a;
+  --violet: #17bebb;
+}
+
+* { box-sizing: border-box; margin: 0; }
+html { color-scheme: dark; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+body {
+  min-height: 100vh;
+  background: var(--black);
+  color: var(--cream);
+  font: 16px/1.6 var(--body);
+  -webkit-text-size-adjust: 100%;
+}
+img { max-width: 100%; }
+a { color: var(--bitcoin); }
+button, select, input, textarea { font: inherit; }
+
+/* One visible focus ring everywhere — keyboard users get the same board. */
+:focus-visible {
+  outline: 2px solid var(--power);
+  outline-offset: 3px;
+}
+
+.skip {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+  padding: 10px 16px; background: var(--ember); color: var(--black);
+  font: 13px/1 var(--display); letter-spacing: .1em; text-transform: uppercase;
+}
+.skip:focus { left: 8px; top: 8px; }
+
+/* ---------------------------------------------------------- nav + footer */
+
+.nav {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
+  padding: 10px var(--pad);
+  background: rgba(9, 8, 11, .88);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+}
+.nav__mark { width: 38px; height: 38px; flex-shrink: 0; }
+.nav__brand { margin-right: auto; font: 15px/1 var(--display); letter-spacing: .04em; }
+.nav__brand small {
+  display: block; margin-top: 3px;
+  color: var(--purple); font: 700 9px/1.4 var(--body); letter-spacing: .22em;
+}
+.nav__links { display: flex; gap: 2px; flex-wrap: wrap; align-items: center; }
+.nav a.link {
+  display: inline-block; padding: 9px 11px;
+  color: var(--cream); text-decoration: none;
+  font: 13px/1 var(--display); letter-spacing: .08em; text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.nav a.link:hover { border-color: var(--purple-deep); }
+.nav a.link[aria-current="page"] { color: var(--ember); border-color: var(--ember); }
+
+.site-footer {
+  display: flex; gap: 10px 18px; flex-wrap: wrap; align-items: center;
+  margin-top: 64px; padding: 26px var(--pad);
+  border-top: 1px solid var(--line);
+  color: var(--muted); font-size: 13px;
+}
+.site-footer a { color: var(--muted); }
+.site-footer a:hover { color: var(--bitcoin); }
+.site-footer .tag {
+  margin-left: auto;
+  font: 13px/1 var(--display); letter-spacing: .16em; color: var(--ember);
+}
+
+/* ------------------------------------------------------------- structure */
+
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 var(--pad); }
+.section { max-width: 1280px; margin: 0 auto; padding: clamp(44px, 6vw, 88px) var(--pad); }
+.section--tight { padding-top: clamp(24px, 3vw, 40px); padding-bottom: clamp(24px, 3vw, 40px); }
+
+h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: .01em; text-transform: uppercase; line-height: 1; }
+h1 { font-size: clamp(40px, 7vw, 92px); letter-spacing: -.01em; }
+h2 { font-size: clamp(26px, 4vw, 44px); margin-bottom: 10px; }
+h3 { font-size: clamp(17px, 2vw, 22px); letter-spacing: .04em; }
+.accent { color: var(--ember); }
+.lead { max-width: var(--measure); color: var(--muted); margin-bottom: 28px; }
+.eyebrow {
+  color: var(--power); font: 900 12px/1 var(--body);
+  letter-spacing: .24em; text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------- card DNA */
+
+/* The frame every card face wears, at page scale: double line, corner pads. */
+.framed {
+  position: relative;
+  padding: 18px;
+  background: rgba(17, 16, 20, .72);
+  border: 1px solid var(--line-strong);
+  outline: 1px solid rgba(255, 106, 0, .2);
+  outline-offset: 4px;
+}
+.framed > .pad {
+  position: absolute; width: 10px; height: 10px;
+  border: 1px solid var(--purple); background: var(--ember);
+  pointer-events: none;
+}
+.framed > .pad.tl { top: -5px; left: -5px; }
+.framed > .pad.tr { top: -5px; right: -5px; }
+.framed > .pad.bl { bottom: -5px; left: -5px; }
+.framed > .pad.br { bottom: -5px; right: -5px; }
+
+/* The card's type banner: steel chip, spaced capitals. */
+.banner {
+  display: inline-block; padding: 4px 12px 5px;
+  background: var(--steel); color: #cfd6dd;
+  font: 10px/1.3 var(--display); letter-spacing: .24em; text-transform: uppercase;
+}
+
+/* The card's cost / ACT / RES square. */
+.chip-num {
+  display: inline-grid; place-items: center; min-width: 46px; padding: 4px 8px 6px;
+  background: rgba(9, 8, 11, .92); border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 236, .1);
+  text-align: center; line-height: 1;
+}
+.chip-num b { display: block; font: 22px/1 var(--display); color: var(--cream); }
+.chip-num span { font-size: 7.5px; font-weight: 900; letter-spacing: .18em; color: var(--ember); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+  border: 1px solid var(--line); color: var(--muted);
+  font: 900 11px/1 var(--body); letter-spacing: .07em; text-transform: uppercase;
+}
+.chip--on { color: var(--power); border-color: var(--power); background: color-mix(in srgb, var(--power) 12%, transparent); }
+
+/* The card face's bottom line. */
+.terminal-line {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding-top: 8px; border-top: 1px solid var(--line);
+  font: 11px/1 var(--display); letter-spacing: .2em; color: var(--cream); opacity: .72;
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.btn {
+  display: inline-block; padding: 13px 22px; cursor: pointer;
+  background: var(--ember); color: var(--black); border: 0; text-decoration: none;
+  font: 15px/1 var(--display); letter-spacing: .08em; text-transform: uppercase;
+  transition: filter .12s ease;
+}
+.btn:hover { filter: brightness(1.12); }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.btn--ghost { background: transparent; color: var(--cream); border: 1px solid var(--purple-deep); }
+.btn--ghost:hover { background: var(--panel-2); filter: none; }
+.btn--small { padding: 8px 12px; font-size: 12px; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------- panels */
+
+.grid { display: grid; gap: 16px; }
+.grid--3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid--4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+.panel {
+  padding: 18px; background: rgba(17, 16, 20, .86); border: 1px solid var(--line);
+  border-top: 3px solid var(--purple-deep);
+}
+.panel--act { border-top-color: var(--ember); }
+.panel h3 { margin-bottom: 8px; }
+.panel p { color: var(--muted); font-size: 14px; }
+
+/* A link that is a whole panel: the hover state must read as one surface. */
+a.panel { display: block; text-decoration: none; color: inherit; }
+a.panel:hover { border-color: var(--line-strong); background: rgba(31, 26, 39, .9); }
+
+.note {
+  padding: 14px 16px; border: 1px dashed var(--line);
+  color: var(--muted); font-size: 13px;
+}
+.note strong { color: var(--power); }
+
+/* ----------------------------------------------------- affinity discs */
+
+.disc {
+  display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%;
+  background: color-mix(in srgb, var(--aff, var(--neutral)) 22%, var(--soot));
+  border: 2px solid var(--aff, var(--neutral));
+}
+.disc img { width: 22px; height: 22px; }
+.aff-power { --aff: var(--power); }
+.aff-bitcoin { --aff: var(--bitcoin); }
+.aff-keys { --aff: var(--keys); }
+.aff-signal { --aff: var(--signal); }
+.aff-timelock { --aff: var(--timelock); }
+
+/* ------------------------------------------------------------ utilities */
+
+.stack > * + * { margin-top: var(--gap); }
+.center { text-align: center; }
+.mono { font-family: var(--mono); }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .nav { gap: 8px; }
+  .nav__brand small { display: none; }
+  .nav a.link { padding: 8px 9px; font-size: 12px; }
+  .site-footer .tag { margin-left: 0; }
+}

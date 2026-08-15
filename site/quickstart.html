@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="Learn 600B Timelock TCG in five minutes: the goal, the turn, Resources, the Buffer burn, and your first clash.">
+<meta property="og:title" content="600B Timelock TCG — Play in 5 minutes">
+<meta property="og:description" content="Six steps from never having seen the game to winning your first clash.">
+<meta property="og:type" content="article">
+<title>600B Timelock TCG — Play in 5 Minutes</title>
+<link rel="icon" href="../art/brand/600B-logo-primary.png">
+<link rel="stylesheet" href="600b.css">
+<style>
+.qs-hero { position: relative; overflow: hidden; padding: clamp(40px, 7vw, 84px) var(--pad) clamp(32px, 5vw, 60px); }
+.qs-hero::before {
+  content: ""; position: absolute; inset: 0; z-index: 0;
+  background: url("../art/world-plates/power.png") center 35% / cover no-repeat;
+  filter: brightness(.42) saturate(.85);
+}
+.qs-hero::after { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, rgba(9,8,11,.72), rgba(9,8,11,.35) 45%, var(--black)); }
+.qs-hero > * { position: relative; z-index: 1; }
+
+.step { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 220px); gap: 26px; align-items: start; margin-bottom: 8px; }
+.step--flip { grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); }
+.step--flip .step__body { order: 2; }
+@media (max-width: 760px) { .step, .step--flip { grid-template-columns: 1fr; } .step--flip .step__body { order: 0; } .step__art { max-width: 190px; } }
+
+.step__n { display: inline-block; margin-bottom: 10px; padding: 5px 12px 6px; background: var(--ember); color: var(--black); font: 12px/1 var(--display); letter-spacing: .18em; }
+.step__body h3 { margin-bottom: 8px; font-size: clamp(20px, 2.6vw, 28px); }
+.step__body p { color: var(--muted); margin-bottom: 10px; }
+.step__body b { color: var(--cream); }
+.step__art img { display: block; width: 100%; border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.55); }
+.step__art figcaption { margin-top: 7px; text-align: center; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+
+.warn { border-color: var(--danger); }
+.warn strong { color: var(--danger); }
+
+.zones { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0 4px; }
+.zone-card { padding: 12px 14px; background: var(--soot); border: 1px solid var(--line); border-left: 3px solid var(--purple-deep); }
+.zone-card b { display: block; font: 14px/1.2 var(--display); letter-spacing: .06em; margin-bottom: 4px; }
+.zone-card span { color: var(--muted); font-size: 12.5px; }
+
+.mouse { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.mouse div { padding: 14px 16px; background: var(--soot); border: 1px solid var(--line); }
+.mouse b { color: var(--power); }
+
+.resline { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 0 6px; }
+.resline .r { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+hr.rule { height: 1px; border: 0; margin: 40px 0; background: linear-gradient(90deg, transparent, var(--line), transparent); }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav">
+  <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
+  <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
+  <div class="nav__links">
+    <a class="link" href="play.html">Play</a>
+    <a class="link" href="shop.html">Shop</a>
+    <a class="link" href="cards.html">Cards</a>
+    <a class="link" href="deck.html">Stacks</a>
+    <a class="link" href="rules.html" aria-current="page">Rules</a>
+    <a class="link" href="lore.html">Lore</a>
+    <a class="link" href="leaderboard.html">Leaderboard</a>
+  </div>
+</nav>
+
+<header class="qs-hero">
+  <p class="eyebrow">Quick start · Edition One</p>
+  <h1>Play in <span class="accent">5 minutes.</span></h1>
+  <p class="lead" style="font-size:clamp(16px,2vw,19px);color:var(--cream)">
+  Six steps, real cards, no rules lawyering. The full rulebook is there when you want the fine print —
+  you do not need it to win your first game.</p>
+  <div class="btn-row">
+    <a class="btn" href="play.html">Start a game vs the NPC</a>
+    <a class="btn btn--ghost" href="rules.html">Full rulebook</a>
+  </div>
+</header>
+
+<main id="main">
+<section class="section">
+
+  <div class="step">
+    <div class="step__body">
+      <span class="step__n">STEP 1</span>
+      <h3>Take them to zero</h3>
+      <p>Both players start at <b>20 Uptime</b>. Bring your opponent to <b>0</b> and you win. That is the
+      whole victory condition — everything below is just how you get there.</p>
+      <p>Your Uptime is the number in the chip square next to your name at the table.</p>
+      <div class="resline" aria-label="The five Resources">
+        <span class="r"><span class="disc aff-power"><img src="../art/resources/power.svg" alt=""></span>Power</span>
+        <span class="r"><span class="disc aff-bitcoin"><img src="../art/resources/bitcoin.svg" alt=""></span>Bitcoin</span>
+        <span class="r"><span class="disc aff-keys"><img src="../art/resources/keys.svg" alt=""></span>Keys</span>
+        <span class="r"><span class="disc aff-signal"><img src="../art/resources/signal.svg" alt=""></span>Signal</span>
+        <span class="r"><span class="disc aff-timelock"><img src="../art/resources/timelock.svg" alt=""></span>Timelock</span>
+      </div>
+      <p style="margin-top:10px">Five Resources. A Stack usually leans on one or two of them.</p>
+    </div>
+    <figure class="step__art">
+      <img data-face="Zap.webp" alt="Zap — deals 3 damage to any target">
+      <figcaption>Zap · 3 damage, straight to the face</figcaption>
+    </figure>
+  </div>
+
+  <hr class="rule">
+
+  <div class="step step--flip">
+    <figure class="step__art">
+      <img data-face="Power Plant — Hydro.webp" alt="Power Plant — Hydro, a Basic Resource">
+      <figcaption>Play one Resource per turn</figcaption>
+    </figure>
+    <div class="step__body">
+      <span class="step__n">STEP 2</span>
+      <h3>One Resource per turn, free</h3>
+      <p>Once each turn you may put a <b>Resource</b> from your Wallet onto your Network. It costs nothing
+      and cannot be answered. This is your economy — miss it and you fall a turn behind.</p>
+      <div class="zones">
+        <div class="zone-card"><b>Stack</b><span>Your deck. You draw from it.</span></div>
+        <div class="zone-card"><b>Wallet</b><span>Your hand.</span></div>
+        <div class="zone-card"><b>Network</b><span>What you have in play.</span></div>
+        <div class="zone-card"><b>Archive</b><span>The graveyard.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <div class="step">
+    <div class="step__body">
+      <span class="step__n">STEP 3</span>
+      <h3>Commit it to pay for things</h3>
+      <p>A Resource on your Network does nothing until you <b>commit</b> it — click it and it turns
+      sideways, putting one Resource into your <b>Buffer</b>. The Buffer is what pays printed costs.</p>
+      <p>A junction like this one asks which Resource you want; a plain Power Plant just makes Power.</p>
+      <p><b>Toni China, Rough Miner</b> costs <span class="mono">1P</span> — one Power plus one of anything.
+      So: commit two Resources, then play her.</p>
+    </div>
+    <figure class="step__art">
+      <img data-face="Power–Signal Junction.webp" alt="Power–Signal Junction">
+      <figcaption>Commit: 1 Power or 1 Signal</figcaption>
+    </figure>
+  </div>
+
+  <hr class="rule">
+
+  <div class="step step--flip">
+    <figure class="step__art">
+      <img data-face="Toni China, Rough Miner.webp" alt="Toni China, Rough Miner — Avatar 2/2">
+      <figcaption>Avatar · Action 2 / Resilience 2</figcaption>
+    </figure>
+    <div class="step__body">
+      <span class="step__n">STEP 4</span>
+      <h3>Spend it before the phase ends</h3>
+      <p class="note warn"><strong>The one rule that bites beginners:</strong> your Buffer empties at the
+      end of every phase, and each unspent Resource costs you <b>1 Uptime</b>. Generate what you are about
+      to spend — not more. That is <em>resource burn</em> (§12.1), and yes, it hurts.</p>
+      <p>An Avatar's two numbers are <b>Action</b> (damage it deals) and <b>Resilience</b> (damage it
+      survives). It arrives with <b>Boot Delay</b>: it cannot attack on the turn it lands.</p>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <div class="step">
+    <div class="step__body">
+      <span class="step__n">STEP 5</span>
+      <h3>Clash</h3>
+      <p>In the Clash phase, every Avatar that may legally attack <b>pulses ember</b>. Click the ones you
+      want to send, then press Continue — an arrow shows where each attack is going.</p>
+      <p>Your opponent picks blockers: first the attacker, then their own Avatar. Unblocked attackers hit
+      the player, and their Action comes straight off that player's Uptime.</p>
+      <p>Avatars that took damage equal to their Resilience are decommissioned into the Archive.</p>
+    </div>
+    <figure class="step__art">
+      <img data-face="Firewall Tunnel.webp" alt="Firewall Tunnel — removes a blocker">
+      <figcaption>Clearing a blocker out of the way</figcaption>
+    </figure>
+  </div>
+
+  <hr class="rule">
+
+  <div class="step">
+    <div class="step__body">
+      <span class="step__n">STEP 6</span>
+      <h3>The table does the rest</h3>
+      <p>You never have to memorise the eight phases. <b>Continue</b> walks the turn forward and stops
+      whenever you actually have a decision; <b>End turn</b> hands over. The line at the top always says
+      where you are and what you can do.</p>
+      <div class="mouse">
+        <div><b>Left click</b> — acts. Play the card, commit the Resource, declare the attack.</div>
+        <div><b>Right click</b> — explains. Opens the card window with its full text.</div>
+      </div>
+      <p style="margin-top:14px">Cards the engine cannot fully script are marked <b>!</b> and are resolved
+      by a proposal your opponent accepts or rejects. Rare, and always visible.</p>
+    </div>
+    <figure class="step__art">
+      <img data-face="600B-Timelock-card-back.webp" alt="600B Timelock card back">
+      <figcaption>Now go take someone offline</figcaption>
+    </figure>
+  </div>
+
+  <div class="framed" style="margin-top:44px;text-align:center">
+    <span class="pad tl"></span><span class="pad tr"></span>
+    <span class="pad bl"></span><span class="pad br"></span>
+    <div class="banner">Ready // pick a deck and press start</div>
+    <p class="lead" style="margin:16px auto 20px">Eleven preconstructed Stacks are waiting — five Starters,
+    one per Resource, and six Classics built around the old tournament archetypes. Pick one, tick
+    “NPC opponent”, and play.</p>
+    <div class="btn-row" style="justify-content:center">
+      <a class="btn" href="play.html">Play now</a>
+      <a class="btn btn--ghost" href="deck.html">Build your own Stack</a>
+      <a class="btn btn--ghost" href="rules.html">Read the full rules</a>
+    </div>
+    <div class="terminal-line" style="margin-top:22px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span>QUICK&nbsp;START&nbsp;·&nbsp;E1</span></div>
+  </div>
+
+</section>
+</main>
+
+<footer class="site-footer">
+  <span>600 000 000 000 · Edition One · E1.0-draft</span>
+  <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
+  <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
+</footer>
+
+<script src="play-data.js"></script>
+<script src="blob-map.js"></script>
+<script src="faces.js"></script>
+<script>
+/* Card art comes from Blossom by hash when the page is served, and from the
+   repo when it is opened from a file:// path — same resolver the table uses. */
+for (const img of document.querySelectorAll("img[data-face]")) {
+  const face = img.dataset.face;
+  if (globalThis.E1Faces) globalThis.E1Faces.setFace(img, face);
+  else img.src = "../art/cards/node-runner-web/" + encodeURIComponent(face);
+}
+</script>
+</body>
+</html>

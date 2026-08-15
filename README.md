@@ -47,18 +47,30 @@ scripts/
   build_card_set.py
   render_card_pngs.py
   build_blob_manifest.py
+  build_blob_map.py
   build_play_data.py
+  build_precons.py
+  build_shop_data.py
   rasterize-icons.cjs
   build-rulebook.cjs
 site/
-  arena.html    static play-area mockup
-  cards.html    searchable image-and-text catalog
-  e1-card-set.html  Node Runner frame proof sheet, print-ready
+  600b.css      the shared design system: tokens, nav, card-frame components
   index.html    landing page
+  quickstart.html  five-minute onboarding for a first game
   play.html     playable two-player hotseat table
   play.js       local rules engine
   play-data.js  generated playable card data
-  rules.html    designed rulebook
+  precons.js    generated preconstructed Stacks (5 Starters, 6 Classics)
+  deck.html     Stack Builder
+  shop.html     booster shop
+  shop.js       pack opening, demo mode with a mint-ready seam
+  shop-data.js  generated committed booster box
+  faces.js      card art from Blossom by hash, with a local cache
+  blob-map.js   generated card face -> SHA-256 map
+  cards.html    searchable image-and-text catalog
+  e1-card-set.html  Node Runner frame proof sheet, print-ready
+  rules.html    designed rulebook, generated from rules/
+  arena.html    retired mockup, redirects to the live table
 ```
 
 ## Playing locally
@@ -82,6 +94,33 @@ resolved at the table with the manual controls, so no card is locked out of play
 ```bash
 uv run python scripts/build_play_data.py
 ```
+
+Three more generated files back the site, all deterministic — same catalog in,
+byte-identical file out:
+
+```bash
+uv run python scripts/build_precons.py    # site/precons.js — the ready-made Stacks
+uv run python scripts/build_blob_map.py   # site/blob-map.js — face -> SHA-256
+uv run python scripts/build_shop_data.py  # site/shop-data.js — the committed box
+```
+
+`build_shop_data.py` prints the box commitment. **Publish that hash before selling
+a single pack** and reveal the ordered box when it is exhausted: that pair is what
+turns "trust our odds" into "replay it yourself".
+
+## Booster shop
+
+`site/shop.html` opens one box. Rarity is copies in that box — commons 24,
+uncommons 8, rares 3 — exactly how a printed booster box expresses it, so the
+published odds are a property of the box rather than a promise about a dice roll.
+The box is shuffled once from a seed and committed by SHA-256 before the first
+pack; pulls come off the top.
+
+During alpha packs are free and the collection lives in the browser. The paid
+path is configuration, not a rewrite: set `MINT_URL` in `site/shop.js` and both
+modes go through the same `pullPack()`, so the button asks the LNURL mint for an
+invoice the buyer pays with their own wallet. The site never handles a payment
+credential.
 
 ## Node Runner frame proof sheet
 

@@ -92,6 +92,8 @@ function renderWebsite() {
   <meta name="theme-color" content="#000000">
   <meta name="description" content="Edition One rules for 600B Timelock TCG, a positive cypherpunk card game about Bitcoin, Nostr and open systems.">
   <title>600B Timelock TCG — Edition One Rules</title>
+  <link rel="icon" href="../art/brand/600B-logo-primary.png">
+  <link rel="stylesheet" href="600b.css">
   <style>
     @font-face {
       font-family: "Anton600";
@@ -172,6 +174,24 @@ function renderWebsite() {
       border-left-color: var(--orange);
       background: rgba(185,145,228,.09);
     }
+    /* Twenty-odd chapters is a scroll; typing two letters is a jump. */
+    #tocSearch {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 7px 9px;
+      color: var(--white);
+      background: rgba(5,5,6,.9);
+      border: 1px solid var(--line);
+      font: 12px/1.3 inherit;
+    }
+    #tocSearch:focus { border-color: var(--orange); outline: none; }
+    #tocEmpty { margin: 6px 8px; color: var(--muted); font-size: 12px; }
+    .toc a[hidden] { display: none; }
+    .pill--go { background: var(--orange); }
+    .pill--go:hover { background: var(--purple); }
+    /* The sticky site nav owns the top of the viewport; anchors clear it. */
+    h2, h3, h4 { scroll-margin-top: 76px; }
+    .toc { top: 74px; max-height: calc(100vh - 96px); }
     .hero {
       position: relative;
       min-height: 510px;
@@ -409,6 +429,20 @@ function renderWebsite() {
   </style>
 </head>
 <body>
+  <a class="skip" href="#rules-top">Skip to the rules</a>
+  <nav class="nav">
+    <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
+    <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
+    <div class="nav__links">
+      <a class="link" href="play.html">Play</a>
+      <a class="link" href="shop.html">Shop</a>
+      <a class="link" href="cards.html">Cards</a>
+      <a class="link" href="deck.html">Stacks</a>
+      <a class="link" href="rules.html" aria-current="page">Rules</a>
+      <a class="link" href="lore.html">Lore</a>
+      <a class="link" href="leaderboard.html">Leaderboard</a>
+    </div>
+  </nav>
   <a class="mobile-index" href="#fast-start">Jump to rules</a>
   <header class="hero">
     <div class="hero-inner">
@@ -423,9 +457,9 @@ function renderWebsite() {
           <span class="pill">2 players</span>
           <span class="pill">20 Uptime</span>
           <span class="pill">40+ cards</span>
-          <span class="pill">Classic profile</span>
+          <a class="pill pill--go" href="quickstart.html">New? Play in 5 minutes →</a>
+          <a class="pill" href="play.html">Play now →</a>
           <a class="pill" href="cards.html">Browse all cards →</a>
-          <a class="pill" href="leaderboard.html">Sats leaderboard →</a>
         </div>
       </div>
     </div>
@@ -433,9 +467,12 @@ function renderWebsite() {
   <div class="page-shell">
     <nav class="toc" aria-label="Rulebook chapters">
       <strong>Rulebook E1</strong>
-      ${toc}
+      <input id="tocSearch" type="search" placeholder="Filter chapters…" autocomplete="off"
+        aria-label="Filter rulebook chapters">
+      <div id="tocLinks">${toc}</div>
+      <p id="tocEmpty" hidden>No chapter matches.</p>
     </nav>
-    <main>
+    <main id="rules-top">
       <article>${article}</article>
       <footer class="footer">
         600B Timelock TCG · E1.0-draft · We stack. We build. We meme. We repeat.
@@ -443,7 +480,7 @@ function renderWebsite() {
     </main>
   </div>
   <script>
-    const links = [...document.querySelectorAll(".toc a")];
+    const links = [...document.querySelectorAll("#tocLinks a")];
     const sections = links
       .map((link) => document.getElementById(link.getAttribute("href").slice(1)))
       .filter(Boolean);
@@ -454,6 +491,28 @@ function renderWebsite() {
       }
     }, { rootMargin: "-18% 0px -72% 0px" });
     sections.forEach((section) => observer.observe(section));
+
+    /* Filter the chapter list. Matching is on the visible title, so what you
+       type is what you see — no hidden index to disagree with the page. */
+    const search = document.getElementById("tocSearch");
+    const empty = document.getElementById("tocEmpty");
+    search.addEventListener("input", () => {
+      const needle = search.value.trim().toLowerCase();
+      let shown = 0;
+      for (const link of links) {
+        const hit = !needle || link.textContent.toLowerCase().includes(needle);
+        link.hidden = !hit;
+        if (hit) shown += 1;
+      }
+      empty.hidden = shown > 0;
+    });
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") { search.value = ""; search.dispatchEvent(new Event("input")); }
+      if (event.key === "Enter") {
+        const first = links.find((link) => !link.hidden);
+        if (first) first.click();
+      }
+    });
   </script>
 </body>
 </html>`;

@@ -8,7 +8,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def test_static_site_pages_live_together() -> None:
     """Website entry points belong in site/, not at repository root."""
     assert {path.name for path in (REPO_ROOT / "site").glob("*.html")} == {
-        "arena.html",
+        "arena.html",  # retired mockup, kept as a redirect to the live table
         "cards.html",
         "deck.html",
         "e1-card-set.html",
@@ -17,7 +17,9 @@ def test_static_site_pages_live_together() -> None:
         "leaderboard.html",
         "lore.html",
         "play.html",
+        "quickstart.html",
         "rules.html",
+        "shop.html",
     }
     assert not any(REPO_ROOT.glob("*.html"))
 

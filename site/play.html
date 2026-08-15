@@ -38,7 +38,9 @@ a { color: var(--orange-soft); }
 .masthead img { width: 40px; height: 40px; }
 .brand strong { display: block; font: 16px/1 Anton600, Impact, sans-serif; letter-spacing: .03em; }
 .brand span { color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
-.navlink { margin-left: auto; padding: 8px 11px; color: var(--cream); border: 1px solid var(--purple-deep); text-decoration: none; font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.navlinks { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
+.navlink { padding: 8px 11px; color: var(--cream); border: 1px solid var(--purple-deep); text-decoration: none; font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.navlink:hover { border-color: var(--orange); }
 .turnchip { padding: 7px 12px; background: rgba(17,16,20,.85); border: 1px solid var(--line); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
 .turnchip b { color: var(--orange); }
 
@@ -342,8 +344,14 @@ a { color: var(--orange-soft); }
     <div class="brand"><strong>TIMELOCK TCG</strong><span>Edition One · Local Table</span></div>
     <div class="turnchip" id="turnchip">Not started</div>
     <div class="turnchip netchip" id="netchip" hidden></div>
-    <a class="navlink" href="rules.html">Rulebook</a>
-    <a class="navlink" href="cards.html">Cards</a>
+    <div class="navlinks">
+      <a class="navlink" href="index.html">Home</a>
+      <a class="navlink" href="quickstart.html">Quick start</a>
+      <a class="navlink" href="rules.html">Rulebook</a>
+      <a class="navlink" href="cards.html">Cards</a>
+      <a class="navlink" href="deck.html">Stacks</a>
+      <a class="navlink" href="shop.html">Shop</a>
+    </div>
   </header>
 
   <!-- ---------------- setup ---------------- -->
