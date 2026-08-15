@@ -123,6 +123,42 @@
         const over = wallet.length - state.handLimit;
         push("DISCARD_TO_LIMIT", { uids: wallet.slice(0, Math.max(0, over)) });
       }
+      /* THE NPC FROZE HERE. `unlock` is the very first step of every turn, and
+       * nothing answered it — so the moment a board held a card whose unlock is
+       * a CHOICE rather than automatic, the opponent stopped playing and the
+       * game sat there forever. It went unseen because the old deck builder
+       * sampled with replacement and dealt 23 unique cards out of 40, so the
+       * cards that ask this question were rarely in play; a deck of 40 distinct
+       * cards meets them constantly.
+       *
+       * `caps` limits how many of each type may be unlocked, so the greedy
+       * "take everything selectable" answer is often illegal. Unlocking as much
+       * as the caps allow is both legal and right — a committed permanent is a
+       * permanent that cannot act. */
+      if (awaiting.kind === "unlock") {
+        const required = (awaiting.required || []).slice();
+        const selectable = (awaiting.selectable || []).filter((uid) => required.indexOf(uid) < 0);
+        const caps = awaiting.caps || {};
+        const used = {};
+        const picked = required.slice();
+        for (const uid of selectable) {
+          const object = state.objects[uid];
+          const card = object && object.cardId ? compiled(object.cardId) : null;
+          const kind = card && card.isResource ? "Resource" : "Other";
+          const cap = caps[kind];
+          if (cap !== undefined) {
+            used[kind] = used[kind] || 0;
+            if (used[kind] >= cap) continue;
+            used[kind] += 1;
+          }
+          picked.push(uid);
+        }
+        push("CHOOSE_UNLOCK", { uids: picked });
+        // Falling back to the required minimum keeps a legal answer available
+        // even if a cap is expressed in a way the loop above did not expect.
+        push("CHOOSE_UNLOCK", { uids: required });
+      }
+      if (awaiting.kind === "draw") push("CHOOSE_DRAW", { skip: false });
       if (awaiting.kind === "triggers") {
         const waiting = state.pendingTriggers[String(seat)] || [];
         push("ORDER_TRIGGERS", { qids: waiting.map((t) => t.pendingId) });

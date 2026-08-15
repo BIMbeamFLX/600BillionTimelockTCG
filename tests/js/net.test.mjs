@@ -11,7 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { get as httpGet } from "node:http";
+import { get as httpGet, request as httpRequest } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -107,6 +107,10 @@ class Client {
       this.view = msg.view;
     } else if (msg.t === "OVER") {
       this.over = msg;
+    } else if (msg.t === "AUTH_OK") {
+      // Kept, because Client.open consumes it: the greeting carries this
+      // identity's unfinished matches and tests need to read them back.
+      this.hello = msg;
     }
     this.inbox.push(msg);
     for (const w of this.waiters.splice(0)) w();
@@ -758,11 +762,23 @@ test("nostr events are stored verbatim and agreement is a query", async (t) => {
   const { a, b } = await twoSeats(table);
 
   const content = JSON.stringify({ v: 1, kind: "result", matchId: a.matchId, winners: [0] });
-  const ev = (pubkey, over) =>
-    Object.assign(
-      { id: "f".repeat(64), pubkey, kind: 31600, created_at: 1785310322, tags: [["d", a.matchId]], content, sig: "0".repeat(128) },
+  /* GENUINELY SIGNED, because the referee now verifies these. Both seats sign
+   * the SAME content, so `confirmed` remains a content comparison. */
+  const ev = (privateKey, over) => {
+    const event = Object.assign(
+      {
+        pubkey: Buffer.from(schnorr.getPublicKey(privateKey)).toString("hex"),
+        kind: 31600,
+        created_at: 1785310322,
+        tags: [["d", a.matchId]],
+        content,
+      },
       over || {}
     );
+    event.id = eventId(event);
+    event.sig = Buffer.from(schnorr.sign(event.id, privateKey)).toString("hex");
+    return event;
+  };
 
   // The agreement broadcast goes to BOTH seats, so a message is matched by what
   // it says rather than by "the next NOSTR" — b already holds a's broadcast.
@@ -770,36 +786,43 @@ test("nostr events are stored verbatim and agreement is a query", async (t) => {
 
   /* The handshake is signable at once — that is what it is for. A RESULT is not:
    * there is no result until the match has one. */
-  a.send({ t: "NOSTR", role: "invite", event: ev(a.pubkey, { kind: 4600 }) });
-  a.send({ t: "NOSTR", role: "result", event: ev(a.pubkey) });
+  a.send({ t: "NOSTR", role: "invite", event: ev(a.privateKey, { kind: 4600 }) });
+  a.send({ t: "NOSTR", role: "result", event: ev(a.privateKey) });
   assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE", "a result before OVER is not a result");
 
-  /* ONE SEAT MUST NOT BE ABLE TO MANUFACTURE MUTUAL AGREEMENT. Signatures are
-   * unverified in v1 (D-11), so seat binding is the only thing making
-   * `confirmed` mean what the lobby renders. Seat 1 speaking under seat 0's key
-   * — or under a key belonging to nobody — is refused outright. */
-  b.send({ t: "NOSTR", role: "result", event: ev(a.pubkey) });
-  assert.equal((await b.type("ERROR")).code, "BAD_MESSAGE", "seat 1 forged seat 0's pubkey");
-  b.send({ t: "NOSTR", role: "result", event: ev(AUTH_PUBKEY) });
+  /* ONE SEAT MUST NOT BE ABLE TO MANUFACTURE MUTUAL AGREEMENT, and a valid
+   * signature is not permission to speak for someone else. These two events are
+   * cryptographically PERFECT — seat 1 holds the other keys outright here — so
+   * seat binding is the only thing that can refuse them, which is exactly the
+   * property being asserted. */
+  b.send({ t: "NOSTR", role: "result", event: ev(a.privateKey) });
+  assert.equal((await b.type("ERROR")).code, "BAD_MESSAGE", "seat 1 spoke under seat 0's key");
+  b.send({ t: "NOSTR", role: "result", event: ev(AUTH_SK) });
   assert.equal((await b.type("ERROR")).code, "BAD_MESSAGE", "seat 1 invented a third pubkey");
+
+  // And an event whose signature does not verify is not a record of anything.
+  const tampered = ev(a.privateKey);
+  tampered.content = JSON.stringify({ v: 1, kind: "result", matchId: a.matchId, winners: [1] });
+  a.send({ t: "NOSTR", role: "result", event: tampered });
+  assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE", "content was swapped under a good signature");
 
   // Now finish the match for real, so a result exists to agree about.
   await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
   await a.type("OVER");
   await b.type("OVER");
 
-  a.send({ t: "NOSTR", role: "result", event: ev(a.pubkey) });
+  a.send({ t: "NOSTR", role: "result", event: ev(a.privateKey) });
   assert.equal((await nostr(a, 1)).agreement, "pending");
   assert.equal((await nostr(b, 1)).agreement, "pending", "both seats learn the state of play");
 
-  b.send({ t: "NOSTR", role: "result", event: ev(b.pubkey) });
+  b.send({ t: "NOSTR", role: "result", event: ev(b.privateKey) });
   const confirmed = await nostr(b, 2);
   assert.equal(confirmed.agreement, "confirmed");
   assert.equal(confirmed.events.length, 2);
   assert.equal(JSON.parse(confirmed.events[0].content).matchId, a.matchId, "stored verbatim");
 
   // A disagreeing republication flips it, and is never silently dropped.
-  b.send({ t: "NOSTR", role: "result", event: ev(b.pubkey, { content: '{"v":1,"winners":[1]}' }) });
+  b.send({ t: "NOSTR", role: "result", event: ev(b.privateKey, { content: '{"v":1,"winners":[1]}' }) });
   assert.equal((await b.next((m) => m.t === "NOSTR" && m.agreement === "disputed")).events.length, 2);
 
   await new Promise((r) => setTimeout(r, 50));
@@ -810,8 +833,10 @@ test("nostr events are stored verbatim and agreement is a query", async (t) => {
   assert.equal(kinds.filter((k) => k.role === "result").length, 2);
   for (const k of kinds) {
     assert.ok([a.pubkey, b.pubkey].includes(k.pubkey), "a row under a foreign pubkey");
-    // D-11, recorded honestly: this server does not verify schnorr signatures.
-    assert.equal(k.sig_checked, 0);
+    /* D-11 IS REPAID. Every stored event's id was recomputed from its own bytes
+     * and its signature verified before the row existed, so this column is a
+     * fact rather than an admission. */
+    assert.equal(k.sig_checked, 1);
   }
 
   // A malformed event is refused rather than stored.
@@ -1142,16 +1167,42 @@ test("CREATE, JOIN, RESUME, and NOSTR share a connection rate limit", async (t) 
   assert.equal((await (await fetch(`${table.url}/api/health`)).json()).ok, true);
 });
 
-test("control budgets survive reconnects and ignore untrusted forwarding headers", async (t) => {
+test("a budget survives reconnects and ignores untrusted forwarding headers", async (t) => {
+  /* Reconnecting must not mint fresh capacity, and a spoofed X-Forwarded-For
+   * must not either — the TCP peer and the authenticated key are the only
+   * things that count, and a header an attacker writes is neither. Both
+   * connections here are the SAME identity, which is the case the rule is
+   * actually about. */
   const table = await boot(t, "t25.db", { controlMax: 1 });
-  const first = await table.client({ headers: { "X-Forwarded-For": "198.51.100.10" } });
+  const first = await table.client({ identity: "same", headers: { "X-Forwarded-For": "198.51.100.10" } });
   first.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power", pubkey: first.pubkey });
   assert.equal((await first.type("ERROR")).code, "NO_SUCH_MATCH");
   await first.close();
 
-  const second = await table.client({ headers: { "X-Forwarded-For": "203.0.113.20" } });
+  const second = await table.client({ identity: "same", headers: { "X-Forwarded-For": "203.0.113.20" } });
   second.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power", pubkey: second.pubkey });
   assert.equal((await second.type("ERROR")).code, "RATE_LIMITED");
+});
+
+test("one player's chatter cannot close another player's socket", async (t) => {
+  /* THE DEPLOYMENT THE DOCS PRESCRIBE PUTS EVERY PLAYER BEHIND ONE REVERSE
+   * PROXY, so bucketing on the TCP peer gave the entire server a single
+   * 30-per-10s allowance. A stranger's traffic kicked a seated host, and a
+   * reconnect storm — precisely what bad wifi produces — shut the door on
+   * everyone at once. An authenticated connection is metered as its identity. */
+  const table = await boot(t, "t25b.db", { controlMax: 2 });
+  const host = await table.client({ identity: "host" });
+  host.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: host.pubkey });
+  const open = await host.type("STATE");
+
+  const noisy = await table.client({ identity: "noisy" });
+  for (let i = 0; i < 12; i++) noisy.send({ t: "UNQUEUE" });
+  assert.equal((await noisy.type("ERROR")).code, "RATE_LIMITED", "the noisy one is metered");
+
+  // The host, who did nothing, is still seated and still able to act.
+  host.send({ t: "JOIN", code: open.code, name: "felix", affinity: "Power", pubkey: host.pubkey });
+  const reply = await host.next((m) => m.t === "ERROR");
+  assert.equal(reply.code, "MATCH_FULL", "and is answered on the rules, not kicked for a stranger's noise");
 });
 
 test("malformed, bad-version, and unknown messages share the address budget", async (t) => {
@@ -1338,4 +1389,627 @@ test("no seat can attack from its Wallet, over the wire", async (t) => {
   // Nothing illegal reached the hash chain, so the transcript still certifies.
   const rows = table.db.prepare("SELECT COUNT(*) AS n FROM entries WHERE match_id=?").get(a.matchId);
   assert.equal(rows.n, declaring.view.seq, "a refused declaration was written to the transcript");
+});
+
+// ------------------------------------------------------------- matchmaking
+
+test("the queue pairs two identities into one fully seated match", async (t) => {
+  const table = await boot(t, "q1.db");
+  const a = await table.client();
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power" });
+  const waiting = await a.type("QUEUED");
+  assert.equal(waiting.queued, true);
+  assert.equal(waiting.position, 1);
+  assert.equal(waiting.waiting, 1);
+
+  const b = await table.client();
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal" });
+
+  const first = await a.type("STATE");
+  const second = await b.type("STATE");
+  assert.equal(first.matchId, second.matchId);
+  assert.equal(first.status, "playing");
+  assert.equal(second.status, "playing");
+  assert.equal(first.seat, 0);
+  assert.equal(second.seat, 1);
+  // DEALT, not merely opened: a queued player never waits at an empty table.
+  assert.ok(first.view && second.view, "both seats must hold a view immediately");
+  assert.equal(first.view.forSeat, 0);
+  assert.equal(second.view.forSeat, 1);
+  assert.equal(first.view.gameId, second.view.gameId);
+  assert.ok(first.token && second.token && first.token !== second.token);
+  assert.equal(first.players[1].name, "anna");
+  assert.equal(second.players[0].name, "felix");
+
+  // And no ghost table is left advertised behind the pair.
+  const open = table.db.prepare("SELECT COUNT(*) AS n FROM matches WHERE status='open'").get();
+  assert.equal(open.n, 0, "matchmaking must not leave an open row behind");
+});
+
+test("one identity is never matched against itself", async (t) => {
+  const table = await boot(t, "q2.db");
+  const a = await table.client({ identity: "solo" });
+  const b = await table.client({ identity: "solo" }); // the same npub, a second tab
+  a.send({ t: "QUEUE", name: "tab one", affinity: "Power" });
+  await a.type("QUEUED");
+  b.send({ t: "QUEUE", name: "tab two", affinity: "Power" });
+  const still = await b.type("QUEUED");
+  assert.equal(still.queued, true, "a second tab of one npub must keep waiting");
+  assert.equal(still.waiting, 2);
+
+  // A third, genuinely different player pairs with whoever waited longest.
+  const c = await table.client({ identity: "other" });
+  c.send({ t: "QUEUE", name: "anna", affinity: "Signal" });
+  const dealt = await a.type("STATE");
+  assert.equal(dealt.status, "playing");
+  assert.equal(dealt.players[0].name, "tab one", "the queue is first come, first served");
+  assert.equal(dealt.players[1].name, "anna");
+});
+
+test("leaving the queue and dropping the socket both free the place", async (t) => {
+  const table = await boot(t, "q3.db");
+  const a = await table.client();
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power" });
+  await a.type("QUEUED");
+  a.send({ t: "UNQUEUE" });
+  const out = await a.next((m) => m.t === "QUEUED" && m.queued === false);
+  assert.equal(out.waiting, 0);
+
+  // A queued player who closes the tab must not block the person behind them.
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal" });
+  await b.type("QUEUED");
+  await b.close();
+  const c = await table.client({ identity: "c" });
+  c.send({ t: "QUEUE", name: "cara", affinity: "Keys" });
+  const alone = await c.type("QUEUED");
+  assert.equal(alone.queued, true, "a dead socket must never be paired with");
+  assert.equal(alone.waiting, 1, "a closed socket must be gone from the queue");
+});
+
+test("queueing is refused while seated at a live match", async (t) => {
+  const table = await boot(t, "q4.db");
+  const { a } = await twoSeats(table);
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power" });
+  const refused = await a.type("ERROR");
+  assert.equal(refused.code, "MATCH_FULL");
+});
+
+test("an unauthenticated connection cannot queue", async (t) => {
+  const table = await boot(t, "q5.db");
+  const a = await table.client({ skipAuth: true });
+  await a.type("AUTH");
+  a.send({ t: "QUEUE", name: "nobody", affinity: "Power" });
+  const refused = await a.type("ERROR");
+  assert.equal(refused.code, "NIP07_REQUIRED");
+});
+
+// ------------------------------------------------ the session is the identity
+
+test("signing in finds the match this npub is seated at", async (t) => {
+  const table = await boot(t, "s1.db");
+  const { a, b } = await twoSeats(table);
+  const matchId = a.matchId;
+  const wallet = a.view.zones["0:wallet"].slice();
+  // The browser goes away entirely: closed tab, cleared profile, other machine.
+  await a.close();
+
+  const cold = await Client.open(table.wsUrl, { identity: "a" });
+  t.after(() => cold.close());
+  const hello = cold.hello;
+  assert.ok(Array.isArray(hello.active), "AUTH_OK must carry this identity's matches");
+  assert.equal(hello.active.length, 1);
+  assert.equal(hello.active[0].matchId, matchId);
+  assert.equal(hello.active[0].seat, 0);
+  assert.equal(hello.active[0].status, "playing");
+  assert.equal(hello.active[0].opponent, "anna");
+  assert.equal(hello.active[0].opponentOnline, true);
+
+  // And that alone is enough to sit back down: no token, no saved anything.
+  cold.send({ t: "RESUME", matchId });
+  const back = await cold.type("STATE");
+  assert.equal(back.seat, 0, "the npub must recover its own seat");
+  assert.equal(back.role, "seat");
+  assert.ok(back.token, "a seat recovered without a token is issued a fresh one");
+  assert.equal(back.view.forSeat, 0);
+  assert.deepEqual(back.view.zones["0:wallet"], wallet, "and the same hand it left with");
+  assert.equal(b.seat, 1);
+});
+
+test("a finished match is not offered as somewhere to return to", async (t) => {
+  const table = await boot(t, "s2.db");
+  const { a } = await twoSeats(table);
+  await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
+  await a.next((m) => m.t === "OVER");
+
+  const cold = await Client.open(table.wsUrl, { identity: "a" });
+  t.after(() => cold.close());
+  assert.deepEqual(cold.hello.active, [], "a concluded match is history, not a session");
+});
+
+// ------------------------------------------------------------------ leaving
+
+test("LEAVE closes an abandoned open table instead of advertising it forever", async (t) => {
+  const table = await boot(t, "l1.db");
+  const a = await table.client();
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const created = await a.type("STATE");
+  assert.equal((await (await fetch(table.url + "/api/tables")).json()).length, 1);
+
+  a.send({ t: "LEAVE" });
+  await a.next((m) => m.t === "QUEUED" && m.queued === false);
+  assert.deepEqual(await (await fetch(table.url + "/api/tables")).json(), [],
+    "a table nobody is sitting at must not stay on the list");
+  const row = table.db.prepare("SELECT COUNT(*) AS n FROM matches WHERE match_id=?").get(created.matchId);
+  assert.equal(row.n, 0);
+
+  // And leaving frees the identity to start again immediately.
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power" });
+  const queued = await a.next((m) => m.t === "QUEUED" && m.queued === true);
+  assert.equal(queued.position, 1);
+});
+
+test("LEAVE during a live match keeps the seat and the transcript", async (t) => {
+  const table = await boot(t, "l2.db");
+  const { a, b } = await twoSeats(table);
+  const matchId = a.matchId;
+  a.send({ t: "LEAVE" });
+  const away = await b.next((m) => m.t === "PEER" && m.seat === 0);
+  assert.equal(away.online, false, "the opponent is told, not left guessing");
+
+  const row = table.db.prepare("SELECT status FROM matches WHERE match_id=?").get(matchId);
+  assert.equal(row.status, "playing", "walking away must not destroy a match in progress");
+
+  // The seat is still this identity's to reclaim.
+  a.send({ t: "RESUME", matchId, token: a.token });
+  const back = await a.type("STATE");
+  assert.equal(back.seat, 0);
+});
+
+test("conceding ends the match for both seats and clears the session", async (t) => {
+  const table = await boot(t, "l3.db");
+  const { a, b } = await twoSeats(table);
+  const reply = await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
+  assert.equal(reply.t, "FRAME");
+  const over = await b.next((m) => m.t === "OVER");
+  assert.deepEqual(over.result.winners, [1], "the seat that stayed wins");
+  assert.equal(over.result.reason, "concede");
+  assert.ok(over.resultContent, "a resignation is a signable result like any other");
+
+  const cold = await Client.open(table.wsUrl, { identity: "b" });
+  t.after(() => cold.close());
+  assert.deepEqual(cold.hello.active, [], "a resigned match is not somewhere to return to");
+});
+
+test("/api/tables says whether the host is actually sitting there", async (t) => {
+  const table = await boot(t, "l4.db");
+  const a = await table.client();
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  await a.type("STATE");
+  const live = await (await fetch(table.url + "/api/tables")).json();
+  assert.equal(live[0].hostOnline, true);
+
+  await a.close();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const cold = await (await fetch(table.url + "/api/tables")).json();
+  assert.equal(cold.length, 1, "a dropped socket is not an abandoned table");
+  assert.equal(cold[0].hostOnline, false, "a code whose host closed the tab must say so");
+});
+
+// ------------------------------------------------------- serving the site
+
+/** A raw request, because fetch() transparently decodes and hides the encoding. */
+function rawGet(url, headers) {
+  const target = new URL(url);
+  return new Promise((resolve, reject) => {
+    const request = httpGet(
+      { hostname: target.hostname, port: target.port, path: target.pathname, headers: headers || {} },
+      (response) => {
+        const chunks = [];
+        response.on("data", (chunk) => chunks.push(chunk));
+        response.on("end", () =>
+          resolve({
+            status: response.statusCode,
+            headers: response.headers,
+            body: Buffer.concat(chunks),
+          })
+        );
+      }
+    );
+    request.on("error", reject);
+  });
+}
+
+test("text assets are compressed, and a repeat visit revalidates instead of re-downloading", async (t) => {
+  const table = await boot(t, "h1.db");
+
+  const plain = await rawGet(`${table.url}/play.js`);
+  assert.equal(plain.status, 200);
+  assert.equal(plain.headers["content-encoding"], undefined, "no encoding unless asked for");
+  assert.ok(plain.headers.etag, "every asset must carry an ETag to revalidate against");
+
+  const zipped = await rawGet(`${table.url}/play.js`, { "accept-encoding": "gzip" });
+  assert.equal(zipped.status, 200);
+  assert.equal(zipped.headers["content-encoding"], "gzip");
+  assert.equal(zipped.headers.vary, "accept-encoding");
+  assert.equal(zipped.body[0], 0x1f, "a gzip body starts with the gzip magic");
+  assert.equal(zipped.body[1], 0x8b);
+  assert.ok(
+    zipped.body.length < plain.body.length / 2,
+    `compression must actually pay: ${plain.body.length} -> ${zipped.body.length}`
+  );
+
+  /* THE WHOLE POINT. `no-cache` means "ask me first", not "do not store", so a
+   * second visit is a 304 with no body rather than another 300 KB. */
+  const fresh = await rawGet(`${table.url}/play.js`, { "if-none-match": plain.headers.etag });
+  assert.equal(fresh.status, 304);
+  assert.equal(fresh.body.length, 0, "a revalidation must not resend the file");
+  assert.equal(fresh.headers["cache-control"], "no-cache", "and it must stay always-fresh");
+
+  // The gzip cache is keyed by mtime, so it can never serve a stale build.
+  const second = await rawGet(`${table.url}/play.js`, { "accept-encoding": "gzip" });
+  assert.equal(second.headers.etag, zipped.headers.etag);
+  assert.ok(second.body.equals(zipped.body));
+});
+
+test("already-compressed formats are served as they are", async (t) => {
+  const table = await boot(t, "h2.db");
+  const png = await rawGet(`${table.url}/art/brand/600B-logo-primary.png`, {
+    "accept-encoding": "gzip",
+  });
+  assert.equal(png.status, 200);
+  assert.equal(png.headers["content-encoding"], undefined, "gzipping a PNG only makes it bigger");
+  assert.ok(png.headers.etag, "but it still revalidates");
+});
+
+test("a TLS deployment advertises the URL an invite must actually carry", async (t) => {
+  /* The old builder hardcoded ws:// and the bound port, so behind a reverse
+   * proxy every published invite was both mixed-content-blocked and aimed at a
+   * port the internet cannot reach — silently, because nothing failed here. */
+  const table = await boot(t, "h3.db", { publicUrl: "wss://tcg.example/ws" });
+  const a = await table.client();
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const state = await a.type("STATE");
+  assert.equal(state.table, "wss://tcg.example/ws");
+});
+
+test("an advertised table URL that is not a websocket is refused at boot", async (t) => {
+  await assert.rejects(
+    () => createTable({ port: 0, dbPath: tmpDb("h4.db"), host: "127.0.0.1", publicUrl: "https://tcg.example/ws" }),
+    /ws:\/\/ or wss:\/\//
+  );
+});
+
+// ------------------------------------------------------------------ stakes
+
+test("the queue pairs on the wager, so both seats agreed to the same number", async (t) => {
+  const table = await boot(t, "w1.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 500 });
+  await a.type("QUEUED");
+
+  /* Someone looking for a friendly must never be dealt into a 500-sat match
+   * just because they were next in line. */
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 0 });
+  const waiting = await b.type("QUEUED");
+  assert.equal(waiting.queued, true, "a friendly must not pair with a wager");
+  assert.equal(waiting.waiting, 2);
+
+  const c = await table.client({ identity: "c" });
+  c.send({ t: "QUEUE", name: "cara", affinity: "Keys", stake: 500 });
+  const dealt = await a.type("STATE");
+  assert.equal(dealt.status, "playing");
+  assert.equal(dealt.stake, 500, "the agreed wager is on the match");
+  assert.equal(dealt.players[1].name, "cara");
+
+  const other = await c.type("STATE");
+  assert.equal(other.stake, 500, "and both seats are told the identical number");
+  assert.equal(
+    table.db.prepare("SELECT stake FROM matches WHERE match_id=?").get(dealt.matchId).stake,
+    500
+  );
+});
+
+test("a stake is a whole number of sats or it is nothing", async (t) => {
+  const table = await boot(t, "w2.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey, stake: -5 });
+  assert.equal((await a.type("STATE")).stake, 0, "a negative wager is a friendly");
+
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "CREATE", name: "anna", affinity: "Signal", pubkey: b.pubkey, stake: 12.7 });
+  assert.equal((await b.type("STATE")).stake, 0, "half a sat is not a wager");
+
+  const c = await table.client({ identity: "c" });
+  c.send({ t: "CREATE", name: "cara", affinity: "Keys", pubkey: c.pubkey, stake: 99999999999 });
+  assert.equal((await c.type("STATE")).stake, 1000000, "and it is capped, not trusted");
+});
+
+test("a guest is never dealt into a wager it did not accept", async (t) => {
+  const table = await boot(t, "w3.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey, stake: 2100 });
+  const open = await a.type("STATE");
+
+  // The open-table list is where a guest LEARNS the wager before committing.
+  const listed = await (await fetch(table.url + "/api/tables")).json();
+  assert.equal(listed[0].stake, 2100);
+
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", stake: 0 });
+  const refused = await b.type("ERROR");
+  assert.equal(refused.code, "STAKE_MISMATCH");
+  assert.match(refused.message, /2100/, "and it says what the table actually plays for");
+
+  // Stating the number it was shown gets it seated.
+  b.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", stake: 2100 });
+  const seated = await b.type("STATE");
+  assert.equal(seated.status, "playing");
+  assert.equal(seated.stake, 2100);
+});
+
+test("the agreed wager survives a referee restart", async (t) => {
+  /* The wager is the one fact about a match the referee cannot recompute, so if
+   * it did not persist, a reload would quietly turn a 500-sat game friendly. */
+  const dbPath = tmpDb("w4.db");
+  const first = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
+  const a = await Client.open(first.wsUrl, { identity: "a" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 750 });
+  await a.type("QUEUED");
+  const b = await Client.open(first.wsUrl, { identity: "b" });
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 750 });
+  const dealt = await a.type("STATE");
+  const token = dealt.token;
+  await a.close();
+  await b.close();
+  await first.close();
+
+  const second = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
+  t.after(async () => second.close());
+  const back = await Client.open(second.wsUrl, { identity: "a" });
+  t.after(() => back.close());
+  back.send({ t: "RESUME", matchId: dealt.matchId, token });
+  const resumed = await back.type("STATE");
+  assert.equal(resumed.stake, 750);
+  assert.equal(resumed.seat, 0);
+});
+
+// -------------------------------------------------------------------- CORS
+
+test("a page on a listed origin can read the lobby; anyone else cannot", async (t) => {
+  /* THE RELAY-FREE JOIN PATH IS THE FALLBACK FOR WHEN EVERY RELAY IS DOWN. If
+   * the page and the referee live on different origins and this header is
+   * missing, the browser opens the socket but silently refuses to read
+   * /api/tables — no error anyone can see, just an empty lobby. */
+  const table = await boot(t, "c1.db", { allowedOrigins: ["https://600.wtf"] });
+
+  const allowed = await rawGet(`${table.url}/api/tables`, { origin: "https://600.wtf" });
+  assert.equal(allowed.status, 200);
+  assert.equal(allowed.headers["access-control-allow-origin"], "https://600.wtf");
+  assert.equal(allowed.headers.vary, "origin");
+
+  const stranger = await rawGet(`${table.url}/api/tables`, { origin: "https://evil.example" });
+  assert.equal(stranger.status, 200, "the data is still served to non-browsers");
+  assert.equal(
+    stranger.headers["access-control-allow-origin"],
+    undefined,
+    "but no unlisted page may read it — a wildcard would let anyone enumerate tables"
+  );
+
+  const noOrigin = await rawGet(`${table.url}/api/health`);
+  assert.equal(noOrigin.status, 200);
+  assert.equal(noOrigin.headers["access-control-allow-origin"], undefined);
+});
+
+test("a preflight is answered without reaching any handler", async (t) => {
+  const table = await boot(t, "c2.db", { allowedOrigins: ["https://600.wtf"] });
+  const target = new URL(`${table.url}/api/tables`);
+  const options = await new Promise((resolve, reject) => {
+    const req = httpRequest(
+      {
+        method: "OPTIONS",
+        hostname: target.hostname,
+        port: target.port,
+        path: target.pathname,
+        headers: { origin: "https://600.wtf" },
+      },
+      (response) => {
+        response.resume();
+        response.on("end", () => resolve({ status: response.statusCode, headers: response.headers }));
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+  assert.equal(options.status, 204);
+  assert.equal(options.headers["access-control-allow-origin"], "https://600.wtf");
+  assert.match(options.headers["access-control-allow-methods"], /GET/);
+});
+
+// ------------------------------------------------- the whole match lifecycle
+
+test("a staked match, queued to signed result, carries everything the closing screen needs", async (t) => {
+  /* THE CONTRACT BETWEEN THE REFEREE AND THE END-OF-MATCH SCREEN. That screen
+   * shows the verdict, the turn and action counts, the wager, and re-verifies
+   * the transcript in the browser — and it can only do any of that from what
+   * OVER and the post-match STATE actually contain. */
+  const table = await boot(t, "e2e.db");
+  const a = await table.client({ identity: "a" });
+  const b = await table.client({ identity: "b" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 210 });
+  await a.type("QUEUED");
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 210 });
+
+  const dealt = await a.type("STATE");
+  await b.type("STATE");
+  assert.equal(dealt.stake, 210);
+  assert.ok(dealt.createdAt, "the start announcement is signed over this timestamp");
+
+  // Both seats announce the match on nostr, exactly as play.js does.
+  const start = (client, role) => {
+    const players = dealt.players.map((p) => ({
+      seat: p.seat, pubkey: p.pubkey, name: p.name, affinity: p.affinity,
+    }));
+    const content = JSON.stringify({
+      v: 1, kind: "start", matchId: dealt.matchId, table: dealt.table,
+      ruleset: dealt.ruleset, catalogDigest: dealt.catalogDigest, wire: 1,
+      players, stake: 210,
+    });
+    const event = {
+      pubkey: client.pubkey, kind: 4600,
+      created_at: Math.floor(Date.parse(dealt.createdAt) / 1000),
+      tags: [["t", "start"], ["t", "600b-timelock-tcg"], ["m", dealt.matchId]],
+      content,
+    };
+    event.id = eventId(event);
+    event.sig = Buffer.from(schnorr.sign(event.id, client.privateKey)).toString("hex");
+    client.send({ t: "NOSTR", role, event });
+    return event;
+  };
+  const startA = start(a, "invite");
+  const startB = start(b, "accept");
+  /* BYTE-IDENTICAL, which is the entire reason every field comes from the
+   * referee's STATE rather than from either browser's own clock or inputs. */
+  assert.equal(startA.content, startB.content);
+  assert.notEqual(startA.pubkey, startB.pubkey);
+
+  // Seat 0 resigns; the referee ends the match and both seats are told.
+  await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
+  const over = await b.next((m) => m.t === "OVER");
+
+  assert.deepEqual(over.result.winners, [1]);
+  assert.equal(over.result.reason, "concede");
+  assert.ok(over.verify && over.verify.ok, "the referee replays its own database clean");
+  assert.ok(over.config, "the client needs the config to verify for itself");
+  assert.ok(Array.isArray(over.transcript) && over.transcript.length > 0);
+
+  /* The screen re-verifies in the browser rather than trusting verify.ok — and
+   * it must be handed ENTRIES, not actions. verifyMatch walks `entry.action`
+   * and checks `entry.stateHash`/`entry.prev` to prove the chain; a bare action
+   * list is "malformed" at index 0, which is exactly the bug this caught. */
+  const mine = E.verifyMatch({ config: over.config, log: over.transcript });
+  assert.equal(mine.ok, true, "an independent replay of the referee's own bytes must agree");
+  const tampered = over.transcript.map((e, i) => (i === 0 ? { ...e, stateHash: "0".repeat(64) } : e));
+  const caught = E.verifyMatch({ config: over.config, log: tampered });
+  assert.equal(caught.ok, false, "and a doctored transcript must NOT verify");
+  assert.equal(caught.divergedAt, 0, "at exactly the entry that was altered");
+
+  const payload = JSON.parse(over.resultContent);
+  assert.equal(payload.matchId, dealt.matchId);
+  assert.equal(payload.reason, "concede");
+  assert.ok(Number.isInteger(payload.turns), "the screen shows a turn count");
+  assert.ok(Number.isInteger(payload.actions), "and an action count");
+  assert.equal(payload.players.length, 2);
+
+  /* A RELOAD AFTER THE MATCH MUST STILL BE ABLE TO SIGN. The closing bytes are
+   * on the row, so a seat that was away when it ended still gets them. */
+  const cold = await Client.open(table.wsUrl, { identity: "b" });
+  t.after(() => cold.close());
+  assert.deepEqual(cold.hello.active, [], "a finished match is not a session to return to");
+  cold.send({ t: "RESUME", matchId: dealt.matchId });
+  const back = await cold.type("STATE");
+  assert.equal(back.status, "over");
+  assert.equal(back.stake, 210, "and the wager is still on the record");
+  assert.equal(back.resultContent, over.resultContent, "the identical bytes its opponent signed");
+});
+
+// -------------------------------------------- sitting down leaves the line
+
+test("a forgotten queue entry cannot hand a live match to a stranger", async (t) => {
+  /* THE ONE-CLICK PATH THAT LOST A WHOLE MATCH. Press "Find opponent", get
+   * bored, host a table instead — and the queue entry stayed standing, because
+   * only LEAVE, UNQUEUE and a dropped socket ever removed one. The next
+   * stranger to queue was paired with it, which detached the player from the
+   * game they were actually playing and dealt them into one against someone
+   * they had never met, while their real opponent watched them go offline
+   * mid-turn. */
+  const table = await boot(t, "qa1.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 0 });
+  await a.type("QUEUED");
+
+  // Bored of waiting: host a table instead, and play a real match on it.
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const open = await a.type("STATE");
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal" });
+  await b.type("STATE");
+  const live = await a.type("STATE");
+  assert.equal(live.status, "playing");
+
+  // A stranger queues. Nothing at all may happen to the match in progress.
+  const c = await table.client({ identity: "c" });
+  c.send({ t: "QUEUE", name: "cara", affinity: "Keys", stake: 0 });
+  const waiting = await c.type("QUEUED");
+  assert.equal(waiting.queued, true, "the stranger waits, because nobody is free");
+  assert.equal(waiting.waiting, 1, "and the seated player is no longer in the line");
+
+  /* The decisive check: the seated player must not have been handed a new
+   * match, and must still be able to act in the one they are in. */
+  const reply = await a.act({
+    type: "PASS_PRIORITY", seat: 0, seq: a.view.seq, at: "", payload: {},
+  });
+  assert.ok(reply.t === "FRAME" || reply.t === "REJECT", `got ${reply.t}`);
+  assert.equal(a.matchId, live.matchId, "still the same match");
+  assert.equal(
+    table.db.prepare("SELECT status FROM matches WHERE match_id=?").get(live.matchId).status,
+    "playing"
+  );
+});
+
+test("every match a connection sits at issues its own seat credential", async (t) => {
+  /* `tokenSent` was a flag on the SOCKET, so the second match a connection ever
+   * joined — every rematch, every queue into a new game — was seated with no
+   * token at all. Recovery then depended entirely on the weaker identity rung,
+   * which is refused while a zombie socket still looks alive. The second match
+   * of an evening was materially less reload-safe than the first. */
+  const table = await boot(t, "qa2.db");
+  const a = await table.client({ identity: "a" });
+  const b = await table.client({ identity: "b" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 0 });
+  await a.type("QUEUED");
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 0 });
+  const first = await a.type("STATE");
+  await b.type("STATE");
+  assert.ok(first.token, "the first match is credentialed");
+
+  // Finish it, then take a rematch on the very same sockets.
+  await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
+  await a.next((m) => m.t === "OVER");
+  await b.next((m) => m.t === "OVER");
+
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 0 });
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 0 });
+  const second = await a.next((m) => m.t === "STATE" && m.matchId !== first.matchId);
+  const secondB = await b.next((m) => m.t === "STATE" && m.matchId !== first.matchId);
+
+  assert.ok(second.token, "the rematch must be credentialed too");
+  assert.ok(secondB.token, "for both seats");
+  assert.notEqual(second.token, first.token, "and with its own credential, not the old one");
+
+  // And that credential actually works, which is the whole point of having one.
+  const back = await Client.open(table.wsUrl, { identity: "a" });
+  t.after(() => back.close());
+  back.send({ t: "RESUME", matchId: second.matchId, token: second.token });
+  const resumed = await back.type("STATE");
+  assert.equal(resumed.seat, 0);
+  assert.equal(resumed.matchId, second.matchId);
+});
+
+test("hosting twice does not leave an advertised table nobody is sitting at", async (t) => {
+  const table = await boot(t, "qa3.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const first = await a.type("STATE");
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const second = await a.type("STATE");
+  assert.notEqual(second.matchId, first.matchId);
+
+  const listed = await (await fetch(table.url + "/api/tables")).json();
+  assert.deepEqual(
+    listed.map((row) => row.matchId),
+    [second.matchId],
+    "the abandoned first table must not still be advertised"
+  );
 });

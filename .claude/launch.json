@@ -6,7 +6,7 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server/table.js"],
       "port": 8777,
-      "url": "http://localhost:8777"
+      "autoPort": true
     }
   ]
 }

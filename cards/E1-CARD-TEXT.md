@@ -76,7 +76,7 @@ FLX stays unlocked after attacking.
 **Zap** · Cost **P** · Common
 
 
-Zap deals 3 damage to any target.
+Zap deals 2 damage to any target.
 
 **Flavor:** *Latency rehearsed an excuse, but Zap had already resolved.*
 
@@ -286,11 +286,11 @@ Attached Avatar has Shielded from Timelock. This effect doesn't remove this Atta
 **Protocol** · Cost **3S** · Uncommon
 
 
-Unlocked Avatars you control get +0 Action and +2 Resilience.
+At the beginning of your Maintenance, you may pay 1. If you do, draw a card.
 
 **Flavor:** *The Network called it policy; Local Citadel called it Tuesday.*
 
-**Simple Guide · metadata:** Lets a committed card become usable again.
+**Simple Guide · metadata:** A standing relay: on each of your Maintenances you may pay 1 for an extra card. It does nothing the turn it lands, so play it when the game is going long.
 
 **Protocol Note · metadata:** A NIP-01 CLOSE message ends a relay subscription.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/01.md
@@ -432,11 +432,12 @@ Signal Avatars get +1 Action and +1 Resilience.
 **Zap** · Cost **S** · Common
 
 
-Reboot target Avatar.
+Reboot target Avatar.<br>
+Draw a card.
 
 **Flavor:** *A tiny packet made a very large entrance as Emergency Reboot.*
 
-**Simple Guide · metadata:** Can keep an Avatar in the Network after damage.
+**Simple Guide · metadata:** Reboot keeps a damaged Avatar in a clash it would otherwise lose, and the card replaces itself straight away.
 
 **Protocol Note · metadata:** NIP-02 stores a follow list in a signed kind 3 event.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/02.md
@@ -526,11 +527,11 @@ Prevent the next X damage that would be dealt to any target this turn. Until end
 
 Choose one —<br>
 • Target player gains 3 Uptime.<br>
-• Prevent the next 3 damage that would be dealt to any target this turn.
+• Draw a card.
 
 **Flavor:** *The bug requested more time, which Repair Packet politely denied.*
 
-**Simple Guide · metadata:** Deals or redirects damage.
+**Simple Guide · metadata:** Choose one: heal 3 Uptime, or draw a card. You pick the mode when you play it, so it is never a dead card.
 
 **Protocol Note · metadata:** NIP-10 uses event and pubkey tags to describe note threads.
 **Primary source:** https://github.com/nostr-protocol/nips/blob/master/10.md
@@ -1526,11 +1527,12 @@ Whenever attached Resource becomes committed, this Attachment deals 2 damage to 
 **Character:** Benarc
 
 This Avatar can't attack unless defending player controls an Timelock Resource.<br>
+At the beginning of your Maintenance, draw a card.<br>
 When you control no Timelock Resources, archive this Avatar.
 
 **Flavor:** *The status page calmed down as soon as Deep Channel picked up a wrench.*
 
-**Simple Guide · metadata:** Moves a card into an Archive.
+**Simple Guide · metadata:** A 5/5 that draws you an extra card every Maintenance. It only attacks players who run Timelock, and it archives itself the moment you control no Timelock Resources.
 
 **Protocol Note · metadata:** BOLT 8 encrypts and authenticates Lightning's peer transport.
 **Primary source:** https://github.com/lightning/bolts/blob/master/08-transport.md
@@ -1673,11 +1675,12 @@ Each player shuffles their Wallet and Archive into their Stack, then draws seven
 **Zap** · Cost **T** · Common
 
 
-You may commit or unlock target Hardware, Avatar, or Resource.
+You may commit or unlock target Hardware, Avatar, or Resource.<br>
+Draw a card.
 
 **Flavor:** *The packet wore sensible shoes because it was carrying Toggle State.*
 
-**Simple Guide · metadata:** Lets a committed card become usable again.
+**Simple Guide · metadata:** Commit or unlock any Hardware, Avatar or Resource, then draw. Unlock your own blocker on their turn, or commit theirs before it can block — either way you keep your card count.
 
 **Protocol Note · metadata:** BOLT 1 requires readers to ignore unknown odd TLV types.
 **Primary source:** https://github.com/lightning/bolts/blob/master/01-messaging.md
@@ -1884,11 +1887,11 @@ Stake module — Add the top card of your Stack to the Stake. Discard your Walle
 
 
 Attach to Resource<br>
-At the beginning of the Maintenance of attached Resource's controller, this Attachment deals 1 damage to that player.
+At the beginning of the Maintenance of attached Resource's controller, you may pay 1. If you do, draw a card.
 
 **Flavor:** *No committee survived contact with the clarity of Leaking Key Vault.*
 
-**Simple Guide · metadata:** Deals or redirects damage.
+**Simple Guide · metadata:** Attach it to any Resource — theirs or yours — and at every Maintenance of that Resource's controller you may pay 1 to draw a card.
 
 **Protocol Note · metadata:** BIP-32 can derive non-hardened public children from an extended public key.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
@@ -2106,11 +2109,11 @@ Attached Avatar has fear. (It can't be blocked except by Hardware Avatars and/or
 
 **Character:** Proton
 
-K: This Avatar gets +1 Action and +1 Resilience until end of turn.
+KK, Commit: draw a card.
 
 **Flavor:** *Someone said impossible; Cold Signer heard needs one more adapter.*
 
-**Simple Guide · metadata:** Makes an Avatar stronger.
+**Simple Guide · metadata:** A fragile body with a real job: commit Proton and pay KK to draw a card, once a turn, for as long as it lives.
 
 **Protocol Note · metadata:** BIP-86 assigns a derivation scheme for single-key Taproot outputs.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki
@@ -2352,11 +2355,12 @@ BlackCoffee, Shared Secret Swarm's Action and Resilience are each equal to the n
 **Operation** · Cost **K** · Common
 
 
-Return target Avatar card from your Archive to your Wallet.
+Return target Avatar card from your Archive to your Wallet.<br>
+Draw a card.
 
 **Flavor:** *Every checklist box stood a little straighter for Restore Backup.*
 
-**Simple Guide · metadata:** Moves a card into an Archive.
+**Simple Guide · metadata:** Brings one Avatar card back from your Archive into your Wallet and draws a card, so it is two cards for one Resource once your Archive has something in it.
 
 **Protocol Note · metadata:** BIP-370 defines version 2 of the PSBT format.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki
@@ -2772,11 +2776,11 @@ Commit: Target Avatar with Action 2 or less can't be blocked this turn.
 
 **Character:** Leon
 
-No special ability.
+PP, Commit: draw a card.
 
 **Flavor:** *Every antenna found its horizon when Grid Stabilizer climbed the roof.*
 
-**Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
+**Simple Guide · metadata:** A large, durable body that turns spare Power into cards. Committing Leon means it cannot attack or block that turn, so the draw is a real decision.
 
 **Protocol Note · metadata:** Bitcoin retargets proof-of-work difficulty every 2,016 blocks.
 **Primary source:** https://developer.bitcoin.org/devguide/block_chain.html#proof-of-work
@@ -3165,11 +3169,12 @@ Commit: This Avatar deals 2 damage to any target and 3 damage to you.
 **Protocol** · Cost **3P** · Uncommon
 
 
-Attacking Avatars you control get +1 Action and +0 Resilience.
+Attacking Avatars you control get +1 Action and +0 Resilience.<br>
+Whenever one or more Avatars you control attack, you may pay 1. If you do, draw a card.
 
 **Flavor:** *No committee survived contact with the clarity of Miner Rally.*
 
-**Simple Guide · metadata:** Deploy this Protocol to change how the Network behaves over time.
+**Simple Guide · metadata:** A permanent attack boost that also pays out: each time you declare attackers you may pay 1 to draw a card. It still does nothing on defence.
 
 **Protocol Note · metadata:** Bitcoin Core's assumevalid option can skip old script checks before a known block.
 **Primary source:** https://github.com/bitcoin/bitcoin/blob/master/doc/assumeutxo.md
@@ -3373,11 +3378,12 @@ Commit: Target Avatar you control with Resilience less than this Avatar's Action
 **Operation** · Cost **2P** · Common
 
 
-Decommission target Resource.
+Decommission target Resource.<br>
+Draw a card.
 
 **Flavor:** *The maintenance window finally found its purpose in Resource Cut.*
 
-**Simple Guide · metadata:** Removes a card from the Network.
+**Simple Guide · metadata:** Strips one Resource from any player and replaces itself, so cutting their power never costs you a card.
 
 **Protocol Note · metadata:** Bitcoin peers exchange network addresses to aid peer discovery.
 **Primary source:** https://developer.bitcoin.org/devguide/p2p_network.html#peer-discovery
@@ -3792,11 +3798,11 @@ Broadcast Guard (This Avatar can block Avatars with Broadcast.)
 
 **Character:** BK
 
-No special ability.
+Whenever you play a Resource, you may pay 2. If you do, draw a card.
 
 **Flavor:** *Consensus took minutes; Bear Market Builder's cable labels took seconds.*
 
-**Simple Guide · metadata:** Deploy this Avatar to defend your Uptime or pressure an opponent.
+**Simple Guide · metadata:** A cheap body that turns your Resource for the turn into a card: play a Resource, pay 2, draw. One extra card a turn for as long as BK survives.
 
 **Protocol Note · metadata:** A SegWit block commits to witness data through its coinbase transaction.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki
@@ -4033,11 +4039,12 @@ All Avatars able to block attached Avatar do so.
 **Zap** · Cost **B** · Rare
 
 
-Look at the top three cards of target player's Stack, then put them back in any order. You may have that player shuffle.
+Look at the top three cards of target player's Stack, then put them back in any order. You may have that player shuffle.<br>
+Draw a card.
 
 **Flavor:** *Latency rehearsed an excuse, but Topology Scan had already resolved.*
 
-**Simple Guide · metadata:** Play this while other cards wait on the Queue to make a timely response.
+**Simple Guide · metadata:** Look at the top three cards of a player's Stack and rearrange them — set up your own next draw, or bury an opponent's best card — then draw, so the scan costs you no cards.
 
 **Protocol Note · metadata:** BIP-66 requires strict DER encoding for ECDSA signatures.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
@@ -4070,11 +4077,11 @@ B: Reboot attached Avatar. (The next time that Avatar would be decommissioned th
 **Operation** · Cost **1B** · Uncommon
 
 
-Return target card from your Archive to your Wallet.
+Draw two cards.
 
 **Flavor:** *The schedule feared drift until it encountered Recovery Phrase.*
 
-**Simple Guide · metadata:** Moves a card into an Archive.
+**Simple Guide · metadata:** Two cards for two Resources, no conditions. The card you reach for when your opening hand did not cooperate.
 
 **Protocol Note · metadata:** BIP-125 signals replaceability with an input sequence below 0xfffffffe.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki
@@ -4793,11 +4800,11 @@ Whenever a player play a Signal card on the Queue, you may pay 1. If you do, you
 **Hardware — Archive** · Cost **4** · Rare
 
 
-4, Commit: Draw a card.
+Commit: draw a card.
 
 **Flavor:** *Nothing rattles in Genesis Archive except one very confident screw.*
 
-**Simple Guide · metadata:** Puts more cards in your Wallet.
+**Simple Guide · metadata:** Four Resources up front for a card every turn after. The slow, reliable engine that makes long games winnable.
 
 **Protocol Note · metadata:** BIP-174 PSBT separates transaction coordination from private-key custody.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
@@ -5088,11 +5095,11 @@ Commit: generate 2 neutral Resources.
 **Hardware** · Cost **1** · Uncommon
 
 
-Whenever an Avatar is decommissioned, you may pay 1. If you do, you gain 1 Uptime.
+Whenever an Avatar is decommissioned, you may pay 2. If you do, draw a card.
 
 **Flavor:** *A quiet hum is how Archive Listener tells jokes.*
 
-**Simple Guide · metadata:** Removes a card from the Network.
+**Simple Guide · metadata:** One Resource to deploy. After that every Avatar that leaves the Network — yours or theirs — offers you a card for 2.
 
 **Protocol Note · metadata:** BIP-39 mnemonic words encode entropy plus a checksum.
 **Primary source:** https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki

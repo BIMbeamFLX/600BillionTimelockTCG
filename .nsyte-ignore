@@ -1,4 +1,63 @@
-# The print manifest inside the card directory carries 297 SHA-256 hashes,
-# which the secrets scanner reads as potential private keys. It is repo
-# metadata, not a card face - the canonical blob list is cards/e1-blob-manifest.json.
+# Safety net only — NOT the mechanism that defines the publish set.
+#
+# The publish set is defined by `python scripts/publish_site.py`, which copies
+# git-tracked files into dist/ and nothing else. Always deploy dist/:
+#
+#     nsyte deploy ./dist ...
+#
+# Why dist/ and not the repo root:
+#
+# 1. The working-tree art/ is ~2.8 GB of source material (renders, references,
+#    video intros, world-plate originals). Only ~62 MB of it is git-tracked and
+#    only ~20 MB is actually referenced by the pages. A repo-root deploy would
+#    try to upload all of it.
+# 2. art/cards/node-runner-web/manifest.json carries 297 SHA-256 fields, which
+#    the nsyte secrets scanner reports as "297 potential private keys" and which
+#    aborts a non-interactive deploy. This was observed live on 2026-08-09, and a
+#    root .nsyte-ignore did NOT suppress it. dist/ never contains that file, so
+#    the finding cannot occur — exclusion by construction rather than by rule.
+#
+# The patterns below therefore exist to blunt the damage if someone deploys the
+# repo root by mistake. Do not rely on them; they are the belt, dist/ is the
+# braces.
+
+# The sha256 manifest that trips the secrets scanner (see note 2 above).
 manifest.json
+
+# Source material and build output that must never be published.
+art/
+!art/brand/
+!art/fonts/
+!art/resources/
+!art/rulebook/
+!art/world-plates/
+!art/cards/
+
+# Server state: SQLite match database, seat tokens, WAL/SHM sidecars.
+server/
+*.db
+*.db-wal
+*.db-shm
+
+# Repo scaffolding with no place on a static site.
+.git/
+.github/
+.claude/
+.audit/
+.venv/
+node_modules/
+__pycache__/
+.ruff_cache/
+.pytest_cache/
+scripts/
+tests/
+docs/
+rules/
+cards/
+*.py
+*.toml
+*.lock
+uv.lock
+package.json
+package-lock.json
+.env

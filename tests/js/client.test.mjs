@@ -14,6 +14,12 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
+const { schnorr } = require("@noble/curves/secp256k1");
+const { createHash } = require("node:crypto");
+/* Loading the real verifier, not a stub: net.js now refuses to believe an
+ * unsigned start announcement, and a test that skipped that would be testing a
+ * path no browser takes. */
+require("../../site/schnorr.js");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const NET_JS = fs.readFileSync(path.join(HERE, "..", "..", "site", "net.js"), "utf8");
@@ -66,6 +72,37 @@ const HTTP_ENV = {
   location: { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/play.html", search: "" },
 };
 const NIP07_PUBKEY = "a".repeat(64);
+
+/* WHICH SEED DEALS THE CARDS A TEST NEEDS. Hard-coding one made these tests
+ * hostages of the deck builder: every change to how a Stack is generated
+ * reshuffles every opening hand, and the tests failed for a reason that had
+ * nothing to do with what they were checking. This asks the engine instead,
+ * using play.js's own seed derivation (site/play.js: seeds.public = base,
+ * hidden = [base ^ 0x5f3759df, base + 7717]). */
+function seedDealing(names, affinityA = "Power", affinityB = "Signal") {
+  const E = require("../../site/engine.js");
+  const CARDS = require("../../site/play-data.js");
+  E.setCatalog(CARDS);
+  const byId = Object.fromEntries(CARDS.map((c) => [c.id, c]));
+  for (let base = 1; base < 6000; base++) {
+    let state;
+    try {
+      state = E.createGame({
+        seats: [{ name: "Player 1", affinity: affinityA }, { name: "Player 2", affinity: affinityB }],
+        seeds: { public: base, hidden: [(base ^ 0x5f3759df) | 0, (base + 7717) | 0] },
+        policy: { freeform: "deny" },
+      });
+    } catch (error) {
+      continue;
+    }
+    const hand = (state.zones["0:wallet"] || []).map((uid) => byId[state.objects[uid].cardId].name);
+    if (names.every((name) => hand.includes(name))) return String(base);
+  }
+  throw new Error(`no seed deals ${names.join(" + ")}`);
+}
+
+const ZAP_SEED = seedDealing(["Zap", "Power Plant — Hydro"]);
+
 
 test("from file:// with no saved match, net.js opens NOTHING", () => {
   const { net, opened } = loadNet(FILE_ENV);
@@ -596,13 +633,13 @@ test("a player is a clickable target: Zap resolves at the opponent's face", () =
     get: () => ({ motionActive: "reduced" }),
   });
 
-  /* Seed 70's Power opening hand holds Zap ("any target") and Power Plant —
-   * Hydro. Before the playerbar became a target surface, an "any" pick could
+  /* A seed whose Power opening hand holds Zap ("any target") and Power Plant —
+   * Hydro, found at run time rather than pinned. Before the playerbar became a target surface, an "any" pick could
    * only land on an Avatar node: an empty enemy Network left NOTHING
    * clickable and the play was stuck at "Cancel targeting". */
   byId("deckA").value = "Power";
   byId("deckB").value = "Signal";
-  byId("seed").value = "70";
+  byId("seed").value = ZAP_SEED;
   byId("start").click();
   assert.ok(game.state, "the hotseat game must start");
   assert.equal(game.state.policy.freeform, "deny", "released hotseat play uses scripted rules only");
@@ -639,10 +676,10 @@ test("a player is a clickable target: Zap resolves at the opponent's face", () =
   // They must not evict the hit that the player is still trying to read.
   byId("continue").click();
   byId("continue").click();
-  assert.equal(game.state.seats[1].uptime, 17, "Zap's 3 damage lands on the chosen player");
-  assert.equal(byId("foeUptimeMeter").style.getPropertyValue("--uptime-ratio"), "85%",
+  assert.equal(game.state.seats[1].uptime, 18, "Zap's 2 damage lands on the chosen player");
+  assert.equal(byId("foeUptimeMeter").style.getPropertyValue("--uptime-ratio"), "90%",
     "damage did not change the graphical Uptime meter");
-  assert.ok(byId("actionFx").children.some((node) => /takes 3 damage/i.test(node.textContent)),
+  assert.ok(byId("actionFx").children.some((node) => /takes 2 damage/i.test(node.textContent)),
     "the damage action produced no visible action animation");
   assert.ok(byId("actionFx").children.every((node) => /(?:^|\s)reduced(?:\s|$)/.test(node.className)),
     "the reduced-motion setting did not switch action feedback to its static fallback");
@@ -659,7 +696,7 @@ test("the attack UI forms and submits an original-rules Mesh group", () => {
   const { byId, game } = loadPlay(netStub());
   byId("deckA").value = "Signal";
   byId("deckB").value = "Power";
-  byId("seed").value = "70";
+  byId("seed").value = ZAP_SEED;
   byId("start").click();
 
   const first = clientSeed(game.state, 0, "Cuddy, Signal Organizer");
@@ -737,7 +774,7 @@ test("player names are rendered as text in the turn HUD", () => {
   byId("nameB").value = "Opponent";
   byId("deckA").value = "Power";
   byId("deckB").value = "Signal";
-  byId("seed").value = "70";
+  byId("seed").value = ZAP_SEED;
 
   byId("start").click();
 
@@ -860,4 +897,309 @@ test("the clash preview promises exactly what the engine then does", () => {
 
   assert.ok(checked >= 2, `only ${checked} clash(es) were verified`);
   assert.ok(blockedSeen >= 1, "no blocked clash was exercised — the hard path went untested");
+});
+
+// -------------------------------------------------- nostr as the session root
+
+/* `sessions()` fans two REQs across the relays. Driving the stub sockets by
+ * hand is the harness: open them, feed EVENTs, then EOSE so the query resolves
+ * on agreement rather than on its deadline. */
+function answerRelays(sockets, from, events) {
+  const three = sockets.slice(from, from + 3);
+  for (const ws of three) {
+    ws.readyState = 1;
+    if (ws.onopen) ws.onopen();
+  }
+  // One relay carries everything; the others are silent but must still EOSE, or
+  // the query waits out its full deadline.
+  for (const event of events) {
+    three[0].onmessage({ data: JSON.stringify(["EVENT", "q", event]) });
+  }
+  for (const ws of three) ws.onmessage({ data: JSON.stringify(["EOSE", "q"]) });
+}
+
+const SK = (label) => Uint8Array.from(createHash("sha256").update(`client:${label}`).digest());
+const MINE = SK("mine");
+const FOE = SK("foe");
+const MY_KEY = Buffer.from(schnorr.getPublicKey(MINE)).toString("hex");
+const FOE_KEY = Buffer.from(schnorr.getPublicKey(FOE)).toString("hex");
+
+const eventIdOf = (event) => createHash("sha256").update(JSON.stringify([
+  0, event.pubkey, event.created_at, event.kind, event.tags, event.content,
+])).digest("hex");
+
+/** Really signed by the opponent, because net.js verifies before it believes. */
+function signed(sk, event) {
+  const full = Object.assign({ pubkey: Buffer.from(schnorr.getPublicKey(sk)).toString("hex") }, event);
+  full.id = eventIdOf(full);
+  full.sig = Buffer.from(schnorr.sign(full.id, sk)).toString("hex");
+  return full;
+}
+
+const startEventFor = (matchId, over) =>
+  signed(FOE, Object.assign(
+    {
+      kind: 4600,
+      created_at: 1785310000,
+      tags: [["t", "start"], ["m", matchId], ["p", MY_KEY], ["p", FOE_KEY]],
+      content: JSON.stringify({
+        v: 1,
+        kind: "start",
+        matchId,
+        table: "ws://bitbeam:8777/ws",
+        players: [
+          { seat: 0, pubkey: MY_KEY, name: "felix", affinity: "Power" },
+          { seat: 1, pubkey: FOE_KEY, name: "anna", affinity: "Signal" },
+        ],
+        stake: 500,
+      }),
+    },
+    over || {}
+  ));
+
+const resultEventFor = (matchId) => signed(FOE, {
+  kind: 31600,
+  created_at: 1785311000,
+  tags: [["d", matchId], ["p", MY_KEY]],
+  content: "{}",
+});
+
+test("an npub alone finds the matches it has not finished", async () => {
+  const { net, sockets } = loadNet(HTTP_ENV);
+  const pending = net.nostr.sessions(MY_KEY);
+  answerRelays(sockets, 0, [startEventFor("m_0000000000a1")]);
+  answerRelays(sockets, 3, []); // no results published: the match is still live
+  const found = await pending;
+
+  assert.equal(found.length, 1);
+  assert.equal(found[0].matchId, "m_0000000000a1");
+  assert.equal(found[0].table, "ws://bitbeam:8777/ws", "and it names the referee to return to");
+  assert.equal(found[0].seat, 0);
+  assert.equal(found[0].opponent, "anna");
+  assert.equal(found[0].stake, 500);
+});
+
+test("a match with a published result is over, not resumable", async () => {
+  const { net, sockets } = loadNet(HTTP_ENV);
+  const pending = net.nostr.sessions(MY_KEY);
+  answerRelays(sockets, 0, [startEventFor("m_0000000000b1"), startEventFor("m_0000000000b2")]);
+  answerRelays(sockets, 3, [resultEventFor("m_0000000000b2")]);
+  const found = await pending;
+
+  assert.deepEqual(found.map((m) => m.matchId), ["m_0000000000b1"]);
+});
+
+test("a start announcement off a relay is untrusted input", async () => {
+  /* `table` decides where our socket goes, so a stranger's event must not be
+   * able to point it anywhere it likes. */
+  const { net, sockets } = loadNet(HTTP_ENV);
+  const pending = net.nostr.sessions(MY_KEY);
+
+  const notAWebsocket = startEventFor("m_0000000000c1", {
+    content: JSON.stringify({
+      v: 1, kind: "start", matchId: "m_0000000000c1", table: "https://evil.example/steal",
+      players: [{ seat: 0, pubkey: MY_KEY }, { seat: 1, pubkey: FOE_KEY }],
+    }),
+  });
+  const notMyMatch = startEventFor("m_0000000000c2", {
+    content: JSON.stringify({
+      v: 1, kind: "start", matchId: "m_0000000000c2", table: "ws://bitbeam:8777/ws",
+      players: [{ seat: 0, pubkey: FOE_KEY }, { seat: 1, pubkey: "c".repeat(64) }],
+    }),
+  });
+  const junk = startEventFor("m_0000000000c3", { content: "not json at all" });
+  const wrongShape = startEventFor("m_0000000000c4", {
+    content: JSON.stringify({ v: 1, kind: "start", matchId: "nope", table: "ws://x/ws" }),
+  });
+  const good = startEventFor("m_0000000000c5");
+
+  answerRelays(sockets, 0, [notAWebsocket, notMyMatch, junk, wrongShape, good]);
+  answerRelays(sockets, 3, []);
+  const found = await pending;
+
+  assert.deepEqual(
+    found.map((m) => m.matchId),
+    ["m_0000000000c5"],
+    "only the well-formed announcement naming a websocket and seating us survives"
+  );
+});
+
+test("asking without an identity asks no relay anything", async () => {
+  const { net, opened } = loadNet(HTTP_ENV);
+  assert.deepEqual(await net.nostr.sessions(""), []);
+  assert.deepEqual(await net.nostr.sessions("not-a-pubkey"), []);
+  assert.deepEqual(opened, [], "a malformed key must not open a socket");
+});
+
+test("rejoining refuses a table URL that is not a websocket", () => {
+  /* The recovered row carries a table, and that value came off a relay — so it
+   * decides where our socket goes and cannot be taken at face value. A signed-in
+   * identity is required for the socket to open at all, which is why one is
+   * present here: without it `open()` correctly refuses before reaching this. */
+  const signedIn = { ...HTTP_ENV, storage: { "600b:pubkey": MY_KEY } };
+  const { net, opened } = loadNet(signedIn);
+  net.rejoin("m_0000000000d1", "https://evil.example/steal");
+  assert.equal(opened.length, 1);
+  assert.equal(opened[0], "ws://bitbeam:8777/ws", "it fell back to this page's own table");
+
+  const later = loadNet(signedIn);
+  assert.equal(later.net.rejoin("not-a-match-id", "ws://bitbeam:8777/ws"), false);
+  assert.deepEqual(later.opened, [], "a malformed match id opens nothing");
+});
+
+// ------------------------------------------- the login proof names its table
+
+/** Boot a signed-in tab that already holds a match, so a socket opens at once. */
+function signedInTab(overrides) {
+  const signed = [];
+  const env = {
+    ...HTTP_ENV,
+    storage: { "600b:pubkey": NIP07_PUBKEY },
+    session: new Map([["600b:match", JSON.stringify({
+      matchId: "m_0000000000f1", seat: 0, token: "t".repeat(32),
+      table: "ws://bitbeam:8777/ws", code: "K7M2QF",
+    })]]),
+    nostr: {
+      getPublicKey: async () => NIP07_PUBKEY,
+      signEvent: async (event) => {
+        signed.push(event);
+        return { ...event, pubkey: NIP07_PUBKEY, id: "i".repeat(64), sig: "s".repeat(128) };
+      },
+    },
+    ...(overrides || {}),
+  };
+  const loaded = loadNet(env);
+  const errors = [];
+  loaded.net.start({ onError: (e) => errors.push(e), onState: () => {}, onStatus: () => {} });
+  return { ...loaded, signed, errors };
+}
+
+const authFrom = (relay) => ({
+  data: JSON.stringify({ t: "AUTH", v: 1, challenge: "c".repeat(64), relay, kind: 22242, expiresIn: 600 }),
+});
+
+test("a login challenge naming another table is refused, not signed", async () => {
+  /* THE ANTI-REPLAY PROPERTY OF NIP-42 IS THE RELAY TAG. Signing whatever the
+   * far end asked for let a hostile table harvest a challenge from the real
+   * referee, serve it here, take the signature, and replay it to authenticate
+   * AS THIS PLAYER — after which the referee hands over their unfinished
+   * matches and the claim ladder hands over the seat. */
+  const tab = signedInTab();
+  assert.equal(tab.sockets.length, 1, "a saved match opens a socket with no click");
+
+  tab.sockets[0].onmessage(authFrom("ws://evil.example/ws"));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+
+  assert.deepEqual(tab.signed, [], "the extension must never be asked to sign it");
+  assert.equal(tab.sockets[0].sent.length, 0, "and nothing goes back on the wire");
+  const failure = tab.errors.find((e) => e.code === "AUTH_FAILED");
+  assert.ok(failure, "the player is told, rather than silently left unauthenticated");
+  assert.match(failure.message, /evil\.example/, "and the message names what it refused");
+  assert.match(failure.message, /bitbeam/, "alongside who actually answered");
+});
+
+test("a login challenge from the table we dialled is signed", async () => {
+  const tab = signedInTab();
+  tab.sockets[0].readyState = 1;
+  tab.sockets[0].onmessage(authFrom("ws://bitbeam:8777/ws"));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+
+  assert.equal(tab.signed.length, 1, "the honest case still works");
+  assert.equal(tab.signed[0].kind, 22242);
+  const relayTag = tab.signed[0].tags.find((t) => t[0] === "relay");
+  const challengeTag = tab.signed[0].tags.find((t) => t[0] === "challenge");
+  assert.equal(relayTag[1], "ws://bitbeam:8777/ws");
+  assert.equal(challengeTag[1], "c".repeat(64));
+  assert.equal(tab.sockets[0].sent[0].t, "AUTH");
+});
+
+test("a table that renames itself between reconnects cannot slip a proof past us", async () => {
+  /* Hosts are compared rather than whole URLs, because a referee legitimately
+   * advertises its PUBLIC_HOST name — but the host itself must match, or the
+   * proof is for a different machine. */
+  const tab = signedInTab();
+  tab.sockets[0].readyState = 1;
+  tab.sockets[0].onmessage(authFrom("wss://bitbeam:8777/ws")); // same host, other scheme
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(tab.signed.length, 1, "a scheme difference is a proxy, not an impostor");
+
+  const other = signedInTab();
+  other.sockets[0].readyState = 1;
+  other.sockets[0].onmessage(authFrom("ws://bitbeam.evil.example:8777/ws"));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.deepEqual(other.signed, [], "a lookalike hostname is still a different machine");
+});
+
+test("a malformed challenge is refused before the signer is ever asked", async () => {
+  const tab = signedInTab();
+  tab.sockets[0].onmessage({ data: JSON.stringify({ t: "AUTH", v: 1, challenge: "nope", relay: "ws://bitbeam:8777/ws" }) });
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.deepEqual(tab.signed, []);
+  assert.ok(tab.errors.some((e) => e.code === "AUTH_FAILED"));
+});
+
+test("the Queue zone is actually DRAWN, not merely populated in state", () => {
+  /* A regression this suite could not see: two `function renderQueue` in one
+   * scope, the later winning, so render() called the lobby's queue-status
+   * helper instead of the board's — and the Queue, the one zone every played
+   * card passes through, silently stopped being drawn. Every existing test
+   * still passed, because they all asserted `game.state.queue` and never once
+   * asked whether the player could SEE it. */
+  const { byId, game } = loadPlay(netStub(), { emit() {}, get: () => ({ motionActive: "reduced" }) });
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+
+  const lastCard = (zoneId, name) => {
+    const kids = byId(zoneId).children;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const img = kids[i].children && kids[i].children[0];
+      if (img && img.alt === name) return kids[i];
+    }
+    return null;
+  };
+
+  lastCard("youHand", "Power Plant — Hydro").click();
+  lastCard("youNetwork", "Power Plant — Hydro").click();
+  lastCard("youHand", "Zap").click();
+  byId("foeBar").click();
+
+  assert.ok(game.state.queue[0], "the engine announced it");
+  assert.equal(byId("queueWrap").hidden, false, "and the Queue wrapper is revealed");
+  assert.ok(lastCard("queue", "Zap"), "and the card is rendered INTO the Queue zone");
+});
+
+test("the Network's two rails are drawn, and cards stay direct children", () => {
+  /* The rails are CSS `order` plus one break element precisely so that cards
+   * remain direct children of the zone — three helpers in this file resolve a
+   * card by scanning direct children, and nesting would make every card
+   * invisible to them without failing loudly. */
+  const { byId, game } = loadPlay(netStub(), { emit() {}, get: () => ({ motionActive: "reduced" }) });
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+
+  const lastCard = (zoneId, name) => {
+    const kids = byId(zoneId).children;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const img = kids[i].children && kids[i].children[0];
+      if (img && img.alt === name) return kids[i];
+    }
+    return null;
+  };
+
+  lastCard("youHand", "Power Plant — Hydro").click();
+  const plant = lastCard("youNetwork", "Power Plant — Hydro");
+  /* THE LOAD-BEARING ASSERTION. The rails are CSS `order` plus one break
+   * element specifically so cards stay direct children; nesting them would make
+   * every card invisible to this very helper — silently, since a missing node
+   * reads as "not played yet" rather than as a layout change. The rail CLASS
+   * itself cannot be checked here (this harness's classList is a no-op, so
+   * classList.add leaves className untouched); that was verified in a real
+   * browser instead, where the Resource carries `netres`. */
+  assert.ok(plant, "a Resource must be findable as a DIRECT child of the Network");
+  assert.equal(plant.dataset.uid, game.state.zones["0:network"][0], "and it is the card the engine put there");
+  assert.ok(game.state.zones["0:network"].length >= 1);
 });

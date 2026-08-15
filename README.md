@@ -56,8 +56,10 @@ site/
   600b.css      the shared design system: tokens, nav, card-frame components
   index.html    landing page
   quickstart.html  five-minute onboarding for a first game
-  play.html     playable two-player hotseat table
-  play.js       local rules engine
+  play.html     playable table: two-player hotseat offline, refereed online
+  play.js       the board and the lobby
+  engine.js     the headless rules engine — the same file the referee runs
+  net.js        the wire: socket, reconnect loop, and the signed nostr moments
   play-data.js  generated playable card data
   precons.js    generated preconstructed Stacks (5 Starters, 6 Classics)
   deck.html     Stack Builder
@@ -69,19 +71,33 @@ site/
   cards.html    searchable image-and-text catalog
   e1-card-set.html  Node Runner frame proof sheet, print-ready
   rules.html    designed rulebook, generated from rules/
+  leaderboard.html  the ladder, computed in your browser from nostr events
+  ladder.js     result verification and Elo — no ladder server, no editable row
+  schnorr.js    BIP-340 verification and NIP-01 event ids, in the browser
   arena.html    retired mockup, redirects to the live table
+server/
+  table.js      the referee: authoritative engine, WebSocket, SQLite, static host
+tests/js/       the JavaScript suite — engine, client, transport, cards
+docs/
+  net-protocol.md            normative wire contract for the table
+  multiplayer-architecture.md  the topology decision record
 ```
 
 ## Playing locally
 
-`site/play.html` is a two-player hotseat table for the full 295-card set. Serve the
-repository and open it — the page needs no build step of its own beyond `play-data.js`.
+`site/play.html` is a two-player hotseat table for the full 295-card set. It opens straight
+from the filesystem — no server, no build step of its own beyond `play-data.js` — and with no
+match in the URL or in storage it never opens a socket at all. Offline is an invariant here,
+not a fallback.
+
+To serve it instead, use any static server on a port that is **not** 8777, which belongs to the
+table referee below:
 
 ```bash
-python -m http.server 8777
+python -m http.server 8600
 ```
 
-Then open <http://localhost:8777/site/play.html>.
+Then open <http://localhost:8600/site/play.html>.
 
 The engine enforces the rules framework from `rules/600B-Timelock-TCG-Rulebook-E1.md`:
 the eight-step turn structure, the once-per-turn Resource play, Buffer generation and
@@ -106,6 +122,68 @@ uv run python scripts/build_shop_data.py  # site/shop-data.js — the committed 
 `build_shop_data.py` prints the box commitment. **Publish that hash before selling
 a single pack** and reveal the ordered box when it is exhausted: that pair is what
 turns "trust our odds" into "replay it yourself".
+
+## Playing online — the table referee
+
+```bash
+npm install
+npm run table          # node server/table.js
+```
+
+One process, one port. It serves `site/`, `art/`, `cards/` and `rules/` **and** the match
+socket on 8777, so this is the only thing that needs starting. Open
+<http://localhost:8777/play.html>.
+
+The server holds the only unredacted state and the only shuffle seeds; clients receive a
+redacted view per seat, so fog of war is enforced by the referee rather than by the UI. It
+contains zero rules code — every action is one `engine.js` call and one SQLite transaction,
+committed *before* it is acknowledged. Nostr carries the invite, the accept, the dual-signed
+match start and the dual-signed result, and never a move; **the server never opens a relay
+connection at all**, so a bad day at a relay cannot touch a game in progress.
+
+Online play requires a NIP-07 signer (Alby, nos2x). Sign in, then either create a table and
+read the six-character code aloud, join one, or search for an opponent — the matchmaking queue
+pairs two identities into a match that is dealt the instant it is minted. Signing in also
+returns every unfinished match your npub is seated at, so a cleared profile or a different
+machine can sit back down.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PORT` | `8777` | HTTP and WebSocket port |
+| `DB` | `server/matches.db` | SQLite file; `:memory:` for a throwaway table |
+| `PUBLIC_URL` | — | The fully explicit advertised URL, e.g. `wss://tcg.example/ws`. Validated at boot. **The one-variable answer behind TLS.** |
+| `PUBLIC_HOST` | `localhost` | Hostname only — the LAN / Tailscale answer |
+| `PUBLIC_SCHEME` | `ws` | `wss` to force a TLS scheme while keeping the port |
+| `TABLE_ORIGINS` | — | Comma-separated page origins allowed to open a socket. Only needed when the page and the table live on different origins. |
+| `PIN_SEED` | — | Force a rehearsed opening deal |
+| `RATE_MAX` | `150` | Accepted actions per 10 s per seat. Raise it only for headless soak runs. |
+| `CONTROL_RATE_MAX` | `30` | Control and malformed messages per 10 s per address |
+| `MAX_PAYLOAD` | `65536` | Maximum decompressed WebSocket payload in bytes |
+
+```bash
+PUBLIC_URL=wss://tcg.example/ws npm run table            # behind a TLS reverse proxy
+PUBLIC_HOST=bitbeam.tail1a2b.ts.net npm run table        # over Tailscale
+```
+
+Set one of them. Left unset behind a proxy, every published invite advertises `ws://` on the
+bound port — mixed-content-blocked *and* aimed at a port the internet cannot reach, silently.
+
+The wire is specified normatively in **`docs/net-protocol.md`**; where that document and
+`server/table.js` disagree, one of them is a bug and the document says which.
+
+### Stakes are never held by this software
+
+Two players can agree a stake in sats. A table carries its wager, the matchmaking queue **pairs
+on it** so nobody is dealt into a number they did not ask to play for, joining a table with a
+different figure than the one you were shown is refused outright, and both seats sign the agreed
+amount into the match-start event before a card is drawn. Whole sats only, capped at 1 000 000 —
+the referee is recording a promise it can neither enforce nor refund, so it has no business
+recording life savings.
+
+Settlement resolves the winner's own lightning address to an invoice and hands it to the loser,
+who pays it from their own wallet with their wallet's own confirmation. There is no escrow, no
+custody and no float: a refused payment costs the match nothing, because the result is already
+signed by both seats.
 
 ## Booster shop
 
@@ -199,7 +277,22 @@ npm install
 npm run build
 ```
 
-The generated website has no runtime dependency and uses only local assets.
+The generated website has no runtime dependency and uses only local assets. The referee
+(`npm run table`) is the one part that has any: `ws` for the socket and `@noble/curves` for
+BIP-340 signature verification.
+
+## Tests
+
+```bash
+npm run test:js     # 284 tests: engine, client, transport, ladder, and every card wave
+uv run pytest       # the Python generators
+```
+
+`npm run test:js` is `node --test tests/js/*.test.mjs` — use the file/glob form, because the
+directory form fails on Windows. `tests/js/net.test.mjs` boots a real referee in-process and
+plays real matches against it; `tests/js/schnorr.test.mjs` checks the browser verifier against
+all 19 official BIP-340 vectors and differentially against `@noble/curves`. Run the suite
+before every commit.
 
 ## Current rules profile
 

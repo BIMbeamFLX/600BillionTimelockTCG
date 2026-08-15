@@ -639,6 +639,20 @@
   const HAND_LIMIT = 7;
   const START_UPTIME = 20;
   const MIN_STACK = 40;
+  /* §7. WITHOUT THIS, "run twenty copies of your best card" is not a degenerate
+   * edge case — it is the CORRECT play, because there is almost no card
+   * selection in the set and density is the only way to make a deck reliable. A
+   * measured 26-copy build won 97.7% against all eleven precons, mean kill turn
+   * 3.8. The cap is what turns deckbuilding into a choice instead of an
+   * arithmetic problem. */
+  const MAX_COPIES = 3;
+  /* BASIC RESOURCES ARE EXEMPT, for the same reason every card game exempts its
+   * basic lands: a 40-card Stack needs 16-18 Resources and there are only ten
+   * Basic Resources in the set, so capping them at three makes a legal Stack
+   * arithmetically impossible. The cap exists to stop one SPELL being the whole
+   * deck — the measured 97.7% build was 26 copies of Zap — and a Resource
+   * cannot be that, because it does nothing on its own. */
+  const uncapped = (card) => card && card.type === "Basic Resource";
 
   const PHASE_ORDER = ["open", "build1", "clash", "build2", "close"];
   const PHASE_STEPS = {
@@ -1471,20 +1485,54 @@
       affinity === "All" ||
       card.affinity.indexOf(affinity) >= 0 ||
       card.affinity.indexOf("Neutral") >= 0;
-    const pool = catalog.ids.map((id) => catalog.byId[id]).filter(inAffinity);
-    const take = (test, count) => {
-      const options = pool.filter(test);
-      const out = [];
-      if (!options.length) return out;
-      for (let i = 0; i < count; i++) out.push(options[nextInt(stream, options.length)].id);
-      return out;
+    /* STAKE CARDS ARE FILTERED HERE, WHICH IS D-12 REPAID. createGame throws
+     * when an auto-built deck contains one and the Stake module is off, and the
+     * referee papered over it by re-rolling seeds up to forty times — measured
+     * at 1,621 re-rolls to build 200 Keys decks, an 89% failure rate on a
+     * single affinity. Refusing to deal a card the ruleset cannot resolve is
+     * cheaper than rolling dice until it does not come up. */
+    const playable = (card) =>
+      !/stake/i.test(card.type || "") && !/\bStake\b/.test(card.text || "");
+    const pool = catalog.ids.map((id) => catalog.byId[id]).filter((c) => inAffinity(c) && playable(c));
+    /* WITHOUT REPLACEMENT, in as many passes as it takes. Sampling with
+     * replacement gave a 40-card deck 23-25 unique cards, averaging 5.6 copies
+     * of one and reaching ten — and since the online table builds every deck
+     * this way, that WAS the online game. A deck should be a deck, not a pile
+     * of dice rolls; only when a category has fewer cards than the slots it
+     * owes does it start repeating, and then deliberately. */
+    /* WITHOUT REPLACEMENT, AND WITHIN THE COPY LIMIT. Sampling with replacement
+     * gave a 40-card deck 23-25 unique cards, averaging 5.6 copies of one and
+     * reaching ten — and since the referee builds every online deck this way,
+     * that WAS the online game. A category with fewer distinct cards than slots
+     * still has to repeat, so the bag refills; the global tally is what keeps
+     * that inside §7 rather than quietly minting an illegal Stack. */
+    const used = {};
+    const deck = [];
+    const draw = (test, count) => {
+      const options = pool.filter((card) => test(card) && (uncapped(card) || (used[card.id] || 0) < MAX_COPIES));
+      if (!options.length) return;
+      let bag = [];
+      for (let i = 0; i < count; i++) {
+        if (!bag.length) {
+          bag = pool.filter((card) => test(card) && (uncapped(card) || (used[card.id] || 0) < MAX_COPIES));
+          if (!bag.length) return; // the category is exhausted at the limit
+        }
+        const pick = nextInt(stream, bag.length);
+        const card = bag[pick];
+        bag.splice(pick, 1);
+        used[card.id] = (used[card.id] || 0) + 1;
+        deck.push(card.id);
+      }
     };
-    return [
-      ...take((c) => c.isResource, 17),
-      ...take((c) => c.isAvatar, 14),
-      ...take((c) => c.type === "Zap" || c.type === "Operation", 5),
-      ...take((c) => c.type === "Hardware" || c.type === "Protocol", 4),
-    ];
+
+    draw((c) => c.isResource, 17);
+    draw((c) => c.isAvatar, 14);
+    draw((c) => c.type === "Zap" || c.type === "Operation", 5);
+    draw((c) => c.type === "Hardware" || c.type === "Protocol", 4);
+    // A narrow affinity can exhaust a category at the limit; top up from the
+    // whole pool so a Stack is always legal AND always full.
+    draw(() => true, MIN_STACK - deck.length);
+    return deck;
   }
 
   function newSeat(config) {
@@ -1594,6 +1642,16 @@
       // An illegal decklist is the cheapest cheat there is; it never reaches
       // the table. Validate before a single object is minted.
       if (deck.length < MIN_STACK) fail("SCHEMA", `seat ${seat} Stack is ${deck.length}, minimum ${MIN_STACK}`);
+      /* Enforced HERE, in the engine, because a decklist is untrusted input on
+       * every topology: the Stack Builder can refuse it politely, but the
+       * referee is the only place a hand-rolled client cannot talk past. */
+      const copies = {};
+      for (const cardId of deck) {
+        copies[cardId] = (copies[cardId] || 0) + 1;
+        if (copies[cardId] > MAX_COPIES && !uncapped(cardOf(context, cardId))) {
+          fail("SCHEMA", `seat ${seat} Stack has ${copies[cardId]} copies of ${cardId}, limit ${MAX_COPIES} (§7)`);
+        }
+      }
       for (const cardId of deck) {
         const card = cardOf(context, cardId);
         if (!state.modules.stake && /\bStake\b/.test(card.text || "")) {
@@ -5025,6 +5083,19 @@
    * the same engine functions as the real clash. */
   function previewClash(source, declarations, ctx) {
     const state = cloneJson(source);
+    /* A REDACTED VIEW COUNTS TRIGGERS; THE REAL COMBAT CODE PUSHES TO THEM.
+     * view() ships pendingTriggers as {0: n, 1: n} — two numbers — because a
+     * seat may know HOW MANY triggers its opponent holds and never what they
+     * are. previewClash then runs the genuine applyCombatDamage/stateChecks
+     * over that clone, and any trigger raised during combat does
+     * `pendingTriggers[seat].push(...)` on a number: "push is not a function",
+     * thrown straight through the clash forecast, killing the board render
+     * mid-combat. It has always been reachable — several released cards raise
+     * triggers inside combat damage — and no test caught it only because no
+     * precon happens to contain one. */
+    for (const key of ["0", "1"]) {
+      if (!Array.isArray(state.pendingTriggers[key])) state.pendingTriggers[key] = [];
+    }
     const options = declarations || {};
     const env = { state, ctx: resolveCtx(ctx), events: [] };
     const requested = Array.isArray(options.attackers)
@@ -6620,7 +6691,16 @@
         out.zones[key] = list.slice();
         for (const uid of list) {
           const object = state.objects[uid];
-          if (zone === "cold" && object.facedown && !spectator && object.owner !== seat) {
+          /* A SPECTATOR IS NOT MORE ENTITLED THAN A PLAYER. The old guard read
+           * `!spectator && object.owner !== seat`, so the spectator branch
+           * short-circuited and an audience member was shown the cardId of a
+           * face-down Cold card that the OPPONENT is not allowed to see. That
+           * is a live read of hidden information, not a cosmetic leak: a
+           * matchId is in every STATE, and the resume ladder downgrades any
+           * authenticated stranger naming one to a spectator — so a second
+           * browser profile and a second key was the whole attack. A face-down
+           * card is a shell to everyone except the seat that owns it. */
+          if (zone === "cold" && object.facedown && object.owner !== seat) {
             out.objects[uid] = shellRecord(object);
           } else {
             out.objects[uid] = publicObjectRecord(object);
@@ -6845,6 +6925,8 @@
     MANUAL_OPS,
     ACTION_KEYS,
     TURN_RIBBON,
+    MIN_STACK,
+    MAX_COPIES,
     PHASE_ORDER,
     PHASE_STEPS,
     SYMBOLS,

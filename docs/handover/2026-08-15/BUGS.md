@@ -1,5 +1,24 @@
 # Bestätigte Restpunkte — 2026-08-15
 
+> **Nachtrag, später am 2026-08-15.** Dieses Dokument ist der Stand eines
+> Zeitpunkts und wird nicht rückwirkend umgeschrieben. Seither erledigt:
+>
+> - **B-01 teilweise** — die eigentliche Ursache ist behoben: `publicTableUrl()`
+>   kodierte `ws://` und den gebundenen Port fest, wodurch hinter TLS jede
+>   veröffentlichte Einladung sowohl als Mixed Content blockiert als auch auf
+>   einen unerreichbaren Port gerichtet war — lautlos. `PUBLIC_URL` benennt beides
+>   jetzt explizit. Deployment und externer Test stehen weiterhin aus (`docs/deploy.md`).
+> - **B-02 erledigt** — Invite-, Accept- und Result-Events werden vor dem Speichern
+>   geprüft: Event-Id aus den eigenen Bytes neu berechnet, BIP-340-Signatur
+>   verifiziert, Ablehnung statt Zeile. `sig_checked` ist `1`. Die damalige
+>   Begründung war überholt: `@noble/curves` war für den NIP-42-Login längst
+>   Abhängigkeit.
+> - **B-05 unverändert und weiterhin richtig so** — der Shop sagt jetzt offen,
+>   dass bezahlte Packs nicht live sind, statt einen Knopf anzubieten, der nichts tut.
+>
+> B-03 (Mesh-Routing ohne freie Spielerwahl) und B-04 (Blocker-Reihenfolge und
+> Undo) sind unverändert offen.
+
 Dieses Dokument enthält nur lokal belegte Restpunkte. Behobene frühere Befunde — assisted
 Karten, doppelte Clash-Mathematik, wirkungsloses Mesh, bare Pubkey-Claims, Reconnect-/Rate-
 Limit-Bypässe und der undefinierte Attack-Glow-Farbwert — stehen nicht mehr als offene Bugs hier.

@@ -888,3 +888,56 @@ test("a malformed transcript is an error value, never an exception", () => {
     assert.ok(verdict.error, "and it must say why");
   }
 });
+
+test("a face-down Cold card is a shell to EVERYONE except the seat that owns it", () => {
+  /* The guard used to read `!spectator && object.owner !== seat`, so the
+   * spectator branch short-circuited and an audience member was handed the
+   * cardId of a card the OPPONENT is not allowed to see. That is a live read of
+   * hidden information: a matchId appears in every STATE, and the resume ladder
+   * downgrades any authenticated stranger naming one to a spectator — so a
+   * second browser profile and a second key was the entire attack. */
+  const state = E.createGame(baseConfig());
+  const uid = seed(state, 0, "E1-001", { facedown: true }, "cold");
+
+  const owner = E.view(state, 0);
+  assert.equal(owner.objects[uid].cardId, "E1-001", "your own face-down card is yours to see");
+
+  const opponent = E.view(state, 1);
+  assert.equal(opponent.objects[uid].cardId, undefined, "the opponent gets a shell");
+
+  const audience = E.view(state, null);
+  assert.equal(audience.objects[uid].cardId, undefined, "and so does a spectator");
+  assert.ok(audience.zones["0:cold"].includes(uid), "the card is still known to BE there");
+});
+
+test("a face-up Cold card is public to everyone", () => {
+  const state = E.createGame(baseConfig());
+  const uid = seed(state, 0, "E1-001", { facedown: false }, "cold");
+  for (const who of [0, 1, null]) {
+    assert.equal(E.view(state, who).objects[uid].cardId, "E1-001");
+  }
+});
+
+test("previewClash survives a redacted view, whose trigger counts are numbers", () => {
+  /* THE CLASH FORECAST RAN THE REAL COMBAT CODE OVER A VIEW. view() ships
+   * pendingTriggers as {0: n, 1: n} — two counts — because a seat may know how
+   * MANY triggers its opponent holds and never what they are. previewClash
+   * clones that and runs the genuine applyCombatDamage/stateChecks over it, so
+   * any trigger raised during combat did `pendingTriggers[seat].push(...)` on a
+   * number and threw "push is not a function" straight through the board
+   * render, mid-clash. Several released cards raise triggers inside combat
+   * damage; no precon happens to contain one, which is the only reason this was
+   * never seen. */
+  const state = E.createGame(baseConfig());
+  const view = E.view(state, 0);
+  assert.equal(typeof view.pendingTriggers["0"], "number", "a view counts, it does not list");
+
+  const preview = E.previewClash(view, { attackers: [] });
+  assert.ok(preview, "a forecast over a redacted view must not throw");
+  // It reports the fight, not the state: rows, what dies, what reaches a player.
+  assert.ok(Array.isArray(preview.rows));
+  assert.ok(Array.isArray(preview.dying));
+
+  // And the source view is untouched: a preview may never mutate what it read.
+  assert.equal(typeof view.pendingTriggers["0"], "number");
+});

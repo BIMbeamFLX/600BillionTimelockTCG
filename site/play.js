@@ -145,7 +145,7 @@
       fx(event);
     }
     if (session.events.length > 240) session.events.length = 240;
-    render();
+    renderWithFx();
     scheduleNpc();
     return true;
   }
@@ -227,43 +227,336 @@
    * that produces events produces the show. */
   const FX_PHASE = { open: "unlock", build1: "build1", clash: "clash", build2: "build2", close: "cleanup" };
 
+  /* ORDER OF OPERATIONS. An event describes a board that does not exist yet:
+   * fx() runs while the OLD frame is still on screen and render() rebuilds
+   * every card node from scratch immediately afterwards. So a cue that wants
+   * the card's new node cannot be played now, and a cue that wants the node the
+   * card is LEAVING cannot be played later. Both are gathered here, the frame
+   * is measured, render() redraws, and only then are the cues bound to the DOM
+   * and played — see renderWithFx(). */
+  let fxCues = [];   // [{ name, detail, bind }] — E1FX.emit, in engine order
+  let fxPrims = [];  // [{ prim, uid, opts, delay }] — E1FX.anim on one card
+  let fxBefore = []; // last frame's cards: { uid, cardId, zone, node, rect }
+  let fxLive = new Map(); // this frame's cards, uid -> node
+  let fxPicking = false;
+
+  /* `bind` says how to attach a cue to the DOM once the frame exists:
+   *   el:     fill detail.el from detail.uid (the card's NEW node)
+   *   queue:  fill detail.el from the Queue node wearing bind.cardId
+   *   origin: zones to search for the node this card just LEFT — its rect
+   *           becomes the FLIP origin, so the card flies from where it was
+   *   exit:   the card is gone; hand over the deleted node AND its geometry,
+   *           because a detached node measures zero */
+  const cue = (name, detail, bind) => {
+    fxCues.push({ name, detail: detail || {}, bind: bind || {} });
+  };
+  const prim = (name, uid, opts, delay) => {
+    if (uid == null) return;
+    fxPrims.push({ prim: name, uid, opts: opts || {}, delay: delay || 0 });
+  };
+
   function fx(event) {
     showActionFx(event);
-    const FX = globalThis.E1FX;
-    if (!FX) return; // the game must run with fx.js absent
+    if (!globalThis.E1FX) return; // the game must run with fx.js absent
     const card = event.cardId ? CARD_BY_ID[event.cardId] : null;
     const affinity = card && card.affinity ? card.affinity[0] : undefined;
+    const NET = ["youNetwork", "foeNetwork"];
+    const HAND = ["youHand", "foeHand"];
     switch (event.t) {
-      case "TURN": return FX.emit("turn:begin", { seat: event.seat, number: event.number });
-      case "PHASE": return FX.emit("phase:enter", { phase: FX_PHASE[event.phase] || event.phase });
-      case "DRAW": return FX.emit("card:draw", { seat: event.seat });
+      case "TURN": return cue("turn:begin", { seat: event.seat, number: event.number });
+      case "PHASE": return cue("phase:enter", { phase: FX_PHASE[event.phase] || event.phase });
+      // DRAW names the card it drew: the ghost then flies from the Stack
+      // counter to THAT card instead of vaguely at the hand.
+      case "DRAW": return cue("card:draw", { seat: event.seat, uid: event.uid, count: 1 }, { el: true });
       case "GENERATE":
-        return FX.emit("resource:generate", { seat: event.seat, affinity: event.symbol, amount: event.amount });
-      case "BURN": return FX.emit("buffer:burn", { seat: event.seat, amount: event.amount });
+        return cue("resource:generate", { seat: event.seat, affinity: event.symbol, amount: event.amount });
+      case "BURN": return cue("buffer:burn", { seat: event.seat, amount: event.amount });
       case "QUEUED":
-        return FX.emit("card:play", { seat: event.seat, cardType: card && card.type, affinity });
+        // Announced: the card left the Wallet and is now on the Queue. Queue
+        // nodes have no uid — the card is named by what it is.
+        return cue(
+          "card:play",
+          { seat: event.seat, cardType: card && card.type, affinity, qid: event.qid },
+          { queue: true, cardId: event.cardId, origin: HAND }
+        );
       case "ENTERS":
         // A Resource entering play is the once-per-turn land drop, not a spell.
         return card && /Resource/.test(card.type)
-          ? FX.emit("resource:play", { seat: event.seat, affinity })
-          : FX.emit("card:play", { seat: event.seat, cardType: card && card.type, affinity });
-      case "ARCHIVED": case "INVALIDATED": return FX.emit("card:archive", { seat: event.seat });
-      case "DECOMMISSIONED": return FX.emit("avatar:decommission", { uid: event.uid });
+          ? cue(
+              "resource:play",
+              { seat: event.seat, uid: event.uid, affinity },
+              { el: true, cardId: event.cardId, origin: [...HAND, "queue"] }
+            )
+          : cue(
+              "card:play",
+              { seat: event.seat, uid: event.uid, cardType: card && card.type, affinity },
+              { el: true, cardId: event.cardId, origin: ["queue", ...HAND] }
+            );
+      // ARCHIVED carries no seat at all, and its uid is the ARCHIVE's copy of
+      // the card. Both made the old payload resolve to nothing, which is why
+      // archiving used to render absolutely nothing.
+      case "ARCHIVED":
+        return cue("card:archive", { uid: event.uid }, { exit: [...NET, "queue", ...HAND], cardId: event.cardId });
+      case "INVALIDATED":
+        return cue("card:archive", { uid: event.qid }, { exit: ["queue"], cardId: event.cardId });
+      case "DECOMMISSIONED":
+        return cue("avatar:decommission", { uid: event.uid }, { exit: NET, cardId: event.cardId });
       case "DAMAGE":
         return event.to === "seat"
-          ? FX.emit("damage:player", { seat: event.seat, amount: event.amount })
-          : FX.emit("damage:avatar", { uid: event.uid, amount: event.amount });
+          ? cue("damage:player", { seat: event.seat, amount: event.amount })
+          : cue("damage:avatar", { uid: event.uid, amount: event.amount }, { el: true });
       case "UPTIME":
-        return event.delta > 0 ? FX.emit("uptime:gain", { seat: event.seat, amount: event.delta }) : undefined;
+        // Uptime lost outside combat — Burn's interest, a card's own cost, a
+        // drain — used to be the one hit with no feedback at all.
+        return event.delta > 0
+          ? cue("uptime:gain", { seat: event.seat, amount: event.delta })
+          : cue("damage:player", { seat: event.seat, amount: -event.delta });
       case "ATTACKERS":
-        FX.emit("clash:begin", {});
-        return FX.emit("clash:declareAttackers", { count: (event.attackers || []).length });
-      case "BLOCKERS": return FX.emit("clash:declareBlockers", { count: event.count || 0 });
-      case "PASS_PRIORITY": return FX.emit("priority:pass", { seat: event.seat });
+        cue("clash:begin", {});
+        return cue("clash:declareAttackers", { count: (event.attackers || []).length });
+      // BLOCKERS carries the block ASSIGNMENT, never a count. Reading a field
+      // that does not exist printed "UNBLOCKED" over a declared block.
+      case "BLOCKERS":
+        return cue("clash:declareBlockers", {
+          count: Object.keys(event.blocks || {}).reduce(
+            (total, attacker) => total + (event.blocks[attacker] || []).length, 0
+          ),
+        });
+      // COMMIT and UNLOCK are deliberately NOT translated here: the engine
+      // sets `committed` in a dozen places and emits COMMIT from two of them,
+      // so the event is not the truth. fxTurns() below reads the truth off the
+      // board instead, which covers paying a Commit cost, declaring an
+      // attacker, entering committed, and the unlock step with one rule.
+
+      // A trigger firing is a card DOING something; say which card.
+      case "TRIGGERED": return cue("ability:activate", { uid: event.uid }, { el: true });
+      // "You survived that" is a beat, not a silence.
+      case "PREVENTED": return fxShield(event.uid, `PREVENTED ${Math.max(0, event.amount | 0)}`);
+      case "REBOOT_SHIELD": return fxShield(event.uid, "SHIELDED");
+      case "REDIRECTED":
+        return fxShield(event.to && event.to.uid, `REDIRECTED ${Math.max(0, event.amount | 0)}`);
+      case "PASS_PRIORITY": return cue("priority:pass", { seat: event.seat });
       case "MANUAL_ANNOUNCED": case "MANUAL_PROPOSED": case "MANUAL_APPLIED":
-        return FX.emit("manual:resolve", { seat: event.seat });
-      case "GAME_OVER": return FX.emit("game:win", { seat: event.winner });
+        return cue("manual:resolve", { seat: event.seat });
+      // GAME_OVER carries `winners`, never `winner`, so the victory wipe used
+      // to land on seat 0 whoever actually won. A draw has no winner at all.
+      case "GAME_OVER": {
+        const winners = event.winners || [];
+        return cue("game:win", { seat: winners.length === 1 ? winners[0] : null });
+      }
       default: return undefined;
+    }
+  }
+
+  /* Damage that did not land. The ring is the shield holding; the chip says by
+   * how much, because a number that never changed is invisible otherwise. */
+  function fxShield(uid, text) {
+    if (uid == null) return;
+    const FX = globalThis.E1FX;
+    const good = FX && FX.TOKENS ? FX.TOKENS.palette.good : undefined;
+    prim("ring", uid, { color: good, duration: 420 });
+    prim("chip", uid, { text, color: good, rise: 22 });
+  }
+
+  /* Where every card on the table IS, taken while the frame is still standing.
+   * render() wipes and rebuilds the zones, so this is the only moment an exit
+   * animation can learn its geometry and an entering card can learn where it
+   * flew from. The test DOM has neither querySelectorAll matches nor
+   * getBoundingClientRect, and simply produces an empty snapshot. */
+  function fxSnapshot() {
+    fxBefore = [];
+    if (!globalThis.E1FX || typeof document.querySelectorAll !== "function") return;
+    let cards = [];
+    try {
+      cards = document.querySelectorAll(".gcard");
+    } catch (error) {
+      return;
+    }
+    for (const node of cards) {
+      if (!node || typeof node.getBoundingClientRect !== "function") continue;
+      const data = node.dataset || {};
+      if (!data.uid && !data.cardId) continue;
+      const box = node.getBoundingClientRect();
+      if (!box || !box.width) continue;
+      fxBefore.push({
+        uid: data.uid || null,
+        cardId: data.cardId || null,
+        zone: node.parentNode && node.parentNode.id ? node.parentNode.id : "",
+        committed: Boolean(node.classList && node.classList.contains("committed")),
+        node,
+        rect: { left: box.left, top: box.top, width: box.width, height: box.height },
+      });
+    }
+  }
+
+  /* Where every card is in the frame that was just drawn. One pass, because the
+   * flush asks "and where is this one now?" for every card on the table, twice
+   * over — once to work out what left, once to bind the cues that stayed. */
+  function fxIndex() {
+    fxLive = new Map();
+    if (typeof document.querySelectorAll !== "function") return;
+    let cards = [];
+    try {
+      cards = document.querySelectorAll(".gcard[data-uid]");
+    } catch (error) {
+      return;
+    }
+    for (const node of cards) {
+      const uid = node.dataset && node.dataset.uid;
+      if (uid) fxLive.set(uid, node);
+    }
+  }
+
+  const fxLiveNode = (uid) => (uid == null ? null : fxLive.get(String(uid)) || null);
+
+  const fxQueueNode = (cardId) => {
+    const zone = document.getElementById("queue");
+    const kids = zone && zone.children ? zone.children : [];
+    for (let i = kids.length - 1; i >= 0; i--) {
+      if (kids[i] && kids[i].dataset && kids[i].dataset.cardId === cardId) return kids[i];
+    }
+    return null;
+  };
+
+  /* Hotseat holds the unredacted state, so the provenance chain is right there
+   * and the match is exact. A remote seat holds a view that drops it (§6.1),
+   * and falls through to the card-identity match below. */
+  function fxPrevUid(uid) {
+    const state = session.full;
+    let current = uid;
+    for (let hop = 0; hop < 4; hop++) {
+      const object = state && state.objects ? state.objects[current] : null;
+      if (!object || object.prevUid == null) return null;
+      current = object.prevUid;
+      if (fxBefore.some((entry) => entry.uid === current)) return current;
+    }
+    return null;
+  }
+
+  /* The node this card was, taken out of the pool of cards that left the table
+   * this frame. Zones are searched in the order the caller believes the card
+   * came from, so a Resource played straight from the Wallet and a permanent
+   * resolving off the Queue each find their own origin. */
+  function fxTakeGone(gone, zones, cardId, uid) {
+    if (uid != null) {
+      const exact = gone.find((entry) => !entry.used && entry.uid === uid);
+      if (exact) return (exact.used = true), exact;
+    }
+    for (const zone of zones || []) {
+      const hit = gone.find(
+        (entry) => !entry.used && entry.zone === zone && (cardId == null || entry.cardId === cardId)
+      );
+      if (hit) return (hit.used = true), hit;
+    }
+    return null;
+  }
+
+  function fxBind(entry, gone) {
+    const detail = entry.detail;
+    const bind = entry.bind;
+    if (bind.el && detail.uid != null) {
+      const node = fxLiveNode(detail.uid);
+      if (node) detail.el = node;
+    }
+    if (bind.queue) {
+      const node = fxQueueNode(bind.cardId);
+      if (node) detail.el = node;
+    }
+    if (bind.origin) {
+      const from = fxTakeGone(gone, bind.origin, bind.cardId, null);
+      if (from) detail.rect = from.rect;
+    }
+    if (bind.exit) {
+      const left = fxTakeGone(gone, bind.exit, bind.cardId, fxPrevUid(detail.uid));
+      if (left) {
+        detail.el = left.node;
+        detail.rect = left.rect; // a detached node measures zero
+      } else {
+        const node = fxLiveNode(detail.uid);
+        if (node) detail.el = node;
+      }
+    }
+    return detail;
+  }
+
+  /* Turning a card 90° is the single most common thing that happens on this
+   * board and it happened between two frames, instantly, with no motion at all.
+   * The engine is no help: it writes `committed` from a dozen places and only
+   * announces two of them. So the cue is read off the board — whatever turned
+   * or straightened since the last frame gets the sweep that lands on the class
+   * render() just wrote. One rule covers paying a Commit cost, declaring an
+   * attacker, entering committed, and the whole unlock step. */
+  function fxTurns() {
+    let turned = 0;
+    for (const entry of fxBefore) {
+      if (!entry.uid) continue;
+      const node = fxLiveNode(entry.uid);
+      if (!node || !node.classList) continue;
+      if (node.classList.contains("committed") === entry.committed) continue;
+      // The board is read left to right; so is the unlock.
+      prim("commit", entry.uid, { angle: 90 }, Math.min(turned, 8) * 40);
+      turned += 1;
+    }
+  }
+
+  /* Snapshot, redraw, then play. Called instead of render() on the two paths
+   * that carry engine events — a local dispatch and a referee FRAME. */
+  function renderWithFx() {
+    fxSnapshot();
+    render();
+    fxIndex();
+    fxTurns();
+    fxFlush();
+  }
+
+  function fxFlush() {
+    const cues = fxCues;
+    const prims = fxPrims;
+    fxCues = [];
+    fxPrims = [];
+    const FX = globalThis.E1FX;
+    if (!FX) return;
+    /* Everything that was on the table a frame ago and is not on it now: the
+     * Wallet card that became a Queue card, the Queue card that became a
+     * permanent, the permanent that was archived. */
+    const gone = fxBefore.filter((entry) => !entry.uid || !fxLive.has(entry.uid));
+    for (const entry of cues) {
+      try {
+        FX.emit(entry.name, fxBind(entry, gone));
+      } catch (error) {
+        void error; // sound and motion are never load-bearing
+      }
+    }
+    if (typeof FX.anim !== "function") return;
+    for (const item of prims) {
+      const node = fxLiveNode(item.uid);
+      if (!node || typeof node.animate !== "function") continue;
+      const run = () => {
+        try {
+          FX.anim(item.prim, node, item.opts);
+        } catch (error) {
+          void error;
+        }
+      };
+      if (!item.delay) run();
+      else setTimeout(run, item.delay);
+    }
+  }
+
+  /* Targeting is the one piece of feedback the engine cannot ask for: a pick is
+   * local intent, not a rules event. The board already marks every legal target
+   * with .targetable — this turns the opening and closing of a pick into the
+   * cue that lights them and puts them out again. */
+  function fxPickState() {
+    const FX = globalThis.E1FX;
+    if (!FX) return;
+    const open = Boolean(picking);
+    if (open === fxPicking) return;
+    fxPicking = open;
+    try {
+      FX.emit(open ? "target:request" : "target:choose", {});
+    } catch (error) {
+      void error;
     }
   }
 
@@ -444,7 +737,11 @@
    * never reach this: they are handled before the zone onClick fires. */
   /* The Queue, rendered. A played card waits here until priority passes, and
    * a zone nobody can see is a card that vanished. */
-  function renderQueue(v) {
+  /* NOT renderQueue: that name is also the matchmaking line's, further down the
+   * same scope, and the later declaration silently won. The board's Queue — the
+   * one place an announced card sits while it can still be answered — was never
+   * drawn at all, so a card being played had nowhere visible to be. */
+  function renderQueueZone(v) {
     const wrap = document.getElementById("queueWrap");
     const zone = document.getElementById("queue");
     if (!wrap || !zone) return;
@@ -455,6 +752,7 @@
       if (!item.cardId) continue;
       const card = CARD_BY_ID[item.cardId];
       const node = el("div", "gcard");
+      node.dataset.cardId = item.cardId; // the effects layer flies cards in and out of here
       const img = el("img");
       setFace(img, card, node);
       img.alt = card.name;
@@ -916,6 +1214,32 @@
 
   // ------------------------------------------------------------ card nodes
 
+  /* What a screen reader is told a card IS. Without this every card on the
+   * board announced as "button" and nothing else — 40 identical buttons. The
+   * state words are the same ones the glows carry, so a player who cannot see
+   * the ring is told the same thing it says. */
+  function ariaFor(v, uid, card) {
+    const object = v.objects[uid];
+    const bits = [card && card.name ? card.name : "face-down card"];
+    /* `typeLine` is a gallery field and does not exist here — play-data carries
+     * `type`, `subtype`, `action` and `resilience`. Announcing the numbers
+     * matters: the .gstats badge renders them as "3/4", which reads aloud as a
+     * date. */
+    if (card && card.type) bits.push(card.subtype ? `${card.type} — ${card.subtype}` : card.type);
+    if (card && card.action !== undefined && card.action !== null && card.resilience !== undefined) {
+      bits.push(`${card.action} action, ${card.resilience} resilience`);
+    }
+    if (card && card.cost) bits.push(`cost ${card.cost}`);
+    if (object) {
+      if (object.committed) bits.push("committed");
+      if (object.facedown) bits.push("face down");
+      if (object.bootDelay) bits.push("boot delay");
+      if (object.damage) bits.push(`${object.damage} damage`);
+    }
+    if (attackers.indexOf(uid) >= 0) bits.push("attacking");
+    return bits.join(", ");
+  }
+
   function cardNode(v, uid, options) {
     const object = v.objects[uid];
     const node = el("div", "gcard");
@@ -948,12 +1272,22 @@
     if (card.manual) node.append(el("span", "gmanual", "!"));
     if (wantsTarget(v, uid)) node.classList.add("targetable");
     node.dataset.uid = uid; // the arrow layer finds its endpoints by uid
+    /* The engine mints a NEW uid every time a card changes zone and keeps the
+     * old one as audit-only provenance a view never carries (§6.1). So an event
+     * about a card LEAVING the table names a uid no node ever wore, and the
+     * only durable handle the effects layer has on "the node this card was" is
+     * the card it is. */
+    node.dataset.cardId = object.cardId;
     if (blockTarget === uid) node.classList.add("blockpick");
     if (options && options.mark) {
       for (const name of (options.mark(uid) || "").split(" ")) if (name) node.classList.add(name);
     }
 
+    /* A hold that opened the reader must not ALSO play the card: the click that
+     * follows the release is swallowed exactly once. */
+    let held = false;
     node.addEventListener("click", (event) => {
+      if (held) { held = false; return; }
       if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
       if (options && options.onClick) options.onClick(uid, event);
     });
@@ -965,8 +1299,68 @@
         if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
         options.onContext(uid, event);
       });
+      /* A FINGER HAS NO SECOND BUTTON. iOS Safari never fires contextmenu, so
+       * on a phone the only thing a card could do was be played — for a
+       * 295-card set, "tap to find out what it does" is the wrong game. Press
+       * and hold is the touch right click, at the same 420 ms the Stack Builder
+       * uses, so the two pages answer to the same gesture.
+       *
+       * The clash drag lives on the same pointer, and it wins: any real travel
+       * gives up the hold (installCardHold), so dragging an Avatar at the
+       * enemy still declares the attack. A press that never moves was never a
+       * drag — its pointerup is a no-op there — so the two cannot both fire.
+       * The mouse is untouched: it already has a right button.
+       *
+       * `held` is cleared on every press, so the swallow can only ever eat the
+       * one click that belongs to the hold that set it. */
+      node.addEventListener("pointerdown", (event) => {
+        held = false;
+        if (event.pointerType === "mouse") return;
+        dropCardHold();
+        // The light reader answers the moment the finger lands; the heavy one
+        // needs the hold. Neither costs the player a turn.
+        showInspector(v, uid);
+        const timer = setTimeout(() => {
+          cardHold = null;
+          held = true;
+          if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
+          options.onContext(uid, event);
+        }, 420);
+        cardHold = { timer, x: event.clientX, y: event.clientY };
+      });
     }
     node.addEventListener("mouseenter", () => showInspector(v, uid));
+
+    /* THE GAME WAS UNPLAYABLE WITHOUT A MOUSE. A card was a bare <div> with
+     * click, contextmenu, pointerdown and mouseenter — no tabindex, no role, no
+     * keydown — so a keyboard-only player could press Continue and End turn and
+     * nothing else: they could not play a card, choose a target, pick an
+     * attacker, assign a blocker, or even READ a card, because the inspector
+     * was bound to hover and the reader to right-click.
+     *
+     * This is the same shape shop.js and deck.html already use for their cards,
+     * deliberately: three implementations of "a div that behaves like a button"
+     * is how they drift apart. ENTER acts, and the reader is on a key rather
+     * than a chord because Shift+F10 and the Menu key are not on every
+     * keyboard — and the reader is the half a new player needs most. */
+    node.tabIndex = 0;
+    node.setAttribute("role", "button");
+    node.setAttribute("aria-label", ariaFor(v, uid, card));
+    node.addEventListener("focus", () => showInspector(v, uid));
+    node.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
+        if (options && options.onClick) options.onClick(uid, event);
+        return;
+      }
+      // The keyboard's right click.
+      if ((event.key === "i" || event.key === "I") && options && options.onContext) {
+        event.preventDefault();
+        options.onContext(uid, event);
+      }
+    });
+
     if (options && options.canPlay && options.canPlay(uid)) node.classList.add("canplay");
     if (options && options.canAct && options.canAct(uid)) node.classList.add("canact");
     if (options && options.canAttack && options.canAttack(uid)) node.classList.add("canattack");
@@ -1029,10 +1423,26 @@
       button.textContent = session.npc !== null ? "NPC turn…" : "Their turn…";
       return;
     }
-    button.textContent = "End turn";
+    /* THE BUTTON USED TO LIE, AND THE TUTORIAL REPEATED THE LIE. It went gold
+     * whenever nothing was PLAYABLE and called that "everything is spent" —
+     * but an unspendable Buffer is exactly the state a stranded pile of
+     * Resources produces, and unspent Resources BURN at the phase boundary for
+     * one Uptime each. So the game turned gold, said "spent", and the player
+     * pressed it and silently lost life. Measured at up to ten Uptime a game
+     * for imprecise play: half a life total, taught by the interface.
+     *
+     * A held Buffer is now said out loud, and the button does not pretend. */
+    const held = bufferTotal(v.seats[seat].buffer);
     const anythingLeft =
       v.zones[`${seat}:wallet`].some((uid) => playGlow(v, seat, uid)) ||
       v.zones[`${seat}:network`].some((uid) => actGlow(v, seat, uid));
+    if (held > 0) {
+      button.textContent = `End turn — burns ${held}`;
+      button.title = `${held} unspent Resource${held > 1 ? "s" : ""} will burn for ${held} Uptime.`;
+      return;
+    }
+    button.textContent = "End turn";
+    button.title = "";
     if (!anythingLeft) button.classList.add("ready");
   }
 
@@ -1151,7 +1561,11 @@
     },
     {
       title: "Play a Resource",
-      text: "Glowing cards can be played right now. Left-click plays it; right-click opens the card and explains it. Play one Resource.",
+      // Never name a gesture the device in the player's hands does not have:
+      // a phone has no right button, so the hold is named alongside it.
+      // And "a Resource" means nothing to someone who has never played: on turn
+      // one the glow IS the answer, so the instruction says so outright.
+      text: "The glowing cards are the ones you can play right now — on turn one that is your Resources, the cards that pay for everything else. Click or tap one to play it; right-click, or press and hold, to read any card first.",
       anchor: "#youHand",
       done: () => {
         const full = session.full;
@@ -1160,7 +1574,12 @@
     },
     {
       title: "Generate",
-      text: "Click your Resource on the Network and pick an affinity. That fills your Buffer — the pips beside your name pay for everything.",
+      /* It used to say "pick an affinity", which was wrong twice over: the word
+       * appears nowhere in the quickstart, and a Resource with a single ability
+       * fires INSTANTLY with no menu (see activateFromBoard), so the player was
+       * told to make a choice that never appeared and would reasonably conclude
+       * the game was broken. */
+      text: "Now click that Resource where it sits on your Network. It fills your Buffer — the little pips beside your name, which are what you spend. Some Resources ask which kind to make; most just make it.",
       anchor: "#youNetwork",
       done: () => {
         const full = session.full;
@@ -1169,7 +1588,9 @@
     },
     {
       title: "Spend it",
-      text: "Cards you can afford glow gold. Play one — or press Next if nothing glows this turn.",
+      // Step 2 already taught "glowing = playable"; saying "glow gold" here
+      // invented a second meaning for the same cue on the same screen.
+      text: "Anything you can now afford is glowing again. Play one — or press Next if nothing is glowing this turn.",
       anchor: "#youHand",
       done: () => {
         const full = session.full;
@@ -1184,7 +1605,7 @@
     },
     {
       title: "End your turn",
-      text: "When the turn button glows gold, everything is spent. End the turn and watch the NPC play by the same rules.",
+      text: "The turn button goes gold when you have nothing left to play. If it says “burns” instead, you are still holding Resources — spend them first, because unspent ones cost you an Uptime each. Then end the turn and watch the NPC play by the same rules.",
       anchor: "#endturn",
       done: () => {
         const full = session.full;
@@ -1193,7 +1614,7 @@
     },
     {
       title: "You are live",
-      text: "Uptime 0 = offline. Attack during Clash, block on defense, and left-click anything you don't understand — every card explains itself. GLHF!",
+      text: "Uptime 0 = offline. Attack during Clash, block on defense, and right-click — or press and hold — anything you don't understand: every card explains itself. GLHF!",
       anchor: null,
       done: () => false,
     },
@@ -1285,6 +1706,85 @@
     arcZone(nodes, options && options.arc);
   }
 
+  /* Which rail of the Network a permanent belongs on. Avatars are the bodies —
+   * they attack and they block — so they get the rail nearest the clash lane.
+   * Everything that pays for them or supports them (Resources, Hardware,
+   * Protocols) sits on the back rail. The test is the SAME one that decides
+   * whether a card wears a stats badge, so the invariant a player can see is:
+   * every card with numbers on it is on the Avatar rail.
+   *
+   * Two things do not read from the card: a token's own profile is not carried
+   * into the redacted view (E1-273's Swarm Drone keeps the SOURCE card's
+   * cardId), and a facedown Network permanent is a masked deploy, which is a
+   * 2/2 Avatar whatever the card underneath says. Both fight, so both go up. */
+  const netRail = (v, uid) => {
+    const object = v.objects[uid];
+    if (!object || !object.cardId) return "avatar";
+    if (object.token || object.facedown) return "avatar";
+    return compiled(object.cardId).isAvatar ? "avatar" : "resource";
+  };
+
+  /* A back-rail card is small, so its art alone stops answering "what does
+   * this pay in". The rail says it in Plate icons along the card's footer.
+   * Read LIVE from the engine, never from the printed card: affinity rewrites
+   * are a real effect and the rail must not lie about the current identity. */
+  function railAffinity(v, uid, node) {
+    let names = [];
+    try {
+      names = E.affinitiesOf(v, E.resolveCtx({}), uid) || [];
+    } catch (error) {
+      names = [];
+    }
+    const strip = el("span", "netaff");
+    for (const name of names) {
+      const key = GENERATE_SYMBOL[name];
+      if (!key || !SYMBOL_ICON[key]) continue; // Neutral has no plate
+      const slot = el("i", "pip-" + key);
+      const icon = el("img", null);
+      icon.src = `../art/resources/${SYMBOL_ICON[key]}.svg`;
+      icon.alt = name;
+      slot.append(icon);
+      strip.append(slot);
+    }
+    if (strip.children && strip.children.length) node.append(strip);
+  }
+
+  /* The Network as two readable rails instead of one crowd.
+   *
+   * The DOM stays FLAT — every card is still a DIRECT child of the zone —
+   * because the arrow layer, the drag handler and the client tests all read
+   * the zone's children. So the split is a wrapped flex line: each card
+   * carries its rail class, CSS `order` sorts them, and one full-width break
+   * element forces the wrap between them. That break has no dataset.uid and no
+   * child image, so every children-scanning reader steps straight over it.
+   *
+   * arcZone is called once PER RAIL with that rail's own nodes: one call
+   * across both would bow a single arc over the whole zone and the rails would
+   * lean into each other. */
+  function renderNetwork(id, v, uids, options) {
+    const container = document.getElementById(id);
+    container.innerHTML = "";
+    const rails = { avatar: [], resource: [] };
+    const list = Array.isArray(uids) ? uids : [];
+    for (const uid of list) {
+      const rail = netRail(v, uid);
+      const node = cardNode(v, uid, options);
+      if (node.classList) node.classList.add(rail === "avatar" ? "netavt" : "netres");
+      if (rail === "resource") railAffinity(v, uid, node);
+      rails[rail].push(node);
+      container.append(node);
+    }
+    // An empty rail must not reserve a gap: on turn one there is one row and
+    // no caption, so the break exists only while both rails are occupied.
+    if (rails.avatar.length && rails.resource.length) {
+      // Captions the rail BELOW it, on both sides, so the divider always
+      // introduces what comes next in reading order.
+      container.append(el("div", "netcut", (options && options.cutLabel) || ""));
+    }
+    arcZone(rails.avatar, options && options.arc);
+    arcZone(rails.resource, options && options.resourceArc);
+  }
+
   /* Cards sit on an arc, never a rank. "ring": the row bows toward the clash
    * lane, centre card proud. "fan": a held hand — edges drop away and every
    * card tilts around a low pivot. Written as CSS vars per card so committed
@@ -1367,7 +1867,9 @@
         if (SYMBOL_ICON[key]) {
           const icon = el("img", null);
           icon.src = `../art/resources/${SYMBOL_ICON[key]}.svg`;
-          icon.alt = key;
+          // "3 P" is what a screen reader said; SYMBOL_NAME is right here and is
+          // already used correctly for the Resource rail.
+          icon.alt = SYMBOL_NAME[key] || key;
           pip.append(icon);
         } else {
           pip.append(` ${key}`);
@@ -1379,20 +1881,29 @@
     const plan = previewClash(v);
     const blocking = Boolean(v.awaiting && v.awaiting.kind === "blockers" && v.awaiting.seat === seat);
 
-    renderZone("foeNetwork", v, v.zones[`${foe}:network`], {
+    /* Their side reads top-down: Resources first, then the Avatars sitting on
+     * the edge of the clash lane. Ours is the mirror of it (Avatars on top),
+     * so on both boards the fighters face each other across the Queue and no
+     * attack arrow has to cross its own back rail. The row order itself is
+     * CSS `order`; the label is the caption of the rail below the line. */
+    renderNetwork("foeNetwork", v, v.zones[`${foe}:network`], {
       // Same hand on the enemy board: left acts (select the attacker to
       // block), right explains. Details were left-click-only here before,
       // which broke the one rule the rest of the table teaches.
       onClick: (uid) => toggleBlock(v, uid),
       onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
       arc: { mode: "ring", spread: -4, depth: 14 },
+      // The back rail is a short row: the same bow at the same depth would
+      // read as a wobble across two or three cards, so it is flatter.
+      resourceArc: { mode: "ring", spread: -3, depth: 7 },
+      cutLabel: "Avatars",
       mark: (uid) => {
         // An attacker still looking for a blocker is the thing to click next.
         const unblocked = blocking && v.clash.attackers.indexOf(uid) >= 0 && !(blocks[uid] || []).length;
         return (plan.dying.has(uid) ? "willdie " : "") + (unblocked ? "needsblock" : "");
       },
     });
-    renderZone("youNetwork", v, v.zones[`${seat}:network`], {
+    renderNetwork("youNetwork", v, v.zones[`${seat}:network`], {
       // Same hand as the Wallet: left acts, right explains. During the
       // attackers step the left click is the attack declaration instead.
       /* One handler owns the click, so a step never gets two answers. The
@@ -1410,6 +1921,8 @@
       canAct: (uid) => actGlow(v, seat, uid),
       canAttack: (uid) => attackGlow(v, seat, uid),
       arc: { mode: "ring", spread: 4, depth: -14 },
+      resourceArc: { mode: "ring", spread: 3, depth: -7 },
+      cutLabel: "Resources",
       mark: (uid) => {
         const marks = [];
         if (awaitingSelection.indexOf(uid) >= 0) marks.push("selected");
@@ -1434,7 +1947,7 @@
       canPlay: (uid) => playGlow(v, seat, uid),
       arc: { mode: "fan", spread: 13, depth: 20 },
     });
-    renderQueue(v);
+    renderQueueZone(v);
     renderTurnButton(v, seat);
     coachStep(v, seat);
     renderZone("foeHand", v, v.zones[`${foe}:wallet`], { arc: { mode: "fan", spread: -8, depth: -10 } });
@@ -1479,6 +1992,7 @@
       youZone.classList.toggle("draggable", draggable);
     }
     drawClashArrows();
+    fxPickState();
   }
 
   /* The arithmetic nobody should have to do in their head: what gets through,
@@ -1649,6 +2163,34 @@
         draw(center(rect), { x: dragging.x, y: dragging.y }, dragging.kind === "attack" ? "atk" : "blk", true);
       }
     }
+  }
+
+  /* The press-and-hold in flight, if any (see cardNode). One watcher for the
+   * whole table rather than a listener per card: the zones are rebuilt from
+   * scratch on every render, so anything bound per node is bound thousands of
+   * times a game. Capture phase, so the hold is given up before the drag or a
+   * click handler gets a say. */
+  let cardHold = null;
+
+  function dropCardHold() {
+    if (!cardHold) return;
+    clearTimeout(cardHold.timer);
+    cardHold = null;
+  }
+
+  function installCardHold() {
+    if (!window.addEventListener) return;
+    window.addEventListener("pointermove", (event) => {
+      if (!cardHold) return;
+      // Finger jitter is not travel; the slop is the clash drag's own.
+      if (Math.abs(event.clientX - cardHold.x) > 6 || Math.abs(event.clientY - cardHold.y) > 6) {
+        dropCardHold();
+      }
+    }, true);
+    window.addEventListener("pointerup", dropCardHold, true);
+    window.addEventListener("pointercancel", dropCardHold, true);
+    // A finger that leaves the window is not still pressing anything.
+    window.addEventListener("blur", dropCardHold);
   }
 
   /* Drag an Avatar at what it should fight: onto the opponent to attack, onto
@@ -1895,6 +2437,17 @@
     return true;
   }
 
+  /* THE PROMPT BAR WAS PRINTING ENGINE IDENTIFIERS AT PLAYERS. "build1/main"
+   * and "clash/blockers" are internal names; the phase ribbon two inches above
+   * already shows the human ones, so the bar was the only place on screen
+   * speaking code. Same source as the ribbon, so they can never disagree. */
+  function stepLabel(v) {
+    const slot = E.TURN_RIBBON.find(
+      (entry) => entry.phase === v.turn.phase && (entry.step === null || entry.step === v.turn.step)
+    );
+    return slot ? slot.label : v.turn.phase;
+  }
+
   function renderPrompt(v, seat) {
     const prompt = document.getElementById("prompt");
     let text;
@@ -1948,10 +2501,10 @@
        * always addressed to whoever is holding it; a networked seat that cannot
        * act must be told so, or it clicks Continue into a rejection. */
       text = v.priority.seat === null
-        ? `Waiting on the other seat — ${v.turn.phase}/${v.turn.step}.`
-        : `Waiting for ${v.seats[v.priority.seat].name} — ${v.turn.phase}/${v.turn.step}.`;
+        ? `Waiting on the other seat — ${stepLabel(v)}.`
+        : `Waiting for ${v.seats[v.priority.seat].name} — ${stepLabel(v)}.`;
     } else {
-      text = `${v.seats[seat].name} — ${v.turn.phase}/${v.turn.step}. Play from your Wallet, then Continue.`;
+      text = `${v.seats[seat].name} — ${stepLabel(v)}. Play from your Wallet, then Continue.`;
     }
     prompt.textContent = text;
     prompt.className = tone;
@@ -2197,6 +2750,25 @@
    * player asks for a table or already holds one, which is what keeps play.html
    * a working offline hotseat from file:// with no server. */
 
+  /* Stacks saved by the Stack Builder. Read ONCE through the napplet adapter,
+   * because inside a shell the library lives in the storage NAP and reading
+   * localStorage directly would show this page an empty shelf while deck.html
+   * showed the real one. Held in memory because the two readers below run
+   * synchronously inside startGame and a menu build. */
+  let stackLibrary = {};
+  function loadStackLibrary(onReady) {
+    const N = globalThis.E1Napplet;
+    const done = (value) => {
+      stackLibrary = value && typeof value === "object" ? value : {};
+      if (typeof onReady === "function") onReady();
+    };
+    if (N && N.storage) {
+      N.storage.json("600b:decks", {}).then(done, () => done({}));
+      return;
+    }
+    try { done(JSON.parse(localStorage.getItem("600b:decks"))); } catch (error) { done({}); }
+  }
+
   const NET = globalThis.E1Net;
   const remote = {
     over: null,        // the OVER message, kept so the result can be signed later
@@ -2204,6 +2776,43 @@
     invite: null,      // the invite we joined from, if any (for the accept event)
     unsubscribe: null,
     catalogOk: true,
+    /* Match ids we have already announced on nostr. A match is announced ONCE,
+     * not once per reload — the signer popup is the player's attention, and
+     * spending it twice for the same event is how a feature becomes a nuisance. */
+    announced: null,
+    endShown: null,    // the matchId whose closing screen is up
+    settling: null,    // an in-flight zap settlement, so it cannot be started twice
+  };
+
+  const ANNOUNCED_KEY = "600b:announced";
+  const STAKE_KEY = "600b:stake";
+
+  /* What we ANNOUNCED, and what we announced it FOR. The wager we sign at the
+   * start is the only number both players consented to before either knew how
+   * the match would go, so it — not whatever the referee reports at settlement
+   * time — is what a loser should be asked to pay. Records are objects; the
+   * older builds' bare-string entries are migrated rather than discarded, since
+   * dropping them would re-open the signer popup on a match already announced. */
+  const readAnnounced = () => {
+    if (remote.announced) return remote.announced;
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem(ANNOUNCED_KEY)); } catch (error) { raw = null; }
+    remote.announced = (Array.isArray(raw) ? raw : [])
+      .map((entry) => (typeof entry === "string" ? { matchId: entry, stake: null } : entry))
+      .filter((entry) => entry && typeof entry.matchId === "string")
+      .slice(-60);
+    return remote.announced;
+  };
+  const wasAnnounced = (matchId) => readAnnounced().some((entry) => entry.matchId === matchId);
+  const signedStakeFor = (matchId) => {
+    const held = readAnnounced().find((entry) => entry.matchId === matchId);
+    return held && Number.isInteger(held.stake) ? held.stake : null;
+  };
+  const markAnnounced = (matchId, stake) => {
+    const list = readAnnounced();
+    if (!wasAnnounced(matchId)) list.push({ matchId, stake: Number.isInteger(stake) ? stake : null });
+    while (list.length > 60) list.shift();
+    try { localStorage.setItem(ANNOUNCED_KEY, JSON.stringify(list)); } catch (error) { /* private mode */ }
   };
 
   const $ = (id) => document.getElementById(id);
@@ -2356,6 +2965,18 @@
     renderNetChip();
     renderNetPanel();
     renderLobbyButtons();
+    renderQueue();
+    renderResume();
+
+    // The opening bracket, once per match, the moment it is actually dealt.
+    if (msg.status === "playing") announceStart(msg);
+
+    /* A FINISHED MATCH SHOWS ITS ENDING AGAIN. Every STATE for an over match
+     * carries the signable bytes precisely so a seat that was asleep, away, or
+     * merely reloading still gets the closing screen and can still sign. */
+    if (msg.status === "over" && remote.over && remote.endShown !== msg.matchId) {
+      showEndgame(remote.over);
+    }
   }
 
   const matchLink = (msg) => {
@@ -2382,7 +3003,7 @@
         fx(event);
       }
       if (session.events.length > 240) session.events.length = 240;
-      render();
+      renderWithFx();
       renderNetChip();
     },
 
@@ -2405,16 +3026,30 @@
       remote.over = msg;
       renderNetPanel();
       renderNetChip();
+      showEndgame(msg);
     },
 
     onNostr(msg) {
       if (msg.role !== "result") return;
       remote.agreement = msg.agreement;
       renderNetPanel();
+      const note = $("endNote");
+      if (note && !$("endgame").hidden) note.textContent = agreementWords(msg.agreement);
     },
 
     onStatus() {
       renderNetChip();
+      renderQueue();
+    },
+
+    onQueued() {
+      renderQueue();
+    },
+
+    /* The referee has just told us which matches this identity is sitting at.
+     * That is the answer to "where was I?" for a browser that kept nothing. */
+    onActive() {
+      renderResume();
     },
 
     onError(msg) {
@@ -2428,6 +3063,7 @@
         NIP07_REQUIRED: "NIP-07 sign-in is required for every online table.",
         AUTH_FAILED: "The NIP-07 login proof was rejected or expired. Reconnect and sign the fresh challenge.",
         IDENTITY_MISMATCH: "This seat belongs to a different NIP-07 identity.",
+        STAKE_MISMATCH: msg.message || "That table plays for a different stake than the one you were shown.",
         NO_TABLE: "This page is not being served by a table. Open it from the referee (npm run table), or pass ?table=ws://host:8777/ws.",
       }[msg.code] || msg.message || msg.code;
       netNotice(text, "bad");
@@ -2436,6 +3072,357 @@
       renderNetChip();
     },
   };
+
+  // ---- matchmaking --------------------------------------------------------
+
+  const lobbyStake = () => {
+    const sats = Math.floor(Number($("stakeSats") && $("stakeSats").value));
+    return Number.isFinite(sats) && sats > 0 ? sats : 0;
+  };
+
+  const satsWord = (sats) => (sats > 0 ? `${sats.toLocaleString("en-US")} sats` : "a friendly");
+
+  function findMatch() {
+    if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
+    const pubkey = nostr().savedPubkey();
+    if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
+    const stake = lobbyStake();
+    try { localStorage.setItem(STAKE_KEY, String(stake)); } catch (error) { /* private mode */ }
+    netNotice(`Looking for an opponent playing for ${satsWord(stake)}…`, "");
+    NET.queue({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake });
+    renderQueue();
+  }
+
+  function cancelFind() {
+    NET.unqueue();
+    netNotice("Stopped looking.", "");
+    renderQueue();
+  }
+
+  /* The queue is the one place a player is asked to wait with nothing to do, so
+   * it says where they stand and how to stop. A line you cannot see move is
+   * indistinguishable from one that is broken. */
+  function renderQueue() {
+    const chip = $("queueChip");
+    const cancel = $("cancelFind");
+    const find = $("findMatch");
+    if (!chip || !cancel || !find) return;
+    const queued = NET.queued;
+    chip.hidden = !queued;
+    cancel.hidden = !queued;
+    find.hidden = Boolean(queued);
+    if (!queued) return;
+    chip.textContent = queued.waiting > 1
+      ? `searching · ${queued.position} of ${queued.waiting} waiting`
+      : "searching · you are first in line";
+  }
+
+  /* Every unfinished match this npub holds a seat at, offered as a way back in.
+   * The credential that used to be the only route lives in one browser; this
+   * list comes from the referee and survives anything a browser can lose. */
+  function renderResume() {
+    const card = $("resumeCard");
+    const list = $("resumeList");
+    if (!card || !list) return;
+    const active = (NET.active || []).filter((m) => !NET.session || m.matchId !== NET.session.matchId);
+    card.hidden = active.length === 0;
+    list.innerHTML = "";
+    for (const match of active) {
+      const row = el("div", "resumerow");
+      const who = el("span", "resumewho");
+      const foe = match.opponent ? `vs ${match.opponent}` : "waiting for an opponent";
+      who.append(el("b", null, `seat ${match.seat}`), document.createTextNode(` · ${foe}`));
+      if (match.status === "playing") {
+        who.append(document.createTextNode(match.opponentOnline ? " · they are here" : " · they are away"));
+      }
+      row.append(who);
+      const back = el("button", "btn", "Rejoin");
+      back.addEventListener("click", () => {
+        netNotice("Taking your seat…", "");
+        NET.rejoin(match.matchId);
+      });
+      row.append(back);
+      list.append(row);
+    }
+  }
+
+  // ---- the two signed brackets --------------------------------------------
+
+  /* A MATCH IS ANNOUNCED WHEN IT IS DEALT, not when someone remembers to press
+   * a button. Both seats sign byte-identical bytes — every field comes from the
+   * referee's STATE, including the timestamp — so the two announcements are
+   * comparable and the stake in them is provably the one both agreed to.
+   *
+   * Seat 0 files under `invite` and seat 1 under `accept`: the handshake roles
+   * already mean "the two sides said this match is happening", which is exactly
+   * what a start announcement is, so no new storage role is invented for it. */
+  async function announceStart(state) {
+    if (!state || state.status !== "playing" || session.seat === null) return;
+    if (readAnnounced().indexOf(state.matchId) >= 0) return;
+    if (!nostr().hasNip07()) return;
+    markAnnounced(state.matchId); // before the await: one popup, even if STATE repeats
+    const role = session.seat === 0 ? "invite" : "accept";
+    try {
+      const signed = await nostr().sign(nostr().startEvent(state, state.stake));
+      const res = await nostr().publish(signed);
+      NET.sendNostr(role, signed);
+      netNotice(
+        res.ok
+          ? `Match announced on nostr${state.stake ? ` — playing for ${satsWord(state.stake)}` : ""}.`
+          : "No relay took the announcement. The match is unaffected.",
+        res.ok ? "good" : ""
+      );
+    } catch (error) {
+      /* Declining the signer is allowed. Nostr is the announcement, never the
+       * gate — but the wager loses its proof, so say so rather than pretending. */
+      netNotice(
+        state.stake
+          ? "Start not signed, so this wager has no signed record. The match plays on."
+          : "Start not signed. The match plays on.",
+        ""
+      );
+    }
+  }
+
+  // ---- the closing beat ---------------------------------------------------
+
+  const REASON_WORDS = {
+    uptime: "Uptime hit zero.",
+    concede: "Conceded.",
+    decked: "A Stack ran out — the draw could not be made.",
+    draw: "Both players went down together.",
+  };
+
+  function showEndgame(over) {
+    if (!over || !over.result) return;
+    remote.endShown = over.matchId;
+    const seat = session.seat;
+    const winners = over.result.winners || [];
+    const won = seat !== null && winners.indexOf(seat) >= 0;
+    const drew = winners.length === 0;
+
+    /* A SPECTATOR IS NOT A LOSER. `won` is false for a seatless viewer because
+     * they are in nobody's winners list, and reading that as defeat told the
+     * audience they had lost a match they were only watching. */
+    const verdict = drew
+      ? "DRAW"
+      : seat === null
+        ? `${seatName(winners[0])} WON`.toUpperCase()
+        : won ? "YOU WON" : "YOU LOST";
+    $("endVerdict").textContent = verdict;
+    $("endVerdict").className =
+      "endverdict " + (drew ? "drew" : seat === null ? "" : won ? "won" : "lost");
+    $("endEyebrow").textContent = seat === null ? "Match over — you were watching" : "Match over";
+
+    const reason = over.result.reason;
+    const loser = drew ? null : 1 - winners[0];
+    $("endReason").textContent = drew
+      ? REASON_WORDS.draw
+      : `${seatName(winners[0])} beat ${seatName(loser)}. ${REASON_WORDS[reason] || reason || ""}`;
+
+    let payload = null;
+    try { payload = JSON.parse(over.resultContent || "null"); } catch (error) { payload = null; }
+    const stats = $("endStats");
+    stats.innerHTML = "";
+    const stat = (value, label) => {
+      const box = el("div", "endstat");
+      box.append(el("b", null, String(value)), el("span", null, label));
+      stats.append(box);
+    };
+    if (payload) {
+      stat(payload.turns || 0, "turns");
+      stat(payload.actions || 0, "actions");
+    }
+    const stake = (payload && payload.stake) || (NET.lastState && NET.lastState.stake) || 0;
+    if (stake) stat(stake.toLocaleString("en-US"), "sats staked");
+
+    renderEndVerify(over);
+    renderSettlement(over, { won, drew, stake, winnerSeat: drew ? null : winners[0] });
+
+    $("endPublish").hidden = !(nostr().hasNip07() && seat !== null && over.resultContent);
+    $("endRematch").hidden = seat === null;
+    $("endNote").textContent = remote.agreement ? agreementWords(remote.agreement) : "";
+    openEndgame();
+  }
+
+  /* showModal() where it exists — it is what traps focus, wires Escape and
+   * restores focus on close. The stub DOM in the tests has neither, and neither
+   * would a very old browser, so both fall back to simply showing it. */
+  function openEndgame() {
+    const box = $("endgame");
+    if (!box) return;
+    if (typeof box.showModal === "function" && !box.open) {
+      try { box.showModal(); } catch (error) { box.hidden = false; }
+    } else {
+      box.hidden = false;
+    }
+    const first = $("endPublish") && !$("endPublish").hidden ? $("endPublish") : $("endClose");
+    if (first && typeof first.focus === "function") first.focus();
+  }
+
+  const agreementWords = (agreement) => ({
+    none: "Neither seat has published the result yet.",
+    pending: "You are the only seat that has published so far.",
+    confirmed: "Both seats published the same result — it counts on the ladder.",
+    disputed: "The two seats published different results. The ladder counts neither.",
+  }[agreement] || "");
+
+  /* VERIFIED TWICE, AND THE SECOND ONE IS THE POINT. The referee says its own
+   * database replays clean; this browser then replays the transcript the referee
+   * handed over and checks that for itself. Taking verify.ok on trust would be
+   * asking the scorekeeper whether the score is right. */
+  function renderEndVerify(over) {
+    const box = $("endVerify");
+    const referee = over.verify && over.verify.ok;
+    let mine = null;
+    if (over.config && Array.isArray(over.transcript)) {
+      try {
+        /* ENTRIES, NOT ACTIONS. verifyMatch walks `entry.action` and also checks
+         * `entry.stateHash` and `entry.prev` to prove the chain — handing it a
+         * bare action list makes every entry "malformed" at index 0, so this
+         * screen told every player their own match had failed verification. */
+        mine = E.verifyMatch({ config: over.config, log: over.transcript });
+      } catch (error) {
+        mine = { ok: false, error: String(error && error.message) };
+      }
+    }
+    const ok = referee && mine && mine.ok;
+    box.className = "endverify" + (ok ? "" : " bad");
+    box.innerHTML = "";
+    box.append(el("div", null, referee
+      ? "The referee replayed the match from its own database: it checks out."
+      : "The referee could not replay this match cleanly."));
+    if (mine) {
+      box.append(el("div", null, mine.ok
+        ? "This browser replayed the referee's transcript independently: it agrees."
+        : `This browser's own replay disagreed at entry ${mine.divergedAt}. Do not trust this result.`));
+    }
+    if (over.publicHash) {
+      box.append(el("div", null, `publicHash ${String(over.publicHash).slice(0, 24)}…`));
+    }
+  }
+
+  // ---- settlement ---------------------------------------------------------
+
+  /* THE APP NEVER HOLDS, ESCROWS OR MOVES A SATOSHI. If you lost a wager it
+   * resolves the winner's own lightning address into an invoice and shows it to
+   * you; paying is something you do in your own wallet, with your wallet asking
+   * you to confirm. A refused zap cannot alter a signed result, which is why
+   * this can be honest about being unenforceable. */
+  function renderSettlement(over, ctx) {
+    const box = $("endStake");
+    box.hidden = true;
+    box.innerHTML = "";
+    if (!ctx.stake || ctx.drew || session.seat === null) return;
+    box.hidden = false;
+
+    if (ctx.won) {
+      box.append(el("h4", null, `You won ${satsWord(ctx.stake)}`));
+      box.append(el("div", null,
+        "Nothing was held in escrow, so nothing pays out automatically — your opponent is shown "
+        + "an invoice made from the lightning address on your nostr profile. If your profile has "
+        + "no lightning address, they have nothing to pay."));
+      return;
+    }
+
+    box.append(el("h4", null, `You owe ${satsWord(ctx.stake)}`));
+    box.append(el("div", null,
+      `You and ${seatName(ctx.winnerSeat)} both signed this wager before the first card. `
+      + "The result is already signed and settled on the ladder either way — this is you keeping your word."));
+    const pay = el("button", "btn", `Pay ${satsWord(ctx.stake)}`);
+    const row = el("div", "endrow");
+    row.style.justifyContent = "flex-start";
+    row.append(pay);
+    box.append(row);
+    const status = el("div", "endnote");
+    box.append(status);
+
+    pay.addEventListener("click", async () => {
+      if (remote.settling) return;
+      remote.settling = true;
+      pay.disabled = true;
+      status.textContent = "Looking up their lightning address…";
+      try {
+        const state = NET.lastState;
+        const winner = (state.players || []).find((p) => p.seat === ctx.winnerSeat);
+        if (!winner || !winner.pubkey) throw new Error("that seat has no nostr identity");
+        const meta = await nostr().profile(winner.pubkey);
+        if (!meta || !meta.lud16) {
+          throw new Error("their nostr profile has no lightning address, so there is nowhere to send it");
+        }
+        status.textContent = `Asking ${meta.lud16} for an invoice…`;
+        const bill = await nostr().zapInvoice({
+          sats: ctx.stake,
+          lud16: meta.lud16,
+          to: winner.pubkey,
+          matchId: over.matchId,
+          comment: `600B Timelock TCG — ${over.matchId}`,
+        });
+        showInvoice(box, status, bill);
+      } catch (error) {
+        status.textContent = String((error && error.message) || error);
+        pay.disabled = false;
+      } finally {
+        remote.settling = false;
+      }
+    });
+  }
+
+  function showInvoice(box, status, bill) {
+    status.textContent = "Pay this from your own wallet. Nothing here can move your money for you.";
+    const invoice = el("code", "invoice", bill.invoice);
+    box.append(invoice);
+
+    /* A phone with a wallet installed takes the lightning: URI directly; a
+     * desktop needs the code on screen for the phone in someone's hand. */
+    const row = el("div", "endrow");
+    row.style.justifyContent = "flex-start";
+    const open = el("a", "btn", "Open in a wallet");
+    open.href = `lightning:${bill.invoice}`;
+    row.append(open);
+
+    if (nostr().hasWebln()) {
+      const webln = el("button", "btn ghost", "Pay with WebLN");
+      webln.addEventListener("click", async () => {
+        webln.disabled = true;
+        status.textContent = "Your wallet is asking you to confirm…";
+        try {
+          await nostr().payWithWebln(bill.invoice);
+          status.textContent = "Paid. Thank you for keeping your word.";
+        } catch (error) {
+          status.textContent = String((error && error.message) || error);
+          webln.disabled = false;
+        }
+      });
+      row.append(webln);
+    }
+
+    const copy = el("button", "btn ghost", "Copy invoice");
+    copy.addEventListener("click", () => {
+      navigator.clipboard.writeText(bill.invoice).then(
+        () => { status.textContent = "Invoice copied."; },
+        () => { status.textContent = "Copy it from the box above."; }
+      );
+    });
+    row.append(copy);
+    box.append(row);
+
+    const QR = globalThis.E1QR;
+    if (QR && typeof QR.svg === "function") {
+      try {
+        const holder = el("div", "qr");
+        holder.innerHTML = QR.svg(bill.invoice.toUpperCase(), { ec: "M" });
+        box.append(holder);
+      } catch (error) { /* an unscannable code is worse than none */ }
+    }
+  }
+
+  function closeEndgame() {
+    const box = $("endgame");
+    if (!box) return;
+    if (typeof box.close === "function" && box.open) box.close();
+    else box.hidden = true;
+  }
 
   // ---- lobby actions ------------------------------------------------------
 
@@ -2446,11 +3433,16 @@
     if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
     const pubkey = nostr().savedPubkey();
     if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
-    netNotice("Opening a table…", "");
-    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey });
+    const stake = lobbyStake();
+    netNotice(`Opening a table for ${satsWord(stake)}…`, "");
+    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake });
   }
 
-  function joinTable(code, invite) {
+  /* `stake` is what this player was SHOWN, echoed back as an acknowledgement.
+   * The referee refuses the join if the table's number has moved since, so a
+   * shared link can never seat someone in a wager they never saw. Joining by a
+   * typed code alone sends nothing, which means "whatever the table says". */
+  function joinTable(code, invite, stake) {
     if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
     const pubkey = nostr().savedPubkey();
     if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
@@ -2463,6 +3455,7 @@
       name: lobbyName(),
       affinity: lobbyAffinity(),
       pubkey,
+      stake: stake === undefined ? undefined : stake,
       table: invite ? invite.table : undefined,
     });
   }
@@ -2475,9 +3468,15 @@
       if (!rows.length) return void list.append(el("div", "netline", "No open tables."));
       for (const row of rows) {
         const item = el("div", "netrow");
-        item.append(el("span", null, `${row.code} · ${row.name} · ${row.affinity}`));
-        const button = el("button", "btn ghost", "Join");
-        button.addEventListener("click", () => joinTable(row.code));
+        /* The wager and whether anyone is still sitting there are the two facts
+         * that decide whether this row is worth clicking. A bare code told you
+         * neither, so joining was a coin flip on both. */
+        const bits = [row.code, row.name, row.affinity];
+        if (row.stake) bits.push(`${row.stake.toLocaleString("en-US")} sats`);
+        if (row.hostOnline === false) bits.push("host away");
+        item.append(el("span", null, bits.join(" · ")));
+        const button = el("button", "btn ghost", row.stake ? `Join for ${row.stake} sats` : "Join");
+        button.addEventListener("click", () => joinTable(row.code, null, row.stake || 0));
         item.append(button);
         list.append(item);
       }
@@ -2519,8 +3518,10 @@
         ? `Published to ${res.accepted.length}/${res.tried} relays.`
         : `No relay accepted the ${role}. The match is unaffected — nostr is the announcement, never the gate.`,
         res.ok ? "good" : "");
+      return true;
     } catch (error) {
       netNotice(`Signing was declined — ${role} not published. The match is unaffected.`, "");
+      return false;
     }
   }
 
@@ -2559,10 +3560,10 @@
   }
 
   function publishResult() {
-    if (!remote.over) return;
+    if (!remote.over) return Promise.resolve(false);
     // Both players sign the referee's exact bytes, so agreement is a string
     // compare rather than two browsers hoping to re-serialise identically.
-    signAndSend("result", nostr().resultEvent(remote.over));
+    return signAndSend("result", nostr().resultEvent(remote.over));
   }
 
   // ---- identity -----------------------------------------------------------
@@ -2591,6 +3592,7 @@
     $("joinTable").disabled = !url || !identified || hosting;
     $("refreshTables").disabled = !url || !identified;
     $("checkInvites").disabled = !url || !identified;
+    $("findMatch").disabled = !url || !identified || hosting;
   }
 
   async function login() {
@@ -2616,8 +3618,42 @@
     // re-rolls, but a rehearsed demo should not lean on it.
     select.value = "Power";
 
+    /* The wager a player last chose is remembered, because retyping it before
+     * every match is how a feature stops being used. */
+    try {
+      const saved = Number(localStorage.getItem(STAKE_KEY));
+      if (Number.isFinite(saved) && saved > 0) $("stakeSats").value = String(Math.floor(saved));
+    } catch (error) { /* private mode */ }
+
     $("nostrLogin").addEventListener("click", login);
     $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); });
+    $("findMatch").addEventListener("click", findMatch);
+    $("cancelFind").addEventListener("click", cancelFind);
+    $("endClose").addEventListener("click", closeEndgame);
+    /* Disabled only while the signer is open, and re-enabled if it was refused:
+     * declining a popup by accident must not permanently cost a player their
+     * place on the ladder. */
+    $("endPublish").addEventListener("click", async () => {
+      $("endPublish").disabled = true;
+      const sent = await publishResult();
+      $("endPublish").disabled = Boolean(sent);
+    });
+    $("endRematch").addEventListener("click", () => {
+      closeEndgame();
+      NET.leave();
+      session.seat = null;
+      session.role = "hotseat";
+      session.full = null;
+      remote.over = null;
+      remote.agreement = null;
+      remote.endShown = null;
+      $("table").hidden = true;
+      $("setup").hidden = false;
+      $("hostPanel").hidden = true;
+      renderNetChip();
+      renderIdentity();
+      findMatch();
+    });
     $("createTable").addEventListener("click", createTable);
     $("joinTable").addEventListener("click", () => joinTable());
     $("refreshTables").addEventListener("click", refreshTables);
@@ -2680,13 +3716,7 @@
     // A "custom:<name>" choice is a Stack saved by the Stack Builder: the
     // explicit decklist goes to the engine, which validates it (min 40, no
     // Stake cards) before a single object is minted.
-    const stacks = (() => {
-      try {
-        return JSON.parse(localStorage.getItem("600b:decks")) || {};
-      } catch (error) {
-        return {};
-      }
-    })();
+    const stacks = stackLibrary;
     const choose = (value) => {
       const precons = globalThis.E1_PRECONS || {};
       if (value && value.startsWith("precon:") && precons[value.slice(7)]) {
@@ -2744,6 +3774,11 @@
     meshGroupActive = false;
     blocks = {};
     picking = null;
+    fxCues = [];
+    fxPrims = [];
+    fxBefore = [];
+    fxLive = new Map();
+    fxPicking = false;
     document.getElementById("setup").hidden = true;
     document.getElementById("table").hidden = false;
     if (globalThis.E1FX) globalThis.E1FX.emit("game:start", {});
@@ -2751,28 +3786,20 @@
     scheduleNpc();
   }
 
-  function init() {
-    /* Mount the audio control into the table's control row. Mounting is lazy
-     * about the AudioContext: nothing is created until a real user gesture, so
-     * this never trips the browser's autoplay policy. */
-    if (globalThis.E1FX) {
-      try {
-        globalThis.E1FX.init({ control: true, parent: document.getElementById("fxControl") });
-      } catch (error) {
-        void error; // sound is never load-bearing
-      }
+  /* The seat menus: affinity presets, the precon library, then whatever the
+   * player has saved. Separated out so it can be called again once the
+   * asynchronous Stack library arrives. */
+  function buildSeatMenus() {
+    for (const id of ["deckA", "deckB"]) {
+      const select = document.getElementById(id);
+      if (!select) return;
+      select.innerHTML = "";
     }
     const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock"];
     // Stacks saved by the Stack Builder (site/deck.html) join the affinity
     // presets. Custom Stacks are a local-table feature: the referee mints
     // networked games from affinities, so remote play keeps the presets only.
-    const savedStacks = (() => {
-      try {
-        return JSON.parse(localStorage.getItem("600b:decks")) || {};
-      } catch (error) {
-        return {};
-      }
-    })();
+    const savedStacks = stackLibrary;
     const precons = globalThis.E1_PRECONS || {};
     for (const id of ["deckA", "deckB"]) {
       const select = document.getElementById(id);
@@ -2807,8 +3834,35 @@
       }
       select.value = id === "deckA" ? "Power" : "Signal";
     }
-    document.getElementById("start").addEventListener("click", startGame);
-    document.getElementById("continue").addEventListener("click", advance);
+  }
+
+  function init() {
+    /* Mount the audio control into the table's control row. Mounting is lazy
+     * about the AudioContext: nothing is created until a real user gesture, so
+     * this never trips the browser's autoplay policy. */
+    if (globalThis.E1FX) {
+      try {
+        globalThis.E1FX.init({
+          control: true,
+          parent: document.getElementById("fxControl"),
+          /* WHICH PANEL A SEAT IS ON. Left to itself the effects layer answers
+           * "whose turn is it", which is only right for a table that reseats
+           * itself every turn. This one is laid out against uiSeat() — in solo
+           * play the human is at the bottom for the whole game — so without
+           * this every seat-anchored cue lands on the wrong half of the board
+           * for the entire NPC turn. */
+          sideOf: (seat) => (session.full && uiSeat(session.full) === seat ? "you" : "foe"),
+        });
+      } catch (error) {
+        void error; // sound is never load-bearing
+      }
+    }
+    /* Built as soon as the saved-Stack library answers, and rebuilt if it
+     * answers late: inside a shell the storage NAP is asynchronous, so a menu
+     * assembled at boot would list the presets and silently omit every Stack
+     * the player had built. */
+    loadStackLibrary(buildSeatMenus);
+    document.getElementById("start").addEventListener("click", startGame);    document.getElementById("continue").addEventListener("click", advance);
 
     document.getElementById("coachNext").addEventListener("click", () => {
       coachIndex += 1;
@@ -2876,6 +3930,7 @@
     document.getElementById("quickClash").addEventListener("click", quickClashAction);
     document.getElementById("meshGroup").addEventListener("click", toggleMeshGroup);
     installClashDrag();
+    installCardHold();
 
     // Fewer clicks: the waiting Queue is itself the Continue button, and the
     // space bar is Continue for hands that never leave the keyboard.
@@ -2965,5 +4020,8 @@
     preview: () => (session.full ? previewClash(viewNow()) : null),
     startGame,
     dispatch,
+    /* The closing screen, drivable without playing a match out. Exposed for the
+     * same reason `preview` is: the alternative to checking it is hoping. */
+    showEndgame,
   };
 })();

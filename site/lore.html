@@ -5,27 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#09080b">
 <meta name="description" content="The world of 600B Timelock TCG — positive cypherpunk lore: the five tools, the runners, and the night the grid sang.">
+<meta property="og:title" content="600B Timelock TCG — Lore">
+<meta property="og:description" content="Not a dystopia with a Bitcoin sticker. The morning after the night shift where everything finally synced.">
+<meta property="og:type" content="article">
 <title>600B Timelock TCG — Lore</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
+<script src="napplet.js"></script>
+<script>
+/* Painted before the first frame, so a shell-themed napplet never shows the
+   600B fallback palette and then jumps to the shell's. No shell present is not
+   a failure: theme.start() falls back to the palette 600b.css already ships. */
+if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
+</script>
 <style>
-@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
-:root {
-  --orange: #f7931a; --ember: #ff6a00; --gold: #f3c244;
-  --purple: #b991e4; --purple-deep: #7447b8; --violet: #17bebb;
-  --black: #09080b; --soot: #111014; --panel: #19151f;
-  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
-}
-* { box-sizing: border-box; margin: 0; }
-html { color-scheme: dark; scroll-behavior: smooth; }
-body { background: var(--black); color: var(--cream); font: 16px/1.6 Georgia, "Times New Roman", serif; }
-a { color: var(--orange); }
+/* Page-local only. Palette, type scale, nav, footer, .framed / .banner /
+   .disc / .terminal-line come from 600b.css — nothing new is invented here. */
 
-/* The nav lives in 600b.css — the shared bar, mark and links. */
-
+/* min-height is a floor, not a fixed viewport assumption: 52vh alone would
+   claim half of somebody else's window for a napplet panel that may be a
+   third of it, so it is bounded at both ends. */
 .hero {
-  position: relative; overflow: hidden; min-height: 52vh; display: grid; align-content: center;
-  padding: clamp(48px, 8vw, 110px) clamp(16px, 4vw, 56px);
+  position: relative; overflow: hidden; min-height: clamp(280px, 52vh, 560px);
+  display: grid; align-content: center;
+  padding: clamp(48px, 8vw, 110px) var(--pad);
 }
 .hero::before {
   content: ""; position: absolute; inset: 0;
@@ -37,63 +40,128 @@ a { color: var(--orange); }
   background: linear-gradient(180deg, rgba(9,8,11,.85), rgba(9,8,11,.45) 45%, var(--black) 96%);
 }
 .hero > * { position: relative; z-index: 1; }
-.eyebrow { color: var(--gold); font: 700 13px/1 Arial; letter-spacing: .24em; text-transform: uppercase; }
-h1 {
-  max-width: 900px; margin: 12px 0 16px;
-  font: clamp(44px, 7.5vw, 96px)/.92 Anton600, Impact, sans-serif; letter-spacing: -.01em; text-transform: uppercase;
-}
-h1 span { color: var(--ember); }
+.hero h1 { max-width: 900px; margin: 12px 0 16px; }
 .hero .sub { max-width: 640px; color: var(--cream); font-size: clamp(17px, 2vw, 19px); }
 
-main { max-width: 860px; margin: 0 auto; padding: clamp(40px, 6vw, 80px) clamp(16px, 4vw, 56px); }
-h2 {
-  margin: 56px 0 18px;
-  font: clamp(26px, 4vw, 42px)/1 Anton600, Impact, sans-serif; text-transform: uppercase; letter-spacing: .01em;
-}
+main { max-width: 900px; margin: 0 auto; padding: clamp(40px, 6vw, 80px) var(--pad); }
+h2 { margin: 60px 0 18px; }
 h2:first-child { margin-top: 0; }
 h2 span { color: var(--ember); }
-p { margin: 0 0 18px; color: var(--cream); }
+main p { margin: 0 0 18px; max-width: var(--measure); }
 p.dim { color: var(--muted); }
 em { color: var(--gold); font-style: italic; }
+
 .pull {
-  margin: 30px 0; padding: 18px 22px; border-left: 3px solid var(--orange);
+  margin: 32px 0; padding: 18px 22px; border-left: 3px solid var(--ember);
   background: var(--soot); color: var(--cream);
-  font: italic 400 clamp(18px, 2.4vw, 22px)/1.5 Georgia, serif;
+  font: italic 400 clamp(18px, 2.4vw, 22px)/1.5 Georgia, "Times New Roman", serif;
+  max-width: var(--measure);
 }
-.pull small { display: block; margin-top: 8px; color: var(--muted); font: 700 11px/1 Arial; letter-spacing: .18em; text-transform: uppercase; font-style: normal; }
+.pull small { display: block; margin-top: 8px; color: var(--muted); font: 900 11px/1 var(--body); letter-spacing: .18em; text-transform: uppercase; font-style: normal; }
 
-.tools { display: grid; gap: 14px; margin: 26px 0 8px; }
+.tools { display: grid; gap: 12px; margin: 26px 0 8px; }
 .tool { display: flex; gap: 16px; align-items: flex-start; padding: 16px 18px; background: var(--soot); border: 1px solid var(--line); }
-.tool .disc {
-  flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
-  background: color-mix(in srgb, var(--aff) 22%, #111014); border: 2px solid var(--aff);
+.tool .disc { flex: none; width: 52px; height: 52px; }
+.tool .disc img { width: 28px; height: 28px; }
+.tool b { display: block; font: 17px/1.2 var(--display); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 4px; }
+.tool p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.55; max-width: none; }
+
+/* ------------------------------------------------------------- the runners */
+/* "Die gerade Linie ist gottlos." Six real Edition One cards, bent into the
+   same arc the table gives your Network. Static transforms only — there is
+   nothing animated here for prefers-reduced-motion to disable.
+
+   The overlap is a fraction of the card width rather than a flat 14px, so the
+   whole arc scales as ONE object: six cards pulled in by .06 of their own
+   width on each side occupy 5.3 × --fw, and the 15° tilt on the outer two
+   adds .33 × --fw of bleed — 5.6 × --fw all told, which is the number the
+   ladder further down is measured against at every step. A fixed 14px inset
+   only holds at the width it was measured at, and a panel is not that. */
+
+.arc { --fw: 118px; display: flex; justify-content: center; align-items: flex-end; margin: 30px auto 8px; padding-top: 30px; }
+.arc a { flex: 0 0 auto; display: block; transform-origin: 50% 150%; text-decoration: none; margin-inline: calc(var(--fw) * -0.06); }
+.arc img {
+  display: block; width: var(--fw); aspect-ratio: 5/7; object-fit: cover;
+  border: 1px solid var(--line-strong); box-shadow: 0 14px 34px rgba(0,0,0,.62);
 }
-.tool .disc img { width: 30px; height: 30px; }
-.tool b { display: block; font: 400 17px/1.2 Anton600, Impact, sans-serif; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 4px; }
-.tool p { margin: 0; color: var(--muted); font-size: 14.5px; font-family: Arial, sans-serif; line-height: 1.55; }
+.arc a:nth-child(1) { transform: rotate(-15deg) translateY(22px); }
+.arc a:nth-child(2) { transform: rotate(-9deg) translateY(9px); }
+.arc a:nth-child(3) { transform: rotate(-3deg); z-index: 2; }
+.arc a:nth-child(4) { transform: rotate(3deg); z-index: 2; }
+.arc a:nth-child(5) { transform: rotate(9deg) translateY(9px); }
+.arc a:nth-child(6) { transform: rotate(15deg) translateY(22px); }
+.arc-caption { text-align: center; color: var(--ink-dim); font-size: 11px; letter-spacing: .13em; text-transform: uppercase; }
 
-.runners { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 26px 0 8px; }
+/* min() on every auto-fit track: without it the named minimum is a floor the
+   grid will overflow its box to honour, which is exactly the "no horizontal
+   overflow at any size" clause failing in a narrow napplet panel. */
+.runners { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(238px, 100%), 1fr)); gap: 12px; margin: 24px 0 8px; }
 .runner { padding: 16px 18px; background: var(--soot); border: 1px solid var(--line); border-top: 3px solid var(--purple-deep); }
-.runner b { display: block; font: 400 16px/1.2 Anton600, Impact, sans-serif; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; color: var(--cream); }
-.runner p { margin: 0; color: var(--muted); font-size: 14px; font-family: Arial, sans-serif; line-height: 1.55; }
+.runner b { display: block; font: 16px/1.2 var(--display); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; color: var(--cream); }
+.runner .aff { display: inline-block; margin-bottom: 8px; padding: 3px 8px 4px; background: var(--steel); color: #cfd6dd; font: 9.5px/1.3 var(--display); letter-spacing: .2em; text-transform: uppercase; }
+.runner p { margin: 0; max-width: none; color: var(--muted); font-size: 14px; line-height: 1.55; }
 
-.story { margin-top: 10px; }
 .story p:first-of-type::first-letter {
   float: left; padding: 6px 10px 0 0;
-  font: 400 64px/0.8 Anton600, Impact, sans-serif; color: var(--ember);
+  font: 64px/0.8 var(--display); color: var(--ember);
 }
 
-.cta { display: flex; gap: 12px; flex-wrap: wrap; margin: 44px 0 8px; }
-.cta a {
-  text-decoration: none; padding: 14px 24px; font: 15px/1 Anton600, Impact, sans-serif;
-  letter-spacing: .08em; text-transform: uppercase;
-}
-.cta .primary { background: var(--ember); color: var(--black); }
-.cta .ghost { color: var(--cream); border: 1px solid var(--purple-deep); }
-.cta a:hover { filter: brightness(1.12); }
+.onward { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 14px; margin: 26px 0 0; }
 
-footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 30px clamp(16px,4vw,56px); display: flex; gap: 18px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 13px; font-family: Arial, sans-serif; }
-footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; color: var(--orange); letter-spacing: .08em; }
+/* --------------------------------------------------- the layout contract */
+/* docs/napplet-spec.md: no fixed viewport assumptions, no horizontal overflow
+   at any size, collapsed presentation below ~360px. A napplet is a panel
+   inside somebody else's window, so the breakpoints below read THIS page's
+   box, not the device — on the plain website the two are the same number,
+   which is why one set of rules serves both. */
+body { container-type: inline-size; container-name: page; }
+
+/* Two nbsp-joined halves that cannot break inside themselves. Given one line
+   they push the page sideways; given two they simply stack. */
+.terminal-line { flex-wrap: wrap; }
+
+/* Always true wherever container queries exist, which is the point: --pad is
+   4vw in 600b.css and that reads the WINDOW. A 320px panel on a 27" monitor
+   gets 56px of gutter on each side and 208px to live in. Same formula, same
+   numbers on the open website, measured against the panel. */
+@container page (min-width: 0px) {
+  .nav, .hero, main, .site-footer { --pad: clamp(16px, 4cqi, 56px); }
+  .hero { padding-block: clamp(40px, 8cqi, 110px); }
+  .hero .sub { font-size: clamp(17px, 2cqi, 19px); }
+}
+
+@container page (max-width: 900px) {
+  /* 600b.css sizes headings against the viewport too; in a narrow panel on a
+     wide screen that is a 92px word in a 300px box. Same scale, measured
+     against what the words actually have to fit into. */
+  h1 { font-size: clamp(36px, 10cqi, 70px); }
+  h2 { font-size: clamp(24px, 6cqi, 44px); }
+  .arc { --fw: 96px; }
+}
+@container page (max-width: 720px) {
+  .nav__brand small { display: none; }
+  .nav a.link { padding: 8px 9px; font-size: 12px; }
+  .site-footer .tag { margin-left: 0; }
+  .arc { --fw: 78px; }
+}
+@container page (max-width: 560px) { .arc { --fw: 66px; } }
+@container page (max-width: 480px) {
+  .arc { --fw: 54px; }
+  .tool { gap: 12px; padding: 13px 14px; }
+}
+@container page (max-width: 359px) {
+  /* Tiny, per the spec's collapsed presentation. The arc is the only thing
+     that goes, and it costs nothing: all six runners are named, badged with
+     their affinity and described in the cards directly beneath it, and the
+     gallery is in the nav. Dropping it is the only way to promise no
+     horizontal overflow at ANY width. */
+  .arc, .arc-caption { display: none; }
+  .tool { flex-direction: column; gap: 10px; }
+  .nav a.link { padding: 6px 7px; font-size: 11px; letter-spacing: .04em; }
+  .btn { padding: 11px 14px; font-size: 13px; }
+  .hero { min-height: 0; }
+  h2 { margin-top: 40px; }
+}
 </style>
 </head>
 <body>
@@ -115,9 +183,13 @@ footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; colo
 
 <header class="hero">
   <p class="eyebrow">Lore · Edition One</p>
-  <h1>The future<br><span>already works.</span></h1>
+  <h1>The future<br><span class="accent">already works.</span></h1>
   <p class="sub">600 Billion is not a dystopia with a Bitcoin sticker. It is the morning after the
   night shift where everything finally synced — and the people who built it are still on the roof.</p>
+  <div class="btn-row" style="margin-top:26px">
+    <a class="btn" href="play.html">Play the game</a>
+    <a class="btn btn--ghost" href="cards.html">Meet the cast</a>
+  </div>
 </header>
 
 <main id="main">
@@ -126,48 +198,62 @@ footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; colo
   joke, then a toast, then a promise: the number of heartbeats a network earns if enough people keep
   it alive, one block at a time. The old world measured everything in quarters. The builders started
   measuring in <em>uptime</em>.</p>
-  <p class="dim">Uptime is the only score that matters in 600B. You do not destroy your rivals — you
-  take their nodes offline, kindly, and you keep yours humming. When the dust settles, whoever kept
-  the network alive gets the zap.</p>
+  <p class="dim">Uptime is the only score that matters in 600B — and it is the only score in the game,
+  too. You do not destroy your rivals; you take their nodes offline, kindly, and keep yours humming.
+  Both players start at 20. First to nothing is first to dark.</p>
 
   <h2>The five <span>tools</span></h2>
   <p>The world runs on five things you can hold in your hand or feel on your skin. Every card in
-  Edition One spends them, routes them, or protects them.</p>
+  Edition One spends them, routes them, or protects them — and the five affinities on the cards are
+  exactly these five.</p>
   <div class="tools">
-    <div class="tool" style="--aff:#f3c244"><span class="disc"><img src="../art/resources/power.svg" alt=""></span>
+    <div class="tool"><span class="disc aff-power"><img src="../art/resources/power.svg" alt=""></span>
       <div><b>Power</b><p>Work made honest. Microgrids on rooftops, heat that warms the greenhouse
       after it secures the chain. Nothing in 600B is wasted twice.</p></div></div>
-    <div class="tool" style="--aff:#f7931a"><span class="disc"><img src="../art/resources/bitcoin.svg" alt=""></span>
+    <div class="tool"><span class="disc aff-bitcoin"><img src="../art/resources/bitcoin.svg" alt=""></span>
       <div><b>Bitcoin</b><p>Native money and durable settlement. Grown patiently in Satoshi Orchards,
       spent bravely at festival markets, never asked for permission.</p></div></div>
-    <div class="tool" style="--aff:#fff7ec"><span class="disc"><img src="../art/resources/keys.svg" alt=""></span>
+    <div class="tool"><span class="disc aff-keys"><img src="../art/resources/keys.svg" alt=""></span>
       <div><b>Keys</b><p>Ownership you can feel click. A key is a promise you make to yourself —
       and the only signature the network has ever trusted.</p></div></div>
-    <div class="tool" style="--aff:#7447b8"><span class="disc"><img src="../art/resources/signal.svg" alt=""></span>
+    <div class="tool"><span class="disc aff-signal"><img src="../art/resources/signal.svg" alt=""></span>
       <div><b>Signal</b><p>People, reaching each other. Antennas at sunrise, relays with names,
       identity that lives in your pocket instead of somebody's terms of service.</p></div></div>
-    <div class="tool" style="--aff:#17bebb"><span class="disc"><img src="../art/resources/timelock.svg" alt=""></span>
+    <div class="tool"><span class="disc aff-timelock"><img src="../art/resources/timelock.svg" alt=""></span>
       <div><b>Timelock</b><p>Patience, weaponized into certainty. The block clock does not argue,
       does not hurry, and has never once been wrong about the future.</p></div></div>
   </div>
+  <p style="margin-top:20px"><a href="rules.html#4-the-five-resources">Rulebook §4 — what each Resource
+  does at the table</a></p>
 
   <div class="pull">"YOLO, but verify."<small>— written above the door of every workshop worth entering</small></div>
 
   <h2>The <span>runners</span></h2>
   <p>Node runners are not soldiers and not CEOs. They are the friends who show up with tests,
-  snacks and exactly one spare antenna. A few of them you will meet on the cards:</p>
+  snacks and exactly one spare antenna. Every one of them is a card you can draw:</p>
+
+  <div class="arc">
+    <a href="cards.html" title="FLX, Culture Curator"><img data-face="FLX, Culture Curator.webp" alt="FLX, Culture Curator" loading="lazy"></a>
+    <a href="cards.html" title="Arbadacarba, Protocol Gardener"><img data-face="Arbadacarba, Protocol Gardener.webp" alt="Arbadacarba, Protocol Gardener" loading="lazy"></a>
+    <a href="cards.html" title="DNI, Sovereign Knight"><img data-face="DNI, Sovereign Knight.webp" alt="DNI, Sovereign Knight" loading="lazy"></a>
+    <a href="cards.html" title="Bam, Launch Engineer"><img data-face="Bam, Launch Engineer.webp" alt="Bam, Launch Engineer" loading="lazy"></a>
+    <a href="cards.html" title="AJ, First Responder"><img data-face="AJ, First Responder.webp" alt="AJ, First Responder" loading="lazy"></a>
+    <a href="cards.html" title="Nind, Backchannel Walker"><img data-face="Nind, Backchannel Walker.webp" alt="Nind, Backchannel Walker" loading="lazy"></a>
+  </div>
+  <p class="arc-caption">Six of the cast · tap any face for the full gallery</p>
+
   <div class="runners">
-    <div class="runner"><b>FLX, Culture Curator</b><p>Runs the set, stacks the chairs, and is somehow
+    <div class="runner"><span class="aff">Signal</span><b>FLX, Culture Curator</b><p>Runs the set, stacks the chairs, and is somehow
     already on the roof rewiring the lights. Where FLX broadcasts, people show up.</p></div>
-    <div class="runner"><b>Arbadacarba, Protocol Gardener</b><p>Plants infrastructure the way others
+    <div class="runner"><span class="aff">Bitcoin</span><b>Arbadacarba, Protocol Gardener</b><p>Plants infrastructure the way others
     plant trees: for the people who come after, and for the shade at noon.</p></div>
-    <div class="runner"><b>DNI, Sovereign Knight</b><p>Carries no sword — carries keys. Holds the
+    <div class="runner"><span class="aff">Keys</span><b>DNI, Sovereign Knight</b><p>Carries no sword — carries keys. Holds the
     line the modern way: by never holding anyone else's coins.</p></div>
-    <div class="runner"><b>Bam, Launch Engineer</b><p>Heavy lifting, light heart. If it can be
+    <div class="runner"><span class="aff">Power</span><b>Bam, Launch Engineer</b><p>Heavy lifting, light heart. If it can be
     shipped, Bam ships it; if it cannot, Bam builds the tunnel it ships through.</p></div>
-    <div class="runner"><b>AJ, First Responder</b><p>The uptime anchor. When a node goes dark
+    <div class="runner"><span class="aff">Signal</span><b>AJ, First Responder</b><p>The uptime anchor. When a node goes dark
     anywhere in the mesh, AJ is already rebooting it before the alert finishes sounding.</p></div>
-    <div class="runner"><b>Nind, Backchannel Walker</b><p>Knows every quiet route through the
+    <div class="runner"><span class="aff">Keys</span><b>Nind, Backchannel Walker</b><p>Knows every quiet route through the
     network. Messages handed to Nind arrive — that is the whole biography.</p></div>
   </div>
 
@@ -184,28 +270,85 @@ footer .tag { margin-left: auto; font: 14px/1 Anton600, Impact, sans-serif; colo
     the block clock kept its teal, unbothered time — nine hundred seconds to the next block,
     then six hundred, then the quiet click of a timelock opening exactly when it promised to.</p>
     <p>By sunrise the old grid was still down and nothing important had stopped. Orchards traded
-    fruit for sats. The balloons of the FIPS network drifted overhead, relaying for anyone below.
-    A snail crossed the commons, slowly, carrying the same message as everyone else: <em>no
-    permission, just builders.</em></p>
+    fruit for sats. The balloons of the Global FIPS Balloon Network drifted overhead, relaying for
+    anyone below. A snail crossed the commons, slowly, carrying the same message as everyone else:
+    <em>no permission, just builders.</em></p>
     <p>That night is why the game is played the way it is. You do not raze the other side's city —
     everyone lives in it. You take a node offline, kindly, to prove you can; they reroute, to prove
     you cannot. The network gets stronger either way. The next block is ours to build.</p>
   </div>
 
+  <h2>The world is <span>load-bearing</span></h2>
+  <p>None of this is decoration. Every card carries a <b>Protocol Note</b>: one accurate, sourced
+  claim about Bitcoin, Nostr or open systems, tied to what the card actually does at the table. The
+  mechanic creates the memory; the note gives that memory a correct name. No price talk, no
+  investment advice, one factual claim per card.</p>
+  <p class="dim">A Timelock card makes you wait because timelocks make you wait. A relay card reaches
+  everyone because relays reach everyone. That is the whole trick, and it is why the lore and the
+  rules never contradict each other.</p>
+  <p><a href="rules.html#21-protocol-notes">Rulebook §21 — how the Protocol Notes work</a></p>
+
   <div class="pull">"Keys ready. Future open."<small>— Edition One</small></div>
 
-  <div class="cta">
-    <a class="primary" href="play.html">Play the game</a>
-    <a class="ghost" href="cards.html">Browse the cards</a>
-    <a class="ghost" href="rules.html">Read the rulebook</a>
+  <div class="framed" style="margin-top:44px">
+    <span class="pad tl"></span><span class="pad tr"></span>
+    <span class="pad bl"></span><span class="pad br"></span>
+    <div class="banner">Enter the world</div>
+    <div class="onward">
+      <a class="panel panel--act" href="quickstart.html"><h3>Learn it in 5 minutes</h3>
+      <p>Six steps from never having seen the game to winning your first clash.</p></a>
+      <a class="panel panel--act" href="play.html"><h3>Take a seat</h3>
+      <p>Free in this browser. Eleven ready Stacks, an NPC opponent, no account.</p></a>
+      <a class="panel" href="cards.html"><h3>Read all 295 cards</h3>
+      <p>Full text, rules notes and the sourced Protocol Note behind each one.</p></a>
+      <a class="panel" href="deck.html"><h3>Build your own Stack</h3>
+      <p>Forty cards, your affinities, saved in this browser and ready at the table.</p></a>
+    </div>
+    <div class="terminal-line" style="margin-top:22px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span>LORE&nbsp;·&nbsp;E1</span></div>
   </div>
 </main>
 
 <footer class="site-footer">
   <span>600 000 000 000 · Edition One · E1.0-draft</span>
   <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
+  <a href="rules.html">Rulebook</a>
+  <a href="quickstart.html">Quick start</a>
   <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
 </footer>
 
+<script src="play-data.js"></script>
+<script src="blob-map.js"></script>
+<script src="faces.js"></script>
+<script>
+/* Card art comes from Blossom by hash when the page is served, and from the
+   repo when it is opened from a file:// path — same resolver the table uses.
+ *
+ * Three things can be missing here and none of them may leave an empty frame:
+ * a shell that blocks outbound fetch skips the mirrors entirely and reads the
+ * bundled file; a mirror that accepts the connection and then never answers is
+ * overtaken by the repo file after four seconds; a face that is genuinely gone
+ * falls back to the card back. Every path ends in a picture. */
+(function () {
+  "use strict";
+  const LOCAL = "../art/cards/node-runner-web/";
+  const BACK = LOCAL + "600B-Timelock-card-back.webp";
+  const nap = globalThis.E1Napplet;
+  const sandboxed = Boolean(nap) && !nap.canReachInternet();
+  const viaBlossom = Boolean(globalThis.E1Faces) && !sandboxed;
+
+  for (const img of document.querySelectorAll("img[data-face]")) {
+    const face = img.dataset.face;
+    const local = LOCAL + encodeURIComponent(face);
+    img.addEventListener("error", function onError() {
+      img.removeEventListener("error", onError);
+      if (img.src.indexOf("600B-Timelock-card-back.webp") < 0) img.src = BACK;
+    });
+    if (!viaBlossom) { img.src = local; continue; }
+    const guard = setTimeout(() => { if (!img.getAttribute("src")) img.src = local; }, 4000);
+    img.addEventListener("load", () => clearTimeout(guard), { once: true });
+    globalThis.E1Faces.setFace(img, face);
+  }
+})();
+</script>
 </body>
 </html>

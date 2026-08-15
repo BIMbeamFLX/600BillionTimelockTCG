@@ -9,15 +9,75 @@
 <title>600B Timelock TCG — The Arena moved</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="canonical" href="play.html">
-<meta http-equiv="refresh" content="3; url=play.html">
+<noscript><meta http-equiv="refresh" content="0; url=play.html"></noscript>
 <link rel="stylesheet" href="600b.css">
+<script src="napplet.js"></script>
+<script>
+/* Painted before the first frame, so a shell-themed napplet never shows the
+   600B fallback palette and then jumps to the shell's. No shell present is not
+   a failure: theme.start() falls back to the palette 600b.css already ships. */
+if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
+</script>
+<style>
+/* This page is a signpost, not a board. Everything it once mocked up — the
+   world-plate backdrop, the arced zones, committed cards turned sideways,
+   attack arrows, the uptime dial — is in play.html now, so a second picture of
+   the board could only disagree with the game. Keep the URL, keep it honest,
+   keep it small. */
+.sign { max-width: 760px; margin: 0 auto; padding: clamp(48px, 9vw, 96px) var(--pad); }
+.sign h2 { margin-bottom: 14px; }
+.gone { display: grid; gap: 8px; margin: 26px 0 30px; padding-left: 0; list-style: none; }
+.gone li { display: flex; gap: 10px; align-items: baseline; color: var(--muted); font-size: 14px; }
+.gone li::before { content: "→"; color: var(--ember); font-weight: 700; }
+.gone b { color: var(--cream); font-weight: 700; }
+#countdown { color: var(--muted); font-size: 13px; margin-top: 18px; }
+
+/* --------------------------------------------------- the layout contract */
+/* docs/napplet-spec.md: no fixed viewport assumptions, no horizontal overflow
+   at any size, collapsed presentation below ~360px. A napplet is a panel
+   inside somebody else's window, so the breakpoints read THIS page's box, not
+   the device — on the plain website the two are the same number, which is why
+   one set of rules serves both. The @media rules elsewhere on the site stay as
+   they are; these only ever narrow things further. */
+body { container-type: inline-size; container-name: page; }
+
+/* Two nbsp-joined halves that cannot break inside themselves. Given one line
+   they push the page sideways; given two they simply stack. */
+.terminal-line { flex-wrap: wrap; }
+
+/* Always true wherever container queries exist, which is the point: --pad is
+   4vw in 600b.css and that reads the WINDOW. A 320px panel on a 27" monitor
+   gets 56px of gutter on each side and 208px to live in. Same formula, same
+   numbers on the open website, measured against the panel. */
+@container page (min-width: 0px) {
+  .nav, .sign, .site-footer { --pad: clamp(16px, 4cqi, 56px); }
+  .sign { padding-block: clamp(28px, 9cqi, 96px); }
+}
+
+@container page (max-width: 900px) {
+  /* 600b.css sizes headings against the viewport too; in a narrow panel on a
+     wide screen that is a 92px word in a 300px box. Same scale, measured
+     against what the words actually have to fit into. */
+  h1 { font-size: clamp(36px, 10cqi, 70px); }
+  h2 { font-size: clamp(24px, 6cqi, 44px); }
+}
+@container page (max-width: 720px) {
+  .nav__brand small { display: none; }
+  .nav a.link { padding: 8px 9px; font-size: 12px; }
+  .site-footer .tag { margin-left: 0; }
+}
+@container page (max-width: 359px) {
+  /* Tiny: the spec's collapsed presentation. Nothing is removed here — the
+     page is one column of text already — it just tightens. */
+  .sign { padding-top: 28px; padding-bottom: 28px; }
+  .nav a.link { padding: 6px 7px; font-size: 11px; letter-spacing: .04em; }
+  .btn { padding: 11px 14px; font-size: 13px; }
+}
+</style>
 </head>
 <body>
-<!-- This page was a static design mockup of the board. Everything it proposed —
-     the world-plate backdrop, the arced zones, committed cards turned sideways,
-     attack and block markers, the uptime dial — now lives in the real table, so
-     the mockup would only disagree with the game. The URL stays, and points at
-     the thing itself. -->
+<a class="skip" href="#main">Skip to content</a>
+
 <nav class="nav">
   <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
   <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
@@ -32,15 +92,28 @@
   </div>
 </nav>
 
-<main id="main" class="section">
-  <p class="eyebrow">Arena · retired</p>
-  <h2>The Arena is now <span class="accent">the table.</span></h2>
-  <p class="lead">This page used to be a static picture of the board. The board it was picturing exists
-  now — arced zones, the shared clash lane, committed cards turned sideways, attack arrows and the
-  uptime dial are all in the live game. Taking you there.</p>
-  <div class="btn-row">
-    <a class="btn" href="play.html">Go to the table</a>
-    <a class="btn btn--ghost" href="quickstart.html">Learn it in 5 minutes</a>
+<main id="main" class="sign">
+  <div class="framed">
+    <span class="pad tl"></span><span class="pad tr"></span>
+    <span class="pad bl"></span><span class="pad br"></span>
+    <div class="banner">Arena · retired</div>
+    <h2 style="margin-top:14px">The Arena is now <span class="accent">the table.</span></h2>
+    <p class="lead">This URL used to hold a static picture of the board. The board it was picturing
+    is real now, so the picture was only going to drift out of date. Everything it proposed lives
+    in the game itself:</p>
+    <ul class="gone">
+      <li><b>Arced zones</b> — your Network bends toward you, theirs bends away.</li>
+      <li><b>The shared clash lane</b> — attacks meet in the middle of the table.</li>
+      <li><b>Committed cards turned sideways</b> — the same tell as a paper game.</li>
+      <li><b>Attack and block arrows</b> — ember to the player, violet to the attacker.</li>
+      <li><b>The uptime dial</b> — both seats, always visible, counting down from 20.</li>
+    </ul>
+    <div class="btn-row">
+      <a class="btn" href="play.html">Go to the table</a>
+      <a class="btn btn--ghost" href="quickstart.html">Learn it in 5 minutes</a>
+    </div>
+    <p id="countdown"></p>
+    <div class="terminal-line" style="margin-top:22px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span>ARENA&nbsp;·&nbsp;MOVED</span></div>
   </div>
 </main>
 
@@ -49,5 +122,57 @@
   <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
   <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
 </footer>
+
+<script>
+/* location.replace, not <meta http-equiv="refresh">: replace swaps this page
+   out of the history entry, so Back from the table returns to wherever the
+   player actually came from instead of bouncing here again. Any interaction
+   cancels it — someone reading the list is not someone waiting to be moved.
+
+   A shell is allowed to refuse a napplet's attempt to rewrite its own
+   location, and that refusal must not read as a hang. The "Go to the table"
+   button above is the door that always works; if the automatic hop does not
+   happen, this says so in one sentence and points at it. */
+(function () {
+  "use strict";
+  const TARGET = "play.html";
+  const note = document.getElementById("countdown");
+  if (!note) return;
+  let left = 4;
+  let timer = null;
+
+  const go = () => {
+    note.textContent = "Opening the table…";
+    try { location.replace(TARGET); } catch (err) { /* the shell declined */ }
+    /* Still running a beat later means nothing navigated: a page on its way
+       out does not get to run its timers. Try the plain assignment, then stop
+       pretending and hand it back to the button. */
+    setTimeout(() => {
+      try { location.href = TARGET; } catch (err) { /* still no */ }
+      setTimeout(() => {
+        note.textContent = "This shell keeps the page here — use “Go to the table” above.";
+      }, 700);
+    }, 400);
+  };
+
+  const tick = () => {
+    if (!timer) return;
+    if (left <= 0) { clearInterval(timer); timer = null; go(); return; }
+    note.textContent = `Taking you to the table in ${left}s — click anything to stay.`;
+    left--;
+  };
+  timer = setInterval(tick, 1000);
+  tick();
+  const stop = () => {
+    if (!timer) return;
+    clearInterval(timer);
+    timer = null;
+    note.textContent = "Staying here. The table is one click away.";
+  };
+  for (const event of ["pointerdown", "keydown", "wheel", "touchstart"]) {
+    addEventListener(event, stop, { once: true, passive: true });
+  }
+})();
+</script>
 </body>
 </html>

@@ -21,6 +21,7 @@
   const KIND_HANDSHAKE = 4600;     // invite + accept, discriminated by the t tag
   const KIND_RESULT = 31600;       // addressable, d = matchId
   const KIND_AUTH = 22242;         // NIP-42 ephemeral connection proof
+  const KIND_ZAP_REQUEST = 9734;   // NIP-57, the stake settlement the loser signs
   const RELAYS = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
   const BACKOFF = [250, 500, 1000, 2000, 4000];
   const PUBLISH_MS = 3000;
@@ -95,6 +96,13 @@
     return bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
+  /* A wager is a whole number of sats or it is a friendly. Anything a text
+   * field can produce — blank, a decimal, a minus sign, a word — is 0. */
+  const satsOf = (value) => {
+    const sats = Math.floor(Number(value));
+    return Number.isFinite(sats) && sats > 0 ? sats : 0;
+  };
+
   /* Accepts either form and returns hex, or null. */
   const toHexPubkey = (value) => {
     const v = String(value || "").trim();
@@ -124,6 +132,12 @@
     lastState: null,
     peers: [false, false],
     authenticated: false,
+    /* Where we stand in the matchmaking queue, or null when not searching. */
+    queued: null,     // {position, waiting}
+    /* Every unfinished match our npub holds a seat at, straight from AUTH_OK.
+     * This is what makes a cleared browser recoverable: the seat credential is
+     * gone, the seat is not, and signing in is what finds it. */
+    active: [],
   };
 
   const H = (name, arg) => {
@@ -252,8 +266,13 @@
    * seated at, then the origin that served this page. On file:// there is no
    * third option and the answer is null — no server, no socket, hotseat only. */
   function tableUrl() {
+    /* ?table= decides where this client's socket goes and, through the NIP-42
+     * challenge, what it is asked to sign — so it is validated as a websocket
+     * URL rather than passed through. A crafted link cannot make the page dial
+     * an http endpoint or a javascript: URI, and the relay-tag check on the
+     * login proof is what stops the referee at the other end being an impostor. */
     const q = param("table");
-    if (q) return q;
+    if (q) return /^wss?:\/\/[^\s]+$/i.test(q) ? q : null;
     const saved = savedMatch();
     if (saved && saved.table) return saved.table;
     if (location.protocol === "https:") return `wss://${location.host}/ws`;
@@ -262,6 +281,10 @@
   }
 
   const httpOrigin = (wsUrl) => String(wsUrl || "").replace(/^ws/, "http").replace(/\/ws$/, "");
+
+  const hostOf = (url) => {
+    try { return new URL(url).host.toLowerCase(); } catch (err) { return null; }
+  };
 
   const isLoopback = (url) => {
     try {
@@ -364,6 +387,28 @@
         H("onError", { code: "AUTH_FAILED", message: "the table sent an invalid login challenge" });
         return;
       }
+      /* THE RELAY TAG MUST NAME THE TABLE WE ARE ACTUALLY TALKING TO, and this
+       * check is the whole anti-replay property of NIP-42 rather than a
+       * formality. Signing whatever the far end asked for meant a hostile table
+       * could harvest a challenge from the real referee, serve it here, collect
+       * the signature, and replay it to authenticate AS THIS PLAYER — after
+       * which AUTH_OK hands over their unfinished matches and the claim ladder
+       * hands over the seat.
+       *
+       * Hosts are compared, not whole URLs: a referee legitimately advertises
+       * its PUBLIC_HOST name. If those disagree the login is refused loudly,
+       * because a table that cannot name itself correctly is either
+       * misconfigured or not the table it claims to be — and both deserve to
+       * be seen rather than silently signed. */
+      const named = hostOf(msg.relay);
+      const dialled = hostOf(net.url);
+      if (!named || !dialled || named !== dialled) {
+        H("onError", {
+          code: "AUTH_FAILED",
+          message: `this table asked to be signed in as "${named || msg.relay}" while answering at "${dialled || net.url}" — refusing`,
+        });
+        return;
+      }
       try {
         const event = await sign({
           kind: KIND_AUTH,
@@ -386,7 +431,12 @@
       }
       net.authenticated = true;
       net.attempt = 0;
+      /* THE GREETING CARRIES THE SESSION. A seat token lives in one browser; the
+       * seat belongs to an npub. This list is how a cleared profile, a private
+       * window or a different machine finds its way back to a match in progress. */
+      net.active = Array.isArray(msg.active) ? msg.active : [];
       setStatus("live");
+      H("onActive", net.active.slice());
       sendIntent();
     }
 
@@ -422,6 +472,14 @@
       case "PEER": {
         if (msg.seat === 0 || msg.seat === 1) net.peers[msg.seat] = Boolean(msg.online);
         return H("onPeer", msg);
+      }
+      case "QUEUED": {
+        net.queued = msg.queued ? { position: msg.position, waiting: msg.waiting } : null;
+        /* A queue intent that has been answered by a seat is spent. One that is
+         * still waiting must survive a dropped socket, or a reconnect silently
+         * drops the player out of the line they are staring at. */
+        if (!msg.queued) net.intent = null;
+        return H("onQueued", msg);
       }
       case "OVER": return H("onOver", msg);
       case "NOSTR": return H("onNostr", msg);
@@ -504,6 +562,7 @@
       t: "CREATE", v: WIRE,
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
+      stake: satsOf(opts.stake),
       pubkey,
     };
     net.url = opts.table || tableUrl();
@@ -526,11 +585,72 @@
       code: String(opts.code || "").trim().toUpperCase(),
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
+      /* Sent as an ACKNOWLEDGEMENT of the wager we were shown, not a request.
+       * The referee refuses the join if the table's number has moved, so a
+       * shared link can never bind someone to a stake they never saw. */
+      stake: satsOf(opts.stake),
       pubkey,
     };
     net.url = opts.table || tableUrl();
     if (net.ws && net.ws.readyState === 1 && net.authenticated) raw(net.intent);
     else open();
+    return true;
+  }
+
+  /* MATCHMAKING. The intent slot is reused deliberately: a player waiting in the
+   * line must still be waiting after a dropped socket, and `intent` is already
+   * the thing that is replayed once the reconnect authenticates. */
+  function queue(opts) {
+    const pubkey = toHexPubkey(opts && opts.pubkey);
+    if (!pubkey) {
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before searching for an opponent" });
+      return false;
+    }
+    net.session = null;
+    forgetMatch();
+    net.attempt = 0;
+    net.intent = {
+      t: "QUEUE", v: WIRE,
+      name: String((opts && opts.name) || "Player").slice(0, 40),
+      affinity: (opts && opts.affinity) || "All",
+      /* The referee pairs on this, so it is a filter and not a preference: a
+       * friendly waits for a friendly, and 500 sats waits for 500 sats. */
+      stake: satsOf(opts && opts.stake),
+      pubkey,
+    };
+    net.url = (opts && opts.table) || tableUrl();
+    if (net.ws && net.ws.readyState === 1 && net.authenticated) raw(net.intent);
+    else open();
+    return true;
+  }
+
+  function unqueue() {
+    net.intent = null;
+    net.queued = null;
+    return raw({ t: "UNQUEUE", v: WIRE });
+  }
+
+  /* Rejoin a match this identity owns a seat at — the row the referee named in
+   * AUTH_OK. No token is needed: the signed identity IS the claim. */
+  function rejoin(matchId, table) {
+    if (!/^m_[0-9a-f]{12}$/.test(String(matchId || ""))) return false;
+    /* A match recovered from nostr may live on a referee this page has never
+     * spoken to, so the table travels with it — validated, because it came off
+     * a relay and decides where our socket goes. */
+    const where = /^wss?:\/\//.test(String(table || "")) ? table : net.url || tableUrl();
+    net.intent = null;
+    net.queued = null;
+    net.session = { matchId, seat: null, token: null, table: where, code: null };
+    const sameTable = net.ws && net.ws.readyState === 1 && net.authenticated && net.url === where;
+    if (sameTable) {
+      return raw({ t: "RESUME", v: WIRE, matchId, pubkey: savedPubkey() || undefined });
+    }
+    // A different referee needs a fresh socket, and its own NIP-42 challenge.
+    try { if (net.ws) net.ws.close(1000, "switching tables"); } catch (err) { /* already gone */ }
+    net.ws = null;
+    net.url = where;
+    net.attempt = 0;
+    open();
     return true;
   }
 
@@ -545,10 +665,16 @@
     return raw({ t: "NOSTR", v: WIRE, role, event });
   }
 
+  /* Leaving is TOLD to the referee before the socket goes, not merely implied by
+   * a closed tab. The two look identical from the far end otherwise, and the
+   * difference matters: a dropped socket is someone coming back, while a leave
+   * means an open table nobody is sitting at should stop being advertised. */
   function leave() {
+    raw({ t: "LEAVE", v: WIRE });
     net.session = null;
     net.intent = null;
     net.lastState = null;
+    net.queued = null;
     forgetMatch();
     setStatus("gone");
     try { if (net.ws) net.ws.close(1000, "left"); } catch (err) { /* already gone */ }
@@ -619,9 +745,15 @@
     return globalThis.nostr.signEvent(unsigned);
   }
 
+  /* ?relay= is a developer convenience that routes EVERY relay read and write
+   * through one host of the URL's choosing — including the profile lookup that
+   * decides who gets paid. It is honoured only for a well-formed wss:/ws: URL,
+   * and never silently: a page that is reading from one stranger's relay should
+   * be able to say so. */
   function relays() {
     const override = param("relay");
-    return override ? [override] : RELAYS;
+    if (override && /^wss?:\/\/[^\s]+$/i.test(override)) return [override];
+    return RELAYS;
   }
 
   /* Open, EVENT, resolve on OK, close after 3 s regardless. Publishing is
@@ -681,6 +813,12 @@
         host: { name: opts.name, affinity: opts.affinity },
         ruleset: opts.ruleset,
         catalogDigest: opts.catalogDigest,
+        /* WHAT THIS TABLE PLAYS FOR. The invite carried no wager at all, so
+         * following one off a relay was the one path that could seat a player
+         * in a stake they were never shown — the referee refuses a join that
+         * names the wrong number, but a client with no number to name simply
+         * accepted whatever the host had set. */
+        stake: satsOf(opts.stake),
         wire: WIRE,
       }),
     };
@@ -710,6 +848,67 @@
       }),
     };
   }
+
+  /* EVERY MATCH IS ANNOUNCED AT BOTH ENDS. The start event is the opening
+   * bracket the result event closes: it names the two identities, the ruleset
+   * and card set they agreed to play under, and the stake they agreed to — all
+   * signed BEFORE a card is drawn, so neither side can invent the terms
+   * afterwards.
+   *
+   * Both seats sign byte-identical content, which is only possible because
+   * every field comes from the referee's STATE rather than from either browser's
+   * clock or key order. `created_at` is derived from the match row for the same
+   * reason: two independently signed start events must be comparable. */
+  function startEvent(state, stake) {
+    const players = (state.players || [])
+      .slice()
+      .sort((a, b) => a.seat - b.seat)
+      .map((p) => ({ seat: p.seat, pubkey: p.pubkey || null, name: p.name || null, affinity: p.affinity || null }));
+    const createdAt = Math.floor(Date.parse(state.createdAt || "") / 1000);
+    const tags = [
+      ["t", "start"],
+      ["t", "600b-timelock-tcg"],
+      ["m", state.matchId],
+    ];
+    for (const p of players) if (/^[0-9a-f]{64}$/.test(p.pubkey || "")) tags.push(["p", p.pubkey]);
+    tags.push(["alt", "600B Timelock TCG match start"]);
+    return {
+      kind: KIND_HANDSHAKE,
+      created_at: Number.isFinite(createdAt) ? createdAt : Math.floor(Date.now() / 1000),
+      tags,
+      content: JSON.stringify({
+        v: 1,
+        kind: "start",
+        matchId: state.matchId,
+        /* THE LOAD-BEARING FIELD FOR RECOVERY. Nostr is the session root: with
+         * only a signed-in key, a browser that kept nothing can find its
+         * unfinished matches and, from this, know which referee to reconnect
+         * to. Taken from the referee's STATE rather than from `publicTable()`,
+         * because the two seats may have reached the table by different names
+         * and the announcement must be byte-identical to be comparable. */
+        table: state.table || null,
+        ruleset: state.ruleset || null,
+        catalogDigest: state.catalogDigest || null,
+        wire: WIRE,
+        players,
+        /* The agreed wager, in sats, or null for a friendly. Signed here and
+         * nowhere else: this is the only record that both players consented to
+         * the amount before they knew how the match would go. Taken from the
+         * referee's STATE rather than from this browser's input box, so both
+         * seats sign the same number even if one of them retyped theirs. */
+        stake: satsOf(stake === undefined ? state.stake : stake) || null,
+      }),
+    };
+  }
+
+  const parseStake = (event) => {
+    try {
+      const body = JSON.parse(event.content);
+      return body && body.kind === "start" && Number.isInteger(body.stake) ? body.stake : null;
+    } catch (err) {
+      return null;
+    }
+  };
 
   /* The referee hands both clients the SAME bytes for tags and content, so two
    * independently signed results are byte-comparable. Re-stringifying a parsed
@@ -745,36 +944,319 @@
       host: body.host && typeof body.host === "object" ? body.host : { name: "?", affinity: "?" },
       ruleset: body.ruleset || null,
       catalogDigest: body.catalogDigest || null,
+      // Absent on invites from older builds, which is honestly "unknown", not 0.
+      stake: Number.isInteger(body.stake) ? body.stake : null,
     };
   }
 
   /* One REQ per relay for invites addressed to me, plus open invites tagged
-   * t=invite. Dedup by event id; the caller gets validated rows only. */
+   * t=invite. Dedup by event id; the caller gets validated rows only.
+   *
+   * EVERY ROW IS SIGNATURE-VERIFIED BEFORE IT IS OFFERED, and this is not
+   * belt-and-braces. Relays are not required to check signatures and several do
+   * not, so without this an invite's `pubkey` is an unverified CLAIM that the
+   * lobby renders as an identity — and its `table` is an attacker-chosen
+   * destination for our socket, which is precisely the delivery vehicle a
+   * challenge-replay attack needs. Shape first, cryptography second: there is
+   * no point verifying a signature over something that is not an invite. */
   function subscribeInvites(pubkey, onInvite) {
     const seen = Object.create(null);
     const sockets = [];
     const since = Math.floor(Date.now() / 1000) - INVITE_TTL;
     const filter = { kinds: [KIND_HANDSHAKE], "#t": ["invite"], since, limit: 40 };
     if (/^[0-9a-f]{64}$/.test(pubkey || "")) filter["#p"] = [pubkey];
+    const S = globalThis.E1Schnorr;
+    if (!S || typeof S.verifyEvent !== "function") {
+      /* NO VERIFIER, NO INVITES. Showing unverified rows would be worse than
+       * showing none: they look identical to real ones and they point our
+       * socket somewhere. */
+      H("onError", {
+        code: "NO_VERIFIER",
+        message: "invites cannot be checked without site/schnorr.js, so none are offered",
+      });
+      return () => {};
+    }
     for (const url of relays()) {
       try {
         const ws = new WebSocket(url);
         sockets.push(ws);
         ws.onopen = () => ws.send(JSON.stringify(["REQ", "inv", filter]));
         ws.onmessage = (m) => {
+          let event;
           try {
-            const [type, , event] = JSON.parse(m.data);
-            if (type !== "EVENT") return;
-            const invite = parseInvite(event);
-            if (!invite || seen[invite.id]) return;
-            seen[invite.id] = true;
-            onInvite(invite);
-          } catch (err) { /* relays say all sorts of things */ }
+            const frame = JSON.parse(m.data);
+            if (frame[0] !== "EVENT") return;
+            event = frame[2];
+          } catch (err) {
+            return; // relays say all sorts of things
+          }
+          const invite = parseInvite(event);
+          if (!invite || seen[invite.id]) return;
+          seen[invite.id] = true; // claimed before the await, so two relays cannot race it
+          S.verifyEvent(event).then(
+            (ok) => { if (ok) onInvite(invite); },
+            () => { /* an invite we cannot check is an invite we do not have */ }
+          );
         };
         ws.onerror = () => { /* one dead relay is not a failure */ };
       } catch (err) { /* nor is one bad URL */ }
     }
     return () => { for (const ws of sockets) { try { ws.close(); } catch (err) { /* gone */ } } };
+  }
+
+  // ---- reading the record back off the relays -----------------------------
+
+  /* One REQ fanned across every relay, deduped by event id, resolved on EOSE or
+   * a deadline — whichever comes first. Fire-and-forget in the same spirit as
+   * publish(): a dead relay shortens the answer, it never fails the call. */
+  function query(filter, ms) {
+    const urls = relays();
+    const budget = Number.isFinite(ms) ? ms : PUBLISH_MS;
+    return new Promise((resolve) => {
+      const seen = Object.create(null);
+      const out = [];
+      const sockets = [];
+      let done = 0;
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        for (const ws of sockets) { try { ws.close(); } catch (err) { /* already gone */ } }
+        resolve(out);
+      };
+      setTimeout(finish, budget);
+      for (const url of urls) {
+        try {
+          const ws = new WebSocket(url);
+          sockets.push(ws);
+          ws.onopen = () => ws.send(JSON.stringify(["REQ", "q", filter]));
+          ws.onmessage = (m) => {
+            try {
+              const frame = JSON.parse(m.data);
+              if (frame[0] === "EVENT" && frame[2] && !seen[frame[2].id]) {
+                seen[frame[2].id] = true;
+                out.push(frame[2]);
+              } else if (frame[0] === "EOSE") {
+                done += 1;
+                if (done >= sockets.length) finish();
+              }
+            } catch (err) { /* relays say all sorts of things */ }
+          };
+          ws.onerror = () => { done += 1; };
+        } catch (err) { /* a bad relay URL is not fatal */ }
+      }
+    });
+  }
+
+  /* NOSTR IS THE SESSION ROOT. The referee can tell you which of ITS matches
+   * you are seated at, which is the fast path and covers a reload. It cannot
+   * tell you about a match on a referee you are not currently connected to —
+   * and a player who changed machines does not necessarily remember which table
+   * they were on. The signed start announcements do: they are addressed to both
+   * players, they name the table, and a match with no published result has not
+   * ended. That makes an npub, and nothing else, enough to find your way back.
+   *
+   * Every field here is UNTRUSTED. `table` decides where a socket goes, so its
+   * scheme is checked before the row is ever offered — the same rule the invite
+   * parser has always applied. */
+  async function sessions(pubkey) {
+    const key = String(pubkey || "").toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(key)) return [];
+    const [rawStarts, rawResults] = await Promise.all([
+      query({ kinds: [KIND_HANDSHAKE], "#t": ["start"], "#p": [key], limit: 60 }, 3500),
+      query({ kinds: [KIND_RESULT], "#p": [key], limit: 60 }, 3500),
+    ]);
+    /* Signature-checked before any of it is believed. An unverified start
+     * announcement is an attacker-chosen `table` offered to the player as
+     * somewhere to reconnect, which is the same trust a relay must never have. */
+    const [starts, results] = await Promise.all([
+      verifiedEvents(rawStarts, { kind: KIND_HANDSHAKE }),
+      verifiedEvents(rawResults, { kind: KIND_RESULT }),
+    ]);
+    const finished = new Set();
+    for (const event of results) {
+      for (const tag of event.tags || []) {
+        if (Array.isArray(tag) && tag[0] === "d" && typeof tag[1] === "string") finished.add(tag[1]);
+      }
+    }
+    const seen = new Set();
+    const out = [];
+    for (const event of starts.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))) {
+      let body;
+      try {
+        body = JSON.parse(event.content);
+      } catch (err) {
+        continue;
+      }
+      if (!body || body.v !== 1 || body.kind !== "start") continue;
+      if (!/^m_[0-9a-f]{12}$/.test(body.matchId || "")) continue;
+      if (finished.has(body.matchId) || seen.has(body.matchId)) continue;
+      if (!/^wss?:\/\//.test(body.table || "")) continue; // where our socket would go
+      if (!Array.isArray(body.players) || body.players.length !== 2) continue;
+      const mine = body.players.find((p) => p && p.pubkey === key);
+      if (!mine) continue; // addressed to us, but not a seat we hold
+      seen.add(body.matchId);
+      out.push({
+        matchId: body.matchId,
+        table: body.table,
+        seat: mine.seat,
+        opponent: (body.players.find((p) => p && p.pubkey !== key) || {}).name || null,
+        stake: Number.isInteger(body.stake) ? body.stake : 0,
+        startedAt: event.created_at || 0,
+      });
+    }
+    return out;
+  }
+
+  /* THIS FUNCTION CHOOSES WHO GETS PAID, so nothing it returns may rest on a
+   * relay's word. A REQ's filter is a REQUEST, not a guarantee: a relay may
+   * answer with any event it likes, and whoever answered first with the largest
+   * created_at used to decide the winner's lightning address. One hostile relay
+   * out of three — or a crafted ?relay= — was enough to redirect a stake.
+   *
+   * So: the kind and the author are re-checked against what we asked for, and
+   * the signature is verified here rather than assumed. */
+  async function verifiedEvents(events, want) {
+    const S = globalThis.E1Schnorr;
+    if (!S || typeof S.verifyEvent !== "function") return [];
+    const out = [];
+    for (const event of events) {
+      if (!event || typeof event !== "object") continue;
+      if (want.kind !== undefined && event.kind !== want.kind) continue;
+      if (want.author && event.pubkey !== want.author) continue;
+      // eslint-disable-next-line no-await-in-loop
+      if (await S.verifyEvent(event)) out.push(event);
+    }
+    return out;
+  }
+
+  /* Kind 0 metadata: the display name for the table, and — the reason this
+   * exists — the lightning address a winner can actually be paid at. */
+  async function profile(pubkey) {
+    if (!/^[0-9a-f]{64}$/.test(pubkey || "")) return null;
+    const raw = await query({ kinds: [0], authors: [pubkey], limit: 4 }, 2500);
+    const events = await verifiedEvents(raw, { kind: 0, author: pubkey });
+    events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    for (const event of events) {
+      try {
+        const meta = JSON.parse(event.content);
+        if (meta && typeof meta === "object") {
+          return {
+            pubkey,
+            name: meta.display_name || meta.name || null,
+            picture: typeof meta.picture === "string" ? meta.picture : null,
+            lud16: typeof meta.lud16 === "string" ? meta.lud16 : null,
+            about: typeof meta.about === "string" ? meta.about : null,
+          };
+        }
+      } catch (err) { /* a profile that is not JSON is a profile we do not have */ }
+    }
+    return { pubkey, name: null, picture: null, lud16: null, about: null };
+  }
+
+  // ---- settlement ---------------------------------------------------------
+
+  /* THE APP NEVER HOLDS, MOVES OR CUSTODIES SATS. It resolves the winner's own
+   * lightning address to an invoice and hands that invoice to the loser. Paying
+   * it is an act the player takes in their own wallet, with their wallet's own
+   * confirmation — there is no escrow to trust, nothing of ours to steal, and a
+   * refused zap costs the match nothing because the result is already signed. */
+  async function payEndpoint(lud16) {
+    const value = String(lud16 || "").trim().toLowerCase();
+    const at = value.indexOf("@");
+    if (at <= 0) throw new Error("that identity has no lightning address");
+    const name = value.slice(0, at);
+    const domain = value.slice(at + 1);
+    if (!/^[a-z0-9._-]+$/.test(name) || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+      throw new Error("that lightning address is not a valid one");
+    }
+    const res = await fetch(`https://${domain}/.well-known/lnurlp/${name}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`the wallet at ${domain} did not answer`);
+    const meta = await res.json();
+    if (!meta || typeof meta.callback !== "string") throw new Error("that wallet returned no pay endpoint");
+    return meta;
+  }
+
+  /* NIP-57. Returns a bolt11 the loser may pay, or throws with a reason a human
+   * can act on. Nothing is paid here. */
+  async function zapInvoice(opts) {
+    const sats = Number(opts && opts.sats);
+    if (!Number.isInteger(sats) || sats <= 0) throw new Error("a stake must be a whole number of sats");
+    const meta = await payEndpoint(opts.lud16);
+    const msats = sats * 1000;
+    if (Number.isFinite(meta.minSendable) && msats < meta.minSendable) {
+      throw new Error(`that wallet's minimum is ${Math.ceil(meta.minSendable / 1000)} sats`);
+    }
+    if (Number.isFinite(meta.maxSendable) && msats > meta.maxSendable) {
+      throw new Error(`that wallet's maximum is ${Math.floor(meta.maxSendable / 1000)} sats`);
+    }
+    const url = new URL(meta.callback);
+    url.searchParams.set("amount", String(msats));
+    /* A zap receipt is public and addressed to the winner, so the ladder can see
+     * the stake was actually settled. Only public nostr data goes in the URL. */
+    if (meta.allowsNostr && /^[0-9a-f]{64}$/.test(meta.nostrPubkey || "") && hasNip07()) {
+      try {
+        const request = await sign({
+          kind: KIND_ZAP_REQUEST,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ["p", opts.to],
+            ["amount", String(msats)],
+            ["relays", ...relays()],
+            ["m", opts.matchId || ""],
+            ["alt", "600B Timelock TCG stake settlement"],
+          ],
+          content: opts.comment || "600B Timelock TCG — stake settled",
+        });
+        url.searchParams.set("nostr", JSON.stringify(request));
+      } catch (err) { /* an unsigned zap is still a payment; carry on */ }
+    }
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    if (!res.ok) throw new Error("the wallet would not issue an invoice");
+    const body = await res.json();
+    if (!body || typeof body.pr !== "string") {
+      throw new Error(String((body && body.reason) || "the wallet returned no invoice"));
+    }
+    /* THE INVOICE IS CHECKED BEFORE IT IS OFFERED. A wallet endpoint answers
+     * with a bolt11 and we hand it to a WebLN wallet, some of which approve
+     * inside a spending budget without asking — so an endpoint that returned an
+     * invoice for a different amount than the one on screen would be paid
+     * silently. bolt11 encodes its amount in the human-readable part, which is
+     * enough to refuse a mismatch without decoding the whole thing. */
+    const billed = bolt11Sats(body.pr);
+    if (billed === null) throw new Error("that wallet returned something that is not a lightning invoice");
+    if (billed !== 0 && billed !== sats) {
+      throw new Error(`that wallet asked for ${billed} sats instead of ${sats} — refusing`);
+    }
+    return { invoice: body.pr, sats, billed, lud16: String(opts.lud16).toLowerCase() };
+  }
+
+  /* The amount out of a bolt11's human-readable part: `lnbc<amount><multiplier>`
+   * where the multiplier is m/u/n/p against one bitcoin. Returns sats, 0 for an
+   * open-amount invoice, or null if this is not a bolt11 at all. Deliberately
+   * only the HRP — the payload is a bech32 TLV stream, and decoding all of it
+   * to answer "how much" would be a second parser to get wrong. */
+  function bolt11Sats(invoice) {
+    const match = /^ln(?:bc|tb|bcrt)(\d+)?([munp])?1/i.exec(String(invoice || ""));
+    if (!match) return null;
+    if (!match[1]) return 0; // no amount named: the payer chooses
+    const digits = BigInt(match[1]);
+    const SATS_PER_BTC = 100000000n;
+    const scale = { m: 1000n, u: 1000000n, n: 1000000000n, p: 1000000000000n };
+    const unit = (match[2] || "").toLowerCase();
+    if (!unit) return Number(digits * SATS_PER_BTC);
+    const milliSats = (digits * SATS_PER_BTC * 1000n) / scale[unit];
+    return milliSats % 1000n === 0n ? Number(milliSats / 1000n) : Number(milliSats) / 1000;
+  }
+
+  const hasWebln = () => Boolean(globalThis.webln && globalThis.webln.sendPayment);
+
+  /* Called ONLY from an explicit click, and the wallet still asks the player to
+   * confirm. There is no code path that pays anything on its own. */
+  async function payWithWebln(invoice) {
+    if (!hasWebln()) throw new Error("no WebLN wallet in this browser");
+    await globalThis.webln.enable();
+    return globalThis.webln.sendPayment(invoice);
   }
 
   // ----------------------------------------------------------------- exports
@@ -783,18 +1265,23 @@
     WIRE,
     KIND_HANDSHAKE,
     KIND_RESULT,
+    KIND_ZAP_REQUEST,
     start, create, join, act, sendNostr, leave, resume, tables,
+    queue, unqueue, rejoin,
     tableUrl, publicTable, publicTableIsLocal,
     savedMatch, saveMatch,
     get status() { return net.status; },
     get session() { return net.session; },
     get lastState() { return net.lastState; },
     get peers() { return net.peers.slice(); },
+    get queued() { return net.queued ? Object.assign({}, net.queued) : null; },
+    get active() { return net.active.slice(); },
     nostr: {
-      hasNip07, login, logout, sign, publish, relays,
+      hasNip07, login, logout, sign, publish, relays, query, profile, sessions,
       savedPubkey, npub: npubEncode, npubDecode, toHexPubkey, shortNpub,
-      inviteEvent, acceptEvent, resultEvent,
+      inviteEvent, acceptEvent, resultEvent, startEvent, parseStake,
       parseInvite, subscribeInvites,
+      hasWebln, payEndpoint, zapInvoice, payWithWebln,
     },
   };
 })();

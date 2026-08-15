@@ -1541,12 +1541,13 @@
    * Animates the transition INTO the host's persistent .committed state.
    * If the host class is already applied we play -8deg -> 0 additively,
    * which lands exactly on the host's rotate(8deg) with fill:'none'. */
-  function pCommit(el) {
+  function pCommit(el, angle) {
     if (!el || reduced()) return;
+    var deg = angle == null ? 8 : angle;
     var already = el.classList && el.classList.contains('committed');
     var frames = already
-      ? [{ transform: 'rotate(-8deg)' }, { transform: 'rotate(0deg)' }]
-      : [{ transform: 'rotate(0deg)' }, { transform: 'rotate(8deg)' }];
+      ? [{ transform: 'rotate(' + -deg + 'deg)' }, { transform: 'rotate(0deg)' }]
+      : [{ transform: 'rotate(0deg)' }, { transform: 'rotate(' + deg + 'deg)' }];
     play(el, frames, { duration: D.md, easing: EASE.mech, fill: 'none', composite: additiveFor(el) });
   }
 
@@ -1729,9 +1730,13 @@
   /* --- CLONE exit (archive / decommission) ------------------------------ *
    * Exit animations MUST run on clones: the host wipes innerHTML on every
    * render, which would kill an animation on the live node. */
-  function cloneOf(el) {
+  /* `rect` is the host's own measurement of where the card WAS. A host that
+     rebuilds its zones on every render has already detached the node by the
+     time this runs, and a detached node measures zero — so the caller may hand
+     over the geometry it captured before the wipe. */
+  function cloneOf(el, rect) {
     if (!el || reduced()) return null;
-    var r = rectOf(el);
+    var r = rect && rect.width ? rect : rectOf(el);
     if (!r || !r.width) return null;
     var p = pools.clone;
     if (p.live >= p.max) return null;
@@ -1776,8 +1781,22 @@
     if (seat === 1) return 1;
     return 0;
   }
+  /* Which PANEL a seat is drawn on. The fallback answers with whose TURN it is,
+     which is only ever right for a table that reseats itself every turn. A host
+     whose layout is fixed (solo play always shows the human at the bottom) has
+     to say so, or every seat-anchored cue lands on the opponent's panel for the
+     whole of the other player's turn. `sideKey` is also the odometer's cache
+     key, so one hook keeps the panel and the counter agreeing. */
+  function sideOf(seat) {
+    if (typeof opts.sideOf === 'function') {
+      var s = null;
+      guard(function () { s = opts.sideOf(normSeat(seat)); });
+      if (s === 'you' || s === 'foe') return s;
+    }
+    return normSeat(seat) === activeSeat ? 'you' : 'foe';
+  }
   function sideKey(base, seat) {
-    return base + (normSeat(seat) === activeSeat ? 'You' : 'Foe');
+    return base + (sideOf(seat) === 'you' ? 'You' : 'Foe');
   }
   function seatEl(base, seat) {
     if (typeof opts.seatOf === 'function') {
@@ -1960,7 +1979,7 @@
   MOTION['card:archive'] = function (d) {
     var el = targetEl(d, null);
     if (!el) return;
-    var c = cloneOf(el);
+    var c = cloneOf(el, d.rect);
     if (!c) return;
     /* filed sideways, not down */
     var a = play(c, [
@@ -1974,7 +1993,23 @@
     var aff = affOf(d.affinity);
     var color = AFF_COLOR[aff] || AFF_COLOR.N;
     var el = d.el && d.el.nodeType === 1 ? d.el : null;
-    if (el) pRing(el, color, D.xl);
+    if (el) {
+      /* Same flight as a spell: the land drop CAME from the Wallet, and a card
+         that simply appears in the Network reads as a board that redrew itself
+         rather than a play that was made. */
+      var origin = d.rect || (d.from && d.from.nodeType === 1 ? rectOf(d.from) : d.from);
+      var dest = rectOf(el);
+      if (origin && origin.width && dest && dest.width && !reduced()) {
+        play(el, [
+          { transform: 'translate3d(' + (origin.left - dest.left) + 'px,' + (origin.top - dest.top) + 'px,0)' },
+          { transform: 'none' }
+        ], { duration: D.lg, easing: EASE.snap, composite: additiveFor(el) });
+        play(el, [{ opacity: 0 }, { opacity: 1 }], { duration: D.sm, easing: EASE.line });
+      } else {
+        pStepIn(el);
+      }
+      pRing(el, color, D.xl);
+    }
     var strip = seatEl('buffer', d.seat);
     if (!strip) return;
     var last = strip.lastElementChild;
@@ -2151,7 +2186,7 @@
   MOTION['avatar:decommission'] = function (d) {
     var el = targetEl(d, null);
     if (!el) return;
-    var c = cloneOf(el);
+    var c = cloneOf(el, d.rect);
     if (!c) return;
     /* five quantized bands — a CRT losing sync, not a smooth fade */
     var a = play(c, [{ opacity: 1 }, { opacity: 0 }],
@@ -2198,7 +2233,9 @@
   };
 
   MOTION['game:win'] = function (d) {
-    var side = sideBlockOf(d.seat);
+    /* A draw has no winner, and normSeat() would answer "seat 0" — which would
+       hand the win wipe to a player who did not win. No seat, no side wipe. */
+    var side = d.seat == null ? null : sideBlockOf(d.seat);
     if (side) pWipe(side, PALETTE.gold, D.xxl, 0.55);
     var host = q('wrap') || doc.body;
     if (!host) return;
@@ -2249,7 +2286,7 @@
       case 'card:draw': push(seatEl('hand', d.seat)); push(seatEl('counts', d.seat)); push(d.el); break;
       case 'card:play': push(targetEl(d, 'network')); push(d.from); break;
       case 'card:archive': push(targetEl(d, null)); break;
-      case 'resource:play': push(seatEl('buffer', d.seat)); push(d.el); break;
+      case 'resource:play': push(seatEl('buffer', d.seat)); push(d.el); push(d.from); break;
       case 'resource:generate': push(seatEl('buffer', d.seat)); break;
       case 'buffer:burn': push(seatEl('buffer', d.seat)); push(seatEl('uptime', d.seat)); break;
       case 'ability:activate': push(targetEl(d, 'network')); break;
@@ -2263,7 +2300,7 @@
       case 'avatar:decommission': push(targetEl(d, null)); break;
       case 'uptime:gain': push(seatEl('uptime', d.seat)); break;
       case 'manual:resolve': push(q('prompt')); break;
-      case 'game:win': push(sideBlockOf(d.seat)); push(q('wrap')); break;
+      case 'game:win': if (d.seat != null) push(sideBlockOf(d.seat)); push(q('wrap')); break;
     }
     return out;
   }
@@ -2610,7 +2647,7 @@
     wipe: function (el, o) { pWipe(el, (o && o.color) || PALETTE.gold, (o && o.duration) || D.lg, o && o.alpha); },
     jitter: function (el, o) { pJitter(el, (o && o.amp) || 2); },
     rackSlide: function (el, o) { pRackSlide(el, o && o.dx, o && o.out); },
-    commit: function (el) { pCommit(el); },
+    commit: function (el, o) { pCommit(el, o && o.angle); },
     roll: function (el, o) { pRoll(el, (o && o.key) || 'debug'); },
     drain: function (el, o) { pDrain(el, !!(o && o.gain)); },
     ring: function (el, o) { pRing(el, (o && o.color) || PALETTE.orange, (o && o.duration) || D.xl); },

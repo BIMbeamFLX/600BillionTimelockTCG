@@ -265,13 +265,22 @@ The E1 Classic Profile uses the original open deck-building shape.
 
 - Minimum Stack size: **40 cards**.
 - Maximum Stack size: none, but the player must be able to randomize it.
-- Copy limit: none.
+- Copy limit: **3 copies of any one card**, Resources included.
 - Sideboard: none.
 - Resource cards count toward the minimum.
 - Cards marked for Stake or Toss modules are legal only when that module is enabled.
 
-This unrestricted profile is intentionally volatile. It exists to reproduce the original
-design envelope and to test the content pipeline, not to promise tournament balance.
+The copy limit is not conservatism, it is the load-bearing rule of the format. E1 has very
+little card selection, so density is the only way to make a Stack reliable — which means an
+unlimited profile does not merely *allow* twenty copies of your best card, it makes that the
+correct build. Measured against all eleven precons, a 26-copy Zap Stack won 97.7% of games
+with a mean kill on turn 3.8. Three copies keeps a card findable without letting one card be
+the whole Stack, and it is what turns deckbuilding into a set of choices rather than an
+arithmetic problem.
+
+The referee enforces this itself (`MAX_COPIES` in the engine), because a decklist is
+untrusted input on every topology: the Stack Builder can refuse a bad list politely, but the
+referee is the only place a hand-rolled client cannot talk past.
 
 ### Recommended first decks
 

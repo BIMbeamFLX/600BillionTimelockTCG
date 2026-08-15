@@ -23,10 +23,21 @@ const config = (deckA, deckB) => ({
   firstPlayer: 0,
 });
 
-// A legal 40: 20 Satoshi Orchards and 20 of the first affordable Bitcoin card.
+/* A legal 40 under the §7 copy limit: three of everything until it fills.
+ * It used to be 20 Orchards and 20 of one filler, which stopped being a legal
+ * Stack the moment MAX_COPIES landed. */
 const orchard = CARDS.find((c) => c.name === "Satoshi Orchard");
-const filler = CARDS.find((c) => !/\bStake\b/.test(c.text || "") && c.id !== orchard.id);
-const forty = [...Array(20).fill(orchard.id), ...Array(20).fill(filler.id)];
+const playable = CARDS.filter((c) => !(c.text || "").includes("Stake"));
+const forty = (() => {
+  const out = [orchard.id, orchard.id, orchard.id];
+  for (const card of playable) {
+    if (card.id === orchard.id) continue;
+    for (let i = 0; i < E.MAX_COPIES && out.length < 40; i++) out.push(card.id);
+    if (out.length >= 40) break;
+  }
+  return out.slice(0, 40);
+})();
+
 
 test("a saved 40-card Stack constructs a game and commits the decklist", () => {
   const state = E.createGame(config(forty, "Signal"));
@@ -45,8 +56,24 @@ test("a Stake-module card never constructs in the base ruleset", () => {
   assert.throws(() => E.createGame(config(cheat, "Signal")), /Stake module/);
 });
 
-test("copies are unrestricted: forty of one card is legal", () => {
-  const mono = Array(40).fill(orchard.id);
-  const state = E.createGame(config(mono, "Power"));
+test("§7: no more than three copies of one card", () => {
+  /* This asserted the OPPOSITE until today. Unlimited copies was not a liberal
+   * format, it was the format: E1 has almost no card selection, so density is
+   * the only way to make a Stack reliable, and a measured 26-copy Zap build won
+   * 97.7% of games against all eleven precons on a mean kill turn of 3.8. */
+  /* A NON-BASIC card, deliberately: Basic Resources are exempt, for the same
+   * reason every card game exempts its basic lands — there are ten in the set
+   * and a Stack needs sixteen-plus, so a cap on them makes a legal Stack
+   * arithmetically impossible. The rule exists to stop one SPELL being the
+   * whole deck. */
+  const spell = CARDS.find((c) => c.type === "Zap" && !(c.text || "").includes("Stake"));
+  const mono = [...Array(4).fill(spell.id), ...forty.slice(4)];
+  assert.throws(() => E.createGame(config(mono, "Power")), /limit 3/);
+
+  const basics = Array(40).fill(orchard.id);
+  const allBasic = E.createGame(config(basics, "Power"));
+  assert.equal(allBasic.zones["0:stack"].length + allBasic.zones["0:wallet"].length, 40,
+    "forty Basic Resources is legal, if unwise");
+  const state = E.createGame(config(forty, "Power"));
   assert.equal(state.zones["0:stack"].length + state.zones["0:wallet"].length, 40);
 });

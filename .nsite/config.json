@@ -1,5 +1,12 @@
-﻿{
+{
   "$schema": "https://nsyte.run/schemas/config.schema.json",
+  "id": "600b",
+  "title": "600B Timelock TCG",
+  "description": "Edition One of the 600B Timelock trading card game — play in the browser.",
+  "source": "https://github.com/BIMbeamFLX/TCG600nap",
+  "fallback": "/index.html",
   "relays": ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net", "wss://relay.nostr.com"],
-  "servers": ["https://blossom.primal.net", "https://nostr.download", "https://blossom.bimcvp.com"]
+  "servers": ["https://blossom.primal.net", "https://nostr.download", "https://blossom.bimcvp.com"],
+  "publishRelayList": true,
+  "publishServerList": true
 }
