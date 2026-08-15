@@ -109,7 +109,14 @@ tbody tr:hover td { background: rgba(185, 145, 228, .06); }
 .net.negative { color: var(--danger); font-weight: 900; }
 
 /* RIGHT CLICK = DETAILS. The full hex key, which is the thing you need to go
-   and check this ladder against the relays yourself. */
+   and check this ladder against the relays yourself. A finger has no second
+   button, so a press and hold is that right click (see bindHold below); iOS
+   answers a long press with its own callout and selection magnifier, which
+   would eat the gesture before the key ever appeared. Only the standings rows
+   say no to selection — the detail row holds the key you came to copy. */
+#ladderRows tr:not(.detail) {
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
 tr.detail td {
   background: rgba(9, 8, 11, .66); border-left: 3px solid var(--purple-deep);
   color: var(--ink-dim); font: 12px/1.7 var(--mono); text-align: left; word-break: break-all;
@@ -236,6 +243,9 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
     <p><b>Anything that failed is listed, not dropped.</b> Every result that was refused appears
     under the table with the reason, because a ladder that quietly discards results looks exactly
     like one that is broken.</p>
+    <p><b>Sats are real money.</b> A sat (satoshi) is the smallest unit of Bitcoin, so a staked match is
+    two adults betting their own funds, wallet to wallet. Staking is optional and off unless both players
+    agree it beforehand — the game itself is free, and nothing on this board needs a single satoshi.</p>
     <p><b>Sats staked is what both players signed up to at the start of the match</b>, before either
     knew how it would go — it is not proof that anyone paid. It counts only when the two keys that
     signed the start are the same two the result names. Settlement is wallet to wallet over
@@ -272,7 +282,8 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
       <tbody id="ladderRows"></tbody>
     </table>
   </div>
-  <p class="hint" id="ladderHint" hidden>Right-click a player for their full public key, so you can look the same events up yourself.</p>
+  <p class="hint" id="ladderHint" hidden><b>Right click</b> a player on a desktop, <b>press and hold</b> on a
+  phone, for their full public key — so you can look the same events up yourself.</p>
 
   <div class="empty" id="ladderEmpty">
     <strong>No confirmed match yet.</strong>
@@ -349,8 +360,8 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
     <div class="note">
       <p><b>Why a pulled match lands at zero sats.</b> The referee records who won, how many turns it
       took and the hashes that let anyone replay the transcript. It never records the stake, because
-      the stake is not on the table: a zap duel is wallet to wallet over Lightning and this site never
-      touches it (rulebook §19). So a match pulled from the referee lands with
+      the stake is not on the table: a zap duel is settled wallet to wallet over Lightning, and this
+      software never holds, escrows or moves a satoshi. So a match pulled from the referee lands with
       <code>settledSats: 0</code> until a record carrying the agreed amount is imported for it.</p>
       <p><b>Record shape.</b> <code>id</code>, <code>winner</code>, <code>loser</code>,
       <code>settledSats</code> (a whole number of sats, zero or more), <code>verified: true</code> and
@@ -496,6 +507,64 @@ function playerCell(row, name, pubkey, short) {
   return td;
 }
 
+/* ------------------------------------------------------------- the touch hand
+ * A FINGER HAS NO SECOND BUTTON. iOS Safari never fires contextmenu, so on a
+ * phone the full public key — the whole point of the detail row — could not be
+ * reached at all, and the hint under the table asked for something a phone
+ * cannot do. Press and hold is the touch right click, at the same 420 ms
+ * play.js and the Stack Builder use, so every page answers to one gesture.
+ *
+ * ONE watcher for the whole page rather than a listener per row: the table is
+ * rebuilt from scratch on every refresh. Capture phase, so the hold is given up
+ * before any click handler gets a say. */
+let rowHold = null;
+
+function dropRowHold() {
+  if (!rowHold) return;
+  clearTimeout(rowHold.timer);
+  rowHold = null;
+}
+
+function installRowHold() {
+  window.addEventListener("pointermove", event => {
+    if (!rowHold) return;
+    // Finger jitter is not travel; a scroll down the table is not a hold.
+    if (Math.abs(event.clientX - rowHold.x) > 6 || Math.abs(event.clientY - rowHold.y) > 6) dropRowHold();
+  }, true);
+  window.addEventListener("pointerup", dropRowHold, true);
+  window.addEventListener("pointercancel", dropRowHold, true);
+  // A finger that leaves the window is not still pressing anything.
+  window.addEventListener("blur", dropRowHold);
+}
+
+/** Press and hold `node` to run `open()`. `take()` eats the click that follows
+ *  the release exactly once, and `pending` lets Android's own long-press
+ *  contextmenu stand down rather than toggle shut what the hold just opened.
+ *  `held` is cleared on every press, so the swallow can only ever eat what
+ *  belongs to the hold that set it. */
+function bindHold(node, open) {
+  let held = false;
+  node.addEventListener("pointerdown", event => {
+    held = false;
+    if (event.pointerType === "mouse") return; // the mouse already has a right button
+    dropRowHold();
+    const timer = setTimeout(() => {
+      rowHold = null;
+      held = true;
+      open();
+    }, 420);
+    rowHold = { timer, x: event.clientX, y: event.clientY };
+  });
+  return {
+    get pending() { return held; },
+    take() {
+      if (!held) return false;
+      held = false;
+      return true;
+    },
+  };
+}
+
 /* ========================================================== THE LADDER ==== */
 
 const ladderStatus = (message, tone) => {
@@ -624,10 +693,17 @@ function renderLadder(data) {
     detail.append(td);
     body.append(detail);
 
+    const toggleDetail = () => { detail.hidden = !detail.hidden; };
+    const hold = bindHold(tr, toggleDetail);
     tr.addEventListener("contextmenu", (event) => {
       event.preventDefault();
-      detail.hidden = !detail.hidden;
+      if (hold.pending) return; // Android fires this off the same long press
+      toggleDetail();
     });
+    /* A plain click is bound to nothing on this table, but the swallow is
+       consumed rather than left standing: a tap action added here later must
+       not fire off the back of a hold that just opened the key. */
+    tr.addEventListener("click", () => { hold.take(); });
   });
 
   $("ladderWrap").hidden = !rows.length;
@@ -961,6 +1037,7 @@ $("clearBtn").addEventListener("click", async () => {
 /* ------------------------------------------------------------------ startup */
 
 $("relayList").textContent = relayList().join("  ·  ") || "none — site/net.js did not load";
+installRowHold();
 renderLocal();
 loadLadder();
 checkReferee();

@@ -74,12 +74,17 @@ main { container-type: inline-size; }
   display: flex; justify-content: center; align-items: flex-end;
   gap: var(--tray-gap); padding: 30px 0 34px; perspective: 1500px;
 }
+/* A press and hold is the touch right click (see bindHold in shop.js). iOS
+   answers a long press on an image with its own callout and a selection
+   magnifier, both of which would eat the gesture before the gallery ever
+   opened — so the held elements say no to both. */
 .pull {
   position: relative; flex: 0 0 auto;
   width: calc((100% - (var(--n) - 1) * var(--tray-gap)) / var(--n));
   max-width: 152px; aspect-ratio: 5/7; cursor: pointer;
   transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px));
   transition: transform .18s ease;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation;
 }
 .pull:hover, .pull:focus-visible { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 10px)) scale(1.04); z-index: 4; }
 .pull__inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.2, .8, .25, 1); }
@@ -174,7 +179,8 @@ main { container-type: inline-size; }
 
 .counters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .owned-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
-.owned { position: relative; border: 1px solid var(--line); cursor: pointer; transition: border-color .12s ease, transform .12s ease; }
+.owned { position: relative; border: 1px solid var(--line); cursor: pointer; transition: border-color .12s ease, transform .12s ease;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 .owned:hover, .owned:focus-visible { border-color: var(--ember); transform: translateY(-3px); }
 .owned img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
 .owned.rarity-uncommon { border-color: var(--purple); }
@@ -191,7 +197,8 @@ main { container-type: inline-size; }
 .hist__n { font: 12px/1 var(--display); letter-spacing: .12em; color: var(--ember); }
 .hist__box { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); letter-spacing: .04em; }
 .hist__cards { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
-.hist__c { padding: 2px 7px; border: 1px solid var(--line); background: var(--soot); color: var(--muted); font-size: 12px; }
+.hist__c { padding: 2px 7px; border: 1px solid var(--line); background: var(--soot); color: var(--muted); font-size: 12px; cursor: pointer;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 .hist__c.rarity-uncommon { border-color: var(--purple); color: var(--purple); }
 .hist__c.rarity-rare { border-color: var(--ember); color: var(--ember); }
 .hist__c i { font-style: normal; margin-left: 6px; color: var(--power); font-size: 9px; font-weight: 900; letter-spacing: .1em; }
@@ -272,6 +279,13 @@ main { container-type: inline-size; }
           <span class="state state--off" id="paidState">PAID · NOT LIVE YET</span>
         </div>
 
+        <!-- The price line above and the mode note below both say "sats", and a
+             word that means real money must not be met for the first time as
+             jargon. Said in plain sight, in the open, never in a tooltip. -->
+        <p class="muted" style="margin-top:12px"><b>Sats are real money.</b> A sat (satoshi) is the smallest
+        unit of Bitcoin. You never need a single one to play this game: the whole site is free, alpha packs
+        cost nothing, and nothing on this page can take a payment.</p>
+
         <div class="note mode-demo" id="modeNote" style="margin-top:12px"></div>
         <div class="note mode-off" id="paidNote" style="margin-top:10px" hidden></div>
         <!-- Shown only when the shell forbids outbound requests. JS owns it; the
@@ -305,8 +319,9 @@ main { container-type: inline-size; }
           <div class="fact"><span>Cards in box</span><b id="boxTotal">—</b></div>
           <div class="fact"><span>Cards per pack</span><b id="packSizeFact">—</b></div>
         </div>
-        <p class="muted" style="margin-top:12px">Right-click any card on this page for its gallery entry.
-        Left-click sends it to the <a href="deck.html">Stack Builder</a>.</p>
+        <p class="muted" style="margin-top:12px"><b>Right click</b> on a desktop, <b>press and hold</b> on a
+        phone, opens any card's gallery entry. A left click — or a tap — sends it to the
+        <a href="deck.html">Stack Builder</a>.</p>
       </aside>
     </div>
   </section>
@@ -364,8 +379,8 @@ main { container-type: inline-size; }
       <a class="btn btn--ghost btn--small" href="deck.html">Open the Stack Builder</a>
     </div>
     <p class="tool-note" id="stackNote" role="status" aria-live="polite"></p>
-    <p class="muted" style="margin-top:6px">Left-click a card to add it to the <b>Booster pulls</b> Stack; right-click
-    opens its gallery entry. Duplicates stack up as ×N — a Stack has no copy limit in Edition One, so extras are
+    <p class="muted" style="margin-top:6px">A left click — or a tap — adds a card to the <b>Booster pulls</b> Stack;
+    <b>right click</b> on a desktop, <b>press and hold</b> on a phone, opens its gallery entry. Duplicates stack up as ×N — a Stack has no copy limit in Edition One, so extras are
     playable, not dead weight. During alpha your collection lives in this browser only: it is a playground, not a ledger.</p>
   </section>
 

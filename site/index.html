@@ -185,6 +185,10 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
    somebody their extension is missing. */
 #loginNote { flex-basis: 100%; color: var(--muted); font-size: 12px; }
 #loginNote b { color: var(--power); }
+/* "Sign-in is optional" was the button's title= — a tooltip, which a phone
+   never shows and a keyboard rarely does. It was also the ONLY place the site
+   said so, so it is text now, standing next to the button it describes. */
+#loginWhy { margin: 0; max-width: 22ch; color: var(--ink-dim); font: 700 10px/1.4 var(--body); letter-spacing: .1em; text-transform: uppercase; }
 
 /* -------------------------------------------------------------- narrow up */
 @media (max-width: 900px) {
@@ -300,7 +304,8 @@ body { container-type: inline-size; container-name: page; }
     <a class="link" href="lore.html">Lore</a>
     <a class="link" href="leaderboard.html">Leaderboard</a>
   </div>
-  <button id="loginBtn" type="button" title="Optional — only online duels need it">⚡ Sign in with Nostr</button>
+  <button id="loginBtn" type="button">⚡ Sign in with Nostr</button>
+  <p id="loginWhy">Optional — only online duels need it</p>
   <div id="who">
     <img id="whoPic" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" referrerpolicy="no-referrer">
     <div><div class="n" id="whoName"></div><div class="k" id="whoNpub"></div></div>
@@ -421,6 +426,14 @@ body { container-type: inline-size; container-name: page; }
     <a href="lore.html">Lore of the world</a>
     <a href="leaderboard.html">Sats leaderboard</a>
   </p>
+
+  <!-- The first "sats" on this page is in the row above, and a word that means
+       real money must not be met for the first time as jargon. Said here, in
+       the open, before the zap duel section ever uses it again. -->
+  <p class="note" style="margin-top:18px"><strong>One word first: sats.</strong> A sat (satoshi) is the
+  smallest unit of Bitcoin — <b>real money, not game points</b>. You never need a single one to play this
+  game: every card, every match and the whole site is free. Staking sats on a duel is an optional side
+  bet between two adults, off unless both of them switch it on, and the software never touches it.</p>
 </section>
 
 <!-- --------------------------------------------------------- the cards -->
@@ -513,10 +526,12 @@ body { container-type: inline-size; container-name: page; }
     <div class="panel panel--act"><h3>3 · Zap</h3><p>After the win the app opens the zap to the winner's Lightning address (NIP-57). Honor system.</p></div>
     <div class="panel panel--act"><h3>4 · Publish</h3><p>Both players publish the signed result to Nostr. Settled duels build a public track record.</p></div>
   </div>
-  <p class="note" style="margin-top:22px">v1 is an honor system: the app never holds funds, it only reminds
-  you of the agreed zap. Escrowed stakes are under review as a later opt-in module, legal assessment
-  included. Rulebook §19: standard matches never transfer anything of value. Online seats need a NIP-07
-  signer such as Alby or nos2x — the local hotseat never does.</p>
+  <p class="note" style="margin-top:22px">v1 is an honor system, and staking is optional — off unless both
+  players agree it before the match. The software never holds, escrows or moves a satoshi: it records the
+  amount the two of them agreed and reminds the loser to send it. Any settlement happens between those two
+  people, wallet to wallet, with their own wallets. Escrowed stakes are under review as a later opt-in
+  module, legal assessment included. Online seats need a NIP-07 signer such as Alby or nos2x — the local
+  hotseat never does.</p>
 </section>
 
 <!-- ------------------------------------------------------------ closing -->
@@ -630,7 +645,7 @@ body { container-type: inline-size; container-name: page; }
     login: document.getElementById("loginBtn"), who: document.getElementById("who"),
     pic: document.getElementById("whoPic"), name: document.getElementById("whoName"),
     npub: document.getElementById("whoNpub"), logout: document.getElementById("logoutBtn"),
-    note: document.getElementById("loginNote"),
+    note: document.getElementById("loginNote"), why: document.getElementById("loginWhy"),
   };
   if (!els.login || !els.who) return;
 
@@ -652,6 +667,9 @@ body { container-type: inline-size; container-name: page; }
 
   function showUser(pubkey, profile) {
     els.login.style.display = "none";
+    /* The line saying sign-in is optional belongs to the button; once somebody
+       is signed in there is no button and nothing left to call optional. */
+    if (els.why) els.why.hidden = true;
     els.who.style.display = "flex";
     const np = npubEncode(pubkey);
     els.npub.textContent = np ? np.slice(0, 12) + "…" + np.slice(-5) : "";
@@ -663,6 +681,7 @@ body { container-type: inline-size; container-name: page; }
   function showSignedOut() {
     els.who.style.display = "none";
     els.login.style.display = "inline-block";
+    if (els.why) els.why.hidden = false;
   }
 
   /* Best-effort only: a sandbox with no way out, no relay, no WebSocket or a

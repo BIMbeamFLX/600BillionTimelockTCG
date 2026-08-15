@@ -253,8 +253,81 @@
     }
   }
 
-  function openGallery(cardId) {
-    root.open(`cards.html#${cardId}`, "_blank", "noopener");
+  /* A right click opens the gallery entry in its own tab and leaves the reveal
+   * where it is. A HOLD cannot ask for a tab: it fires on a timer, and Safari
+   * does not count a timer as the user gesture a new tab needs, so the popup
+   * blocker would eat it and the touch path would do nothing at all — which is
+   * the bug being fixed. A phone gets the same page in this tab instead; back
+   * returns to the shop, and the collection is in storage, not in the DOM. */
+  function openGallery(cardId, sameTab) {
+    const url = `cards.html#${cardId}`;
+    if (sameTab) {
+      root.location.href = url;
+      return;
+    }
+    root.open(url, "_blank", "noopener");
+  }
+
+  /* ------------------------------------------------------- the touch hand
+   * A FINGER HAS NO SECOND BUTTON. iOS Safari never fires contextmenu, so on a
+   * phone the gallery entry of the card you just pulled was unreachable — the
+   * page said "right-click" at something that cannot be right-clicked. Press
+   * and hold is the touch right click, at the same 420 ms play.js and the Stack
+   * Builder use, so every page in the game answers to one gesture.
+   *
+   * ONE watcher for the whole page rather than a listener per node: the tray,
+   * the collection and the log are all rebuilt from scratch on every pull.
+   * Capture phase, so the hold is given up before any click handler gets a say. */
+  let cardHold = null;
+
+  function dropCardHold() {
+    if (!cardHold) return;
+    clearTimeout(cardHold.timer);
+    cardHold = null;
+  }
+
+  function installCardHold() {
+    if (!root.addEventListener) return;
+    root.addEventListener("pointermove", (event) => {
+      if (!cardHold) return;
+      // Finger jitter is not travel; a scroll off a card is not a hold.
+      if (Math.abs(event.clientX - cardHold.x) > 6 || Math.abs(event.clientY - cardHold.y) > 6) {
+        dropCardHold();
+      }
+    }, true);
+    root.addEventListener("pointerup", dropCardHold, true);
+    root.addEventListener("pointercancel", dropCardHold, true);
+    // A finger that leaves the window is not still pressing anything.
+    root.addEventListener("blur", dropCardHold);
+  }
+
+  /** Press and hold `node` to run `open()`. Returns the swallow for whatever
+   *  the release fires next: `take()` eats the click exactly once, and
+   *  `pending` lets Android's own long-press contextmenu stand down rather than
+   *  open a second tab over the one the hold just opened. `held` is cleared on
+   *  every press, so the swallow can only ever eat what belongs to the hold
+   *  that set it. */
+  function bindHold(node, open) {
+    let held = false;
+    node.addEventListener("pointerdown", (event) => {
+      held = false;
+      if (event.pointerType === "mouse") return; // the mouse already has a right button
+      dropCardHold();
+      const timer = setTimeout(() => {
+        cardHold = null;
+        held = true;
+        open();
+      }, 420);
+      cardHold = { timer, x: event.clientX, y: event.clientY };
+    });
+    return {
+      get pending() { return held; },
+      take() {
+        if (!held) return false;
+        held = false;
+        return true;
+      },
+    };
   }
 
   /* LEFT = act, RIGHT = explain. On a face-down card the fast action is
@@ -273,7 +346,11 @@
       stackNote("Saving…");
       await addToStack(cardId);
     };
-    node.addEventListener("click", act);
+    const hold = bindHold(node, () => openGallery(cardId, true));
+    node.addEventListener("click", () => {
+      if (hold.take()) return; // that click belonged to the hold that opened the gallery
+      act();
+    });
     node.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
@@ -281,6 +358,7 @@
     });
     node.addEventListener("contextmenu", (event) => {
       event.preventDefault();
+      if (hold.pending) return;
       openGallery(cardId);
     });
   }
@@ -310,7 +388,7 @@
     node.title = `${nameOf(cardId)} — ${rarity}`;
     node.setAttribute(
       "aria-label",
-      `${nameOf(cardId)}, ${rarity}. Click to add to a Stack, right-click for details.`
+      `${nameOf(cardId)}, ${rarity}. Click or tap to add to a Stack; right-click, or press and hold, for details.`
     );
     bindCardHands(node, cardId, true);
     return node;
@@ -507,7 +585,7 @@
     tile.title = `${nameOf(id)} — ${rarity} ×${state.pulls[id]}`;
     tile.setAttribute(
       "aria-label",
-      `${nameOf(id)}, ${rarity}, ${state.pulls[id]} copies. Click to add to a Stack, right-click for details.`
+      `${nameOf(id)}, ${rarity}, ${state.pulls[id]} copies. Click or tap to add to a Stack; right-click, or press and hold, for details.`
     );
     bindCardHands(tile, id, false);
     return tile;
@@ -547,11 +625,17 @@
       const cards = el("span", "hist__cards");
       entry.ids.forEach((id, i) => {
         const chip = el("span", `hist__c rarity-${rarityOf(id)}`, nameOf(id));
-        chip.title = `${id} — ${rarityOf(id)}. Click to add to a Stack, right-click for details.`;
+        chip.title = `${id} — ${rarityOf(id)}. Click or tap to add to a Stack; right-click, or press and hold, for details.`;
         if (entry.fresh[i]) chip.append(el("i", null, "NEW"));
-        chip.addEventListener("click", async () => { stackNote("Saving…"); await addToStack(id); });
+        const hold = bindHold(chip, () => openGallery(id, true));
+        chip.addEventListener("click", async () => {
+          if (hold.take()) return;
+          stackNote("Saving…");
+          await addToStack(id);
+        });
         chip.addEventListener("contextmenu", (event) => {
           event.preventDefault();
+          if (hold.pending) return;
           openGallery(id);
         });
         cards.append(chip);
@@ -719,6 +803,7 @@
   }
 
   function init() {
+    installCardHold();
     if (!BOX.box.length) return;
     renderBoxFacts();
     renderModeCopy();
