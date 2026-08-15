@@ -1237,6 +1237,16 @@
     renderHud(v, seat);
     renderClashStrip(v, seat, plan);
     renderQuickClash(v, seat);
+    // While a clash step is open the Avatars are draggable, so a touch on one
+    // must pull a line rather than scroll the page.
+    const youZone = document.getElementById("youNetwork");
+    if (youZone && youZone.classList) {
+      const draggable = Boolean(
+        v.awaiting && v.awaiting.seat === seat &&
+        (v.awaiting.kind === "attackers" || v.awaiting.kind === "blockers")
+      );
+      youZone.classList.toggle("draggable", draggable);
+    }
     drawClashArrows();
   }
 
@@ -1336,6 +1346,12 @@
     chip(playable ? `${playable} playable` : "nothing to play", playable ? "" : "quiet");
   }
 
+  /* A drag in progress: which card is being pulled, what the pull means, and
+   * where the pointer is. `moved` is what separates a drag from a click — a
+   * pointer that never travelled is still a click, and the click path stays
+   * the primary one. */
+  let dragging = null;
+
   /* Attacks and blocks are lines you can see: ember arrows from attackers to
    * the player they are sent at, violet arrows from blockers to attackers.
    * Pending declarations are dashed; the engine's word is solid. */
@@ -1394,6 +1410,100 @@
       const to = cardRect(atk);
       if (from && to) draw(center(from), center(to), "blk", pending);
     }
+
+    // The line you are currently pulling, following the pointer.
+    if (dragging && dragging.moved) {
+      const rect = cardRect(dragging.uid);
+      if (rect) {
+        draw(center(rect), { x: dragging.x, y: dragging.y }, dragging.kind === "attack" ? "atk" : "blk", true);
+      }
+    }
+  }
+
+  /* Drag an Avatar at what it should fight: onto the opponent to attack, onto
+   * an attacker to block it. The same declarations the clicks make — this is
+   * the gesture, not a second rulebook. Below the movement threshold nothing
+   * happens here and the click handler does its usual job. */
+  function installClashDrag() {
+    const zone = document.getElementById("youNetwork");
+    if (!zone || !zone.addEventListener) return;
+    let suppressClick = false;
+
+    const dragKind = () => {
+      const full = session.full;
+      if (!full || full.result) return null;
+      const seat = uiSeat(full);
+      if (!full.awaiting || full.awaiting.seat !== seat) return null;
+      if (full.awaiting.kind === "attackers") return "attack";
+      if (full.awaiting.kind === "blockers") return "block";
+      return null;
+    };
+
+    /* A drop does not always produce a click — release outside a target, or
+     * on a surface that swallows it, and none arrives. Arming the suppressor
+     * for exactly one interaction, and disarming it when the next one begins,
+     * is what stops a stale flag from eating a legitimate click later. */
+    window.addEventListener("pointerdown", () => { suppressClick = false; }, true);
+
+    zone.addEventListener("pointerdown", (event) => {
+      const node = event.target && event.target.closest ? event.target.closest(".gcard") : null;
+      if (!node || !node.dataset || !node.dataset.uid) return;
+      const kind = dragKind();
+      if (!kind) return;
+      dragging = { uid: node.dataset.uid, kind, x: event.clientX, y: event.clientY, moved: false };
+    });
+
+    window.addEventListener("pointermove", (event) => {
+      if (!dragging) return;
+      if (Math.abs(event.clientX - dragging.x) > 6 || Math.abs(event.clientY - dragging.y) > 6) {
+        dragging.moved = true;
+      }
+      dragging.x = event.clientX;
+      dragging.y = event.clientY;
+      if (dragging.moved) drawClashArrows();
+    });
+
+    window.addEventListener("pointerup", (event) => {
+      const drag = dragging;
+      dragging = null;
+      if (!drag) return;
+      if (!drag.moved) return void drawClashArrows(); // it was a click after all
+      suppressClick = true; // the click that follows a drag must not act twice
+
+      const target = document.elementFromPoint
+        ? document.elementFromPoint(event.clientX, event.clientY)
+        : null;
+      const within = (selector) => Boolean(target && target.closest && target.closest(selector));
+      const droppedCard = target && target.closest ? target.closest(".gcard") : null;
+      const droppedUid = droppedCard && droppedCard.dataset ? droppedCard.dataset.uid : null;
+
+      if (drag.kind === "attack") {
+        // Anywhere on the opponent's side means "go at them".
+        if (within("#foeBar") || within("#foeNetwork") || within("#foeHand")) {
+          if (attackers.indexOf(drag.uid) < 0) return void toggleAttacker(drag.uid);
+        }
+        return void render();
+      }
+
+      const full = session.full;
+      const attacking = full && full.clash ? full.clash.attackers : [];
+      if (droppedUid && attacking.indexOf(droppedUid) >= 0) {
+        blockTarget = droppedUid;
+        return void assignBlocker(drag.uid);
+      }
+      render();
+    });
+
+    window.addEventListener(
+      "click",
+      (event) => {
+        if (!suppressClick) return;
+        suppressClick = false;
+        event.stopPropagation();
+        if (event.preventDefault) event.preventDefault();
+      },
+      true
+    );
   }
 
   function continueLabel(v, seat) {
@@ -2411,6 +2521,7 @@
     }
 
     document.getElementById("quickClash").addEventListener("click", quickClashAction);
+    installClashDrag();
 
     // Fewer clicks: the waiting Queue is itself the Continue button, and the
     // space bar is Continue for hands that never leave the keyboard.

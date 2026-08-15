@@ -272,6 +272,9 @@ a { color: var(--orange-soft); }
 /* The attacker you picked to block: violet pulse until you name the blocker. */
 @keyframes blockpickPulse { 0%,100% { box-shadow: 0 0 0 3px var(--violet), 0 0 10px rgba(23,190,187,.5); } 50% { box-shadow: 0 0 0 3px var(--violet), 0 0 22px rgba(23,190,187,.95); } }
 .gcard.blockpick { animation: blockpickPulse 1s ease-in-out infinite; }
+/* A clash step is open: these cards are pulled, not scrolled past. */
+#youNetwork.draggable .gcard { touch-action: none; cursor: grab; }
+#youNetwork.draggable .gcard:active { cursor: grabbing; }
 /* An attacker nobody is answering yet — the thing to click next. */
 .gcard.needsblock { outline: 2px dashed rgba(255,77,61,.7); outline-offset: 2px; }
 /* Once an attacker is picked: who may legally answer it, and who may not. */
