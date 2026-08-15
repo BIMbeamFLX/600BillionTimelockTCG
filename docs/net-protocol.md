@@ -873,11 +873,16 @@ event occupies the seat's handshake role: seat 0 under `invite`, seat 1 under `a
 seats, two rows, no schema change — the existing `(match_id, role, pubkey)` key already gives
 each seat exactly one slot per bracket.
 
-> **As it stands, `startEvent()` has no caller.** The builder, `parseStake`, and the relay-side
-> reader in `site/ladder.js` all exist and are exported; the click in `site/play.js` that signs
-> and publishes it does not. Until it lands, a match's opening bracket is the invite/accept pair
-> and `stake` is unrecorded. Nothing else in this section is speculative — the event shape above
-> is what `net.js` builds today.
+**It is signed automatically, not on a click.** `announceStart()` in `site/play.js` fires on the
+first `STATE` with status `playing` and signs once per match — the id is remembered in
+`600b:announced`, so a reload does not spend the player's attention on a second popup. Declining
+the signer is allowed and the match plays on; the client says so, and says plainly that a declined
+start leaves the wager with no signed record.
+
+Every field comes from the referee's `STATE`, including `createdAt`, and that is the point: two
+independently signed start events are byte-identical apart from `pubkey`, `id` and `sig`, so the
+stake in them is provably the number **both** seats agreed to. `tests/js/net.test.mjs` asserts
+exactly that.
 
 ### 6.2 Kind 31600 (addressable) — RESULT
 
@@ -1199,7 +1204,7 @@ part of the login proof — another reason to state it explicitly rather than le
 `npm run test:js` — which is `node --test tests/js/*.test.mjs`. Use the **file/glob form**; the
 directory form `node --test tests/js/` fails on Windows.
 
-**228 tests, 228 passing, 0 failing** (2026-08-15, Node v24, ~7 s).
+**284 tests, 284 passing, 0 failing** (2026-08-15, Node v24, ~7 s).
 
 | File | Tests | Covers |
 |---|---:|---|
@@ -1239,7 +1244,6 @@ nothing.**
 | **D-14** | The referee is a single point of failure; the peer/napplet topology is deferred. | Instant `state_json` recovery + a forever-retrying client. The engine is unchanged, so the P2P path remains reachable. | **P-14:** the WebRTC NAP per `multiplayer-architecture.md`. |
 | **D-15** | A matching token and freshly NIP-42-authenticated identity evict the older socket. | Reload, sleep/wake and moving machines recover without letting a leaked token cross identities. | Add explicit seat handover if tournament operations require it. |
 | **D-16** | The ladder's authority key does not exist. Ranked rating is derived client-side from relay events (`site/ladder.js`) and nothing republishes an attested score record. | Every input is verified — two distinct seats, byte-identical content, both signers named inside that content, every signature checked — so the table is honest about what it can see. It cannot see abandonment or Sybil farming. | **D6** in `multiplayer-architecture.md`: authority-key republication gating Ranked. |
-| **D-17** | `startEvent()` is built, exported and read by the ladder, but nothing in `site/play.js` signs and publishes it. The opening bracket of a match is therefore still just the invite/accept pair, and an agreed `stake` is recorded nowhere. | The result event alone is enough to rank a match; the start event only adds the *terms*. Nothing depends on it yet, and a half-wired stake is worse than none. | Wire the signing click, and store it under seat 0's `invite` / seat 1's `accept` role (§6.1a). |
 
 **D-9** narrows: the transport is now relay-agnostic *and* relay-optional — the server never
 opens a relay connection at all.
