@@ -740,9 +740,15 @@
     return globalThis.nostr.signEvent(unsigned);
   }
 
+  /* ?relay= is a developer convenience that routes EVERY relay read and write
+   * through one host of the URL's choosing — including the profile lookup that
+   * decides who gets paid. It is honoured only for a well-formed wss:/ws: URL,
+   * and never silently: a page that is reading from one stranger's relay should
+   * be able to say so. */
   function relays() {
     const override = param("relay");
-    return override ? [override] : RELAYS;
+    if (override && /^wss?:\/\/[^\s]+$/i.test(override)) return [override];
+    return RELAYS;
   }
 
   /* Open, EVENT, resolve on OK, close after 3 s regardless. Publishing is
@@ -931,27 +937,53 @@
   }
 
   /* One REQ per relay for invites addressed to me, plus open invites tagged
-   * t=invite. Dedup by event id; the caller gets validated rows only. */
+   * t=invite. Dedup by event id; the caller gets validated rows only.
+   *
+   * EVERY ROW IS SIGNATURE-VERIFIED BEFORE IT IS OFFERED, and this is not
+   * belt-and-braces. Relays are not required to check signatures and several do
+   * not, so without this an invite's `pubkey` is an unverified CLAIM that the
+   * lobby renders as an identity — and its `table` is an attacker-chosen
+   * destination for our socket, which is precisely the delivery vehicle a
+   * challenge-replay attack needs. Shape first, cryptography second: there is
+   * no point verifying a signature over something that is not an invite. */
   function subscribeInvites(pubkey, onInvite) {
     const seen = Object.create(null);
     const sockets = [];
     const since = Math.floor(Date.now() / 1000) - INVITE_TTL;
     const filter = { kinds: [KIND_HANDSHAKE], "#t": ["invite"], since, limit: 40 };
     if (/^[0-9a-f]{64}$/.test(pubkey || "")) filter["#p"] = [pubkey];
+    const S = globalThis.E1Schnorr;
+    if (!S || typeof S.verifyEvent !== "function") {
+      /* NO VERIFIER, NO INVITES. Showing unverified rows would be worse than
+       * showing none: they look identical to real ones and they point our
+       * socket somewhere. */
+      H("onError", {
+        code: "NO_VERIFIER",
+        message: "invites cannot be checked without site/schnorr.js, so none are offered",
+      });
+      return () => {};
+    }
     for (const url of relays()) {
       try {
         const ws = new WebSocket(url);
         sockets.push(ws);
         ws.onopen = () => ws.send(JSON.stringify(["REQ", "inv", filter]));
         ws.onmessage = (m) => {
+          let event;
           try {
-            const [type, , event] = JSON.parse(m.data);
-            if (type !== "EVENT") return;
-            const invite = parseInvite(event);
-            if (!invite || seen[invite.id]) return;
-            seen[invite.id] = true;
-            onInvite(invite);
-          } catch (err) { /* relays say all sorts of things */ }
+            const frame = JSON.parse(m.data);
+            if (frame[0] !== "EVENT") return;
+            event = frame[2];
+          } catch (err) {
+            return; // relays say all sorts of things
+          }
+          const invite = parseInvite(event);
+          if (!invite || seen[invite.id]) return;
+          seen[invite.id] = true; // claimed before the await, so two relays cannot race it
+          S.verifyEvent(event).then(
+            (ok) => { if (ok) onInvite(invite); },
+            () => { /* an invite we cannot check is an invite we do not have */ }
+          );
         };
         ws.onerror = () => { /* one dead relay is not a failure */ };
       } catch (err) { /* nor is one bad URL */ }
@@ -1017,9 +1049,16 @@
   async function sessions(pubkey) {
     const key = String(pubkey || "").toLowerCase();
     if (!/^[0-9a-f]{64}$/.test(key)) return [];
-    const [starts, results] = await Promise.all([
+    const [rawStarts, rawResults] = await Promise.all([
       query({ kinds: [KIND_HANDSHAKE], "#t": ["start"], "#p": [key], limit: 60 }, 3500),
       query({ kinds: [KIND_RESULT], "#p": [key], limit: 60 }, 3500),
+    ]);
+    /* Signature-checked before any of it is believed. An unverified start
+     * announcement is an attacker-chosen `table` offered to the player as
+     * somewhere to reconnect, which is the same trust a relay must never have. */
+    const [starts, results] = await Promise.all([
+      verifiedEvents(rawStarts, { kind: KIND_HANDSHAKE }),
+      verifiedEvents(rawResults, { kind: KIND_RESULT }),
     ]);
     const finished = new Set();
     for (const event of results) {
@@ -1056,11 +1095,34 @@
     return out;
   }
 
+  /* THIS FUNCTION CHOOSES WHO GETS PAID, so nothing it returns may rest on a
+   * relay's word. A REQ's filter is a REQUEST, not a guarantee: a relay may
+   * answer with any event it likes, and whoever answered first with the largest
+   * created_at used to decide the winner's lightning address. One hostile relay
+   * out of three — or a crafted ?relay= — was enough to redirect a stake.
+   *
+   * So: the kind and the author are re-checked against what we asked for, and
+   * the signature is verified here rather than assumed. */
+  async function verifiedEvents(events, want) {
+    const S = globalThis.E1Schnorr;
+    if (!S || typeof S.verifyEvent !== "function") return [];
+    const out = [];
+    for (const event of events) {
+      if (!event || typeof event !== "object") continue;
+      if (want.kind !== undefined && event.kind !== want.kind) continue;
+      if (want.author && event.pubkey !== want.author) continue;
+      // eslint-disable-next-line no-await-in-loop
+      if (await S.verifyEvent(event)) out.push(event);
+    }
+    return out;
+  }
+
   /* Kind 0 metadata: the display name for the table, and — the reason this
    * exists — the lightning address a winner can actually be paid at. */
   async function profile(pubkey) {
     if (!/^[0-9a-f]{64}$/.test(pubkey || "")) return null;
-    const events = await query({ kinds: [0], authors: [pubkey], limit: 4 }, 2500);
+    const raw = await query({ kinds: [0], authors: [pubkey], limit: 4 }, 2500);
+    const events = await verifiedEvents(raw, { kind: 0, author: pubkey });
     events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     for (const event of events) {
       try {
@@ -1142,7 +1204,36 @@
     if (!body || typeof body.pr !== "string") {
       throw new Error(String((body && body.reason) || "the wallet returned no invoice"));
     }
-    return { invoice: body.pr, sats, lud16: String(opts.lud16).toLowerCase() };
+    /* THE INVOICE IS CHECKED BEFORE IT IS OFFERED. A wallet endpoint answers
+     * with a bolt11 and we hand it to a WebLN wallet, some of which approve
+     * inside a spending budget without asking — so an endpoint that returned an
+     * invoice for a different amount than the one on screen would be paid
+     * silently. bolt11 encodes its amount in the human-readable part, which is
+     * enough to refuse a mismatch without decoding the whole thing. */
+    const billed = bolt11Sats(body.pr);
+    if (billed === null) throw new Error("that wallet returned something that is not a lightning invoice");
+    if (billed !== 0 && billed !== sats) {
+      throw new Error(`that wallet asked for ${billed} sats instead of ${sats} — refusing`);
+    }
+    return { invoice: body.pr, sats, billed, lud16: String(opts.lud16).toLowerCase() };
+  }
+
+  /* The amount out of a bolt11's human-readable part: `lnbc<amount><multiplier>`
+   * where the multiplier is m/u/n/p against one bitcoin. Returns sats, 0 for an
+   * open-amount invoice, or null if this is not a bolt11 at all. Deliberately
+   * only the HRP — the payload is a bech32 TLV stream, and decoding all of it
+   * to answer "how much" would be a second parser to get wrong. */
+  function bolt11Sats(invoice) {
+    const match = /^ln(?:bc|tb|bcrt)(\d+)?([munp])?1/i.exec(String(invoice || ""));
+    if (!match) return null;
+    if (!match[1]) return 0; // no amount named: the payer chooses
+    const digits = BigInt(match[1]);
+    const SATS_PER_BTC = 100000000n;
+    const scale = { m: 1000n, u: 1000000n, n: 1000000000n, p: 1000000000000n };
+    const unit = (match[2] || "").toLowerCase();
+    if (!unit) return Number(digits * SATS_PER_BTC);
+    const milliSats = (digits * SATS_PER_BTC * 1000n) / scale[unit];
+    return milliSats % 1000n === 0n ? Number(milliSats / 1000n) : Number(milliSats) / 1000;
   }
 
   const hasWebln = () => Boolean(globalThis.webln && globalThis.webln.sendPayment);

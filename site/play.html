@@ -335,7 +335,10 @@ a { color: var(--orange-soft); }
 
 /* Cards on an arc: the render writes --rot/--lift per card, the classes
    compose on top. Non-arc zones fall back to 0/0. */
-.gcard { position: relative; width: var(--card-w); cursor: pointer; border: 2px solid transparent; transition: transform .14s ease, border-color .12s ease; transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)); }
+/* A press and hold is the touch right click (see cardNode). iOS answers a long
+   press on an image with its own callout and a selection magnifier, both of
+   which would eat the gesture before the card window ever opened. */
+.gcard { position: relative; width: var(--card-w); cursor: pointer; border: 2px solid transparent; transition: transform .14s ease, border-color .12s ease; transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)); -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 .gcard img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
 .gcard:hover { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 14px)) scale(1.05); border-color: var(--orange-soft); z-index: 5; }
 .gcard.committed { transform: rotate(calc(var(--rot, 0deg) + 90deg)) translateY(var(--lift, 0px)) scale(.94); filter: brightness(.72); }
@@ -487,6 +490,15 @@ a { color: var(--orange-soft); }
 .logline.manual { color: var(--purple); }
 
 @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .rail { position: static; } .seats { grid-template-columns: 1fr; } }
+/* On a phone the rail stops sitting beside the board and stacks under it. The
+   card reader is the one panel a player needs mid-turn, so it goes to the top
+   of that stack instead of below the table admin controls. */
+@media (pointer: coarse) {
+  .rail { display: flex; flex-direction: column; }
+  #cardPanel { order: -1; }
+  /* Thumb-sized targets for the controls a turn is actually made of. */
+  .controls .btn, .controls button { min-height: 44px; }
+}
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -714,9 +726,10 @@ a { color: var(--orange-soft); }
             <button class="ghost" id="leaveTable">Leave table</button>
           </div>
         </div>
-        <div class="panel">
+        <div class="panel" id="cardPanel">
           <h3>Card</h3>
-          <div id="inspector"><span style="color:var(--muted);font-size:12px">Hover a card.</span></div>
+          <!-- Not "Hover a card": half the people reading this have no hover. -->
+          <div id="inspector"><span style="color:var(--muted);font-size:12px">Point at a card, or hold one to open it.</span></div>
         </div>
         <details class="panel">
           <summary>Match controls</summary>
@@ -809,7 +822,7 @@ a { color: var(--orange-soft); }
       </div>
       <div class="cd-blossom" id="cdBlossom"></div>
       <div style="margin-top:10px;color:var(--muted);font-size:11.5px">
-        Tip: left-click a card in your Wallet to play it without this popup.
+        Tip: click or tap a card in your Wallet to play it without this popup.
       </div>
     </div>
   </div>
@@ -826,6 +839,10 @@ a { color: var(--orange-soft); }
 <script src="fx.js"></script>
 <!-- The transport. It opens no socket unless this page already holds a match or
      the player asks for one, so play.html stays a working offline hotseat. -->
+<!-- BEFORE net.js, which refuses to offer a relay invite without it. An invite's
+     pubkey is rendered as an identity and its `table` decides where our socket
+     goes, so both are claims that must be checked rather than believed. -->
+<script src="schnorr.js"></script>
 <script src="net.js"></script>
 <!-- Only for the settlement screen: a bolt11 invoice the loser can scan with
      the phone in their hand. play.js degrades to copy-and-paste without it. -->

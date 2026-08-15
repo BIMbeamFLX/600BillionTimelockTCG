@@ -126,21 +126,32 @@
     return promise;
   }
 
-  /* Kind 31600 is ADDRESSABLE: one row per (pubkey, d), newest wins. Relays are
-   * supposed to enforce that and several do not, so a client that does not
-   * replace by (pubkey, matchId) will count one player's corrected result twice
-   * and call the match disputed. */
-  function newestPerAuthor(events) {
-    const best = new Map();
+  /* Kind 31600 is ADDRESSABLE: one row per (pubkey, d). Relays are supposed to
+   * enforce that and several do not, so a client that does not replace by
+   * (pubkey, matchId) counts one player's corrected result twice and calls the
+   * match disputed.
+   *
+   * BUT NEWEST-WINS ALONE MAKES LOSSES OPTIONAL. Addressable events are
+   * replaceable by their author, so a loser could republish under the same `d`
+   * with a later timestamp and one byte changed: the two seats no longer agree,
+   * and a match they demonstrably lost simply vanishes from the table. So every
+   * version an author published is kept here, and agreement is looked for
+   * across all of them — once two seats have signed the same bytes, that fact
+   * exists and no later publication can retract it. */
+  function versionsPerAuthor(events) {
+    const byAuthor = new Map();
     for (const event of events) {
       if (!event || typeof event !== "object") continue;
       const d = tagValue(event, "d");
       if (!d) continue;
       const key = `${event.pubkey}:${d}`;
-      const held = best.get(key);
-      if (!held || (event.created_at || 0) > (held.created_at || 0)) best.set(key, event);
+      if (!byAuthor.has(key)) byAuthor.set(key, new Map());
+      // One entry per distinct content: a byte-identical repost is not a change.
+      byAuthor.get(key).set(event.content, event);
     }
-    return Array.from(best.values());
+    const out = [];
+    for (const versions of byAuthor.values()) out.push(...versions.values());
+    return out;
   }
 
   const applyElo = (a, b, scoreA) => {
@@ -188,7 +199,7 @@
     // matchId -> content -> [events]
     const byMatch = new Map();
     const rejected = [];
-    for (const event of newestPerAuthor(list)) {
+    for (const event of versionsPerAuthor(list)) {
       const parsed = parseResult(event);
       if (!parsed) continue;
       if (!parsed.addressed) {
@@ -221,8 +232,13 @@
         });
         continue;
       }
+      /* Two DIFFERENT bodies that each carry both signatures is not a retraction
+       * either — it means the pair signed twice and genuinely disagree about
+       * which is the record, so neither is counted. A player republishing to
+       * bury a loss cannot reach this branch on their own: it needs their
+       * opponent to co-sign the replacement. */
       if (agreed.length > 1) {
-        rejected.push({ matchId, why: "more than one agreed result for one match" });
+        rejected.push({ matchId, why: "both seats signed two different results for this match" });
         continue;
       }
       const { parsed } = agreed[0];

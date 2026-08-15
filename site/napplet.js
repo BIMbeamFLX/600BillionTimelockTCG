@@ -155,13 +155,25 @@
     const root = document.documentElement;
     if (!root || !root.style || typeof root.style.setProperty !== "function") return;
     const palette = Object.assign({}, FALLBACK_THEME, colors || {});
+    /* MAPPED ONTO THE TOKENS THE SITE ACTUALLY USES. An earlier version wrote
+     * `primary` to `--orange`, which is only a legacy alias in 600b.css — the
+     * single action colour is `--ember`, so a shell theme repainted nothing a
+     * player could see. Surfaces are likewise a family, not one token: `--soot`,
+     * `--panel-2` and `--steel` are all panel-coloured and were being left
+     * behind by the shell's background while `--panel` moved. */
     const map = {
       "--black": palette.background,
       "--cream": palette.text,
-      "--orange": palette.primary,
+      "--ember": palette.primary,
+      "--orange": palette.primary, // the legacy alias, kept in step
       "--panel": palette.surface,
+      "--panel-2": palette.surface,
+      "--soot": palette.surface,
+      "--steel": palette.surface,
       "--line": palette.border,
+      "--line-strong": palette.border,
       "--muted": palette.muted,
+      "--ink-dim": palette.muted,
     };
     for (const [name, value] of Object.entries(map)) root.style.setProperty(name, value);
     for (const [symbol, value] of Object.entries(AFFINITY)) {
@@ -222,12 +234,20 @@
 
   // -------------------------------------------------------------------- shape
 
-  /* tiny | large, per the spec's layout contract. Reported rather than acted on
-   * so each page decides what to collapse, and driven by the ELEMENT box, not
-   * the viewport, because a napplet is a panel inside someone else's window. */
-  const shape = () => {
-    const width = (document.documentElement && document.documentElement.clientWidth) || 0;
-    return width > 0 && width < 360 ? "tiny" : "large";
+  /* tiny | large, per the spec's layout contract. Reported rather than acted on,
+   * so each page decides what to collapse.
+   *
+   * PASS THE ELEMENT YOU ARE LAYING OUT. A napplet is a panel inside someone
+   * else's window, so the viewport is the wrong question — a 320px panel on a
+   * 1600px monitor is tiny, and the previous version, which only ever measured
+   * `documentElement`, called it large. CSS container queries are still the
+   * better tool and the pages use them; this exists for logic that must branch
+   * in JS, and it is honest about what it measured. */
+  const shape = (element) => {
+    const box = element && typeof element.getBoundingClientRect === "function"
+      ? element.getBoundingClientRect().width
+      : (document.documentElement && document.documentElement.clientWidth) || 0;
+    return box > 0 && box < 360 ? "tiny" : "large";
   };
 
   const API = {

@@ -1584,6 +1584,12 @@ async function createTable(opts) {
     } catch (err) {
       return reply(400, { error: "bad url" });
     }
+    /* A NUL SURVIVES decodeURIComponent AND THE TRAVERSAL GUARD, and then
+     * fs.stat throws SYNCHRONOUSLY — inside the request listener, where nothing
+     * catches it. `GET /%00` was one unauthenticated request that dropped the
+     * process and every live match with it. Rejected here, before any path is
+     * built from it. */
+    if (pathname.indexOf("\0") >= 0) return reply(400, { error: "bad url" });
 
     if (pathname === "/api/health") {
       return reply(200, {

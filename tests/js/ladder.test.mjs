@@ -300,3 +300,70 @@ test("a start announcement addressed to nothing is discarded", async () => {
   const { matches } = await Ladder.standings([...agreedMatch(matchId, 0), malformed]);
   assert.equal(matches[0].stake, null);
 });
+
+// ------------------------------------------------- a loss cannot be retracted
+
+test("a loser cannot erase a lost match by republishing over it", async () => {
+  /* Kind 31600 is addressable, so its author may replace it. Under a
+   * newest-wins rule that made LOSSES OPTIONAL: the loser republishes under the
+   * same d tag with a later timestamp and one byte changed, the two seats no
+   * longer agree, and a match they demonstrably lost vanishes from the table.
+   * Once two seats have signed the same bytes, that fact exists. */
+  const matchId = "m_0000000003e7";
+  const honest = resultContent(matchId, 0); // alice won
+  const before = await Ladder.standings([
+    resultEvent(ALICE, matchId, honest, 1785310000),
+    resultEvent(BOB, matchId, honest, 1785310000),
+  ]);
+  assert.equal(before.counted, 1);
+  const aliceBefore = before.rows.find((r) => r.pubkey === PUB(ALICE)).rating;
+  assert.ok(aliceBefore > Ladder.START_RATING);
+
+  // Bob, having lost, republishes later saying he won.
+  const after = await Ladder.standings([
+    resultEvent(ALICE, matchId, honest, 1785310000),
+    resultEvent(BOB, matchId, honest, 1785310000),
+    resultEvent(BOB, matchId, resultContent(matchId, 1), 1785399999),
+  ]);
+  assert.equal(after.counted, 1, "the agreed result survives the retraction attempt");
+  assert.deepEqual(after.matches[0].winners, [0], "and it still says alice won");
+  assert.equal(after.rows.find((r) => r.pubkey === PUB(ALICE)).rating, aliceBefore);
+  assert.equal(after.rows.find((r) => r.pubkey === PUB(BOB)).losses, 1, "the loss stays a loss");
+
+  // Nor does republishing junk under the same address bury it.
+  const junked = await Ladder.standings([
+    resultEvent(ALICE, matchId, honest, 1785310000),
+    resultEvent(BOB, matchId, honest, 1785310000),
+    resultEvent(BOB, matchId, '{"v":1,"kind":"result"}', 1785399999),
+  ]);
+  assert.equal(junked.counted, 1);
+});
+
+test("a byte-identical repost is not a second version", async () => {
+  const matchId = "m_0000000003e8";
+  const content = resultContent(matchId, 0);
+  const { counted, rejected } = await Ladder.standings([
+    resultEvent(ALICE, matchId, content, 1785310000),
+    resultEvent(ALICE, matchId, content, 1785310500), // relays hand back copies
+    resultEvent(ALICE, matchId, content, 1785311000),
+    resultEvent(BOB, matchId, content, 1785310000),
+  ]);
+  assert.equal(counted, 1);
+  assert.deepEqual(rejected, []);
+});
+
+test("two co-signed results for one match count as neither", async () => {
+  /* This one genuinely needs the opponent's cooperation, so it is a real
+   * disagreement rather than a unilateral retraction — and neither is counted. */
+  const matchId = "m_0000000003e9";
+  const first = resultContent(matchId, 0);
+  const second = resultContent(matchId, 1);
+  const { counted, rejected } = await Ladder.standings([
+    resultEvent(ALICE, matchId, first, 1785310000),
+    resultEvent(BOB, matchId, first, 1785310000),
+    resultEvent(ALICE, matchId, second, 1785399999),
+    resultEvent(BOB, matchId, second, 1785399999),
+  ]);
+  assert.equal(counted, 0);
+  assert.match(rejected[0].why, /two different results/);
+});

@@ -14,6 +14,12 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
+const { schnorr } = require("@noble/curves/secp256k1");
+const { createHash } = require("node:crypto");
+/* Loading the real verifier, not a stub: net.js now refuses to believe an
+ * unsigned start announcement, and a test that skipped that would be testing a
+ * path no browser takes. */
+require("../../site/schnorr.js");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const NET_JS = fs.readFileSync(path.join(HERE, "..", "..", "site", "net.js"), "utf8");
@@ -881,15 +887,28 @@ function answerRelays(sockets, from, events) {
   for (const ws of three) ws.onmessage({ data: JSON.stringify(["EOSE", "q"]) });
 }
 
-const MY_KEY = "a".repeat(64);
-const FOE_KEY = "b".repeat(64);
+const SK = (label) => Uint8Array.from(createHash("sha256").update(`client:${label}`).digest());
+const MINE = SK("mine");
+const FOE = SK("foe");
+const MY_KEY = Buffer.from(schnorr.getPublicKey(MINE)).toString("hex");
+const FOE_KEY = Buffer.from(schnorr.getPublicKey(FOE)).toString("hex");
+
+const eventIdOf = (event) => createHash("sha256").update(JSON.stringify([
+  0, event.pubkey, event.created_at, event.kind, event.tags, event.content,
+])).digest("hex");
+
+/** Really signed by the opponent, because net.js verifies before it believes. */
+function signed(sk, event) {
+  const full = Object.assign({ pubkey: Buffer.from(schnorr.getPublicKey(sk)).toString("hex") }, event);
+  full.id = eventIdOf(full);
+  full.sig = Buffer.from(schnorr.sign(full.id, sk)).toString("hex");
+  return full;
+}
 
 const startEventFor = (matchId, over) =>
-  Object.assign(
+  signed(FOE, Object.assign(
     {
-      id: matchId,
       kind: 4600,
-      pubkey: FOE_KEY,
       created_at: 1785310000,
       tags: [["t", "start"], ["m", matchId], ["p", MY_KEY], ["p", FOE_KEY]],
       content: JSON.stringify({
@@ -905,12 +924,10 @@ const startEventFor = (matchId, over) =>
       }),
     },
     over || {}
-  );
+  ));
 
-const resultEventFor = (matchId) => ({
-  id: "r" + matchId,
+const resultEventFor = (matchId) => signed(FOE, {
   kind: 31600,
-  pubkey: FOE_KEY,
   created_at: 1785311000,
   tags: [["d", matchId], ["p", MY_KEY]],
   content: "{}",

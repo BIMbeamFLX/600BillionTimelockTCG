@@ -41,7 +41,26 @@
   const resolved = new Map(); // sha256 -> { url, source, server }
   const pending = new Map(); // sha256 -> Promise of the same
 
+  /* Only over a secure origin — crypto.subtle is undefined on plain http from a
+   * non-localhost host. There the honest answer is that the bytes cannot be
+   * checked, so the mirrors are skipped entirely and the repo file is used
+   * rather than quietly accepting whatever a mirror returned. */
+  const canDigest = () => Boolean(root.crypto && root.crypto.subtle && root.crypto.subtle.digest);
+
+  async function digestMatches(bytes, sha) {
+    try {
+      const digest = await root.crypto.subtle.digest("SHA-256", bytes);
+      const hex = Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      return hex === String(sha).toLowerCase();
+    } catch (error) {
+      return false;
+    }
+  }
+
   async function fromMirrors(sha) {
+    if (!canDigest()) return null;
     let cache = null;
     if (cacheApi) {
       try {
@@ -58,14 +77,23 @@
       try {
         const response = await fetch(`${server}/${sha}`);
         if (!response.ok) continue;
+        const bytes = await response.arrayBuffer();
+        /* CONTENT ADDRESSING YOU DO NOT CHECK IS JUST A URL WITH A LONG PATH.
+         * The header above claims the SHA-256 IS the identity — that claim is
+         * only true if somebody digests the bytes, and nobody was. A mirror
+         * that served anything at all was believed and its answer persisted
+         * into Cache Storage, where it would be trusted again next session. */
+        if (!(await digestMatches(bytes, sha))) continue;
+        const blob = new Blob([bytes], { type: response.headers.get("content-type") || "image/webp" });
         if (cache) {
           try {
-            await cache.put(`${server}/${sha}`, response.clone());
+            // Cached only AFTER the hash agrees, so the cache cannot be poisoned.
+            await cache.put(`${server}/${sha}`, new Response(blob, { headers: response.headers }));
           } catch (error) {
             /* quota or opaque — serve it uncached */
           }
         }
-        return { blob: await response.blob(), source: "blossom", server };
+        return { blob, source: "blossom", server };
       } catch (error) {
         /* next mirror */
       }

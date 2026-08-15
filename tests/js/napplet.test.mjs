@@ -138,7 +138,7 @@ test("without a theme domain the fallback palette is painted", () => {
   const N = load({ localStorage: memoryStorage().api, document: doc });
   N.theme.start();
   assert.equal(doc.__set.get("--black"), "#09080B");
-  assert.equal(doc.__set.get("--orange"), "#FF6A00");
+  assert.equal(doc.__set.get("--ember"), "#FF6A00");
   assert.equal(doc.__set.get("--cream"), "#FFF7EC");
 });
 
@@ -153,14 +153,17 @@ test("a shell theme repaints the chrome but can never repaint an affinity", () =
     document: doc,
     napplet: {
       theme: {
-        colors: { background: "#ffffff", text: "#000000", primary: "#0000ff" },
+        colors: { background: "#ffffff", text: "#000000", primary: "#0000ff", surface: "#eeeeee" },
         onChanged: (fn) => { handler = fn; },
       },
     },
   });
   N.theme.start();
   assert.equal(doc.__set.get("--black"), "#ffffff", "the shell owns the chrome");
-  assert.equal(doc.__set.get("--orange"), "#0000ff");
+  assert.equal(doc.__set.get("--ember"), "#0000ff", "the single ACTION colour, not the legacy alias");
+  assert.equal(doc.__set.get("--orange"), "#0000ff", "and the alias is kept in step");
+  assert.equal(doc.__set.get("--steel"), "#eeeeee", "surfaces are a family, not one token");
+  assert.equal(doc.__set.get("--panel-2"), "#eeeeee");
   assert.equal(doc.__set.get("--plate-B"), "#F7931A", "and never the affinities");
   assert.equal(doc.__set.get("--plate-T"), "#17BEBB");
 
@@ -205,9 +208,17 @@ test("a shell outbox is preferred over relays, and its refusal is reported not t
 
 // ------------------------------------------------------------------- shape
 
-test("the layout contract reports tiny below 360px and large above it", () => {
+test("the layout contract measures the element, not the window", () => {
   const wide = stubRoot();
-  assert.equal(load({ localStorage: memoryStorage().api, document: wide }).shape(), "large");
+  const N = load({ localStorage: memoryStorage().api, document: wide });
+  assert.equal(N.shape(), "large");
+
+  /* THE CASE THAT MATTERS: a narrow panel inside a wide window. Measuring only
+   * documentElement called this "large" and every layout branch got it wrong. */
+  const panel = { getBoundingClientRect: () => ({ width: 320 }) };
+  assert.equal(N.shape(panel), "tiny");
+  assert.equal(N.shape({ getBoundingClientRect: () => ({ width: 900 }) }), "large");
+
   const narrow = stubRoot();
   narrow.documentElement.clientWidth = 320;
   assert.equal(load({ localStorage: memoryStorage().api, document: narrow }).shape(), "tiny");
