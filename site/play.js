@@ -2294,6 +2294,32 @@
     invite: null,      // the invite we joined from, if any (for the accept event)
     unsubscribe: null,
     catalogOk: true,
+    /* Match ids we have already announced on nostr. A match is announced ONCE,
+     * not once per reload — the signer popup is the player's attention, and
+     * spending it twice for the same event is how a feature becomes a nuisance. */
+    announced: null,
+    endShown: null,    // the matchId whose closing screen is up
+    settling: null,    // an in-flight zap settlement, so it cannot be started twice
+  };
+
+  const ANNOUNCED_KEY = "600b:announced";
+  const STAKE_KEY = "600b:stake";
+
+  const readAnnounced = () => {
+    if (remote.announced) return remote.announced;
+    try {
+      const raw = JSON.parse(localStorage.getItem(ANNOUNCED_KEY));
+      remote.announced = Array.isArray(raw) ? raw.slice(-60) : [];
+    } catch (error) {
+      remote.announced = [];
+    }
+    return remote.announced;
+  };
+  const markAnnounced = (matchId) => {
+    const list = readAnnounced();
+    if (list.indexOf(matchId) < 0) list.push(matchId);
+    while (list.length > 60) list.shift();
+    try { localStorage.setItem(ANNOUNCED_KEY, JSON.stringify(list)); } catch (error) { /* private mode */ }
   };
 
   const $ = (id) => document.getElementById(id);
@@ -2446,6 +2472,18 @@
     renderNetChip();
     renderNetPanel();
     renderLobbyButtons();
+    renderQueue();
+    renderResume();
+
+    // The opening bracket, once per match, the moment it is actually dealt.
+    if (msg.status === "playing") announceStart(msg);
+
+    /* A FINISHED MATCH SHOWS ITS ENDING AGAIN. Every STATE for an over match
+     * carries the signable bytes precisely so a seat that was asleep, away, or
+     * merely reloading still gets the closing screen and can still sign. */
+    if (msg.status === "over" && remote.over && remote.endShown !== msg.matchId) {
+      showEndgame(remote.over);
+    }
   }
 
   const matchLink = (msg) => {
@@ -2495,16 +2533,30 @@
       remote.over = msg;
       renderNetPanel();
       renderNetChip();
+      showEndgame(msg);
     },
 
     onNostr(msg) {
       if (msg.role !== "result") return;
       remote.agreement = msg.agreement;
       renderNetPanel();
+      const note = $("endNote");
+      if (note && !$("endgame").hidden) note.textContent = agreementWords(msg.agreement);
     },
 
     onStatus() {
       renderNetChip();
+      renderQueue();
+    },
+
+    onQueued() {
+      renderQueue();
+    },
+
+    /* The referee has just told us which matches this identity is sitting at.
+     * That is the answer to "where was I?" for a browser that kept nothing. */
+    onActive() {
+      renderResume();
     },
 
     onError(msg) {
@@ -2518,6 +2570,7 @@
         NIP07_REQUIRED: "NIP-07 sign-in is required for every online table.",
         AUTH_FAILED: "The NIP-07 login proof was rejected or expired. Reconnect and sign the fresh challenge.",
         IDENTITY_MISMATCH: "This seat belongs to a different NIP-07 identity.",
+        STAKE_MISMATCH: msg.message || "That table plays for a different stake than the one you were shown.",
         NO_TABLE: "This page is not being served by a table. Open it from the referee (npm run table), or pass ?table=ws://host:8777/ws.",
       }[msg.code] || msg.message || msg.code;
       netNotice(text, "bad");
@@ -2526,6 +2579,335 @@
       renderNetChip();
     },
   };
+
+  // ---- matchmaking --------------------------------------------------------
+
+  const lobbyStake = () => {
+    const sats = Math.floor(Number($("stakeSats") && $("stakeSats").value));
+    return Number.isFinite(sats) && sats > 0 ? sats : 0;
+  };
+
+  const satsWord = (sats) => (sats > 0 ? `${sats.toLocaleString("en-US")} sats` : "a friendly");
+
+  function findMatch() {
+    if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
+    const pubkey = nostr().savedPubkey();
+    if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
+    const stake = lobbyStake();
+    try { localStorage.setItem(STAKE_KEY, String(stake)); } catch (error) { /* private mode */ }
+    netNotice(`Looking for an opponent playing for ${satsWord(stake)}…`, "");
+    NET.queue({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake });
+    renderQueue();
+  }
+
+  function cancelFind() {
+    NET.unqueue();
+    netNotice("Stopped looking.", "");
+    renderQueue();
+  }
+
+  /* The queue is the one place a player is asked to wait with nothing to do, so
+   * it says where they stand and how to stop. A line you cannot see move is
+   * indistinguishable from one that is broken. */
+  function renderQueue() {
+    const chip = $("queueChip");
+    const cancel = $("cancelFind");
+    const find = $("findMatch");
+    if (!chip || !cancel || !find) return;
+    const queued = NET.queued;
+    chip.hidden = !queued;
+    cancel.hidden = !queued;
+    find.hidden = Boolean(queued);
+    if (!queued) return;
+    chip.textContent = queued.waiting > 1
+      ? `searching · ${queued.position} of ${queued.waiting} waiting`
+      : "searching · you are first in line";
+  }
+
+  /* Every unfinished match this npub holds a seat at, offered as a way back in.
+   * The credential that used to be the only route lives in one browser; this
+   * list comes from the referee and survives anything a browser can lose. */
+  function renderResume() {
+    const card = $("resumeCard");
+    const list = $("resumeList");
+    if (!card || !list) return;
+    const active = (NET.active || []).filter((m) => !NET.session || m.matchId !== NET.session.matchId);
+    card.hidden = active.length === 0;
+    list.innerHTML = "";
+    for (const match of active) {
+      const row = el("div", "resumerow");
+      const who = el("span", "resumewho");
+      const foe = match.opponent ? `vs ${match.opponent}` : "waiting for an opponent";
+      who.append(el("b", null, `seat ${match.seat}`), document.createTextNode(` · ${foe}`));
+      if (match.status === "playing") {
+        who.append(document.createTextNode(match.opponentOnline ? " · they are here" : " · they are away"));
+      }
+      row.append(who);
+      const back = el("button", "btn", "Rejoin");
+      back.addEventListener("click", () => {
+        netNotice("Taking your seat…", "");
+        NET.rejoin(match.matchId);
+      });
+      row.append(back);
+      list.append(row);
+    }
+  }
+
+  // ---- the two signed brackets --------------------------------------------
+
+  /* A MATCH IS ANNOUNCED WHEN IT IS DEALT, not when someone remembers to press
+   * a button. Both seats sign byte-identical bytes — every field comes from the
+   * referee's STATE, including the timestamp — so the two announcements are
+   * comparable and the stake in them is provably the one both agreed to.
+   *
+   * Seat 0 files under `invite` and seat 1 under `accept`: the handshake roles
+   * already mean "the two sides said this match is happening", which is exactly
+   * what a start announcement is, so no new storage role is invented for it. */
+  async function announceStart(state) {
+    if (!state || state.status !== "playing" || session.seat === null) return;
+    if (readAnnounced().indexOf(state.matchId) >= 0) return;
+    if (!nostr().hasNip07()) return;
+    markAnnounced(state.matchId); // before the await: one popup, even if STATE repeats
+    const role = session.seat === 0 ? "invite" : "accept";
+    try {
+      const signed = await nostr().sign(nostr().startEvent(state, state.stake));
+      const res = await nostr().publish(signed);
+      NET.sendNostr(role, signed);
+      netNotice(
+        res.ok
+          ? `Match announced on nostr${state.stake ? ` — playing for ${satsWord(state.stake)}` : ""}.`
+          : "No relay took the announcement. The match is unaffected.",
+        res.ok ? "good" : ""
+      );
+    } catch (error) {
+      /* Declining the signer is allowed. Nostr is the announcement, never the
+       * gate — but the wager loses its proof, so say so rather than pretending. */
+      netNotice(
+        state.stake
+          ? "Start not signed, so this wager has no signed record. The match plays on."
+          : "Start not signed. The match plays on.",
+        ""
+      );
+    }
+  }
+
+  // ---- the closing beat ---------------------------------------------------
+
+  const REASON_WORDS = {
+    uptime: "Uptime hit zero.",
+    concede: "Conceded.",
+    decked: "A Stack ran out — the draw could not be made.",
+    draw: "Both players went down together.",
+  };
+
+  function showEndgame(over) {
+    if (!over || !over.result) return;
+    remote.endShown = over.matchId;
+    const seat = session.seat;
+    const winners = over.result.winners || [];
+    const won = seat !== null && winners.indexOf(seat) >= 0;
+    const drew = winners.length === 0;
+
+    /* A SPECTATOR IS NOT A LOSER. `won` is false for a seatless viewer because
+     * they are in nobody's winners list, and reading that as defeat told the
+     * audience they had lost a match they were only watching. */
+    const verdict = drew
+      ? "DRAW"
+      : seat === null
+        ? `${seatName(winners[0])} WON`.toUpperCase()
+        : won ? "YOU WON" : "YOU LOST";
+    $("endVerdict").textContent = verdict;
+    $("endVerdict").className =
+      "endverdict " + (drew ? "drew" : seat === null ? "" : won ? "won" : "lost");
+    $("endEyebrow").textContent = seat === null ? "Match over — you were watching" : "Match over";
+
+    const reason = over.result.reason;
+    const loser = drew ? null : 1 - winners[0];
+    $("endReason").textContent = drew
+      ? REASON_WORDS.draw
+      : `${seatName(winners[0])} beat ${seatName(loser)}. ${REASON_WORDS[reason] || reason || ""}`;
+
+    let payload = null;
+    try { payload = JSON.parse(over.resultContent || "null"); } catch (error) { payload = null; }
+    const stats = $("endStats");
+    stats.innerHTML = "";
+    const stat = (value, label) => {
+      const box = el("div", "endstat");
+      box.append(el("b", null, String(value)), el("span", null, label));
+      stats.append(box);
+    };
+    if (payload) {
+      stat(payload.turns || 0, "turns");
+      stat(payload.actions || 0, "actions");
+    }
+    const stake = (payload && payload.stake) || (NET.lastState && NET.lastState.stake) || 0;
+    if (stake) stat(stake.toLocaleString("en-US"), "sats staked");
+
+    renderEndVerify(over);
+    renderSettlement(over, { won, drew, stake, winnerSeat: drew ? null : winners[0] });
+
+    $("endPublish").hidden = !(nostr().hasNip07() && seat !== null && over.resultContent);
+    $("endRematch").hidden = seat === null;
+    $("endNote").textContent = remote.agreement ? agreementWords(remote.agreement) : "";
+    $("endgame").hidden = false;
+  }
+
+  const agreementWords = (agreement) => ({
+    none: "Neither seat has published the result yet.",
+    pending: "You are the only seat that has published so far.",
+    confirmed: "Both seats published the same result — it counts on the ladder.",
+    disputed: "The two seats published different results. The ladder counts neither.",
+  }[agreement] || "");
+
+  /* VERIFIED TWICE, AND THE SECOND ONE IS THE POINT. The referee says its own
+   * database replays clean; this browser then replays the transcript the referee
+   * handed over and checks that for itself. Taking verify.ok on trust would be
+   * asking the scorekeeper whether the score is right. */
+  function renderEndVerify(over) {
+    const box = $("endVerify");
+    const referee = over.verify && over.verify.ok;
+    let mine = null;
+    if (over.config && Array.isArray(over.transcript)) {
+      try {
+        mine = E.verifyMatch({ config: over.config, log: over.transcript.map((e) => e.action) });
+      } catch (error) {
+        mine = { ok: false, error: String(error && error.message) };
+      }
+    }
+    const ok = referee && mine && mine.ok;
+    box.className = "endverify" + (ok ? "" : " bad");
+    box.innerHTML = "";
+    box.append(el("div", null, referee
+      ? "The referee replayed the match from its own database: it checks out."
+      : "The referee could not replay this match cleanly."));
+    if (mine) {
+      box.append(el("div", null, mine.ok
+        ? "This browser replayed the referee's transcript independently: it agrees."
+        : `This browser's own replay disagreed at entry ${mine.divergedAt}. Do not trust this result.`));
+    }
+    if (over.publicHash) {
+      box.append(el("div", null, `publicHash ${String(over.publicHash).slice(0, 24)}…`));
+    }
+  }
+
+  // ---- settlement ---------------------------------------------------------
+
+  /* THE APP NEVER HOLDS, ESCROWS OR MOVES A SATOSHI. If you lost a wager it
+   * resolves the winner's own lightning address into an invoice and shows it to
+   * you; paying is something you do in your own wallet, with your wallet asking
+   * you to confirm. A refused zap cannot alter a signed result, which is why
+   * this can be honest about being unenforceable. */
+  function renderSettlement(over, ctx) {
+    const box = $("endStake");
+    box.hidden = true;
+    box.innerHTML = "";
+    if (!ctx.stake || ctx.drew || session.seat === null) return;
+    box.hidden = false;
+
+    if (ctx.won) {
+      box.append(el("h4", null, `You won ${satsWord(ctx.stake)}`));
+      box.append(el("div", null,
+        "Nothing was held in escrow, so nothing pays out automatically — your opponent is shown "
+        + "an invoice made from the lightning address on your nostr profile. If your profile has "
+        + "no lightning address, they have nothing to pay."));
+      return;
+    }
+
+    box.append(el("h4", null, `You owe ${satsWord(ctx.stake)}`));
+    box.append(el("div", null,
+      `You and ${seatName(ctx.winnerSeat)} both signed this wager before the first card. `
+      + "The result is already signed and settled on the ladder either way — this is you keeping your word."));
+    const pay = el("button", "btn", `Pay ${satsWord(ctx.stake)}`);
+    const row = el("div", "endrow");
+    row.style.justifyContent = "flex-start";
+    row.append(pay);
+    box.append(row);
+    const status = el("div", "endnote");
+    box.append(status);
+
+    pay.addEventListener("click", async () => {
+      if (remote.settling) return;
+      remote.settling = true;
+      pay.disabled = true;
+      status.textContent = "Looking up their lightning address…";
+      try {
+        const state = NET.lastState;
+        const winner = (state.players || []).find((p) => p.seat === ctx.winnerSeat);
+        if (!winner || !winner.pubkey) throw new Error("that seat has no nostr identity");
+        const meta = await nostr().profile(winner.pubkey);
+        if (!meta || !meta.lud16) {
+          throw new Error("their nostr profile has no lightning address, so there is nowhere to send it");
+        }
+        status.textContent = `Asking ${meta.lud16} for an invoice…`;
+        const bill = await nostr().zapInvoice({
+          sats: ctx.stake,
+          lud16: meta.lud16,
+          to: winner.pubkey,
+          matchId: over.matchId,
+          comment: `600B Timelock TCG — ${over.matchId}`,
+        });
+        showInvoice(box, status, bill);
+      } catch (error) {
+        status.textContent = String((error && error.message) || error);
+        pay.disabled = false;
+      } finally {
+        remote.settling = false;
+      }
+    });
+  }
+
+  function showInvoice(box, status, bill) {
+    status.textContent = "Pay this from your own wallet. Nothing here can move your money for you.";
+    const invoice = el("code", "invoice", bill.invoice);
+    box.append(invoice);
+
+    /* A phone with a wallet installed takes the lightning: URI directly; a
+     * desktop needs the code on screen for the phone in someone's hand. */
+    const row = el("div", "endrow");
+    row.style.justifyContent = "flex-start";
+    const open = el("a", "btn", "Open in a wallet");
+    open.href = `lightning:${bill.invoice}`;
+    row.append(open);
+
+    if (nostr().hasWebln()) {
+      const webln = el("button", "btn ghost", "Pay with WebLN");
+      webln.addEventListener("click", async () => {
+        webln.disabled = true;
+        status.textContent = "Your wallet is asking you to confirm…";
+        try {
+          await nostr().payWithWebln(bill.invoice);
+          status.textContent = "Paid. Thank you for keeping your word.";
+        } catch (error) {
+          status.textContent = String((error && error.message) || error);
+          webln.disabled = false;
+        }
+      });
+      row.append(webln);
+    }
+
+    const copy = el("button", "btn ghost", "Copy invoice");
+    copy.addEventListener("click", () => {
+      navigator.clipboard.writeText(bill.invoice).then(
+        () => { status.textContent = "Invoice copied."; },
+        () => { status.textContent = "Copy it from the box above."; }
+      );
+    });
+    row.append(copy);
+    box.append(row);
+
+    const QR = globalThis.E1QR;
+    if (QR && typeof QR.svg === "function") {
+      try {
+        const holder = el("div", "qr");
+        holder.innerHTML = QR.svg(bill.invoice.toUpperCase(), { ec: "M" });
+        box.append(holder);
+      } catch (error) { /* an unscannable code is worse than none */ }
+    }
+  }
+
+  function closeEndgame() {
+    $("endgame").hidden = true;
+  }
 
   // ---- lobby actions ------------------------------------------------------
 
@@ -2536,11 +2918,16 @@
     if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
     const pubkey = nostr().savedPubkey();
     if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
-    netNotice("Opening a table…", "");
-    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey });
+    const stake = lobbyStake();
+    netNotice(`Opening a table for ${satsWord(stake)}…`, "");
+    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake });
   }
 
-  function joinTable(code, invite) {
+  /* `stake` is what this player was SHOWN, echoed back as an acknowledgement.
+   * The referee refuses the join if the table's number has moved since, so a
+   * shared link can never seat someone in a wager they never saw. Joining by a
+   * typed code alone sends nothing, which means "whatever the table says". */
+  function joinTable(code, invite, stake) {
     if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
     const pubkey = nostr().savedPubkey();
     if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
@@ -2553,6 +2940,7 @@
       name: lobbyName(),
       affinity: lobbyAffinity(),
       pubkey,
+      stake: stake === undefined ? undefined : stake,
       table: invite ? invite.table : undefined,
     });
   }
@@ -2565,9 +2953,15 @@
       if (!rows.length) return void list.append(el("div", "netline", "No open tables."));
       for (const row of rows) {
         const item = el("div", "netrow");
-        item.append(el("span", null, `${row.code} · ${row.name} · ${row.affinity}`));
-        const button = el("button", "btn ghost", "Join");
-        button.addEventListener("click", () => joinTable(row.code));
+        /* The wager and whether anyone is still sitting there are the two facts
+         * that decide whether this row is worth clicking. A bare code told you
+         * neither, so joining was a coin flip on both. */
+        const bits = [row.code, row.name, row.affinity];
+        if (row.stake) bits.push(`${row.stake.toLocaleString("en-US")} sats`);
+        if (row.hostOnline === false) bits.push("host away");
+        item.append(el("span", null, bits.join(" · ")));
+        const button = el("button", "btn ghost", row.stake ? `Join for ${row.stake} sats` : "Join");
+        button.addEventListener("click", () => joinTable(row.code, null, row.stake || 0));
         item.append(button);
         list.append(item);
       }
@@ -2681,6 +3075,7 @@
     $("joinTable").disabled = !url || !identified || hosting;
     $("refreshTables").disabled = !url || !identified;
     $("checkInvites").disabled = !url || !identified;
+    $("findMatch").disabled = !url || !identified || hosting;
   }
 
   async function login() {
@@ -2706,8 +3101,38 @@
     // re-rolls, but a rehearsed demo should not lean on it.
     select.value = "Power";
 
+    /* The wager a player last chose is remembered, because retyping it before
+     * every match is how a feature stops being used. */
+    try {
+      const saved = Number(localStorage.getItem(STAKE_KEY));
+      if (Number.isFinite(saved) && saved > 0) $("stakeSats").value = String(Math.floor(saved));
+    } catch (error) { /* private mode */ }
+
     $("nostrLogin").addEventListener("click", login);
     $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); });
+    $("findMatch").addEventListener("click", findMatch);
+    $("cancelFind").addEventListener("click", cancelFind);
+    $("endClose").addEventListener("click", closeEndgame);
+    $("endPublish").addEventListener("click", () => {
+      publishResult();
+      $("endPublish").disabled = true;
+    });
+    $("endRematch").addEventListener("click", () => {
+      closeEndgame();
+      NET.leave();
+      session.seat = null;
+      session.role = "hotseat";
+      session.full = null;
+      remote.over = null;
+      remote.agreement = null;
+      remote.endShown = null;
+      $("table").hidden = true;
+      $("setup").hidden = false;
+      $("hostPanel").hidden = true;
+      renderNetChip();
+      renderIdentity();
+      findMatch();
+    });
     $("createTable").addEventListener("click", createTable);
     $("joinTable").addEventListener("click", () => joinTable());
     $("refreshTables").addEventListener("click", refreshTables);
@@ -3055,5 +3480,8 @@
     preview: () => (session.full ? previewClash(viewNow()) : null),
     startGame,
     dispatch,
+    /* The closing screen, drivable without playing a match out. Exposed for the
+     * same reason `preview` is: the alternative to checking it is hoping. */
+    showEndgame,
   };
 })();

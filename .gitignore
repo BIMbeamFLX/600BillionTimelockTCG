@@ -23,3 +23,9 @@ art/qa/
 art/cards/placeholders/
 art/cards/node-runner-print/
 art/references/join-detailed-front/
+
+# Recompressed in place by scripts/optimize_art.py; the untouched sources
+# live here and are the script every re-run restores from. Not committed:
+# git history already holds the originals, and a second 17 MB copy of them
+# in the tree is weight with no new information in it.
+art/world-plates/original/

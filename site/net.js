@@ -96,6 +96,13 @@
     return bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
+  /* A wager is a whole number of sats or it is a friendly. Anything a text
+   * field can produce — blank, a decimal, a minus sign, a word — is 0. */
+  const satsOf = (value) => {
+    const sats = Math.floor(Number(value));
+    return Number.isFinite(sats) && sats > 0 ? sats : 0;
+  };
+
   /* Accepts either form and returns hex, or null. */
   const toHexPubkey = (value) => {
     const v = String(value || "").trim();
@@ -524,6 +531,7 @@
       t: "CREATE", v: WIRE,
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
+      stake: satsOf(opts.stake),
       pubkey,
     };
     net.url = opts.table || tableUrl();
@@ -546,6 +554,10 @@
       code: String(opts.code || "").trim().toUpperCase(),
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
+      /* Sent as an ACKNOWLEDGEMENT of the wager we were shown, not a request.
+       * The referee refuses the join if the table's number has moved, so a
+       * shared link can never bind someone to a stake they never saw. */
+      stake: satsOf(opts.stake),
       pubkey,
     };
     net.url = opts.table || tableUrl();
@@ -570,6 +582,9 @@
       t: "QUEUE", v: WIRE,
       name: String((opts && opts.name) || "Player").slice(0, 40),
       affinity: (opts && opts.affinity) || "All",
+      /* The referee pairs on this, so it is a filter and not a preference: a
+       * friendly waits for a friendly, and 500 sats waits for 500 sats. */
+      stake: satsOf(opts && opts.stake),
       pubkey,
     };
     net.url = (opts && opts.table) || tableUrl();
@@ -819,8 +834,10 @@
         players,
         /* The agreed wager, in sats, or null for a friendly. Signed here and
          * nowhere else: this is the only record that both players consented to
-         * the amount before they knew how the match would go. */
-        stake: Number.isInteger(stake) && stake > 0 ? stake : null,
+         * the amount before they knew how the match would go. Taken from the
+         * referee's STATE rather than from this browser's input box, so both
+         * seats sign the same number even if one of them retyped theirs. */
+        stake: satsOf(stake === undefined ? state.stake : stake) || null,
       }),
     };
   }

@@ -1653,3 +1653,98 @@ test("an advertised table URL that is not a websocket is refused at boot", async
     /ws:\/\/ or wss:\/\//
   );
 });
+
+// ------------------------------------------------------------------ stakes
+
+test("the queue pairs on the wager, so both seats agreed to the same number", async (t) => {
+  const table = await boot(t, "w1.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 500 });
+  await a.type("QUEUED");
+
+  /* Someone looking for a friendly must never be dealt into a 500-sat match
+   * just because they were next in line. */
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 0 });
+  const waiting = await b.type("QUEUED");
+  assert.equal(waiting.queued, true, "a friendly must not pair with a wager");
+  assert.equal(waiting.waiting, 2);
+
+  const c = await table.client({ identity: "c" });
+  c.send({ t: "QUEUE", name: "cara", affinity: "Keys", stake: 500 });
+  const dealt = await a.type("STATE");
+  assert.equal(dealt.status, "playing");
+  assert.equal(dealt.stake, 500, "the agreed wager is on the match");
+  assert.equal(dealt.players[1].name, "cara");
+
+  const other = await c.type("STATE");
+  assert.equal(other.stake, 500, "and both seats are told the identical number");
+  assert.equal(
+    table.db.prepare("SELECT stake FROM matches WHERE match_id=?").get(dealt.matchId).stake,
+    500
+  );
+});
+
+test("a stake is a whole number of sats or it is nothing", async (t) => {
+  const table = await boot(t, "w2.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey, stake: -5 });
+  assert.equal((await a.type("STATE")).stake, 0, "a negative wager is a friendly");
+
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "CREATE", name: "anna", affinity: "Signal", pubkey: b.pubkey, stake: 12.7 });
+  assert.equal((await b.type("STATE")).stake, 0, "half a sat is not a wager");
+
+  const c = await table.client({ identity: "c" });
+  c.send({ t: "CREATE", name: "cara", affinity: "Keys", pubkey: c.pubkey, stake: 99999999999 });
+  assert.equal((await c.type("STATE")).stake, 1000000, "and it is capped, not trusted");
+});
+
+test("a guest is never dealt into a wager it did not accept", async (t) => {
+  const table = await boot(t, "w3.db");
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey, stake: 2100 });
+  const open = await a.type("STATE");
+
+  // The open-table list is where a guest LEARNS the wager before committing.
+  const listed = await (await fetch(table.url + "/api/tables")).json();
+  assert.equal(listed[0].stake, 2100);
+
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", stake: 0 });
+  const refused = await b.type("ERROR");
+  assert.equal(refused.code, "STAKE_MISMATCH");
+  assert.match(refused.message, /2100/, "and it says what the table actually plays for");
+
+  // Stating the number it was shown gets it seated.
+  b.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", stake: 2100 });
+  const seated = await b.type("STATE");
+  assert.equal(seated.status, "playing");
+  assert.equal(seated.stake, 2100);
+});
+
+test("the agreed wager survives a referee restart", async (t) => {
+  /* The wager is the one fact about a match the referee cannot recompute, so if
+   * it did not persist, a reload would quietly turn a 500-sat game friendly. */
+  const dbPath = tmpDb("w4.db");
+  const first = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
+  const a = await Client.open(first.wsUrl, { identity: "a" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 750 });
+  await a.type("QUEUED");
+  const b = await Client.open(first.wsUrl, { identity: "b" });
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 750 });
+  const dealt = await a.type("STATE");
+  const token = dealt.token;
+  await a.close();
+  await b.close();
+  await first.close();
+
+  const second = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
+  t.after(async () => second.close());
+  const back = await Client.open(second.wsUrl, { identity: "a" });
+  t.after(() => back.close());
+  back.send({ t: "RESUME", matchId: dealt.matchId, token });
+  const resumed = await back.type("STATE");
+  assert.equal(resumed.stake, 750);
+  assert.equal(resumed.seat, 0);
+});

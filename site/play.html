@@ -166,6 +166,55 @@ a { color: var(--orange-soft); }
 .netchip.stale { color: var(--gold); border-color: var(--gold); }
 #netInfo { display: flex; flex-direction: column; gap: 2px; }
 
+/* THIS PAGE DOES NOT LOAD 600b.css, so it does not get the shared guard — and
+ * without it the `hidden` attribute silently does nothing on anything this
+ * sheet gives a display to. The symptom was a "Sign out" button offered to a
+ * signed-out player, because .btn sets display and the UA's [hidden] loses. */
+[hidden] { display: none !important; }
+
+/* ---------- matchmaking ---------- */
+.resumecard { margin-top: 14px; padding: 10px 12px; background: var(--soot); border: 1px solid var(--orange); }
+.resumerow { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; padding: 6px 0; font-size: 12px; }
+.resumerow + .resumerow { border-top: 1px solid var(--line); }
+.resumewho { color: var(--cream); }
+.resumewho b { color: var(--orange); }
+.findrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.stakelabel { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.stakelabel input { width: 92px; padding: 6px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
+.stakenote { color: var(--muted); font-size: 11.5px; margin-top: 8px; max-width: 68ch; line-height: 1.5; }
+
+/* ---------- the closing beat ---------- */
+.endgame { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 18px; background: rgba(9,8,11,.86); overflow: auto; }
+.endcard { position: relative; width: min(560px, 100%); padding: 26px 24px 18px; background: var(--panel); border: 1px solid var(--line); text-align: center; }
+.endcard .pad { position: absolute; width: 9px; height: 9px; border: 2px solid var(--purple-deep); }
+.endcard .pad.tl { top: 7px; left: 7px; border-right: 0; border-bottom: 0; }
+.endcard .pad.tr { top: 7px; right: 7px; border-left: 0; border-bottom: 0; }
+.endcard .pad.bl { bottom: 7px; left: 7px; border-right: 0; border-top: 0; }
+.endcard .pad.br { bottom: 7px; right: 7px; border-left: 0; border-top: 0; }
+.endeyebrow { font: 10px/1.3 Anton600, Impact, sans-serif; letter-spacing: .26em; text-transform: uppercase; color: var(--purple); }
+.endverdict { font: clamp(38px, 9vw, 66px)/1 Anton600, Impact, sans-serif; letter-spacing: .04em; margin: 6px 0 2px; color: var(--cream); }
+.endverdict.won { color: var(--good); }
+.endverdict.lost { color: var(--danger); }
+.endverdict.drew { color: var(--gold); }
+.endreason { color: var(--muted); font-size: 13px; }
+.endstats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 18px 0 4px; }
+.endstat { min-width: 66px; padding: 7px 10px 6px; background: var(--soot); border: 1px solid var(--line); }
+.endstat b { display: block; font: 22px/1 Anton600, Impact, sans-serif; color: var(--cream); }
+.endstat span { font-size: 7.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--orange); }
+.endverify { margin-top: 14px; padding: 9px 11px; background: var(--soot); border-left: 2px solid var(--good); text-align: left; color: var(--muted); font-size: 11.5px; line-height: 1.55; }
+.endverify.bad { border-left-color: var(--danger); color: var(--danger); }
+.endstake { margin-top: 12px; padding: 11px 12px; background: var(--soot); border: 1px solid var(--gold); text-align: left; font-size: 12px; line-height: 1.5; }
+.endstake h4 { margin: 0 0 4px; font: 12px/1.3 Anton600, Impact, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.endstake .invoice { display: block; margin-top: 8px; padding: 7px 8px; background: var(--black); border: 1px solid var(--line); color: var(--muted); font: 10px/1.4 ui-monospace, Consolas, monospace; word-break: break-all; max-height: 84px; overflow: auto; }
+.endstake .qr { display: block; margin: 10px auto 0; width: min(196px, 60%); background: var(--cream); padding: 7px; }
+.endrow { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.endnote { color: var(--muted); font-size: 11.5px; margin-top: 10px; min-height: 16px; }
+.endcard .terminal-line { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font: 9px/1.3 ui-monospace, Consolas, monospace; letter-spacing: .22em; color: var(--purple-deep); }
+@media (prefers-reduced-motion: no-preference) {
+  .endgame:not([hidden]) .endcard { animation: endrise .26s cubic-bezier(.2,.7,.3,1) both; }
+  @keyframes endrise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+}
+
 /* ---------- table ----------
    The board speaks the card frame's language: one thin double frame with
    circuit corners around the whole battlefield, chip squares for numbers,
@@ -514,6 +563,31 @@ a { color: var(--orange-soft); }
         <span class="chip" id="netTable"></span>
       </div>
 
+      <!-- YOUR SEAT FOUND YOU. The referee names every unfinished match this
+           npub is sitting at, so a cleared profile, a private window or a
+           different machine is a click away from the board it left. -->
+      <div class="resumecard" id="resumeCard" hidden>
+        <div class="zlabel">Match in progress</div>
+        <div id="resumeList"></div>
+      </div>
+
+      <!-- The fast path: no code to read aloud, no invite to publish. -->
+      <div class="findrow" id="findRow">
+        <button class="btn" id="findMatch">Find an opponent</button>
+        <label class="stakelabel" for="stakeSats">Play for
+          <input id="stakeSats" type="number" min="0" step="1" value="0" inputmode="numeric" autocomplete="off">
+          sats
+        </label>
+        <span class="chip" id="queueChip" hidden></span>
+        <button class="btn ghost" id="cancelFind" hidden>Stop looking</button>
+      </div>
+      <p class="stakenote" id="stakeNote">
+        A wager is matched, not merely announced — you are only ever dealt against someone who
+        asked for the same number. Both seats sign it before the first card. Nothing is escrowed:
+        at the end the loser pays the winner from their own wallet, and a refused zap cannot
+        change a signed result. Leave it at 0 for a friendly.
+      </p>
+
       <div class="seats" style="margin-top:14px">
         <div class="seat">
           <label for="netName">Your name</label>
@@ -663,6 +737,37 @@ a { color: var(--orange-soft); }
 
 </div>
 </div>
+
+<!-- ---------------- the closing beat ----------------
+     A match used to end with a line of text in a side panel. This is the
+     interface for the moment the game is actually over: what happened, whether
+     the referee's own database agrees, the signature that puts it on the
+     ladder, and the wager settled wallet to wallet. -->
+<div class="endgame" id="endgame" hidden role="dialog" aria-modal="true" aria-labelledby="endVerdict">
+  <div class="endcard framed">
+    <span class="pad tl"></span><span class="pad tr"></span>
+    <span class="pad bl"></span><span class="pad br"></span>
+    <div class="endeyebrow" id="endEyebrow">Match over</div>
+    <h2 class="endverdict" id="endVerdict">—</h2>
+    <div class="endreason" id="endReason"></div>
+
+    <div class="endstats" id="endStats"></div>
+
+    <!-- Verified twice: once by the referee against its own database, and once
+         here, in this browser, against the transcript it handed over. -->
+    <div class="endverify" id="endVerify"></div>
+
+    <div class="endstake" id="endStake" hidden></div>
+
+    <div class="endrow">
+      <button class="btn" id="endPublish" hidden>Sign and publish the result</button>
+      <button class="btn ghost" id="endRematch" hidden>Find another opponent</button>
+      <button class="btn ghost" id="endClose">Back to the lobby</button>
+    </div>
+    <div class="endnote" id="endNote"></div>
+    <div class="terminal-line">TIMELOCK_TCG :: 600B</div>
+  </div>
+</div>
 <!-- Clash arrows: attacks and blocks drawn as lines over the table. -->
 <svg id="arrows" aria-hidden="true"
   style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:40">
@@ -722,6 +827,9 @@ a { color: var(--orange-soft); }
 <!-- The transport. It opens no socket unless this page already holds a match or
      the player asks for one, so play.html stays a working offline hotseat. -->
 <script src="net.js"></script>
+<!-- Only for the settlement screen: a bolt11 invoice the loser can scan with
+     the phone in their hand. play.js degrades to copy-and-paste without it. -->
+<script src="qr.js"></script>
 <script src="play.js"></script>
 </body>
 </html>

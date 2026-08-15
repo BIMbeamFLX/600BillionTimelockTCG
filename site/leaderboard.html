@@ -4,72 +4,182 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#09080b">
-<meta name="description" content="600B Timelock TCG leaderboard for verified wins and losses in sats.">
-<title>600B Timelock TCG — Sats Leaderboard</title>
+<meta name="description" content="600B Timelock TCG ladder — Elo standings folded from nostr result events, every signature verified in your own browser.">
+<title>600B Timelock TCG — The Ladder</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
 <style>
-@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
-:root {
-  --orange:#f7931a; --purple:#9b51e0; --blue:#3d5afe; --cyan:#00b8d9;
-  --green:#2dbe60; --black:#09080b; --soot:#111014; --panel:#19151f;
-  --cream:#fff7ec; --muted:#c7bbcc; --line:rgba(185,145,228,.28);
+/* Page-local only. Palette, type, nav, footer, buttons, .framed / .banner /
+   .chip-num / .terminal-line all come from 600b.css — this page defines no
+   colour of its own. Nothing animates here, so there is nothing for
+   prefers-reduced-motion to switch off, and every network call lands on a
+   definite sentence rather than an endless spinner. */
+
+main { width: min(1240px, calc(100% - 32px)); margin: auto; padding: clamp(46px, 7vw, 88px) 0 60px; }
+h1 { max-width: 950px; margin: 10px 0 16px; }
+.lead { font-size: 17px; }
+
+/* The trust model wears the card frame: double line, PCB corner pads, a steel
+   type banner. It is the product, so it gets the card's own chrome. */
+.trust { margin: 30px 0 8px; }
+.trust .banner { margin-bottom: 12px; }
+.trust p { max-width: 82ch; color: var(--muted); font-size: 14.5px; }
+.trust p + p { margin-top: 9px; }
+.trust b { color: var(--cream); }
+.trust code { color: var(--power); font-family: var(--mono); font-size: 12.5px; }
+
+/* Three chip squares, the same square the cards wear for a number. The left
+   edge is a circuit trace, cut at the card's angle. */
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 30px 0 20px; }
+.metric {
+  position: relative; overflow: hidden; padding: 18px 18px 18px 26px;
+  background: var(--panel); border: 1px solid var(--line);
 }
-* { box-sizing:border-box; }
-html { color-scheme:dark; }
-body { margin:0; color:var(--cream); background:
-  radial-gradient(circle at 85% 0, rgba(155,81,224,.17), transparent 32rem),
-  radial-gradient(circle at 0 60%, rgba(247,147,26,.11), transparent 38rem),
-  var(--black); font:16px/1.5 Arial,sans-serif; min-height:100vh; }
-/* The nav lives in 600b.css — the shared bar, mark and links. */
-main { width:min(1240px,calc(100% - 32px)); margin:auto; padding:clamp(52px,8vw,100px) 0 100px; }
-.eyebrow { color:var(--orange); font-weight:900; letter-spacing:.22em; text-transform:uppercase; }
-h1 { max-width:950px; margin:10px 0 16px; font:clamp(52px,9vw,112px)/.88 Anton600,Impact,sans-serif;
-  letter-spacing:-.02em; text-transform:uppercase; }
-h1 span { color:var(--purple); }
-.lead { max-width:760px; margin:0; color:var(--muted); font-size:18px; }
-.metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:38px 0 26px; }
-.metric { position:relative; overflow:hidden; padding:20px; background:var(--panel);
-  border:1px solid var(--line); clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px)); }
-.metric::before { content:""; position:absolute; inset:0 auto 0 0; width:8px;
-  background:repeating-linear-gradient(165deg,var(--c) 0 12px,#08070a 12px 19px); }
-.metric b { display:block; margin-left:8px; color:var(--c); font:38px/1 Anton600,Impact,sans-serif; }
-.metric span { margin-left:8px; color:var(--muted); font-size:11px; letter-spacing:.14em; text-transform:uppercase; }
-.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:14px;
-  background:rgba(25,21,31,.92); border:1px solid var(--line); }
-.toolbar button,.file-label { min-height:42px; padding:0 14px; color:var(--cream); background:#0e0c11;
-  border:1px solid var(--line); cursor:pointer; font-weight:900; letter-spacing:.06em; text-transform:uppercase; }
-.toolbar button.active { color:var(--black); background:var(--orange); border-color:var(--orange); }
-.file-label { display:inline-grid; place-items:center; margin-left:auto; color:var(--black); background:var(--purple); }
-.file-label input { display:none; }
-.source { flex-basis:100%; color:var(--muted); font-size:12px; }
-.table-wrap { overflow:auto; border:1px solid var(--line); border-top:0; }
-table { width:100%; min-width:820px; border-collapse:collapse; background:rgba(17,16,20,.96); }
-th { padding:15px 12px; color:var(--muted); border-bottom:1px solid var(--line);
-  font-size:11px; letter-spacing:.12em; text-align:right; text-transform:uppercase; }
-th:nth-child(1),th:nth-child(2) { text-align:left; }
-td { padding:16px 12px; border-bottom:1px solid rgba(185,145,228,.12); text-align:right; }
-td:nth-child(1),td:nth-child(2) { text-align:left; }
-tr:hover td { background:rgba(155,81,224,.06); }
-.rank { color:var(--orange); font:24px/1 Anton600,Impact,sans-serif; }
-.player { display:flex; align-items:center; gap:10px; font-weight:900; }
-.avatar { display:grid; width:34px; height:34px; place-items:center; border-radius:50%;
-  color:var(--black); background:linear-gradient(135deg,var(--orange),var(--purple));
-  font:16px/1 Anton600,Impact,sans-serif; }
-.npub { display:block; max-width:310px; overflow:hidden; color:var(--muted);
-  font:11px/1.4 monospace; text-overflow:ellipsis; white-space:nowrap; }
-.won { color:var(--green); font-weight:900; }
-.lost { color:#ff7657; font-weight:900; }
-.net.positive { color:var(--cyan); font-weight:900; }
-.net.negative { color:#ff7657; font-weight:900; }
-.empty { padding:64px 20px; color:var(--muted); text-align:center; border:1px dashed var(--line);
-  background:rgba(17,16,20,.72); }
-.empty strong { display:block; margin-bottom:8px; color:var(--cream); font:28px/1 Anton600,Impact,sans-serif; }
-.note { margin-top:18px; padding:14px 18px; color:var(--muted); border:0;
-  border-left:5px solid var(--orange); background:rgba(247,147,26,.06); font-size:13px; }
-@media (max-width:720px) {
-  .metrics { grid-template-columns:1fr; }
-  .file-label { margin-left:0; }
+.metric::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 8px;
+  background: repeating-linear-gradient(165deg, var(--c) 0 12px, var(--black) 12px 19px);
+}
+.metric b { display: block; color: var(--c); font: 36px/1 var(--display); }
+.metric span { color: var(--muted); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+
+.toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 12px; background: var(--panel); border: 1px solid var(--line);
+}
+.toolbar .grp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.toolbar .grp--pull { flex: 1 1 320px; }
+.toolbar button, .file-label {
+  min-height: 42px; padding: 0 14px; cursor: pointer;
+  color: var(--cream); background: var(--black); border: 1px solid var(--line);
+  font: 900 12px/1 var(--body); letter-spacing: .07em; text-transform: uppercase;
+}
+.toolbar button:hover:not(:disabled) { border-color: var(--line-strong); }
+.toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+.toolbar button.active { color: var(--black); background: var(--ember); border-color: var(--ember); }
+/* Ember means act, everywhere on this site. Left click, one job. */
+.toolbar button.go { color: var(--black); background: var(--ember); border-color: var(--ember); }
+.toolbar input[type="text"] {
+  flex: 1 1 190px; min-width: 0; min-height: 42px; padding: 0 12px;
+  color: var(--cream); background: var(--black); border: 1px solid var(--line);
+  font-family: var(--mono); font-size: 13px;
+}
+.file-label { display: inline-grid; place-items: center; color: var(--black); background: var(--purple); border-color: var(--purple); }
+.file-label input { display: none; }
+.toolbar .danger { color: var(--danger); border-color: rgba(255, 77, 61, .4); }
+.source { flex-basis: 100%; color: var(--ink-dim); font-size: 12.5px; }
+.source.bad { color: var(--danger); }
+.source.good { color: var(--good); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-top: 0; }
+table { width: 100%; border-collapse: collapse; background: rgba(17, 16, 20, .96); }
+th {
+  padding: 14px 12px; color: var(--muted); border-bottom: 1px solid var(--line);
+  font-size: 11px; letter-spacing: .12em; text-align: right; text-transform: uppercase; white-space: nowrap;
+}
+th:nth-child(1), th:nth-child(2) { text-align: left; }
+td { padding: 13px 12px; border-bottom: 1px solid rgba(185, 145, 228, .12); text-align: right; }
+td:nth-child(1), td:nth-child(2) { text-align: left; }
+tbody tr:hover td { background: rgba(185, 145, 228, .06); }
+.rank { color: var(--ember); font: 24px/1 var(--display); }
+.player { display: flex; align-items: center; gap: 10px; }
+.player > span:last-child { min-width: 0; }
+.player .nm { display: block; max-width: 30ch; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.avatar {
+  display: grid; flex: none; width: 34px; height: 34px; place-items: center;
+  color: var(--black); background: linear-gradient(135deg, var(--bitcoin), var(--purple));
+  font: 15px/1 var(--display); border-radius: 50%;
+}
+.npub { display: block; max-width: 300px; overflow: hidden; color: var(--ink-dim);
+  font: 11px/1.4 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.wld { font-weight: 900; white-space: nowrap; }
+.wld .w { color: var(--good); }
+.wld .l { color: var(--danger); }
+.wld .d { color: var(--ink-dim); }
+.wld i { font-style: normal; font-weight: 400; color: var(--ink-dim); }
+.won { color: var(--good); font-weight: 900; }
+.lost { color: var(--danger); font-weight: 900; }
+.net.positive { color: var(--timelock); font-weight: 900; }
+.net.negative { color: var(--danger); font-weight: 900; }
+
+/* RIGHT CLICK = DETAILS. The full hex key, which is the thing you need to go
+   and check this ladder against the relays yourself. */
+tr.detail td {
+  background: rgba(9, 8, 11, .66); border-left: 3px solid var(--purple-deep);
+  color: var(--ink-dim); font: 12px/1.7 var(--mono); text-align: left; word-break: break-all;
+}
+tr.detail td b { color: var(--muted); font-weight: 400; }
+
+.hint { margin-top: 10px; color: var(--ink-dim); font-size: 12px; }
+
+/* The rejected list is not an error box, it is part of the answer. */
+.rejected {
+  margin-top: 14px; background: var(--soot);
+  border: 1px solid var(--line); border-left: 3px solid var(--danger);
+}
+.rejected > summary {
+  padding: 13px 14px; cursor: pointer; color: var(--cream); list-style: none;
+  font: 900 12px/1.3 var(--body); letter-spacing: .07em; text-transform: uppercase;
+}
+.rejected > summary::marker { content: ""; }
+.rejected > summary::-webkit-details-marker { display: none; }
+.rejected > summary::before { content: "\25B8\00a0"; color: var(--danger); }
+.rejected[open] > summary::before { content: "\25BE\00a0"; }
+.rejected ul { margin: 0; padding: 0 18px 15px 36px; color: var(--muted); font-size: 13.5px; }
+.rejected li { margin-bottom: 10px; }
+.rejected li:last-child { margin-bottom: 0; }
+.rejected .mid { display: block; color: var(--ink-dim); font: 11.5px/1.5 var(--mono); letter-spacing: .04em; }
+
+.empty { padding: 40px 22px; border: 1px dashed var(--line); background: rgba(17, 16, 20, .72); }
+.empty strong { display: block; margin-bottom: 10px; color: var(--cream); font: 28px/1 var(--display); text-transform: uppercase; }
+.empty p { max-width: 66ch; color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+.empty ul { max-width: 66ch; margin: 0 0 4px; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.empty li { margin-bottom: 7px; }
+.empty code, .note code, .secondary code { color: var(--power); font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+
+/* Everything below the ladder is a tool, not the record. It reads that way. */
+.secondary { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--line); }
+.secondary h2 { color: var(--muted); font-size: clamp(22px, 3vw, 30px); }
+.secondary > p { max-width: 74ch; margin-bottom: 18px; color: var(--ink-dim); font-size: 14px; }
+
+/* The referee line: one sentence, always answered. */
+.referee {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 12px 14px; margin-bottom: 12px;
+  background: var(--soot); border: 1px solid var(--line); border-left: 3px solid var(--purple-deep);
+  color: var(--muted); font-size: 13px;
+}
+.referee.live { border-left-color: var(--good); }
+.referee.down { border-left-color: var(--danger); }
+.referee b { color: var(--cream); font: 11px/1.3 var(--display); letter-spacing: .2em; text-transform: uppercase; }
+.referee .mono { color: var(--ink-dim); font-size: 12px; word-break: break-all; }
+
+.note { margin-top: 18px; padding: 14px 18px; color: var(--muted);
+  border: 0; border-left: 3px solid var(--ember); background: rgba(255, 106, 0, .06); font-size: 13px; }
+.note b { color: var(--cream); }
+.note p { margin-bottom: 8px; }
+.note p:last-child { margin-bottom: 0; }
+
+.terminal-line { margin-top: 46px; }
+
+@media (max-width: 720px) { .metrics { grid-template-columns: 1fr; } }
+
+/* At phone width the tables stop being tables: one card per player, each cell
+   labelled, so nothing needs sideways scrolling to be read. */
+@media (max-width: 680px) {
+  .table-wrap { overflow: visible; border: 0; }
+  table, thead, tbody, tr, td { display: block; width: 100%; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); }
+  tbody tr { margin-bottom: 10px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--purple-deep); }
+  tbody tr:hover td { background: none; }
+  td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 0; text-align: right; }
+  td:nth-child(1), td:nth-child(2) { text-align: left; }
+  td::before { content: attr(data-label); color: var(--ink-dim); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+  td.cell-rank, td.cell-player, td.cell-detail { display: block; }
+  td.cell-rank::before, td.cell-player::before, td.cell-detail::before { content: none; }
+  tr.detail { border-left-color: var(--purple); }
+  tr.detail td { border-left: 0; background: none; }
+  .npub { max-width: none; }
+  .player .nm { max-width: none; }
 }
 </style>
 </head>
@@ -88,53 +198,200 @@ tr:hover td { background:rgba(155,81,224,.06); }
     <a class="link" href="leaderboard.html" aria-current="page">Leaderboard</a>
   </div>
 </nav>
+
 <main id="main">
   <p class="eyebrow">600 Billion · Public Track Record</p>
-  <h1>Wins. Losses. <span>Measured in sats.</span></h1>
-  <p class="lead">Rank players by verified sats won, sats lost or net result. The board only
-  counts settled match records; it never invents scores and never holds funds.</p>
+  <h1>A rank you can <span class="accent">check yourself.</span></h1>
+  <p class="lead">There is no ladder server and no row anyone can edit. This table is folded, here in
+  your browser, out of match results published to public nostr relays and signed by both players.</p>
 
-  <section class="metrics" aria-label="Leaderboard totals">
-    <div class="metric" style="--c:var(--orange)"><b id="matchCount">0</b><span>Verified matches</span></div>
-    <div class="metric" style="--c:var(--purple)"><b id="playerCount">0</b><span>Ranked players</span></div>
-    <div class="metric" style="--c:var(--cyan)"><b id="satsCount">0</b><span>Settled sats</span></div>
+  <section class="framed trust" aria-labelledby="trustHead">
+    <span class="pad tl"></span><span class="pad tr"></span><span class="pad bl"></span><span class="pad br"></span>
+    <span class="banner" id="trustHead">How to trust this table</span>
+    <p><b>Every match here was signed by both players, and this browser checked each of those
+    signatures itself</b> — the BIP-340 verifier in <code>schnorr.js</code> recomputes each event id
+    and tests the signature against the signer's own key. Nothing is counted on a relay's word. A
+    match counts only when the two players named inside the result are the two keys that signed it,
+    and both signed byte-identical bytes.</p>
+    <p><b>Anything that failed is listed, not dropped.</b> Every result that was refused appears
+    under the table with the reason, because a ladder that quietly discards results looks exactly
+    like one that is broken.</p>
+    <p><b>Sats staked is what both players signed up to at the start of the match</b>, before either
+    knew how it would go — it is not proof that anyone paid. Settlement is wallet to wallet over
+    Lightning and this site never touches it. Rating is Elo, K=24, everyone starts at 1500, replayed
+    oldest match first so two browsers reading the same events get the same table.</p>
   </section>
 
-  <div class="toolbar" aria-label="Leaderboard controls">
-    <button class="active" data-sort="won">Most sats won</button>
-    <button data-sort="lost">Most sats lost</button>
-    <button data-sort="net">Best net sats</button>
-    <label class="file-label">Import match JSON<input id="importFile" type="file" accept="application/json"></label>
-    <div class="source" id="sourceLabel">Source: local verified match cache · no records loaded</div>
+  <section class="metrics" aria-label="Ladder totals">
+    <div class="metric" style="--c:var(--purple)"><b id="playerCount">0</b><span>Ranked players</span></div>
+    <div class="metric" style="--c:var(--ember)"><b id="matchCount">0</b><span>Confirmed matches</span></div>
+    <div class="metric" style="--c:var(--timelock)"><b id="satsCount">0</b><span>Sats staked (agreed, not settled)</span></div>
+  </section>
+
+  <div class="toolbar">
+    <div class="grp">
+      <button type="button" class="go" id="refreshBtn">Refresh ladder</button>
+    </div>
+    <p class="source" id="ladderStatus" role="status">Starting up…</p>
   </div>
-  <div class="table-wrap" id="tableWrap">
+
+  <div class="table-wrap" id="ladderWrap" hidden>
     <table>
+      <caption class="visually-hidden">Standings, highest rating first. Every row is derived from signed match results.</caption>
       <thead><tr>
-        <th>Rank</th><th>Player</th><th>Wins</th><th>Losses</th>
-        <th>Sats won</th><th>Sats lost</th><th>Net sats</th>
+        <th>Rank</th><th>Player</th><th>Rating</th><th>W / L / D</th><th>Matches</th><th>Sats staked</th>
       </tr></thead>
-      <tbody id="rows"></tbody>
+      <tbody id="ladderRows"></tbody>
     </table>
   </div>
-  <div class="empty" id="empty">
-    <strong>No verified matches yet.</strong>
-    Import a signed match-result JSON file, or let a finished table write its verified
-    result to <code>600b:match-results</code> in local storage.
+  <p class="hint" id="ladderHint" hidden>Right-click a player for their full public key, so you can look the same events up yourself.</p>
+
+  <div class="empty" id="ladderEmpty">
+    <strong>No confirmed match yet.</strong>
+    <p id="ladderEmptyWhy">Reading the relays…</p>
+    <p>A player appears here once both seats of a finished match have published the same signed
+    result to a relay this browser can reach. Playing the match is what publishes it; nothing else
+    writes to this board, and no row here can be typed in by hand.</p>
+    <ul>
+      <li>Relays asked: <code id="relayList">—</code>. Add <code>?relay=wss://…</code> to this
+      page's address to read the ladder off a different one.</li>
+      <li>Results are nostr kind <code>31600</code>, tagged <code>t=600b-timelock-tcg</code> and
+      addressed by <code>d=&lt;matchId&gt;</code>. Any nostr client can read the same record; this
+      page is only one reader of it.</li>
+    </ul>
   </div>
-  <p class="note">Expected record fields: <code>id</code>, <code>winner</code>,
-  <code>loser</code>, <code>settledSats</code>, <code>verified: true</code> and
-  <code>createdAt</code>. A player can be a string pubkey or an object with
-  <code>pubkey</code> and <code>name</code>.</p>
+
+  <details class="rejected" id="rejected" hidden>
+    <summary id="rejectedSummary">0 results not counted</summary>
+    <ul id="rejectedList"></ul>
+  </details>
+
+  <section class="secondary" aria-labelledby="localHead">
+    <h2 id="localHead">Local tools</h2>
+    <p>Below the ladder, and separate from it: a scratch board held in this browser only. It counts
+    what you hand it — a match pulled from a referee, or a JSON file you import — and it is
+    <b>not</b> the signed record above. Nobody else sees it and nothing here changes a rating.</p>
+
+    <p class="referee" id="referee"><b>Referee</b><span id="refereeText">Checking for a referee…</span>
+    <span class="mono" id="refereeUrl"></span></p>
+
+    <div class="toolbar">
+      <div class="grp" role="group" aria-label="Sort order">
+        <button type="button" class="active" data-sort="won">Most sats won</button>
+        <button type="button" data-sort="lost">Most sats lost</button>
+        <button type="button" data-sort="net">Best net sats</button>
+      </div>
+      <form class="grp grp--pull" id="pullForm">
+        <input id="matchId" type="text" placeholder="m_0a1b2c3d4e5f" autocomplete="off" spellcheck="false"
+          aria-label="Finished match id to pull from the referee">
+        <button type="submit" id="pullBtn">Pull match</button>
+      </form>
+      <div class="grp">
+        <label class="file-label">Import match JSON<input id="importFile" type="file" accept="application/json"></label>
+        <button type="button" class="danger" id="clearBtn">Clear board</button>
+      </div>
+      <div class="source" id="sourceLabel">Source: this browser's record cache · no records loaded</div>
+    </div>
+
+    <div class="table-wrap" id="localWrap" hidden>
+      <table>
+        <caption class="visually-hidden">Locally held match records. Not part of the signed ladder.</caption>
+        <thead><tr>
+          <th>Rank</th><th>Player</th><th>Wins</th><th>Losses</th>
+          <th>Sats won</th><th>Sats lost</th><th>Net sats</th>
+        </tr></thead>
+        <tbody id="localRows"></tbody>
+      </table>
+    </div>
+
+    <div class="empty" id="localEmpty">
+      <strong>No verified matches yet.</strong>
+      <p>This browser holds no records of its own. There are two ways to put one here, and neither
+      of them touches the ladder above:</p>
+      <ul>
+        <li><b>Pull a finished match</b> — paste a match id. The board asks this page's referee for
+        <code>/api/match/&lt;id&gt;</code> and takes the winner, the loser and the referee's own
+        replay verdict straight from the signed result.</li>
+        <li><b>Import a JSON file</b> — an array of records, or an object with a <code>results</code>
+        array. Useful for a record set collected somewhere other than this referee.</li>
+      </ul>
+      <p>Nothing is written here automatically, and clearing the board clears it for good.</p>
+    </div>
+
+    <div class="note">
+      <p><b>Why a pulled match lands at zero sats.</b> The referee records who won, how many turns it
+      took and the hashes that let anyone replay the transcript. It never records the stake, because
+      the stake is not on the table: a zap duel is wallet to wallet over Lightning and this site never
+      touches it (rulebook §19). So a match pulled from the referee lands with
+      <code>settledSats: 0</code> until a record carrying the agreed amount is imported for it.</p>
+      <p><b>Record shape.</b> <code>id</code>, <code>winner</code>, <code>loser</code>,
+      <code>settledSats</code> (a whole number of sats, zero or more), <code>verified: true</code> and
+      <code>createdAt</code>. A player is either a hex pubkey string or an object with
+      <code>pubkey</code> and <code>name</code>. Anything that fails those checks is counted by nobody.</p>
+      <p><b>Where it lives.</b> In this browser only, under <code>600b:match-results</code>. NPC
+      practice games carry no standing and belong on no leaderboard.</p>
+    </div>
+  </section>
+
+  <p class="terminal-line"><span>TIMELOCK_TCG :: 600B</span><span>KIND 31600 · ELO K=24 · VERIFIED LOCALLY</span></p>
 </main>
+
 <footer class="site-footer">
   <span>600 000 000 000 · Edition One · E1.0-draft</span>
   <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
+  <a href="play.html">Play</a>
+  <a href="rules.html">Rulebook</a>
   <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
 </footer>
+
+<!-- ORDER MATTERS AND IS NOT INCIDENTAL.
+     schnorr.js publishes globalThis.E1Schnorr, net.js publishes globalThis.E1Net,
+     and ladder.js REFUSES to fold a ladder without the first and cannot reach a
+     relay without the second. All three are plain IIFEs that assign their global
+     synchronously, so by the time the page script below runs, all three exist —
+     and if one 404s, the page says so in a full sentence instead of ranking
+     unverified events. -->
+<script src="schnorr.js"></script>
+<script src="net.js"></script>
+<script src="ladder.js"></script>
 <script>
+/* ---------------------------------------------------------------------------
+ * THE LADDER IS THE PAGE. It is read from public relays on load, folded by
+ * site/ladder.js, and every signature in it is verified here in this browser by
+ * site/schnorr.js before it moves a number on screen.
+ *
+ * Two things below the ladder are TOOLS, not the record, and are drawn that way:
+ *   - a single-match pull from this page's referee (GET /api/match/:id)
+ *   - a JSON import into a localStorage scratch board (600b:match-results)
+ * Neither can change a rating. The referee's real HTTP surface is three routes
+ * (server/table.js): /api/health, /api/tables, /api/match/:id. There is no
+ * ranking endpoint anywhere, so none is called — and there is nothing to call,
+ * which is the point.
+ *
+ * EVERY string that came off a relay, out of a file, or out of the URL is put on
+ * screen with textContent. Names now arrive from strangers, so innerHTML never
+ * touches one.
+ * ------------------------------------------------------------------------ */
 const CACHE_KEY = "600b:match-results";
+const MATCH_ID = /^m_[0-9a-f]{12}$/i;
+const FETCH_MS = 6000;
+
+/* The relay fan-out deadline and how many events to ask each relay for. Kept
+   modest on purpose: every event that comes back is verified with 256-bit BigInt
+   maths in this thread, and a page that asks for a thousand is a page that
+   stutters for a minute. E1Net.nostr.query resolves on the deadline whatever
+   happens, so the fetch half can never hang. */
+const LADDER_MS = 4500;
+const LADDER_LIMIT = 150;
+
 let sortMode = "won";
 let results = readCache();
+let busy = false;
+
+const $ = (id) => document.getElementById(id);
+const nf = new Intl.NumberFormat("en-GB");
+const formatSats = (value) => nf.format(value) + " sats";
+const plural = (n, one, many) => nf.format(n) + " " + (n === 1 ? one : many);
 
 function readCache() {
   try {
@@ -142,9 +399,375 @@ function readCache() {
     return Array.isArray(value) ? value : [];
   } catch { return []; }
 }
+function writeCache() {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(results)); }
+  catch { /* private mode: the board still works for this session */ }
+}
+
+/* A display name signed by a stranger. textContent already makes it inert as
+   markup; this strips the two things textContent cannot help with — control
+   characters, and the bidi overrides that let "alice" render as someone else. */
+function safeName(value) {
+  const text = String(value == null ? "" : value)
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "")
+    .trim();
+  return text.length > 40 ? text.slice(0, 39) + "…" : text;
+}
+
+/* Every cell is built as a text node. Nothing on this page parses a relay
+   string, a file string or a URL parameter as markup. */
+function cell(row, className, label, text) {
+  const td = document.createElement("td");
+  td.className = className;
+  if (label) td.dataset.label = label;
+  if (text !== undefined) td.textContent = text;
+  row.append(td);
+  return td;
+}
+
+function playerCell(row, name, pubkey, short) {
+  const td = document.createElement("td");
+  td.className = "cell-player";
+  const wrap = document.createElement("div");
+  wrap.className = "player";
+  const avatar = document.createElement("span");
+  avatar.className = "avatar";
+  avatar.textContent = (name || pubkey || "?").slice(0, 2).toUpperCase();
+  const names = document.createElement("span");
+  const nm = document.createElement("span");
+  nm.className = "nm";
+  nm.textContent = name || "Nostrich";
+  const key = document.createElement("small");
+  key.className = "npub";
+  key.textContent = short || pubkey;
+  names.append(nm, key);
+  wrap.append(avatar, names);
+  td.append(wrap);
+  row.append(td);
+  return td;
+}
+
+/* ========================================================== THE LADDER ==== */
+
+const ladderStatus = (message, tone) => {
+  const line = $("ladderStatus");
+  line.textContent = message;
+  line.classList.toggle("bad", tone === "bad");
+  line.classList.toggle("good", tone === "good");
+};
+const emptyWhy = (message) => { $("ladderEmptyWhy").textContent = message; };
+
+const shortNpub = (hex) => {
+  try { return globalThis.E1Net.nostr.shortNpub(hex) || hex; }
+  catch { return hex; }
+};
+const relayList = () => {
+  try { return globalThis.E1Net.nostr.relays(); } catch { return []; }
+};
+
+/* ladder.js speaks in short refusals. A reader deserves the whole sentence. */
+function plainReason(why) {
+  const text = String(why || "");
+  const only = /^only (\d+) of 2 seats signed$/.exec(text);
+  if (only) {
+    return `Only ${only[1]} of the two players has published this result. A match counts when both ` +
+      "have — one signature is one player's claim, not an agreed outcome.";
+  }
+  switch (text) {
+    case "signature does not verify":
+      return "The signature does not verify. This browser recomputed the event's own id and tested " +
+        "the signature against the key that claims to have made it; it is not a real signature from " +
+        "that key, so the event proves nothing.";
+    case "signed by someone who did not play":
+      return "Signed by someone who did not play. A third key co-signed a result naming two other " +
+        "players, which is how a bystander would manufacture agreement about a match they never sat at.";
+    case "the two seats signed different results":
+      return "The two players signed different results. They disagree about what happened, so there " +
+        "is no agreed outcome here to count for either of them.";
+    case "the d tag names a different match":
+      return "The event is addressed to one match and describes another. It cannot be trusted to be " +
+        "about either of them.";
+    case "more than one agreed result for one match":
+      return "Two different results for this match each carry both signatures. One is a rewrite of " +
+        "the other and nothing visible from here says which, so neither is counted.";
+    default:
+      return text || "Refused for a reason this page does not have a plain sentence for yet.";
+  }
+}
+
+function renderRejected(rejected) {
+  const box = $("rejected");
+  const list = $("rejectedList");
+  list.replaceChildren();
+  if (!rejected.length) {
+    box.hidden = true;
+    box.open = false;
+    return;
+  }
+  $("rejectedSummary").textContent =
+    plural(rejected.length, "result not counted", "results not counted") + " — press to read why";
+  for (const item of rejected) {
+    const li = document.createElement("li");
+    const id = document.createElement("span");
+    id.className = "mid";
+    id.textContent = String(item && item.matchId ? item.matchId : "unknown match");
+    const why = document.createElement("span");
+    why.textContent = plainReason(item && item.why);
+    li.append(id, why);
+    list.append(li);
+  }
+  box.hidden = false;
+}
+
+function renderLadder(data) {
+  const rows = data.rows || [];
+  const staked = (data.matches || []).reduce((sum, m) => sum + (Number(m && m.stake) || 0), 0);
+
+  $("playerCount").textContent = nf.format(rows.length);
+  $("matchCount").textContent = nf.format(data.counted || 0);
+  $("satsCount").textContent = nf.format(staked);
+
+  const body = $("ladderRows");
+  body.replaceChildren();
+  rows.forEach((row, index) => {
+    const name = safeName(row.name);
+    const tr = document.createElement("tr");
+    cell(tr, "rank cell-rank", "", "#" + (index + 1));
+    playerCell(tr, name, row.pubkey, shortNpub(row.pubkey));
+
+    const rating = cell(tr, "", "Rating");
+    const chip = document.createElement("span");
+    chip.className = "chip-num";
+    const value = document.createElement("b");
+    value.textContent = String(row.rating);
+    const unit = document.createElement("span");
+    unit.textContent = "ELO";
+    chip.append(value, unit);
+    rating.append(chip);
+
+    const wld = cell(tr, "wld", "Won / lost / drawn");
+    const w = document.createElement("span"); w.className = "w"; w.textContent = String(row.wins);
+    const l = document.createElement("span"); l.className = "l"; l.textContent = String(row.losses);
+    const d = document.createElement("span"); d.className = "d"; d.textContent = String(row.draws);
+    const sep1 = document.createElement("i"); sep1.textContent = " / ";
+    const sep2 = document.createElement("i"); sep2.textContent = " / ";
+    wld.append(w, sep1, l, sep2, d);
+
+    cell(tr, "", "Matches", String(row.matches));
+    cell(tr, "", "Sats staked", formatSats(row.staked));
+    body.append(tr);
+
+    /* RIGHT CLICK = DETAILS, left click stays free for nothing at all here. The
+       full hex key is the detail that matters: it is what you paste into any
+       other nostr client to check this row without us. */
+    const detail = document.createElement("tr");
+    detail.className = "detail";
+    detail.hidden = true;
+    const td = document.createElement("td");
+    td.className = "cell-detail";
+    td.colSpan = 6;
+    const key = document.createElement("div");
+    key.textContent = row.pubkey;
+    const meta = document.createElement("b");
+    meta.textContent = plural(row.matches, "confirmed match", "confirmed matches") + " · " +
+      plural(row.turns, "turn", "turns") + " played · started at 1500 · Elo K=24";
+    td.append(key, meta);
+    detail.append(td);
+    body.append(detail);
+
+    tr.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      detail.hidden = !detail.hidden;
+    });
+  });
+
+  $("ladderWrap").hidden = !rows.length;
+  $("ladderHint").hidden = !rows.length;
+  $("ladderEmpty").hidden = Boolean(rows.length);
+  renderRejected(Array.isArray(data.rejected) ? data.rejected : []);
+}
+
+/* Why a load can be impossible before it is attempted. Each answer is a whole
+   sentence, because "failed" on its own tells a player nothing they can act on. */
+function ladderBlocker() {
+  if (!globalThis.E1Schnorr) {
+    return "site/schnorr.js did not load, so no signature on this page can be checked. The ladder " +
+      "is not shown at all rather than shown unverified — an unverified ladder looks exactly like a " +
+      "real one, which is what makes it worse than none.";
+  }
+  if (!globalThis.E1Net || !globalThis.E1Net.nostr) {
+    return "site/net.js did not load, so this page has no way to reach a relay.";
+  }
+  if (!globalThis.E1Ladder) {
+    return "site/ladder.js did not load, so there is nothing here to fold events into a table.";
+  }
+  if (!globalThis.crypto || !globalThis.crypto.subtle) {
+    return "This browser only offers SHA-256 on a secure origin, and this page was served over " +
+      `plain http from ${location.host || "an insecure origin"}. Without it no signature can be ` +
+      "checked, so the ladder is not shown. Open the site over https, or from localhost.";
+  }
+  if (typeof globalThis.WebSocket !== "function") {
+    return "This browser has no WebSocket, which is the only way to speak to a nostr relay.";
+  }
+  return null;
+}
+
+async function loadLadder() {
+  if (busy) return;
+  const blocked = ladderBlocker();
+  if (blocked) {
+    /* Drawn as an explicit empty ladder rather than left to the markup's own
+       defaults: whatever was on screen a moment ago must not survive a state
+       where nothing can be verified. */
+    $("refreshBtn").disabled = true;
+    renderLadder({ rows: [], matches: [], rejected: [], counted: 0 });
+    ladderStatus(blocked, "bad");
+    emptyWhy(blocked);
+    return;
+  }
+
+  busy = true;
+  $("refreshBtn").disabled = true;
+  const relays = relayList();
+  ladderStatus(`Asking ${plural(relays.length, "relay", "relays")} for signed results — up to ` +
+    `${(LADDER_MS / 1000).toFixed(1)} seconds, then it answers with whatever arrived.`);
+  try {
+    /* fetchEvents and standings are called separately rather than through
+       E1Ladder.load() purely so the two halves can be named on screen: waiting
+       on relays and verifying signatures fail differently and take differently
+       long, and one word for both would hide that. */
+    const events = await globalThis.E1Ladder.fetchEvents({ ms: LADDER_MS, limit: LADDER_LIMIT });
+
+    if (!events.length) {
+      const why = location.protocol === "file:"
+        ? "Not one event came back. This page was opened straight from a file, so it has no web " +
+          "origin — some relays refuse that connection outright. Serve the site over http or https " +
+          "to rule that out. Everything else on this page still works from a file."
+        : `Not one event came back from ${plural(relays.length, "relay", "relays")} within ` +
+          `${(LADDER_MS / 1000).toFixed(1)} seconds. Either no match has been published to them yet, ` +
+          "or none of them could be reached from this browser — from here those two look the same, " +
+          "and this page will not guess which.";
+      renderLadder({ rows: [], matches: [], rejected: [], counted: 0 });
+      emptyWhy(why);
+      ladderStatus(why, "bad");
+      return;
+    }
+
+    ladderStatus(`Checking ${plural(events.length, "signature", "signatures")} in this browser. ` +
+      "This is the slow, honest part — no relay is trusted to have done it.");
+    const data = await globalThis.E1Ladder.standings(events);
+    renderLadder(data);
+
+    const line = `${plural(data.rows.length, "player", "players")} · ` +
+      `${plural(data.counted, "confirmed match", "confirmed matches")} · ` +
+      `${plural(data.rejected.length, "result not counted", "results not counted")} · folded from ` +
+      `${plural(events.length, "event", "events")} off ${plural(relays.length, "relay", "relays")}, ` +
+      "every signature verified here.";
+    ladderStatus(line, data.rows.length ? "good" : "bad");
+    if (!data.rows.length) {
+      emptyWhy(`${plural(events.length, "event", "events")} came back and not one of them was a ` +
+        "match both players had signed the same way. Anything that was refused is listed below with " +
+        "its reason.");
+    }
+  } catch (error) {
+    const why = "The ladder could not be read: " + String((error && error.message) || error) + ".";
+    renderLadder({ rows: [], matches: [], rejected: [], counted: 0 });
+    emptyWhy(why);
+    ladderStatus(why, "bad");
+  } finally {
+    busy = false;
+    $("refreshBtn").disabled = Boolean(ladderBlocker());
+  }
+}
+
+$("refreshBtn").addEventListener("click", loadLadder);
+
+/* ============================================ LOCAL TOOLS, BELOW THE RECORD */
+
+/* Same resolution order net.js uses: an explicit ?table=, else the origin that
+   served this page, else nothing at all. A ws:// table URL maps to its http
+   origin the same way. */
+function refereeOrigin() {
+  try {
+    const given = new URLSearchParams(location.search).get("table");
+    if (given) return given.replace(/^ws/, "http").replace(/\/ws$/, "");
+    if (location.protocol === "http:" || location.protocol === "https:") return location.origin;
+  } catch { /* fall through */ }
+  return null;
+}
+const ORIGIN = refereeOrigin();
+
+async function getJSON(url) {
+  const control = new AbortController();
+  const timer = setTimeout(() => control.abort(), FETCH_MS);
+  try {
+    const response = await fetch(url, { cache: "no-store", signal: control.signal });
+    const body = await response.json().catch(() => null);
+    return { status: response.status, body };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function checkReferee() {
+  const line = $("referee");
+  const text = $("refereeText");
+  if (!ORIGIN) {
+    line.classList.add("down");
+    text.textContent = "This page was not served by a referee, so no match can be pulled. " +
+      "Open it over http from a running table, or add ?table= to the address. Importing a file still works, " +
+      "and the ladder above does not need a referee at all.";
+    $("pullBtn").disabled = true;
+    $("matchId").disabled = true;
+    return;
+  }
+  $("refereeUrl").textContent = ORIGIN;
+  try {
+    const { status, body } = await getJSON(ORIGIN + "/api/health");
+    if (status !== 200 || !body || body.ok !== true) throw new Error("unhealthy");
+    line.classList.add("live");
+    text.textContent = `Reachable · ${nf.format(body.matches || 0)} match${body.matches === 1 ? "" : "es"} ` +
+      `in memory · ${nf.format(body.queued || 0)} searching. Paste a finished match id to pull its result.`;
+  } catch {
+    line.classList.add("down");
+    text.textContent = "Not reachable from this page — no referee answered /api/health. " +
+      "Importing a file still works.";
+    $("pullBtn").disabled = true;
+    $("matchId").disabled = true;
+  }
+}
+
+/* Turn one finished /api/match/:id response into a local record. The rich
+   payload is `resultContent`: the exact bytes both seats sign. */
+function recordFromMatch(payload) {
+  if (!payload || payload.status !== "over") return { error: "still-running" };
+  let signed = null;
+  try { signed = payload.resultContent ? JSON.parse(payload.resultContent) : null; } catch { signed = null; }
+  const winners = (signed && signed.winners) || (payload.result && payload.result.winners) || [];
+  if (winners.length !== 1) return { error: "draw" };
+  const players = (signed && signed.players) || [];
+  const winnerSeat = winners[0];
+  const loserSeat = winnerSeat === 0 ? 1 : 0;
+  const seat = (n) => players.find((p) => p && p.seat === n) || null;
+  const winner = seat(winnerSeat);
+  const loser = seat(loserSeat);
+  if (!winner || !winner.pubkey || !loser || !loser.pubkey) return { error: "no-pubkeys" };
+  return {
+    record: {
+      id: String(payload.matchId || signed.matchId || ""),
+      winner: { pubkey: winner.pubkey, name: winner.name || "Nostrich" },
+      loser: { pubkey: loser.pubkey, name: loser.name || "Nostrich" },
+      settledSats: 0,
+      verified: Boolean(payload.verify && payload.verify.ok === true),
+      createdAt: (signed && signed.endedAt) || null,
+      transcriptHash: payload.transcriptHash || null,
+    },
+  };
+}
+
 function playerInfo(value) {
-  if (typeof value === "string") return { pubkey:value, name:"Nostrich" };
-  return { pubkey:String(value?.pubkey || value?.npub || ""), name:String(value?.name || "Nostrich") };
+  if (typeof value === "string") return { pubkey: value, name: "Nostrich" };
+  return { pubkey: String(value?.pubkey || value?.npub || ""), name: String(value?.name || "Nostrich") };
 }
 function verifiedRows(records) {
   const players = new Map();
@@ -156,7 +779,7 @@ function verifiedRows(records) {
     const info = playerInfo(player);
     if (!info.pubkey) return null;
     if (!players.has(info.pubkey)) players.set(info.pubkey, {
-      pubkey:info.pubkey, name:info.name, wins:0, losses:0, won:0, lost:0, net:0
+      pubkey: info.pubkey, name: info.name, wins: 0, losses: 0, won: 0, lost: 0, net: 0
     });
     const row = players.get(info.pubkey);
     if (row.name === "Nostrich" && info.name !== "Nostrich") row.name = info.name;
@@ -170,55 +793,109 @@ function verifiedRows(records) {
     loser.losses += 1; loser.lost += record.settledSats;
   }
   for (const row of players.values()) row.net = row.won - row.lost;
-  return { verified, players:[...players.values()] };
+  return { verified, players: [...players.values()] };
 }
-function formatSats(value) { return new Intl.NumberFormat("en-GB").format(value) + " sats"; }
-function render() {
+
+function renderLocal() {
   const data = verifiedRows(results);
-  data.players.sort((a,b) => b[sortMode] - a[sortMode] || b.wins - a.wins || a.name.localeCompare(b.name));
-  document.getElementById("matchCount").textContent = data.verified.length;
-  document.getElementById("playerCount").textContent = data.players.length;
-  document.getElementById("satsCount").textContent =
-    new Intl.NumberFormat("en-GB").format(data.verified.reduce((sum,row) => sum + row.settledSats, 0));
-  const body = document.getElementById("rows");
+  data.players.sort((a, b) => b[sortMode] - a[sortMode] || b.wins - a.wins || a.name.localeCompare(b.name));
+
+  const body = $("localRows");
   body.replaceChildren();
-  data.players.forEach((row,index) => {
+  data.players.forEach((row, index) => {
+    const name = safeName(row.name);
     const tr = document.createElement("tr");
-    const initials = row.name.trim().slice(0,2).toUpperCase() || "₿";
-    const netClass = row.net >= 0 ? "positive" : "negative";
-    tr.innerHTML = `<td class="rank">#${index + 1}</td>
-      <td><div class="player"><span class="avatar">${initials}</span><span>${row.name}
-      <small class="npub">${row.pubkey}</small></span></div></td>
-      <td>${row.wins}</td><td>${row.losses}</td>
-      <td class="won">${formatSats(row.won)}</td><td class="lost">${formatSats(row.lost)}</td>
-      <td class="net ${netClass}">${row.net < 0 ? "−" : "+"}${formatSats(Math.abs(row.net))}</td>`;
+    cell(tr, "rank cell-rank", "", "#" + (index + 1));
+    playerCell(tr, name, row.pubkey, row.pubkey);
+    cell(tr, "", "Wins", String(row.wins));
+    cell(tr, "", "Losses", String(row.losses));
+    cell(tr, "won", "Sats won", formatSats(row.won));
+    cell(tr, "lost", "Sats lost", formatSats(row.lost));
+    cell(tr, "net " + (row.net >= 0 ? "positive" : "negative"), "Net sats",
+      (row.net < 0 ? "−" : "+") + formatSats(Math.abs(row.net)));
     body.append(tr);
   });
-  document.getElementById("tableWrap").hidden = !data.players.length;
-  document.getElementById("empty").hidden = Boolean(data.players.length);
+
+  $("localWrap").hidden = !data.players.length;
+  $("localEmpty").hidden = Boolean(data.players.length);
 }
+
+function say(message, bad) {
+  const label = $("sourceLabel");
+  label.textContent = message;
+  label.classList.toggle("bad", Boolean(bad));
+}
+
 document.querySelectorAll("[data-sort]").forEach(button => button.addEventListener("click", () => {
   sortMode = button.dataset.sort;
   document.querySelectorAll("[data-sort]").forEach(item => item.classList.toggle("active", item === button));
-  render();
+  renderLocal();
 }));
-document.getElementById("importFile").addEventListener("change", async event => {
+
+$("pullForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const id = $("matchId").value.trim().toLowerCase();
+  if (!MATCH_ID.test(id)) return say("That is not a match id — they look like m_0a1b2c3d4e5f.", true);
+  if (!ORIGIN) return say("No referee to ask from this page.", true);
+  $("pullBtn").disabled = true;
+  say(`Asking ${ORIGIN}/api/match/${id} …`);
+  try {
+    const { status, body } = await getJSON(`${ORIGIN}/api/match/${encodeURIComponent(id)}`);
+    if (status === 404) return say(`This referee has no match ${id}.`, true);
+    if (status !== 200 || !body) return say(`The referee answered ${status} for ${id}.`, true);
+    const outcome = recordFromMatch(body);
+    if (outcome.error === "still-running") return say(`${id} is still being played — pull it once it ends.`, true);
+    if (outcome.error === "draw") return say(`${id} ended in a draw: no win and no loss to record.`, true);
+    if (outcome.error === "no-pubkeys") return say(`${id} has no signed-in players, so it cannot be ranked.`, true);
+    const fresh = outcome.record;
+    results = results.filter(record => !record || record.id !== fresh.id).concat([fresh]);
+    writeCache();
+    renderLocal();
+    say(fresh.verified
+      ? `Pulled ${id} · the referee's replay verified it · stake not recorded, so 0 sats.`
+      : `Pulled ${id} · the referee could NOT verify its replay, so it is listed nowhere until it is.`,
+      !fresh.verified);
+  } catch {
+    say(`Could not reach ${ORIGIN} — the referee did not answer in time.`, true);
+  } finally {
+    $("pullBtn").disabled = false;
+  }
+});
+
+$("importFile").addEventListener("change", async event => {
   const file = event.target.files[0];
   if (!file) return;
   try {
     const payload = JSON.parse(await file.text());
-    const imported = Array.isArray(payload) ? payload : payload.results;
-    if (!Array.isArray(imported)) throw new Error("JSON must contain a results array");
+    const imported = Array.isArray(payload) ? payload : payload && payload.results;
+    if (!Array.isArray(imported)) throw new Error("the JSON must be an array, or hold a results array");
     results = imported;
-    localStorage.setItem(CACHE_KEY, JSON.stringify(results));
-    document.getElementById("sourceLabel").textContent =
-      `Source: ${file.name} · ${verifiedRows(results).verified.length} verified records`;
-    render();
+    writeCache();
+    renderLocal();
+    const counted = verifiedRows(results).verified.length;
+    say(`Source: ${file.name} · ${nf.format(counted)} of ${nf.format(imported.length)} records counted`,
+      counted === 0);
   } catch (error) {
-    alert("Could not import match results: " + error.message);
+    say("Could not import that file: " + error.message, true);
+  } finally {
+    event.target.value = "";
   }
 });
-render();
+
+$("clearBtn").addEventListener("click", () => {
+  if (!results.length) return say("Nothing to clear — this browser holds no records.");
+  results = [];
+  writeCache();
+  renderLocal();
+  say("Board cleared. This browser holds no match records.");
+});
+
+/* ------------------------------------------------------------------ startup */
+
+$("relayList").textContent = relayList().join("  ·  ") || "none — site/net.js did not load";
+renderLocal();
+loadLadder();
+checkReferee();
 </script>
 </body>
 </html>

@@ -271,6 +271,11 @@ async function createTable(opts) {
     ["result_content", "TEXT"],
     ["result_tags_json", "TEXT"],
     ["result_created_at", "INTEGER"],
+    /* The agreed wager in sats, 0 for a friendly. The referee never holds,
+     * escrows or moves a satoshi — it records what both seats agreed to before
+     * either knew how the match would go, which is the only moment consent to a
+     * wager means anything. Settlement is wallet to wallet, afterwards. */
+    ["stake", "INTEGER"],
   ]) {
     if (!columns.has(name)) db.exec(`ALTER TABLE matches ADD COLUMN ${name} ${type}`);
   }
@@ -278,12 +283,12 @@ async function createTable(opts) {
   const q = {
     insertMatch: db.prepare(`INSERT INTO matches
       (match_id, code, status, created_at, updated_at, config_json, ruleset, catalog_digest,
-       state_json, seat0_name, seat0_affinity, seat0_pubkey, seat0_token, head_seq)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0)`),
+       state_json, seat0_name, seat0_affinity, seat0_pubkey, seat0_token, stake, head_seq)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`),
     byCode: db.prepare("SELECT * FROM matches WHERE code = ?"),
     byId: db.prepare("SELECT * FROM matches WHERE match_id = ?"),
     openTables: db.prepare(
-      "SELECT match_id, code, created_at, seat0_name, seat0_pubkey, seat0_affinity FROM matches WHERE status = 'open' ORDER BY created_at DESC LIMIT 50"
+      "SELECT match_id, code, created_at, seat0_name, seat0_pubkey, seat0_affinity, stake FROM matches WHERE status = 'open' ORDER BY created_at DESC LIMIT 50"
     ),
     /* Every unfinished match this identity holds a seat at. This is the query
      * that makes a cleared browser survivable: the credential is gone, the seat
@@ -398,6 +403,7 @@ async function createTable(opts) {
       code: row.code,
       status: row.status,
       createdAt: row.created_at,
+      stake: Number.isInteger(row.stake) ? row.stake : 0,
       config: row.config_json && row.config_json !== "{}" ? JSON.parse(row.config_json) : null,
       state: null,
       ruleset: row.ruleset,
@@ -639,6 +645,11 @@ async function createTable(opts) {
        * bytes, and two independently signed events are only comparable if the
        * timestamp comes from the match rather than from either browser. */
       createdAt: rec.createdAt,
+      /* What both seats agreed to play for, in sats, 0 for a friendly. Sent so
+       * both clients sign byte-identical start announcements, and so a player
+       * can always see the wager they are in without trusting their own memory
+       * of what they typed. */
+      stake: rec.stake || 0,
       role: spectator ? "spectator" : "seat",
       downgraded: Boolean(extra && extra.downgraded),
       downgradeReason: (extra && extra.downgradeReason) || null,
@@ -974,6 +985,17 @@ async function createTable(opts) {
 
   // ------------------------------------------------------------ create / join
 
+  /* A wager is a whole number of sats, nothing else. Capped because a fat
+   * finger on a stake field is a worse experience than a low ceiling, and
+   * because the referee is recording a promise it can neither enforce nor
+   * refund — it should not be recording life savings. */
+  const MAX_STAKE = 1000000;
+  const cleanStake = (value) => {
+    const sats = Number(value);
+    if (!Number.isInteger(sats) || sats <= 0) return 0;
+    return Math.min(sats, MAX_STAKE);
+  };
+
   function handleCreate(conn, msg) {
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
@@ -986,7 +1008,7 @@ async function createTable(opts) {
     const at = nowIso();
     q.insertMatch.run(
       matchId, code, "open", at, at, "{}", "E1.0", CATALOG.digest,
-      null, name, affinity, pubkey, token
+      null, name, affinity, pubkey, token, cleanStake(msg.stake)
     );
     const rec = remember(newRecord(q.byId.get(matchId)));
     seat(conn, rec, 0);
@@ -1022,6 +1044,14 @@ async function createTable(opts) {
     // Belt and braces for the same fumble from a second tab of the same login.
     if (pubkey && rec.players[0].pubkey === pubkey) {
       return fail(conn.ws, "MATCH_FULL", "you cannot take both seats at one table");
+    }
+    /* NOBODY IS DEALT INTO A WAGER THEY DID NOT ACCEPT. A guest that states a
+     * stake is stating the one it was shown; if the table's has changed since,
+     * or the link was shared with a different number attached, the join is
+     * refused rather than quietly binding them to the host's figure. Omitting
+     * it still works, and means "whatever the table says". */
+    if (msg.stake !== undefined && cleanStake(msg.stake) !== (rec.stake || 0)) {
+      return fail(conn.ws, "STAKE_MISMATCH", `this table plays for ${rec.stake || 0} sats`);
     }
     const token = hex(16);
 
@@ -1103,7 +1133,7 @@ async function createTable(opts) {
     try {
       q.insertMatch.run(
         matchId, code, "open", at, at, "{}", minted.state.ruleset, minted.state.catalogDigest,
-        null, seats[0].name, seats[0].affinity, seats[0].pubkey, tokens[0]
+        null, seats[0].name, seats[0].affinity, seats[0].pubkey, tokens[0], first.stake
       );
       q.seatOne.run(
         seats[1].name, seats[1].affinity, seats[1].pubkey, tokens[1],
@@ -1126,11 +1156,18 @@ async function createTable(opts) {
   }
 
   /* Two tabs of one npub must never be paired with each other: the engine would
-   * deal it happily and one person would hold both hands. */
+   * deal it happily and one person would hold both hands.
+   *
+   * AND THE STAKES MUST MATCH. Pairing on the wager is what makes it an
+   * agreement rather than an announcement — both seats then sign the identical
+   * number by construction, and nobody is ever dealt into a game for sats they
+   * did not ask to play for. A friendly is stake 0 and pairs with friendlies. */
   function findPair() {
     for (let i = 0; i < queue.length; i++) {
       for (let j = i + 1; j < queue.length; j++) {
-        if (queue[j].conn.pubkey !== queue[i].conn.pubkey) return [i, j];
+        if (queue[j].conn.pubkey === queue[i].conn.pubkey) continue;
+        if (queue[j].stake !== queue[i].stake) continue;
+        return [i, j];
       }
     }
     return null;
@@ -1168,9 +1205,10 @@ async function createTable(opts) {
     }
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
+    const stake = cleanStake(msg.stake);
     const index = queueIndex(conn);
-    if (index >= 0) Object.assign(queue[index], { name, affinity });
-    else queue.push({ conn, name, affinity, at: Date.now() });
+    if (index >= 0) Object.assign(queue[index], { name, affinity, stake });
+    else queue.push({ conn, name, affinity, stake, at: Date.now() });
     pumpQueue();
   }
 
@@ -1536,6 +1574,7 @@ async function createTable(opts) {
           pubkey: r.seat0_pubkey,
           affinity: r.seat0_affinity,
           createdAt: r.created_at,
+          stake: Number.isInteger(r.stake) ? r.stake : 0,
           /* Whether anyone is actually sitting there. A code whose host closed
            * the tab looks identical to a live one in a bare list, and joining it
            * is a wait with no end. */
