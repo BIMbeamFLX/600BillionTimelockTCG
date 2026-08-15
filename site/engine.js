@@ -1471,12 +1471,32 @@
       affinity === "All" ||
       card.affinity.indexOf(affinity) >= 0 ||
       card.affinity.indexOf("Neutral") >= 0;
-    const pool = catalog.ids.map((id) => catalog.byId[id]).filter(inAffinity);
+    /* STAKE CARDS ARE FILTERED HERE, WHICH IS D-12 REPAID. createGame throws
+     * when an auto-built deck contains one and the Stake module is off, and the
+     * referee papered over it by re-rolling seeds up to forty times — measured
+     * at 1,621 re-rolls to build 200 Keys decks, an 89% failure rate on a
+     * single affinity. Refusing to deal a card the ruleset cannot resolve is
+     * cheaper than rolling dice until it does not come up. */
+    const playable = (card) =>
+      !/stake/i.test(card.type || "") && !/\bStake\b/.test(card.text || "");
+    const pool = catalog.ids.map((id) => catalog.byId[id]).filter((c) => inAffinity(c) && playable(c));
+    /* WITHOUT REPLACEMENT, in as many passes as it takes. Sampling with
+     * replacement gave a 40-card deck 23-25 unique cards, averaging 5.6 copies
+     * of one and reaching ten — and since the online table builds every deck
+     * this way, that WAS the online game. A deck should be a deck, not a pile
+     * of dice rolls; only when a category has fewer cards than the slots it
+     * owes does it start repeating, and then deliberately. */
     const take = (test, count) => {
       const options = pool.filter(test);
       const out = [];
       if (!options.length) return out;
-      for (let i = 0; i < count; i++) out.push(options[nextInt(stream, options.length)].id);
+      let bag = [];
+      for (let i = 0; i < count; i++) {
+        if (!bag.length) bag = options.slice();
+        const pick = nextInt(stream, bag.length);
+        out.push(bag[pick].id);
+        bag.splice(pick, 1);
+      }
       return out;
     };
     return [

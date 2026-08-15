@@ -198,7 +198,11 @@ a { color: var(--orange-soft); }
 .stakenote { color: var(--muted); font-size: 11.5px; margin-top: 8px; max-width: 68ch; line-height: 1.5; }
 
 /* ---------- the closing beat ---------- */
-.endgame { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 18px; background: rgba(9,8,11,.86); overflow: auto; }
+/* A <dialog> is display:none until open, so the layout goes on [open]; the
+   element also carries a UA border and max-width that have to go. */
+.endgame { border: 0; padding: 0; max-width: none; max-height: none; }
+.endgame[open] { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 18px; background: rgba(9,8,11,.86); overflow: auto; }
+.endgame::backdrop { background: rgba(9,8,11,.86); }
 .endcard { position: relative; width: min(560px, 100%); padding: 26px 24px 18px; background: var(--panel); border: 1px solid var(--line); text-align: center; }
 .endcard .pad { position: absolute; width: 9px; height: 9px; border: 2px solid var(--purple-deep); }
 .endcard .pad.tl { top: 7px; left: 7px; border-right: 0; border-bottom: 0; }
@@ -225,7 +229,7 @@ a { color: var(--orange-soft); }
 .endnote { color: var(--muted); font-size: 11.5px; margin-top: 10px; min-height: 16px; }
 .endcard .terminal-line { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font: 9px/1.3 ui-monospace, Consolas, monospace; letter-spacing: .22em; color: var(--purple-deep); }
 @media (prefers-reduced-motion: no-preference) {
-  .endgame:not([hidden]) .endcard { animation: endrise .26s cubic-bezier(.2,.7,.3,1) both; }
+  .endgame[open] .endcard { animation: endrise .26s cubic-bezier(.2,.7,.3,1) both; }
   @keyframes endrise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 }
 
@@ -528,7 +532,7 @@ a { color: var(--orange-soft); }
   <header class="masthead">
     <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
     <div class="brand"><strong>TIMELOCK TCG</strong><span>Edition One · Local Table</span></div>
-    <div class="turnchip" id="turnchip">Not started</div>
+    <div class="turnchip" id="turnchip" role="status" aria-live="polite">Not started</div>
     <div class="turnchip netchip" id="netchip" hidden></div>
     <div class="navlinks">
       <a class="navlink" href="index.html">Home</a>
@@ -670,7 +674,9 @@ a { color: var(--orange-soft); }
       <span class="hud-can" id="hudCan"></span>
       <span class="cando quiet" id="resourceChip">Resource play available</span>
     </div>
-    <div class="prompt" id="prompt"></div>
+    <!-- The game's primary instruction ("Choose a target — click a highlighted
+         card") changed silently for anyone not watching it. -->
+    <div class="prompt" id="prompt" role="status" aria-live="polite"></div>
     <!-- What the declared clash will actually do, before it is confirmed. -->
     <div class="clashstrip" id="clashStrip" hidden></div>
     <div id="choiceRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
@@ -683,7 +689,7 @@ a { color: var(--orange-soft); }
         <div class="side foe">
           <div class="playerbar" id="foeBar">
             <span class="name" id="foeName">Opponent</span>
-            <span class="uptime" id="foeUptimeMeter" role="meter" aria-label="Opponent Uptime" aria-valuemin="0" aria-valuenow="20">
+            <span class="uptime" id="foeUptimeMeter" role="meter" aria-label="Opponent Uptime" aria-valuemin="0" aria-valuemax="20" aria-valuenow="20">
               <span class="uptime-core"><b id="foeUptime">20</b></span>
               <span class="uptime-gauge" aria-hidden="true"><i></i></span>
               <span class="uptime-status" id="foeUptimeStatus">ONLINE</span>
@@ -708,7 +714,7 @@ a { color: var(--orange-soft); }
           <div class="zone arc netsplit" id="youNetwork"></div>
           <div class="playerbar" id="youBar">
             <span class="name" id="youName">You</span>
-            <span class="uptime" id="youUptimeMeter" role="meter" aria-label="Your Uptime" aria-valuemin="0" aria-valuenow="20">
+            <span class="uptime" id="youUptimeMeter" role="meter" aria-label="Your Uptime" aria-valuemin="0" aria-valuemax="20" aria-valuenow="20">
               <span class="uptime-core"><b id="youUptime">20</b></span>
               <span class="uptime-gauge" aria-hidden="true"><i></i></span>
               <span class="uptime-status" id="youUptimeStatus">ONLINE</span>
@@ -775,7 +781,13 @@ a { color: var(--orange-soft); }
      interface for the moment the game is actually over: what happened, whether
      the referee's own database agrees, the signature that puts it on the
      ladder, and the wager settled wallet to wallet. -->
-<div class="endgame" id="endgame" hidden role="dialog" aria-modal="true" aria-labelledby="endVerdict">
+<!-- A REAL <dialog>, not a div that looks like one. As a div it was revealed
+     by clearing `hidden`, so focus stayed on the board behind it, Escape did
+     nothing, Tab walked back underneath it, and nothing announced the result
+     at all. showModal() gives the focus trap, the Escape key and the focus
+     restore for free -- and #cardDetail on this same page already proved the
+     pattern works here. -->
+<dialog class="endgame" id="endgame" aria-labelledby="endVerdict">
   <div class="endcard framed">
     <span class="pad tl"></span><span class="pad tr"></span>
     <span class="pad bl"></span><span class="pad br"></span>
@@ -799,7 +811,7 @@ a { color: var(--orange-soft); }
     <div class="endnote" id="endNote"></div>
     <div class="terminal-line">TIMELOCK_TCG :: 600B</div>
   </div>
-</div>
+</dialog>
 <!-- Clash arrows: attacks and blocks drawn as lines over the table. -->
 <svg id="arrows" aria-hidden="true"
   style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:40">

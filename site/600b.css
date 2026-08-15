@@ -84,10 +84,18 @@ img { max-width: 100%; }
 a { color: var(--bitcoin); }
 button, select, input, textarea { font: inherit; }
 
-/* One visible focus ring everywhere — keyboard users get the same board. */
+/* One visible focus ring everywhere — keyboard users get the same board.
+ *
+ * TWO RINGS, DARK INSIDE AND LIGHT OUTSIDE, because one colour cannot contrast
+ * against both surfaces this site puts buttons on. A single gold ring measured
+ * 1.72:1 against an ember .btn face — invisible on exactly the primary actions
+ * a keyboard user most needs to find — while being fine on the dark page. Black
+ * on ember is 6.96:1 and cream on the page is 18.8:1, so whichever surface the
+ * ring lands on, one of its two edges is legible. */
 :focus-visible {
-  outline: 2px solid var(--power);
-  outline-offset: 3px;
+  outline: 2px solid var(--black);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--cream);
 }
 
 .skip {

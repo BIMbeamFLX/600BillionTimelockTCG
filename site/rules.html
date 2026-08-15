@@ -103,7 +103,9 @@
       border: 1px solid var(--line);
       font: 12px/1.3 inherit;
     }
-    #tocSearch:focus { border-color: var(--orange); outline: none; }
+    /* No "outline: none" here: it beats :focus-visible on specificity and
+       leaves a 1px border tint as the only cue a keyboard user gets. */
+    #tocSearch:focus { border-color: var(--orange); }
     #tocEmpty { margin: 6px 8px; color: var(--muted); font-size: 12px; }
     .toc a[hidden] { display: none; }
     .pill--go { background: var(--orange); }

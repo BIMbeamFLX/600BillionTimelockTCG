@@ -602,13 +602,15 @@ test("a player is a clickable target: Zap resolves at the opponent's face", () =
     get: () => ({ motionActive: "reduced" }),
   });
 
-  /* Seed 70's Power opening hand holds Zap ("any target") and Power Plant —
-   * Hydro. Before the playerbar became a target surface, an "any" pick could
+  /* Seed 26's Power opening hand holds Zap ("any target") and Power Plant —
+   * Hydro. It was seed 70 until buildDeckList stopped sampling with
+   * replacement, which changed every generated deck and therefore every
+   * opening hand. Before the playerbar became a target surface, an "any" pick could
    * only land on an Avatar node: an empty enemy Network left NOTHING
    * clickable and the play was stuck at "Cancel targeting". */
   byId("deckA").value = "Power";
   byId("deckB").value = "Signal";
-  byId("seed").value = "70";
+  byId("seed").value = "26";
   byId("start").click();
   assert.ok(game.state, "the hotseat game must start");
   assert.equal(game.state.policy.freeform, "deny", "released hotseat play uses scripted rules only");
@@ -665,7 +667,7 @@ test("the attack UI forms and submits an original-rules Mesh group", () => {
   const { byId, game } = loadPlay(netStub());
   byId("deckA").value = "Signal";
   byId("deckB").value = "Power";
-  byId("seed").value = "70";
+  byId("seed").value = "26";
   byId("start").click();
 
   const first = clientSeed(game.state, 0, "Cuddy, Signal Organizer");
@@ -743,7 +745,7 @@ test("player names are rendered as text in the turn HUD", () => {
   byId("nameB").value = "Opponent";
   byId("deckA").value = "Power";
   byId("deckB").value = "Signal";
-  byId("seed").value = "70";
+  byId("seed").value = "26";
 
   byId("start").click();
 
@@ -1117,7 +1119,7 @@ test("the Queue zone is actually DRAWN, not merely populated in state", () => {
   const { byId, game } = loadPlay(netStub(), { emit() {}, get: () => ({ motionActive: "reduced" }) });
   byId("deckA").value = "Power";
   byId("deckB").value = "Signal";
-  byId("seed").value = "70";
+  byId("seed").value = "26";
   byId("start").click();
 
   const lastCard = (zoneId, name) => {
@@ -1147,7 +1149,7 @@ test("the Network's two rails are drawn, and cards stay direct children", () => 
   const { byId, game } = loadPlay(netStub(), { emit() {}, get: () => ({ motionActive: "reduced" }) });
   byId("deckA").value = "Power";
   byId("deckB").value = "Signal";
-  byId("seed").value = "70";
+  byId("seed").value = "26";
   byId("start").click();
 
   const lastCard = (zoneId, name) => {

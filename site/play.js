@@ -1423,10 +1423,26 @@
       button.textContent = session.npc !== null ? "NPC turn…" : "Their turn…";
       return;
     }
-    button.textContent = "End turn";
+    /* THE BUTTON USED TO LIE, AND THE TUTORIAL REPEATED THE LIE. It went gold
+     * whenever nothing was PLAYABLE and called that "everything is spent" —
+     * but an unspendable Buffer is exactly the state a stranded pile of
+     * Resources produces, and unspent Resources BURN at the phase boundary for
+     * one Uptime each. So the game turned gold, said "spent", and the player
+     * pressed it and silently lost life. Measured at up to ten Uptime a game
+     * for imprecise play: half a life total, taught by the interface.
+     *
+     * A held Buffer is now said out loud, and the button does not pretend. */
+    const held = bufferTotal(v.seats[seat].buffer);
     const anythingLeft =
       v.zones[`${seat}:wallet`].some((uid) => playGlow(v, seat, uid)) ||
       v.zones[`${seat}:network`].some((uid) => actGlow(v, seat, uid));
+    if (held > 0) {
+      button.textContent = `End turn — burns ${held}`;
+      button.title = `${held} unspent Resource${held > 1 ? "s" : ""} will burn for ${held} Uptime.`;
+      return;
+    }
+    button.textContent = "End turn";
+    button.title = "";
     if (!anythingLeft) button.classList.add("ready");
   }
 
@@ -1589,7 +1605,7 @@
     },
     {
       title: "End your turn",
-      text: "When the turn button glows gold, everything is spent. End the turn and watch the NPC play by the same rules.",
+      text: "The turn button goes gold when you have nothing left to play. If it says “burns” instead, you are still holding Resources — spend them first, because unspent ones cost you an Uptime each. Then end the turn and watch the NPC play by the same rules.",
       anchor: "#endturn",
       done: () => {
         const full = session.full;
@@ -1851,7 +1867,9 @@
         if (SYMBOL_ICON[key]) {
           const icon = el("img", null);
           icon.src = `../art/resources/${SYMBOL_ICON[key]}.svg`;
-          icon.alt = key;
+          // "3 P" is what a screen reader said; SYMBOL_NAME is right here and is
+          // already used correctly for the Resource rail.
+          icon.alt = SYMBOL_NAME[key] || key;
           pip.append(icon);
         } else {
           pip.append(` ${key}`);
@@ -3224,7 +3242,22 @@
     $("endPublish").hidden = !(nostr().hasNip07() && seat !== null && over.resultContent);
     $("endRematch").hidden = seat === null;
     $("endNote").textContent = remote.agreement ? agreementWords(remote.agreement) : "";
-    $("endgame").hidden = false;
+    openEndgame();
+  }
+
+  /* showModal() where it exists — it is what traps focus, wires Escape and
+   * restores focus on close. The stub DOM in the tests has neither, and neither
+   * would a very old browser, so both fall back to simply showing it. */
+  function openEndgame() {
+    const box = $("endgame");
+    if (!box) return;
+    if (typeof box.showModal === "function" && !box.open) {
+      try { box.showModal(); } catch (error) { box.hidden = false; }
+    } else {
+      box.hidden = false;
+    }
+    const first = $("endPublish") && !$("endPublish").hidden ? $("endPublish") : $("endClose");
+    if (first && typeof first.focus === "function") first.focus();
   }
 
   const agreementWords = (agreement) => ({
@@ -3385,7 +3418,10 @@
   }
 
   function closeEndgame() {
-    $("endgame").hidden = true;
+    const box = $("endgame");
+    if (!box) return;
+    if (typeof box.close === "function" && box.open) box.close();
+    else box.hidden = true;
   }
 
   // ---- lobby actions ------------------------------------------------------
