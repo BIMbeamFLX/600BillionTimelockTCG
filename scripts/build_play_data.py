@@ -130,6 +130,21 @@ def _strip_reminder(line: str) -> str:
     return re.sub(r"\s*\([^)]*\)", "", line).strip()
 
 
+def _keyword_only_line(line: str) -> bool:
+    """Return true when every clause is already represented in `keywords`."""
+    fragments = [part.strip().rstrip(".") for part in re.split(r"[;,]", _strip_reminder(line))]
+    if not fragments or any(not fragment for fragment in fragments):
+        return False
+    for fragment in fragments:
+        printed = any(
+            fragment == keyword or fragment.startswith(f"{keyword} —") for keyword in KEYWORDS
+        )
+        if printed or SHIELDED_RE.fullmatch(fragment) or BACKCHANNEL_RE.fullmatch(fragment):
+            continue
+        return False
+    return True
+
+
 # Triggered-ability heads the engine can raise (engine.js raiseTriggers). Each
 # entry is (pattern, factory); the factory turns the match into the compiled
 # trigger condition and the rest of the line is the effect.
@@ -209,8 +224,68 @@ TRIGGER_HEADS: list[tuple[re.Pattern[str], Any]] = [
         lambda m: {"on": "committed", "whose": "host"},
     ),
     (
+        re.compile(r"^When attached Resource becomes committed,\s*", re.I),
+        lambda m: {"on": "committed", "whose": "host"},
+    ),
+    (
+        re.compile(r"^Whenever attached Resource is committed for Resource,\s*", re.I),
+        lambda m: {"on": "committed", "whose": "host"},
+    ),
+    (
         re.compile(r"^Whenever you play a Protocol card on the Queue,\s*", re.I),
         lambda m: {"on": "card-queued", "what": "Protocol", "whose": "you"},
+    ),
+    (
+        re.compile(r"^Whenever you play a Resource,\s*", re.I),
+        lambda m: {"on": "resource-played", "whose": "you"},
+    ),
+    (
+        re.compile(r"^At the beginning of each player's draw step,\s*", re.I),
+        lambda m: {"on": "draw-step", "whose": "each"},
+    ),
+    (
+        re.compile(r"^At the beginning of the chosen player's Maintenance,\s*", re.I),
+        lambda m: {"on": "maintenance", "whose": "chosen"},
+    ),
+    (
+        re.compile(r"^At its controller's Maintenance,\s*", re.I),
+        lambda m: {"on": "maintenance", "whose": "you"},
+    ),
+    (
+        re.compile(r"^When attached Avatar is decommissioned,\s*", re.I),
+        lambda m: {"on": "decommissioned", "whose": "host"},
+    ),
+    (
+        re.compile(r"^When this Avatar is decommissioned,\s*", re.I),
+        lambda m: {"on": "decommissioned", "whose": "self"},
+    ),
+    (
+        re.compile(r"^At the beginning of each end step,\s*", re.I),
+        lambda m: {"on": "end-step", "whose": "each"},
+    ),
+    (
+        re.compile(r"^At the beginning of the end step,\s*", re.I),
+        lambda m: {"on": "end-step"},
+    ),
+    (
+        re.compile(
+            r"^Whenever an Avatar dealt damage by this Avatar this turn is decommissioned,\s*", re.I
+        ),
+        lambda m: {"on": "decommissioned-damaged-by-self"},
+    ),
+    (
+        re.compile(r"^Whenever one or more Avatars you control attack,\s*", re.I),
+        lambda m: {"on": "attackers-declared", "whose": "you"},
+    ),
+    (
+        re.compile(
+            r"^Whenever this Avatar blocks or becomes blocked by a non-Firewall Avatar,\s*", re.I
+        ),
+        lambda m: {"on": "blocks-non-firewall"},
+    ),
+    (
+        re.compile(r"^When this Attachment enters,\s*", re.I),
+        lambda m: {"on": "self-enters"},
     ),
 ]
 
@@ -254,6 +329,50 @@ def parse_attach_static(line: str) -> dict[str, Any] | None:
         if stats.group(3):
             grants["keywords"] = [stats.group(3)]
         return grants
+    if re.fullmatch(
+        r"Attached Resource has indestructible and can't be attached by other Attachments",
+        text,
+        re.I,
+    ):
+        return {"indestructible": True, "exclusiveAttachment": True}
+    controlled = re.fullmatch(r"You control attached (Avatar|Hardware)", text, re.I)
+    if controlled:
+        return {"controller": "attachment"}
+    affinity = re.fullmatch(
+        r"Attached Resource is (?:a |the chosen )?"
+        r"(Power|Bitcoin|Keys|Signal|Timelock)(?: Resource| type)?",
+        text,
+        re.I,
+    )
+    if affinity:
+        return {"affinity": affinity.group(1).capitalize()}
+    if re.fullmatch(r"Attached Resource is the chosen type", text, re.I):
+        return {"affinity": "chosen"}
+    backchannel = re.fullmatch(
+        r"Attached Avatar has Backchannel\s*[—-]\s*(Power|Bitcoin|Keys|Signal|Timelock)",
+        text,
+        re.I,
+    )
+    if backchannel:
+        return {"backchannel": backchannel.group(1).capitalize()}
+    if re.fullmatch(r"Attached Avatar has fear", text, re.I):
+        return {"fear": True}
+    if re.fullmatch(r"All Avatars able to block attached Avatar do so", text, re.I):
+        return {"mustBeBlocked": True}
+    if re.fullmatch(
+        r"As long as attached Hardware isn't an Avatar, it's an Hardware Avatar with Action"
+        r" and Resilience each equal to its total resource cost",
+        text,
+        re.I,
+    ):
+        return {"animateByCost": True}
+    if re.fullmatch(
+        r'Attached Resource has "At the beginning of your Maintenance, you may pay SS\.'
+        r' If you do, you gain 1 Uptime\."',
+        text,
+        re.I,
+    ):
+        return {"maintenanceAbility": {"cost": {"generic": 0, "S": 2}, "uptime": 1}}
     return None
 
 
@@ -292,6 +411,237 @@ def parse_stat_static(line: str, card_name: str) -> dict[str, Any] | None:
     non_firewall = re.match(head + r"non-Firewall Avatars you control$", text, re.I)
     if non_firewall:
         return {"avatars": True, "notKeyword": "Firewall", "whose": "you"}
+    conditional = re.match(
+        r"^This Avatar gets \+1 Action and \+1 Resilience as long as you control a"
+        r" (Power|Bitcoin|Keys|Signal|Timelock) Resource$",
+        text,
+        re.I,
+    )
+    if conditional:
+        return {
+            "base": True,
+            "bonus": {"action": 1, "resilience": 1},
+            "ifResourceAffinity": conditional.group(1).capitalize(),
+        }
+    half_bitcoin = re.match(
+        r"^Attached Avatar gets \+X/\+Y, where X is half the number of Bitcoin Resources"
+        r" you control, rounded down, and Y is half the number of Bitcoin Resources you"
+        r" control, rounded up$",
+        text,
+        re.I,
+    )
+    if half_bitcoin:
+        return {"attachedHalfResource": "Bitcoin"}
+    return None
+
+
+def parse_rule_static(line: str, card_name: str) -> dict[str, Any] | None:
+    """Compile continuous rules that are read directly by the engine."""
+    text = _strip_reminder(line).rstrip(".")
+    if re.fullmatch(r"[^,]+ stays unlocked after attacking", text, re.I):
+        return {"name": "attackDoesNotCommit"}
+    if re.fullmatch(r"Attached Firewall can attack as though it didn't have Firewall", text, re.I):
+        return {"name": "attachedCanAttackWithFirewall", "grants": "canAttackWithFirewall"}
+    if re.fullmatch(r"This Avatar may attack as though it did not have Boot Delay", text, re.I):
+        return {"name": "ignoreBootDelay"}
+    if re.fullmatch(r"Attached Avatar may attack as though it did not have Boot Delay", text, re.I):
+        return {"name": "attachedIgnoreBootDelay", "grants": "ignoreBootDelay"}
+    if re.fullmatch(r"This Hardware doesn't unlock during your unlock step", text, re.I):
+        return {"name": "skipSelfUnlock"}
+    if re.fullmatch(r"You have no maximum Wallet size", text, re.I):
+        return {"name": "noMaximumWallet"}
+    if re.fullmatch(r"You may play any number of Resources on each of your turns", text, re.I):
+        return {"name": "unlimitedResourcePlays"}
+    if re.fullmatch(r"This Hardware enters committed", text, re.I):
+        return {"name": "entersCommitted"}
+    convert_all = re.fullmatch(
+        r"All (Power|Bitcoin|Keys|Signal|Timelock) Resources are"
+        r" (Power|Bitcoin|Keys|Signal|Timelock) Resource",
+        text,
+        re.I,
+    )
+    if convert_all:
+        return {
+            "name": "globalResourceAffinity",
+            "from": convert_all.group(1).capitalize(),
+            "to": convert_all.group(2).capitalize(),
+        }
+    if re.fullmatch(r"Players skip their unlock steps", text, re.I):
+        return {"name": "skipUnlockSteps"}
+    tax = re.fullmatch(
+        r"(Power|Bitcoin|Keys|Signal|Timelock) cards on the Queue cost (\d+) more to play",
+        text,
+        re.I,
+    )
+    if tax:
+        return {
+            "name": "cardTax",
+            "affinity": tax.group(1).capitalize(),
+            "generic": int(tax.group(2)),
+        }
+    ability_tax = re.fullmatch(
+        r"Activated abilities of (Power|Bitcoin|Keys|Signal|Timelock) Protocols cost"
+        r" (\d+) more to activate",
+        text,
+        re.I,
+    )
+    if ability_tax:
+        return {
+            "name": "abilityTax",
+            "affinity": ability_tax.group(1).capitalize(),
+            "type": "Protocol",
+            "generic": int(ability_tax.group(2)),
+        }
+    awaken = re.fullmatch(
+        r"All (Power|Bitcoin|Keys|Signal|Timelock) Resources are 1/1"
+        r"(?: (Power|Bitcoin|Keys|Signal|Timelock))? Avatars that are still Resources",
+        text,
+        re.I,
+    )
+    if awaken:
+        return {
+            "name": "resourceAvatars",
+            "affinity": awaken.group(1).capitalize(),
+            "action": 1,
+            "resilience": 1,
+        }
+    if re.fullmatch(r"This Avatar attacks each clash if able", text, re.I):
+        return {"name": "mustAttack"}
+    if re.fullmatch(r"This Avatar can block an additional Avatar each clash", text, re.I):
+        return {"name": "additionalBlock", "count": 1}
+    unlock_cap = re.fullmatch(
+        r"Players can't unlock more than one (Avatar|Resource) during their unlock steps",
+        text,
+        re.I,
+    )
+    if unlock_cap:
+        return {"name": "unlockCap", "kind": unlock_cap.group(1), "count": 1}
+    unlocked_cap = re.fullmatch(
+        r"As long as this Hardware is unlocked, players can't unlock more than one Resource"
+        r" during their unlock steps",
+        text,
+        re.I,
+    )
+    if unlocked_cap:
+        return {"name": "unlockCap", "kind": "Resource", "count": 1, "whileUnlocked": True}
+    low_power = re.fullmatch(
+        r"Avatars with Action (\d+) or greater don't unlock during their controllers'"
+        r" unlock steps",
+        text,
+        re.I,
+    )
+    if low_power:
+        return {"name": "skipAvatarUnlockAtAction", "minimum": int(low_power.group(1))}
+    converter = re.fullmatch(
+        r"You may spend (Power|Bitcoin|Keys|Signal|Timelock) Resource as though it were"
+        r" (Power|Bitcoin|Keys|Signal|Timelock) Resource",
+        text,
+        re.I,
+    )
+    if converter:
+        return {
+            "name": "resourceConverter",
+            "from": AFFINITY_SYMBOL[converter.group(1).capitalize()],
+            "to": AFFINITY_SYMBOL[converter.group(2).capitalize()],
+        }
+    tribal = re.fullmatch(
+        r"Other (Merfolk|Goblins|Zombie Avatars) get \+1 Action and \+1 Resilience and have"
+        r" Backchannel\s*[—-]\s*(\w+)",
+        text,
+        re.I,
+    )
+    if tribal:
+        tribe = tribal.group(1).split()[0].rstrip("s")
+        return {
+            "name": "tribalAura",
+            "tribe": tribe,
+            "action": 1,
+            "resilience": 1,
+            "backchannel": tribal.group(2).capitalize(),
+        }
+    backchannel_aura = re.fullmatch(
+        r"Other Zombie Avatars have Backchannel\s*[—-]\s*(Power|Bitcoin|Keys|Signal|Timelock)",
+        text,
+        re.I,
+    )
+    if backchannel_aura:
+        return {
+            "name": "tribalAura",
+            "tribe": "Zombie",
+            "action": 0,
+            "resilience": 0,
+            "backchannel": backchannel_aura.group(1).capitalize(),
+        }
+    if re.fullmatch(r"As this Hardware enters, choose an opponent", text, re.I):
+        return {"name": "chooseOpponentOnEnter"}
+    if re.fullmatch(
+        r"As long as this Avatar is unlocked, all damage that would be dealt to you by"
+        r" unblocked Avatars is dealt to this Avatar instead",
+        text,
+        re.I,
+    ):
+        return {"name": "redirectUnblockedDamage", "whileUnlocked": True}
+    if re.fullmatch(
+        r"If you would draw a card during your draw step, instead you may skip that draw\."
+        r" If you do, until your next turn, you can't be attacked except by Avatars with"
+        r" Broadcast and/or Backchannel[—-]Timelock",
+        text,
+        re.I,
+    ):
+        return {"name": "optionalDrawShield"}
+    if re.fullmatch(
+        r"If an effect causes you to discard a card, discard it, but you may put it on top"
+        r" of your Stack instead of into your Archive",
+        text,
+        re.I,
+    ):
+        return {"name": "discardToStackOption"}
+    if re.fullmatch(r"When you control no Timelock Resources, archive this Avatar", text, re.I):
+        return {"name": "archiveWithoutResource", "affinity": "Timelock"}
+    if re.fullmatch(r"As this Attachment enters, choose a basic Resource type", text, re.I):
+        return {"name": "chooseAffinityOnEnter"}
+    if re.fullmatch(
+        r"You may have this Avatar enter as a copy of any Avatar on the Network", text, re.I
+    ):
+        return {"name": "copyOnEnter", "kind": "Avatar"}
+    if re.fullmatch(
+        r"You may have this Protocol enter as a copy of any Hardware on the Network, except"
+        r" it's a Protocol in addition to its other types",
+        text,
+        re.I,
+    ):
+        return {"name": "copyOnEnter", "kind": "Hardware", "keepType": "Protocol"}
+    if re.fullmatch(
+        r"Enters with seven \+1/\+0 markers; remove one after it attacks or blocks", text, re.I
+    ):
+        return {"name": "entersCounter", "counter": "+1/+0", "amount": 7, "removeAfterCombat": 1}
+    if re.fullmatch(r"Enters with X \+1/\+1 markers\. Remove one to prevent 1 damage", text, re.I):
+        return {"name": "entersXCounter", "counter": "+1/+1", "preventDamage": 1}
+    if re.fullmatch(r'Other Zombies have "K: Reboot this Network card\."', text, re.I):
+        return {
+            "name": "tribalActivatedAbility",
+            "tribe": "Zombie",
+            "cost": {"generic": 0, "K": 1},
+            "ops": [{"op": "reboot", "scope": "self"}],
+        }
+    return None
+
+
+def parse_play_restriction(line: str) -> dict[str, Any] | None:
+    """Compile the set's printed timing restrictions before any cost is paid."""
+    text = _strip_reminder(line).rstrip(".")
+    if re.fullmatch(
+        r"Play this card on the Queue only during clash before blockers are declared", text, re.I
+    ):
+        return {"window": "clash-before-blockers"}
+    if re.fullmatch(r"Play only during an opponent's turn before attackers", text, re.I):
+        return {"window": "opponent-before-attackers"}
+    if re.fullmatch(r"Play only during blockers", text, re.I):
+        return {"window": "blockers"}
+    if re.fullmatch(r"Play this card on the Queue only before the clash damage step", text, re.I):
+        return {"window": "before-clash-damage"}
+    if re.fullmatch(r"Play only before blockers are declared", text, re.I):
+        return {"window": "clash-before-blockers"}
     return None
 
 
@@ -416,14 +766,522 @@ def parse_trigger_ops(effect: str, card_name: str) -> list[dict[str, Any]] | Non
         ]
     if re.match(r"^put a \+1/\+1 marker on (?:it|this Avatar)$", text, re.I):
         return [{"op": "addCounter", "name": "+1/+1", "amount": 1, "target": "self-object"}]
+    if re.fullmatch(
+        r"if it wasn't the first Resource you played this turn, this Protocol deals 1"
+        r" damage to you",
+        text,
+        re.I,
+    ):
+        return [
+            {
+                "op": "damage",
+                "amount": 1,
+                "target": "controller",
+                "condition": {"resourcePlayBeyondFirst": True},
+            }
+        ]
+    if re.fullmatch(
+        r"if this Hardware is unlocked, that player draws an additional card", text, re.I
+    ):
+        return [
+            {
+                "op": "draw",
+                "amount": 1,
+                "target": "event-player",
+                "condition": {"sourceUnlocked": True},
+            }
+        ]
+    wallet_damage = re.fullmatch(
+        r"this Hardware deals X damage to that player, where X is the number of cards in"
+        r" their Wallet minus 4",
+        text,
+        re.I,
+    )
+    if wallet_damage:
+        return [
+            {
+                "op": "damage",
+                "amount": {"walletCount": "event-player", "minus": 4, "minimum": 0},
+                "target": "event-player",
+            }
+        ]
+    if re.fullmatch(r"its owner loses half their Uptime, rounded up", text, re.I):
+        return [{"op": "loseHalfUptime", "target": "event-owner"}]
+    exit_fee = re.fullmatch(
+        r"this Attachment deals damage equal to that Avatar's Resilience"
+        r" to the Avatar's controller",
+        text,
+        re.I,
+    )
+    if exit_fee:
+        return [{"op": "damage", "amount": "event-resilience", "target": "event-player"}]
+    if re.fullmatch(r"if no Avatars are on the Network, archive this Protocol", text, re.I):
+        return [{"op": "archiveSelfIfNoAvatars"}]
+    corpse = re.fullmatch(
+        r"put a corpse marker on this Avatar for each Avatar that died this turn", text, re.I
+    )
+    if corpse:
+        return [
+            {
+                "op": "addCounter",
+                "name": "corpse",
+                "amount": "avatarsDiedThisTurn",
+                "target": "self-object",
+            }
+        ]
+    if re.fullmatch(r"put a \+1/\+1 marker on this Avatar", text, re.I):
+        return [{"op": "addCounter", "name": "+1/+1", "amount": 1, "target": "self-object"}]
+    grid_amp = re.fullmatch(
+        r"that player generates 1 additional Resource of an affinity that Resource produced",
+        text,
+        re.I,
+    )
+    if grid_amp:
+        return [{"op": "generateEventAffinity", "amount": 1, "target": "event-player"}]
+    idle = re.fullmatch(
+        r"this Protocol deals X damage to that player, where X is the number of unlocked"
+        r" Resources they controlled at the beginning of this turn",
+        text,
+        re.I,
+    )
+    if idle:
+        return [{"op": "damage", "amount": "startUnlockedResources", "target": "event-player"}]
+    lethal = re.fullmatch(r"decommission that Avatar at end of clash", text, re.I)
+    if lethal:
+        return [{"op": "delayDecommissionEventAvatar", "at": "end-clash"}]
+    grounded = re.fullmatch(
+        r"if attached Avatar has Broadcast, this Attachment deals 2 damage to that Avatar and"
+        r' this Attachment gains "attached Avatar loses Broadcast\."',
+        text,
+        re.I,
+    )
+    if grounded:
+        return [{"op": "groundAttachedBroadcast", "damage": 2}]
+    if re.fullmatch(
+        r"this deals 2 damage to them\. They may pay X Resources to prevent X of it", text, re.I
+    ):
+        return [{"op": "maintenanceLeak", "damage": 2, "target": "event-player"}]
+    if re.fullmatch(
+        r"unless you pay KKK, commit this Avatar and archive a Resource of an opponent's choice",
+        text,
+        re.I,
+    ):
+        return [{"op": "resourceReclaimer", "cost": {"generic": 0, "K": 3}}]
+    if re.fullmatch(
+        r"archive an Avatar other than this Avatar\. If you can't,"
+        r" this Avatar deals 7 damage to you",
+        text,
+        re.I,
+    ):
+        return [{"op": "selfCustodyMaintenance", "damage": 7}]
+    if re.fullmatch(
+        r"if this card is in your Archive with three or more Avatar cards above it, you may put"
+        r" this card onto the Network",
+        text,
+        re.I,
+    ):
+        return [{"op": "archiveReturn"}]
+    if re.fullmatch(
+        r"each defender splits their non-Broadcast Avatars into left"
+        r" and right piles\. Each attacker chooses a pile and can be"
+        r" blocked only by it or Broadcast",
+        text,
+        re.I,
+    ):
+        return [{"op": "splitRoute"}]
+    if re.fullmatch(
+        r"decommission it\. That Resource's controller may attach this Attachment to a Resource"
+        r" of their choice",
+        text,
+        re.I,
+    ):
+        return [{"op": "migrateAttachment"}]
     return parse_ops(text, card_name)
+
+
+def parse_special_ops(text: str, original: str) -> list[dict[str, Any]] | None:
+    """Compile the remaining unique E1 effects into named deterministic operations."""
+    patterns: list[tuple[str, list[dict[str, Any]]]] = [
+        (
+            r"Each player chooses a number of Resources they control equal to the number of"
+            r" Resources controlled by the player who controls the fewest, then archives the rest\."
+            r" Players discard cards and archive Avatars the same way",
+            [{"op": "fairState"}],
+        ),
+        (
+            r"Prevent the next X damage that would be dealt to any target this turn\. Until end of"
+            r" turn, you may pay 1 any time you could play an Zap\. If you do, prevent the next 1"
+            r" damage that would be dealt to that Network card or player this turn",
+            [{"op": "guardianSignal", "amount": "x"}],
+        ),
+        (
+            r"Invalidate target card on the Queue unless its controller pays X\. If that player"
+            r" doesn't, they commit all Resources with Resource abilities they control and lose all"
+            r" unspent Resource",
+            [{"op": "feeSpike"}],
+        ),
+        (
+            r"Their Avatars attack if able\. At end step, decommission non-Firewalls that didn't"
+            r" attack unless they entered or changed control this turn",
+            [{"op": "callToRelay"}],
+        ),
+        (
+            r"Decommission X target Power Resources\. Grid Eruption deals damage to each Avatar and"
+            r" each player equal to the number of Power Resources put into an Archive this way",
+            [{"op": "gridEruption", "count": "x"}],
+        ),
+        (
+            r"Return it under your control and attach Archive Boot\."
+            r" It gets -1 Action\. When Archive Boot leaves, archive that Avatar",
+            [{"op": "archiveBoot"}],
+        ),
+        (
+            r"Stake module [—-] Each player may add the top card of their Stack to the Stake\. If"
+            r" your opponent declines, you may play this again without paying its cost",
+            [{"op": "stakeArbitration"}],
+        ),
+        (
+            r"Spend only Keys Resources to pay X\. Uptime Channel deals X damage"
+            r" to any target\. You gain Uptime equal to the damage dealt, up to"
+            r" that target's Uptime or Resilience before the damage",
+            [{"op": "uptimeChannel", "amount": "x", "xPayment": "K"}],
+        ),
+        (
+            r"On deploy, set your Uptime to 0\. You survive at 0; Uptime gains draw cards instead\."
+            r" Damage archives that many non-proxy cards or you lose\. If this leaves, you lose",
+            [{"op": "sovereignMode"}],
+        ),
+        (
+            r"As an additional cost to play this card on the Queue, archive an Avatar",
+            [{"op": "additionalArchiveAvatar"}],
+        ),
+        (
+            r"Generate that many Keys Resources, equal to the archived"
+            r" Avatar's total resource cost",
+            [{"op": "generateArchivedCost", "affinity": "Keys"}],
+        ),
+        (
+            r"Look at an opponent's Wallet and choose a card they can play\."
+            r" You control that player while they play the chosen card\. Resources"
+            r" from their Buffer may be spent only for that card",
+            [{"op": "remoteCommand"}],
+        ),
+        (
+            r"Final Settlement deals X damage to any target\. If it's an Avatar,"
+            r" it can't be Rebooted this turn, and if it would be decommissioned"
+            r" this turn, Cold Storage it instead",
+            [{"op": "finalSettlement", "amount": "x"}],
+        ),
+        (
+            r"Remove one defending Avatar from clash; anything it alone blocked becomes unblocked\."
+            r" It may block another attacker",
+            [{"op": "routeMisdirection"}],
+        ),
+        (
+            r"Copy target Zap or Operation card on the Queue, except that the copy"
+            r" is Power\. You may choose new targets for the copy",
+            [{"op": "copyQueue", "affinity": "Power"}],
+        ),
+        (
+            r"Target Avatar gains Overflow and gets \+X/\+0 until end of turn,"
+            r" where X is its Action\. At the beginning of the next end step,"
+            r" decommission that Avatar if it attacked this turn",
+            [{"op": "committedGrowth"}],
+        ),
+        (
+            r"Look at the top three cards of target player's Stack, then put them"
+            r" back in any order\. You may have that player shuffle",
+            [{"op": "topologyScan"}],
+        ),
+        (
+            r"deploy an Avatar from your Wallet face down as a 2/2 neutral Avatar\."
+            r" Turn it face up when it would deal or receive damage, or become"
+            r" committed\. X must cover its deploy cost",
+            [{"op": "identityMask", "amount": "x"}],
+        ),
+        (
+            r"mark target non-Keys Resource; it becomes Keys\. If this is archived, at each future"
+            r" Maintenance remove all its marks from one marked Resource",
+            [{"op": "resourceTombstone"}],
+        ),
+    ]
+    for pattern, ops in patterns:
+        if re.fullmatch(pattern, text, re.I):
+            return ops
+
+    rewrite = re.fullmatch(
+        r"Change the text of target card on the Queue or Network card by replacing all instances"
+        r" of one (basic Resource type|affinity word) with another",
+        text,
+        re.I,
+    )
+    if rewrite:
+        return [
+            {
+                "op": "rewriteWords",
+                "vocabulary": "basic"
+                if rewrite.group(1).lower().startswith("basic")
+                else "affinity",
+            }
+        ]
+    if re.fullmatch(
+        r"Target Avatar you control with Resilience less than this Avatar's Action gains Broadcast"
+        r" until end of turn\. decommission that Avatar at the beginning of the next end step",
+        text,
+        re.I,
+    ):
+        return [{"op": "launchAvatar"}]
+    if re.fullmatch(
+        r"toss Chaos Kernel from at least one card-height above the Network\."
+        r" Archive each non-proxy card it touches, then archive Chaos Kernel",
+        text,
+        re.I,
+    ):
+        return [{"op": "digitalToss"}]
+    return None
 
 
 def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
     """Match one effect clause against the recurring templates in the set."""
     text = effect.strip().rstrip(".")
+    text = re.sub(
+        r"\. Activate only during your turn(?: and only once each turn)?$", "", text, flags=re.I
+    )
+    special = parse_special_ops(text, effect)
+    if special is not None:
+        return special
     subject = re.escape(card_name)
     ops: list[dict[str, Any]] = []
+
+    if re.fullmatch(r"After this turn, take one additional turn", text, re.I):
+        return [{"op": "extraTurn"}]
+
+    move_target = re.fullmatch(
+        r"Return target (Avatar )?card from your Archive to (?:the |your )?(Network|Wallet)",
+        text,
+        re.I,
+    )
+    if move_target:
+        return [
+            {
+                "op": "moveTarget",
+                "kind": "Avatar" if move_target.group(1) else "Card",
+                "fromZone": "archive",
+                "whose": "you",
+                "toZone": move_target.group(2).lower(),
+            }
+        ]
+
+    if re.fullmatch(
+        r"Each player shuffles their Wallet and Archive into their Stack, then draws seven cards",
+        text,
+        re.I,
+    ):
+        return [
+            {
+                "op": "resetZones",
+                "seats": "each",
+                "fromZones": ["wallet", "archive"],
+                "toZone": "stack",
+                "draw": 7,
+            }
+        ]
+
+    if re.fullmatch(r"You may commit or unlock target Hardware, Avatar, or Resource", text, re.I):
+        return [{"op": "toggleCommitted", "kind": "permanent"}]
+
+    if re.fullmatch(r"Each player discards their Wallet, then draws seven cards", text, re.I):
+        return [{"op": "discardWalletDraw", "seats": "each", "draw": 7}]
+
+    if re.fullmatch(
+        r"Target Avatar defending player controls can block any number of Avatars this turn\."
+        r" It blocks each attacking Avatar this turn if able",
+        text,
+        re.I,
+    ):
+        return [{"op": "forceBlockAll", "target": "defending-avatar", "duration": "eot"}]
+
+    if re.fullmatch(r"Prevent all clash damage that would be dealt this turn", text, re.I):
+        return [{"op": "preventClashDamage", "duration": "eot"}]
+
+    if re.fullmatch(r"Target Avatar with Action 2 or less can't be blocked this turn", text, re.I):
+        return [{"op": "cantBeBlocked", "target": "avatar", "maximumAction": 2, "duration": "eot"}]
+
+    if re.fullmatch(
+        r"This Hardware becomes a 3/6 Golem Hardware Avatar until end of clash\."
+        r" Activate only during clash",
+        text,
+        re.I,
+    ):
+        return [
+            {
+                "op": "becomesAvatar",
+                "action": 3,
+                "resilience": 6,
+                "subtype": "Golem",
+                "duration": "clash",
+            }
+        ]
+
+    if re.fullmatch(
+        r"The next time an unblocked Avatar of your choice would deal clash damage to you"
+        r" this turn, prevent all but 1 of that damage",
+        text,
+        re.I,
+    ):
+        return [{"op": "limitClashDamage", "target": "source-avatar", "maximum": 1}]
+
+    if re.fullmatch(
+        r"The next time a source of your choice would deal damage to target Avatar this turn,"
+        r" that source deals that damage to you instead",
+        text,
+        re.I,
+    ):
+        return [{"op": "redirectDamage", "sourceTarget": True, "objectTarget": True}]
+
+    if re.fullmatch(
+        r"The next 1 damage that would be dealt to this Avatar this turn is dealt to its owner"
+        r" instead\. Only this Avatar's owner may activate this ability",
+        text,
+        re.I,
+    ):
+        return [{"op": "redirectSelfDamage", "amount": 1, "ownerOnly": True}]
+
+    if re.fullmatch(
+        r"The next time a source of your choice would deal damage to you this turn, prevent"
+        r" that damage\. You gain Uptime equal to the damage prevented this way",
+        text,
+        re.I,
+    ):
+        return [{"op": "preventAndRefund", "target": "source"}]
+
+    if re.fullmatch(
+        r"Commit all Resources target player controls and that player loses all unspent Resource",
+        text,
+        re.I,
+    ):
+        return [{"op": "drainBuffer", "target": "player", "commitResources": True}]
+
+    if re.fullmatch(
+        r"Target player activates a Resource ability of each Resource they control\. Then that"
+        r" player loses all unspent Resource and you put the lost Resources into your Buffer",
+        text,
+        re.I,
+    ):
+        return [{"op": "stealGeneratedBuffer", "target": "player"}]
+
+    if re.fullmatch(
+        r"Search your Stack for a card, put that card into your Wallet, then shuffle", text, re.I
+    ):
+        return [{"op": "searchStack", "toZone": "wallet"}]
+
+    if re.fullmatch(r"Invalidate target card on the Queue with total resource cost X", text, re.I):
+        return [{"op": "invalidateByCostX"}]
+
+    if re.fullmatch(
+        r"Stake module [—-] Add the top card of your Stack to the Stake\. Discard your Wallet,"
+        r" then draw seven cards",
+        text,
+        re.I,
+    ):
+        return [{"op": "stakeContract"}]
+
+    if re.fullmatch(
+        r"Stake module [—-] Exchange ownership of the top card of your Stake with one random"
+        r" card from your opponent's Stake",
+        text,
+        re.I,
+    ):
+        return [{"op": "stakeSwap"}]
+
+    if re.fullmatch(
+        r"State Mirror deals damage to target Avatar you control equal to the damage dealt to"
+        r" you this turn",
+        text,
+        re.I,
+    ) or re.fullmatch(
+        r"You gain Uptime equal to the damage dealt to you this turn\. State Mirror deals"
+        r" damage to target Avatar you control equal to the damage dealt to you this turn",
+        text,
+        re.I,
+    ):
+        return [{"op": "stateMirror"}]
+
+    if re.fullmatch(
+        r"This card on the Queue costs 1 more to play for each target beyond the first", text, re.I
+    ):
+        return [{"op": "variableTargetTax", "genericEachBeyondFirst": 1}]
+
+    if re.fullmatch(
+        r"Power Burst deals X damage divided evenly, rounded down, among any number of targets",
+        text,
+        re.I,
+    ):
+        return [{"op": "divideDamage", "amount": "x", "target": "any-number"}]
+
+    if re.fullmatch(
+        r"Until end of turn, any time you could activate a Resource ability, you may pay 1"
+        r" Uptime\. If you do, generate 1 neutral Resource",
+        text,
+        re.I,
+    ):
+        return [{"op": "grantUptimeResourceAbility", "duration": "eot"}]
+
+    if re.fullmatch(
+        r"This Avatar gets \+1 Action and \+0 Resilience until end of turn\. If this ability"
+        r" has been activated four or more times this turn, archive this Avatar at the beginning"
+        r" of the next end step",
+        text,
+        re.I,
+    ):
+        return [{"op": "overclock", "action": 1, "threshold": 4}]
+
+    if re.fullmatch(
+        r"Enters with seven \+1/\+0 markers; remove one after it attacks or blocks", text, re.I
+    ):
+        return [{"op": "clockworkMarkers", "count": 7}]
+
+    if re.fullmatch(r"refill up to X markers, to a maximum of seven", text, re.I):
+        return [{"op": "refillCounter", "name": "+1/+0", "maximum": 7, "amount": "x"}]
+
+    if re.fullmatch(r"unlock this Hardware", text, re.I):
+        return [{"op": "unlockSelf"}]
+
+    if re.fullmatch(r"unlock attached Avatar", text, re.I):
+        return [{"op": "unlockAttached"}]
+
+    reveal_wallet = re.fullmatch(r"Look at target player's Wallet", text, re.I)
+    if reveal_wallet:
+        return [{"op": "revealWallet", "target": "player"}]
+
+    create_swarm = re.fullmatch(
+        r"create a 1/1 neutral Insect Hardware Avatar proxy with Broadcast\. Name it Swarm Drone",
+        text,
+        re.I,
+    )
+    if create_swarm:
+        return [
+            {
+                "op": "createProxy",
+                "name": "Swarm Drone",
+                "type": "Hardware Avatar",
+                "subtype": "Insect",
+                "affinity": ["Neutral"],
+                "action": 1,
+                "resilience": 1,
+                "keywords": ["Broadcast"],
+                "count": 1,
+            }
+        ]
+
+    become_affinity = re.fullmatch(
+        r"Target card on the Queue or Network card becomes"
+        r" (Power|Bitcoin|Keys|Signal|Timelock)",
+        text,
+        re.I,
+    )
+    if become_affinity:
+        return [{"op": "setAffinity", "affinity": become_affinity.group(1).capitalize()}]
 
     # "generate 1 Keys or 1 Power" — the junction shape. The engine restricts
     # the affinity choice to exactly the named pair.
@@ -537,14 +1395,20 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
         return [{"op": "draw", "amount": _count(token)}]
 
     pump = re.match(
-        r"^(target Avatar|this Avatar|attached Avatar|(?:Unlocked )?Avatars you control"
+        r"^(target (?:blocking )?Avatar|this Avatar|attached Avatar|"
+        r"(?:Unlocked )?Avatars you control"
         r"|\w+ Avatars(?: you control)?) "
         r"gets? \+(\d+) Action and \+(\d+) Resilience(?: until end of turn)?$",
         text,
         re.I,
     )
     if pump:
-        scope = pump.group(1).lower().replace(" ", "-")
+        scope = (
+            pump.group(1)
+            .lower()
+            .replace(" ", "-")
+            .replace("target-blocking-avatar", "target-avatar")
+        )
         ops.append(
             {
                 "op": "pump",
@@ -552,17 +1416,87 @@ def parse_ops(effect: str, card_name: str) -> list[dict[str, Any]] | None:
                 "action": int(pump.group(2)),
                 "resilience": int(pump.group(3)),
                 "duration": "eot" if "until end of turn" in text.lower() else "static",
+                **({"require": "blocking"} if "target blocking avatar" in text.lower() else {}),
             }
         )
         return ops
 
-    decommission = re.match(r"^decommission (target|all) (\w+)", text, re.I)
+    filtered_decommission = re.fullmatch(
+        r"decommission target (Power|Bitcoin|Keys|Signal|Timelock) Network card", text, re.I
+    )
+    if filtered_decommission:
+        return [
+            {
+                "op": "decommission",
+                "scope": "target",
+                "kind": "Permanent",
+                "affinity": filtered_decommission.group(1).capitalize(),
+            }
+        ]
+
+    committed_decommission = re.fullmatch(r"decommission target committed Avatar", text, re.I)
+    if committed_decommission:
+        return [
+            {
+                "op": "decommission",
+                "scope": "target",
+                "kind": "Avatar",
+                "requireCommitted": True,
+            }
+        ]
+
+    excluded_decommission = re.fullmatch(
+        r"Decommission target non-Hardware, non-Keys Avatar\. It can't be Rebooted", text, re.I
+    )
+    if excluded_decommission:
+        return [
+            {
+                "op": "decommission",
+                "scope": "target",
+                "kind": "Avatar",
+                "notType": "Hardware",
+                "notAffinity": "Keys",
+                "preventReboot": True,
+            }
+        ]
+
+    multi_decommission = re.fullmatch(
+        r"decommission all Hardware, Avatars, and Protocols", text, re.I
+    )
+    if multi_decommission:
+        return [
+            {
+                "op": "decommission",
+                "scope": "all",
+                "kind": "Hardware",
+                "kinds": ["Hardware", "Avatar", "Protocol"],
+            }
+        ]
+
+    affinity_sweep = re.fullmatch(
+        r"decommission all (Power|Bitcoin|Keys|Signal|Timelock) Resources?", text, re.I
+    )
+    if affinity_sweep:
+        return [
+            {
+                "op": "decommission",
+                "scope": "all",
+                "kind": "Resource",
+                "affinity": affinity_sweep.group(1).capitalize(),
+            }
+        ]
+
+    decommission = re.match(r"^decommission (target|all) (\w+)(?: or (\w+))?", text, re.I)
     if decommission:
+        kinds = [decommission.group(2).rstrip("s").capitalize()]
+        if decommission.group(3):
+            kinds.append(decommission.group(3).rstrip("s").capitalize())
         return [
             {
                 "op": "decommission",
                 "scope": decommission.group(1).lower(),
-                "kind": decommission.group(2).rstrip("s").capitalize(),
+                "kind": kinds[0],
+                **({"kinds": kinds} if len(kinds) > 1 else {}),
             }
         ]
 
@@ -726,23 +1660,178 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
     for line in lines:
         if not line or line == "No special ability.":
             continue
-        if any(re.fullmatch(rf"{re.escape(k)}[.;,]?", line) for k in KEYWORDS):
+        if _keyword_only_line(line):
             continue
         if ATTACH_RE.match(line):
+            continue
+
+        if card["name"] == "Toni China, Multihead Miner" and line.startswith("P: prevent 1 damage"):
+            abilities.extend(
+                [
+                    {
+                        "kind": "activated",
+                        "cost": "P",
+                        "text": "P: prevent the next 1 damage to this Avatar this turn.",
+                        "ops": [{"op": "preventSelf", "amount": 1}],
+                        "manual": False,
+                    },
+                    {
+                        "kind": "activated",
+                        "cost": "PPP",
+                        "text": "PPP — Maintenance: add a +1/+1 marker.",
+                        "ops": [
+                            {
+                                "op": "addCounter",
+                                "name": "+1/+1",
+                                "amount": 1,
+                                "target": "self-object",
+                            }
+                        ],
+                        "timing": "maintenance",
+                        "manual": False,
+                    },
+                ]
+            )
+            continue
+
+        if card["name"] == "Longy, Resource Sovereign" and "While idle" in line:
+            abilities.extend(
+                [
+                    {
+                        "kind": "stat-static",
+                        "cost": "",
+                        "text": (
+                            "While idle, stats equal your Bitcoin Resources;"
+                            " while attacking, the defender's."
+                        ),
+                        "statCount": {"dynamicBitcoinController": True},
+                        "ops": None,
+                        "manual": False,
+                    },
+                    {
+                        "kind": "activated",
+                        "cost": "Commit",
+                        "text": "Commit: target Resource is Bitcoin while Longy remains.",
+                        "ops": [
+                            {
+                                "op": "setAffinityWhileSource",
+                                "affinity": "Bitcoin",
+                                "kind": "Resource",
+                            }
+                        ],
+                        "manual": False,
+                    },
+                ]
+            )
+            continue
+
+        if card["name"] == "Gadaj, Archive Maintainer" and line.startswith("Other Zombies have"):
+            abilities.append(
+                {
+                    "kind": "rule-static",
+                    "cost": "",
+                    "text": line,
+                    "rule": {
+                        "name": "tribalActivatedAbility",
+                        "tribe": "Zombie",
+                        "cost": {"generic": 0, "K": 1},
+                        "ops": [{"op": "reboot", "scope": "self"}],
+                    },
+                    "ops": None,
+                    "manual": False,
+                }
+            )
+            continue
+
+        if card["name"] == "NC, Forced Signal":
+            abilities.append(
+                {
+                    "kind": "activated",
+                    "cost": "Commit",
+                    "text": line,
+                    "timing": "opponent-before-attackers",
+                    "ops": [{"op": "forceAttackTarget"}],
+                    "manual": False,
+                }
+            )
+            continue
+
+        if card["name"] == "Jedai, Adaptive Client":
+            abilities.append(
+                {
+                    "kind": "rule-static",
+                    "cost": "",
+                    "text": line,
+                    "rule": {"name": "adaptiveCopy"},
+                    "ops": None,
+                    "manual": False,
+                }
+            )
+            continue
+
+        if card["name"] == "Route Misdirection":
+            abilities.extend(
+                [
+                    {
+                        "kind": "play-restriction",
+                        "cost": "",
+                        "text": "Play only during blockers.",
+                        "restriction": {"window": "blockers"},
+                        "ops": None,
+                        "manual": False,
+                    },
+                    {
+                        "kind": "play",
+                        "cost": "",
+                        "text": line,
+                        "ops": [{"op": "routeMisdirection"}],
+                        "manual": False,
+                    },
+                ]
+            )
+            continue
+
+        if card["name"] == "Obfuscated Formation":
+            abilities.extend(
+                [
+                    {
+                        "kind": "play-restriction",
+                        "cost": "",
+                        "text": "Play only before blockers are declared.",
+                        "restriction": {"window": "clash-before-blockers"},
+                        "ops": None,
+                        "manual": False,
+                    },
+                    {
+                        "kind": "play",
+                        "cost": "",
+                        "text": line,
+                        "ops": [{"op": "obfuscatedFormation"}],
+                        "manual": False,
+                    },
+                ]
+            )
             continue
 
         cost, _, effect = line.partition(":")
         if effect:
             ops = parse_ops(effect, card["name"])
-            abilities.append(
-                {
-                    "kind": "activated",
-                    "cost": cost.strip(),
-                    "text": line,
-                    "ops": ops,
-                    "manual": ops is None,
-                }
-            )
+            ability = {
+                "kind": "activated",
+                "cost": cost.strip(),
+                "text": line,
+                "ops": ops,
+                "manual": ops is None,
+            }
+            if re.search(r"Activate only during your turn", line, re.I):
+                ability["timing"] = "your-turn"
+            if re.search(r"Activate only during clash", line, re.I):
+                ability["timing"] = "clash"
+            if re.search(r"only once each turn", line, re.I):
+                ability["oncePerTurn"] = True
+            if "— Maintenance" in cost or "- Maintenance" in cost:
+                ability["timing"] = "maintenance"
+            abilities.append(ability)
         else:
             clash_rule = parse_clash_static(line)
             if clash_rule:
@@ -752,6 +1841,32 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
                         "cost": "",
                         "text": line,
                         "rule": clash_rule,
+                        "ops": None,
+                        "manual": False,
+                    }
+                )
+                continue
+            play_restriction = parse_play_restriction(line)
+            if play_restriction:
+                abilities.append(
+                    {
+                        "kind": "play-restriction",
+                        "cost": "",
+                        "text": line,
+                        "restriction": play_restriction,
+                        "ops": None,
+                        "manual": False,
+                    }
+                )
+                continue
+            rule_static = parse_rule_static(line, card["name"])
+            if rule_static:
+                abilities.append(
+                    {
+                        "kind": "rule-static",
+                        "cost": "",
+                        "text": line,
+                        "rule": rule_static,
                         "ops": None,
                         "manual": False,
                     }
@@ -922,7 +2037,7 @@ def main() -> None:
     parser.add_argument(
         "--face-manifest",
         type=Path,
-        default=repo_root / "art" / "cards" / "final" / "manifest.json",
+        default=repo_root / "art" / "cards" / "node-runner-web" / "manifest.json",
     )
     parser.add_argument("--out", type=Path, default=repo_root / "site" / "play-data.js")
     parser.add_argument("--audit-db", type=Path, default=repo_root / ".audit" / "e1-design.sqlite")

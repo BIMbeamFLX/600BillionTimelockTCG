@@ -15,12 +15,14 @@ import { get as httpGet } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
 
 const require = createRequire(import.meta.url);
 const { createTable, pruneAddressRates } = require("../../server/table.js");
 const E = require("../../site/engine.js");
 const CARDS = require("../../site/play-data.js");
 const WebSocket = require("ws");
+const { schnorr } = require("@noble/curves/secp256k1");
 E.setCatalog(CARDS);
 
 const CATALOG = E.buildCatalog(CARDS);
@@ -29,11 +31,33 @@ const COMPILED_CACHE = {};
 const compiledOf = (id) => COMPILED_CACHE[id] || (COMPILED_CACHE[id] = E.compileCard(card(id)));
 const WIRE = 1;
 
+const identityKey = (label) => Uint8Array.from(createHash("sha256").update(`test:${label}`).digest());
+const AUTH_SK = identityKey("auth-proof");
+const AUTH_PUBKEY = Buffer.from(schnorr.getPublicKey(AUTH_SK)).toString("hex");
+const eventId = (event) => createHash("sha256").update(JSON.stringify([
+  0, event.pubkey, event.created_at, event.kind, event.tags, event.content,
+])).digest("hex");
+const signedAuth = (challenge, privateKey = AUTH_SK) => {
+  const pubkey = Buffer.from(schnorr.getPublicKey(privateKey)).toString("hex");
+  const event = {
+    pubkey,
+    created_at: Math.floor(Date.now() / 1000),
+    kind: 22242,
+    tags: [["relay", challenge.relay], ["challenge", challenge.challenge]],
+    content: "",
+  };
+  event.id = eventId(event);
+  event.sig = Buffer.from(schnorr.sign(event.id, privateKey)).toString("hex");
+  return event;
+};
+
 // --------------------------------------------------------------- test client
 
 class Client {
-  constructor(url) {
+  constructor(url, identity = "a") {
     this.url = url;
+    this.privateKey = identityKey(identity);
+    this.pubkey = Buffer.from(schnorr.getPublicKey(this.privateKey)).toString("hex");
     this.inbox = [];
     this.waiters = [];
     this.view = null;
@@ -45,13 +69,24 @@ class Client {
   }
 
   static async open(url, options) {
-    const c = new Client(url);
-    c.ws = new WebSocket(url, options);
+    const settings = options || {};
+    const c = new Client(url, settings.identity || "a");
+    const wsOptions = { ...settings };
+    delete wsOptions.identity;
+    delete wsOptions.skipAuth;
+    c.ws = new WebSocket(url, wsOptions);
+    c.ws.on("message", (raw) => c.ingest(JSON.parse(String(raw))));
     await new Promise((resolve, reject) => {
       c.ws.once("open", resolve);
       c.ws.once("error", reject);
     });
-    c.ws.on("message", (raw) => c.ingest(JSON.parse(String(raw))));
+    if (!settings.skipAuth) {
+      const challenge = await c.type("AUTH");
+      c.send({ t: "AUTH", event: signedAuth(challenge, c.privateKey) });
+      const accepted = await c.next((msg) => msg.t === "AUTH_OK" || msg.t === "ERROR");
+      assert.equal(accepted.t, "AUTH_OK", JSON.stringify(accepted));
+      assert.equal(accepted.pubkey, c.pubkey);
+    }
     return c;
   }
 
@@ -166,9 +201,15 @@ function chooseAction(view, seat, banned) {
     // sending values earned an endless REJECT loop and a referee kick the
     // moment remote matches contained real choices.
     const options = view.pendingChoice.options || [];
+    const minimum = Math.max(0, Number(view.pendingChoice.min) || 0);
+    const maximum = Math.min(
+      options.length,
+      Math.max(minimum, Number(view.pendingChoice.max) || 0),
+    );
+    const count = minimum || (maximum > 0 ? 1 : 0);
     return act("CHOOSE", {
       choiceId: view.pendingChoice.id,
-      selection: options.length ? [0] : [],
+      selection: Array.from({ length: count }, (_, index) => index),
     });
   }
 
@@ -177,21 +218,28 @@ function chooseAction(view, seat, banned) {
     if (awaiting.seat !== seat) return null; // the other seat owes the game an answer
     switch (awaiting.kind) {
       case "attackers": {
-        // A refused attack falls back to declaring none, which is always legal.
-        if (vetoed("ATTACK")) return act("DECLARE_ATTACKERS", { attackers: [] });
         const mine = view.zones[`${seat}:network`] || [];
+        const env = { state: view, ctx: E.resolveCtx({}) };
         const attackers = mine.filter((uid) => {
-          const o = view.objects[uid];
-          if (!o || !o.cardId || o.committed || o.bootDelay) return false;
-          const c = card(o.cardId);
-          return Boolean(c && c.isAvatar && (c.keywords || []).indexOf("Firewall") < 0);
+          try {
+            return E.canAttack(env, uid);
+          } catch {
+            return false;
+          }
         });
         return act("DECLARE_ATTACKERS", { attackers });
       }
       case "blockers":
         return act("DECLARE_BLOCKERS", { blocks: {} });
       case "order":
-        return act("ORDER_BLOCKERS", { order: {} });
+        return act("ORDER_BLOCKERS", {
+          order: Object.fromEntries(
+            Object.entries(view.clash.blocks || {}).map(([attacker, blockers]) => [
+              attacker,
+              blockers.slice(),
+            ]),
+          ),
+        });
       case "damage":
         return act("ASSIGN_COMBAT_DAMAGE", { assignment: null });
       case "discard": {
@@ -365,8 +413,11 @@ async function boot(t, name, extra) {
     Object.assign({ port: 0, dbPath: tmpDb(name), host: "127.0.0.1", rateMax: 1000000 }, extra || {})
   );
   const clients = [];
+  let clientIndex = 0;
   table.client = async (options) => {
-    const c = await Client.open(table.wsUrl, options);
+    const settings = { identity: String.fromCharCode(97 + clientIndex), ...(options || {}) };
+    clientIndex += 1;
+    const c = await Client.open(table.wsUrl, settings);
     clients.push(c);
     return c;
   };
@@ -379,10 +430,10 @@ async function boot(t, name, extra) {
 
 async function twoSeats(table) {
   const a = await table.client();
-  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: "a".repeat(64) });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
   const created = await a.type("STATE");
   const b = await table.client();
-  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: "b".repeat(64) });
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
   await b.type("STATE");
   await a.type("STATE"); // seat 0 is told the table filled
   return { a, b, created };
@@ -401,6 +452,7 @@ test("CREATE + JOIN give the two seats different views of one state", async (t) 
   assert.equal(b.view.forSeat, 1);
   assert.equal(a.view.gameId, b.view.gameId);
   assert.equal(a.view.seq, b.view.seq);
+  assert.equal(a.view.policy.freeform, "deny", "public tables must not expose manual edits");
   assert.notEqual(JSON.stringify(a.view), JSON.stringify(b.view));
   assert.ok(a.token && b.token && a.token !== b.token);
   // Both seats agree on the shared reality even though their views differ.
@@ -603,8 +655,8 @@ test("RESUME by token restores the exact seat and view", async (t) => {
   await a.close();
   assert.equal((await b.next((m) => m.t === "PEER" && m.online === false)).seat, 0);
 
-  const again = await table.client();
-  again.send({ t: "RESUME", matchId, token });
+  const again = await table.client({ identity: "a" });
+  again.send({ t: "RESUME", matchId, token, pubkey: again.pubkey });
   const state = await again.type("STATE");
   assert.equal(state.seat, 0);
   assert.equal(state.role, "seat");
@@ -622,20 +674,20 @@ test("RESUME by token restores the exact seat and view", async (t) => {
   }
 });
 
-test("a valid token takes the seat over; a stranger is downgraded, not refused", async (t) => {
+test("a valid token and matching NIP-07 identity take the seat over; a verified stranger spectates", async (t) => {
   const table = await boot(t, "t7.db");
   const { a } = await twoSeats(table);
 
   // Takeover, not refusal: the stale tab is told SUPERSEDED and closed, so a
   // player can never be locked out of their own match.
-  const twin = await table.client();
-  twin.send({ t: "RESUME", matchId: a.matchId, token: a.token });
+  const twin = await table.client({ identity: "a" });
+  twin.send({ t: "RESUME", matchId: a.matchId, token: a.token, pubkey: twin.pubkey });
   assert.equal((await a.type("ERROR")).code, "SUPERSEDED");
   assert.equal((await twin.type("STATE")).seat, 0);
 
-  // A stranger with no credential becomes an audience member.
+  // A stranger with a NIP-07 identity but no seat credential becomes an audience member.
   const stranger = await table.client();
-  stranger.send({ t: "RESUME", matchId: a.matchId });
+  stranger.send({ t: "RESUME", matchId: a.matchId, pubkey: stranger.pubkey });
   const spec = await stranger.type("STATE");
   assert.equal(spec.role, "spectator");
   assert.equal(spec.seat, null);
@@ -652,21 +704,21 @@ test("a valid token takes the seat over; a stranger is downgraded, not refused",
 
   // A bad token is a downgrade too, never a crash.
   const forger = await table.client();
-  forger.send({ t: "RESUME", matchId: a.matchId, token: "0".repeat(32) });
+  forger.send({ t: "RESUME", matchId: a.matchId, token: "0".repeat(32), pubkey: forger.pubkey });
   assert.equal((await forger.type("STATE")).role, "spectator");
   // An unknown match IS a hard error — there is nothing to spectate.
-  forger.send({ t: "RESUME", matchId: "m_deadbeefdead", token: a.token });
+  forger.send({ t: "RESUME", matchId: "m_deadbeefdead", token: a.token, pubkey: forger.pubkey });
   assert.equal((await forger.type("ERROR")).code, "NO_SUCH_MATCH");
 });
 
 test("the referee survives being killed: a new process rebuilds from the DB", async (t) => {
   const dbPath = tmpDb("t8.db");
   const first = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
-  const a = await Client.open(first.wsUrl);
-  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: null });
+  const a = await Client.open(first.wsUrl, { identity: "a" });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
   const created = await a.type("STATE");
-  const b = await Client.open(first.wsUrl);
-  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: null });
+  const b = await Client.open(first.wsUrl, { identity: "b" });
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
   await b.type("STATE");
   await a.type("STATE");
 
@@ -689,8 +741,8 @@ test("the referee survives being killed: a new process rebuilds from the DB", as
   await first.close(); // a hard stop, as kill -9 would be
 
   const second = await boot(t, "unused.db", { dbPath });
-  const revived = await second.client();
-  revived.send({ t: "RESUME", matchId, token });
+  const revived = await second.client({ identity: "a" });
+  revived.send({ t: "RESUME", matchId, token, pubkey: revived.pubkey });
   const state = await revived.type("STATE");
   assert.equal(state.seat, 0);
   assert.equal(state.status, "playing");
@@ -718,17 +770,17 @@ test("nostr events are stored verbatim and agreement is a query", async (t) => {
 
   /* The handshake is signable at once — that is what it is for. A RESULT is not:
    * there is no result until the match has one. */
-  a.send({ t: "NOSTR", role: "invite", event: ev("a".repeat(64), { kind: 4600 }) });
-  a.send({ t: "NOSTR", role: "result", event: ev("a".repeat(64)) });
+  a.send({ t: "NOSTR", role: "invite", event: ev(a.pubkey, { kind: 4600 }) });
+  a.send({ t: "NOSTR", role: "result", event: ev(a.pubkey) });
   assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE", "a result before OVER is not a result");
 
   /* ONE SEAT MUST NOT BE ABLE TO MANUFACTURE MUTUAL AGREEMENT. Signatures are
    * unverified in v1 (D-11), so seat binding is the only thing making
    * `confirmed` mean what the lobby renders. Seat 1 speaking under seat 0's key
    * — or under a key belonging to nobody — is refused outright. */
-  b.send({ t: "NOSTR", role: "result", event: ev("a".repeat(64)) });
+  b.send({ t: "NOSTR", role: "result", event: ev(a.pubkey) });
   assert.equal((await b.type("ERROR")).code, "BAD_MESSAGE", "seat 1 forged seat 0's pubkey");
-  b.send({ t: "NOSTR", role: "result", event: ev("c".repeat(64)) });
+  b.send({ t: "NOSTR", role: "result", event: ev(AUTH_PUBKEY) });
   assert.equal((await b.type("ERROR")).code, "BAD_MESSAGE", "seat 1 invented a third pubkey");
 
   // Now finish the match for real, so a result exists to agree about.
@@ -736,18 +788,18 @@ test("nostr events are stored verbatim and agreement is a query", async (t) => {
   await a.type("OVER");
   await b.type("OVER");
 
-  a.send({ t: "NOSTR", role: "result", event: ev("a".repeat(64)) });
+  a.send({ t: "NOSTR", role: "result", event: ev(a.pubkey) });
   assert.equal((await nostr(a, 1)).agreement, "pending");
   assert.equal((await nostr(b, 1)).agreement, "pending", "both seats learn the state of play");
 
-  b.send({ t: "NOSTR", role: "result", event: ev("b".repeat(64)) });
+  b.send({ t: "NOSTR", role: "result", event: ev(b.pubkey) });
   const confirmed = await nostr(b, 2);
   assert.equal(confirmed.agreement, "confirmed");
   assert.equal(confirmed.events.length, 2);
   assert.equal(JSON.parse(confirmed.events[0].content).matchId, a.matchId, "stored verbatim");
 
   // A disagreeing republication flips it, and is never silently dropped.
-  b.send({ t: "NOSTR", role: "result", event: ev("b".repeat(64), { content: '{"v":1,"winners":[1]}' }) });
+  b.send({ t: "NOSTR", role: "result", event: ev(b.pubkey, { content: '{"v":1,"winners":[1]}' }) });
   assert.equal((await b.next((m) => m.t === "NOSTR" && m.agreement === "disputed")).events.length, 2);
 
   await new Promise((r) => setTimeout(r, 50));
@@ -757,7 +809,7 @@ test("nostr events are stored verbatim and agreement is a query", async (t) => {
   // a fourth invented by one side.
   assert.equal(kinds.filter((k) => k.role === "result").length, 2);
   for (const k of kinds) {
-    assert.ok(["a".repeat(64), "b".repeat(64)].includes(k.pubkey), "a row under a foreign pubkey");
+    assert.ok([a.pubkey, b.pubkey].includes(k.pubkey), "a row under a foreign pubkey");
     // D-11, recorded honestly: this server does not verify schnorr signatures.
     assert.equal(k.sig_checked, 0);
   }
@@ -767,47 +819,53 @@ test("nostr events are stored verbatim and agreement is a query", async (t) => {
   assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE");
 });
 
-test("an anonymous seat claims its key on first use, and is then bound to it", async (t) => {
+test("online identity requires a fresh, verified NIP-42 signature", async (t) => {
+  const table = await boot(t, "t-auth.db");
+  const client = await table.client({ skipAuth: true, identity: "auth-proof" });
+
+  client.send({ t: "CREATE", name: "claim only", affinity: "Power", pubkey: AUTH_PUBKEY });
+  const refused = await client.next((msg) => msg.t === "ERROR" || msg.t === "STATE");
+  assert.equal(refused.t, "ERROR", "a bare pubkey claim opened a table");
+  assert.equal(refused.code, "NIP07_REQUIRED");
+  assert.equal(table.db.prepare("SELECT COUNT(*) AS n FROM matches").get().n, 0);
+
+  const challenge = await client.type("AUTH");
+  client.send({ t: "AUTH", event: signedAuth(challenge) });
+  const authenticated = await client.type("AUTH_OK");
+  assert.equal(authenticated.pubkey, AUTH_PUBKEY);
+
+  client.send({ t: "CREATE", name: "signed", affinity: "Power" });
+  const created = await client.type("STATE");
+  assert.equal(created.players[0].pubkey, AUTH_PUBKEY);
+
+  const replay = await table.client({ skipAuth: true, identity: "auth-proof" });
+  await replay.type("AUTH");
+  replay.send({ t: "AUTH", event: signedAuth(challenge) });
+  assert.equal((await replay.type("ERROR")).code, "AUTH_FAILED",
+    "an AUTH event from another connection replayed successfully");
+});
+
+test("NIP-07 identity is required and bound to every online seat", async (t) => {
   const table = await boot(t, "t16.db");
-  /* Sitting down without an npub is allowed by the lobby, and reaching for the
-   * extension only when there is finally something to sign is the natural
-   * order — so the first key a seat speaks under becomes that seat's key. */
-  const a = await table.client();
-  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: null });
+
+  const a = await table.client({ identity: "a" });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
   const created = await a.type("STATE");
-  assert.deepEqual(created.players.map((p) => p.pubkey), [null, null]);
+  assert.equal(created.players[0].pubkey, a.pubkey);
 
-  const ev = (pubkey) => ({ id: "f".repeat(64), pubkey, kind: 4600, created_at: 1, tags: [], content: "{}", sig: "0".repeat(128) });
-  a.send({ t: "NOSTR", role: "invite", event: ev("a".repeat(64)) });
-  /* Announced with a fresh STATE while nobody is mid-turn, so the panel stops
-   * calling a signed seat "anonymous" — on the final screen, who signed is the
-   * whole point. */
-  const claimed = await a.next((m) => m.t === "STATE" && m.players[0].pubkey === "a".repeat(64));
-  assert.ok(claimed, "the claim was not announced");
-  const row = table.db.prepare("SELECT seat0_pubkey FROM matches WHERE match_id=?").get(a.matchId);
-  assert.equal(row.seat0_pubkey, "a".repeat(64), "the claim must survive a restart");
-
-  const b = await table.client();
-  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: null });
-  await b.type("STATE");
+  const b = await table.client({ identity: "b" });
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
+  const joined = await b.type("STATE");
   await a.type("STATE");
+  assert.deepEqual(joined.players.map((p) => p.pubkey), [a.pubkey, b.pubkey]);
 
-  /* The other seat cannot claim the same key. nostr_events is keyed on
-   * (match, role, pubkey), so two seats sharing one key would collapse two
-   * results into a single row and make `confirmed` meaningless. */
-  b.send({ t: "NOSTR", role: "invite", event: ev("a".repeat(64)) });
-  assert.equal((await b.type("ERROR")).code, "BAD_MESSAGE", "seat 1 claimed seat 0's key");
+  const noIdentity = await table.client({ identity: "c", skipAuth: true });
+  noIdentity.send({ t: "RESUME", matchId: a.matchId, token: a.token });
+  assert.equal((await noIdentity.type("ERROR")).code, "NIP07_REQUIRED");
 
-  /* Its own key binds it in turn. Mid-match the announcement is a PEER, not a
-   * STATE: adopting a STATE would clear a half-built target selection. */
-  b.send({ t: "NOSTR", role: "invite", event: ev("b".repeat(64)) });
-  await b.next((m) => m.t === "PEER" && m.seat === 1);
-  const keys = table.db.prepare("SELECT seat0_pubkey, seat1_pubkey FROM matches WHERE match_id=?").get(a.matchId);
-  assert.deepEqual([keys.seat0_pubkey, keys.seat1_pubkey], ["a".repeat(64), "b".repeat(64)]);
-
-  // And a bound seat cannot switch keys afterwards.
-  a.send({ t: "NOSTR", role: "invite", event: ev("c".repeat(64)) });
-  assert.equal((await a.type("ERROR")).code, "BAD_MESSAGE");
+  const wrongIdentity = await table.client({ identity: "c" });
+  wrongIdentity.send({ t: "RESUME", matchId: a.matchId, token: a.token, pubkey: wrongIdentity.pubkey });
+  assert.equal((await wrongIdentity.type("ERROR")).code, "IDENTITY_MISMATCH");
 });
 
 test("a finished match can still be signed after a reload, a reconnect and a restart", async (t) => {
@@ -815,11 +873,11 @@ test("a finished match can still be signed after a reload, a reconnect and a res
   // Created by hand, not via boot(): this test closes it mid-way to prove a
   // referee restart cannot erase the closing beat, so it must not be closed twice.
   const table = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
-  const a = await Client.open(table.wsUrl);
-  a.send({ t: "CREATE", v: WIRE, name: "felix", affinity: "Power", pubkey: "a".repeat(64) });
+  const a = await Client.open(table.wsUrl, { identity: "a" });
+  a.send({ t: "CREATE", v: WIRE, name: "felix", affinity: "Power", pubkey: a.pubkey });
   const created = await a.type("STATE");
-  const b = await Client.open(table.wsUrl);
-  b.send({ t: "JOIN", v: WIRE, code: created.code, name: "anna", affinity: "Signal", pubkey: "b".repeat(64) });
+  const b = await Client.open(table.wsUrl, { identity: "b" });
+  b.send({ t: "JOIN", v: WIRE, code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
   await b.type("STATE");
   await a.type("STATE");
   const matchId = a.matchId;
@@ -834,8 +892,8 @@ test("a finished match can still be signed after a reload, a reconnect and a res
 
   // Seat 1 comes back the way site/net.js does. It must be handed the SAME bytes
   // its opponent already signed, or the two signatures can never be compared.
-  const b2 = await Client.open(table.wsUrl);
-  b2.send({ t: "RESUME", v: WIRE, matchId, token: b.token });
+  const b2 = await Client.open(table.wsUrl, { identity: "b" });
+  b2.send({ t: "RESUME", v: WIRE, matchId, token: b.token, pubkey: b2.pubkey });
   const state = await b2.type("STATE");
   assert.equal(state.status, "over");
   assert.equal(state.resultContent, over.resultContent, "STATE must carry the exact bytes");
@@ -857,8 +915,8 @@ test("a finished match can still be signed after a reload, a reconnect and a res
   await table.close(); // a hard stop, as kill -9 would be
 
   const table2 = await boot(t, "unused.db", { dbPath });
-  const c = await table2.client();
-  c.send({ t: "RESUME", v: WIRE, matchId, token: b.token });
+  const c = await table2.client({ identity: "b" });
+  c.send({ t: "RESUME", v: WIRE, matchId, token: b.token, pubkey: c.pubkey });
   const after = await c.type("STATE");
   assert.equal(after.status, "over");
   assert.equal(after.resultContent, over.resultContent, "a restart lost the signable bytes");
@@ -872,7 +930,7 @@ test("HTTP: health, the relay-free table list, and out-of-band verification", as
   assert.equal(health.ok, true);
 
   const a = await table.client();
-  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: null });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
   const created = await a.type("STATE");
   assert.equal(created.status, "open");
   assert.equal(created.view, null, "no game exists until seat 1 arrives");
@@ -884,7 +942,7 @@ test("HTTP: health, the relay-free table list, and out-of-band verification", as
   assert.equal(tables[0].code, created.code);
 
   const b = await table.client();
-  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: null });
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
   await b.type("STATE");
   await a.type("STATE");
   assert.equal((await (await fetch(`${table.url}/api/tables`)).json()).length, 0, "a full table is no longer open");
@@ -905,9 +963,9 @@ test("HTTP: health, the relay-free table list, and out-of-band verification", as
 
   // A second JOIN on a full table is refused with a TRANSPORT code.
   const c = await table.client();
-  c.send({ t: "JOIN", code: created.code, name: "eve", affinity: "Keys", pubkey: null });
+  c.send({ t: "JOIN", code: created.code, name: "eve", affinity: "Keys", pubkey: c.pubkey });
   assert.equal((await c.type("ERROR")).code, "MATCH_FULL");
-  c.send({ t: "JOIN", code: "ZZZZZZ", name: "eve", affinity: "Keys", pubkey: null });
+  c.send({ t: "JOIN", code: "ZZZZZZ", name: "eve", affinity: "Keys", pubkey: c.pubkey });
   assert.equal((await c.type("ERROR")).code, "NO_SUCH_MATCH");
 
   // Post-match it becomes the out-of-band verification path it was meant to be.
@@ -927,6 +985,22 @@ test("HTTP: health, the relay-free table list, and out-of-band verification", as
   assert.equal((await fetch(`${table.url}/engine.js`)).status, 200);
   // Traversal is refused, never served.
   assert.ok((await fetch(`${table.url}/%2e%2e/package.json`)).status >= 400);
+});
+
+test("pre-NIP-07 legacy tables are neither advertised nor joinable", async (t) => {
+  const table = await boot(t, "legacy-open.db");
+  const host = await table.client();
+  host.send({ t: "CREATE", name: "legacy", affinity: "Power", pubkey: host.pubkey });
+  const created = await host.type("STATE");
+  table.db.prepare("UPDATE matches SET seat0_pubkey=NULL WHERE match_id=?").run(created.matchId);
+  table.matches.get(created.matchId).players[0].pubkey = null;
+
+  const tables = await (await fetch(`${table.url}/api/tables`)).json();
+  assert.equal(tables.some((entry) => entry.matchId === created.matchId), false);
+
+  const guest = await table.client({ identity: "b" });
+  guest.send({ t: "JOIN", code: created.code, name: "guest", affinity: "Signal", pubkey: guest.pubkey });
+  assert.equal((await guest.type("ERROR")).code, "NO_SUCH_MATCH");
 });
 
 test("malformed URL escapes return 400 without killing the table", async (t) => {
@@ -1054,10 +1128,10 @@ test("CREATE, JOIN, RESUME, and NOSTR share a connection rate limit", async (t) 
   const table = await boot(t, "t19.db", { controlMax: 2 });
   const client = await table.client();
 
-  client.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power" });
+  client.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power", pubkey: client.pubkey });
   assert.equal((await client.type("ERROR")).code, "NO_SUCH_MATCH");
 
-  client.send({ t: "CREATE", name: "host", affinity: "Power" });
+  client.send({ t: "CREATE", name: "host", affinity: "Power", pubkey: client.pubkey });
   await client.type("STATE");
 
   client.send({ t: "NOSTR", role: "invite", event: {} });
@@ -1071,12 +1145,12 @@ test("CREATE, JOIN, RESUME, and NOSTR share a connection rate limit", async (t) 
 test("control budgets survive reconnects and ignore untrusted forwarding headers", async (t) => {
   const table = await boot(t, "t25.db", { controlMax: 1 });
   const first = await table.client({ headers: { "X-Forwarded-For": "198.51.100.10" } });
-  first.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power" });
+  first.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power", pubkey: first.pubkey });
   assert.equal((await first.type("ERROR")).code, "NO_SUCH_MATCH");
   await first.close();
 
   const second = await table.client({ headers: { "X-Forwarded-For": "203.0.113.20" } });
-  second.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power" });
+  second.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power", pubkey: second.pubkey });
   assert.equal((await second.type("ERROR")).code, "RATE_LIMITED");
 });
 
@@ -1139,8 +1213,8 @@ test("rejected card clicks are free; only a runaway loop is closed", async (t) =
   /* And a kicked seat is not re-kicked the instant it returns. The window used
    * to survive the disconnect, so the first action on the fresh socket was
    * RATE_LIMITED again for the rest of the 10 s window. */
-  const back = await table.client();
-  back.send({ t: "RESUME", v: WIRE, matchId: a.matchId, token: a.token });
+  const back = await table.client({ identity: "a" });
+  back.send({ t: "RESUME", v: WIRE, matchId: a.matchId, token: a.token, pubkey: back.pubkey });
   const state = await back.type("STATE");
   assert.equal(state.seat, 0);
   const first = await back.act({ type: "PASS_PRIORITY", seat: 0, seq: state.view.seq, at: "", payload: {} });
@@ -1150,42 +1224,42 @@ test("rejected card clicks are free; only a runaway loop is closed", async (t) =
 test("a table refuses to seat the same connection twice", async (t) => {
   const table = await boot(t, "t13.db");
   const a = await table.client();
-  a.send({ t: "CREATE", name: "solo", affinity: "Power", pubkey: "a".repeat(64) });
+  a.send({ t: "CREATE", name: "solo", affinity: "Power", pubkey: a.pubkey });
   const created = await a.type("STATE");
 
   /* A presenter who fumbles and types their OWN code into the join box used to
    * be registered at conns[0] AND conns[1]: the match started against itself,
    * left /api/tables, delivered both seats' unredacted views down one socket,
    * and the real opponent got MATCH_FULL forever with no way back. */
-  a.send({ t: "JOIN", code: created.code, name: "solo-again", affinity: "Signal", pubkey: "a".repeat(64) });
+  a.send({ t: "JOIN", code: created.code, name: "solo-again", affinity: "Signal", pubkey: a.pubkey });
   assert.equal((await a.type("ERROR")).code, "MATCH_FULL");
 
   // A second tab of the same login is refused on the pubkey alone.
-  const dup = await table.client();
-  dup.send({ t: "JOIN", code: created.code, name: "me-again", affinity: "Keys", pubkey: "a".repeat(64) });
+  const dup = await table.client({ identity: "a" });
+  dup.send({ t: "JOIN", code: created.code, name: "me-again", affinity: "Keys", pubkey: dup.pubkey });
   assert.equal((await dup.type("ERROR")).code, "MATCH_FULL");
 
   // The table survived all of it: a real opponent still gets seat 1.
   const b = await table.client();
-  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: "b".repeat(64) });
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
   const joined = await b.type("STATE");
   assert.equal(joined.seat, 1);
   assert.equal(joined.status, "playing");
 });
 
-test("the host's share link offers the free seat instead of a spectator downgrade", async (t) => {
+test("the host's share link offers the free seat to a NIP-07 identity", async (t) => {
   const table = await boot(t, "t14.db");
   const a = await table.client();
-  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: "a".repeat(64) });
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
   const created = await a.type("STATE");
   assert.equal(created.claimable, true, "an open table with a free seat says so");
 
-  /* A cold browser opening ?match=…&code=… carries no token and no pubkey, so
-   * it lands in the downgrade branch. It is still the person the host invited:
+  /* A signed-in cold browser opening ?match=…&code=… carries no token, so it
+   * lands in the verified-spectator branch. It is still the person the host invited:
    * the STATE must say the seat is there for the taking, or both people sit
    * looking at the same host screen waiting for the other to join. */
   const b = await table.client();
-  b.send({ t: "RESUME", matchId: created.matchId });
+  b.send({ t: "RESUME", matchId: created.matchId, pubkey: b.pubkey });
   const downgraded = await b.type("STATE");
   assert.equal(downgraded.role, "spectator");
   assert.equal(downgraded.status, "open");
@@ -1193,7 +1267,7 @@ test("the host's share link offers the free seat instead of a spectator downgrad
   assert.equal(downgraded.code, created.code, "the code to join with must be in the STATE");
 
   // And acting on it seats them for real.
-  b.send({ t: "JOIN", code: downgraded.code, name: "anna", affinity: "Signal", pubkey: "b".repeat(64) });
+  b.send({ t: "JOIN", code: downgraded.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
   const seated = await b.next((m) => m.t === "STATE" && m.seat === 1);
   assert.equal(seated.status, "playing");
   assert.equal(seated.claimable, false);

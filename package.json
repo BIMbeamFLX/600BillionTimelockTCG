@@ -9,6 +9,7 @@
     "test:js": "node --test tests/js/*.test.mjs"
   },
   "dependencies": {
+    "@noble/curves": "^1.9.7",
     "@resvg/resvg-js": "^2.6.2",
     "marked": "^17.0.5",
     "ws": "^8.21.1"

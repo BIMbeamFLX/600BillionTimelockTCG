@@ -4,7 +4,7 @@
 (`site/net.js`, the headless test clients, anything else). Where this document and the
 code disagree, that is a bug in one of them — say which.
 
-Status: implemented and tested as of 2026-08-01. Wire version `1`.
+Status: implemented and tested as of 2026-08-15. Wire version `1`.
 
 ---
 
@@ -77,23 +77,39 @@ two pongs (30 s) is terminated and the seat marked offline. This is the only rel
 notice a slept laptop, whose TCP connection dies silently and would otherwise look alive
 forever.
 
-### 2.1 Client → server (5 types)
+### 2.1 Client → server (6 types)
+
+**`AUTH`** — answer the connection's one-use NIP-42 challenge with a NIP-07 signature.
+The client sends no table intent before `AUTH_OK`.
+```json
+{"t":"AUTH","v":1,"event":{"kind":22242,"pubkey":"<64-hex>",
+ "created_at":1785310322,"tags":[["relay","ws://table.example/ws"],["challenge","<64-hex>"]],
+ "content":"","id":"<64-hex>","sig":"<128-hex>"}}
+```
+The referee verifies the canonical event id, BIP-340 Schnorr signature, exact relay and
+challenge tags, kind `22242`, empty content, and a timestamp within ten minutes. The challenge
+is bound to one connection and consumed on success. Invalid, stale or replayed proof →
+`ERROR{AUTH_FAILED}`. `CREATE`, `JOIN` and `RESUME` before successful authentication →
+`ERROR{NIP07_REQUIRED}`.
 
 **`CREATE`** — open a table, take seat 0.
 ```json
-{"t":"CREATE","v":1,"name":"felix","affinity":"Power","pubkey":"<64-hex>|null"}
+{"t":"CREATE","v":1,"name":"felix","affinity":"Power","pubkey":"<64-hex>"}
 ```
 `affinity` ∈ `All|Power|Bitcoin|Keys|Signal|Timelock` (anything else is coerced to `All`).
 Replies `STATE` with status `"open"`, `view:null`, `token` present. **No game exists yet** —
 the deck is not dealt until seat 1 arrives, so an abandoned table costs nothing.
+The authenticated connection pubkey is authoritative. If the compatibility `pubkey` field is
+present it must match that identity; it is never trusted as proof by itself.
 
 **`JOIN`** — take seat 1 by code.
 ```json
-{"t":"JOIN","v":1,"code":"K7M2QF","name":"anna","affinity":"Signal","pubkey":"<64-hex>|null"}
+{"t":"JOIN","v":1,"code":"K7M2QF","name":"anna","affinity":"Signal","pubkey":"<64-hex>"}
 ```
 The server mints seeds (§5.1), calls `E.createGame(config)`, persists, and sends `STATE` to
 **both** sockets (status `"playing"`, `view` non-null).
-Errors: `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `DECK_BUILD_FAILED`.
+Errors: `NIP07_REQUIRED`, `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`,
+`DECK_BUILD_FAILED`.
 
 **`ACT`** — the only in-play message.
 ```json
@@ -114,19 +130,33 @@ server-side ordering code.** Success → `FRAME` to both seats (different views)
 
 **`RESUME`** — rejoin a seat.
 ```json
-{"t":"RESUME","v":1,"matchId":"m_7f3a91c2","token":"<32-hex>"}
+{"t":"RESUME","v":1,"matchId":"m_7f3a91c2","token":"<32-hex>","pubkey":"<64-hex>"}
 {"t":"RESUME","v":1,"matchId":"m_7f3a91c2","pubkey":"<64-hex>"}
 ```
-Token wins; pubkey is the fallback for a wiped profile. See §4.
+Successful connection authentication is mandatory. A token is accepted only with the same
+authenticated pubkey that owns the seat; the signed pubkey alone is the fallback for a wiped
+profile. See §4.
 
 **`NOSTR`** — hand a signed event to the server for the record.
 ```json
 {"t":"NOSTR","v":1,"role":"invite"|"accept"|"result","event":{ …signed nostr event… }}
 ```
-Stored verbatim. **The server does not verify the schnorr signature** (§6.4). On
+Stored verbatim. **The server does not yet verify these invite/accept/result signatures**
+(§6.4); this is separate from the verified login signature. On
 `role:"result"` the server recomputes agreement and broadcasts `NOSTR` to both.
 
-### 2.2 Server → client (7 types)
+### 2.2 Server → client (9 types)
+
+**`AUTH`** — sent immediately after the WebSocket opens.
+```json
+{"t":"AUTH","v":1,"challenge":"<64-hex>","relay":"ws://table.example/ws",
+ "kind":22242,"expiresIn":600}
+```
+
+**`AUTH_OK`** — the proof was verified; the client may now send its pending table intent.
+```json
+{"t":"AUTH_OK","v":1,"pubkey":"<64-hex>","eventId":"<64-hex>"}
+```
 
 **`STATE`** — full resync. Sent on `CREATE`, on `JOIN` (both seats), on `RESUME`. The only
 message carrying whole history.
@@ -138,7 +168,7 @@ message carrying whole history.
  "table":"ws://bitbeam.tail1a2b.ts.net:8777/ws",
  "ruleset":"E1.0","catalogDigest":"sha256:…",
  "players":[
-   {"seat":0,"name":"felix","pubkey":"<64-hex>|null","affinity":"Power","online":true},
+   {"seat":0,"name":"felix","pubkey":"<64-hex>","affinity":"Power","online":true},
    {"seat":1,"name":"anna","pubkey":"<64-hex>|null","affinity":"Signal","online":false}],
  "view": null | { …E.view(state, seat)… },
  "events":[ …E.redactEvents(tail, seat), capped at 240… ],
@@ -157,10 +187,11 @@ message carrying whole history.
 For a spectator, `seat:null`, no `token`, and `view` = `E.view(state, null)` — **neither**
 hand visible, not even as uid shells.
 
-`claimable` is `true` while the table is open and seat 1 is free. A cold browser following the
-host's share link carries no token and no pubkey, so it lands in the spectator downgrade — but
-it is the person the host invited, and it came to play. `claimable` says the seat is there for
-the taking; the client turns that into a prefilled Join, never into a second host panel.
+`claimable` is `true` while the table is open and seat 1 is free. A signed-in cold browser
+following the host's share link carries no token, so it lands in the verified-spectator
+downgrade. `claimable` says the seat is there for the taking; the client turns that into a
+prefilled Join, never into a second host panel. Without a NIP-07 identity the client does not
+open the socket.
 
 **A finished match repeats its signable payload in every `STATE`.** These bytes used to exist
 only in the single live `OVER`, so a seat that was disconnected when the match ended — or that
@@ -411,23 +442,25 @@ Written on the first `STATE` of a match; cleared on "new match" or "leave table"
 
 ### 4.2 Sequence
 
-1. **Page load.** `net.js` reads `600b:match`; if present it **auto-opens the socket, no
-   click** — on stage the presenter should reopen the tab and see the board, not a dialog.
-2. `onopen` → `RESUME`.
+1. **Page load.** `net.js` reads `600b:match`; if present and a NIP-07 identity is saved it
+   **auto-opens the socket, no click**. Otherwise it keeps the session and asks for NIP-07
+   sign-in before opening the socket.
+2. `onopen` → server `AUTH` challenge → NIP-07 signs kind 22242 → server verifies and replies
+   `AUTH_OK` → client sends `RESUME`. Reconnect never trusts the saved pubkey string alone.
 3. **Server resolves the match:** in memory → use it; not in memory (server restarted) →
    `JSON.parse(state_json)`, **one row read, instant**. If `state_json` is missing or
    unparseable, fall back to `E.replay(config, log)` and log a warning. `E.replay` is the
    VERIFICATION path, never the recovery path — recovery must not depend on 300 engine
    applications succeeding while an audience watches.
 4. **Seat claim ladder** — strict priority order, evaluated on every `RESUME`:
-   1. Valid `token` → seat granted **unconditionally**. Any socket currently holding that seat
+   1. Valid `token` plus its matching `pubkey` → seat granted. A token under another pubkey is
+      `ERROR{IDENTITY_MISMATCH}`. Any socket currently holding that seat
       is sent `ERROR{SUPERSEDED}` and closed 4009. **Takeover, not refusal** — this one rule
       handles reload, sleep/wake, second tab and moving machines identically, and can never
       lock a player out of their own match on stage.
    2. No token, seat's `pubkey` matches, no live socket on it → granted, **fresh token
       issued**. Covers cleared localStorage / incognito.
-   3. No token, seat never claimed → granted, token issued.
-   4. Otherwise → **silently downgraded to spectator**, `downgraded:true`. **Never a hard
+   3. Otherwise → **silently downgraded to spectator**, `downgraded:true`. **Never a hard
       error.** A stranger clicking the link mid-match becomes an audience member, not a crash.
       (An unknown `matchId` *is* `ERROR{NO_SUCH_MATCH}` — there is nothing to spectate.)
 5. Server replies `STATE` with `full:true`; broadcasts `PEER{online:true}` to the opponent.
@@ -473,10 +506,9 @@ is correct, only the scrollback is short.
 
 ### 4.7 Not built
 
-Spectator tokens (spectators are anonymous and read-only) · match resume across different table
-URLs · seat handover · two-tabs-of-one-seat playing simultaneously (the second wins, which is
-right for a human at one keyboard and wrong for an adversary — fixed later by signature
-verification).
+Spectator tokens (spectators are NIP-07 identified and read-only) · match resume across different
+table URLs · seat handover · two-tabs-of-one-seat playing simultaneously (the second verified
+connection wins, preserving reload/takeover recovery).
 
 ---
 
@@ -573,7 +605,7 @@ can correct it by republishing. Tags and content are `OVER.resultTags` / `OVER.r
 ```json
 {"v":1,"kind":"result","matchId":"…","gameId":"g_…",
  "ruleset":"E1.0","catalogDigest":"sha256:…","topology":"table","wire":1,
- "players":[{"seat":0,"pubkey":"…|null","name":"felix","affinity":"Power"}, …],
+ "players":[{"seat":0,"pubkey":"…","name":"felix","affinity":"Power"}, …],
  "winners":[0],"losers":[1],"reason":"uptime","turns":9,"actions":214,
  "publicHash":"…","transcriptHash":"…","headHash":"…",
  "startedAt":"…","endedAt":"…"}
@@ -602,30 +634,24 @@ Getting this wrong would produce a leaderboard that marks correct P2P matches as
 day the napplet ships, which is why `publicHash` + `transcriptHash` are implemented now even
 though the table topology could get away with `headHash`.
 
-### 6.4 Signature verification — the honest limitation (D-11)
+### 6.4 Signature verification — login complete, result verification later
 
-The server does **not** verify schnorr signatures in v1. secp256k1 schnorr is not in
-`node:crypto`, and adding a curve dependency days before a demo is unjustified risk. Therefore:
+The referee verifies the NIP-42 login event with `@noble/curves`: event id, BIP-340 Schnorr
+signature, fresh timestamp, connection challenge and relay tag. The npub shown at the table is
+therefore a proven NIP-07 identity, and every reconnect repeats that proof before a token or
+pubkey can claim a seat.
 
-- Seat authentication at the table is the **server-issued token**, full stop.
-- The npub shown at the table is a **claim**; `nostr_events.sig_checked = 0` records that
-  honestly.
-- Cryptographic binding happens where it matters: each player signs their own 31600 with their
-  own key, published to relays where anyone can verify.
-- Impersonation on reconnect — the property that actually matters live — is blocked by the
-  token, not the signature.
+Invite, accept and kind-31600 result events are still stored verbatim with
+`nostr_events.sig_checked = 0`. That limitation is explicit and narrower than before: login is
+cryptographically bound now; result-event verification and authority-key leaderboard work are
+the later slice requested by the owner.
 
-**What makes `agreement` trustworthy in v1 is seat binding, not signature verification.**
-Since no signature is checked, a `NOSTR` frame is only as good as the connection it arrived on,
-so the server binds every event to the sending seat:
+Until that slice, `agreement` additionally relies on enforced seat binding:
 
 1. A seat may submit events **only under its own pubkey**. Without this, one seat could store a
    row attributed to its opponent and drive `agreement` to `confirmed` — or to `disputed` — on
    its own, and the lobby renders that verdict verbatim.
-2. A seat that sat down anonymously **claims a key on first use**: the first pubkey it speaks
-   under becomes that seat's key, is persisted, and every later event must match it. Signing in
-   only when there is finally something to sign is a normal order of events, and the seat is
-   already authenticated by its token, so nobody else can do the claiming.
+2. Every seat is created with a NIP-07 pubkey; legacy rows without one cannot submit events.
 3. The two seats must hold **different** keys. `nostr_events` is keyed on
    `(match_id, role, pubkey)`, so two seats sharing a key would collapse two results into one
    row.
@@ -636,8 +662,8 @@ Together these cap `nostr_events` at three rows per match — one invite, one ac
 per seat — and make `confirmed` mean what the lobby says it means: *both seats said the same
 thing.* That is an enforced constraint, not an assumption.
 
-**P-11:** `@noble/curves`, verify the accept event at join, require its `pubkey` to match the
-seat.
+**Next:** verify invite/accept/result event ids and signatures, then require authority-key
+republication before a match changes Ranked rating.
 
 ### 6.5 Flow and popup budget
 
@@ -655,10 +681,10 @@ popups that no longer exist.
 
 ### 6.6 Critical design rule — nostr is the announcement, never the gate
 
-The match is created, joined, played and finished entirely over the socket + the 6-character
-code. Every nostr step is fire-and-forget and failure-tolerant: no extension, a rejected popup,
-or three dead relays degrades the beat to "anonymous seats, no published result" and the game
-continues untouched.
+The match is played and finished entirely over the socket after mandatory NIP-07 sign-in.
+Invite, accept and result publication remain fire-and-forget: a rejected signing popup or three
+dead relays degrades the announcement, not an already authenticated game. Without the extension,
+online create/join/resume is unavailable; local hotseat remains fully offline.
 
 Note the ordering: **the table exists on the server before the invite is published.** A relay
 failure can never block a match starting.
@@ -802,11 +828,11 @@ play, so the ad-hoc session key is not needed at all.
 
 | ID | Debt | Why acceptable | Repayment |
 |---|---|---|---|
-| **D-11** | No schnorr verification; the npub at the table is a claim (`sig_checked = 0`). Seat auth is the token. | Events are public on relays where anyone can verify; the property that matters live — reconnect impersonation — is blocked by the token. | **P-11:** `@noble/curves`, verify the accept event at join. |
+| **D-11** | Login signatures are verified; invite/accept/result rows still carry `sig_checked = 0`. | NIP-42 now proves the online seat identity. Result verification and authority-key publication remain outside this slice. | Verify all stored Nostr event ids/signatures before Ranked rating changes. |
 | **D-12** | `createGame` throws on Stake cards; worked around with a 40-attempt re-roll and a pinned seed. Keys fails ~16/25 seeds. | The re-roll makes it invisible to clients; the pinned seed makes the demo deterministic. | **P-12:** filter Stake cards in `buildDeckList` when the module is off. |
 | **D-13** | Full view resent every frame; no deltas. | 4.6 KB measured, ~1 KB deflated, invisible on LAN/Tailscale. Deletes the entire "client applied a delta wrong" bug class. | **P-13:** deltas, purely additive to the message vocabulary. |
 | **D-14** | The referee is a single point of failure; the peer/napplet topology is deferred. | Instant `state_json` recovery + a forever-retrying client. The engine is unchanged, so the P2P path remains reachable. | **P-14:** the WebRTC NAP per `multiplayer-architecture.md`. |
-| **D-15** | Seat takeover: a valid token always wins and evicts the older socket. A leaked token is a stolen seat. | The realistic stage failure is a stale tab holding your seat hostage, which is strictly worse on a LAN where the token never left the machine. | **P-15:** the same signature verification as P-11. |
+| **D-15** | A matching token and freshly NIP-42-authenticated identity evict the older socket. | Reload, sleep/wake and moving machines recover without letting a leaked token cross identities. | Add explicit seat handover if tournament operations require it. |
 
 **D-9** narrows: the transport is now relay-agnostic *and* relay-optional — the server never
 opens a relay connection at all.

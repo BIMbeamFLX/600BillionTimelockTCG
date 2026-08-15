@@ -69,10 +69,11 @@ a { color: var(--orange-soft); }
 .gcard.canact { box-shadow: 0 0 0 2px var(--violet), 0 0 12px rgba(23,190,187,.6); }
 /* Eligible attackers during the attackers step — the loudest cue on the board. */
 @keyframes canattackPulse {
-  0%, 100% { box-shadow: 0 0 0 3px var(--ember), 0 0 12px rgba(255,106,0,.6); }
-  50% { box-shadow: 0 0 0 3px var(--ember), 0 0 24px rgba(255,106,0,1); }
+  0%, 100% { box-shadow: 0 0 0 3px var(--orange), 0 0 12px rgba(255,106,0,.6); }
+  50% { box-shadow: 0 0 0 3px var(--orange), 0 0 24px rgba(255,106,0,1); }
 }
 .gcard.canattack { animation: canattackPulse 1.1s ease-in-out infinite; }
+.gcard.meshed { box-shadow: 0 0 0 3px var(--purple), 0 0 22px rgba(185,145,228,.65); }
 
 /* The pointer menu wears the card frame and opens where the mouse already is. */
 @keyframes windowIn { from { opacity: 0; transform: translate(-50%,-50%) scale(.94); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
@@ -217,12 +218,49 @@ a { color: var(--orange-soft); }
 .playerbar .name { font: 18px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; text-shadow: 1px 1px 0 rgba(255,106,0,.55), -1px -1px 0 rgba(116,71,184,.55); }
 /* The number wears the same chip square as a card's cost and ACT/RES. */
 .uptime {
-  display: inline-grid; place-items: center; min-width: 44px; padding: 3px 6px 5px;
-  background: rgba(9,8,11,.92); border: 1px solid var(--line); box-shadow: inset 0 0 0 1px rgba(255,247,236,.12);
-  text-align: center; line-height: 1;
+  --uptime-ratio: 100%; --uptime-color: var(--good);
+  display: grid; grid-template-columns: 42px minmax(54px, 74px); grid-template-rows: auto auto;
+  align-items: center; column-gap: 7px; min-width: 108px; padding: 4px 7px 5px 4px;
+  background: rgba(9,8,11,.92); border: 1px solid color-mix(in srgb, var(--uptime-color) 65%, var(--line));
+  box-shadow: inset 0 0 0 1px rgba(255,247,236,.08), 0 0 14px color-mix(in srgb, var(--uptime-color) 18%, transparent);
+  line-height: 1; transition: border-color .18s ease, box-shadow .18s ease;
 }
-.uptime b { display: block; color: var(--cream); font: 20px/1 Anton600, Impact, sans-serif; }
-.uptime::after { content: "UPTIME"; font-size: 7.5px; letter-spacing: .18em; color: var(--orange); font-weight: 900; }
+.uptime-core {
+  grid-row: 1 / 3; width: 38px; height: 38px; display: grid; place-items: center; position: relative;
+  border-radius: 50%; background: conic-gradient(var(--uptime-color) var(--uptime-ratio), rgba(255,247,236,.1) 0);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--uptime-color) 28%, transparent);
+}
+.uptime-core::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--black); }
+.uptime b { position: relative; z-index: 1; color: var(--cream); font: 20px/1 Anton600, Impact, sans-serif; }
+.uptime-gauge { height: 7px; overflow: hidden; border: 1px solid var(--line); background: rgba(255,247,236,.06); }
+.uptime-gauge i { display: block; width: var(--uptime-ratio); height: 100%; background: var(--uptime-color); box-shadow: 0 0 8px var(--uptime-color); transition: width .28s steps(6,end); }
+.uptime-status { color: var(--uptime-color); font: 8px/1.1 ui-monospace, Consolas, monospace; font-weight: 900; letter-spacing: .15em; }
+.uptime.low { --uptime-color: var(--gold); }
+.uptime.critical { --uptime-color: var(--danger); animation: uptimeCritical 1.1s steps(2,end) infinite; }
+.uptime.offline { --uptime-color: var(--danger); filter: grayscale(.35); }
+.uptime.boosted { --uptime-color: var(--purple); }
+@keyframes uptimeCritical { 50% { box-shadow: inset 0 0 0 1px rgba(255,247,236,.08), 0 0 22px rgba(255,77,61,.5); } }
+
+/* Every structured engine event leaves one short readable beat. The existing
+   target-bound FX supplies particles and damage numbers; this ribbon guarantees
+   that even rules-only actions have a visible animation and plain-language name. */
+.action-fx { position: absolute !important; z-index: 30 !important; inset: 42% 10% auto; display: grid; place-items: center; gap: 5px; pointer-events: none; }
+.action-burst {
+  max-width: min(680px, 90vw); padding: 7px 14px; color: var(--cream); background: rgba(9,8,11,.93);
+  border: 1px solid var(--purple); box-shadow: 0 0 18px rgba(116,71,184,.32);
+  font: 11px/1.25 ui-monospace, Consolas, monospace; letter-spacing: .04em; text-align: center;
+  animation: actionBeat 1.35s cubic-bezier(.2,0,0,1) forwards;
+}
+.action-burst.impact { color: var(--danger); border-color: var(--danger); box-shadow: 0 0 24px rgba(255,77,61,.42); }
+.action-burst.gain { color: var(--good); border-color: var(--good); }
+.action-burst.action { color: var(--gold); border-color: var(--gold); }
+.action-burst.reduced { animation: none; opacity: 1; transform: none; }
+#meshGroup.active { color: var(--black); background: var(--purple); border-color: var(--purple); }
+@keyframes actionBeat {
+  0% { opacity: 0; transform: translateY(10px) scale(.96); }
+  12%,70% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-12px) scale(.98); }
+}
 .counts { color: var(--muted); font-size: 11px; font-family: ui-monospace, Consolas, monospace; letter-spacing: .04em; }
 .buffer { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
 .pip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; background: var(--soot); border: 1px solid var(--line); }
@@ -384,9 +422,9 @@ a { color: var(--orange-soft); }
     <h1>Play <span>locally</span></h1>
     <p>Two-player hotseat on one machine, with all <b id="cardCount">295</b> Edition One cards.
     Each seat gets a randomised 40-card Stack in the rulebook's recommended prototype shape.
-    The engine runs the turn structure, Buffer and resource burn, costs, clash and state checks;
-    cards whose text it cannot fully model are flagged <b>!</b> and resolved by a bounded, attributed
-    proposal your opponent can accept or reject.</p>
+    The engine runs the complete card pool, turn structure, Buffer and resource burn, costs,
+    targeting, clash and state checks. Released play is fully scripted: no assisted cards and no
+    free-form table edits.</p>
     <div class="seats">
       <div class="seat">
         <label for="nameA">Seat one</label>
@@ -423,8 +461,8 @@ a { color: var(--orange-soft); }
     <div class="online" id="online">
       <h2>Or play <span>across the table</span></h2>
       <p>One referee runs the rules and deals both seats; every play travels over a socket, and only the
-      invite, the accept and the signed result ever touch a relay. Sign in to be named — or stay anonymous,
-      it changes nothing about the game.</p>
+      invite, the accept and the signed result ever touch a relay. NIP-07 sign-in is required for every
+      online seat; local hotseat still works without an extension.</p>
 
       <div class="netid">
         <button class="btn ghost" id="nostrLogin">Sign in with nostr</button>
@@ -497,7 +535,11 @@ a { color: var(--orange-soft); }
         <div class="side foe">
           <div class="playerbar" id="foeBar">
             <span class="name" id="foeName">Opponent</span>
-            <span class="uptime"><b id="foeUptime">20</b></span>
+            <span class="uptime" id="foeUptimeMeter" role="meter" aria-label="Opponent Uptime" aria-valuemin="0" aria-valuenow="20">
+              <span class="uptime-core"><b id="foeUptime">20</b></span>
+              <span class="uptime-gauge" aria-hidden="true"><i></i></span>
+              <span class="uptime-status" id="foeUptimeStatus">ONLINE</span>
+            </span>
             <span class="counts" id="foeCounts"></span>
             <span class="buffer" id="foeBuffer"></span>
           </div>
@@ -518,16 +560,23 @@ a { color: var(--orange-soft); }
           <div class="zone arc" id="youNetwork"></div>
           <div class="playerbar" id="youBar">
             <span class="name" id="youName">You</span>
-            <span class="uptime"><b id="youUptime">20</b></span>
+            <span class="uptime" id="youUptimeMeter" role="meter" aria-label="Your Uptime" aria-valuemin="0" aria-valuenow="20">
+              <span class="uptime-core"><b id="youUptime">20</b></span>
+              <span class="uptime-gauge" aria-hidden="true"><i></i></span>
+              <span class="uptime-status" id="youUptimeStatus">ONLINE</span>
+            </span>
             <span class="counts" id="youCounts"></span>
             <span class="buffer" id="youBuffer"></span>
           </div>
           <div class="zone arc fan" id="youHand"></div>
         </div>
 
+        <div class="action-fx" id="actionFx" aria-live="polite" aria-atomic="false"></div>
+
         <div class="controls">
           <button class="btn" id="continue">Continue</button>
           <button class="btn ghost" id="quickClash" hidden>Send all</button>
+          <button class="btn ghost" id="meshGroup" hidden>Form Mesh</button>
           <button class="btn ghost" id="endturn">End turn</button>
           <button class="btn ghost" id="cancelTarget">Cancel targeting</button>
           <button class="btn ghost" id="clearManual">Clear notice</button>
@@ -553,30 +602,13 @@ a { color: var(--orange-soft); }
           <div id="inspector"><span style="color:var(--muted);font-size:12px">Hover a card.</span></div>
         </div>
         <details class="panel">
-          <summary>Manual controls</summary>
-          <div class="manualgrid" style="margin-top:8px">
-            <button data-manual="uptime:1">+1 Uptime</button>
-            <button data-manual="uptime:-1">−1 Uptime</button>
-            <button data-manual="uptime:1" data-side="foe">+1 foe</button>
-            <button data-manual="uptime:-1" data-side="foe">−1 foe</button>
-            <button data-manual="draw:1">Draw</button>
-          </div>
-          <div class="manualgrid" style="margin-top:6px">
-            <button data-manual="generate:P">+P</button>
-            <button data-manual="generate:B">+B</button>
-            <button data-manual="generate:K">+K</button>
-            <button data-manual="generate:S">+S</button>
-            <button data-manual="generate:T">+T</button>
-            <button data-manual="generate:N">+neutral</button>
-          </div>
-          <!-- Not gameplay: the one button that ends the match. Lives with the
-               table admin controls, small, and asks before it fires. -->
+          <summary>Match controls</summary>
           <button class="btn ghost rug" id="rugpull"
             title="End the game by walking away — the win goes to the player who did not rugpull.">Rugpull</button>
         </details>
-        <div class="panel">
-          <h3>Table proposals</h3>
-          <div id="manualPending"><span style="color:var(--muted);font-size:12px">Assisted abilities and manual edits appear here for both seats.</span></div>
+        <div class="panel" id="manualPanel" hidden>
+          <h3>Rules decision</h3>
+          <div id="manualPending"></div>
         </div>
         <div class="panel">
           <h3>Log</h3>

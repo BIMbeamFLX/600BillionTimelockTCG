@@ -1,150 +1,120 @@
 # Technisches Handover — 2026-08-15
 
-## Stand und Scope
+## Ergebnis dieses Arbeitsstands
 
-Ausgangspunkt ist `main` auf `5fb20f4` (Merge von PR #10). Der aktuelle Arbeitszweig ist
-`feature/remote-reliability`; der geprüfte Reliability-Commit ist `9f9e790`. In diesem
-Durchgang wurde nichts deployed und kein öffentlicher Gameserver verändert. Nach Abschluss
-der Gates wurde der aktuelle Branch-Stand lokal auf Port 8777 gestartet und per Health-Check
-verifiziert.
+Ausgangspunkt ist `main` auf `5fb20f4` (PR #10). Gearbeitet wird auf
+`feature/remote-reliability`; die bereits lokalen Commits `9f9e790` und `d966dc2` tragen
+Referee-Härtung und den ersten Handover-Stand. Dieser Durchgang wurde nicht deployed und
+nicht gepusht.
 
 Der Stand kann heute:
 
-- Hotseat und ein vollständiges Zwei-Client-Match über den autoritativen Referee spielen;
-- 295 E1-Karten laden;
-- 11 vollständig gescriptete Precons anbieten (5 Starter, 6 Classic);
-- Spielzustände pro Sitz redigieren, Aktionen in SQLite persistieren und die Hashkette aus
-  dem Transcript reproduzieren;
-- 297 releasefähige Web-Bilder anhand ihrer SHA-256-Adressen über drei Blossom-Mirrors laden;
-- alle 12 HTML-Seiten über den Node-Referee ausliefern.
+- Hotseat, NPC und vollständige Zwei-Client-Matches über denselben deterministischen
+  Engine-Kern spielen;
+- alle 295 Edition-One-Karten automatisch auflösen: 295 gescriptet, 0 assisted;
+- alle 11 Precons und den vollständigen Kartenpool in Casual und künftig Ranked verwenden;
+- Mesh-Gruppen bilden, gemeinsam blockieren und gegnerischen Schaden über einen
+  deterministischen legalen Standard routen;
+- Clash-Vorschauen direkt durch eine Engine-Simulation erzeugen — die UI enthält keine
+  zweite Schadensrechnung mehr;
+- jede strukturierte Spielaktion als kurzen, semantisch gefärbten Impuls darstellen;
+- Uptime als Kreis- und Balkenmeter mit Prozentfüllung, Farbstufe, Status und statischem
+  Reduced-Motion-Fallback darstellen;
+- Online-Sitze ausschließlich nach einer frischen NIP-07/NIP-42-Signatur vergeben und die
+  Identität bei Create, Join und Resume an den Sitz binden;
+- Fog of War serverseitig erzwingen, Aktionen in SQLite persistieren und die komplette
+  Hashkette aus dem Transcript reproduzieren;
+- 297 content-adressierte Release-WebPs lokal und über die bestehenden Blossom-Mirrors laden.
 
-Wichtig: Der vollständige Kartenkatalog ist noch nicht vollständig automatisch. Aktuell
-sind 169 Karten vollständig gescriptet und 126 Karten als `manual` markiert. Die 11 Precons
-enthalten dagegen nur gescriptete Karten. Für Ranked ist deshalb ein expliziter legaler,
-vollständig deterministischer Kartenpool nötig.
-
-## Inhalt des Reliability-Slices
-
-- Trigger-Einträge besitzen vor View, Public Hash und Persistenz immer vollständige,
-  JSON-sichere Felder. Damit ist der zuvor flakige Match-Freeze reproduziert und behoben.
-- Spielernamen gelangen im Turn-HUD nur noch als Text in das DOM.
-- Fehlerhafte Prozent-Escapes liefern HTTP 400, ohne den Referee zu beschädigen.
-- WebSocket-Nachrichten sind standardmäßig auf 64 KiB dekomprimierte Nutzlast begrenzt.
-- HTTP und WebSocket prüfen vertrauenswürdige `Host`-Namen; Browser-WebSockets prüfen
-  zusätzlich Origin oder eine explizite `TABLE_ORIGINS`-Freigabe.
-- Control-, fehlerhafte und nicht authentifizierte Nachrichten teilen ein Adressbudget,
-  das Reconnects überlebt und ungeprüfte `X-Forwarded-For`-Werte ignoriert.
+Released Local und Remote verwenden `policy.freeform = "deny"`. Die alten Manual-APIs bleiben
+nur als getestete Abwärtskompatibilitäts- und Sicherheitsgrenze im Engine-Code; keine
+veröffentlichte Karte benötigt sie.
 
 ## Verifikation
 
-Alle Angaben beziehen sich auf den finalen Arbeitsstand dieses Handover-Durchgangs.
-
 | Gate | Ergebnis |
 | --- | --- |
-| `npm run test:js` | 129/129 grün |
-| `uv run pytest -q` | 104/104 grün |
+| `npm run test:js` | 182/182 grün |
+| `uv run pytest -q` | 108/108 grün |
 | `npm run build` | grün |
-| `uv run ruff check .` | grün |
-| `uv run ruff format .` | 67 Dateien unverändert |
-| Remote-Soak vor dem finalen Review | 100/100 vollständige Matches grün |
-| Out-of-process, Port 8778 | vollständiges Match, 642 Aktionen, 248 Transcript-Einträge |
-| HTTP-Smoke, Port 8778 | `/api/health`, `/api/tables` und alle 12 Seiten erfolgreich |
+| Ruff auf allen versionierten Python-Dateien | grün; 49 Dateien formatiert |
+| Kartencompiler | 295 Karten, 295 auto-resolving, 0 assisted |
+| Galeriecompiler | 296 Bild-/Textkarten |
+| HTTP-Smoke | alle 12 HTML-Seiten sowie `/api/health` und `/api/tables` erfolgreich |
+| Out-of-process-Match | 380 Aktionen, 210 Transcript-Einträge, reguläres Ende in Turn 7 |
+| Browser-Abnahme | Zap 20 → 17, Meter 100 % → 85 %, Treffer sichtbar, Reduced Motion statisch, keine Console-Fehler |
 
-Der Out-of-process-Test bestätigte zwei verschiedene Sitz-Views, serverseitiges Fog of War,
-Engine-Rejections, SQLite-Persistenz, Replay, Public/State/Entry-Hashes, eine lückenlose
-Hashkette und Manipulationserkennung. Danach meldete `/api/health` ein gesundes System und
-`/api/tables` null offene Tische, weil das Testmatch beendet war.
+Der Zwei-Client-Lauf bestätigte unterschiedliche Sitz-Views, serverseitiges Fog of War,
+Engine-Rejections, SQLite-Persistenz, Replay, Public-/State-/Entry-Hashes, eine lückenlose
+Hashkette, Manipulationserkennung und identische Ergebnisbytes für beide Signaturen.
 
-Zusätzlich wurden Hotseat und zwei echte Browser-Tabs gegen einen isolierten Referee bedient.
-Create/Join, die getrennten Sitze, der HTML-sichere Spielername und ein sauberer Browser ohne
-Console-Fehler wurden geprüft. Es wurden dabei keine Screenshot-Artefakte abgelegt; eine
-vollständige visuelle Abnahme aller Zustände ist weiterhin offen.
+Die NIP-42-Tests prüfen den kanonischen Event-Hash, BIP-340-Schnorr-Signatur, Kind `22242`,
+leeren Inhalt, exakte Relay-/Challenge-Tags, Zeitfenster und Einmaligkeit der Challenge.
+Bare Pubkey-Claims, Replays und Identitätswechsel werden abgewiesen. Offene Tabellen aus der
+Zeit vor dem verpflichtenden NIP-07-Login werden weder gelistet noch joinbar gemacht.
 
-## Architektur in einem Absatz
+Der normale Root-Aufruf `uv run ruff check .` sieht zusätzlich den ungetrackten,
+nicht zu diesem Arbeitsstand gehörenden Ordner `art/video-intro/` und meldet dort sechs
+Lint-Befunde sowie eine Formatabweichung. Der Ordner wurde bewusst weder geändert noch
+committet; alle versionierten Python-Dateien bestehen Ruff.
 
-`site/engine.js` ist die deterministische Regelmaschine. `site/play.js` rendert Hotseat und
-Remote-Spiel; `site/net.js` verwaltet WebSocket, Sitz-Token und Resume. `server/table.js` ist
-der autoritative Node-Referee: Er besitzt den vollständigen Zustand, liefert pro Sitz nur eine
-redigierte View und schreibt akzeptierte Aktionen vor dem Broadcast nach SQLite. Nostr wird
-nur für Einladung/Handshake und Ergebnis verwendet, nie für einzelne Züge. Kartenbilder sind
-lokal cachebar und über `site/blob-map.js` content-addressed auf Blossom gespiegelt.
+## Architektur
 
-## nsite und Referee sind nicht dasselbe
+`site/engine.js` ist die Regelwahrheit. `site/play.js` rendert Hotseat und Remote-Spiel,
+übersetzt Engine-Ereignisse in lesbare Aktionsimpulse und sammelt nur noch nicht abgesendete
+Spielerabsichten. `site/net.js` führt den NIP-42-Handshake und transportiert danach Aktionen.
+`server/table.js` besitzt den vollständigen Zustand, sendet pro Sitz eine redigierte View und
+schreibt akzeptierte Aktionen vor dem Broadcast nach SQLite. `site/fx.js` liefert die gepoolten,
+begrenzten Audio-/VFX-Cues; wichtige Treffer und Uptime-Änderungen verdrängen bei schnellen
+Ereignisketten gewöhnliche Pass-/Phasenmeldungen, nicht umgekehrt.
 
-Ein nsite kann die statischen Dateien veröffentlichen, aber keinen Node-WebSocket oder die
-HTTP-APIs ausführen. Auf einer HTTPS-Seite leitet `site/net.js` ohne weitere Konfiguration
-automatisch `wss://<site-host>/ws` ab. Ein reines nsite hat diesen Endpunkt nicht.
+Ein nsite kann weiterhin nur die statischen Dateien veröffentlichen. Public Unranked und
+Ranked brauchen den Node-Referee hinter TLS. Same-Origin für Website, `/ws` und `/api/*` bleibt
+die kleinste robuste öffentliche Topologie.
 
-Für LAN und öffentliche Unranked-Spiele ist deshalb die kleinste robuste Form:
+## Kartenbilder und Aufräumen
 
-1. ein Node-Referee, der Website, `/ws` und `/api/*` gemeinsam ausliefert;
-2. für öffentlich: ein TLS-Reverse-Proxy vor genau diesem Prozess;
-3. vor dem Launch eine vollständige externe `wss://`-Advertise-URL ergänzen — `PUBLIC_HOST`
-   allein veröffentlicht heute noch `ws://<host>:<interner-port>/ws`;
-4. den Origin-Port gegen direkten Zugriff sperren und erst dann eine exakt gemessene Zahl
-   vertrauenswürdiger Proxy-Hops für die Client-IP-Auflösung implementieren;
-5. anschließend zwei reale Geräte, Resume und einen vollständigen Matchlauf prüfen.
+`art/cards/final/` war die ersetzte JPEG-Generation und ist im aktuellen Arbeitsstand gelöscht.
+Aktiv bleibt ausschließlich `art/cards/node-runner-web/`: 297 getrackte WebPs plus Manifest,
+41.8 MB, alle 297 lokalen SHA-256-Prüfungen grün. Der Release-Satz ist bereits durch Commit
+`3c50d45` auf `origin/main` und `public/main` in GitHub gesichert; die Blossom-Adressen bleiben
+die ausliefernden Mirrors.
 
-Eine getrennte statische Domain kann den Socket per `?table=` und `TABLE_ORIGINS` erreichen.
-Die Open-Tables-API hat aktuell aber keine Cross-Origin-Freigabe. Same-Origin vermeidet diese
-zusätzliche Fehlerfläche und ist die Empfehlung für die erste öffentliche Version.
+## Ranked-Regel
 
-## Vertical-Slice-Plan
+Es gibt keinen künstlich kleineren „Certified“-Pool mehr: Casual und Ranked dürfen alle 295
+Karten verwenden, weil der gesamte Katalog gescriptet ist. Ranked ergänzt später Identitäts-,
+Matchmaking-, Zeit-, Ergebnis- und Ladder-Regeln, aber keine zweite Kartenregelmaschine.
 
-Jeder Slice endet in etwas Spielbarem und testet Hotseat und Remote über dieselbe Engine.
+## Nächste Vertical Slices
 
-### Slice 1 — Kampfregeln haben genau eine Wahrheit
+### Slice 1 — Public Unranked ausliefern
 
-- Eine öffentliche Engine-Funktion für Clash-Prognose/Schadensplan bereitstellen.
-- Die duplizierte Mathematik aus `site/play.js` entfernen und nur das Engine-Ergebnis rendern.
-- Mesh vollständig implementieren: Gruppen deklarieren, gemeinsames Blocken, Damage Routing
-  und Sitz-Entscheidungen.
-- Akzeptanz: Engine-, UI- und Remote-Tests für First Strike, Overflow, mehrere Blocker und Mesh;
-  die Vorschau ist nicht nur gleich, sondern stammt strukturell aus der Engine.
+- Same-Origin-TLS-Proxy und vollständige externe `wss://`-URL versionieren.
+- Origin-Port sperren und Proxy-Hop-Vertrauen exakt konfigurieren.
+- Zwei echte Geräte: NIP-07-Login, Create, Join, Resume und vollständiges Match.
+- Akzeptanz: keine Gäste, kein Mixed Content, Health/API/Socket unter einer HTTPS-Origin.
 
-### Slice 2 — Eine verständliche Deklarationsphase
+### Slice 2 — Kampfentscheidungen vollständig sichtbar machen
 
-- Targeting, Angriff und Blocken über ein einheitliches Drag-Modell.
-- Reihenfolge mehrerer Blocker sichtbar und änderbar machen.
-- Undo erlauben, solange die atomare Deklaration noch nicht an den Referee gesendet wurde.
-- Akzeptanz: Maus und Touch, legale Ziele sichtbar, keine zusätzliche Netzwerkaktion pro Drag.
+- Mehrfachblocker-Reihenfolge sichtbar und änderbar machen.
+- Mesh-Schadensrouting als bewusste Spielerentscheidung anbieten; der heutige automatische
+  Standard bleibt der sichere Fallback.
+- Undo für noch nicht abgesendete Angreifer-/Blocker-/Routing-Deklarationen.
+- Akzeptanz: Maus und Touch, eine atomare Netzwerkaktion pro Deklaration, Engine validiert alles.
 
-### Slice 3 — LAN und öffentliches Unranked wirklich ausliefern
+### Slice 3 — Verifizierte Ergebnisse
 
-- Same-Origin-Setup mit TLS-Reverse-Proxy als versionierte Konfiguration dokumentieren.
-- Eine vollständige externe Table-URL konfigurieren, Host/Origin prüfen und Proxy-Vertrauen nur
-  nach gesperrtem Direktzugriff mit exakt gemessener Hop-Zahl aktivieren.
-- Zwei-Geräte-LAN-Test und öffentlicher Create/Join/Resume/Full-Match-Test durchführen.
-- Akzeptanz: Invite-Link funktioniert auf einem zweiten Gerät; kein Mixed Content; Health,
-  Tabellenliste und WebSocket laufen unter derselben HTTPS-Origin.
+- Invite-, Accept- und Result-Event-IDs/Signaturen serverseitig prüfen.
+- Beide verifizierten Resultate mit der Sitzidentität verbinden.
+- Authority-Key republished nur bestätigte Matches für Ranked.
 
-### Slice 4 — NIP-07 als Login, nicht als Zugprotokoll
+### Slice 4 — Ranked spielbar machen
 
-- NIP-07 im Lobby-Einstieg verwenden und den angemeldeten npub sichtbar an den Sitz binden.
-- Gastmodus für Unranked bewusst erlauben oder bewusst abschalten; keine Signatur-Popups pro Zug.
-- Sitz-Token bleibt das schnelle Reconnect-Credential.
-- Akzeptanz: zwei echte Extensions, Login/Logout, Reload und Seat-Resume. Kryptografische
-  Serverprüfung von Ergebnisereignissen bleibt ausdrücklich ein späterer Ranked-Slice.
+- Matchmaking, Rundenzeit, Disconnect-/Forfeit-Regeln und Deck-Commitment.
+- Rating/Ladder erst nach verifiziertem Ergebnis aktualisieren.
+- Replay-/Dispute-Ansicht für Turnierbetrieb.
 
-### Slice 5 — Release-Assets aufräumen
+### Slice 5 — Bezahlter Mint
 
-- Zuerst ein unveränderliches Release/Tag mit den bisherigen Quellen und Generatorausgaben
-  erstellen.
-- Im aktiven Tree nur den freigegebenen Node-Runner-Websatz, Card Back, Promo und die dafür
-  nötigen Manifeste/Generatorquellen behalten; alte JPEG-/Zwischengenerationen auslagern.
-- Manifest, 297 Hashes, lokale Fallbacks und alle drei Blossom-Mirrors erneut verifizieren.
-- Akzeptanz: frischer Checkout zeigt jede veröffentlichte Karte, ohne alte Laufzeitpfade.
-
-### Slice 6 — Ranked als eigener deterministischer Modus
-
-- Ranked-Legalität auf vollständig gescriptete Karten/Decks begrenzen; `manual`/assisted bleibt
-  in Casual/Unranked sichtbar erlaubt, bis die jeweilige Karte gescriptet ist.
-- Danach Signaturprüfung, Matchmaking, Ergebnisbestätigung, Dispute-Regeln und Ladder ergänzen.
-- Akzeptanz: der Referee kann jede legale Ranked-Partie ohne menschliche Regelauslegung replayen;
-  beide Identitäten und das Ergebnis sind kryptografisch verifiziert.
-
-## Direkte nächste Entscheidung
-
-Die sinnvollste Reihenfolge ist Slice 1 → 2 → 3 → 4 → 5 → 6. Damit wird zuerst das Spiel
-regelrichtig und angenehm, dann erreichbar, danach identitätsfähig und erst anschließend
-ranked. Die offenen Detailentscheidungen stehen am Ende von [`BUGS.md`](BUGS.md).
+- LNURL-Ziel konfigurieren, Zahlung Ende-zu-Ende testen und Fehler-/Refund-Pfade belegen.

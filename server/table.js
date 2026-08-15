@@ -29,6 +29,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { DatabaseSync } = require("node:sqlite");
 const { WebSocketServer } = require("ws");
+const { schnorr } = require("@noble/curves/secp256k1");
 
 const REPO = path.resolve(__dirname, "..");
 const E = require(path.join(REPO, "site", "engine.js"));
@@ -59,6 +60,8 @@ const MAX_PAYLOAD = 64 * 1024;
 const MINT_ATTEMPTS = 40;
 const KIND_HANDSHAKE = 4600;
 const KIND_RESULT = 31600;
+const KIND_AUTH = 22242;
+const AUTH_MAX_AGE_SECONDS = 10 * 60;
 
 const nowIso = () => new Date().toISOString();
 const hex = (bytes) => crypto.randomBytes(bytes).toString("hex");
@@ -77,6 +80,7 @@ function makeCode() {
 }
 
 const isHex64 = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
+const isHex128 = (v) => typeof v === "string" && /^[0-9a-f]{128}$/.test(v);
 
 function pruneAddressRates(rates, now, windowMs) {
   for (const [address, timestamps] of rates) {
@@ -300,6 +304,7 @@ async function createTable(opts) {
   const matches = new Map();
   const byCode = new Map();
   const controlRates = new Map();
+  const authRates = new Map();
 
   // ------------------------------------------------------------ match minting
 
@@ -343,6 +348,7 @@ async function createTable(opts) {
           { name: seat1.name, affinity: seat1.affinity, pubkey: seat1.pubkey, salt: salts[1] },
         ],
         seeds,
+        policy: { freeform: "deny" },
       };
       try {
         return { config, state: E.createGame(config) };
@@ -493,6 +499,54 @@ async function createTable(opts) {
   };
   const fail = (ws, code, message) =>
     send(ws, { t: "ERROR", v: WIRE, code, message: message || code });
+
+  const eventId = (event) => crypto.createHash("sha256").update(JSON.stringify([
+    0, event.pubkey, event.created_at, event.kind, event.tags, event.content,
+  ])).digest("hex");
+
+  function authTag(event, name) {
+    const tags = Array.isArray(event.tags) ? event.tags : [];
+    const matches = tags.filter((tag) => Array.isArray(tag) && tag[0] === name && typeof tag[1] === "string");
+    return matches.length === 1 ? matches[0][1] : null;
+  }
+
+  function handleAuth(conn, msg) {
+    const event = msg.event;
+    const fresh = event && Number.isInteger(event.created_at) &&
+      Math.abs(Math.floor(Date.now() / 1000) - event.created_at) <= AUTH_MAX_AGE_SECONDS;
+    const shape = typeof conn.authChallenge === "string" && event &&
+      typeof event === "object" && event.kind === KIND_AUTH &&
+      event.content === "" && isHex64(event.pubkey) && isHex64(event.id) && isHex128(event.sig) &&
+      authTag(event, "challenge") === conn.authChallenge &&
+      authTag(event, "relay") === conn.authRelay;
+    const computed = shape ? eventId(event) : null;
+    let signatureOk = false;
+    if (fresh && computed === event.id) {
+      try {
+        signatureOk = schnorr.verify(event.sig, event.id, event.pubkey);
+      } catch (err) {
+        signatureOk = false;
+      }
+    }
+    if (!fresh || !shape || computed !== event.id || !signatureOk) {
+      return fail(conn.ws, "AUTH_FAILED", "invalid or expired NIP-42 authentication event");
+    }
+    conn.pubkey = event.pubkey;
+    conn.authChallenge = null; // one challenge, one proof; replay on this connection also fails
+    send(conn.ws, { t: "AUTH_OK", v: WIRE, pubkey: conn.pubkey, eventId: event.id });
+  }
+
+  function authenticatedPubkey(conn, msg) {
+    if (!conn.pubkey) {
+      fail(conn.ws, "NIP07_REQUIRED", "complete the signed NIP-42 challenge before opening a remote table");
+      return null;
+    }
+    if (msg.pubkey && String(msg.pubkey).toLowerCase() !== conn.pubkey) {
+      fail(conn.ws, "IDENTITY_MISMATCH", "the message pubkey differs from the authenticated NIP-07 identity");
+      return null;
+    }
+    return conn.pubkey;
+  }
 
   const viewFor = (rec, seat) => (rec.state ? E.view(rec.state, seat === undefined ? null : seat) : null);
 
@@ -693,15 +747,17 @@ async function createTable(opts) {
 
   const rateOk = (rec, seat) => meter(rec.rate, seat, rateMax);
   const rejectOk = (rec, seat) => meter(rec.rejectRate, seat, rejectMax);
-  const controlOk = (conn) => {
+  const addressOk = (rates, conn, max) => {
     const now = Date.now();
-    const hits = (controlRates.get(conn.address) || []).filter(
+    const hits = (rates.get(conn.address) || []).filter(
       (timestamp) => now - timestamp < RATE_WINDOW_MS
     );
     hits.push(now);
-    controlRates.set(conn.address, hits);
-    return hits.length <= controlMax;
+    rates.set(conn.address, hits);
+    return hits.length <= max;
   };
+  const controlOk = (conn) => addressOk(controlRates, conn, controlMax);
+  const authOk = (conn) => addressOk(authRates, conn, Math.max(5, controlMax));
 
   function kick(conn, why) {
     fail(conn.ws, "RATE_LIMITED", why);
@@ -860,7 +916,8 @@ async function createTable(opts) {
   function handleCreate(conn, msg) {
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
-    const pubkey = isHex64(msg.pubkey) ? msg.pubkey : null;
+    const pubkey = authenticatedPubkey(conn, msg);
+    if (!pubkey) return;
     const matchId = "m_" + hex(6);
     let code = makeCode();
     for (let i = 0; i < 20 && q.byCode.get(code); i++) code = makeCode();
@@ -876,9 +933,16 @@ async function createTable(opts) {
   }
 
   function handleJoin(conn, msg) {
+    const pubkey = authenticatedPubkey(conn, msg);
+    if (!pubkey) return;
     const code = String(msg.code || "").trim().toUpperCase();
     const rec = findByCode(code);
     if (!rec) return fail(conn.ws, "NO_SUCH_MATCH", "no table with that code");
+    // Open rows from builds before mandatory NIP-07 have no recoverable owner.
+    // Starting one would create a match whose host can never authenticate.
+    if (!rec.players[0] || !isHex64(rec.players[0].pubkey)) {
+      return fail(conn.ws, "NO_SUCH_MATCH", "that legacy table is no longer joinable");
+    }
     if (rec.status === "over") return fail(conn.ws, "MATCH_OVER", "that match is finished");
     if (rec.players[1]) return fail(conn.ws, "MATCH_FULL", "both seats are taken");
     /* A presenter who fumbles and types their OWN code into the join box used to
@@ -894,7 +958,6 @@ async function createTable(opts) {
 
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
-    const pubkey = isHex64(msg.pubkey) ? msg.pubkey : null;
     // Belt and braces for the same fumble from a second tab of the same login.
     if (pubkey && rec.players[0].pubkey === pubkey) {
       return fail(conn.ws, "MATCH_FULL", "you cannot take both seats at one table");
@@ -954,10 +1017,11 @@ async function createTable(opts) {
   }
 
   function handleResume(conn, msg) {
+    const pubkey = authenticatedPubkey(conn, msg);
+    if (!pubkey) return;
     const rec = loadMatch(String(msg.matchId || ""));
     if (!rec) return fail(conn.ws, "NO_SUCH_MATCH", "unknown match");
     const token = typeof msg.token === "string" ? msg.token : null;
-    const pubkey = isHex64(msg.pubkey) ? msg.pubkey : null;
 
     // The claim ladder, in strict priority order.
     let granted = null;
@@ -969,6 +1033,9 @@ async function createTable(opts) {
         if (rec.players[n] && rec.players[n].token === token) granted = n;
       }
       if (granted === null) downgradeReason = "unknown token";
+      else if (rec.players[granted].pubkey !== pubkey) {
+        return fail(conn.ws, "IDENTITY_MISMATCH", "the seat token belongs to another NIP-07 identity");
+      }
     }
     if (granted === null && pubkey) {
       for (const n of [0, 1]) {
@@ -981,7 +1048,7 @@ async function createTable(opts) {
       }
       if (granted === null && !downgradeReason) downgradeReason = "seat held by a live connection";
     }
-    if (granted === null && !token && !pubkey) downgradeReason = "no seat credential";
+    if (granted === null && !token) downgradeReason = "NIP-07 identity does not own a seat";
 
     if (granted === null) {
       /* NEVER a hard error: a stranger opening the link mid-match becomes an
@@ -1038,37 +1105,10 @@ async function createTable(opts) {
      * A seat may speak only under its own key. */
     const me = conn.seat === null ? null : rec.players[conn.seat];
     if (!me) return fail(conn.ws, "BAD_MESSAGE", "spectators cannot submit events");
-    const other = rec.players[1 - conn.seat];
     if (!me.pubkey) {
-      /* CLAIM ON FIRST USE. A player may sit down anonymously and only reach for
-       * the extension when there is finally something to sign — the lobby allows
-       * exactly that. The first key a seat speaks under becomes that seat's key;
-       * every later event must match it, so the cap of one row per seat holds
-       * either way. The seat is already authenticated by its token, so nobody
-       * else can do the claiming.
-       * The two seats must still hold DIFFERENT keys: nostr_events is keyed on
-       * (match, role, pubkey), so letting both claim the same one would collapse
-       * two results into a single row and make agreement meaningless. */
-      if (other && other.pubkey === ev.pubkey) {
-        return fail(conn.ws, "BAD_MESSAGE", "that pubkey is already claimed by the other seat");
-      }
-      me.pubkey = ev.pubkey;
-      q.setPubkey.run(conn.seat, ev.pubkey, conn.seat, ev.pubkey, nowIso(), rec.matchId);
-      /* Tell the room, so the panel stops calling a signed seat "anonymous" —
-       * on the final screen, who signed is the whole point. A full STATE only
-       * while nobody is mid-turn: adopting one clears the client's half-built
-       * target selection, which is fine between matches and rude during one.
-       * The signing beats (invite at 'open', result at 'over') are both there. */
-      if (rec.status === "playing") {
-        broadcast(rec, () => ({ t: "PEER", v: WIRE, seat: conn.seat, online: true }));
-      } else {
-        for (const s of [0, 1]) {
-          const ws = rec.conns[s];
-          if (ws && ws.conn) send(ws, stateMessage(rec, ws.conn));
-        }
-        for (const ws of rec.spectators) if (ws.conn) send(ws, stateMessage(rec, ws.conn));
-      }
-    } else if (ev.pubkey !== me.pubkey) {
+      return fail(conn.ws, "NIP07_REQUIRED", "this legacy seat has no NIP-07 identity");
+    }
+    if (ev.pubkey !== me.pubkey) {
       return fail(conn.ws, "BAD_MESSAGE", "a seat may only submit an event under its own pubkey");
     }
     // And a result before the match is over is not a result.
@@ -1131,7 +1171,10 @@ async function createTable(opts) {
     /* The TCP peer is authoritative. X-Forwarded-For is attacker input unless a
      * deployment explicitly establishes and validates a trusted proxy chain. */
     const address = req.socket.remoteAddress || "unknown";
-    const conn = { ws, rec: null, seat: null, tokenSent: false, address };
+    const conn = {
+      ws, rec: null, seat: null, tokenSent: false, address,
+      pubkey: null, authChallenge: hex(32), authRelay: publicTableUrl(),
+    };
     ws.conn = conn;
     ws.isAlive = true;
     ws.on("pong", () => { ws.isAlive = true; });
@@ -1156,11 +1199,14 @@ async function createTable(opts) {
         conn.rec && conn.seat !== null && msg.t === "ACT" &&
         msg.action && typeof msg.action === "object" &&
         typeof msg.action.type === "string";
-      if (!normalAct && !controlOk(conn)) {
+      const initialAuth = msg.t === "AUTH" && !conn.pubkey;
+      if (initialAuth && !authOk(conn)) return kick(conn, "too many authentication attempts");
+      if (!normalAct && !initialAuth && !controlOk(conn)) {
         return kick(conn, "too many control or bad messages");
       }
       try {
         switch (msg.t) {
+          case "AUTH": return handleAuth(conn, msg);
           case "CREATE": return handleCreate(conn, msg);
           case "JOIN": return handleJoin(conn, msg);
           case "ACT": return handleAct(conn, msg);
@@ -1178,12 +1224,17 @@ async function createTable(opts) {
 
     ws.on("close", () => detach(conn));
     ws.on("error", () => detach(conn));
+    send(ws, {
+      t: "AUTH", v: WIRE, challenge: conn.authChallenge,
+      relay: conn.authRelay, kind: KIND_AUTH, expiresIn: AUTH_MAX_AGE_SECONDS,
+    });
   });
 
   /* The ONLY reliable way to notice a slept laptop: its TCP connection dies
    * silently and would otherwise look alive forever. Two missed pongs = 30 s. */
   const heartbeat = setInterval(() => {
     pruneAddressRates(controlRates, Date.now(), RATE_WINDOW_MS);
+    pruneAddressRates(authRates, Date.now(), RATE_WINDOW_MS);
     for (const ws of wss.clients) {
       if (ws.isAlive === false) {
         try { ws.terminate(); } catch (err) { /* already gone */ }
@@ -1243,7 +1294,7 @@ async function createTable(opts) {
     if (pathname === "/api/tables") {
       // The RELAY-FREE join path: if every relay dies on stage, players still
       // see and join tables.
-      return json(res, 200, q.openTables.all().map((r) => ({
+      return json(res, 200, q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => ({
         matchId: r.match_id,
         code: r.code,
         name: r.seat0_name,

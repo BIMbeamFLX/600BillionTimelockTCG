@@ -19,6 +19,32 @@ E.setCatalog(CARDS);
 const byId = Object.fromEntries(CARDS.map((c) => [c.id, c]));
 const findCard = (test) => CARDS.find(test);
 
+/* Edition One has no assisted cards anymore. Keep the legacy manual-proposal
+ * security boundary covered with one test-only card instead of weakening the
+ * released catalog to make old fixtures possible. */
+const LEGACY_MANUAL_CARD = {
+  id: "TEST-MANUAL",
+  name: "Legacy Manual Fixture",
+  type: "Avatar",
+  subtype: "Test",
+  affinity: ["Neutral"],
+  cost: "0",
+  costParsed: { generic: 0 },
+  action: 1,
+  resilience: 1,
+  keywords: [],
+  abilities: [{
+    kind: "static",
+    cost: "",
+    text: "Target player gains 20 Uptime. Decommission target card in archive. Draw 7, generate 8 Resources, then commit it.",
+    ops: null,
+    manual: true,
+  }],
+  manual: true,
+};
+const MANUAL_CATALOG = E.buildCatalog(CARDS.concat([LEGACY_MANUAL_CARD]));
+byId[LEGACY_MANUAL_CARD.id] = LEGACY_MANUAL_CARD;
+
 const baseConfig = (over) =>
   Object.assign(
     {
@@ -31,8 +57,11 @@ const baseConfig = (over) =>
     over || {}
   );
 
-const act = (state, type, seat, payload) =>
-  E.apply(state, { type, seat, seq: state.seq, at: "", payload: payload || {} });
+const act = (state, type, seat, payload) => E.apply(
+  state,
+  { type, seat, seq: state.seq, at: "", payload: payload || {} },
+  state.catalogDigest === MANUAL_CATALOG.digest ? { catalog: MANUAL_CATALOG } : undefined
+);
 
 const ok = (result) => {
   assert.equal(result.error, null, JSON.stringify(result.error));
@@ -311,6 +340,66 @@ test("§5.2 Boot Delay applies to EVERY Avatar, and ends at its controller's Unl
   assert.equal(act(declaring, "DECLARE_ATTACKERS", 0, { attackers: [uid] }).error, null);
 });
 
+test("Mesh groups share blocked status and reject a second non-Mesh member", () => {
+  let state = E.createGame(baseConfig());
+  const meshCards = CARDS.filter((card) => card.keywords.some((keyword) => keyword.name === "Mesh"));
+  const ordinary = findCard((card) =>
+    card.type === "Avatar" && !card.keywords.length && card.action >= 2 && card.resilience >= 2
+  );
+  assert.ok(meshCards.length >= 2 && ordinary, "the catalog must contain the Mesh fixtures");
+  const meshOne = seed(state, 0, meshCards[0].id, { bootDelay: false });
+  const meshTwo = seed(state, 0, meshCards[1].id, { bootDelay: false });
+  const blocker = seed(state, 1, ordinary.id, { bootDelay: false });
+
+  state = passUntil(state, (current) => current.awaiting && current.awaiting.kind === "attackers");
+  state = ok(act(state, "DECLARE_ATTACKERS", 0, {
+    attackers: [{ uid: meshOne, mesh: "alpha" }, { uid: meshTwo, mesh: "alpha" }],
+  }));
+  assert.deepEqual(state.clash.meshGroups, { [meshOne]: "alpha", [meshTwo]: "alpha" });
+  state = passUntil(state, (current) => current.awaiting && current.awaiting.kind === "blockers");
+  const uptimeBefore = state.seats[1].uptime;
+  state = ok(act(state, "DECLARE_BLOCKERS", 1, { blocks: { [meshOne]: [blocker] } }));
+  assert.ok(state.clash.blockedOnce.includes(meshTwo), "blocking one Mesh member did not block its group");
+  state = passUntil(state, (current) => current.turn.phase !== "clash");
+  assert.equal(state.seats[1].uptime, uptimeBefore, "an unblocked Mesh member hit the player anyway");
+
+  let invalid = E.createGame(baseConfig({ seeds: { public: 54321, hidden: [333, 444] } }));
+  const mesh = seed(invalid, 0, meshCards[0].id, { bootDelay: false });
+  const plainOne = seed(invalid, 0, ordinary.id, { bootDelay: false });
+  const plainTwo = seed(invalid, 0, ordinary.id, { bootDelay: false });
+  invalid = passUntil(invalid, (current) => current.awaiting && current.awaiting.kind === "attackers");
+  const rejected = act(invalid, "DECLARE_ATTACKERS", 0, {
+    attackers: [
+      { uid: mesh, mesh: "too-many" },
+      { uid: plainOne, mesh: "too-many" },
+      { uid: plainTwo, mesh: "too-many" },
+    ],
+  });
+  assert.equal(rejected.error.code, "ILLEGAL_MESH");
+});
+
+test("blocking Mesh routes opposing damage into a deterministic legal sacrifice", () => {
+  let state = E.createGame(baseConfig({ seeds: { public: 65432, hidden: [555, 666] } }));
+  const meshCard = findCard((card) => card.keywords.some((keyword) => keyword.name === "Mesh"));
+  const attackerCard = findCard((card) => card.type === "Avatar" && !card.keywords.length && card.action >= 4);
+  const sturdyCard = findCard((card) => card.type === "Avatar" && !card.keywords.length && card.resilience >= 4);
+  assert.ok(meshCard && attackerCard && sturdyCard, "the catalog must contain damage-routing fixtures");
+  const attacker = seed(state, 0, attackerCard.id, { bootDelay: false });
+  const meshBlocker = seed(state, 1, meshCard.id, { bootDelay: false });
+  const sturdyBlocker = seed(state, 1, sturdyCard.id, { bootDelay: false });
+
+  state = passUntil(state, (current) => current.awaiting && current.awaiting.kind === "attackers");
+  state = ok(act(state, "DECLARE_ATTACKERS", 0, { attackers: [attacker] }));
+  state = passUntil(state, (current) => current.awaiting && current.awaiting.kind === "blockers");
+  state = ok(act(state, "DECLARE_BLOCKERS", 1, {
+    blocks: { [attacker]: [meshBlocker, sturdyBlocker] },
+  }));
+  state = passUntil(state, (current) => current.turn.phase !== "clash");
+  assert.equal(state.objects[meshBlocker], undefined, "the chosen Mesh sacrifice survived lethal damage");
+  assert.ok(state.objects[sturdyBlocker], "damage was spread onto the other blocker against Mesh routing");
+  assert.equal(state.objects[sturdyBlocker].damage, 0, "the protected blocker still took combat damage");
+});
+
 test("§13.2 a blocked attacker stays blocked after its blockers leave", () => {
   let state = E.createGame(baseConfig());
   const big = findCard((c) => c.type === "Avatar" && c.action >= 4 && !c.keywords.length);
@@ -473,7 +562,8 @@ test("the `uptime` op with target:player hits the TARGET seat, not the controlle
   let state = E.createGame(baseConfig());
   const before = [state.seats[0].uptime, state.seats[1].uptime];
   // Routed through the public manual door, which uses the same interpreter.
-  const uid = seed(state, 0, findCard((c) => c.manual && c.abilities.some((a) => a.manual)).id);
+  state = E.createGame(baseConfig(), { catalog: MANUAL_CATALOG });
+  const uid = seed(state, 0, LEGACY_MANUAL_CARD.id);
   const card = byId[state.objects[uid].cardId];
   const abilityIndex = card.abilities.findIndex((a) => a.manual);
   const result = act(state, "MANUAL_PROPOSE", 0, {
@@ -498,22 +588,11 @@ test("the `uptime` op with target:player hits the TARGET seat, not the controlle
  * to reach a later layer must warrant an ability whose printed text plausibly
  * authorises the op under test. `requiredOp` picks such a card. */
 function manualFixture(requiredOp) {
-  const state = E.createGame(baseConfig());
-  let card = null;
-  let abilityIndex = -1;
-  for (const candidate of CARDS) {
-    if (!candidate.type.includes("Avatar")) continue;
-    const compiled = E.compileCard(candidate);
-    const index = compiled.abilities.findIndex(
-      (a) => a.manual && (!requiredOp || a.manualEnvelope.ops.includes(requiredOp))
-    );
-    if (index >= 0) {
-      card = candidate;
-      abilityIndex = index;
-      break;
-    }
-  }
-  assert.ok(card, `no assisted Avatar ability with ${requiredOp} in its envelope`);
+  const state = E.createGame(baseConfig(), { catalog: MANUAL_CATALOG });
+  const card = LEGACY_MANUAL_CARD;
+  const abilityIndex = 0;
+  const envelope = MANUAL_CATALOG.byId[card.id].abilities[abilityIndex].manualEnvelope;
+  assert.ok(!requiredOp || envelope.ops.includes(requiredOp), `fixture lacks ${requiredOp}`);
   const uid = seed(state, 0, card.id, { bootDelay: false });
   return { state, uid, card, abilityIndex };
 }
