@@ -5083,6 +5083,19 @@
    * the same engine functions as the real clash. */
   function previewClash(source, declarations, ctx) {
     const state = cloneJson(source);
+    /* A REDACTED VIEW COUNTS TRIGGERS; THE REAL COMBAT CODE PUSHES TO THEM.
+     * view() ships pendingTriggers as {0: n, 1: n} — two numbers — because a
+     * seat may know HOW MANY triggers its opponent holds and never what they
+     * are. previewClash then runs the genuine applyCombatDamage/stateChecks
+     * over that clone, and any trigger raised during combat does
+     * `pendingTriggers[seat].push(...)` on a number: "push is not a function",
+     * thrown straight through the clash forecast, killing the board render
+     * mid-combat. It has always been reachable — several released cards raise
+     * triggers inside combat damage — and no test caught it only because no
+     * precon happens to contain one. */
+    for (const key of ["0", "1"]) {
+      if (!Array.isArray(state.pendingTriggers[key])) state.pendingTriggers[key] = [];
+    }
     const options = declarations || {};
     const env = { state, ctx: resolveCtx(ctx), events: [] };
     const requested = Array.isArray(options.attackers)
