@@ -11,7 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { get as httpGet } from "node:http";
+import { get as httpGet, request as httpRequest } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -402,6 +402,33 @@ function httpJsonWithHost(url, host) {
       }));
     });
     request.on("error", reject);
+  });
+}
+
+/* An HTTP read the way a BROWSER makes it — carrying an Origin, and handing back
+ * the response HEADERS, because for a cross-origin read the headers are the
+ * whole result. The body arrives either way; access-control-allow-origin is the
+ * only thing standing between the page and a silent, error-free empty lobby. */
+function httpWithOrigin(url, origin, method = "GET") {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const request = httpRequest({
+      method,
+      hostname: target.hostname,
+      port: target.port,
+      path: target.pathname,
+      headers: origin === null ? {} : { Origin: origin },
+    }, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => resolve({
+        status: response.statusCode,
+        headers: response.headers,
+        text: Buffer.concat(chunks).toString("utf8"),
+      }));
+    });
+    request.on("error", reject);
+    request.end();
   });
 }
 
@@ -1068,6 +1095,94 @@ test("browser WebSockets accept same-origin pages and reject foreign origins", a
     split.once("close", resolve);
     split.close();
   });
+});
+
+/* The other half of the SAME allowlist. A split deployment — pages on an nsite
+ * gateway, referee on its own host — gets its socket through verifyClient above,
+ * then dies at the lobby: the browser fetches /api/tables, gets 200, and throws
+ * the body away for want of one header. This is the read side of that one gate,
+ * and it must answer exactly who verifyClient answers. */
+test("cross-origin /api reads are allowed for TABLE_ORIGINS and refused to everyone else", async (t) => {
+  const table = await boot(t, "t29.db", { allowedOrigins: ["https://play.example"] });
+
+  const allowed = await httpWithOrigin(`${table.url}/api/tables`, "https://play.example");
+  assert.equal(allowed.status, 200);
+  assert.equal(allowed.headers["access-control-allow-origin"], "https://play.example");
+  // Echoed one at a time, never `*`: a wildcard would let any page on the
+  // internet enumerate open tables.
+  assert.notEqual(allowed.headers["access-control-allow-origin"], "*");
+  // Without this a shared cache could hand one origin another origin's verdict.
+  assert.equal(allowed.headers.vary, "origin");
+  // These reads are public; they must never ride on someone's ambient auth.
+  assert.equal(allowed.headers["access-control-allow-credentials"], undefined);
+
+  // The Origin header is compared case-insensitively, as the URL spec says.
+  const shouty = await httpWithOrigin(`${table.url}/api/tables`, "HTTPS://PLAY.EXAMPLE");
+  assert.equal(shouty.headers["access-control-allow-origin"], "https://play.example");
+
+  /* A stranger still gets a 200 with a body — the referee is not hiding it, the
+   * BROWSER is. What it must never get is permission to read it. */
+  const foreign = await httpWithOrigin(`${table.url}/api/tables`, "https://evil.example");
+  assert.equal(foreign.status, 200);
+  assert.equal(foreign.headers["access-control-allow-origin"], undefined);
+  assert.equal(foreign.headers.vary, "origin");
+
+  // Native clients and the headless verifier send no Origin and are unaffected.
+  const originless = await httpWithOrigin(`${table.url}/api/tables`, null);
+  assert.equal(originless.status, 200);
+  assert.equal(originless.headers["access-control-allow-origin"], undefined);
+  assert.deepEqual(JSON.parse(originless.text), []);
+
+  // All three JSON routes, including the error answers, carry the verdict.
+  for (const route of ["/api/health", "/api/tables", "/api/match/m_nope"]) {
+    const hit = await httpWithOrigin(`${table.url}${route}`, "https://play.example");
+    assert.equal(
+      hit.headers["access-control-allow-origin"],
+      "https://play.example",
+      `${route} must be readable cross-origin`,
+    );
+  }
+
+  // Preflight, in case a caller ever sends a header that triggers one.
+  const preflight = await httpWithOrigin(`${table.url}/api/tables`, "https://play.example", "OPTIONS");
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers["access-control-allow-origin"], "https://play.example");
+  assert.equal(preflight.headers["access-control-allow-methods"], "GET, OPTIONS");
+  assert.equal(preflight.text, "");
+
+  const foreignPreflight = await httpWithOrigin(`${table.url}/api/tables`, "https://evil.example", "OPTIONS");
+  assert.equal(foreignPreflight.status, 204);
+  assert.equal(foreignPreflight.headers["access-control-allow-origin"], undefined);
+
+  /* A preflight is answered AFTER the host gate, so it cannot be used to probe
+   * around a rebinding check that a plain GET would have failed. */
+  const rebound = await new Promise((resolve, reject) => {
+    const request = httpRequest({
+      method: "OPTIONS",
+      hostname: "127.0.0.1",
+      port: table.port,
+      path: "/api/tables",
+      headers: { Host: `rebind.attacker:${table.port}`, Origin: "https://play.example" },
+    }, (response) => {
+      response.resume();
+      resolve({ status: response.statusCode });
+    });
+    request.on("error", reject);
+    request.end();
+  });
+  assert.equal(rebound.status, 403);
+
+  // Static assets are not part of the API and stay same-origin.
+  const asset = await httpWithOrigin(`${table.url}/engine.js`, "https://play.example");
+  assert.equal(asset.status, 200);
+  assert.equal(asset.headers["access-control-allow-origin"], undefined);
+
+  /* A table that named NO origins is the default deployment, and it hands out no
+   * cross-origin read at all — the allowlist is opt-in, on both halves. */
+  const closed = await boot(t, "t30.db");
+  const refused = await httpWithOrigin(`${closed.url}/api/tables`, "https://play.example");
+  assert.equal(refused.status, 200);
+  assert.equal(refused.headers["access-control-allow-origin"], undefined);
 });
 
 test("browser WebSockets reject DNS-rebinding hosts", async (t) => {

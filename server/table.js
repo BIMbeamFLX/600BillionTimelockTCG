@@ -1267,25 +1267,65 @@ async function createTable(opts) {
     ".md": "text/markdown; charset=utf-8",
   };
 
-  function json(res, code, value) {
+  /* THE PAGE AND THE REFEREE CAN LIVE ON DIFFERENT ORIGINS, and when they do the
+   * lobby is dead without this: the browser opens the socket (that gate is
+   * Origin-checked in verifyClient) but silently refuses to read /api/tables, so
+   * the relay-free join path — the fallback for when every relay is down —
+   * returns nothing, with no error anyone can see.
+   *
+   * The allowance is EXACTLY the origins a deployment named in TABLE_ORIGINS,
+   * echoed back one at a time. No wildcard: `*` would let any page on the
+   * internet enumerate open tables and poll finished matches, and that same list
+   * already decides who may open a socket — so there is one answer to "who is
+   * this table for", not two that can drift apart.
+   *
+   * `vary` goes out even when the origin is refused: the verdict depends on the
+   * request's Origin, and a shared cache that missed that would hand one page
+   * another page's allowance. No allow-credentials — these reads are public and
+   * must never ride on someone's ambient auth. */
+  function corsHeaders(req) {
+    const origin = String((req && req.headers && req.headers.origin) || "").toLowerCase();
+    if (!origin || !allowedOrigins.has(origin)) return { vary: "origin" };
+    return {
+      vary: "origin",
+      "access-control-allow-origin": origin,
+      "access-control-allow-methods": "GET, OPTIONS",
+      "access-control-max-age": "600",
+    };
+  }
+
+  function json(res, code, value, req) {
     const body = JSON.stringify(value);
-    res.writeHead(code, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body) });
+    res.writeHead(code, Object.assign({
+      "content-type": "application/json; charset=utf-8",
+      "content-length": Buffer.byteLength(body),
+    }, corsHeaders(req)));
     res.end(body);
   }
 
   function serveHttp(req, res) {
-    if (!requestHostAllowed(req)) return json(res, 403, { error: "host not allowed" });
+    /* Every JSON answer carries this request's CORS verdict, so no call site can
+     * forget it and quietly break a cross-origin lobby. */
+    const reply = (code, value) => json(res, code, value, req);
+    if (!requestHostAllowed(req)) return reply(403, { error: "host not allowed" });
+    /* Answered after the host gate so a rebinding probe cannot preflight its way
+     * around it, and before routing because a preflight names the method it is
+     * asking about — it is not itself a read of any route. */
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, corsHeaders(req));
+      return res.end();
+    }
     let url;
     let pathname;
     try {
       url = new URL(req.url, "http://localhost");
       pathname = decodeURIComponent(url.pathname);
     } catch (err) {
-      return json(res, 400, { error: "bad url" });
+      return reply(400, { error: "bad url" });
     }
 
     if (pathname === "/api/health") {
-      return json(res, 200, {
+      return reply(200, {
         ok: true,
         matches: matches.size,
         uptime: Math.round((Date.now() - startedAt) / 1000),
@@ -1294,7 +1334,7 @@ async function createTable(opts) {
     if (pathname === "/api/tables") {
       // The RELAY-FREE join path: if every relay dies on stage, players still
       // see and join tables.
-      return json(res, 200, q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => ({
+      return reply(200, q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => ({
         matchId: r.match_id,
         code: r.code,
         name: r.seat0_name,
@@ -1306,7 +1346,7 @@ async function createTable(opts) {
     if (pathname.startsWith("/api/match/")) {
       const id = pathname.slice("/api/match/".length);
       const row = q.byId.get(id);
-      if (!row) return json(res, 404, { error: "NO_SUCH_MATCH" });
+      if (!row) return reply(404, { error: "NO_SUCH_MATCH" });
       /* OUT-OF-BAND VERIFICATION IS A POST-MATCH ACT. `config` carries the two
        * hidden seeds, which generate both decklists, both shuffles and every
        * future draw — anyone holding them can reconstruct the opponent's hand
@@ -1317,7 +1357,7 @@ async function createTable(opts) {
        * The full bundle still reaches both seats in OVER, and lands here the
        * moment the match is finished, which is when verification is the point. */
       if (row.status !== "over") {
-        return json(res, 200, {
+        return reply(200, {
           matchId: row.match_id,
           status: row.status,
           headSeq: row.head_seq,
@@ -1325,7 +1365,7 @@ async function createTable(opts) {
           publicHash: row.public_hash,
         });
       }
-      return json(res, 200, {
+      return reply(200, {
         matchId: row.match_id,
         status: row.status,
         config: row.config_json === "{}" ? null : JSON.parse(row.config_json),
