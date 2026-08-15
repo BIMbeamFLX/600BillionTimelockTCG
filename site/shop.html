@@ -12,50 +12,184 @@
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
 <style>
-.shop-head { display: grid; gap: 26px; grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr); align-items: start; }
+/* ---------------------------------------------------------------------------
+ * Shop-local styling only. The palette, the frame, the banner chips, the
+ * terminal line and the buttons all come from 600b.css — nothing new is
+ * invented here, the page just arranges the card frame's own parts.
+ * ------------------------------------------------------------------------ */
+
+/* Author-sheet display rules outrank the UA's [hidden], so state it once. */
+[hidden] { display: none !important; }
+
+.shop-head { display: grid; gap: 26px; grid-template-columns: minmax(0, 1.25fr) minmax(268px, .75fr); align-items: start; }
 @media (max-width: 900px) { .shop-head { grid-template-columns: 1fr; } }
 
 .mode-demo { border-color: var(--power); }
 .mode-mint { border-color: var(--bitcoin); }
+.mode-off { border-color: var(--danger); border-style: solid; }
+.mode-off strong { color: var(--danger); }
 
-/* The pack: five backs that turn over one after another. */
-.tray { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin: 28px 0 14px; perspective: 1400px; }
-.pull { width: clamp(96px, 15vw, 152px); aspect-ratio: 5/7; position: relative; }
-.pull__inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .5s cubic-bezier(.2,.7,.3,1); }
+/* The banner reads like the card's type banner, with the paid state on it. */
+.bay-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.state { display: inline-block; padding: 4px 10px 5px; border: 1px solid var(--line);
+  font: 10px/1.3 var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-dim); }
+.state--off { color: var(--danger); border-color: var(--danger); }
+.state--live { color: var(--good); border-color: var(--good); }
+
+/* ------------------------------------------------------------- the pack bay */
+
+/* The bay carries the frame's circuit traces: one bus under the arc, two
+   stubs into it, PCB pads at the ends. Decoration only, never hit-tested. */
+.bay { position: relative; margin: 6px 0 2px; }
+.bay::after {
+  content: ""; position: absolute; left: 4%; right: 4%; bottom: 12px; height: 9px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, var(--line-strong) 12%, var(--line-strong) 88%, transparent) 0 100% / 100% 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) 26% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) 74% 0 / 1px 100% no-repeat;
+  opacity: .75; transition: opacity .3s ease;
+}
+.bay--charged::after { opacity: 1; filter: drop-shadow(0 0 6px rgba(255, 106, 0, .8)); }
+
+/* Cards sit on an arc — the straight rank is godless. JS writes --rot/--lift
+   per card and --n for the row width, exactly as the table does. */
+.tray {
+  --tray-gap: clamp(5px, 1.5vw, 14px);
+  --n: 5;
+  display: flex; justify-content: center; align-items: flex-end;
+  gap: var(--tray-gap); padding: 30px 0 34px; perspective: 1500px;
+}
+.pull {
+  position: relative; flex: 0 0 auto;
+  width: calc((100% - (var(--n) - 1) * var(--tray-gap)) / var(--n));
+  max-width: 152px; aspect-ratio: 5/7; cursor: pointer;
+  transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px));
+  transition: transform .18s ease;
+}
+.pull:hover, .pull:focus-visible { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 10px)) scale(1.04); z-index: 4; }
+.pull__inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.2, .8, .25, 1); }
 .pull.flipped .pull__inner { transform: rotateY(180deg); }
-.pull__face { position: absolute; inset: 0; backface-visibility: hidden; border: 1px solid var(--line); }
+.pull__face { position: absolute; inset: 0; backface-visibility: hidden; border: 1px solid var(--line); background: var(--soot); }
 .pull__face img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pull__front { transform: rotateY(180deg); }
+
+/* The escalation: a common turns straight over, better cards charge first.
+   The deal uses the INDEPENDENT translate/scale properties, never `transform`
+   — the arc owns transform on .pull and the flip owns it on .pull__inner, and
+   a filled keyframe on either would quietly cancel them. */
+@keyframes pullDeal { from { opacity: 0; translate: 0 30px; scale: .93; } to { opacity: 1; translate: none; scale: none; } }
+@keyframes pullCharge {
+  0%, 100% { box-shadow: 0 0 0 1px var(--line); }
+  50% { box-shadow: 0 0 0 2px var(--ember), 0 0 26px rgba(255, 106, 0, .55); }
+}
+@keyframes pullBurst { from { opacity: .9; transform: translate(-50%, -50%) scale(.4); } to { opacity: 0; transform: translate(-50%, -50%) scale(2.4); } }
+.pull { animation: pullDeal .3s ease-out backwards; animation-delay: calc(var(--i, 0) * .055s); }
+.pull.charging .pull__back { animation: pullCharge .5s ease-in-out infinite; }
+.pull.rarity-rare.charging .pull__back { animation-duration: .3s; }
+
+.pull__burst {
+  position: absolute; left: 50%; top: 50%; width: 100%; aspect-ratio: 1; border-radius: 50%;
+  border: 2px solid var(--ember); opacity: 0; pointer-events: none;
+  transform: translate(-50%, -50%) scale(.4);
+}
+.pull.flipped.rarity-rare .pull__burst { animation: pullBurst .85s ease-out .2s 1 both; }
+.pull.flipped.rarity-uncommon .pull__burst { border-color: var(--purple); animation: pullBurst .7s ease-out .2s 1 both; }
+
 .pull__rarity {
-  position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%); white-space: nowrap;
   padding: 3px 8px; background: var(--steel); color: #cfd6dd;
-  font: 9px/1 var(--display); letter-spacing: .16em; opacity: 0; transition: opacity .3s ease .45s;
+  font: 9px/1 var(--display); letter-spacing: .16em; opacity: 0; transition: opacity .3s ease .42s;
 }
 .pull.flipped .pull__rarity { opacity: 1; }
-.pull.rarity-uncommon.flipped .pull__front { box-shadow: 0 0 0 2px var(--purple), 0 0 22px rgba(185,145,228,.5); }
-.pull.rarity-rare.flipped .pull__front { box-shadow: 0 0 0 2px var(--ember), 0 0 34px rgba(255,106,0,.75); }
+.pull.rarity-uncommon.flipped .pull__front { box-shadow: 0 0 0 2px var(--purple), 0 0 22px rgba(185, 145, 228, .5); }
+.pull.rarity-rare.flipped .pull__front { box-shadow: 0 0 0 2px var(--ember), 0 0 34px rgba(255, 106, 0, .75); }
 .pull.rarity-rare.flipped .pull__rarity { background: var(--ember); color: var(--black); }
+.pull__new {
+  position: absolute; right: -4px; top: -7px; padding: 2px 5px;
+  background: var(--power); color: var(--black); font: 900 9px/1 var(--body); letter-spacing: .1em;
+}
 
-.pack-note { min-height: 24px; text-align: center; color: var(--muted); font-size: 14px; }
-.pack-cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 8px; }
+/* Reduced motion: the same information, delivered at once and held still. */
+@media (prefers-reduced-motion: reduce) {
+  .pull, .pull:hover, .pull:focus-visible { transition: none; transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)); }
+  .pull { animation: none; }
+  .pull__burst { display: none; }
+  .pull.charging .pull__back { animation: none; box-shadow: 0 0 0 2px var(--ember); }
+  .pull__rarity { transition: none; }
+}
 
-.facts { display: grid; gap: 10px; }
+.pack-note { min-height: 24px; margin-top: 4px; text-align: center; color: var(--muted); font-size: 14px; }
+.pack-note.is-rare { color: var(--ember); }
+.pack-note.is-error { color: var(--danger); }
+.pack-cta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 10px; }
+.slot { margin-top: 6px; text-align: right; color: var(--ink-dim); font-family: var(--mono); font-size: 11px; letter-spacing: .06em; }
+
+/* Box depletion, drawn as a trace filling up. */
+.meter { height: 4px; margin-top: 16px; background: var(--soot); border: 1px solid var(--line); }
+.meter i { display: block; height: 100%; background: var(--ember); transition: width .4s ease; }
+
+/* --------------------------------------------------------------- the facts */
+
+.facts { display: grid; gap: 2px; }
 .fact { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .fact span { color: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-size: 11px; font-weight: 900; }
 .fact b { font-family: var(--mono); font-weight: 400; font-size: 12px; word-break: break-all; text-align: right; }
-.odds { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
-.odd { text-align: center; padding: 8px 12px; background: var(--soot); border: 1px solid var(--line); }
+.odds { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.odd { flex: 1 1 74px; text-align: center; padding: 8px 10px; background: var(--soot); border: 1px solid var(--line); }
 .odd b { display: block; font: 20px/1 var(--display); color: var(--power); }
 .odd span { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.odd.rarity-uncommon { border-color: var(--purple); }
+.odd.rarity-rare { border-color: var(--ember); }
+.odd.rarity-rare b { color: var(--ember); }
 
-.owned-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
-.owned { position: relative; border: 1px solid var(--line); }
+/* ------------------------------------------------------------- the proof */
+
+.proof-hash {
+  display: block; margin: 16px 0 12px; padding: 14px 16px;
+  background: var(--soot); border: 1px solid var(--line); border-left: 3px solid var(--ember);
+  font-family: var(--mono); font-size: clamp(11px, 2.5vw, 14px); line-height: 1.7;
+  word-break: break-all; color: var(--cream);
+}
+.proof-hash small { display: block; margin-bottom: 6px; color: var(--ink-dim); font: 900 10px/1 var(--body); letter-spacing: .18em; text-transform: uppercase; }
+.verdict { margin-top: 12px; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.verdict.ok { color: var(--good); }
+.verdict.bad { color: var(--danger); }
+
+/* --------------------------------------------------------- the collection */
+
+.counters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.owned-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.owned { position: relative; border: 1px solid var(--line); cursor: pointer; transition: border-color .12s ease, transform .12s ease; }
+.owned:hover, .owned:focus-visible { border-color: var(--ember); transform: translateY(-3px); }
 .owned img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
 .owned.rarity-uncommon { border-color: var(--purple); }
 .owned.rarity-rare { border-color: var(--ember); }
 .owned__n { position: absolute; right: 3px; top: 3px; padding: 2px 5px; background: var(--ember); color: var(--black); font: 900 11px/1 var(--body); }
 .muted { color: var(--muted); font-size: 14px; }
-.counters { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+.tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 4px; }
+.tool-note { color: var(--muted); font-size: 13px; min-height: 20px; }
+
+/* ------------------------------------------------------------ pull history */
+
+.hists { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.hist { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 12px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--line); }
+.hist__n { font: 12px/1 var(--display); letter-spacing: .12em; color: var(--ember); }
+.hist__box { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); letter-spacing: .04em; }
+.hist__cards { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.hist__c { padding: 2px 7px; border: 1px solid var(--line); background: var(--soot); color: var(--muted); font-size: 12px; }
+.hist__c.rarity-uncommon { border-color: var(--purple); color: var(--purple); }
+.hist__c.rarity-rare { border-color: var(--ember); color: var(--ember); }
+.hist__c i { font-style: normal; margin-left: 6px; color: var(--power); font-size: 9px; font-weight: 900; letter-spacing: .1em; }
+@media (min-width: 720px) {
+  .hist { grid-template-columns: auto auto auto minmax(0, 1fr); }
+  .hist__cards { grid-column: auto; }
+}
+
+@media (max-width: 420px) {
+  .owned-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+  .pack-cta .btn { flex: 1 1 100%; text-align: center; }
+}
 </style>
 </head>
 <body>
@@ -81,36 +215,92 @@
     <h2>Open a pack. <span class="accent">Check the maths.</span></h2>
     <p class="lead">One box of <b id="boxSize">—</b> cards was shuffled once, from a published seed, and
     the SHA-256 over that exact order was committed before a single pack was opened. Every pull comes off
-    the top. Nobody can reshuffle to keep a rare back — and when the box is empty the order is revealed so
-    you can replay it yourself.</p>
+    the top. Nobody can reshuffle to keep a rare back — and you can re-hash the whole box in your own
+    browser, on this page, in about a second.</p>
 
     <div class="shop-head">
       <div class="framed">
         <span class="pad tl"></span><span class="pad tr"></span>
         <span class="pad bl"></span><span class="pad br"></span>
-        <div class="banner">Booster // <span id="packSize">5</span> cards · <span id="packPrice">free</span></div>
-        <div class="note" id="modeNote" style="margin-top:12px"></div>
-        <div class="tray" id="packTray" hidden></div>
-        <p class="pack-note" id="packNote"></p>
-        <div class="pack-cta">
-          <button class="btn" id="openPack">Open a free pack</button>
-          <button class="btn btn--ghost btn--small" id="resetBox">Reset demo box</button>
+
+        <div class="bay-head">
+          <div class="banner">Booster // <span id="packSize">5</span> cards · <span id="packPrice">free</span></div>
+          <!-- The no-JS default is the true one: JS only upgrades this if a mint exists. -->
+          <span class="state state--off" id="paidState">PAID · NOT LIVE YET</span>
         </div>
-        <div class="terminal-line" style="margin-top:18px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span><span id="boxLeft">—</span>&nbsp;LEFT&nbsp;IN&nbsp;BOX</span></div>
+
+        <div class="note mode-demo" id="modeNote" style="margin-top:12px"></div>
+        <div class="note mode-off" id="paidNote" style="margin-top:10px" hidden></div>
+
+        <div class="bay" id="packBay">
+          <div class="tray" id="packTray" hidden></div>
+        </div>
+
+        <p class="pack-note" id="packNote" role="status" aria-live="polite"></p>
+
+        <div class="pack-cta">
+          <button class="btn" id="openPack" type="button">Open a free pack</button>
+          <button class="btn btn--ghost btn--small" id="revealAll" type="button" hidden>Turn them all over</button>
+          <button class="btn btn--ghost btn--small" id="resetBox" type="button" hidden>Reset demo box</button>
+        </div>
+
+        <div class="meter" aria-hidden="true"><i id="boxFill" style="width:100%"></i></div>
+        <div class="terminal-line" style="margin-top:8px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span><span id="boxLeft">—</span>&nbsp;LEFT&nbsp;IN&nbsp;BOX</span></div>
+        <p class="slot" id="packSlot"></p>
       </div>
 
       <aside class="panel panel--act">
-        <h3>The commitment</h3>
-        <p style="margin-bottom:12px">Published before the first sale. Anyone holding the revealed order can recompute it.</p>
-        <div class="facts">
-          <div class="fact"><span>Box sha256</span><b id="boxCommit">—</b></div>
-          <div class="fact"><span>Shuffle seed</span><b id="boxSeed">—</b></div>
-        </div>
-        <h3 style="margin-top:20px">Pull odds</h3>
+        <h3>Pull odds</h3>
+        <p style="margin-bottom:10px">Rarity is copies in the box, exactly like a printed booster box — not a hidden dice roll.</p>
         <div class="odds" id="odds"></div>
-        <p class="muted" style="margin-top:12px">Rarity is copies in the box, exactly like a printed booster box — not a hidden dice roll.</p>
+        <h3 style="margin-top:22px">This box</h3>
+        <div class="facts">
+          <div class="fact"><span>Shuffle seed</span><b id="boxSeed">—</b></div>
+          <div class="fact"><span>Cards in box</span><b id="boxTotal">—</b></div>
+          <div class="fact"><span>Cards per pack</span><b id="packSizeFact">—</b></div>
+        </div>
+        <p class="muted" style="margin-top:12px">Right-click any card on this page for its gallery entry.
+        Left-click sends it to the <a href="deck.html">Stack Builder</a>.</p>
       </aside>
     </div>
+  </section>
+
+  <section class="section section--tight">
+    <h2>Nobody can <span class="accent">reshuffle this box</span></h2>
+    <p class="lead">Card shops ask you to trust them. This one hands you the receipt instead.</p>
+
+    <div class="grid grid--3">
+      <div class="panel">
+        <h3>1 · The order was fixed first</h3>
+        <p>The box was shuffled once, from a published seed, and then fingerprinted with SHA-256.
+        That fingerprint went public before the first pack was opened. Move one card and the whole
+        fingerprint changes — there is no quiet edit.</p>
+      </div>
+      <div class="panel">
+        <h3>2 · Packs come off the top</h3>
+        <p>Every pack takes the next cards in that fixed order. No re-roll when you are lucky, no
+        top-up when you are not, no card held back for someone else. The counter above is your place
+        in the box.</p>
+      </div>
+      <div class="panel">
+        <h3>3 · You check it, not us</h3>
+        <p>Press the button below. Your browser hashes the entire card order itself and compares the
+        result with the published fingerprint. If they match, this box is the box that was promised.</p>
+      </div>
+    </div>
+
+    <div class="proof-hash"><small>Published box fingerprint · SHA-256</small><span id="boxCommit">—</span></div>
+
+    <div class="btn-row">
+      <button class="btn" id="verifyBox" type="button">Verify this box in my browser</button>
+      <button class="btn btn--ghost btn--small" id="copyCommit" type="button">Copy the fingerprint</button>
+    </div>
+    <p class="verdict" id="verifyResult">Not checked yet.</p>
+
+    <p class="note" style="margin-top:20px"><strong>The honest footnote:</strong> during alpha the full card
+    order ships inside this page, which is exactly why you can verify it right now. When the mint is live
+    the order stays sealed until the box is empty; the reveal is published then and this same check runs
+    against it. The recipe is plain: SHA-256 over every card id in box order, each followed by a zero byte.</p>
   </section>
 
   <section class="section section--tight">
@@ -118,11 +308,24 @@
     <div class="counters">
       <div><b class="chip-num"><b id="ownedCount">0</b><span>CARDS</span></b></div>
       <div><b class="chip-num"><b id="uniqueCount">0</b><span>UNIQUE</span></b></div>
+      <div><b class="chip-num"><b id="dupeCount">0</b><span>DUPES</span></b></div>
     </div>
     <div class="owned-grid" id="collection"></div>
-    <p class="muted" style="margin-top:14px">Right-click any pulled card to open it in the gallery.
-    During alpha your collection is stored in this browser only — it is a playground, not a ledger.
-    Build decks from the full set any time in the <a href="deck.html">Stack Builder</a>.</p>
+    <div class="tools" id="collectionTools" hidden>
+      <button class="btn btn--small" id="sendStack" type="button">Send everything to the Stack Builder</button>
+      <a class="btn btn--ghost btn--small" href="deck.html">Open the Stack Builder</a>
+    </div>
+    <p class="tool-note" id="stackNote" role="status" aria-live="polite"></p>
+    <p class="muted" style="margin-top:6px">Left-click a card to add it to the <b>Booster pulls</b> Stack; right-click
+    opens its gallery entry. Duplicates stack up as ×N — a Stack has no copy limit in Edition One, so extras are
+    playable, not dead weight. During alpha your collection lives in this browser only: it is a playground, not a ledger.</p>
+  </section>
+
+  <section class="section section--tight" id="historyBlock" hidden>
+    <h2>What you <span class="accent">pulled</span></h2>
+    <p class="lead">Every pack, with the slice of the box it came off. These positions are the ones the
+    fingerprint above covers — you can point at any row and check it against the revealed order.</p>
+    <ol class="hists" id="historyList"></ol>
   </section>
 
   <section class="section section--tight">
@@ -132,8 +335,10 @@
       <div class="panel"><h3>2 · The box pulls</h3><p>A settled payment claims the next card off the same committed box. Same order, same odds, no re-roll on the operator's side.</p></div>
       <div class="panel"><h3>3 · It is yours</h3><p>The card is issued as a signed event and the art is content-addressed on Blossom — the hash is the address, so any mirror serves the same bytes.</p></div>
     </div>
-    <p class="note" style="margin-top:20px"><strong>Alpha status:</strong> packs are free and local while the mint is being wired up.
-    Nothing on this page moves money, and no purchase is implied. When the mint goes live, this same button asks for an invoice instead.</p>
+    <p class="note mode-off" style="margin-top:20px"><strong>Paid packs are not live.</strong> There is no mint
+    connected to this page, so nothing here can take money, and no purchase is implied anywhere on it.
+    Alpha packs are free, local to this browser, and drawn from the same committed box at the same odds.
+    When the mint is wired up, the button above asks for an invoice instead — everything else stays as it is.</p>
   </section>
 </main>
 

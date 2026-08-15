@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#09080b">
-<meta name="description" content="Learn 600B Timelock TCG in five minutes: the goal, the turn, Resources, the Buffer burn, and your first clash.">
+<meta name="description" content="Learn 600B Timelock TCG in five minutes: the goal, the eight steps of a turn, Resources, the Buffer burn, and your first clash.">
 <meta property="og:title" content="600B Timelock TCG — Play in 5 minutes">
 <meta property="og:description" content="Six steps from never having seen the game to winning your first clash.">
 <meta property="og:type" content="article">
@@ -12,7 +12,10 @@
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
 <style>
-.qs-hero { position: relative; overflow: hidden; padding: clamp(40px, 7vw, 84px) var(--pad) clamp(32px, 5vw, 60px); }
+/* Page-local only. Tokens, nav, footer, buttons, .framed / .banner / .chip-num
+   and the terminal line all come from 600b.css — this file invents no colour. */
+
+.qs-hero { position: relative; overflow: hidden; padding: clamp(40px, 7vw, 84px) var(--pad) clamp(30px, 5vw, 56px); }
 .qs-hero::before {
   content: ""; position: absolute; inset: 0; z-index: 0;
   background: url("../art/world-plates/power.png") center 35% / cover no-repeat;
@@ -21,22 +24,57 @@
 .qs-hero::after { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, rgba(9,8,11,.72), rgba(9,8,11,.35) 45%, var(--black)); }
 .qs-hero > * { position: relative; z-index: 1; }
 
-.step { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 220px); gap: 26px; align-items: start; margin-bottom: 8px; }
-.step--flip { grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); }
+/* ---------------------------------------------------------- the goal line */
+
+.goal { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 26px 0 4px; }
+.goal .chip-num { min-width: 74px; padding: 8px 12px 10px; }
+.goal .chip-num b { font-size: 34px; }
+.goal .chip-num span { font-size: 9px; }
+.goal .arrowto { color: var(--ember); font: 22px/1 var(--display); }
+.goal .chip-num.zero b { color: var(--ember); }
+.goal p { max-width: 34ch; color: var(--muted); font-size: 14px; }
+
+/* ------------------------------------------------------------ turn ribbon */
+/* The eight visible slots of the printed turn, in the engine's own order
+   (engine.js TURN_RIBBON). Ember = the two slots where you make things. */
+
+.ribbon { display: flex; gap: 6px; flex-wrap: wrap; margin: 20px 0 8px; padding: 0; list-style: none; }
+.ribbon li {
+  flex: 1 1 96px; min-width: 88px; padding: 10px 8px 11px;
+  background: var(--soot); border: 1px solid var(--line); border-top: 3px solid var(--purple-deep);
+  text-align: center;
+}
+.ribbon li b { display: block; font: 14px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.ribbon li span { display: block; margin-top: 5px; color: var(--ink-dim); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; }
+.ribbon li.you { border-top-color: var(--ember); background: var(--panel); }
+.ribbon li.you span { color: var(--ember); }
+
+/* ------------------------------------------------------------------ steps */
+
+.step { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 210px); gap: 26px; align-items: start; }
+.step--flip { grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); }
 .step--flip .step__body { order: 2; }
-@media (max-width: 760px) { .step, .step--flip { grid-template-columns: 1fr; } .step--flip .step__body { order: 0; } .step__art { max-width: 190px; } }
+.step--wide { grid-template-columns: 1fr; }
+@media (max-width: 760px) {
+  .step, .step--flip { grid-template-columns: 1fr; }
+  .step--flip .step__body { order: 0; }
+  .step__art { max-width: 190px; }
+}
 
 .step__n { display: inline-block; margin-bottom: 10px; padding: 5px 12px 6px; background: var(--ember); color: var(--black); font: 12px/1 var(--display); letter-spacing: .18em; }
 .step__body h3 { margin-bottom: 8px; font-size: clamp(20px, 2.6vw, 28px); }
 .step__body p { color: var(--muted); margin-bottom: 10px; }
 .step__body b { color: var(--cream); }
-.step__art img { display: block; width: 100%; border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.55); }
+.step__art { margin: 0; }
+.step__art img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.55); }
 .step__art figcaption { margin-top: 7px; text-align: center; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 
 .warn { border-color: var(--danger); }
 .warn strong { color: var(--danger); }
 
-.zones { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0 4px; }
+/* --------------------------------------------------------- small clusters */
+
+.zones { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin: 14px 0 4px; }
 .zone-card { padding: 12px 14px; background: var(--soot); border: 1px solid var(--line); border-left: 3px solid var(--purple-deep); }
 .zone-card b { display: block; font: 14px/1.2 var(--display); letter-spacing: .06em; margin-bottom: 4px; }
 .zone-card span { color: var(--muted); font-size: 12.5px; }
@@ -47,7 +85,36 @@
 
 .resline { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 0 6px; }
 .resline .r { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
-hr.rule { height: 1px; border: 0; margin: 40px 0; background: linear-gradient(90deg, transparent, var(--line), transparent); }
+
+/* The clash beats, read left to right. */
+.beats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 16px 0 6px; counter-reset: beat; }
+.beat { position: relative; padding: 14px 14px 14px 42px; background: var(--soot); border: 1px solid var(--line); color: var(--muted); font-size: 13.5px; }
+.beat::before {
+  counter-increment: beat; content: counter(beat);
+  position: absolute; left: 12px; top: 12px;
+  display: grid; place-items: center; width: 20px; height: 20px;
+  background: var(--ember); color: var(--black); font: 12px/1 var(--display);
+}
+.beat b { color: var(--cream); }
+
+hr.rule { height: 1px; border: 0; margin: 38px 0; background: linear-gradient(90deg, transparent, var(--line), transparent); }
+
+/* ------------------------------------------------------------- the fan */
+/* "Die gerade Linie ist gottlos" — the closing row of cards is an arc, the
+   same bend the table gives your Network. Static transforms, so there is
+   nothing here for prefers-reduced-motion to switch off. */
+
+.fan { display: flex; justify-content: center; align-items: flex-end; gap: 0; margin: 6px auto 22px; padding-top: 26px; }
+.fan img {
+  width: clamp(64px, 15vw, 116px); aspect-ratio: 5/7; object-fit: cover;
+  border: 1px solid var(--line-strong); box-shadow: 0 14px 34px rgba(0,0,0,.6);
+  transform-origin: 50% 130%;
+}
+.fan img:nth-child(1) { transform: rotate(-13deg) translateY(16px); margin-right: -13px; }
+.fan img:nth-child(2) { transform: rotate(-6.5deg) translateY(5px); margin-right: -13px; }
+.fan img:nth-child(3) { transform: rotate(0deg); z-index: 2; }
+.fan img:nth-child(4) { transform: rotate(6.5deg) translateY(5px); margin-left: -13px; }
+.fan img:nth-child(5) { transform: rotate(13deg) translateY(16px); margin-left: -13px; }
 </style>
 </head>
 <body>
@@ -61,7 +128,7 @@ hr.rule { height: 1px; border: 0; margin: 40px 0; background: linear-gradient(90
     <a class="link" href="shop.html">Shop</a>
     <a class="link" href="cards.html">Cards</a>
     <a class="link" href="deck.html">Stacks</a>
-    <a class="link" href="rules.html" aria-current="page">Rules</a>
+    <a class="link" href="rules.html">Rules</a>
     <a class="link" href="lore.html">Lore</a>
     <a class="link" href="leaderboard.html">Leaderboard</a>
   </div>
@@ -82,13 +149,21 @@ hr.rule { height: 1px; border: 0; margin: 40px 0; background: linear-gradient(90
 <main id="main">
 <section class="section">
 
-  <div class="step">
+  <div class="step step--wide">
     <div class="step__body">
       <span class="step__n">STEP 1</span>
       <h3>Take them to zero</h3>
-      <p>Both players start at <b>20 Uptime</b>. Bring your opponent to <b>0</b> and you win. That is the
-      whole victory condition — everything below is just how you get there.</p>
-      <p>Your Uptime is the number in the chip square next to your name at the table.</p>
+      <p>Both players start at <b>20 Uptime</b>. Bring your opponent to <b>0</b> and you win — or run
+      their Stack dry, because a player who must draw from an empty Stack loses too.</p>
+      <div class="goal">
+        <span class="chip-num"><b>20</b><span>UPTIME</span></span>
+        <span class="arrowto" aria-hidden="true">▸▸▸</span>
+        <span class="chip-num zero"><b>0</b><span>OFFLINE</span></span>
+        <p>Your Uptime is the chip square next to your name at the table. It is public — both seats
+        always see both numbers.</p>
+      </div>
+      <p style="margin-top:14px">Everything you spend comes from five Resources. A Stack usually leans
+      on one or two of them.</p>
       <div class="resline" aria-label="The five Resources">
         <span class="r"><span class="disc aff-power"><img src="../art/resources/power.svg" alt=""></span>Power</span>
         <span class="r"><span class="disc aff-bitcoin"><img src="../art/resources/bitcoin.svg" alt=""></span>Bitcoin</span>
@@ -96,30 +171,50 @@ hr.rule { height: 1px; border: 0; margin: 40px 0; background: linear-gradient(90
         <span class="r"><span class="disc aff-signal"><img src="../art/resources/signal.svg" alt=""></span>Signal</span>
         <span class="r"><span class="disc aff-timelock"><img src="../art/resources/timelock.svg" alt=""></span>Timelock</span>
       </div>
-      <p style="margin-top:10px">Five Resources. A Stack usually leans on one or two of them.</p>
+      <p style="margin-top:12px;font-size:13.5px"><a href="rules.html#2-2-the-objective">Rulebook §2.2 — the objective</a></p>
     </div>
-    <figure class="step__art">
-      <img data-face="Zap.webp" alt="Zap — deals 3 damage to any target">
-      <figcaption>Zap · 3 damage, straight to the face</figcaption>
-    </figure>
+  </div>
+
+  <hr class="rule">
+
+  <div class="step step--wide">
+    <div class="step__body">
+      <span class="step__n">THE TURN</span>
+      <h3>Eight steps, twice a turn you build</h3>
+      <p>Every turn runs the same eight steps in the same order. Six of them the table just does.
+      The two marked in ember are where you actually make things.</p>
+      <ol class="ribbon" aria-label="The eight steps of a turn, in order">
+        <li><b>Unlock</b><span>auto</span></li>
+        <li><b>Maintenance</b><span>auto</span></li>
+        <li><b>Draw</b><span>auto</span></li>
+        <li class="you"><b>Build I</b><span>you act</span></li>
+        <li><b>Clash</b><span>you attack</span></li>
+        <li class="you"><b>Build II</b><span>you act</span></li>
+        <li><b>End</b><span>auto</span></li>
+        <li><b>Cleanup</b><span>auto</span></li>
+      </ol>
+      <p style="margin-top:12px;font-size:13.5px"><a href="rules.html#9-turn-structure">Rulebook §9 — turn structure</a></p>
+    </div>
   </div>
 
   <hr class="rule">
 
   <div class="step step--flip">
     <figure class="step__art">
-      <img data-face="Power Plant — Hydro.webp" alt="Power Plant — Hydro, a Basic Resource">
-      <figcaption>Play one Resource per turn</figcaption>
+      <img data-face="Power Plant — Hydro.webp" alt="Power Plant — Hydro, a Basic Resource that generates 1 Power" loading="lazy">
+      <figcaption>One Resource per turn, free</figcaption>
     </figure>
     <div class="step__body">
       <span class="step__n">STEP 2</span>
-      <h3>One Resource per turn, free</h3>
-      <p>Once each turn you may put a <b>Resource</b> from your Wallet onto your Network. It costs nothing
-      and cannot be answered. This is your economy — miss it and you fall a turn behind.</p>
+      <h3>Lay one Resource per turn</h3>
+      <p>Once per turn, during <b>Build I</b> or <b>Build II</b>, you may put a <b>Resource</b> from your
+      Wallet onto your Network. It costs nothing and cannot be answered. This is your whole economy —
+      miss it and you fall a turn behind.</p>
       <div class="zones">
         <div class="zone-card"><b>Stack</b><span>Your deck. You draw from it.</span></div>
         <div class="zone-card"><b>Wallet</b><span>Your hand.</span></div>
         <div class="zone-card"><b>Network</b><span>What you have in play.</span></div>
+        <div class="zone-card"><b>Queue</b><span>What is waiting to resolve.</span></div>
         <div class="zone-card"><b>Archive</b><span>The graveyard.</span></div>
       </div>
     </div>
@@ -131,14 +226,15 @@ hr.rule { height: 1px; border: 0; margin: 40px 0; background: linear-gradient(90
     <div class="step__body">
       <span class="step__n">STEP 3</span>
       <h3>Commit it to pay for things</h3>
-      <p>A Resource on your Network does nothing until you <b>commit</b> it — click it and it turns
-      sideways, putting one Resource into your <b>Buffer</b>. The Buffer is what pays printed costs.</p>
-      <p>A junction like this one asks which Resource you want; a plain Power Plant just makes Power.</p>
-      <p><b>Toni China, Rough Miner</b> costs <span class="mono">1P</span> — one Power plus one of anything.
-      So: commit two Resources, then play her.</p>
+      <p>A Resource sitting on your Network does nothing until you <b>commit</b> it — click it and it
+      turns sideways, putting one Resource into your <b>Buffer</b>. The Buffer is what pays printed costs.</p>
+      <p>A junction like this one asks which Resource you want. A plain Power Plant just makes Power.</p>
+      <p><b>Toni China, Rough Miner</b> costs <span class="mono">1P</span> — one Power plus one of
+      anything. So: commit two Resources, then play her.</p>
+      <p style="font-size:13.5px"><a href="rules.html#12-generating-and-spending-resources">Rulebook §12 — generating and spending</a></p>
     </div>
     <figure class="step__art">
-      <img data-face="Power–Signal Junction.webp" alt="Power–Signal Junction">
+      <img data-face="Power–Signal Junction.webp" alt="Power–Signal Junction — commit to generate 1 Power or 1 Signal" loading="lazy">
       <figcaption>Commit: 1 Power or 1 Signal</figcaption>
     </figure>
   </div>
@@ -147,17 +243,22 @@ hr.rule { height: 1px; border: 0; margin: 40px 0; background: linear-gradient(90
 
   <div class="step step--flip">
     <figure class="step__art">
-      <img data-face="Toni China, Rough Miner.webp" alt="Toni China, Rough Miner — Avatar 2/2">
+      <img data-face="Toni China, Rough Miner.webp" alt="Toni China, Rough Miner — an Avatar with Action 2 and Resilience 2" loading="lazy">
       <figcaption>Avatar · Action 2 / Resilience 2</figcaption>
     </figure>
     <div class="step__body">
       <span class="step__n">STEP 4</span>
       <h3>Spend it before the phase ends</h3>
       <p class="note warn"><strong>The one rule that bites beginners:</strong> your Buffer empties at the
-      end of every phase, and each unspent Resource costs you <b>1 Uptime</b>. Generate what you are about
-      to spend — not more. That is <em>resource burn</em> (§12.1), and yes, it hurts.</p>
+      end of every phase — and again when Clash begins and when Clash ends — and each unspent Resource
+      costs you <b>1 Uptime</b>. Generate what you are about to spend, not more. That is
+      <em>resource burn</em> (<a href="rules.html#12-1-classic-resource-burn">§12.1</a>), it is not damage,
+      and nothing prevents it.</p>
       <p>An Avatar's two numbers are <b>Action</b> (damage it deals) and <b>Resilience</b> (damage it
-      survives). It arrives with <b>Boot Delay</b>: it cannot attack on the turn it lands.</p>
+      survives).</p>
+      <p>A fresh Avatar has <b>Boot Delay</b> until you begin a turn with it: it cannot attack and
+      cannot pay a cost that commits it. It <b>can</b> block the turn it lands — a new Avatar is a wall
+      immediately, a weapon next turn.</p>
     </div>
   </div>
 
@@ -167,51 +268,62 @@ hr.rule { height: 1px; border: 0; margin: 40px 0; background: linear-gradient(90
     <div class="step__body">
       <span class="step__n">STEP 5</span>
       <h3>Clash</h3>
-      <p>In the Clash phase, every Avatar that may legally attack <b>pulses ember</b>. Click the ones you
-      want to send, then press Continue — an arrow shows where each attack is going.</p>
-      <p>Your opponent picks blockers: first the attacker, then their own Avatar. Unblocked attackers hit
-      the player, and their Action comes straight off that player's Uptime.</p>
-      <p>Avatars that took damage equal to their Resilience are decommissioned into the Archive.</p>
+      <p>Clash is four beats, and the table stops at each one that is yours.</p>
+      <div class="beats">
+        <p class="beat"><b>Attackers.</b> Every Avatar that may legally attack pulses ember. Click the
+        ones you want to send, then press Continue.</p>
+        <p class="beat"><b>Blockers.</b> The defender clicks an attacker, then their own Avatar, then
+        Continue. A committed Avatar cannot block.</p>
+        <p class="beat"><b>Damage.</b> Ember arrows show attacks going at the player, violet arrows show
+        blocks. Unblocked attackers take their Action straight off the defender's Uptime.</p>
+        <p class="beat"><b>Cleanup.</b> An Avatar with marked damage equal to its Resilience is
+        decommissioned into the Archive. Damage on survivors is wiped at end of turn.</p>
+      </div>
+      <p style="margin-top:12px;font-size:13.5px"><a href="rules.html#13-clash">Rulebook §13 — Clash</a></p>
     </div>
     <figure class="step__art">
-      <img data-face="Firewall Tunnel.webp" alt="Firewall Tunnel — removes a blocker">
-      <figcaption>Clearing a blocker out of the way</figcaption>
+      <img data-face="Firewall Tunnel.webp" alt="Firewall Tunnel — decommission target Firewall" loading="lazy">
+      <figcaption>Answering a dedicated blocker</figcaption>
     </figure>
   </div>
 
   <hr class="rule">
 
-  <div class="step">
+  <div class="step step--wide">
     <div class="step__body">
       <span class="step__n">STEP 6</span>
       <h3>The table does the rest</h3>
-      <p>You never have to memorise the eight phases. <b>Continue</b> walks the turn forward and stops
+      <p>You never have to memorise the eight steps. <b>Continue</b> walks the turn forward and stops
       whenever you actually have a decision; <b>End turn</b> hands over. The line at the top always says
       where you are and what you can do.</p>
       <div class="mouse">
         <div><b>Left click</b> — acts. Play the card, commit the Resource, declare the attack.</div>
         <div><b>Right click</b> — explains. Opens the card window with its full text.</div>
       </div>
-      <p style="margin-top:14px">Cards the engine cannot fully script are marked <b>!</b> and are resolved
-      by a proposal your opponent accepts or rejects. Rare, and always visible.</p>
+      <p style="margin-top:14px">A handful of cards are too open-ended for the engine to script. They
+      wear a <b>!</b> on the table and are resolved by a proposal your opponent accepts or rejects.
+      Rare, and always visible to both seats.</p>
     </div>
-    <figure class="step__art">
-      <img data-face="600B-Timelock-card-back.webp" alt="600B Timelock card back">
-      <figcaption>Now go take someone offline</figcaption>
-    </figure>
   </div>
 
   <div class="framed" style="margin-top:44px;text-align:center">
     <span class="pad tl"></span><span class="pad tr"></span>
     <span class="pad bl"></span><span class="pad br"></span>
-    <div class="banner">Ready // pick a deck and press start</div>
-    <p class="lead" style="margin:16px auto 20px">Eleven preconstructed Stacks are waiting — five Starters,
+    <div class="banner">Ready // pick a Stack and press start</div>
+    <div class="fan" aria-hidden="true">
+      <img data-face="Power Plant — Hydro.webp" alt="" loading="lazy">
+      <img data-face="Zap.webp" alt="" loading="lazy">
+      <img data-face="600B-Timelock-card-back.webp" alt="" loading="lazy">
+      <img data-face="Toni China, Rough Miner.webp" alt="" loading="lazy">
+      <img data-face="Firewall Tunnel.webp" alt="" loading="lazy">
+    </div>
+    <p class="lead" style="margin:0 auto 20px">Eleven preconstructed Stacks are waiting — five Starters,
     one per Resource, and six Classics built around the old tournament archetypes. Pick one, tick
     “NPC opponent”, and play.</p>
     <div class="btn-row" style="justify-content:center">
       <a class="btn" href="play.html">Play now</a>
       <a class="btn btn--ghost" href="deck.html">Build your own Stack</a>
-      <a class="btn btn--ghost" href="rules.html">Read the full rules</a>
+      <a class="btn btn--ghost" href="cards.html">Browse all 295 cards</a>
     </div>
     <div class="terminal-line" style="margin-top:22px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span>QUICK&nbsp;START&nbsp;·&nbsp;E1</span></div>
   </div>
@@ -222,6 +334,8 @@ hr.rule { height: 1px; border: 0; margin: 40px 0; background: linear-gradient(90
 <footer class="site-footer">
   <span>600 000 000 000 · Edition One · E1.0-draft</span>
   <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
+  <a href="rules.html">Rulebook</a>
+  <a href="lore.html">Lore</a>
   <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
 </footer>
 

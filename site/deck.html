@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#09080b">
-<meta name="description" content="600B Timelock TCG — Stack Builder. Build, save and play your own 40+ card Stacks.">
+<meta name="description" content="600B Timelock TCG — Stack Builder. Search, filter and build your own 40+ card Stacks.">
 <title>600B Timelock TCG — Stack Builder</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
@@ -17,6 +17,9 @@
   --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
 }
 * { box-sizing: border-box; margin: 0; }
+/* Several controls here carry an author `display`, which outranks the UA's
+ * [hidden] rule — this page hides by attribute, so it has to win. */
+[hidden] { display: none !important; }
 html { color-scheme: dark; }
 body { background: var(--black); color: var(--cream); font: 14px/1.5 Arial, sans-serif; }
 a { color: var(--orange); }
@@ -24,16 +27,33 @@ a { color: var(--orange); }
 /* The nav lives in the design system (600b.css) — nothing page-local here. */
 
 .layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; padding: 18px clamp(16px, 3vw, 40px) 80px; max-width: 1560px; margin: 0 auto; }
-@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .deckpane { position: static !important; } }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .deckpane { position: static !important; max-height: none !important; } }
 
-.browser .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+/* ------------------------------------------------------------- the bench */
+/* The filter bench wears the card frame: double line, PCB corner pads. */
+.bench {
+  position: relative; margin-bottom: 14px; padding: 12px 14px 10px;
+  background: rgba(17,16,20,.72); border: 1px solid var(--line);
+  border-top: 3px solid var(--purple-deep);
+}
+.bench > .pad { position: absolute; width: 8px; height: 8px; border: 1px solid var(--purple); background: var(--ember); pointer-events: none; }
+.bench > .pad.tl { top: -4px; left: -4px; }
+.bench > .pad.tr { top: -4px; right: -4px; }
+.bench > .pad.bl { bottom: -4px; left: -4px; }
+.bench > .pad.br { bottom: -4px; right: -4px; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
 .search {
-  flex: 1 1 240px; min-height: 40px; padding: 8px 12px;
+  flex: 1 1 240px; min-width: 0; min-height: 40px; padding: 8px 12px;
   color: var(--cream); background: var(--panel); border: 1px solid var(--line); outline: none; font: inherit;
 }
 .search:focus, select:focus { border-color: var(--orange); }
 select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--panel); border: 1px solid var(--line); font: inherit; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.hint { color: var(--ink-dim, #9b90a4); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; align-self: center; }
+@media (max-width: 620px) { .hint { display: none; } }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chiprow { margin-top: 9px; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
   color: var(--muted); background: transparent; border: 1px solid var(--line); cursor: pointer;
@@ -43,33 +63,80 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 .chip .aff { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: color-mix(in srgb, var(--aff, var(--black)) 22%, var(--black)); }
 .chip .aff img { width: 13px; height: 13px; }
 
+/* Type / cost / rarity live in a drawer — closed on a phone, open on a desk. */
+.bank { margin-top: 9px; border-top: 1px solid var(--line); }
+.bank > summary {
+  display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer;
+  padding: 9px 0 6px; color: var(--muted);
+  font: 900 11px/1 Arial, sans-serif; letter-spacing: .16em; text-transform: uppercase;
+}
+.bank > summary::-webkit-details-marker { display: none; }
+.bank > summary::before { content: "+"; display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1px solid var(--line); color: var(--purple); font-size: 12px; }
+.bank[open] > summary::before { content: "−"; }
+.fbadge { padding: 2px 6px; background: var(--ember); color: var(--black); font-size: 10px; font-weight: 900; }
+.fgroup { display: flex; align-items: flex-start; gap: 10px; padding: 3px 0 8px; }
+.flabel { flex: 0 0 54px; padding-top: 6px; color: var(--ink-dim, #9b90a4); font: 900 10px/1 Arial, sans-serif; letter-spacing: .16em; text-transform: uppercase; }
+@media (max-width: 560px) { .fgroup { flex-direction: column; gap: 4px; } .flabel { flex: none; padding-top: 0; } }
+
+.resultbar { display: flex; align-items: center; gap: 10px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.resultbar .rc { font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .18em; color: var(--cream); }
+.resultbar .rc b { color: var(--gold); font-weight: inherit; }
+.resultbar .sub { color: var(--ink-dim, #9b90a4); font-size: 10.5px; letter-spacing: .08em; }
+.resultbar .grow { margin-left: auto; }
+
+/* --------------------------------------------------------------- browser */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.cardtile { position: relative; cursor: pointer; border: 1px solid var(--line); background: var(--soot); }
+@media (max-width: 400px) { .grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; } }
+.cardtile { position: relative; cursor: pointer; border: 1px solid var(--line); background: var(--soot); -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .cardtile img { display: block; width: 100%; aspect-ratio: 744/1039; object-fit: cover; }
 .cardtile:hover { border-color: var(--gold); }
+.cardtile.in { border-color: var(--ember); }
 .cardtile .n { position: absolute; right: 4px; top: 4px; min-width: 22px; text-align: center; padding: 3px 5px; background: var(--ember); color: var(--black); font: 900 12px/1 Arial; border-radius: 3px; }
+.cardtile .cv { position: absolute; left: 4px; top: 4px; min-width: 20px; padding: 3px 5px; text-align: center; background: rgba(9,8,11,.92); border: 1px solid var(--line); color: var(--cream); font: 900 10px/1.1 ui-monospace, Consolas, monospace; }
+.cardtile .minus {
+  position: absolute; right: 4px; top: 30px; width: 24px; height: 24px; padding: 0; cursor: pointer;
+  color: var(--cream); background: rgba(9,8,11,.92); border: 1px solid var(--line); font: 900 14px/1 Arial;
+}
+.cardtile .minus:hover { color: var(--black); background: var(--ember); border-color: var(--ember); }
+.cardtile .rail { display: block; height: 3px; background: var(--neutral, #8a8f98); }
 .cardtile .meta { padding: 5px 7px; font-size: 10.5px; color: var(--muted); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cardtile.stake { opacity: .35; }
+.empty { padding: 30px 2px; color: var(--muted); }
+.empty b { color: var(--cream); }
 /* Face source: ember = fresh from a Blossom mirror, violet = local cache. */
-.gsrc { position: absolute; left: 4px; bottom: 26px; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(9,8,11,.85); pointer-events: none; }
+.gsrc { position: absolute; left: 4px; bottom: 30px; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(9,8,11,.85); pointer-events: none; }
 .gsrc-blossom { background: #F7931A; box-shadow: 0 0 6px rgba(247,147,26,.8); }
 .gsrc-cache { background: #B991E4; box-shadow: 0 0 5px rgba(185,145,228,.7); }
-.cardtile.stake::after { content: "STAKE MODULE — NOT IN E1"; position: absolute; inset: auto 0 22px 0; padding: 4px; text-align: center; background: rgba(9,8,11,.85); color: #ff4d3d; font: 900 9px/1.2 Arial; letter-spacing: .1em; }
+.cardtile.stake::after { content: "STAKE MODULE — NOT IN E1"; position: absolute; inset: auto 0 29px 0; padding: 4px; text-align: center; background: rgba(9,8,11,.85); color: #ff4d3d; font: 900 9px/1.2 Arial; letter-spacing: .1em; }
 
+/* -------------------------------------------------------------- the pane */
 /* Clears the shared 59px nav bar — see .nav in 600b.css. */
 .deckpane { position: sticky; top: 71px; align-self: start; background: var(--panel); border: 1px solid var(--line); padding: 14px; max-height: calc(100vh - 91px); display: flex; flex-direction: column; }
 .deckpane h2 { font: 18px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 10px; }
 .deckpane .row { display: flex; gap: 8px; margin-bottom: 8px; }
-.deckpane input[type=text] { flex: 1; min-height: 36px; padding: 6px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font: inherit; }
+.deckpane input[type=text] { flex: 1; min-width: 0; min-height: 36px; padding: 6px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font: inherit; }
 .count { font: 900 26px/1 Anton600, Impact, sans-serif; }
 .count.ok { color: #6ee7a8; }
 .count.low { color: #ff4d3d; }
-.countrow { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.countrow { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
 .countrow span { color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
-.decklist { flex: 1; overflow-y: auto; border-top: 1px solid var(--line); margin-bottom: 10px; }
+.meter { height: 4px; margin-bottom: 9px; background: var(--soot); border: 1px solid var(--line); }
+.meter i { display: block; height: 100%; background: var(--ember); }
+.meter.ok i { background: #6ee7a8; }
+.breakdown { display: grid; gap: 6px; padding: 8px 0 10px; border-top: 1px solid var(--line); }
+.bdrow { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.bdlab { flex: 0 0 42px; color: var(--ink-dim, #9b90a4); font: 900 9px/1 Arial, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+.btag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border: 1px solid var(--line); color: var(--muted); font: 900 10px/1 Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.btag b { color: var(--cream); }
+.btag .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--aff, #8a8f98); }
+.btag.ty { background: var(--steel, #262330); border-color: transparent; color: #cfd6dd; letter-spacing: .12em; }
+.cvbox { display: inline-grid; place-items: center; min-width: 26px; padding: 2px 4px; background: rgba(9,8,11,.92); border: 1px solid var(--line); line-height: 1; }
+.cvbox b { font: 13px/1 Anton600, Impact, sans-serif; color: var(--cream); }
+.cvbox span { font-size: 7.5px; font-weight: 900; letter-spacing: .08em; color: var(--ember); }
+.decklist { flex: 1; min-height: 90px; overflow-y: auto; border-top: 1px solid var(--line); margin-bottom: 10px; }
 .deckrow { display: flex; align-items: center; gap: 8px; padding: 6px 2px; border-bottom: 1px solid rgba(185,145,228,.12); }
 .deckrow .qty { min-width: 26px; text-align: center; font-weight: 900; color: var(--gold); }
-.deckrow .nm { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; }
+.deckrow .nm { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; }
 .deckrow .id { color: var(--muted); font-size: 10px; }
 .deckrow button { width: 24px; height: 24px; padding: 0; cursor: pointer; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font-weight: 900; }
 .deckrow button:hover { border-color: var(--orange); }
@@ -77,13 +144,46 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 .btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
 .btn:hover { background: var(--gold); }
 .btn.ghost:hover { background: var(--soot); }
+.btn.sm { padding: 6px 10px; font-size: 11px; }
 .note { color: var(--muted); font-size: 11.5px; margin-top: 8px; }
 .saved { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
 .saved h3 { font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 .savedrow { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-.savedrow .nm { flex: 1; font-size: 13px; }
+.savedrow .nm { flex: 1; min-width: 0; font-size: 13px; }
 .savedrow button { padding: 4px 8px; font-size: 11px; cursor: pointer; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
 .savedrow button:hover { border-color: var(--orange); }
+
+/* ------------------------------------------------------------ the reader */
+/* Right click opens the card, per the house mouse model. */
+#cardDialog { width: min(460px, calc(100vw - 24px)); padding: 0; color: var(--cream); background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--ember); }
+#cardDialog::backdrop { background: rgba(0,0,0,.82); }
+.dlg { position: relative; padding: 16px; }
+.dlg .close { position: absolute; right: 10px; top: 10px; width: 30px; height: 30px; padding: 0; cursor: pointer; color: var(--cream); background: transparent; border: 1px solid var(--line); font: 16px/1 Arial; }
+.dlg .close:hover { border-color: var(--orange); }
+.dlgid { color: var(--ink-dim, #9b90a4); font: 11px/1 ui-monospace, Consolas, monospace; letter-spacing: .12em; }
+.dlg h3 { margin: 5px 0 9px; padding-right: 36px; font: 21px/1.05 Anton600, Impact, sans-serif; letter-spacing: .02em; text-transform: uppercase; }
+.dlgmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.dlgtext { margin-bottom: 8px; font-size: 13.5px; white-space: pre-line; }
+.dlghelp { margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+.dlgflavor { margin-bottom: 10px; color: var(--ink-dim, #9b90a4); font-size: 12px; font-style: italic; }
+.dlgfoot { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0 12px; border-top: 1px solid var(--line); color: var(--muted); font: 11px/1 Anton600, Impact, sans-serif; letter-spacing: .16em; text-transform: uppercase; }
+
+/* ------------------------------------------------------------------ touch */
+/* A finger has no second button and no hover, so every control here is a
+ * visible, thumb-sized target. Nothing is revealed by :hover alone. */
+@media (pointer: coarse) {
+  .chip { min-height: 44px; padding: 10px 13px; }
+  .chip:hover { color: var(--muted); background: transparent; border-color: var(--line); }
+  .chip.active, .chip.active:hover { color: var(--black); background: var(--purple); border-color: var(--purple); }
+  .cardtile .minus { width: 44px; height: 44px; top: 32px; font-size: 20px; }
+  .cardtile .n { min-width: 28px; padding: 5px 7px; font-size: 13px; }
+  .deckrow { padding: 4px 2px; }
+  .deckrow button { width: 40px; height: 40px; font-size: 16px; }
+  .savedrow button { min-height: 40px; padding: 8px 12px; }
+  .btn.sm { min-height: 40px; }
+  .bank > summary { padding: 13px 0 11px; }
+  .dlg .close { width: 44px; height: 44px; }
+}
 </style>
 </head>
 <body>
@@ -105,25 +205,57 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 
 <div class="layout" id="main">
   <section class="browser">
-    <div class="controls">
-      <input class="search" id="search" placeholder="Search name, ID, rules text …" autocomplete="off">
-      <select id="typeFilter"><option value="">All card types</option></select>
+    <div class="bench">
+      <span class="pad tl"></span><span class="pad tr"></span><span class="pad bl"></span><span class="pad br"></span>
+
+      <div class="controls">
+        <input class="search" id="search" type="search" placeholder="Search name, ID, rules text, keyword …" aria-label="Search cards" autocomplete="off">
+        <select id="sortOrder" aria-label="Sort order">
+          <option value="id">Sort: set number</option>
+          <option value="cost">Sort: cost, cheapest first</option>
+          <option value="name">Sort: name A–Z</option>
+          <option value="rarity">Sort: rarity, rare first</option>
+          <option value="type">Sort: card type</option>
+        </select>
+        <button class="chip" id="inStackChip" type="button" aria-pressed="false" hidden>In Stack</button>
+        <span class="hint">Press <b>/</b> to search · Esc clears</span>
+      </div>
+
+      <div class="chips chiprow" id="chips" role="group" aria-label="Filter by affinity"></div>
+
+      <details class="bank" id="bank">
+        <summary>More filters<span class="fbadge" id="fbadge" hidden></span></summary>
+        <div class="fgroup"><span class="flabel">Type</span><div class="chips" id="typeChips" role="group" aria-label="Filter by card type"></div></div>
+        <div class="fgroup"><span class="flabel">Cost</span><div class="chips" id="costChips" role="group" aria-label="Filter by cost"></div></div>
+        <div class="fgroup"><span class="flabel">Rarity</span><div class="chips" id="rarityChips" role="group" aria-label="Filter by rarity"></div></div>
+      </details>
+
+      <div class="resultbar">
+        <span class="rc" id="resultCount" role="status" aria-live="polite">0 of 0</span>
+        <span class="sub" id="resultSub"></span>
+        <button class="btn ghost sm grow" id="clearFilters" type="button" hidden>Clear filters</button>
+      </div>
     </div>
-    <div class="chips" id="chips"></div>
+
     <div class="grid" id="grid"></div>
+    <p class="empty" id="empty" hidden><b>Nothing matches.</b> Loosen a filter or clear the search.</p>
   </section>
 
   <aside class="deckpane">
     <h2>Your Stack</h2>
     <div class="row"><input type="text" id="deckName" placeholder="Stack name" autocomplete="off"></div>
-    <div class="countrow"><b class="count low" id="count">0</b><span>cards · minimum 40 · copies unrestricted (§7)</span></div>
+    <div class="countrow"><b class="count low" id="count">0</b><span id="countHint">of 40 · 40 to go</span></div>
+    <div class="meter" id="meter" aria-hidden="true"><i id="meterFill" style="width:0%"></i></div>
+    <div class="breakdown" id="breakdown" hidden></div>
     <div class="decklist" id="decklist"></div>
     <div class="row">
       <button class="btn" id="save">Save</button>
       <button class="btn ghost" id="clear">Clear</button>
     </div>
-    <div class="note">Click a card to add it, right-click to remove one copy. Saved Stacks appear
-    as options on the <a href="play.html">Play</a> page for both seats — hotseat and vs NPC.</div>
+    <div class="note"><b>Tap or click</b> a card to add a copy. <b>The − on the card</b> (or the − in this
+    list) takes one back. <b>Right click</b> on a desktop, <b>press and hold</b> on a phone, opens the card.
+    Copies are unrestricted (§7). Saved Stacks appear as options on the
+    <a href="play.html">Play</a> page for both seats — hotseat and vs NPC.</div>
     <div class="saved">
       <h3>Starter library</h3>
       <div id="preconList"></div>
@@ -134,6 +266,23 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     </div>
   </aside>
 </div>
+
+<dialog id="cardDialog" aria-label="Card details">
+  <div class="dlg">
+    <button class="close" id="dlgClose" type="button" aria-label="Close">×</button>
+    <div class="dlgid" id="dlgId"></div>
+    <h3 id="dlgName"></h3>
+    <div class="dlgmeta" id="dlgMeta"></div>
+    <p class="dlgtext" id="dlgText"></p>
+    <p class="dlghelp" id="dlgHelp"></p>
+    <p class="dlgflavor" id="dlgFlavor"></p>
+    <div class="dlgfoot"><span id="dlgRarity"></span><span id="dlgCopies"></span></div>
+    <div class="row">
+      <button class="btn" id="dlgAdd" type="button">Add copy</button>
+      <button class="btn ghost" id="dlgRemove" type="button">Remove copy</button>
+    </div>
+  </div>
+</dialog>
 
 <footer class="site-footer">
   <span>600 000 000 000 · Edition One · E1.0-draft</span>
@@ -152,35 +301,110 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   const CARDS = globalThis.E1_CARDS || [];
   const byId = Object.fromEntries(CARDS.map((c) => [c.id, c]));
   const STORE = "600b:decks";
+  const MIN_STACK = 40;
   // Mirrors the engine's own gate: Stake-text cards never construct in E1.
   const isStake = (c) => /\bStake\b/.test(c.text || "");
 
-  const AFFINITIES = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock", "Neutral"];
+  const AFFINITIES = ["Power", "Bitcoin", "Keys", "Signal", "Timelock", "Neutral"];
   const AFF_ICON = { Power: "power", Bitcoin: "bitcoin", Keys: "keys", Signal: "signal", Timelock: "timelock" };
-  const AFF_ACCENT = { Power: "#F3C244", Bitcoin: "#F7931A", Keys: "#FFF7EC", Signal: "#7447B8", Timelock: "#17BEBB" };
+  const AFF_ACCENT = { Power: "#F3C244", Bitcoin: "#F7931A", Keys: "#FFF7EC", Signal: "#7447B8", Timelock: "#17BEBB", Neutral: "#8A8F98" };
+  const RARITY_RANK = { common: 0, uncommon: 1, rare: 2 };
+  const PIPS = ["P", "B", "K", "S", "T"];
+  const BUCKET_ORDER = ["—", "0", "1", "2", "3", "4", "5", "6+"];
 
-  let affinity = "All";
+  /* One pass over the catalog builds everything the bench needs: the total
+   * cost (generic + coloured pips, X ignored — it is chosen on resolution),
+   * the cost bucket, and a lowercase haystack the search reads. */
+  const INDEX = new Map();
+  for (const c of CARDS) {
+    const p = c.costParsed;
+    let cv = null;
+    if (p) {
+      cv = p.generic || 0;
+      for (const k of PIPS) cv += p[k] || 0;
+    }
+    const keywords = (c.keywords || []).map((k) => (typeof k === "string" ? k : k && k.name) || "").join(" ");
+    INDEX.set(c.id, {
+      cv,
+      bucket: cv === null ? "—" : cv >= 6 ? "6+" : String(cv),
+      typeLine: c.subtype ? `${c.type} — ${c.subtype}` : c.type,
+      stake: isStake(c),
+      hay: [
+        c.id, c.name, c.type, c.subtype, (c.affinity || []).join(" "),
+        c.rarity, c.cost, keywords, c.text, c.flavor, c.help,
+      ].join(" ").toLowerCase(),
+    });
+  }
+
+  // The real facet values, derived from the data — never hard-coded.
+  const TYPES = [...new Set(CARDS.map((c) => c.type))].sort();
+  const RARITIES = [...new Set(CARDS.map((c) => c.rarity))].sort((a, b) => (RARITY_RANK[a] ?? 9) - (RARITY_RANK[b] ?? 9));
+  const BUCKETS = BUCKET_ORDER.filter((b) => CARDS.some((c) => INDEX.get(c.id).bucket === b));
+
+  const state = {
+    q: "", terms: [],
+    aff: new Set(), type: new Set(), cost: new Set(), rarity: new Set(),
+    inStack: false, sort: "id",
+  };
   let deck = {}; // cardId -> copies
 
   const loadAll = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } };
   const saveAll = (all) => localStorage.setItem(STORE, JSON.stringify(all));
+  const total = () => Object.values(deck).reduce((a, n) => a + n, 0);
 
-  // ---- browser ----
   const grid = document.getElementById("grid");
+  const emptyEl = document.getElementById("empty");
   const search = document.getElementById("search");
-  const typeFilter = document.getElementById("typeFilter");
+  const sortOrder = document.getElementById("sortOrder");
+  const resultCount = document.getElementById("resultCount");
+  const resultSub = document.getElementById("resultSub");
+  const clearFilters = document.getElementById("clearFilters");
+  const inStackChip = document.getElementById("inStackChip");
+  const bank = document.getElementById("bank");
+  const fbadge = document.getElementById("fbadge");
+  const dlg = document.getElementById("cardDialog");
 
-  [...new Set(CARDS.map((c) => c.type))].sort().forEach((t) => {
-    const o = document.createElement("option");
-    o.value = t; o.textContent = t;
-    typeFilter.append(o);
-  });
+  // ---- chips -------------------------------------------------------------
+  /* Every chip is a toggle over a Set. Registered here so one sync() can
+   * repaint them all after a reset or a load. */
+  const registry = [];
 
-  const chips = document.getElementById("chips");
-  for (const item of AFFINITIES) {
+  function makeChip(host, label, set, value, decorate) {
     const b = document.createElement("button");
-    b.className = "chip" + (item === "All" ? " active" : "");
-    if (AFF_ICON[item]) {
+    b.type = "button";
+    b.className = "chip";
+    if (decorate) decorate(b);
+    b.append(label);
+    b.addEventListener("click", () => {
+      if (value === null) set.clear();
+      else if (set.has(value)) set.delete(value);
+      else set.add(value);
+      syncChips();
+      renderGrid();
+    });
+    host.append(b);
+    registry.push({ el: b, set, value });
+    return b;
+  }
+
+  function syncChips() {
+    for (const entry of registry) {
+      const on = entry.value === null ? entry.set.size === 0 : entry.set.has(entry.value);
+      entry.el.classList.toggle("active", on);
+      entry.el.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    const banked = state.type.size + state.cost.size + state.rarity.size;
+    fbadge.hidden = banked === 0;
+    fbadge.textContent = banked;
+    inStackChip.classList.toggle("active", state.inStack);
+    inStackChip.setAttribute("aria-pressed", state.inStack ? "true" : "false");
+  }
+
+  const chipsHost = document.getElementById("chips");
+  makeChip(chipsHost, "All", state.aff, null);
+  for (const item of AFFINITIES) {
+    makeChip(chipsHost, item, state.aff, item, (b) => {
+      if (!AFF_ICON[item]) return;
       const disc = document.createElement("span");
       disc.className = "aff";
       disc.style.setProperty("--aff", AFF_ACCENT[item]);
@@ -189,93 +413,290 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       img.alt = "";
       disc.append(img);
       b.append(disc);
-    }
-    b.append(item);
-    b.addEventListener("click", () => {
-      affinity = item;
-      [...chips.children].forEach((c) => c.classList.toggle("active", c === b));
-      renderGrid();
     });
-    chips.append(b);
   }
 
-  const matches = (c) => {
-    if (affinity !== "All" && !(c.affinity || ["Neutral"]).includes(affinity)) return false;
-    if (typeFilter.value && c.type !== typeFilter.value) return false;
-    const q = search.value.trim().toLowerCase();
-    if (q && !`${c.name} ${c.id} ${c.text} ${(c.affinity || []).join(" ")}`.toLowerCase().includes(q)) return false;
+  const typeChips = document.getElementById("typeChips");
+  for (const t of TYPES) makeChip(typeChips, t, state.type, t);
+  const costChips = document.getElementById("costChips");
+  for (const b of BUCKETS) makeChip(costChips, b === "—" ? "— none" : b, state.cost, b);
+  const rarityChips = document.getElementById("rarityChips");
+  for (const r of RARITIES) makeChip(rarityChips, r, state.rarity, r);
+
+  inStackChip.addEventListener("click", () => {
+    state.inStack = !state.inStack;
+    syncChips();
+    renderGrid();
+  });
+
+  // ---- filtering ---------------------------------------------------------
+  const filtersActive = () =>
+    Boolean(state.q) || state.aff.size > 0 || state.type.size > 0 ||
+    state.cost.size > 0 || state.rarity.size > 0 || state.inStack;
+
+  function matches(c) {
+    const idx = INDEX.get(c.id);
+    if (state.aff.size && !(c.affinity || []).some((a) => state.aff.has(a))) return false;
+    if (state.type.size && !state.type.has(c.type)) return false;
+    if (state.cost.size && !state.cost.has(idx.bucket)) return false;
+    if (state.rarity.size && !state.rarity.has(c.rarity)) return false;
+    if (state.inStack && !deck[c.id]) return false;
+    for (const t of state.terms) if (!idx.hay.includes(t)) return false;
     return true;
+  }
+
+  const byName = (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+  const SORTS = {
+    id: (a, b) => a.id.localeCompare(b.id),
+    // Resources have no cost at all, so they sort ahead of the zero-cost cards.
+    cost: (a, b) => {
+      const x = INDEX.get(a.id).cv;
+      const y = INDEX.get(b.id).cv;
+      return (x === null ? -1 : x) - (y === null ? -1 : y) || byName(a, b);
+    },
+    name: byName,
+    rarity: (a, b) => (RARITY_RANK[b.rarity] ?? -1) - (RARITY_RANK[a.rarity] ?? -1) || byName(a, b),
+    type: (a, b) => a.type.localeCompare(b.type) || byName(a, b),
   };
 
-  function renderGrid() {
-    grid.innerHTML = "";
-    for (const c of CARDS.filter(matches)) {
-      const tile = document.createElement("div");
-      tile.className = "cardtile" + (isStake(c) ? " stake" : "");
-      tile.title = `${c.name} — ${c.text || ""}`;
-      const img = document.createElement("img");
-      if (globalThis.E1Faces) E1Faces.setFace(img, c.face, tile);
-      else img.src = "../art/cards/node-runner-web/" + encodeURIComponent(c.face);
-      img.alt = c.name;
-      img.loading = "lazy";
-      tile.append(img);
-      if (deck[c.id]) {
-        const n = document.createElement("span");
-        n.className = "n";
-        n.textContent = deck[c.id];
-        tile.append(n);
-      }
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      meta.textContent = `${c.id} · ${c.name}`;
-      tile.append(meta);
-      tile.addEventListener("click", () => {
-        if (isStake(c)) return;
-        deck[c.id] = (deck[c.id] || 0) + 1;
-        renderDeck(); renderGrid();
-      });
-      tile.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        if (!deck[c.id]) return;
-        deck[c.id] -= 1;
-        if (!deck[c.id]) delete deck[c.id];
-        renderDeck(); renderGrid();
-      });
-      grid.append(tile);
+  // ---- tiles -------------------------------------------------------------
+  /* Tiles are built once and re-ordered, never rebuilt: a face resolved from
+   * Blossom stays resolved while you type. */
+  const tiles = new Map();
+
+  function tileFor(c) {
+    const cached = tiles.get(c.id);
+    if (cached) return cached;
+    const idx = INDEX.get(c.id);
+    const tile = document.createElement("div");
+    tile.className = "cardtile" + (idx.stake ? " stake" : "");
+    tile.dataset.id = c.id;
+    tile.setAttribute("role", "button");
+    tile.tabIndex = 0;
+    tile.setAttribute("aria-label", `${c.name}, ${idx.typeLine}, cost ${c.cost || "none"}`);
+    tile.title = `${c.name} — ${idx.typeLine}\n${c.text || ""}`;
+
+    const img = document.createElement("img");
+    if (globalThis.E1Faces) E1Faces.setFace(img, c.face, tile);
+    else img.src = "../art/cards/node-runner-web/" + encodeURIComponent(c.face);
+    img.alt = c.name;
+    img.loading = "lazy";
+    tile.append(img);
+
+    const cv = document.createElement("span");
+    cv.className = "cv";
+    cv.textContent = c.cost || "—";
+    tile.append(cv);
+
+    const n = document.createElement("span");
+    n.className = "n";
+    n.hidden = true;
+    tile.append(n);
+
+    const minus = document.createElement("button");
+    minus.type = "button";
+    minus.className = "minus";
+    minus.textContent = "−";
+    minus.hidden = true;
+    minus.setAttribute("aria-label", `Remove one ${c.name}`);
+    minus.addEventListener("click", (e) => { e.stopPropagation(); removeCard(c.id); });
+    tile.append(minus);
+
+    const rail = document.createElement("i");
+    rail.className = "rail";
+    const accents = (c.affinity || ["Neutral"]).map((a) => AFF_ACCENT[a] || AFF_ACCENT.Neutral);
+    rail.style.background = accents.length > 1
+      ? `linear-gradient(90deg, ${accents.map((col, i) => `${col} ${(i / accents.length) * 100}% ${((i + 1) / accents.length) * 100}%`).join(", ")})`
+      : accents[0];
+    tile.append(rail);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = `${c.id} · ${c.name}`;
+    tile.append(meta);
+
+    /* LEFT / tap = the fast action. RIGHT = the reader. A finger has no second
+     * button, so press-and-hold is its right click; the click that follows the
+     * hold is swallowed so the reader never also adds a copy. */
+    let held = false;
+    let timer = 0;
+    const cancelHold = () => { clearTimeout(timer); timer = 0; };
+    tile.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" || e.target === minus) return;
+      held = false;
+      cancelHold();
+      timer = setTimeout(() => { held = true; openCard(c.id); }, 420);
+    });
+    for (const ev of ["pointerup", "pointercancel", "pointerleave", "pointermove"]) {
+      tile.addEventListener(ev, cancelHold);
+    }
+    tile.addEventListener("click", () => {
+      cancelHold();
+      if (held) { held = false; return; }
+      addCard(c.id);
+    });
+    tile.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      addCard(c.id);
+    });
+    tile.addEventListener("contextmenu", (e) => { e.preventDefault(); openCard(c.id); });
+
+    tiles.set(c.id, tile);
+    return tile;
+  }
+
+  function syncBadges() {
+    for (const [id, tile] of tiles) {
+      const copies = deck[id] || 0;
+      const n = tile.querySelector(".n");
+      const minus = tile.querySelector(".minus");
+      n.hidden = copies === 0;
+      n.textContent = copies;
+      minus.hidden = copies === 0;
+      tile.classList.toggle("in", copies > 0);
     }
   }
-  search.addEventListener("input", renderGrid);
-  typeFilter.addEventListener("change", renderGrid);
 
-  // ---- deck pane ----
+  let visible = [];
+
+  function paintCounts() {
+    const strong = document.createElement("b");
+    strong.textContent = visible.length;
+    resultCount.replaceChildren(strong, ` of ${CARDS.length}`);
+    const copies = visible.reduce((a, c) => a + (deck[c.id] || 0), 0);
+    resultSub.textContent = copies ? `· ${copies} in your Stack` : "";
+    emptyEl.hidden = visible.length > 0;
+    clearFilters.hidden = !filtersActive();
+  }
+
+  function renderGrid() {
+    visible = CARDS.filter(matches);
+    visible.sort(SORTS[state.sort] || SORTS.id);
+    grid.replaceChildren(...visible.map(tileFor));
+    syncBadges();
+    paintCounts();
+  }
+
+  // ---- deck --------------------------------------------------------------
+  function addCard(id) {
+    const c = byId[id];
+    if (!c || isStake(c)) return;
+    deck[id] = (deck[id] || 0) + 1;
+    afterDeckChange();
+  }
+
+  function removeCard(id) {
+    if (!deck[id]) return;
+    deck[id] -= 1;
+    if (!deck[id]) delete deck[id];
+    afterDeckChange();
+  }
+
+  function afterDeckChange() {
+    const wasInStack = state.inStack;
+    renderDeck(); // retires the In Stack chip, and its filter, on an empty Stack
+    syncChips();
+    // "In Stack" filters on deck membership, so only it has to re-run the
+    // query; otherwise the visible set is unchanged and badges are enough.
+    if (state.inStack || wasInStack) renderGrid();
+    else { syncBadges(); paintCounts(); }
+    if (dlg.open && dlg.dataset.card) paintDialogCopies(dlg.dataset.card);
+  }
+
   const decklist = document.getElementById("decklist");
   const countEl = document.getElementById("count");
+  const countHint = document.getElementById("countHint");
+  const meter = document.getElementById("meter");
+  const meterFill = document.getElementById("meterFill");
+  const breakdown = document.getElementById("breakdown");
 
-  const total = () => Object.values(deck).reduce((a, n) => a + n, 0);
+  function tag(cls, label, value, accent) {
+    const el = document.createElement("span");
+    el.className = "btag" + (cls ? " " + cls : "");
+    if (accent) {
+      const dot = document.createElement("i");
+      dot.className = "dot";
+      dot.style.setProperty("--aff", accent);
+      el.append(dot);
+    }
+    const b = document.createElement("b");
+    b.textContent = value;
+    el.append(label + " ", b);
+    return el;
+  }
+
+  function renderBreakdown(n) {
+    breakdown.replaceChildren();
+    breakdown.hidden = n === 0;
+    if (!n) return;
+    const aff = new Map();
+    const typ = new Map();
+    const curve = new Map();
+    for (const [id, copies] of Object.entries(deck)) {
+      const c = byId[id];
+      if (!c) continue;
+      for (const a of c.affinity && c.affinity.length ? c.affinity : ["Neutral"]) aff.set(a, (aff.get(a) || 0) + copies);
+      typ.set(c.type, (typ.get(c.type) || 0) + copies);
+      const bucket = INDEX.get(id).bucket;
+      curve.set(bucket, (curve.get(bucket) || 0) + copies);
+    }
+
+    const row = (label) => {
+      const r = document.createElement("div");
+      r.className = "bdrow";
+      const l = document.createElement("span");
+      l.className = "bdlab";
+      l.textContent = label;
+      r.append(l);
+      breakdown.append(r);
+      return r;
+    };
+
+    const affRow = row("Aff");
+    for (const a of AFFINITIES) if (aff.has(a)) affRow.append(tag("", a, aff.get(a), AFF_ACCENT[a]));
+    const typeRow = row("Type");
+    for (const t of TYPES) if (typ.has(t)) typeRow.append(tag("ty", t, typ.get(t)));
+    const curveRow = row("Cost");
+    for (const b of BUCKET_ORDER) {
+      if (!curve.has(b)) continue;
+      const box = document.createElement("span");
+      box.className = "cvbox";
+      const big = document.createElement("b");
+      big.textContent = curve.get(b);
+      const small = document.createElement("span");
+      small.textContent = b;
+      box.append(big, small);
+      box.title = `${curve.get(b)} card(s) at cost ${b}`;
+      curveRow.append(box);
+    }
+  }
 
   function renderDeck() {
-    decklist.innerHTML = "";
-    const ids = Object.keys(deck).sort((a, b) => byId[a].name.localeCompare(byId[b].name));
+    decklist.replaceChildren();
+    const ids = Object.keys(deck).filter((id) => byId[id]).sort((a, b) => byName(byId[a], byId[b]));
     for (const id of ids) {
       const c = byId[id];
       const row = document.createElement("div");
       row.className = "deckrow";
       const minus = document.createElement("button");
+      minus.type = "button";
       minus.textContent = "−";
-      minus.addEventListener("click", () => {
-        deck[id] -= 1;
-        if (!deck[id]) delete deck[id];
-        renderDeck(); renderGrid();
-      });
+      minus.setAttribute("aria-label", `Remove one ${c.name}`);
+      minus.addEventListener("click", () => removeCard(id));
       const qty = document.createElement("span");
       qty.className = "qty";
       qty.textContent = deck[id];
       const plus = document.createElement("button");
+      plus.type = "button";
       plus.textContent = "+";
-      plus.addEventListener("click", () => { deck[id] += 1; renderDeck(); renderGrid(); });
+      plus.setAttribute("aria-label", `Add one ${c.name}`);
+      plus.addEventListener("click", () => addCard(id));
       const nm = document.createElement("span");
       nm.className = "nm";
       nm.textContent = c.name;
+      nm.title = "Right click for the card";
+      nm.addEventListener("contextmenu", (e) => { e.preventDefault(); openCard(id); });
       const idEl = document.createElement("span");
       idEl.className = "id";
       idEl.textContent = id;
@@ -283,17 +704,149 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       decklist.append(row);
     }
     const n = total();
+    // An empty Stack has nothing to filter to, so the chip goes away with it.
+    inStackChip.hidden = n === 0;
+    if (n === 0) state.inStack = false;
     countEl.textContent = n;
-    countEl.className = "count " + (n >= 40 ? "ok" : "low");
+    countEl.className = "count " + (n >= MIN_STACK ? "ok" : "low");
+    countHint.textContent = n >= MIN_STACK ? `of ${MIN_STACK} · legal Stack` : `of ${MIN_STACK} · ${MIN_STACK - n} to go`;
+    const pct = Math.min(100, Math.round((n / MIN_STACK) * 100));
+    meterFill.style.width = pct + "%";
+    meter.classList.toggle("ok", n >= MIN_STACK);
+    renderBreakdown(n);
+  }
+
+  // ---- the reader --------------------------------------------------------
+  const dlgAdd = document.getElementById("dlgAdd");
+  const dlgRemove = document.getElementById("dlgRemove");
+  const dlgCopies = document.getElementById("dlgCopies");
+
+  function paintDialogCopies(id) {
+    const copies = deck[id] || 0;
+    dlgCopies.textContent = copies ? `${copies} in Stack` : "not in Stack";
+    dlgRemove.disabled = copies === 0;
+  }
+
+  function openCard(id) {
+    const c = byId[id];
+    if (!c) return;
+    const idx = INDEX.get(id);
+    dlg.dataset.card = id;
+    document.getElementById("dlgId").textContent = c.id;
+    document.getElementById("dlgName").textContent = c.name;
+
+    const meta = document.getElementById("dlgMeta");
+    meta.replaceChildren();
+    const banner = document.createElement("span");
+    banner.className = "banner";
+    banner.textContent = idx.typeLine;
+    meta.append(banner);
+    const num = (label, value) => {
+      const box = document.createElement("span");
+      box.className = "chip-num";
+      const b = document.createElement("b");
+      b.textContent = value;
+      const s = document.createElement("span");
+      s.textContent = label;
+      box.append(b, s);
+      return box;
+    };
+    meta.append(num("Cost", c.cost || "—"));
+    if (c.action !== null && c.action !== undefined) meta.append(num("Act", c.action));
+    if (c.resilience !== null && c.resilience !== undefined) meta.append(num("Res", c.resilience));
+    for (const a of c.affinity || []) {
+      const chip = document.createElement("span");
+      chip.className = "btag";
+      const dot = document.createElement("i");
+      dot.className = "dot";
+      dot.style.setProperty("--aff", AFF_ACCENT[a] || AFF_ACCENT.Neutral);
+      chip.append(dot, a);
+      meta.append(chip);
+    }
+
+    const textEl = document.getElementById("dlgText");
+    textEl.textContent = c.text || "";
+    textEl.hidden = !c.text;
+    const helpEl = document.getElementById("dlgHelp");
+    helpEl.textContent = c.help || "";
+    helpEl.hidden = !c.help;
+    const flavorEl = document.getElementById("dlgFlavor");
+    flavorEl.textContent = c.flavor || "";
+    flavorEl.hidden = !c.flavor;
+    document.getElementById("dlgRarity").textContent = idx.stake ? "Stake module — not in E1" : c.rarity;
+    dlgAdd.disabled = idx.stake;
+    paintDialogCopies(id);
+    if (typeof dlg.showModal === "function") dlg.showModal();
+    else dlg.setAttribute("open", "");
+  }
+
+  dlgAdd.addEventListener("click", () => { if (dlg.dataset.card) addCard(dlg.dataset.card); });
+  dlgRemove.addEventListener("click", () => { if (dlg.dataset.card) removeCard(dlg.dataset.card); });
+  document.getElementById("dlgClose").addEventListener("click", () => dlg.close());
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+
+  // ---- inputs ------------------------------------------------------------
+  let pending = 0;
+  search.addEventListener("input", () => {
+    clearTimeout(pending);
+    pending = setTimeout(() => {
+      state.q = search.value.trim();
+      state.terms = state.q.toLowerCase().split(/\s+/).filter(Boolean);
+      renderGrid();
+    }, 90);
+  });
+  sortOrder.addEventListener("change", () => { state.sort = sortOrder.value; renderGrid(); });
+
+  clearFilters.addEventListener("click", () => {
+    search.value = "";
+    state.q = "";
+    state.terms = [];
+    state.aff.clear(); state.type.clear(); state.cost.clear(); state.rarity.clear();
+    state.inStack = false;
+    syncChips();
+    renderGrid();
+    search.focus();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (dlg.open || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+    if (e.key === "/" && !typing) {
+      e.preventDefault();
+      search.focus();
+      search.select();
+      return;
+    }
+    if (e.key === "Escape" && search.value) {
+      e.preventDefault();
+      search.value = "";
+      state.q = "";
+      state.terms = [];
+      clearTimeout(pending);
+      renderGrid();
+      search.focus();
+    }
+  });
+
+  // ---- saved + precon libraries -----------------------------------------
+  function loadDeck(name, ids) {
+    deck = {};
+    for (const id of ids) if (byId[id]) deck[id] = (deck[id] || 0) + 1;
+    document.getElementById("deckName").value = name;
+    afterDeckChange();
   }
 
   function renderSaved() {
     const box = document.getElementById("savedList");
-    box.innerHTML = "";
+    box.replaceChildren();
     const all = loadAll();
     const names = Object.keys(all).sort();
     if (!names.length) {
-      box.innerHTML = '<span style="color:var(--muted);font-size:12px">Nothing saved yet.</span>';
+      const hint = document.createElement("span");
+      hint.style.cssText = "color:var(--muted);font-size:12px";
+      hint.textContent = "Nothing saved yet.";
+      box.append(hint);
       return;
     }
     for (const name of names) {
@@ -303,14 +856,11 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       nm.className = "nm";
       nm.textContent = `${name} (${all[name].length})`;
       const load = document.createElement("button");
+      load.type = "button";
       load.textContent = "Load";
-      load.addEventListener("click", () => {
-        deck = {};
-        for (const id of all[name]) if (byId[id]) deck[id] = (deck[id] || 0) + 1;
-        document.getElementById("deckName").value = name;
-        renderDeck(); renderGrid();
-      });
+      load.addEventListener("click", () => loadDeck(name, all[name]));
       const del = document.createElement("button");
+      del.type = "button";
       del.textContent = "Delete";
       del.addEventListener("click", () => {
         if (!confirm(`Delete Stack "${name}"?`)) return;
@@ -327,7 +877,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   document.getElementById("save").addEventListener("click", () => {
     const name = document.getElementById("deckName").value.trim();
     if (!name) return alert("Give the Stack a name first.");
-    if (total() < 40) return alert(`A Stack needs at least 40 cards (§7) — this one has ${total()}.`);
+    if (total() < MIN_STACK) return alert(`A Stack needs at least ${MIN_STACK} cards (§7) — this one has ${total()}.`);
     const list = [];
     for (const id of Object.keys(deck)) for (let i = 0; i < deck[id]; i += 1) list.push(id);
     const all = loadAll();
@@ -338,7 +888,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 
   document.getElementById("clear").addEventListener("click", () => {
     deck = {};
-    renderDeck(); renderGrid();
+    afterDeckChange();
   });
 
   /* The precon library: one click loads a curated, fully scripted 40 into the
@@ -360,20 +910,20 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       nm.textContent = `${name} · ${p.affinity} (${p.cards.length})`;
       nm.title = p.tagline;
       const load = document.createElement("button");
+      load.type = "button";
       load.textContent = "Load";
-      load.addEventListener("click", () => {
-        deck = {};
-        for (const id of p.cards) if (byId[id]) deck[id] = (deck[id] || 0) + 1;
-        document.getElementById("deckName").value = name;
-        renderDeck(); renderGrid();
-      });
+      load.addEventListener("click", () => loadDeck(name, p.cards));
       row.append(nm, load);
       box.append(row);
     }
   }
 
-  renderGrid();
+  // A phone has no room for an open drawer; a desk does.
+  if (globalThis.matchMedia && globalThis.matchMedia("(min-width: 760px)").matches) bank.open = true;
+
   renderDeck();
+  syncChips();
+  renderGrid();
   renderSaved();
   renderPrecons();
 })();

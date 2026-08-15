@@ -9,15 +9,26 @@
 <title>600B Timelock TCG — The Arena moved</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="canonical" href="play.html">
-<meta http-equiv="refresh" content="3; url=play.html">
+<noscript><meta http-equiv="refresh" content="0; url=play.html"></noscript>
 <link rel="stylesheet" href="600b.css">
+<style>
+/* This page is a signpost, not a board. Everything it once mocked up — the
+   world-plate backdrop, the arced zones, committed cards turned sideways,
+   attack arrows, the uptime dial — is in play.html now, so a second picture of
+   the board could only disagree with the game. Keep the URL, keep it honest,
+   keep it small. */
+.sign { max-width: 760px; margin: 0 auto; padding: clamp(48px, 9vw, 96px) var(--pad); }
+.sign h2 { margin-bottom: 14px; }
+.gone { display: grid; gap: 8px; margin: 26px 0 30px; padding-left: 0; list-style: none; }
+.gone li { display: flex; gap: 10px; align-items: baseline; color: var(--muted); font-size: 14px; }
+.gone li::before { content: "→"; color: var(--ember); font-weight: 700; }
+.gone b { color: var(--cream); font-weight: 700; }
+#countdown { color: var(--muted); font-size: 13px; margin-top: 18px; }
+</style>
 </head>
 <body>
-<!-- This page was a static design mockup of the board. Everything it proposed —
-     the world-plate backdrop, the arced zones, committed cards turned sideways,
-     attack and block markers, the uptime dial — now lives in the real table, so
-     the mockup would only disagree with the game. The URL stays, and points at
-     the thing itself. -->
+<a class="skip" href="#main">Skip to content</a>
+
 <nav class="nav">
   <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
   <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
@@ -32,15 +43,28 @@
   </div>
 </nav>
 
-<main id="main" class="section">
-  <p class="eyebrow">Arena · retired</p>
-  <h2>The Arena is now <span class="accent">the table.</span></h2>
-  <p class="lead">This page used to be a static picture of the board. The board it was picturing exists
-  now — arced zones, the shared clash lane, committed cards turned sideways, attack arrows and the
-  uptime dial are all in the live game. Taking you there.</p>
-  <div class="btn-row">
-    <a class="btn" href="play.html">Go to the table</a>
-    <a class="btn btn--ghost" href="quickstart.html">Learn it in 5 minutes</a>
+<main id="main" class="sign">
+  <div class="framed">
+    <span class="pad tl"></span><span class="pad tr"></span>
+    <span class="pad bl"></span><span class="pad br"></span>
+    <div class="banner">Arena · retired</div>
+    <h2 style="margin-top:14px">The Arena is now <span class="accent">the table.</span></h2>
+    <p class="lead">This URL used to hold a static picture of the board. The board it was picturing
+    is real now, so the picture was only going to drift out of date. Everything it proposed lives
+    in the game itself:</p>
+    <ul class="gone">
+      <li><b>Arced zones</b> — your Network bends toward you, theirs bends away.</li>
+      <li><b>The shared clash lane</b> — attacks meet in the middle of the table.</li>
+      <li><b>Committed cards turned sideways</b> — the same tell as a paper game.</li>
+      <li><b>Attack and block arrows</b> — ember to the player, violet to the attacker.</li>
+      <li><b>The uptime dial</b> — both seats, always visible, counting down from 20.</li>
+    </ul>
+    <div class="btn-row">
+      <a class="btn" href="play.html">Go to the table</a>
+      <a class="btn btn--ghost" href="quickstart.html">Learn it in 5 minutes</a>
+    </div>
+    <p id="countdown"></p>
+    <div class="terminal-line" style="margin-top:22px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span>ARENA&nbsp;·&nbsp;MOVED</span></div>
   </div>
 </main>
 
@@ -49,5 +73,33 @@
   <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
   <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
 </footer>
+
+<script>
+/* location.replace, not <meta http-equiv="refresh">: replace swaps this page
+   out of the history entry, so Back from the table returns to wherever the
+   player actually came from instead of bouncing here again. Any interaction
+   cancels it — someone reading the list is not someone waiting to be moved. */
+(function () {
+  const note = document.getElementById("countdown");
+  let left = 4;
+  const tick = () => {
+    if (!timer) return;
+    if (left <= 0) { clearInterval(timer); timer = null; location.replace("play.html"); return; }
+    note.textContent = `Taking you to the table in ${left}s — click anything to stay.`;
+    left--;
+  };
+  let timer = setInterval(tick, 1000);
+  tick();
+  const stop = () => {
+    if (!timer) return;
+    clearInterval(timer);
+    timer = null;
+    note.textContent = "Staying here. The table is one click away.";
+  };
+  for (const event of ["pointerdown", "keydown", "wheel", "touchstart"]) {
+    addEventListener(event, stop, { once: true, passive: true });
+  }
+})();
+</script>
 </body>
 </html>
