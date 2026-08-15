@@ -11,7 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { get as httpGet } from "node:http";
+import { get as httpGet, request as httpRequest } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -1747,4 +1747,56 @@ test("the agreed wager survives a referee restart", async (t) => {
   const resumed = await back.type("STATE");
   assert.equal(resumed.stake, 750);
   assert.equal(resumed.seat, 0);
+});
+
+// -------------------------------------------------------------------- CORS
+
+test("a page on a listed origin can read the lobby; anyone else cannot", async (t) => {
+  /* THE RELAY-FREE JOIN PATH IS THE FALLBACK FOR WHEN EVERY RELAY IS DOWN. If
+   * the page and the referee live on different origins and this header is
+   * missing, the browser opens the socket but silently refuses to read
+   * /api/tables — no error anyone can see, just an empty lobby. */
+  const table = await boot(t, "c1.db", { allowedOrigins: ["https://600.wtf"] });
+
+  const allowed = await rawGet(`${table.url}/api/tables`, { origin: "https://600.wtf" });
+  assert.equal(allowed.status, 200);
+  assert.equal(allowed.headers["access-control-allow-origin"], "https://600.wtf");
+  assert.equal(allowed.headers.vary, "origin");
+
+  const stranger = await rawGet(`${table.url}/api/tables`, { origin: "https://evil.example" });
+  assert.equal(stranger.status, 200, "the data is still served to non-browsers");
+  assert.equal(
+    stranger.headers["access-control-allow-origin"],
+    undefined,
+    "but no unlisted page may read it — a wildcard would let anyone enumerate tables"
+  );
+
+  const noOrigin = await rawGet(`${table.url}/api/health`);
+  assert.equal(noOrigin.status, 200);
+  assert.equal(noOrigin.headers["access-control-allow-origin"], undefined);
+});
+
+test("a preflight is answered without reaching any handler", async (t) => {
+  const table = await boot(t, "c2.db", { allowedOrigins: ["https://600.wtf"] });
+  const target = new URL(`${table.url}/api/tables`);
+  const options = await new Promise((resolve, reject) => {
+    const req = httpRequest(
+      {
+        method: "OPTIONS",
+        hostname: target.hostname,
+        port: target.port,
+        path: target.pathname,
+        headers: { origin: "https://600.wtf" },
+      },
+      (response) => {
+        response.resume();
+        response.on("end", () => resolve({ status: response.statusCode, headers: response.headers }));
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+  assert.equal(options.status, 204);
+  assert.equal(options.headers["access-control-allow-origin"], "https://600.wtf");
+  assert.match(options.headers["access-control-allow-methods"], /GET/);
 });

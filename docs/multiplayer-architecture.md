@@ -40,7 +40,7 @@ One engine, three topologies. The only thing that varies is who answers
 | D3 | Engine language | **JavaScript**, one pure headless module |
 | D4 | 2026-07-28 napplet lock | **Amended** — P2P target and symmetric engines kept, shuffle scheme replaced |
 | D5 | Hidden information | **Opponent-held secret permutation** over per-card commitments |
-| D6 | Leaderboard trust | **Dual-signed results + 600B authority key** |
+| D6 | Leaderboard trust | **Dual-signed results + 600B authority key** — signatures done, authority key not |
 | D8 | fips.network | **Lore now**, native-client stunt later |
 
 ### D3 — why JavaScript
@@ -85,6 +85,29 @@ versioned engine. Without an authority, two fresh npubs can farm rating for free
 abandonment and Sybil rating farming are the two problems P2P provably cannot fix
 on its own.
 
+**Where this stands.** The signature half is built and the authority half is not.
+
+A match is now bracketed by four signatures, not two: both seats sign a kind 4600 `t=start`
+announcement over byte-identical content when the match is dealt, and both sign the kind 31600
+result when it ends (`docs/net-protocol.md` §6.1a, §6.2). `server/table.js` verifies every one
+of them — canonical id recomputed from the event's own bytes, BIP-340 signature checked — before
+a row exists, and refuses an event submitted under a pubkey that is not the sender's own seat.
+
+`site/ladder.js` then computes a standing from relay events **and nothing else**. There is no
+ladder server, no accounts table and no row anyone can edit. A match counts only if all four
+hold: two distinct pubkeys published a result for the same `matchId`; the `content` is
+byte-identical; both signers are the two players *named inside* that content; and every
+signature verifies against a recomputed id (`site/schnorr.js`, checked against all 19 official
+BIP-340 vectors). Anything failing is reported in `rejected` with a reason — **a ladder that
+silently drops results is indistinguishable from one that is broken.** Elo, K=24, start 1500,
+replayed oldest-first so two browsers computing from the same events agree.
+
+What that still cannot do is exactly what D6 predicted. Verified signatures prove *these two
+keys agreed on this outcome*; they say nothing about whether the two keys are two people, or
+whether a losing player simply closed the tab before the result existed. **The authority key is
+the missing half, not a formality** — until it republishes, "Ranked" is a word for an
+unauthenticated Elo table with very good hygiene.
+
 ---
 
 ## Known non-viable: fips.network as transport
@@ -112,12 +135,26 @@ and the napplet shell's WebRTC NAP solves that instead.
 | **P1** | Headless `engine.js`: seeded, serialisable, action-log replayable, redacting |
 | **P2** | Remove the legacy manual proposal path after compatibility migration |
 | **P3** | Napplet build: shell-brokered WebRTC, symmetric engines, `DeckOracle` v1 |
-| **P4** | NIP-07/NIP-42 login complete; dual-verified results and authority-key leaderboard remain |
+| **P4** | NIP-07/NIP-42 login complete; every stored and published event signature-verified; relay-derived ladder shipped. **Authority-key republication remains.** |
 | **P5** | `DeckOracle` v2 — opponent-held permutation |
 | **P6** | Table referee hardening for ranked; async play; spectating and replays |
 
+## Decided since
+
+- **Lobby *and* matchmaking queue** — they answer different questions and are cheap together.
+  A six-character code is for two people who already know each other; `QUEUE` is for the rest.
+  The queue holds live connections and never database rows, so it leaves no ghost table behind
+  (`net-protocol.md` §5.2).
+- **Result event kind: 31600, addressable on `d = matchId`.** The handshake, start announcement
+  and result share kind 4600/31600 with a versioned JSON payload, so the content can move
+  without burning a kind. No Nostr convention existed; this is ours and it is versioned.
+- **Settlement is non-custodial and always will be.** A stake is agreed inside the signed start
+  event and paid winner-to-loser as a NIP-57 zap against the winner's own lightning address.
+  Nothing in this system holds, escrows or moves sats (`net-protocol.md` §6.7).
+
 ## Open, not yet decided
 
-- Timer model (chess-clock reserve plus a soft per-action rope is the recommendation)
-- Lobby versus matchmaking queue for a small population
-- Result event kind — no Nostr convention exists for game results; pick and version one
+- Timer model (chess-clock reserve plus a soft per-action rope is the recommendation) — still
+  the largest hole for ranked play, and the reason §4.4's "claim the win" is a button a human
+  presses rather than a rule
+- The authority key itself: where it lives, what it signs, and what disqualifies a match

@@ -601,15 +601,24 @@
 
   /* Rejoin a match this identity owns a seat at — the row the referee named in
    * AUTH_OK. No token is needed: the signed identity IS the claim. */
-  function rejoin(matchId) {
+  function rejoin(matchId, table) {
     if (!/^m_[0-9a-f]{12}$/.test(String(matchId || ""))) return false;
+    /* A match recovered from nostr may live on a referee this page has never
+     * spoken to, so the table travels with it — validated, because it came off
+     * a relay and decides where our socket goes. */
+    const where = /^wss?:\/\//.test(String(table || "")) ? table : net.url || tableUrl();
     net.intent = null;
     net.queued = null;
-    net.session = { matchId, seat: null, token: null, table: net.url || tableUrl(), code: null };
-    if (net.ws && net.ws.readyState === 1 && net.authenticated) {
+    net.session = { matchId, seat: null, token: null, table: where, code: null };
+    const sameTable = net.ws && net.ws.readyState === 1 && net.authenticated && net.url === where;
+    if (sameTable) {
       return raw({ t: "RESUME", v: WIRE, matchId, pubkey: savedPubkey() || undefined });
     }
-    net.url = net.session.table;
+    // A different referee needs a fresh socket, and its own NIP-42 challenge.
+    try { if (net.ws) net.ws.close(1000, "switching tables"); } catch (err) { /* already gone */ }
+    net.ws = null;
+    net.url = where;
+    net.attempt = 0;
     open();
     return true;
   }
@@ -828,6 +837,13 @@
         v: 1,
         kind: "start",
         matchId: state.matchId,
+        /* THE LOAD-BEARING FIELD FOR RECOVERY. Nostr is the session root: with
+         * only a signed-in key, a browser that kept nothing can find its
+         * unfinished matches and, from this, know which referee to reconnect
+         * to. Taken from the referee's STATE rather than from `publicTable()`,
+         * because the two seats may have reached the table by different names
+         * and the announcement must be byte-identical to be comparable. */
+        table: state.table || null,
         ruleset: state.ruleset || null,
         catalogDigest: state.catalogDigest || null,
         wire: WIRE,
@@ -961,6 +977,59 @@
     });
   }
 
+  /* NOSTR IS THE SESSION ROOT. The referee can tell you which of ITS matches
+   * you are seated at, which is the fast path and covers a reload. It cannot
+   * tell you about a match on a referee you are not currently connected to —
+   * and a player who changed machines does not necessarily remember which table
+   * they were on. The signed start announcements do: they are addressed to both
+   * players, they name the table, and a match with no published result has not
+   * ended. That makes an npub, and nothing else, enough to find your way back.
+   *
+   * Every field here is UNTRUSTED. `table` decides where a socket goes, so its
+   * scheme is checked before the row is ever offered — the same rule the invite
+   * parser has always applied. */
+  async function sessions(pubkey) {
+    const key = String(pubkey || "").toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(key)) return [];
+    const [starts, results] = await Promise.all([
+      query({ kinds: [KIND_HANDSHAKE], "#t": ["start"], "#p": [key], limit: 60 }, 3500),
+      query({ kinds: [KIND_RESULT], "#p": [key], limit: 60 }, 3500),
+    ]);
+    const finished = new Set();
+    for (const event of results) {
+      for (const tag of event.tags || []) {
+        if (Array.isArray(tag) && tag[0] === "d" && typeof tag[1] === "string") finished.add(tag[1]);
+      }
+    }
+    const seen = new Set();
+    const out = [];
+    for (const event of starts.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))) {
+      let body;
+      try {
+        body = JSON.parse(event.content);
+      } catch (err) {
+        continue;
+      }
+      if (!body || body.v !== 1 || body.kind !== "start") continue;
+      if (!/^m_[0-9a-f]{12}$/.test(body.matchId || "")) continue;
+      if (finished.has(body.matchId) || seen.has(body.matchId)) continue;
+      if (!/^wss?:\/\//.test(body.table || "")) continue; // where our socket would go
+      if (!Array.isArray(body.players) || body.players.length !== 2) continue;
+      const mine = body.players.find((p) => p && p.pubkey === key);
+      if (!mine) continue; // addressed to us, but not a seat we hold
+      seen.add(body.matchId);
+      out.push({
+        matchId: body.matchId,
+        table: body.table,
+        seat: mine.seat,
+        opponent: (body.players.find((p) => p && p.pubkey !== key) || {}).name || null,
+        stake: Number.isInteger(body.stake) ? body.stake : 0,
+        startedAt: event.created_at || 0,
+      });
+    }
+    return out;
+  }
+
   /* Kind 0 metadata: the display name for the table, and — the reason this
    * exists — the lightning address a winner can actually be paid at. */
   async function profile(pubkey) {
@@ -1078,7 +1147,7 @@
     get queued() { return net.queued ? Object.assign({}, net.queued) : null; },
     get active() { return net.active.slice(); },
     nostr: {
-      hasNip07, login, logout, sign, publish, relays, query, profile,
+      hasNip07, login, logout, sign, publish, relays, query, profile, sessions,
       savedPubkey, npub: npubEncode, npubDecode, toHexPubkey, shortNpub,
       inviteEvent, acceptEvent, resultEvent, startEvent, parseStake,
       parseInvite, subscribeInvites,

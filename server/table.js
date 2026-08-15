@@ -1345,11 +1345,13 @@ async function createTable(opts) {
     if (!ev || typeof ev !== "object" || !isHex64(ev.pubkey) || typeof ev.content !== "string") {
       return fail(conn.ws, "BAD_MESSAGE", "malformed nostr event");
     }
-    /* SEAT BINDING IS WHAT MAKES `agreement` MEAN ANYTHING IN v1. Signatures are
-     * not verified (D-11), so without this one seat could store rows under ANY
-     * pubkey — including its opponent's — and drive the broadcast agreement to
-     * "confirmed" or "disputed" on its own, which the lobby renders verbatim.
-     * A seat may speak only under its own key. */
+    /* SEAT BINDING IS STILL LOAD-BEARING, EVEN NOW THAT SIGNATURES ARE CHECKED.
+     * It is tempting to think verification made this redundant; it did not. A
+     * third keypair produces a PERFECT signature under a key that is simply not
+     * one of the two seats, so without this rule one player could submit both
+     * "sides" of the agreement and drive the broadcast to confirmed — or to
+     * disputed — on their own, which the lobby renders verbatim. Verification
+     * proves an event is genuine. This proves it is genuinely YOURS. */
     const me = conn.seat === null ? null : rec.players[conn.seat];
     if (!me) return fail(conn.ws, "BAD_MESSAGE", "spectators cannot submit events");
     if (!me.pubkey) {
@@ -1534,25 +1536,57 @@ async function createTable(opts) {
     ".md": "text/markdown; charset=utf-8",
   };
 
-  function json(res, code, value) {
+  /* THE PAGE AND THE REFEREE CAN LIVE ON DIFFERENT ORIGINS, and when they do the
+   * lobby is dead without this: a browser will open the socket (that gate is
+   * Origin-checked separately) but silently refuse to read /api/tables, so the
+   * relay-free join path — the fallback for when every relay is down — returns
+   * nothing with no error anyone can see.
+   *
+   * The allowance is EXACTLY the origins a deployment named in TABLE_ORIGINS,
+   * echoed back one at a time. No wildcard: `*` would let any page on the
+   * internet enumerate open tables and poll finished matches, and the same list
+   * already decides who may open a socket, so there is one answer to "who is
+   * this table for" rather than two that can drift apart. */
+  function corsHeaders(req) {
+    const origin = String((req && req.headers && req.headers.origin) || "").toLowerCase();
+    if (!origin || !allowedOrigins.has(origin)) return { vary: "origin" };
+    return {
+      vary: "origin",
+      "access-control-allow-origin": origin,
+      "access-control-allow-methods": "GET, OPTIONS",
+      "access-control-max-age": "600",
+    };
+  }
+
+  function json(res, code, value, req) {
     const body = JSON.stringify(value);
-    res.writeHead(code, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body) });
+    res.writeHead(code, Object.assign({
+      "content-type": "application/json; charset=utf-8",
+      "content-length": Buffer.byteLength(body),
+    }, corsHeaders(req)));
     res.end(body);
   }
 
   function serveHttp(req, res) {
-    if (!requestHostAllowed(req)) return json(res, 403, { error: "host not allowed" });
+    /* Every JSON answer carries this request's CORS verdict, so no call site can
+     * forget it and quietly break a cross-origin lobby. */
+    const reply = (code, value) => json(res, code, value, req);
+    if (!requestHostAllowed(req)) return reply(403, { error: "host not allowed" });
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, corsHeaders(req)).end();
+      return;
+    }
     let url;
     let pathname;
     try {
       url = new URL(req.url, "http://localhost");
       pathname = decodeURIComponent(url.pathname);
     } catch (err) {
-      return json(res, 400, { error: "bad url" });
+      return reply(400, { error: "bad url" });
     }
 
     if (pathname === "/api/health") {
-      return json(res, 200, {
+      return reply(200, {
         ok: true,
         matches: matches.size,
         // So the lobby can say "2 players searching" before anyone commits to
@@ -1564,7 +1598,7 @@ async function createTable(opts) {
     if (pathname === "/api/tables") {
       // The RELAY-FREE join path: if every relay dies on stage, players still
       // see and join tables.
-      return json(res, 200, q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
+      return reply(200, q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
         const rec = matches.get(r.match_id);
         const host = rec && rec.conns[0];
         return {
@@ -1585,7 +1619,7 @@ async function createTable(opts) {
     if (pathname.startsWith("/api/match/")) {
       const id = pathname.slice("/api/match/".length);
       const row = q.byId.get(id);
-      if (!row) return json(res, 404, { error: "NO_SUCH_MATCH" });
+      if (!row) return reply(404, { error: "NO_SUCH_MATCH" });
       /* OUT-OF-BAND VERIFICATION IS A POST-MATCH ACT. `config` carries the two
        * hidden seeds, which generate both decklists, both shuffles and every
        * future draw — anyone holding them can reconstruct the opponent's hand
@@ -1596,7 +1630,7 @@ async function createTable(opts) {
        * The full bundle still reaches both seats in OVER, and lands here the
        * moment the match is finished, which is when verification is the point. */
       if (row.status !== "over") {
-        return json(res, 200, {
+        return reply(200, {
           matchId: row.match_id,
           status: row.status,
           headSeq: row.head_seq,
@@ -1604,7 +1638,7 @@ async function createTable(opts) {
           publicHash: row.public_hash,
         });
       }
-      return json(res, 200, {
+      return reply(200, {
         matchId: row.match_id,
         status: row.status,
         config: row.config_json === "{}" ? null : JSON.parse(row.config_json),
