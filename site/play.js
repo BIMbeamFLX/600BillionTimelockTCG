@@ -1285,6 +1285,85 @@
     arcZone(nodes, options && options.arc);
   }
 
+  /* Which rail of the Network a permanent belongs on. Avatars are the bodies —
+   * they attack and they block — so they get the rail nearest the clash lane.
+   * Everything that pays for them or supports them (Resources, Hardware,
+   * Protocols) sits on the back rail. The test is the SAME one that decides
+   * whether a card wears a stats badge, so the invariant a player can see is:
+   * every card with numbers on it is on the Avatar rail.
+   *
+   * Two things do not read from the card: a token's own profile is not carried
+   * into the redacted view (E1-273's Swarm Drone keeps the SOURCE card's
+   * cardId), and a facedown Network permanent is a masked deploy, which is a
+   * 2/2 Avatar whatever the card underneath says. Both fight, so both go up. */
+  const netRail = (v, uid) => {
+    const object = v.objects[uid];
+    if (!object || !object.cardId) return "avatar";
+    if (object.token || object.facedown) return "avatar";
+    return compiled(object.cardId).isAvatar ? "avatar" : "resource";
+  };
+
+  /* A back-rail card is small, so its art alone stops answering "what does
+   * this pay in". The rail says it in Plate icons along the card's footer.
+   * Read LIVE from the engine, never from the printed card: affinity rewrites
+   * are a real effect and the rail must not lie about the current identity. */
+  function railAffinity(v, uid, node) {
+    let names = [];
+    try {
+      names = E.affinitiesOf(v, E.resolveCtx({}), uid) || [];
+    } catch (error) {
+      names = [];
+    }
+    const strip = el("span", "netaff");
+    for (const name of names) {
+      const key = GENERATE_SYMBOL[name];
+      if (!key || !SYMBOL_ICON[key]) continue; // Neutral has no plate
+      const slot = el("i", "pip-" + key);
+      const icon = el("img", null);
+      icon.src = `../art/resources/${SYMBOL_ICON[key]}.svg`;
+      icon.alt = name;
+      slot.append(icon);
+      strip.append(slot);
+    }
+    if (strip.children && strip.children.length) node.append(strip);
+  }
+
+  /* The Network as two readable rails instead of one crowd.
+   *
+   * The DOM stays FLAT — every card is still a DIRECT child of the zone —
+   * because the arrow layer, the drag handler and the client tests all read
+   * the zone's children. So the split is a wrapped flex line: each card
+   * carries its rail class, CSS `order` sorts them, and one full-width break
+   * element forces the wrap between them. That break has no dataset.uid and no
+   * child image, so every children-scanning reader steps straight over it.
+   *
+   * arcZone is called once PER RAIL with that rail's own nodes: one call
+   * across both would bow a single arc over the whole zone and the rails would
+   * lean into each other. */
+  function renderNetwork(id, v, uids, options) {
+    const container = document.getElementById(id);
+    container.innerHTML = "";
+    const rails = { avatar: [], resource: [] };
+    const list = Array.isArray(uids) ? uids : [];
+    for (const uid of list) {
+      const rail = netRail(v, uid);
+      const node = cardNode(v, uid, options);
+      if (node.classList) node.classList.add(rail === "avatar" ? "netavt" : "netres");
+      if (rail === "resource") railAffinity(v, uid, node);
+      rails[rail].push(node);
+      container.append(node);
+    }
+    // An empty rail must not reserve a gap: on turn one there is one row and
+    // no caption, so the break exists only while both rails are occupied.
+    if (rails.avatar.length && rails.resource.length) {
+      // Captions the rail BELOW it, on both sides, so the divider always
+      // introduces what comes next in reading order.
+      container.append(el("div", "netcut", (options && options.cutLabel) || ""));
+    }
+    arcZone(rails.avatar, options && options.arc);
+    arcZone(rails.resource, options && options.resourceArc);
+  }
+
   /* Cards sit on an arc, never a rank. "ring": the row bows toward the clash
    * lane, centre card proud. "fan": a held hand — edges drop away and every
    * card tilts around a low pivot. Written as CSS vars per card so committed
@@ -1379,20 +1458,29 @@
     const plan = previewClash(v);
     const blocking = Boolean(v.awaiting && v.awaiting.kind === "blockers" && v.awaiting.seat === seat);
 
-    renderZone("foeNetwork", v, v.zones[`${foe}:network`], {
+    /* Their side reads top-down: Resources first, then the Avatars sitting on
+     * the edge of the clash lane. Ours is the mirror of it (Avatars on top),
+     * so on both boards the fighters face each other across the Queue and no
+     * attack arrow has to cross its own back rail. The row order itself is
+     * CSS `order`; the label is the caption of the rail below the line. */
+    renderNetwork("foeNetwork", v, v.zones[`${foe}:network`], {
       // Same hand on the enemy board: left acts (select the attacker to
       // block), right explains. Details were left-click-only here before,
       // which broke the one rule the rest of the table teaches.
       onClick: (uid) => toggleBlock(v, uid),
       onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
       arc: { mode: "ring", spread: -4, depth: 14 },
+      // The back rail is a short row: the same bow at the same depth would
+      // read as a wobble across two or three cards, so it is flatter.
+      resourceArc: { mode: "ring", spread: -3, depth: 7 },
+      cutLabel: "Avatars",
       mark: (uid) => {
         // An attacker still looking for a blocker is the thing to click next.
         const unblocked = blocking && v.clash.attackers.indexOf(uid) >= 0 && !(blocks[uid] || []).length;
         return (plan.dying.has(uid) ? "willdie " : "") + (unblocked ? "needsblock" : "");
       },
     });
-    renderZone("youNetwork", v, v.zones[`${seat}:network`], {
+    renderNetwork("youNetwork", v, v.zones[`${seat}:network`], {
       // Same hand as the Wallet: left acts, right explains. During the
       // attackers step the left click is the attack declaration instead.
       /* One handler owns the click, so a step never gets two answers. The
@@ -1410,6 +1498,8 @@
       canAct: (uid) => actGlow(v, seat, uid),
       canAttack: (uid) => attackGlow(v, seat, uid),
       arc: { mode: "ring", spread: 4, depth: -14 },
+      resourceArc: { mode: "ring", spread: 3, depth: -7 },
+      cutLabel: "Resources",
       mark: (uid) => {
         const marks = [];
         if (awaitingSelection.indexOf(uid) >= 0) marks.push("selected");

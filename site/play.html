@@ -301,6 +301,49 @@ a { color: var(--orange-soft); }
 /* The opponent's hand is information, not furniture: small, face down, inverted. */
 .zone.foehand { min-height: calc(var(--card-w) * .9); }
 .zone.foehand .gcard { width: calc(var(--card-w) * .68); }
+
+/* ---------- the Network's two rails ----------
+   A Network is not one crowd: what fights, and what pays for it. The DOM is
+   FLAT — every card is still a direct child of the zone, because the arrow
+   layer reads it that way — so the split is a wrapped flex line. `order`
+   sorts the cards into rails and one full-width break forces the wrap.
+   Avatars sit nearest the clash lane on BOTH sides, so the order flips per
+   side: theirs is Resources over Avatars, ours is Avatars over Resources,
+   and no attack arrow ever crosses its own back rail.
+   Each rail keeps its own arc — the render bows them separately. */
+/* Two rails must not cost two card heights: the back rail is short and the
+   zone breathes a little less, so a split Network is ~1.6x a single row and
+   the single-column breakpoint still fits the board. */
+.zone.netsplit { flex-wrap: wrap; align-content: center; row-gap: 2px; padding: 5px 6px; overflow: visible; }
+.zone.netsplit .netcut {
+  flex: 0 0 100%; align-self: center; display: flex; align-items: center; gap: 8px;
+  height: 12px; overflow: visible; pointer-events: none;
+  font: 9px/1 Anton600, Impact, sans-serif; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--purple); opacity: .7;
+}
+/* A trace running off the caption, not a ruled line. */
+.zone.netsplit .netcut::after {
+  content: ""; flex: 1 1 auto; height: 1px;
+  background: linear-gradient(90deg, rgba(185,145,228,.42), rgba(185,145,228,0));
+}
+/* The back rail is support, not bodies: smaller, so two rows cost far less
+   than two card heights. It opens up properly on hover. */
+.zone.netsplit .gcard.netres { width: calc(var(--card-w) * .62); }
+.zone.netsplit .gcard.netres:hover { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 10px)) scale(1.5); }
+.zone.netsplit .gcard.netres.committed:hover { transform: rotate(90deg) translateY(calc(var(--lift, 0px) - 6px)) scale(1.4); }
+/* What this one pays in, read live from the engine: the card's terminal
+   footer, table-sized. */
+.netaff { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; gap: 2px; padding: 2px 0 3px; background: rgba(9,8,11,.82); border-top: 1px solid rgba(185,145,228,.28); pointer-events: none; }
+/* Each plate keeps its own field colour — the same .pip-* hooks the buffer
+   uses, so a resource reads by hue as well as by icon. */
+.netaff i { display: block; width: 13px; height: 13px; padding: 1px; border-width: 1px; border-style: solid; }
+.netaff i img { display: block; width: 100%; height: 100%; object-fit: contain; }
+#foeNetwork .gcard.netres { order: 1; }
+#foeNetwork .netcut { order: 2; }
+#foeNetwork .gcard.netavt { order: 3; }
+#youNetwork .gcard.netavt { order: 1; }
+#youNetwork .netcut { order: 2; }
+#youNetwork .gcard.netres { order: 3; }
 @media (max-width: 900px) {
   .zone.arc { flex-wrap: wrap; }
   .zone.fan .gcard { margin: 0 calc(var(--card-w) * -0.05); }
@@ -545,7 +588,7 @@ a { color: var(--orange-soft); }
           </div>
           <div class="zone arc foehand" id="foeHand"></div>
           <div class="zonechip">Their Network</div>
-          <div class="zone arc" id="foeNetwork"></div>
+          <div class="zone arc netsplit" id="foeNetwork"></div>
         </div>
 
         <!-- The Queue is shared information (§6) and the one zone a played
@@ -557,7 +600,7 @@ a { color: var(--orange-soft); }
 
         <div class="side you">
           <div class="zonechip">Your Network</div>
-          <div class="zone arc" id="youNetwork"></div>
+          <div class="zone arc netsplit" id="youNetwork"></div>
           <div class="playerbar" id="youBar">
             <span class="name" id="youName">You</span>
             <span class="uptime" id="youUptimeMeter" role="meter" aria-label="Your Uptime" aria-valuemin="0" aria-valuenow="20">
