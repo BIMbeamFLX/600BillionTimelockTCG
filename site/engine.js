@@ -6620,7 +6620,16 @@
         out.zones[key] = list.slice();
         for (const uid of list) {
           const object = state.objects[uid];
-          if (zone === "cold" && object.facedown && !spectator && object.owner !== seat) {
+          /* A SPECTATOR IS NOT MORE ENTITLED THAN A PLAYER. The old guard read
+           * `!spectator && object.owner !== seat`, so the spectator branch
+           * short-circuited and an audience member was shown the cardId of a
+           * face-down Cold card that the OPPONENT is not allowed to see. That
+           * is a live read of hidden information, not a cosmetic leak: a
+           * matchId is in every STATE, and the resume ladder downgrades any
+           * authenticated stranger naming one to a spectator — so a second
+           * browser profile and a second key was the whole attack. A face-down
+           * card is a shell to everyone except the seat that owns it. */
+          if (zone === "cold" && object.facedown && object.owner !== seat) {
             out.objects[uid] = shellRecord(object);
           } else {
             out.objects[uid] = publicObjectRecord(object);

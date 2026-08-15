@@ -888,3 +888,32 @@ test("a malformed transcript is an error value, never an exception", () => {
     assert.ok(verdict.error, "and it must say why");
   }
 });
+
+test("a face-down Cold card is a shell to EVERYONE except the seat that owns it", () => {
+  /* The guard used to read `!spectator && object.owner !== seat`, so the
+   * spectator branch short-circuited and an audience member was handed the
+   * cardId of a card the OPPONENT is not allowed to see. That is a live read of
+   * hidden information: a matchId appears in every STATE, and the resume ladder
+   * downgrades any authenticated stranger naming one to a spectator — so a
+   * second browser profile and a second key was the entire attack. */
+  const state = E.createGame(baseConfig());
+  const uid = seed(state, 0, "E1-001", { facedown: true }, "cold");
+
+  const owner = E.view(state, 0);
+  assert.equal(owner.objects[uid].cardId, "E1-001", "your own face-down card is yours to see");
+
+  const opponent = E.view(state, 1);
+  assert.equal(opponent.objects[uid].cardId, undefined, "the opponent gets a shell");
+
+  const audience = E.view(state, null);
+  assert.equal(audience.objects[uid].cardId, undefined, "and so does a spectator");
+  assert.ok(audience.zones["0:cold"].includes(uid), "the card is still known to BE there");
+});
+
+test("a face-up Cold card is public to everyone", () => {
+  const state = E.createGame(baseConfig());
+  const uid = seed(state, 0, "E1-001", { facedown: false }, "cold");
+  for (const who of [0, 1, null]) {
+    assert.equal(E.view(state, who).objects[uid].cardId, "E1-001");
+  }
+});
