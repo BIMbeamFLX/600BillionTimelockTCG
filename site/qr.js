@@ -291,9 +291,17 @@
       }
     }
 
-    // Reserve the format strips before the data walk, so codewords flow around
-    // them. Their contents are written after the mask is chosen.
+    /* Reserve the format strips before the data walk, so codewords flow around
+     * them. Their contents are written after the mask is chosen.
+     *
+     * Index 6 is SKIPPED in both strips. (8,6) and (6,8) look like they belong
+     * to the format block and do not — they are the first modules of the two
+     * timing lines, and blanking them here leaves both lines starting light
+     * where the spec says dark. Most decoders never notice, because they take
+     * the grid from the finder patterns and only ever treat these as reserved;
+     * a scanner that counts modules along the timing line does notice. */
     for (let i = 0; i < 9; i++) {
+      if (i === 6) continue;
       set(8, i, false);
       set(i, 8, false);
     }
