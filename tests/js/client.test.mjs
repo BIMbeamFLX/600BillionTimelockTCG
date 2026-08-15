@@ -861,3 +861,140 @@ test("the clash preview promises exactly what the engine then does", () => {
   assert.ok(checked >= 2, `only ${checked} clash(es) were verified`);
   assert.ok(blockedSeen >= 1, "no blocked clash was exercised — the hard path went untested");
 });
+
+// -------------------------------------------------- nostr as the session root
+
+/* `sessions()` fans two REQs across the relays. Driving the stub sockets by
+ * hand is the harness: open them, feed EVENTs, then EOSE so the query resolves
+ * on agreement rather than on its deadline. */
+function answerRelays(sockets, from, events) {
+  const three = sockets.slice(from, from + 3);
+  for (const ws of three) {
+    ws.readyState = 1;
+    if (ws.onopen) ws.onopen();
+  }
+  // One relay carries everything; the others are silent but must still EOSE, or
+  // the query waits out its full deadline.
+  for (const event of events) {
+    three[0].onmessage({ data: JSON.stringify(["EVENT", "q", event]) });
+  }
+  for (const ws of three) ws.onmessage({ data: JSON.stringify(["EOSE", "q"]) });
+}
+
+const MY_KEY = "a".repeat(64);
+const FOE_KEY = "b".repeat(64);
+
+const startEventFor = (matchId, over) =>
+  Object.assign(
+    {
+      id: matchId,
+      kind: 4600,
+      pubkey: FOE_KEY,
+      created_at: 1785310000,
+      tags: [["t", "start"], ["m", matchId], ["p", MY_KEY], ["p", FOE_KEY]],
+      content: JSON.stringify({
+        v: 1,
+        kind: "start",
+        matchId,
+        table: "ws://bitbeam:8777/ws",
+        players: [
+          { seat: 0, pubkey: MY_KEY, name: "felix", affinity: "Power" },
+          { seat: 1, pubkey: FOE_KEY, name: "anna", affinity: "Signal" },
+        ],
+        stake: 500,
+      }),
+    },
+    over || {}
+  );
+
+const resultEventFor = (matchId) => ({
+  id: "r" + matchId,
+  kind: 31600,
+  pubkey: FOE_KEY,
+  created_at: 1785311000,
+  tags: [["d", matchId], ["p", MY_KEY]],
+  content: "{}",
+});
+
+test("an npub alone finds the matches it has not finished", async () => {
+  const { net, sockets } = loadNet(HTTP_ENV);
+  const pending = net.nostr.sessions(MY_KEY);
+  answerRelays(sockets, 0, [startEventFor("m_0000000000a1")]);
+  answerRelays(sockets, 3, []); // no results published: the match is still live
+  const found = await pending;
+
+  assert.equal(found.length, 1);
+  assert.equal(found[0].matchId, "m_0000000000a1");
+  assert.equal(found[0].table, "ws://bitbeam:8777/ws", "and it names the referee to return to");
+  assert.equal(found[0].seat, 0);
+  assert.equal(found[0].opponent, "anna");
+  assert.equal(found[0].stake, 500);
+});
+
+test("a match with a published result is over, not resumable", async () => {
+  const { net, sockets } = loadNet(HTTP_ENV);
+  const pending = net.nostr.sessions(MY_KEY);
+  answerRelays(sockets, 0, [startEventFor("m_0000000000b1"), startEventFor("m_0000000000b2")]);
+  answerRelays(sockets, 3, [resultEventFor("m_0000000000b2")]);
+  const found = await pending;
+
+  assert.deepEqual(found.map((m) => m.matchId), ["m_0000000000b1"]);
+});
+
+test("a start announcement off a relay is untrusted input", async () => {
+  /* `table` decides where our socket goes, so a stranger's event must not be
+   * able to point it anywhere it likes. */
+  const { net, sockets } = loadNet(HTTP_ENV);
+  const pending = net.nostr.sessions(MY_KEY);
+
+  const notAWebsocket = startEventFor("m_0000000000c1", {
+    content: JSON.stringify({
+      v: 1, kind: "start", matchId: "m_0000000000c1", table: "https://evil.example/steal",
+      players: [{ seat: 0, pubkey: MY_KEY }, { seat: 1, pubkey: FOE_KEY }],
+    }),
+  });
+  const notMyMatch = startEventFor("m_0000000000c2", {
+    content: JSON.stringify({
+      v: 1, kind: "start", matchId: "m_0000000000c2", table: "ws://bitbeam:8777/ws",
+      players: [{ seat: 0, pubkey: FOE_KEY }, { seat: 1, pubkey: "c".repeat(64) }],
+    }),
+  });
+  const junk = startEventFor("m_0000000000c3", { content: "not json at all" });
+  const wrongShape = startEventFor("m_0000000000c4", {
+    content: JSON.stringify({ v: 1, kind: "start", matchId: "nope", table: "ws://x/ws" }),
+  });
+  const good = startEventFor("m_0000000000c5");
+
+  answerRelays(sockets, 0, [notAWebsocket, notMyMatch, junk, wrongShape, good]);
+  answerRelays(sockets, 3, []);
+  const found = await pending;
+
+  assert.deepEqual(
+    found.map((m) => m.matchId),
+    ["m_0000000000c5"],
+    "only the well-formed announcement naming a websocket and seating us survives"
+  );
+});
+
+test("asking without an identity asks no relay anything", async () => {
+  const { net, opened } = loadNet(HTTP_ENV);
+  assert.deepEqual(await net.nostr.sessions(""), []);
+  assert.deepEqual(await net.nostr.sessions("not-a-pubkey"), []);
+  assert.deepEqual(opened, [], "a malformed key must not open a socket");
+});
+
+test("rejoining refuses a table URL that is not a websocket", () => {
+  /* The recovered row carries a table, and that value came off a relay — so it
+   * decides where our socket goes and cannot be taken at face value. A signed-in
+   * identity is required for the socket to open at all, which is why one is
+   * present here: without it `open()` correctly refuses before reaching this. */
+  const signedIn = { ...HTTP_ENV, storage: { "600b:pubkey": MY_KEY } };
+  const { net, opened } = loadNet(signedIn);
+  net.rejoin("m_0000000000d1", "https://evil.example/steal");
+  assert.equal(opened.length, 1);
+  assert.equal(opened[0], "ws://bitbeam:8777/ws", "it fell back to this page's own table");
+
+  const later = loadNet(signedIn);
+  assert.equal(later.net.rejoin("not-a-match-id", "ws://bitbeam:8777/ws"), false);
+  assert.deepEqual(later.opened, [], "a malformed match id opens nothing");
+});
