@@ -639,6 +639,20 @@
   const HAND_LIMIT = 7;
   const START_UPTIME = 20;
   const MIN_STACK = 40;
+  /* §7. WITHOUT THIS, "run twenty copies of your best card" is not a degenerate
+   * edge case — it is the CORRECT play, because there is almost no card
+   * selection in the set and density is the only way to make a deck reliable. A
+   * measured 26-copy build won 97.7% against all eleven precons, mean kill turn
+   * 3.8. The cap is what turns deckbuilding into a choice instead of an
+   * arithmetic problem. */
+  const MAX_COPIES = 3;
+  /* BASIC RESOURCES ARE EXEMPT, for the same reason every card game exempts its
+   * basic lands: a 40-card Stack needs 16-18 Resources and there are only ten
+   * Basic Resources in the set, so capping them at three makes a legal Stack
+   * arithmetically impossible. The cap exists to stop one SPELL being the whole
+   * deck — the measured 97.7% build was 26 copies of Zap — and a Resource
+   * cannot be that, because it does nothing on its own. */
+  const uncapped = (card) => card && card.type === "Basic Resource";
 
   const PHASE_ORDER = ["open", "build1", "clash", "build2", "close"];
   const PHASE_STEPS = {
@@ -1486,25 +1500,39 @@
      * this way, that WAS the online game. A deck should be a deck, not a pile
      * of dice rolls; only when a category has fewer cards than the slots it
      * owes does it start repeating, and then deliberately. */
-    const take = (test, count) => {
-      const options = pool.filter(test);
-      const out = [];
-      if (!options.length) return out;
+    /* WITHOUT REPLACEMENT, AND WITHIN THE COPY LIMIT. Sampling with replacement
+     * gave a 40-card deck 23-25 unique cards, averaging 5.6 copies of one and
+     * reaching ten — and since the referee builds every online deck this way,
+     * that WAS the online game. A category with fewer distinct cards than slots
+     * still has to repeat, so the bag refills; the global tally is what keeps
+     * that inside §7 rather than quietly minting an illegal Stack. */
+    const used = {};
+    const deck = [];
+    const draw = (test, count) => {
+      const options = pool.filter((card) => test(card) && (uncapped(card) || (used[card.id] || 0) < MAX_COPIES));
+      if (!options.length) return;
       let bag = [];
       for (let i = 0; i < count; i++) {
-        if (!bag.length) bag = options.slice();
+        if (!bag.length) {
+          bag = pool.filter((card) => test(card) && (uncapped(card) || (used[card.id] || 0) < MAX_COPIES));
+          if (!bag.length) return; // the category is exhausted at the limit
+        }
         const pick = nextInt(stream, bag.length);
-        out.push(bag[pick].id);
+        const card = bag[pick];
         bag.splice(pick, 1);
+        used[card.id] = (used[card.id] || 0) + 1;
+        deck.push(card.id);
       }
-      return out;
     };
-    return [
-      ...take((c) => c.isResource, 17),
-      ...take((c) => c.isAvatar, 14),
-      ...take((c) => c.type === "Zap" || c.type === "Operation", 5),
-      ...take((c) => c.type === "Hardware" || c.type === "Protocol", 4),
-    ];
+
+    draw((c) => c.isResource, 17);
+    draw((c) => c.isAvatar, 14);
+    draw((c) => c.type === "Zap" || c.type === "Operation", 5);
+    draw((c) => c.type === "Hardware" || c.type === "Protocol", 4);
+    // A narrow affinity can exhaust a category at the limit; top up from the
+    // whole pool so a Stack is always legal AND always full.
+    draw(() => true, MIN_STACK - deck.length);
+    return deck;
   }
 
   function newSeat(config) {
@@ -1614,6 +1642,16 @@
       // An illegal decklist is the cheapest cheat there is; it never reaches
       // the table. Validate before a single object is minted.
       if (deck.length < MIN_STACK) fail("SCHEMA", `seat ${seat} Stack is ${deck.length}, minimum ${MIN_STACK}`);
+      /* Enforced HERE, in the engine, because a decklist is untrusted input on
+       * every topology: the Stack Builder can refuse it politely, but the
+       * referee is the only place a hand-rolled client cannot talk past. */
+      const copies = {};
+      for (const cardId of deck) {
+        copies[cardId] = (copies[cardId] || 0) + 1;
+        if (copies[cardId] > MAX_COPIES && !uncapped(cardOf(context, cardId))) {
+          fail("SCHEMA", `seat ${seat} Stack has ${copies[cardId]} copies of ${cardId}, limit ${MAX_COPIES} (§7)`);
+        }
+      }
       for (const cardId of deck) {
         const card = cardOf(context, cardId);
         if (!state.modules.stake && /\bStake\b/.test(card.text || "")) {
@@ -6874,6 +6912,8 @@
     MANUAL_OPS,
     ACTION_KEYS,
     TURN_RIBBON,
+    MIN_STACK,
+    MAX_COPIES,
     PHASE_ORDER,
     PHASE_STEPS,
     SYMBOLS,

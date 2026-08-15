@@ -76,7 +76,7 @@ FLX stays unlocked after attacking.
 **Zap** · Cost **P** · Common
 
 
-Zap deals 3 damage to any target.
+Zap deals 2 damage to any target.
 
 **Flavor:** *Latency rehearsed an excuse, but Zap had already resolved.*
 

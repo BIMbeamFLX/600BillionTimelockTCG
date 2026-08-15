@@ -76,15 +76,38 @@ def by_curve(cards: list[dict]) -> list[dict]:
     return sorted(cards, key=lambda c: (cost_total(c), c["id"]))
 
 
+MAX_COPIES = 3
+"""Rulebook 7. Mirrors MAX_COPIES in site/engine.js, which is authoritative."""
+
+
+def _uncapped(card: dict) -> bool:
+    """Basic Resources are exempt, exactly as they are in the engine."""
+    return card.get("type") == "Basic Resource"
+
+
 def fill(picks: list[dict], count: int) -> list[str]:
-    """Exactly `count` ids: distinct picks first, then copies in rotation."""
+    """Exactly `count` ids: distinct picks first, then copies within the copy limit.
+
+    The rotation used to be unbounded, so a narrow pick list produced four or more
+    copies of one Avatar and the referee refused the resulting Stack outright. A
+    precon that cannot be played is worse than a slightly worse precon.
+    """
     if not picks:
         return []
     out = [c["id"] for c in picks[:count]]
+    counts: dict[str, int] = {}
+    for card_id in out:
+        counts[card_id] = counts.get(card_id, 0) + 1
     i = 0
-    while len(out) < count:
-        out.append(picks[i % len(picks)]["id"])
+    guard = 0
+    while len(out) < count and guard < count * len(picks) * MAX_COPIES:
+        guard += 1
+        card_id = picks[i % len(picks)]["id"]
         i += 1
+        if counts.get(card_id, 0) >= MAX_COPIES and not _uncapped(picks[(i - 1) % len(picks)]):
+            continue
+        counts[card_id] = counts.get(card_id, 0) + 1
+        out.append(card_id)
     return out
 
 
