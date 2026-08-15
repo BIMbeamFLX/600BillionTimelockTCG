@@ -316,6 +316,13 @@ Build:
 - [ ] `dist/index.html` exists at the root of `dist/`, and `dist/art/` sits beside it
 - [ ] `dist/` contains **no** `manifest.json`: `find dist -name manifest.json` is empty
 - [ ] `ruff check scripts/publish_site.py && ruff format --check scripts/publish_site.py`
+- [ ] **`uv run python scripts/check_blobs.py` exits 0.** Every card face the site
+      asks for by SHA-256 is actually retrievable from a Blossom mirror. This
+      cannot be eyeballed locally: `site/faces.js` falls back to the repo file,
+      so an unpublished face looks perfect on your machine and renders as a card
+      back on the deployed origin — and the default publish set does not ship the
+      297 local faces, so there is nothing to fall back to there. Re-render a
+      card and you change its hash; that new blob must be uploaded before deploy.
 
 Referee:
 
