@@ -145,7 +145,7 @@
       fx(event);
     }
     if (session.events.length > 240) session.events.length = 240;
-    render();
+    renderWithFx();
     scheduleNpc();
     return true;
   }
@@ -227,43 +227,324 @@
    * that produces events produces the show. */
   const FX_PHASE = { open: "unlock", build1: "build1", clash: "clash", build2: "build2", close: "cleanup" };
 
+  /* ORDER OF OPERATIONS. An event describes a board that does not exist yet:
+   * fx() runs while the OLD frame is still on screen and render() rebuilds
+   * every card node from scratch immediately afterwards. So a cue that wants
+   * the card's new node cannot be played now, and a cue that wants the node the
+   * card is LEAVING cannot be played later. Both are gathered here, the frame
+   * is measured, render() redraws, and only then are the cues bound to the DOM
+   * and played — see renderWithFx(). */
+  let fxCues = [];   // [{ name, detail, bind }] — E1FX.emit, in engine order
+  let fxPrims = [];  // [{ prim, uid, opts, delay }] — E1FX.anim on one card
+  let fxBefore = []; // last frame's cards: { uid, cardId, zone, node, rect }
+  let fxPicking = false;
+
+  /* `bind` says how to attach a cue to the DOM once the frame exists:
+   *   el:     fill detail.el from detail.uid (the card's NEW node)
+   *   queue:  fill detail.el from the Queue node wearing bind.cardId
+   *   origin: zones to search for the node this card just LEFT — its rect
+   *           becomes the FLIP origin, so the card flies from where it was
+   *   exit:   the card is gone; hand over the deleted node AND its geometry,
+   *           because a detached node measures zero */
+  const cue = (name, detail, bind) => {
+    fxCues.push({ name, detail: detail || {}, bind: bind || {} });
+  };
+  const prim = (name, uid, opts, delay) => {
+    if (uid == null) return;
+    fxPrims.push({ prim: name, uid, opts: opts || {}, delay: delay || 0 });
+  };
+
   function fx(event) {
     showActionFx(event);
-    const FX = globalThis.E1FX;
-    if (!FX) return; // the game must run with fx.js absent
+    if (!globalThis.E1FX) return; // the game must run with fx.js absent
     const card = event.cardId ? CARD_BY_ID[event.cardId] : null;
     const affinity = card && card.affinity ? card.affinity[0] : undefined;
+    const NET = ["youNetwork", "foeNetwork"];
+    const HAND = ["youHand", "foeHand"];
     switch (event.t) {
-      case "TURN": return FX.emit("turn:begin", { seat: event.seat, number: event.number });
-      case "PHASE": return FX.emit("phase:enter", { phase: FX_PHASE[event.phase] || event.phase });
-      case "DRAW": return FX.emit("card:draw", { seat: event.seat });
+      case "TURN": return cue("turn:begin", { seat: event.seat, number: event.number });
+      case "PHASE": return cue("phase:enter", { phase: FX_PHASE[event.phase] || event.phase });
+      // DRAW names the card it drew: the ghost then flies from the Stack
+      // counter to THAT card instead of vaguely at the hand.
+      case "DRAW": return cue("card:draw", { seat: event.seat, uid: event.uid, count: 1 }, { el: true });
       case "GENERATE":
-        return FX.emit("resource:generate", { seat: event.seat, affinity: event.symbol, amount: event.amount });
-      case "BURN": return FX.emit("buffer:burn", { seat: event.seat, amount: event.amount });
+        return cue("resource:generate", { seat: event.seat, affinity: event.symbol, amount: event.amount });
+      case "BURN": return cue("buffer:burn", { seat: event.seat, amount: event.amount });
       case "QUEUED":
-        return FX.emit("card:play", { seat: event.seat, cardType: card && card.type, affinity });
+        // Announced: the card left the Wallet and is now on the Queue. Queue
+        // nodes have no uid — the card is named by what it is.
+        return cue(
+          "card:play",
+          { seat: event.seat, cardType: card && card.type, affinity, qid: event.qid },
+          { queue: true, cardId: event.cardId, origin: HAND }
+        );
       case "ENTERS":
         // A Resource entering play is the once-per-turn land drop, not a spell.
         return card && /Resource/.test(card.type)
-          ? FX.emit("resource:play", { seat: event.seat, affinity })
-          : FX.emit("card:play", { seat: event.seat, cardType: card && card.type, affinity });
-      case "ARCHIVED": case "INVALIDATED": return FX.emit("card:archive", { seat: event.seat });
-      case "DECOMMISSIONED": return FX.emit("avatar:decommission", { uid: event.uid });
+          ? cue(
+              "resource:play",
+              { seat: event.seat, uid: event.uid, affinity },
+              { el: true, cardId: event.cardId, origin: [...HAND, "queue"] }
+            )
+          : cue(
+              "card:play",
+              { seat: event.seat, uid: event.uid, cardType: card && card.type, affinity },
+              { el: true, cardId: event.cardId, origin: ["queue", ...HAND] }
+            );
+      // ARCHIVED carries no seat at all, and its uid is the ARCHIVE's copy of
+      // the card. Both made the old payload resolve to nothing, which is why
+      // archiving used to render absolutely nothing.
+      case "ARCHIVED":
+        return cue("card:archive", { uid: event.uid }, { exit: [...NET, "queue", ...HAND], cardId: event.cardId });
+      case "INVALIDATED":
+        return cue("card:archive", { uid: event.qid }, { exit: ["queue"], cardId: event.cardId });
+      case "DECOMMISSIONED":
+        return cue("avatar:decommission", { uid: event.uid }, { exit: NET, cardId: event.cardId });
       case "DAMAGE":
         return event.to === "seat"
-          ? FX.emit("damage:player", { seat: event.seat, amount: event.amount })
-          : FX.emit("damage:avatar", { uid: event.uid, amount: event.amount });
+          ? cue("damage:player", { seat: event.seat, amount: event.amount })
+          : cue("damage:avatar", { uid: event.uid, amount: event.amount }, { el: true });
       case "UPTIME":
-        return event.delta > 0 ? FX.emit("uptime:gain", { seat: event.seat, amount: event.delta }) : undefined;
+        // Uptime lost outside combat — Burn's interest, a card's own cost, a
+        // drain — used to be the one hit with no feedback at all.
+        return event.delta > 0
+          ? cue("uptime:gain", { seat: event.seat, amount: event.delta })
+          : cue("damage:player", { seat: event.seat, amount: -event.delta });
       case "ATTACKERS":
-        FX.emit("clash:begin", {});
-        return FX.emit("clash:declareAttackers", { count: (event.attackers || []).length });
-      case "BLOCKERS": return FX.emit("clash:declareBlockers", { count: event.count || 0 });
-      case "PASS_PRIORITY": return FX.emit("priority:pass", { seat: event.seat });
+        cue("clash:begin", {});
+        return cue("clash:declareAttackers", { count: (event.attackers || []).length });
+      // BLOCKERS carries the block ASSIGNMENT, never a count. Reading a field
+      // that does not exist printed "UNBLOCKED" over a declared block.
+      case "BLOCKERS":
+        return cue("clash:declareBlockers", {
+          count: Object.keys(event.blocks || {}).reduce(
+            (total, attacker) => total + (event.blocks[attacker] || []).length, 0
+          ),
+        });
+      // COMMIT and UNLOCK are deliberately NOT translated here: the engine
+      // sets `committed` in a dozen places and emits COMMIT from two of them,
+      // so the event is not the truth. fxTurns() below reads the truth off the
+      // board instead, which covers paying a Commit cost, declaring an
+      // attacker, entering committed, and the unlock step with one rule.
+      // A trigger firing is a card DOING something; say which card.
+      case "TRIGGERED": return cue("ability:activate", { uid: event.uid }, { el: true });
+      // "You survived that" is a beat, not a silence.
+      case "PREVENTED": return fxShield(event.uid, `PREVENTED ${Math.max(0, event.amount | 0)}`);
+      case "REBOOT_SHIELD": return fxShield(event.uid, "SHIELDED");
+      case "REDIRECTED":
+        return fxShield(event.to && event.to.uid, `REDIRECTED ${Math.max(0, event.amount | 0)}`);
+      case "PASS_PRIORITY": return cue("priority:pass", { seat: event.seat });
       case "MANUAL_ANNOUNCED": case "MANUAL_PROPOSED": case "MANUAL_APPLIED":
-        return FX.emit("manual:resolve", { seat: event.seat });
-      case "GAME_OVER": return FX.emit("game:win", { seat: event.winner });
+        return cue("manual:resolve", { seat: event.seat });
+      // GAME_OVER carries `winners`, never `winner`, so the victory wipe used
+      // to land on seat 0 whoever actually won. A draw has no winner at all.
+      case "GAME_OVER": {
+        const winners = event.winners || [];
+        return cue("game:win", { seat: winners.length === 1 ? winners[0] : null });
+      }
       default: return undefined;
+    }
+  }
+
+  /* Damage that did not land. The ring is the shield holding; the chip says by
+   * how much, because a number that never changed is invisible otherwise. */
+  function fxShield(uid, text) {
+    if (uid == null) return;
+    const FX = globalThis.E1FX;
+    const good = FX && FX.TOKENS ? FX.TOKENS.palette.good : undefined;
+    prim("ring", uid, { color: good, duration: 420 });
+    prim("chip", uid, { text, color: good, rise: 22 });
+  }
+
+  /* Where every card on the table IS, taken while the frame is still standing.
+   * render() wipes and rebuilds the zones, so this is the only moment an exit
+   * animation can learn its geometry and an entering card can learn where it
+   * flew from. The test DOM has neither querySelectorAll matches nor
+   * getBoundingClientRect, and simply produces an empty snapshot. */
+  function fxSnapshot() {
+    fxBefore = [];
+    if (!globalThis.E1FX || typeof document.querySelectorAll !== "function") return;
+    let cards = [];
+    try {
+      cards = document.querySelectorAll(".gcard");
+    } catch (error) {
+      return;
+    }
+    for (const node of cards) {
+      if (!node || typeof node.getBoundingClientRect !== "function") continue;
+      const data = node.dataset || {};
+      if (!data.uid && !data.cardId) continue;
+      const box = node.getBoundingClientRect();
+      if (!box || !box.width) continue;
+      fxBefore.push({
+        uid: data.uid || null,
+        cardId: data.cardId || null,
+        zone: node.parentNode && node.parentNode.id ? node.parentNode.id : "",
+        committed: Boolean(node.classList && node.classList.contains("committed")),
+        node,
+        rect: { left: box.left, top: box.top, width: box.width, height: box.height },
+      });
+    }
+  }
+
+  const fxLiveNode = (uid) => {
+    if (uid == null || typeof document.querySelector !== "function") return null;
+    try {
+      return document.querySelector(`.gcard[data-uid="${String(uid).replace(/"/g, "")}"]`);
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const fxQueueNode = (cardId) => {
+    const zone = document.getElementById("queue");
+    const kids = zone && zone.children ? zone.children : [];
+    for (let i = kids.length - 1; i >= 0; i--) {
+      if (kids[i] && kids[i].dataset && kids[i].dataset.cardId === cardId) return kids[i];
+    }
+    return null;
+  };
+
+  /* Hotseat holds the unredacted state, so the provenance chain is right there
+   * and the match is exact. A remote seat holds a view that drops it (§6.1),
+   * and falls through to the card-identity match below. */
+  function fxPrevUid(uid) {
+    const state = session.full;
+    let current = uid;
+    for (let hop = 0; hop < 4; hop++) {
+      const object = state && state.objects ? state.objects[current] : null;
+      if (!object || object.prevUid == null) return null;
+      current = object.prevUid;
+      if (fxBefore.some((entry) => entry.uid === current)) return current;
+    }
+    return null;
+  }
+
+  /* The node this card was, taken out of the pool of cards that left the table
+   * this frame. Zones are searched in the order the caller believes the card
+   * came from, so a Resource played straight from the Wallet and a permanent
+   * resolving off the Queue each find their own origin. */
+  function fxTakeGone(gone, zones, cardId, uid) {
+    if (uid != null) {
+      const exact = gone.find((entry) => !entry.used && entry.uid === uid);
+      if (exact) return (exact.used = true), exact;
+    }
+    for (const zone of zones || []) {
+      const hit = gone.find(
+        (entry) => !entry.used && entry.zone === zone && (cardId == null || entry.cardId === cardId)
+      );
+      if (hit) return (hit.used = true), hit;
+    }
+    return null;
+  }
+
+  function fxBind(entry, gone) {
+    const detail = entry.detail;
+    const bind = entry.bind;
+    if (bind.el && detail.uid != null) {
+      const node = fxLiveNode(detail.uid);
+      if (node) detail.el = node;
+    }
+    if (bind.queue) {
+      const node = fxQueueNode(bind.cardId);
+      if (node) detail.el = node;
+    }
+    if (bind.origin) {
+      const from = fxTakeGone(gone, bind.origin, bind.cardId, null);
+      if (from) detail.rect = from.rect;
+    }
+    if (bind.exit) {
+      const left = fxTakeGone(gone, bind.exit, bind.cardId, fxPrevUid(detail.uid));
+      if (left) {
+        detail.el = left.node;
+        detail.rect = left.rect; // a detached node measures zero
+      } else {
+        const node = fxLiveNode(detail.uid);
+        if (node) detail.el = node;
+      }
+    }
+    return detail;
+  }
+
+  /* Turning a card 90° is the single most common thing that happens on this
+   * board and it happened between two frames, instantly, with no motion at all.
+   * The engine is no help: it writes `committed` from a dozen places and only
+   * announces two of them. So the cue is read off the board — whatever turned
+   * or straightened since the last frame gets the sweep that lands on the class
+   * render() just wrote. One rule covers paying a Commit cost, declaring an
+   * attacker, entering committed, and the whole unlock step. */
+  function fxTurns() {
+    let turned = 0;
+    for (const entry of fxBefore) {
+      if (!entry.uid) continue;
+      const node = fxLiveNode(entry.uid);
+      if (!node || !node.classList) continue;
+      if (node.classList.contains("committed") === entry.committed) continue;
+      // The board is read left to right; so is the unlock.
+      prim("commit", entry.uid, { angle: 90 }, Math.min(turned, 8) * 40);
+      turned += 1;
+    }
+  }
+
+  /* Snapshot, redraw, then play. Called instead of render() on the two paths
+   * that carry engine events — a local dispatch and a referee FRAME. */
+  function renderWithFx() {
+    fxSnapshot();
+    render();
+    fxTurns();
+    fxFlush();
+  }
+
+  function fxFlush() {
+    const cues = fxCues;
+    const prims = fxPrims;
+    fxCues = [];
+    fxPrims = [];
+    const FX = globalThis.E1FX;
+    if (!FX) return;
+    /* Everything that was on the table a frame ago and is not on it now: the
+     * Wallet card that became a Queue card, the Queue card that became a
+     * permanent, the permanent that was archived. */
+    const live = [];
+    for (const entry of fxBefore) if (entry.uid && fxLiveNode(entry.uid)) live.push(entry.uid);
+    const gone = fxBefore.filter((entry) => !entry.uid || live.indexOf(entry.uid) < 0);
+    for (const entry of cues) {
+      try {
+        FX.emit(entry.name, fxBind(entry, gone));
+      } catch (error) {
+        void error; // sound and motion are never load-bearing
+      }
+    }
+    if (typeof FX.anim !== "function") return;
+    for (const item of prims) {
+      const node = fxLiveNode(item.uid);
+      if (!node || typeof node.animate !== "function") continue;
+      const run = () => {
+        try {
+          FX.anim(item.prim, node, item.opts);
+        } catch (error) {
+          void error;
+        }
+      };
+      if (!item.delay) run();
+      else setTimeout(run, item.delay);
+    }
+  }
+
+  /* Targeting is the one piece of feedback the engine cannot ask for: a pick is
+   * local intent, not a rules event. The board already marks every legal target
+   * with .targetable — this turns the opening and closing of a pick into the
+   * cue that lights them and puts them out again. */
+  function fxPickState() {
+    const FX = globalThis.E1FX;
+    if (!FX) return;
+    const open = Boolean(picking);
+    if (open === fxPicking) return;
+    fxPicking = open;
+    try {
+      FX.emit(open ? "target:request" : "target:choose", {});
+    } catch (error) {
+      void error;
     }
   }
 
@@ -444,7 +725,11 @@
    * never reach this: they are handled before the zone onClick fires. */
   /* The Queue, rendered. A played card waits here until priority passes, and
    * a zone nobody can see is a card that vanished. */
-  function renderQueue(v) {
+  /* NOT renderQueue: that name is also the matchmaking line's, further down the
+   * same scope, and the later declaration silently won. The board's Queue — the
+   * one place an announced card sits while it can still be answered — was never
+   * drawn at all, so a card being played had nowhere visible to be. */
+  function renderQueueZone(v) {
     const wrap = document.getElementById("queueWrap");
     const zone = document.getElementById("queue");
     if (!wrap || !zone) return;
@@ -455,6 +740,7 @@
       if (!item.cardId) continue;
       const card = CARD_BY_ID[item.cardId];
       const node = el("div", "gcard");
+      node.dataset.cardId = item.cardId; // the effects layer flies cards in and out of here
       const img = el("img");
       setFace(img, card, node);
       img.alt = card.name;
@@ -948,6 +1234,12 @@
     if (card.manual) node.append(el("span", "gmanual", "!"));
     if (wantsTarget(v, uid)) node.classList.add("targetable");
     node.dataset.uid = uid; // the arrow layer finds its endpoints by uid
+    /* The engine mints a NEW uid every time a card changes zone and keeps the
+     * old one as audit-only provenance a view never carries (§6.1). So an event
+     * about a card LEAVING the table names a uid no node ever wore, and the
+     * only durable handle the effects layer has on "the node this card was" is
+     * the card it is. */
+    node.dataset.cardId = object.cardId;
     if (blockTarget === uid) node.classList.add("blockpick");
     if (options && options.mark) {
       for (const name of (options.mark(uid) || "").split(" ")) if (name) node.classList.add(name);
@@ -1524,7 +1816,7 @@
       canPlay: (uid) => playGlow(v, seat, uid),
       arc: { mode: "fan", spread: 13, depth: 20 },
     });
-    renderQueue(v);
+    renderQueueZone(v);
     renderTurnButton(v, seat);
     coachStep(v, seat);
     renderZone("foeHand", v, v.zones[`${foe}:wallet`], { arc: { mode: "fan", spread: -8, depth: -10 } });
@@ -1569,6 +1861,7 @@
       youZone.classList.toggle("draggable", draggable);
     }
     drawClashArrows();
+    fxPickState();
   }
 
   /* The arithmetic nobody should have to do in their head: what gets through,
@@ -2510,7 +2803,7 @@
         fx(event);
       }
       if (session.events.length > 240) session.events.length = 240;
-      render();
+      renderWithFx();
       renderNetChip();
     },
 
@@ -2769,7 +3062,11 @@
     let mine = null;
     if (over.config && Array.isArray(over.transcript)) {
       try {
-        mine = E.verifyMatch({ config: over.config, log: over.transcript.map((e) => e.action) });
+        /* ENTRIES, NOT ACTIONS. verifyMatch walks `entry.action` and also checks
+         * `entry.stateHash` and `entry.prev` to prove the chain — handing it a
+         * bare action list makes every entry "malformed" at index 0, so this
+         * screen told every player their own match had failed verification. */
+        mine = E.verifyMatch({ config: over.config, log: over.transcript });
       } catch (error) {
         mine = { ok: false, error: String(error && error.message) };
       }
@@ -3259,6 +3556,10 @@
     meshGroupActive = false;
     blocks = {};
     picking = null;
+    fxCues = [];
+    fxPrims = [];
+    fxBefore = [];
+    fxPicking = false;
     document.getElementById("setup").hidden = true;
     document.getElementById("table").hidden = false;
     if (globalThis.E1FX) globalThis.E1FX.emit("game:start", {});
@@ -3272,7 +3573,17 @@
      * this never trips the browser's autoplay policy. */
     if (globalThis.E1FX) {
       try {
-        globalThis.E1FX.init({ control: true, parent: document.getElementById("fxControl") });
+        globalThis.E1FX.init({
+          control: true,
+          parent: document.getElementById("fxControl"),
+          /* WHICH PANEL A SEAT IS ON. Left to itself the effects layer answers
+           * "whose turn is it", which is only right for a table that reseats
+           * itself every turn. This one is laid out against uiSeat() — in solo
+           * play the human is at the bottom for the whole game — so without
+           * this every seat-anchored cue lands on the wrong half of the board
+           * for the entire NPC turn. */
+          sideOf: (seat) => (session.full && uiSeat(session.full) === seat ? "you" : "foe"),
+        });
       } catch (error) {
         void error; // sound is never load-bearing
       }

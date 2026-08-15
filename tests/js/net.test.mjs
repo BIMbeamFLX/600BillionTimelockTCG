@@ -1800,3 +1800,90 @@ test("a preflight is answered without reaching any handler", async (t) => {
   assert.equal(options.headers["access-control-allow-origin"], "https://600.wtf");
   assert.match(options.headers["access-control-allow-methods"], /GET/);
 });
+
+// ------------------------------------------------- the whole match lifecycle
+
+test("a staked match, queued to signed result, carries everything the closing screen needs", async (t) => {
+  /* THE CONTRACT BETWEEN THE REFEREE AND THE END-OF-MATCH SCREEN. That screen
+   * shows the verdict, the turn and action counts, the wager, and re-verifies
+   * the transcript in the browser — and it can only do any of that from what
+   * OVER and the post-match STATE actually contain. */
+  const table = await boot(t, "e2e.db");
+  const a = await table.client({ identity: "a" });
+  const b = await table.client({ identity: "b" });
+  a.send({ t: "QUEUE", name: "felix", affinity: "Power", stake: 210 });
+  await a.type("QUEUED");
+  b.send({ t: "QUEUE", name: "anna", affinity: "Signal", stake: 210 });
+
+  const dealt = await a.type("STATE");
+  await b.type("STATE");
+  assert.equal(dealt.stake, 210);
+  assert.ok(dealt.createdAt, "the start announcement is signed over this timestamp");
+
+  // Both seats announce the match on nostr, exactly as play.js does.
+  const start = (client, role) => {
+    const players = dealt.players.map((p) => ({
+      seat: p.seat, pubkey: p.pubkey, name: p.name, affinity: p.affinity,
+    }));
+    const content = JSON.stringify({
+      v: 1, kind: "start", matchId: dealt.matchId, table: dealt.table,
+      ruleset: dealt.ruleset, catalogDigest: dealt.catalogDigest, wire: 1,
+      players, stake: 210,
+    });
+    const event = {
+      pubkey: client.pubkey, kind: 4600,
+      created_at: Math.floor(Date.parse(dealt.createdAt) / 1000),
+      tags: [["t", "start"], ["t", "600b-timelock-tcg"], ["m", dealt.matchId]],
+      content,
+    };
+    event.id = eventId(event);
+    event.sig = Buffer.from(schnorr.sign(event.id, client.privateKey)).toString("hex");
+    client.send({ t: "NOSTR", role, event });
+    return event;
+  };
+  const startA = start(a, "invite");
+  const startB = start(b, "accept");
+  /* BYTE-IDENTICAL, which is the entire reason every field comes from the
+   * referee's STATE rather than from either browser's own clock or inputs. */
+  assert.equal(startA.content, startB.content);
+  assert.notEqual(startA.pubkey, startB.pubkey);
+
+  // Seat 0 resigns; the referee ends the match and both seats are told.
+  await a.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} });
+  const over = await b.next((m) => m.t === "OVER");
+
+  assert.deepEqual(over.result.winners, [1]);
+  assert.equal(over.result.reason, "concede");
+  assert.ok(over.verify && over.verify.ok, "the referee replays its own database clean");
+  assert.ok(over.config, "the client needs the config to verify for itself");
+  assert.ok(Array.isArray(over.transcript) && over.transcript.length > 0);
+
+  /* The screen re-verifies in the browser rather than trusting verify.ok — and
+   * it must be handed ENTRIES, not actions. verifyMatch walks `entry.action`
+   * and checks `entry.stateHash`/`entry.prev` to prove the chain; a bare action
+   * list is "malformed" at index 0, which is exactly the bug this caught. */
+  const mine = E.verifyMatch({ config: over.config, log: over.transcript });
+  assert.equal(mine.ok, true, "an independent replay of the referee's own bytes must agree");
+  const tampered = over.transcript.map((e, i) => (i === 0 ? { ...e, stateHash: "0".repeat(64) } : e));
+  const caught = E.verifyMatch({ config: over.config, log: tampered });
+  assert.equal(caught.ok, false, "and a doctored transcript must NOT verify");
+  assert.equal(caught.divergedAt, 0, "at exactly the entry that was altered");
+
+  const payload = JSON.parse(over.resultContent);
+  assert.equal(payload.matchId, dealt.matchId);
+  assert.equal(payload.reason, "concede");
+  assert.ok(Number.isInteger(payload.turns), "the screen shows a turn count");
+  assert.ok(Number.isInteger(payload.actions), "and an action count");
+  assert.equal(payload.players.length, 2);
+
+  /* A RELOAD AFTER THE MATCH MUST STILL BE ABLE TO SIGN. The closing bytes are
+   * on the row, so a seat that was away when it ended still gets them. */
+  const cold = await Client.open(table.wsUrl, { identity: "b" });
+  t.after(() => cold.close());
+  assert.deepEqual(cold.hello.active, [], "a finished match is not a session to return to");
+  cold.send({ t: "RESUME", matchId: dealt.matchId });
+  const back = await cold.type("STATE");
+  assert.equal(back.status, "over");
+  assert.equal(back.stake, 210, "and the wager is still on the record");
+  assert.equal(back.resultContent, over.resultContent, "the identical bytes its opponent signed");
+});
