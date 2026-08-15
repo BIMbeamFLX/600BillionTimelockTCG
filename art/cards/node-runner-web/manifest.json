@@ -3,7 +3,7 @@
   "frame": "Node Runner",
   "source": "node-runner-web",
   "count": 297,
-  "total_bytes": 41843138,
+  "total_bytes": 41814212,
   "unmatched": [
     "600B-Timelock-card-back",
     "Global FIPS Balloon Network"
@@ -3861,8 +3861,8 @@
       "name": "Zap",
       "file": "Zap.webp",
       "mime": "image/webp",
-      "bytes": 139942,
-      "sha256": "471b467a3a02610708fe2b18f1a3abfa571847671389c08c984b551d71f8c81f",
+      "bytes": 111016,
+      "sha256": "314740850a4418917a4590206590e2d322d09418f34bae5d361e17af12a6cd72",
       "card_type": "Zap",
       "affinity": [
         "Power"
