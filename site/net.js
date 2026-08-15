@@ -277,6 +277,10 @@
 
   const httpOrigin = (wsUrl) => String(wsUrl || "").replace(/^ws/, "http").replace(/\/ws$/, "");
 
+  const hostOf = (url) => {
+    try { return new URL(url).host.toLowerCase(); } catch (err) { return null; }
+  };
+
   const isLoopback = (url) => {
     try {
       const host = new URL(url).hostname;
@@ -376,6 +380,28 @@
       }
       if (!/^[0-9a-f]{64}$/.test(msg.challenge || "") || typeof msg.relay !== "string") {
         H("onError", { code: "AUTH_FAILED", message: "the table sent an invalid login challenge" });
+        return;
+      }
+      /* THE RELAY TAG MUST NAME THE TABLE WE ARE ACTUALLY TALKING TO, and this
+       * check is the whole anti-replay property of NIP-42 rather than a
+       * formality. Signing whatever the far end asked for meant a hostile table
+       * could harvest a challenge from the real referee, serve it here, collect
+       * the signature, and replay it to authenticate AS THIS PLAYER — after
+       * which AUTH_OK hands over their unfinished matches and the claim ladder
+       * hands over the seat.
+       *
+       * Hosts are compared, not whole URLs: a referee legitimately advertises
+       * its PUBLIC_HOST name. If those disagree the login is refused loudly,
+       * because a table that cannot name itself correctly is either
+       * misconfigured or not the table it claims to be — and both deserve to
+       * be seen rather than silently signed. */
+      const named = hostOf(msg.relay);
+      const dialled = hostOf(net.url);
+      if (!named || !dialled || named !== dialled) {
+        H("onError", {
+          code: "AUTH_FAILED",
+          message: `this table asked to be signed in as "${named || msg.relay}" while answering at "${dialled || net.url}" — refusing`,
+        });
         return;
       }
       try {

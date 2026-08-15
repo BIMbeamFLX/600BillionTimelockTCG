@@ -245,3 +245,58 @@ test("refusing to verify is refusing to publish a ladder", async () => {
     globalThis.E1Schnorr = held;
   }
 });
+
+// ------------------------------------------- a stake belongs to the players
+
+test("a stake signed by strangers is not this match's stake", async () => {
+  /* A valid signature proves an event is genuine, never that it is genuinely
+   * YOURS. Without binding the start's signers to the seats named in the
+   * result, two keys of an attacker's choosing could hang a 21-million-sat
+   * wager on two innocent players — and the ladder printed that number as
+   * fact. */
+  const matchId = "m_0000000000e5";
+  const MALLORY2 = KEY("mallory-two");
+  const { matches, counted } = await Ladder.standings([
+    ...agreedMatch(matchId, 0),
+    startEvent(MALLORY, matchId, 21000000),
+    startEvent(MALLORY2, matchId, 21000000),
+  ]);
+  assert.equal(counted, 1, "the match itself still counts");
+  assert.equal(matches[0].stake, null, "but the wager strangers invented does not");
+});
+
+test("a bystander cannot erase a real wager by signing over it", async () => {
+  /* The mirror image, and the subtler one: if the check were merely "exactly
+   * two signers agreed", a third signature would take the count to three and
+   * silently delete a wager both players really did agree to. */
+  const matchId = "m_0000000000e6";
+  const { matches } = await Ladder.standings([
+    ...agreedMatch(matchId, 0),
+    startEvent(ALICE, matchId, 500),
+    startEvent(BOB, matchId, 500),
+    startEvent(MALLORY, matchId, 999999),
+  ]);
+  assert.equal(matches[0].stake, 500, "the two seats' own agreement is what counts");
+});
+
+test("one seat's signature is not an agreement, even a real seat's", async () => {
+  const matchId = "m_0000000000e7";
+  const { matches } = await Ladder.standings([
+    ...agreedMatch(matchId, 0),
+    startEvent(ALICE, matchId, 500),
+    startEvent(MALLORY, matchId, 500),
+  ]);
+  assert.equal(matches[0].stake, null, "bob never signed it, so bob never agreed to it");
+});
+
+test("a start announcement addressed to nothing is discarded", async () => {
+  const matchId = "m_0000000000e8";
+  const malformed = sign(ALICE, {
+    kind: 4600,
+    created_at: 1785310000,
+    tags: [["t", "start"]],
+    content: JSON.stringify({ v: 1, kind: "start", matchId: "not-a-match-id", stake: 500 }),
+  });
+  const { matches } = await Ladder.standings([...agreedMatch(matchId, 0), malformed]);
+  assert.equal(matches[0].stake, null);
+});

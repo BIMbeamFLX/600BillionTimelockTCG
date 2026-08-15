@@ -97,7 +97,8 @@
       return null;
     }
     if (!body || body.v !== 1 || body.kind !== "start") return null;
-    if (typeof body.matchId !== "string") return null;
+    // Shaped exactly like a result's matchId, or it addresses nothing.
+    if (!/^m_[0-9a-f]{12}$/.test(body.matchId || "")) return null;
     return {
       matchId: body.matchId,
       by: event.pubkey,
@@ -157,7 +158,6 @@
     const list = Array.isArray(events) ? events : [];
     const shouldVerify = settings.verify !== false;
 
-    const stakes = new Map(); // matchId -> agreed sats, only when BOTH seats signed it
     const starts = new Map(); // matchId -> Map(pubkey -> stake)
     for (const event of list) {
       const start = parseStart(event);
@@ -166,14 +166,24 @@
       if (!starts.has(start.matchId)) starts.set(start.matchId, new Map());
       starts.get(start.matchId).set(start.by, start.stake);
     }
-    for (const [matchId, signers] of starts) {
-      const values = Array.from(signers.values());
-      /* A stake is only binding when BOTH sides signed the SAME number. One
-       * player announcing a wager the other never agreed to is not a wager. */
-      if (values.length === 2 && values[0] === values[1] && values[0] !== null) {
-        stakes.set(matchId, values[0]);
-      }
-    }
+
+    /* A STAKE IS BOUND TO THE TWO PEOPLE WHO PLAYED, exactly as a result is.
+     * Verifying the signatures is not enough on its own: a valid signature only
+     * proves an event is genuine, never that it is genuinely YOURS. Without
+     * this, two keys of an attacker's choosing could publish a start for a
+     * stranger's matchId and hang a 21-million-sat wager on two innocent
+     * players — or one bystander could sign a real match's start and, by making
+     * the signer count three, silently erase the real wager. So the signers are
+     * resolved against the seats named inside the confirmed RESULT, and any
+     * event from anyone else is simply not part of the answer. */
+    const stakeFor = (seats) => {
+      const signers = starts.get(seats.matchId);
+      if (!signers) return null;
+      const values = seats.pubkeys.map((key) => (signers.has(key) ? signers.get(key) : undefined));
+      if (values.some((v) => v === undefined)) return null; // a seat never signed
+      if (values[0] === null || values[0] !== values[1]) return null; // no agreed number
+      return values[0];
+    };
 
     // matchId -> content -> [events]
     const byMatch = new Map();
@@ -216,7 +226,8 @@
         continue;
       }
       const { parsed } = agreed[0];
-      confirmed.push(Object.assign({}, parsed, { stake: stakes.get(matchId) || null }));
+      const stake = stakeFor({ matchId, pubkeys: parsed.seats.map((s) => s.pubkey) });
+      confirmed.push(Object.assign({}, parsed, { stake }));
     }
 
     /* Oldest first. Elo is path-dependent, so the order is part of the answer:

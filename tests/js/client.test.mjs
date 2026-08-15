@@ -998,3 +998,94 @@ test("rejoining refuses a table URL that is not a websocket", () => {
   assert.equal(later.net.rejoin("not-a-match-id", "ws://bitbeam:8777/ws"), false);
   assert.deepEqual(later.opened, [], "a malformed match id opens nothing");
 });
+
+// ------------------------------------------- the login proof names its table
+
+/** Boot a signed-in tab that already holds a match, so a socket opens at once. */
+function signedInTab(overrides) {
+  const signed = [];
+  const env = {
+    ...HTTP_ENV,
+    storage: { "600b:pubkey": NIP07_PUBKEY },
+    session: new Map([["600b:match", JSON.stringify({
+      matchId: "m_0000000000f1", seat: 0, token: "t".repeat(32),
+      table: "ws://bitbeam:8777/ws", code: "K7M2QF",
+    })]]),
+    nostr: {
+      getPublicKey: async () => NIP07_PUBKEY,
+      signEvent: async (event) => {
+        signed.push(event);
+        return { ...event, pubkey: NIP07_PUBKEY, id: "i".repeat(64), sig: "s".repeat(128) };
+      },
+    },
+    ...(overrides || {}),
+  };
+  const loaded = loadNet(env);
+  const errors = [];
+  loaded.net.start({ onError: (e) => errors.push(e), onState: () => {}, onStatus: () => {} });
+  return { ...loaded, signed, errors };
+}
+
+const authFrom = (relay) => ({
+  data: JSON.stringify({ t: "AUTH", v: 1, challenge: "c".repeat(64), relay, kind: 22242, expiresIn: 600 }),
+});
+
+test("a login challenge naming another table is refused, not signed", async () => {
+  /* THE ANTI-REPLAY PROPERTY OF NIP-42 IS THE RELAY TAG. Signing whatever the
+   * far end asked for let a hostile table harvest a challenge from the real
+   * referee, serve it here, take the signature, and replay it to authenticate
+   * AS THIS PLAYER — after which the referee hands over their unfinished
+   * matches and the claim ladder hands over the seat. */
+  const tab = signedInTab();
+  assert.equal(tab.sockets.length, 1, "a saved match opens a socket with no click");
+
+  tab.sockets[0].onmessage(authFrom("ws://evil.example/ws"));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+
+  assert.deepEqual(tab.signed, [], "the extension must never be asked to sign it");
+  assert.equal(tab.sockets[0].sent.length, 0, "and nothing goes back on the wire");
+  const failure = tab.errors.find((e) => e.code === "AUTH_FAILED");
+  assert.ok(failure, "the player is told, rather than silently left unauthenticated");
+  assert.match(failure.message, /evil\.example/, "and the message names what it refused");
+  assert.match(failure.message, /bitbeam/, "alongside who actually answered");
+});
+
+test("a login challenge from the table we dialled is signed", async () => {
+  const tab = signedInTab();
+  tab.sockets[0].readyState = 1;
+  tab.sockets[0].onmessage(authFrom("ws://bitbeam:8777/ws"));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+
+  assert.equal(tab.signed.length, 1, "the honest case still works");
+  assert.equal(tab.signed[0].kind, 22242);
+  const relayTag = tab.signed[0].tags.find((t) => t[0] === "relay");
+  const challengeTag = tab.signed[0].tags.find((t) => t[0] === "challenge");
+  assert.equal(relayTag[1], "ws://bitbeam:8777/ws");
+  assert.equal(challengeTag[1], "c".repeat(64));
+  assert.equal(tab.sockets[0].sent[0].t, "AUTH");
+});
+
+test("a table that renames itself between reconnects cannot slip a proof past us", async () => {
+  /* Hosts are compared rather than whole URLs, because a referee legitimately
+   * advertises its PUBLIC_HOST name — but the host itself must match, or the
+   * proof is for a different machine. */
+  const tab = signedInTab();
+  tab.sockets[0].readyState = 1;
+  tab.sockets[0].onmessage(authFrom("wss://bitbeam:8777/ws")); // same host, other scheme
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(tab.signed.length, 1, "a scheme difference is a proxy, not an impostor");
+
+  const other = signedInTab();
+  other.sockets[0].readyState = 1;
+  other.sockets[0].onmessage(authFrom("ws://bitbeam.evil.example:8777/ws"));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.deepEqual(other.signed, [], "a lookalike hostname is still a different machine");
+});
+
+test("a malformed challenge is refused before the signer is ever asked", async () => {
+  const tab = signedInTab();
+  tab.sockets[0].onmessage({ data: JSON.stringify({ t: "AUTH", v: 1, challenge: "nope", relay: "ws://bitbeam:8777/ws" }) });
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.deepEqual(tab.signed, []);
+  assert.ok(tab.errors.some((e) => e.code === "AUTH_FAILED"));
+});
