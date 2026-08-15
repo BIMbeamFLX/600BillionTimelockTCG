@@ -2182,6 +2182,14 @@
    * not objects. Last element is the TOP (LIFO, §10.2). */
   function pushQueue(env, item) {
     const state = env.state;
+    item.objectUid = item.objectUid || null;
+    item.sourceUid = item.sourceUid || null;
+    item.abilityIndex = Number.isInteger(item.abilityIndex) ? item.abilityIndex : null;
+    item.targets = Array.isArray(item.targets) ? item.targets : [];
+    item.modes = Array.isArray(item.modes) ? item.modes : [];
+    item.x = Number.isInteger(item.x) ? item.x : 0;
+    item.paid = item.paid && typeof item.paid === "object" ? item.paid : {};
+    item.manual = item.manual || null;
     item.qid = "q" + state.nextQid;
     state.nextQid += 1;
     item.addedSeq = state.seq;

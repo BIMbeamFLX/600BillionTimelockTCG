@@ -481,6 +481,26 @@ test("a player is a clickable target: Zap resolves at the opponent's face", () =
   assert.equal(verdict.divergedAt, null, "a self-played transcript must not diverge");
 });
 
+test("player names are rendered as text in the turn HUD", () => {
+  const { byId, game } = loadPlay(netStub());
+  const payload = '<img src=x onerror="globalThis.pwned=true">';
+  byId("nameA").value = payload;
+  byId("nameB").value = "Opponent";
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = "70";
+
+  byId("start").click();
+
+  assert.ok(game.state, "the fixture must start a real game");
+  assert.equal(
+    byId("youName").textContent,
+    payload,
+    "the name must remain visible as literal text"
+  );
+  assert.ok(!byId("turnchip").innerHTML.includes("<img"), "the name reached an HTML parser");
+});
+
 test("the clash preview promises exactly what the engine then does", () => {
   /* The preview mirrors engine.js by hand (minimal lethal in order, Overflow,
    * First Strike in its own step). A preview that disagrees with the engine is

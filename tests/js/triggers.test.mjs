@@ -142,6 +142,21 @@ test("Uptime Clock ticks at the beginning of each player's Maintenance", () => {
   assert.equal(state.seats[0].uptime, before[0] - 1, "seat 0 was damaged on theirs");
 });
 
+test("trigger queue items have complete public records before broadcast", () => {
+  let state = game();
+  seed(state, 0, byName["Uptime Clock"].id);
+  state = passUntil(state, (s) => s.queue.some((item) => item.kind === "triggered"));
+
+  const trigger = state.queue.find((item) => item.kind === "triggered");
+  assert.doesNotThrow(() => E.publicHash(state));
+  assert.equal(trigger.objectUid, null);
+  assert.deepEqual(trigger.targets, []);
+  assert.deepEqual(trigger.modes, []);
+  assert.equal(trigger.x, 0);
+  assert.deepEqual(trigger.paid, {});
+  assert.equal(trigger.manual, null);
+});
+
 test("Entry Fee Device charges a Resource's controller when it enters", () => {
   let state = game();
   seed(state, 0, byName["Entry Fee Device"].id);

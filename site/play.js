@@ -1110,10 +1110,17 @@
     /* The name is whoever the table is speaking to, which in remote play is
      * always you — so the turn owner is named separately whenever it is not the
      * same person. Hotseat gets it too: the defender speaks during blockers. */
-    document.getElementById("turnchip").innerHTML =
-      `Turn <b>${v.turn.number}</b> · <b>${v.seats[seat].name}</b>` +
-      (v.turn.active !== seat ? ` · ${v.seats[v.turn.active].name}'s turn` : "") +
-      (v.result ? ` · <b>${v.result.reason === "draw" ? "draw" : v.seats[v.result.winners[0]].name + " wins"}</b>` : "");
+    const turnchip = document.getElementById("turnchip");
+    turnchip.innerHTML = "";
+    turnchip.append(
+      "Turn ", el("b", null, String(v.turn.number)),
+      " · ", el("b", null, v.seats[seat].name)
+    );
+    if (v.turn.active !== seat) turnchip.append(" · ", `${v.seats[v.turn.active].name}'s turn`);
+    if (v.result) {
+      const outcome = v.result.reason === "draw" ? "draw" : `${v.seats[v.result.winners[0]].name} wins`;
+      turnchip.append(" · ", el("b", null, outcome));
+    }
 
     const ribbon = document.getElementById("phases");
     ribbon.innerHTML = "";

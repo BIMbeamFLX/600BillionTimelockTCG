@@ -54,6 +54,8 @@ const RATE_MAX_ACT = 150;
  * measure — it is the only thing that stops a scripted loop wedging the table,
  * and no human comes close to it. */
 const RATE_MAX_REJECT = 400;
+const RATE_MAX_CONTROL = 30;
+const MAX_PAYLOAD = 64 * 1024;
 const MINT_ATTEMPTS = 40;
 const KIND_HANDSHAKE = 4600;
 const KIND_RESULT = 31600;
@@ -75,6 +77,29 @@ function makeCode() {
 }
 
 const isHex64 = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
+
+function pruneAddressRates(rates, now, windowMs) {
+  for (const [address, timestamps] of rates) {
+    const active = timestamps.filter((timestamp) => now - timestamp < windowMs);
+    if (active.length) rates.set(address, active);
+    else rates.delete(address);
+  }
+}
+
+function hostnameFromHostHeader(header) {
+  if (typeof header !== "string" || !header || header.includes("://")) return null;
+  try {
+    const parsed = new URL(`http://${header}`);
+    if (
+      parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash
+    ) {
+      return null;
+    }
+    return parsed.hostname.toLowerCase();
+  } catch (err) {
+    return null;
+  }
+}
 
 // -------------------------------------------------------------------- schema
 
@@ -163,24 +188,57 @@ CREATE TABLE IF NOT EXISTS nostr_events (
 
 /**
  * Boot a referee. Returns once the socket is listening.
- * @param {{port?:number, dbPath?:string, siteDir?:string, host?:string, pinSeed?:number}} opts
+ * @param {{port?:number, dbPath?:string, siteDir?:string, host?:string,
+ *   pinSeed?:number, maxPayload?:number, controlMax?:number,
+ *   publicHost?:string, trustedHosts?:string[], allowedOrigins?:string[]}} opts
  */
 async function createTable(opts) {
   const options = opts || {};
   const dbPath = options.dbPath || path.join(__dirname, "matches.db");
   const siteDir = options.siteDir || path.join(REPO, "site");
   const host = options.host || "0.0.0.0";
+  const trustedHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+  const addTrustedHost = (value) => {
+    const hostname = hostnameFromHostHeader(value);
+    if (!hostname) throw new Error(`invalid trusted host: ${value}`);
+    trustedHosts.add(hostname);
+  };
+  if (host !== "0.0.0.0" && host !== "::") {
+    addTrustedHost(host.includes(":") && !host.startsWith("[") ? `[${host}]` : host);
+  }
+  if (options.publicHost) addTrustedHost(options.publicHost);
+  for (const value of Array.isArray(options.trustedHosts) ? options.trustedHosts : []) {
+    addTrustedHost(value);
+  }
+  const requestHostAllowed = (req) => {
+    const requestHostname = hostnameFromHostHeader(req.headers.host);
+    return Boolean(requestHostname && trustedHosts.has(requestHostname));
+  };
   const pinSeed = Number.isInteger(options.pinSeed) ? options.pinSeed : null;
-  /* Two budgets, and the split is the point: a human playing a card game is
+  const maxPayload = Number.isInteger(options.maxPayload) && options.maxPayload > 0
+    ? options.maxPayload
+    : MAX_PAYLOAD;
+  /* Two seat/gameplay budgets, and the split is the point: a human playing a card game is
    * REJECTED constantly (they click a card they cannot afford, in the wrong
    * phase, that is not a Resource) and must never be disconnected for it. The
    * action budget meters only what the engine accepted; the reject budget is a
    * runaway-loop guard and nothing else. Raised only by the headless tests,
-   * which act at machine speed and are not the threat model. */
+   * which act at machine speed and are not the threat model. Control traffic
+   * has the separate address-scoped budget below. */
   const rateMax = Number.isInteger(options.rateMax) ? options.rateMax : RATE_MAX_ACT;
   const rejectMax = Number.isInteger(options.rejectMax)
     ? options.rejectMax
     : Math.max(RATE_MAX_REJECT, rateMax);
+  const controlMax = Number.isInteger(options.controlMax)
+    ? options.controlMax
+    : RATE_MAX_CONTROL;
+  const allowedOrigins = new Set(
+    (Array.isArray(options.allowedOrigins) ? options.allowedOrigins : []).map((value) => {
+      const origin = new URL(value).origin;
+      if (!/^https?:\/\//.test(origin)) throw new Error(`invalid allowed origin: ${value}`);
+      return origin.toLowerCase();
+    })
+  );
   const startedAt = Date.now();
 
   if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -241,6 +299,7 @@ async function createTable(opts) {
   /** matchId -> live record. The DB is the source of truth; this is the hot copy. */
   const matches = new Map();
   const byCode = new Map();
+  const controlRates = new Map();
 
   // ------------------------------------------------------------ match minting
 
@@ -634,6 +693,15 @@ async function createTable(opts) {
 
   const rateOk = (rec, seat) => meter(rec.rate, seat, rateMax);
   const rejectOk = (rec, seat) => meter(rec.rejectRate, seat, rejectMax);
+  const controlOk = (conn) => {
+    const now = Date.now();
+    const hits = (controlRates.get(conn.address) || []).filter(
+      (timestamp) => now - timestamp < RATE_WINDOW_MS
+    );
+    hits.push(now);
+    controlRates.set(conn.address, hits);
+    return hits.length <= controlMax;
+  };
 
   function kick(conn, why) {
     fail(conn.ws, "RATE_LIMITED", why);
@@ -1034,10 +1102,36 @@ async function createTable(opts) {
   }
 
   const server = http.createServer((req, res) => serveHttp(req, res));
-  const wss = new WebSocketServer({ server, path: "/ws", perMessageDeflate: true });
+  const wss = new WebSocketServer({
+    server,
+    path: "/ws",
+    perMessageDeflate: true,
+    maxPayload,
+    verifyClient(info, done) {
+      if (!requestHostAllowed(info.req)) {
+        return done(false, 403, "host not allowed");
+      }
+      const header = info.req.headers.origin;
+      if (!header) return done(true); // native clients and the headless verifier
+      let origin;
+      try {
+        origin = new URL(header);
+      } catch (err) {
+        return done(false, 403, "origin not allowed");
+      }
+      const sameHost =
+        origin.host.toLowerCase() === String(info.req.headers.host || "").toLowerCase();
+      const browserScheme = origin.protocol === "http:" || origin.protocol === "https:";
+      const explicitlyAllowed = allowedOrigins.has(origin.origin.toLowerCase());
+      return done(browserScheme && (sameHost || explicitlyAllowed), 403, "origin not allowed");
+    },
+  });
 
-  wss.on("connection", (ws) => {
-    const conn = { ws, rec: null, seat: null, tokenSent: false };
+  wss.on("connection", (ws, req) => {
+    /* The TCP peer is authoritative. X-Forwarded-For is attacker input unless a
+     * deployment explicitly establishes and validates a trusted proxy chain. */
+    const address = req.socket.remoteAddress || "unknown";
+    const conn = { ws, rec: null, seat: null, tokenSent: false, address };
     ws.conn = conn;
     ws.isAlive = true;
     ws.on("pong", () => { ws.isAlive = true; });
@@ -1047,10 +1141,24 @@ async function createTable(opts) {
       try {
         msg = JSON.parse(String(raw));
       } catch (err) {
+        if (!controlOk(conn)) return kick(conn, "too many bad messages");
         return fail(ws, "BAD_MESSAGE", "not JSON");
       }
-      if (!msg || typeof msg !== "object") return fail(ws, "BAD_MESSAGE", "not an object");
-      if (msg.v !== WIRE) return fail(ws, "BAD_VERSION", `this table speaks wire v${WIRE}`);
+      if (!msg || typeof msg !== "object") {
+        if (!controlOk(conn)) return kick(conn, "too many bad messages");
+        return fail(ws, "BAD_MESSAGE", "not an object");
+      }
+      if (msg.v !== WIRE) {
+        if (!controlOk(conn)) return kick(conn, "too many bad messages");
+        return fail(ws, "BAD_VERSION", `this table speaks wire v${WIRE}`);
+      }
+      const normalAct =
+        conn.rec && conn.seat !== null && msg.t === "ACT" &&
+        msg.action && typeof msg.action === "object" &&
+        typeof msg.action.type === "string";
+      if (!normalAct && !controlOk(conn)) {
+        return kick(conn, "too many control or bad messages");
+      }
       try {
         switch (msg.t) {
           case "CREATE": return handleCreate(conn, msg);
@@ -1063,6 +1171,7 @@ async function createTable(opts) {
       } catch (err) {
         // A referee that dies on a crafted payload is a denial of service.
         console.error("[table] handler threw:", err);
+        if (normalAct && !controlOk(conn)) return kick(conn, "too many bad messages");
         return fail(ws, "BAD_MESSAGE", String(err && err.message));
       }
     });
@@ -1074,6 +1183,7 @@ async function createTable(opts) {
   /* The ONLY reliable way to notice a slept laptop: its TCP connection dies
    * silently and would otherwise look alive forever. Two missed pongs = 30 s. */
   const heartbeat = setInterval(() => {
+    pruneAddressRates(controlRates, Date.now(), RATE_WINDOW_MS);
     for (const ws of wss.clients) {
       if (ws.isAlive === false) {
         try { ws.terminate(); } catch (err) { /* already gone */ }
@@ -1113,13 +1223,15 @@ async function createTable(opts) {
   }
 
   function serveHttp(req, res) {
+    if (!requestHostAllowed(req)) return json(res, 403, { error: "host not allowed" });
     let url;
+    let pathname;
     try {
       url = new URL(req.url, "http://localhost");
+      pathname = decodeURIComponent(url.pathname);
     } catch (err) {
       return json(res, 400, { error: "bad url" });
     }
-    const pathname = decodeURIComponent(url.pathname);
 
     if (pathname === "/api/health") {
       return json(res, 200, {
@@ -1234,7 +1346,7 @@ async function createTable(opts) {
   };
 }
 
-module.exports = { createTable, KIND_HANDSHAKE, KIND_RESULT, WIRE };
+module.exports = { createTable, pruneAddressRates, KIND_HANDSHAKE, KIND_RESULT, WIRE };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8777);
@@ -1243,7 +1355,15 @@ if (require.main === module) {
   /* RATE_MAX exists for headless soak runs, which act far faster than any human.
    * Leave it unset for the demo — the default is what protects the table. */
   const rateMax = process.env.RATE_MAX ? Number(process.env.RATE_MAX) : null;
-  createTable({ port, dbPath, pinSeed, rateMax, publicHost: process.env.PUBLIC_HOST })
+  const controlMax = process.env.CONTROL_RATE_MAX ? Number(process.env.CONTROL_RATE_MAX) : null;
+  const maxPayload = process.env.MAX_PAYLOAD ? Number(process.env.MAX_PAYLOAD) : null;
+  const allowedOrigins = process.env.TABLE_ORIGINS
+    ? process.env.TABLE_ORIGINS.split(",").map((value) => value.trim()).filter(Boolean)
+    : [];
+  createTable({
+    port, dbPath, pinSeed, rateMax, controlMax, maxPayload, allowedOrigins,
+    publicHost: process.env.PUBLIC_HOST,
+  })
     .then((table) => {
       console.log(`[table] 600B referee on ${table.url}  (ws ${table.wsUrl})`);
       console.log(`[table] db ${dbPath} · catalog ${CATALOG.size} cards ${CATALOG.digest}`);

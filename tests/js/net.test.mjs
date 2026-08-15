@@ -11,12 +11,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { get as httpGet } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { createTable } = require("../../server/table.js");
+const { createTable, pruneAddressRates } = require("../../server/table.js");
 const E = require("../../site/engine.js");
 const CARDS = require("../../site/play-data.js");
 const WebSocket = require("ws");
@@ -43,9 +44,9 @@ class Client {
     this.over = null;
   }
 
-  static async open(url) {
+  static async open(url, options) {
     const c = new Client(url);
-    c.ws = new WebSocket(url);
+    c.ws = new WebSocket(url, options);
     await new Promise((resolve, reject) => {
       c.ws.once("open", resolve);
       c.ws.once("error", reject);
@@ -324,6 +325,38 @@ async function playOut(a, b, budget = 8000) {
 
 const tmpDb = (name) => path.join(fs.mkdtempSync(path.join(os.tmpdir(), "600b-net-")), name);
 
+test("expired address-rate buckets are removed", () => {
+  const rates = new Map([
+    ["expired", [1, 2]],
+    ["active", [10_001, 19_999]],
+  ]);
+
+  pruneAddressRates(rates, 20_000, 10_000);
+
+  assert.equal(rates.has("expired"), false);
+  assert.deepEqual(rates.get("active"), [10_001, 19_999]);
+});
+
+function httpJsonWithHost(url, host) {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const request = httpGet({
+      hostname: target.hostname,
+      port: target.port,
+      path: target.pathname,
+      headers: { Host: host },
+    }, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => resolve({
+        status: response.statusCode,
+        body: JSON.parse(Buffer.concat(chunks).toString("utf8")),
+      }));
+    });
+    request.on("error", reject);
+  });
+}
+
 /* One cleanup path, registered before anything can fail: clients first, then the
  * table. Closing the table first terminates the sockets and a later client
  * close() would wait for an event that already fired. */
@@ -332,8 +365,8 @@ async function boot(t, name, extra) {
     Object.assign({ port: 0, dbPath: tmpDb(name), host: "127.0.0.1", rateMax: 1000000 }, extra || {})
   );
   const clients = [];
-  table.client = async () => {
-    const c = await Client.open(table.wsUrl);
+  table.client = async (options) => {
+    const c = await Client.open(table.wsUrl, options);
     clients.push(c);
     return c;
   };
@@ -894,6 +927,179 @@ test("HTTP: health, the relay-free table list, and out-of-band verification", as
   assert.equal((await fetch(`${table.url}/engine.js`)).status, 200);
   // Traversal is refused, never served.
   assert.ok((await fetch(`${table.url}/%2e%2e/package.json`)).status >= 400);
+});
+
+test("malformed URL escapes return 400 without killing the table", async (t) => {
+  const table = await boot(t, "t17.db");
+
+  const malformed = await fetch(`${table.url}/%E0%A4%A`, { signal: AbortSignal.timeout(1000) });
+  assert.equal(malformed.status, 400);
+  assert.deepEqual(await malformed.json(), { error: "bad url" });
+
+  const health = await (await fetch(`${table.url}/api/health`)).json();
+  assert.equal(health.ok, true, "the malformed request killed the referee");
+});
+
+test("oversized WebSocket messages are closed before parsing", async (t) => {
+  const table = await boot(t, "t18.db", { maxPayload: 1024 });
+  const attacker = await table.client();
+  const code = await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("oversized socket stayed open")), 1000);
+    attacker.ws.once("close", (closeCode) => {
+      clearTimeout(timeout);
+      resolve(closeCode);
+    });
+    attacker.ws.send("x".repeat(1025));
+  });
+  assert.equal(code, 1009);
+
+  const health = await (await fetch(`${table.url}/api/health`)).json();
+  assert.equal(health.ok, true, "the oversized payload killed the referee");
+});
+
+test("browser WebSockets accept same-origin pages and reject foreign origins", async (t) => {
+  const table = await boot(t, "t20.db");
+  const foreign = new WebSocket(table.wsUrl, { headers: { Origin: "https://evil.example" } });
+
+  await assert.rejects(
+    new Promise((resolve, reject) => {
+      foreign.once("open", () => {
+        foreign.close();
+        reject(new Error("foreign origin opened the game socket"));
+      });
+      foreign.once("error", reject);
+    }),
+    /403/,
+  );
+
+  const same = new WebSocket(table.wsUrl, { headers: { Origin: table.url } });
+  await new Promise((resolve, reject) => {
+    same.once("open", resolve);
+    same.once("error", reject);
+  });
+  await new Promise((resolve) => {
+    same.once("close", resolve);
+    same.close();
+  });
+
+  const splitTable = await boot(t, "t21.db", { allowedOrigins: ["https://play.example"] });
+  const split = new WebSocket(splitTable.wsUrl, {
+    headers: { Origin: "https://play.example" },
+  });
+  await new Promise((resolve, reject) => {
+    split.once("open", resolve);
+    split.once("error", reject);
+  });
+  await new Promise((resolve) => {
+    split.once("close", resolve);
+    split.close();
+  });
+});
+
+test("browser WebSockets reject DNS-rebinding hosts", async (t) => {
+  const table = await boot(t, "t22.db");
+  const attackerHost = `rebind.attacker:${table.port}`;
+  const rebound = new WebSocket(table.wsUrl, {
+    headers: { Host: attackerHost, Origin: `http://${attackerHost}` },
+  });
+
+  await assert.rejects(
+    new Promise((resolve, reject) => {
+      rebound.once("open", () => {
+        rebound.close();
+        reject(new Error("DNS-rebinding socket opened the game table"));
+      });
+      rebound.once("error", reject);
+    }),
+    /403/,
+  );
+});
+
+test("HTTP APIs reject DNS-rebinding hosts", async (t) => {
+  const table = await boot(t, "t27.db");
+  const response = await httpJsonWithHost(
+    `${table.url}/api/tables`,
+    `rebind.attacker:${table.port}`,
+  );
+  assert.equal(response.status, 403);
+  assert.deepEqual(response.body, { error: "host not allowed" });
+});
+
+test("configured table hosts remain admissible", async (t) => {
+  const cases = [
+    { name: "t23.db", options: { publicHost: "table.lan" }, hostname: "table.lan" },
+    { name: "t24.db", options: { trustedHosts: ["alias.lan"] }, hostname: "alias.lan" },
+  ];
+  for (const entry of cases) {
+    const table = await boot(t, entry.name, entry.options);
+    const authority = `${entry.hostname}:${table.port}`;
+    const socket = new WebSocket(table.wsUrl, {
+      headers: { Host: authority, Origin: `http://${authority}` },
+    });
+    await new Promise((resolve, reject) => {
+      socket.once("open", resolve);
+      socket.once("error", reject);
+    });
+    await new Promise((resolve) => {
+      socket.once("close", resolve);
+      socket.close();
+    });
+    const response = await httpJsonWithHost(`${table.url}/api/health`, authority);
+    assert.equal(response.status, 200);
+    assert.equal(response.body.ok, true);
+  }
+});
+
+test("CREATE, JOIN, RESUME, and NOSTR share a connection rate limit", async (t) => {
+  const table = await boot(t, "t19.db", { controlMax: 2 });
+  const client = await table.client();
+
+  client.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power" });
+  assert.equal((await client.type("ERROR")).code, "NO_SUCH_MATCH");
+
+  client.send({ t: "CREATE", name: "host", affinity: "Power" });
+  await client.type("STATE");
+
+  client.send({ t: "NOSTR", role: "invite", event: {} });
+  assert.equal((await client.type("ERROR")).code, "RATE_LIMITED");
+
+  const rows = table.db.prepare("SELECT COUNT(*) AS n FROM matches").get();
+  assert.equal(rows.n, 1, "rate-limited control traffic mutated the database");
+  assert.equal((await (await fetch(`${table.url}/api/health`)).json()).ok, true);
+});
+
+test("control budgets survive reconnects and ignore untrusted forwarding headers", async (t) => {
+  const table = await boot(t, "t25.db", { controlMax: 1 });
+  const first = await table.client({ headers: { "X-Forwarded-For": "198.51.100.10" } });
+  first.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power" });
+  assert.equal((await first.type("ERROR")).code, "NO_SUCH_MATCH");
+  await first.close();
+
+  const second = await table.client({ headers: { "X-Forwarded-For": "203.0.113.20" } });
+  second.send({ t: "JOIN", code: "ZZZZZZ", name: "probe", affinity: "Power" });
+  assert.equal((await second.type("ERROR")).code, "RATE_LIMITED");
+});
+
+test("malformed, bad-version, and unknown messages share the address budget", async (t) => {
+  const table = await boot(t, "t26.db", { controlMax: 2 });
+  const client = await table.client();
+
+  client.ws.send("{");
+  assert.equal((await client.type("ERROR")).code, "BAD_MESSAGE");
+  client.ws.send(JSON.stringify({ t: "JOIN", v: 999 }));
+  assert.equal((await client.type("ERROR")).code, "BAD_VERSION");
+  client.send({ t: "UNKNOWN" });
+  assert.equal((await client.type("ERROR")).code, "RATE_LIMITED");
+});
+
+test("unseated ACT messages cannot bypass the address budget", async (t) => {
+  const table = await boot(t, "t28.db", { controlMax: 1 });
+  const client = await table.client();
+
+  client.send({ t: "ACT", action: { type: "PASS_PRIORITY" } });
+  assert.equal((await client.type("ERROR")).code, "NO_SUCH_MATCH");
+  client.send({ t: "ACT", action: { type: "PASS_PRIORITY" } });
+  assert.equal((await client.type("ERROR")).code, "RATE_LIMITED");
 });
 
 test("rejected card clicks are free; only a runaway loop is closed", async (t) => {

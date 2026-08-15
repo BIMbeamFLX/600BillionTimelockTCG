@@ -270,15 +270,17 @@ rejection handling will show it and re-render from the bundled view.
 **Rules failures are never `ERROR`; transport failures are never `REJECT`.** On stage this
 distinction says instantly whether the *rules* refused you or the *plumbing* did.
 
-### 2.5 Rate limit
+### 2.5 Rate limits
 
-Two budgets, both per seat per 10 s. Exceeding either is `ERROR{RATE_LIMITED}` and close 4029.
-The opponent is unaffected and the match stays playable.
+Three budgets use a 10 s sliding window. Exceeding one is `ERROR{RATE_LIMITED}` and close
+4029. Seat action/reject budgets are independent; the control budget is shared by clients
+with the same source address, such as players behind one NAT or reverse proxy.
 
 | Budget | Default | Counts |
 |---|---|---|
 | `RATE_MAX` | 150 | **accepted** actions only, metered *after* `E.apply` agrees |
 | `RATE_MAX_REJECT` | 400 | rejected actions — the runaway-loop guard, nothing more |
+| `CONTROL_RATE_MAX` | 30 | control, malformed, and unseated action messages per client address, retained across reconnects |
 
 **A rejection must never cost a player their socket.** `CANNOT_AFFORD`, `NOT_RESOURCE` and
 `WRONG_PHASE` are what browsing your own hand looks like on the wire: clicking each card in a
@@ -286,9 +288,9 @@ seven-card opening hand is seven rejections, and charging those to the action bu
 socket on a player for playing the game. Rejects are therefore metered separately and far more
 loosely, and the check happens after the engine has ruled, never before it.
 
-A successful `RESUME` clears both buckets for that seat. Otherwise the window survived the
-disconnect and the first action on the fresh socket was `RATE_LIMITED` again for the rest of
-the 10 s — kicked, reconnected, kicked again.
+A successful `RESUME` clears the accepted/rejected action buckets for that seat. The
+address-scoped control budget deliberately survives reconnects, so reconnecting cannot mint
+fresh capacity for control or malformed traffic.
 
 `RATE_MAX` (env) raises the action budget for headless soak runs, which act far faster than any
 human. **Leave it unset for the demo** — the default is what protects the table.
@@ -322,6 +324,24 @@ Once the match is over the whole bundle is served, `resultContent`/`resultTags` 
 the signed result is recoverable even from a cold page that held no socket when the match
 ended.
 
+Malformed percent escapes are a `400 {"error":"bad url"}` response. URL parsing and path
+decoding share the same error boundary, so a crafted request cannot throw out of the HTTP
+handler or strand the connection.
+
+### 2.7 Socket admission
+
+The server accepts at most 64 KiB of decompressed WebSocket payload per message
+(`MAX_PAYLOAD` overrides the byte count). Oversized frames are closed with WebSocket code
+1009 before JSON parsing.
+
+Every HTTP or WebSocket request must name a trusted `Host`: loopback, the explicit bind host,
+`PUBLIC_HOST`, or a host passed through the programmatic `trustedHosts` option. This blocks DNS
+rebinding on both `/ws` and the HTTP/API surface. A browser socket is then admitted only when
+its HTTP(S) `Origin` matches the WebSocket request's `Host`. Native/headless clients without an
+`Origin` remain supported. If the page and table intentionally live on different origins, list
+the exact page origins in the comma-separated `TABLE_ORIGINS` environment variable; no wildcard
+is supported.
+
 ---
 
 ## 3. Database
@@ -329,7 +349,8 @@ ended.
 Node 24 `node:sqlite` (`DatabaseSync`) — no dependency. DDL is executed at boot with
 `CREATE TABLE IF NOT EXISTS` and **inlined in `server/table.js`** (one fewer file to drift out
 of sync with the code that reads it). Path `server/matches.db`, already covered by `*.db` in
-`.gitignore`. Env: `PORT` (8777), `DB`, `PIN_SEED`, `RATE_MAX`, `PUBLIC_HOST`.
+`.gitignore`. Env: `PORT` (8777), `DB`, `PIN_SEED`, `RATE_MAX`, `CONTROL_RATE_MAX`,
+`MAX_PAYLOAD`, `TABLE_ORIGINS`, `PUBLIC_HOST`.
 
 ```
 PRAGMA journal_mode = WAL;     -- survives a hard kill mid-write
@@ -749,6 +770,9 @@ index.
   `GET /api/tables` → local hotseat on `play.html` (which never stopped working).
 - Pin the rehearsed seed via `PIN_SEED`. **Leave `RATE_MAX` unset for the demo** — the default
   is what protects the table, and no human comes near it.
+- Same-origin LAN play needs no origin configuration; set `PUBLIC_HOST` to the LAN/Tailscale
+  name or address. Set `TABLE_ORIGINS` only when a page hosted elsewhere must connect to this
+  table.
 - `scripts/demo-two-clients.mjs` is the exception: it is a headless client acting at ~100
   actions/second, which is exactly the traffic the budget exists to bound. Start the referee with
   `RATE_MAX=100000` when running it, as `tests/js/net.test.mjs` already does in-process.
@@ -762,8 +786,8 @@ Run with the **file/glob form** — `node --test tests/js/` (directory form) fai
 | File | Covers |
 |---|---|
 | `tests/js/engine.test.mjs` | 33 — the original 32 plus `myTriggers` redaction (own seat only; a spectator gets `[]`) |
-| `tests/js/client.test.mjs` | 10 — `site/net.js` loaded against a stubbed `file:`/`http:` environment: **zero sockets from `file://`**, `NO_TABLE` instead of a stack trace, auto-resume only with a saved match, `?table=` override, no loopback in a published invite, npub round trip, invites-are-untrusted, and the versioned 4600/31600 payloads. Plus two `site/play.js` lobby tests against a stub DOM: the share link offers a Join rather than the host panel, and a finished match is publishable from a `STATE` alone |
-| `tests/js/net.test.mjs` | 16 in-process integration tests: two views of one state; server-enforced fog of war (no seed of any kind in any view); engine error codes in `REJECT`; duplicate `ACT` → `SEQ_MISMATCH` with one chain row; a full match to a result with replay + verify + tamper detection; `RESUME` by token; takeover and spectator downgrade; kill-and-rebuild crash recovery; nostr storage, seat binding and agreement; anonymous claim-on-first-use; a finished match still signable after reload/reconnect/restart; HTTP endpoints, traversal, and the live-match config gate; rejected clicks are free while a runaway loop is still closed; one connection cannot hold both seats; the share link offers the free seat; and no seat can attack from its Wallet over the wire |
+| `tests/js/client.test.mjs` | 15 — `site/net.js` loaded against a stubbed `file:`/`http:` environment, plus real `site/play.js` DOM paths for lobby, recovered result, targeting, clash preview, and HTML-safe player names |
+| `tests/js/net.test.mjs` | 27 in-process integration tests: authoritative views and fog of war; engine/transport error separation; full match persistence, replay and verification; resume/takeover/restart; nostr binding and recoverable results; HTTP/static boundaries; malformed URLs; WebSocket payload, Host and origin admission; address-scoped control/bad-message limits and cleanup; action/reject rate limits; two-seat safety; and illegal combat input over the wire |
 | `tests/js/seeds.test.mjs` | the Stake landmine and the `mintGame` re-roll, every affinity |
 | `scripts/demo-two-clients.mjs` | the out-of-process proof against a **running** `node server/table.js` |
 
