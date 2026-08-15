@@ -272,6 +272,28 @@ a { color: var(--orange-soft); }
 /* The attacker you picked to block: violet pulse until you name the blocker. */
 @keyframes blockpickPulse { 0%,100% { box-shadow: 0 0 0 3px var(--violet), 0 0 10px rgba(23,190,187,.5); } 50% { box-shadow: 0 0 0 3px var(--violet), 0 0 22px rgba(23,190,187,.95); } }
 .gcard.blockpick { animation: blockpickPulse 1s ease-in-out infinite; }
+/* An attacker nobody is answering yet — the thing to click next. */
+.gcard.needsblock { outline: 2px dashed rgba(255,77,61,.7); outline-offset: 2px; }
+/* Once an attacker is picked: who may legally answer it, and who may not. */
+.gcard.canblock { box-shadow: 0 0 0 2px var(--good), 0 0 14px rgba(110,231,168,.5); }
+.gcard.cantblock { opacity: .38; filter: grayscale(.6); }
+/* This one does not come back from the clash. */
+.gcard.willdie::after {
+  content: "✖"; position: absolute; inset: 0; display: grid; place-items: center;
+  color: var(--danger); font-size: calc(var(--card-w) * .5); font-weight: 900;
+  text-shadow: 0 0 12px rgba(9,8,11,.95); pointer-events: none;
+}
+.gcard.willdie img { filter: grayscale(.55) brightness(.62); }
+
+/* The clash preview strip: the arithmetic, before you commit to it. */
+.clashstrip { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: -4px 0 10px; padding: 8px 12px; background: rgba(17,16,20,.86); border-left: 4px solid var(--danger); }
+.clashstrip span { padding: 3px 9px 4px; font: 11px/1.4 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; border: 1px solid transparent; }
+.cs-label { color: var(--muted); letter-spacing: .18em !important; }
+.cs-hit { color: var(--danger); border-color: var(--danger) !important; background: rgba(255,77,61,.12); }
+.cs-lethal { color: var(--black); background: var(--danger); }
+.cs-kill { color: var(--good); border-color: var(--good) !important; background: rgba(110,231,168,.1); }
+.cs-loss { color: var(--gold); border-color: var(--gold) !important; background: rgba(243,194,68,.1); }
+.cs-none { color: var(--muted); border-color: var(--line) !important; }
 .gcard.targetable { border-color: var(--good); box-shadow: 0 0 0 3px rgba(110,231,168,.45); animation: pulse 1s infinite alternate; }
 @keyframes pulse { to { box-shadow: 0 0 0 6px rgba(110,231,168,.2); } }
 /* The player as a target: same green pulse as a targetable card, on the bar. */
@@ -460,6 +482,8 @@ a { color: var(--orange-soft); }
       <span class="cando quiet" id="resourceChip">Resource play available</span>
     </div>
     <div class="prompt" id="prompt"></div>
+    <!-- What the declared clash will actually do, before it is confirmed. -->
+    <div class="clashstrip" id="clashStrip" hidden></div>
     <div id="choiceRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
 
     <div class="layout">
@@ -500,6 +524,7 @@ a { color: var(--orange-soft); }
 
         <div class="controls">
           <button class="btn" id="continue">Continue</button>
+          <button class="btn ghost" id="quickClash" hidden>Send all</button>
           <button class="btn ghost" id="endturn">End turn</button>
           <button class="btn ghost" id="cancelTarget">Cancel targeting</button>
           <button class="btn ghost" id="clearManual">Clear notice</button>

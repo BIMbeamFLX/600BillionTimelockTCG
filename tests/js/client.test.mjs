@@ -295,6 +295,7 @@ function loadPlay(netStub) {
   globalThis.document = {
     getElementById: byId,
     createElement: (tag) => stubElement(tag),
+    querySelector: () => null,
     querySelectorAll: () => [],
     addEventListener() {},
   };
@@ -310,6 +311,9 @@ function loadPlay(netStub) {
   });
   globalThis.E1Engine = require(ENGINE_JS);
   globalThis.E1_CARDS = require(path.join(HERE, "..", "..", "site", "play-data.js"));
+  // play.html loads the precon library too; without it a "precon:" seat choice
+  // would fall through to an affinity name and refuse to construct.
+  globalThis.E1_PRECONS = require(path.join(HERE, "..", "..", "site", "precons.js"));
   globalThis.E1Engine.setCatalog(globalThis.E1_CARDS);
   globalThis.E1Net = netStub;
   new Function(PLAY_JS)();
@@ -475,4 +479,115 @@ test("a player is a clickable target: Zap resolves at the opponent's face", () =
   const verdict = game.verify();
   assert.equal(verdict.ok, true, JSON.stringify(verdict.error));
   assert.equal(verdict.divergedAt, null, "a self-played transcript must not diverge");
+});
+
+test("the clash preview promises exactly what the engine then does", () => {
+  /* The preview mirrors engine.js by hand (minimal lethal in order, Overflow,
+   * First Strike in its own step). A preview that disagrees with the engine is
+   * worse than no preview, so this plays real clashes out — blocked ones
+   * included — and holds the promise against the result. */
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "precon:Relay Swarm";
+  byId("deckB").value = "precon:Relay Swarm";
+  byId("seed").value = "600";
+  byId("start").click();
+  assert.ok(game.state, "the hotseat game must start");
+
+  /* Pressing Continue alone never puts an Avatar on the board, so there is
+   * never anything to clash with. The bot policy builds both boards through
+   * the same dispatch the UI uses; the clash steps themselves are driven
+   * through the real DOM path, which is what this test is about. */
+  const E = globalThis.E1Engine;
+  const NPC = require(path.join(HERE, "..", "..", "site", "npc.js"));
+  const catalogById = Object.fromEntries(globalThis.E1_CARDS.map((c) => [c.id, c]));
+  const compiledCache = {};
+  const compiled = (id) => (compiledCache[id] ||= E.compileCard(catalogById[id]));
+  const botMove = () => {
+    const state = game.state;
+    const seat = NPC.waitingSeat(state);
+    if (seat === null) return false;
+    const prefs = { affinity: "Signal" };
+    for (const move of NPC.candidates(E, state, seat, compiled, prefs)) {
+      const before = game.state.seq;
+      game.dispatch(move.type, seat, move.payload);
+      if (game.state.seq !== before) return true;
+    }
+    return false;
+  };
+
+  // The stub never clears a zone, so the freshest render is at the END.
+  const nodeFor = (zoneId, uid) => {
+    const kids = byId(zoneId).children;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      if (kids[i] && kids[i].dataset && kids[i].dataset.uid === uid) return kids[i];
+    }
+    return null;
+  };
+  const seatOf = () => (game.state.awaiting ? game.state.awaiting.seat : game.state.turn.active);
+
+  let checked = 0;
+  let blockedSeen = 0;
+  for (let step = 0; step < 400 && !game.state.result && checked < 6; step++) {
+    const state = game.state;
+    const awaiting = state.awaiting;
+
+    if (awaiting && awaiting.kind === "attackers") {
+      byId("quickClash").click(); // select every eligible attacker
+      byId("continue").click();
+      continue;
+    }
+
+    if (awaiting && awaiting.kind === "blockers") {
+      // Answer the first attacker with the first Avatar that legally can.
+      const me = seatOf();
+      const attackersNow = state.clash.attackers.filter((uid) => state.objects[uid]);
+      for (const attacker of attackersNow) {
+        const node = nodeFor("foeNetwork", attacker);
+        if (!node) continue;
+        node.click(); // select the attacker to block
+        for (const mine of state.zones[`${me}:network`] || []) {
+          const blocker = nodeFor("youNetwork", mine);
+          if (!blocker) continue;
+          blocker.click(); // assign, if the engine allows it
+          if (game.state === state) continue;
+          break;
+        }
+        break;
+      }
+
+      // The promise, captured the moment before it is confirmed.
+      const plan = game.preview();
+      const defender = plan.defenderSeat;
+      const uptimeBefore = state.seats[defender].uptime;
+      const doomed = [...plan.dying];
+      const survivors = plan.rows
+        .flatMap((row) => [row.uid, ...row.blockers])
+        .filter((uid) => doomed.indexOf(uid) < 0);
+      if (plan.rows.some((row) => row.blockers.length)) blockedSeen += 1;
+
+      byId("continue").click(); // declare blocks
+      for (let i = 0; i < 8 && game.state.turn.phase === "clash"; i++) byId("continue").click();
+
+      const after = game.state;
+      assert.equal(
+        after.seats[defender].uptime,
+        uptimeBefore - plan.toPlayer,
+        `preview promised ${plan.toPlayer} to the player, the engine did ` +
+          `${uptimeBefore - after.seats[defender].uptime}`
+      );
+      for (const uid of doomed) {
+        assert.ok(!after.objects[uid], `preview said ${uid} dies, but it is still on the board`);
+      }
+      for (const uid of survivors) {
+        assert.ok(after.objects[uid], `preview let ${uid} live, but the engine removed it`);
+      }
+      checked += 1;
+      continue;
+    }
+
+    if (!botMove()) break; // nothing left to do: stop rather than spin
+  }
+
+  assert.ok(checked >= 2, `only ${checked} clash(es) were verified`);
+  assert.ok(blockedSeen >= 1, "no blocked clash was exercised — the hard path went untested");
 });
