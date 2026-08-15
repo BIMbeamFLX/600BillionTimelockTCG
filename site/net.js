@@ -21,6 +21,7 @@
   const KIND_HANDSHAKE = 4600;     // invite + accept, discriminated by the t tag
   const KIND_RESULT = 31600;       // addressable, d = matchId
   const KIND_AUTH = 22242;         // NIP-42 ephemeral connection proof
+  const KIND_ZAP_REQUEST = 9734;   // NIP-57, the stake settlement the loser signs
   const RELAYS = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
   const BACKOFF = [250, 500, 1000, 2000, 4000];
   const PUBLISH_MS = 3000;
@@ -124,6 +125,12 @@
     lastState: null,
     peers: [false, false],
     authenticated: false,
+    /* Where we stand in the matchmaking queue, or null when not searching. */
+    queued: null,     // {position, waiting}
+    /* Every unfinished match our npub holds a seat at, straight from AUTH_OK.
+     * This is what makes a cleared browser recoverable: the seat credential is
+     * gone, the seat is not, and signing in is what finds it. */
+    active: [],
   };
 
   const H = (name, arg) => {
@@ -386,7 +393,12 @@
       }
       net.authenticated = true;
       net.attempt = 0;
+      /* THE GREETING CARRIES THE SESSION. A seat token lives in one browser; the
+       * seat belongs to an npub. This list is how a cleared profile, a private
+       * window or a different machine finds its way back to a match in progress. */
+      net.active = Array.isArray(msg.active) ? msg.active : [];
       setStatus("live");
+      H("onActive", net.active.slice());
       sendIntent();
     }
 
@@ -422,6 +434,14 @@
       case "PEER": {
         if (msg.seat === 0 || msg.seat === 1) net.peers[msg.seat] = Boolean(msg.online);
         return H("onPeer", msg);
+      }
+      case "QUEUED": {
+        net.queued = msg.queued ? { position: msg.position, waiting: msg.waiting } : null;
+        /* A queue intent that has been answered by a seat is spent. One that is
+         * still waiting must survive a dropped socket, or a reconnect silently
+         * drops the player out of the line they are staring at. */
+        if (!msg.queued) net.intent = null;
+        return H("onQueued", msg);
       }
       case "OVER": return H("onOver", msg);
       case "NOSTR": return H("onNostr", msg);
@@ -534,6 +554,51 @@
     return true;
   }
 
+  /* MATCHMAKING. The intent slot is reused deliberately: a player waiting in the
+   * line must still be waiting after a dropped socket, and `intent` is already
+   * the thing that is replayed once the reconnect authenticates. */
+  function queue(opts) {
+    const pubkey = toHexPubkey(opts && opts.pubkey);
+    if (!pubkey) {
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before searching for an opponent" });
+      return false;
+    }
+    net.session = null;
+    forgetMatch();
+    net.attempt = 0;
+    net.intent = {
+      t: "QUEUE", v: WIRE,
+      name: String((opts && opts.name) || "Player").slice(0, 40),
+      affinity: (opts && opts.affinity) || "All",
+      pubkey,
+    };
+    net.url = (opts && opts.table) || tableUrl();
+    if (net.ws && net.ws.readyState === 1 && net.authenticated) raw(net.intent);
+    else open();
+    return true;
+  }
+
+  function unqueue() {
+    net.intent = null;
+    net.queued = null;
+    return raw({ t: "UNQUEUE", v: WIRE });
+  }
+
+  /* Rejoin a match this identity owns a seat at — the row the referee named in
+   * AUTH_OK. No token is needed: the signed identity IS the claim. */
+  function rejoin(matchId) {
+    if (!/^m_[0-9a-f]{12}$/.test(String(matchId || ""))) return false;
+    net.intent = null;
+    net.queued = null;
+    net.session = { matchId, seat: null, token: null, table: net.url || tableUrl(), code: null };
+    if (net.ws && net.ws.readyState === 1 && net.authenticated) {
+      return raw({ t: "RESUME", v: WIRE, matchId, pubkey: savedPubkey() || undefined });
+    }
+    net.url = net.session.table;
+    open();
+    return true;
+  }
+
   /* Actions only, never state. A send while disconnected is DROPPED, not queued:
    * its seq has almost certainly moved on and the referee would reject it. The
    * fresh STATE that follows the reconnect drives whatever comes next. */
@@ -545,10 +610,16 @@
     return raw({ t: "NOSTR", v: WIRE, role, event });
   }
 
+  /* Leaving is TOLD to the referee before the socket goes, not merely implied by
+   * a closed tab. The two look identical from the far end otherwise, and the
+   * difference matters: a dropped socket is someone coming back, while a leave
+   * means an open table nobody is sitting at should stop being advertised. */
   function leave() {
+    raw({ t: "LEAVE", v: WIRE });
     net.session = null;
     net.intent = null;
     net.lastState = null;
+    net.queued = null;
     forgetMatch();
     setStatus("gone");
     try { if (net.ws) net.ws.close(1000, "left"); } catch (err) { /* already gone */ }
@@ -711,6 +782,58 @@
     };
   }
 
+  /* EVERY MATCH IS ANNOUNCED AT BOTH ENDS. The start event is the opening
+   * bracket the result event closes: it names the two identities, the ruleset
+   * and card set they agreed to play under, and the stake they agreed to — all
+   * signed BEFORE a card is drawn, so neither side can invent the terms
+   * afterwards.
+   *
+   * Both seats sign byte-identical content, which is only possible because
+   * every field comes from the referee's STATE rather than from either browser's
+   * clock or key order. `created_at` is derived from the match row for the same
+   * reason: two independently signed start events must be comparable. */
+  function startEvent(state, stake) {
+    const players = (state.players || [])
+      .slice()
+      .sort((a, b) => a.seat - b.seat)
+      .map((p) => ({ seat: p.seat, pubkey: p.pubkey || null, name: p.name || null, affinity: p.affinity || null }));
+    const createdAt = Math.floor(Date.parse(state.createdAt || "") / 1000);
+    const tags = [
+      ["t", "start"],
+      ["t", "600b-timelock-tcg"],
+      ["m", state.matchId],
+    ];
+    for (const p of players) if (/^[0-9a-f]{64}$/.test(p.pubkey || "")) tags.push(["p", p.pubkey]);
+    tags.push(["alt", "600B Timelock TCG match start"]);
+    return {
+      kind: KIND_HANDSHAKE,
+      created_at: Number.isFinite(createdAt) ? createdAt : Math.floor(Date.now() / 1000),
+      tags,
+      content: JSON.stringify({
+        v: 1,
+        kind: "start",
+        matchId: state.matchId,
+        ruleset: state.ruleset || null,
+        catalogDigest: state.catalogDigest || null,
+        wire: WIRE,
+        players,
+        /* The agreed wager, in sats, or null for a friendly. Signed here and
+         * nowhere else: this is the only record that both players consented to
+         * the amount before they knew how the match would go. */
+        stake: Number.isInteger(stake) && stake > 0 ? stake : null,
+      }),
+    };
+  }
+
+  const parseStake = (event) => {
+    try {
+      const body = JSON.parse(event.content);
+      return body && body.kind === "start" && Number.isInteger(body.stake) ? body.stake : null;
+    } catch (err) {
+      return null;
+    }
+  };
+
   /* The referee hands both clients the SAME bytes for tags and content, so two
    * independently signed results are byte-comparable. Re-stringifying a parsed
    * object in two browsers is a needless risk — pass OVER through untouched. */
@@ -777,24 +900,172 @@
     return () => { for (const ws of sockets) { try { ws.close(); } catch (err) { /* gone */ } } };
   }
 
+  // ---- reading the record back off the relays -----------------------------
+
+  /* One REQ fanned across every relay, deduped by event id, resolved on EOSE or
+   * a deadline — whichever comes first. Fire-and-forget in the same spirit as
+   * publish(): a dead relay shortens the answer, it never fails the call. */
+  function query(filter, ms) {
+    const urls = relays();
+    const budget = Number.isFinite(ms) ? ms : PUBLISH_MS;
+    return new Promise((resolve) => {
+      const seen = Object.create(null);
+      const out = [];
+      const sockets = [];
+      let done = 0;
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        for (const ws of sockets) { try { ws.close(); } catch (err) { /* already gone */ } }
+        resolve(out);
+      };
+      setTimeout(finish, budget);
+      for (const url of urls) {
+        try {
+          const ws = new WebSocket(url);
+          sockets.push(ws);
+          ws.onopen = () => ws.send(JSON.stringify(["REQ", "q", filter]));
+          ws.onmessage = (m) => {
+            try {
+              const frame = JSON.parse(m.data);
+              if (frame[0] === "EVENT" && frame[2] && !seen[frame[2].id]) {
+                seen[frame[2].id] = true;
+                out.push(frame[2]);
+              } else if (frame[0] === "EOSE") {
+                done += 1;
+                if (done >= sockets.length) finish();
+              }
+            } catch (err) { /* relays say all sorts of things */ }
+          };
+          ws.onerror = () => { done += 1; };
+        } catch (err) { /* a bad relay URL is not fatal */ }
+      }
+    });
+  }
+
+  /* Kind 0 metadata: the display name for the table, and — the reason this
+   * exists — the lightning address a winner can actually be paid at. */
+  async function profile(pubkey) {
+    if (!/^[0-9a-f]{64}$/.test(pubkey || "")) return null;
+    const events = await query({ kinds: [0], authors: [pubkey], limit: 4 }, 2500);
+    events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    for (const event of events) {
+      try {
+        const meta = JSON.parse(event.content);
+        if (meta && typeof meta === "object") {
+          return {
+            pubkey,
+            name: meta.display_name || meta.name || null,
+            picture: typeof meta.picture === "string" ? meta.picture : null,
+            lud16: typeof meta.lud16 === "string" ? meta.lud16 : null,
+            about: typeof meta.about === "string" ? meta.about : null,
+          };
+        }
+      } catch (err) { /* a profile that is not JSON is a profile we do not have */ }
+    }
+    return { pubkey, name: null, picture: null, lud16: null, about: null };
+  }
+
+  // ---- settlement ---------------------------------------------------------
+
+  /* THE APP NEVER HOLDS, MOVES OR CUSTODIES SATS. It resolves the winner's own
+   * lightning address to an invoice and hands that invoice to the loser. Paying
+   * it is an act the player takes in their own wallet, with their wallet's own
+   * confirmation — there is no escrow to trust, nothing of ours to steal, and a
+   * refused zap costs the match nothing because the result is already signed. */
+  async function payEndpoint(lud16) {
+    const value = String(lud16 || "").trim().toLowerCase();
+    const at = value.indexOf("@");
+    if (at <= 0) throw new Error("that identity has no lightning address");
+    const name = value.slice(0, at);
+    const domain = value.slice(at + 1);
+    if (!/^[a-z0-9._-]+$/.test(name) || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+      throw new Error("that lightning address is not a valid one");
+    }
+    const res = await fetch(`https://${domain}/.well-known/lnurlp/${name}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`the wallet at ${domain} did not answer`);
+    const meta = await res.json();
+    if (!meta || typeof meta.callback !== "string") throw new Error("that wallet returned no pay endpoint");
+    return meta;
+  }
+
+  /* NIP-57. Returns a bolt11 the loser may pay, or throws with a reason a human
+   * can act on. Nothing is paid here. */
+  async function zapInvoice(opts) {
+    const sats = Number(opts && opts.sats);
+    if (!Number.isInteger(sats) || sats <= 0) throw new Error("a stake must be a whole number of sats");
+    const meta = await payEndpoint(opts.lud16);
+    const msats = sats * 1000;
+    if (Number.isFinite(meta.minSendable) && msats < meta.minSendable) {
+      throw new Error(`that wallet's minimum is ${Math.ceil(meta.minSendable / 1000)} sats`);
+    }
+    if (Number.isFinite(meta.maxSendable) && msats > meta.maxSendable) {
+      throw new Error(`that wallet's maximum is ${Math.floor(meta.maxSendable / 1000)} sats`);
+    }
+    const url = new URL(meta.callback);
+    url.searchParams.set("amount", String(msats));
+    /* A zap receipt is public and addressed to the winner, so the ladder can see
+     * the stake was actually settled. Only public nostr data goes in the URL. */
+    if (meta.allowsNostr && /^[0-9a-f]{64}$/.test(meta.nostrPubkey || "") && hasNip07()) {
+      try {
+        const request = await sign({
+          kind: KIND_ZAP_REQUEST,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ["p", opts.to],
+            ["amount", String(msats)],
+            ["relays", ...relays()],
+            ["m", opts.matchId || ""],
+            ["alt", "600B Timelock TCG stake settlement"],
+          ],
+          content: opts.comment || "600B Timelock TCG — stake settled",
+        });
+        url.searchParams.set("nostr", JSON.stringify(request));
+      } catch (err) { /* an unsigned zap is still a payment; carry on */ }
+    }
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    if (!res.ok) throw new Error("the wallet would not issue an invoice");
+    const body = await res.json();
+    if (!body || typeof body.pr !== "string") {
+      throw new Error(String((body && body.reason) || "the wallet returned no invoice"));
+    }
+    return { invoice: body.pr, sats, lud16: String(opts.lud16).toLowerCase() };
+  }
+
+  const hasWebln = () => Boolean(globalThis.webln && globalThis.webln.sendPayment);
+
+  /* Called ONLY from an explicit click, and the wallet still asks the player to
+   * confirm. There is no code path that pays anything on its own. */
+  async function payWithWebln(invoice) {
+    if (!hasWebln()) throw new Error("no WebLN wallet in this browser");
+    await globalThis.webln.enable();
+    return globalThis.webln.sendPayment(invoice);
+  }
+
   // ----------------------------------------------------------------- exports
 
   globalThis.E1Net = {
     WIRE,
     KIND_HANDSHAKE,
     KIND_RESULT,
+    KIND_ZAP_REQUEST,
     start, create, join, act, sendNostr, leave, resume, tables,
+    queue, unqueue, rejoin,
     tableUrl, publicTable, publicTableIsLocal,
     savedMatch, saveMatch,
     get status() { return net.status; },
     get session() { return net.session; },
     get lastState() { return net.lastState; },
     get peers() { return net.peers.slice(); },
+    get queued() { return net.queued ? Object.assign({}, net.queued) : null; },
+    get active() { return net.active.slice(); },
     nostr: {
-      hasNip07, login, logout, sign, publish, relays,
+      hasNip07, login, logout, sign, publish, relays, query, profile,
       savedPubkey, npub: npubEncode, npubDecode, toHexPubkey, shortNpub,
-      inviteEvent, acceptEvent, resultEvent,
+      inviteEvent, acceptEvent, resultEvent, startEvent, parseStake,
       parseInvite, subscribeInvites,
+      hasWebln, payEndpoint, zapInvoice, payWithWebln,
     },
   };
 })();

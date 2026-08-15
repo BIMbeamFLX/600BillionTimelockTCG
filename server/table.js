@@ -27,6 +27,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const zlib = require("node:zlib");
 const { DatabaseSync } = require("node:sqlite");
 const { WebSocketServer } = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
@@ -243,6 +244,19 @@ async function createTable(opts) {
       return origin.toLowerCase();
     })
   );
+  /* An explicitly advertised table URL. Validated here rather than at first use,
+   * because a malformed one produces invites that fail on someone else's
+   * machine, which is the hardest kind of bug to hear about. */
+  const publicUrl = (() => {
+    if (!options.publicUrl) return null;
+    const parsed = new URL(options.publicUrl);
+    if (parsed.protocol !== "ws:" && parsed.protocol !== "wss:") {
+      throw new Error(`publicUrl must be ws:// or wss://: ${options.publicUrl}`);
+    }
+    return parsed.href.replace(/\/$/, "");
+  })();
+  if (publicUrl) addTrustedHost(new URL(publicUrl).host);
+
   const startedAt = Date.now();
 
   if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -271,6 +285,14 @@ async function createTable(opts) {
     openTables: db.prepare(
       "SELECT match_id, code, created_at, seat0_name, seat0_pubkey, seat0_affinity FROM matches WHERE status = 'open' ORDER BY created_at DESC LIMIT 50"
     ),
+    /* Every unfinished match this identity holds a seat at. This is the query
+     * that makes a cleared browser survivable: the credential is gone, the seat
+     * is not, and the npub finds it. */
+    activeOf: db.prepare(`SELECT match_id, code, status, updated_at,
+      seat0_pubkey, seat1_pubkey, seat0_name, seat1_name
+      FROM matches WHERE status IN ('open','playing') AND (seat0_pubkey = ? OR seat1_pubkey = ?)
+      ORDER BY updated_at DESC LIMIT 10`),
+    dropMatch: db.prepare("DELETE FROM matches WHERE match_id = ?"),
     playing: db.prepare("SELECT * FROM matches WHERE status IN ('open','playing')"),
     seatOne: db.prepare(`UPDATE matches SET seat1_name=?, seat1_affinity=?, seat1_pubkey=?,
       seat1_token=?, config_json=?, state_json=?, status='playing', ruleset=?, catalog_digest=?,
@@ -290,10 +312,11 @@ async function createTable(opts) {
       result_content=?, result_tags_json=?, result_created_at=? WHERE match_id=?`),
     upsertNostr: db.prepare(`INSERT INTO nostr_events
       (match_id, role, pubkey, event_id, kind, created_at, event_json, content, sig_checked, received_at)
-      VALUES (?,?,?,?,?,?,?,?,0,?)
+      VALUES (?,?,?,?,?,?,?,?,1,?)
       ON CONFLICT(match_id, role, pubkey) DO UPDATE SET
         event_id=excluded.event_id, kind=excluded.kind, created_at=excluded.created_at,
-        event_json=excluded.event_json, content=excluded.content, received_at=excluded.received_at`),
+        event_json=excluded.event_json, content=excluded.content,
+        sig_checked=excluded.sig_checked, received_at=excluded.received_at`),
     nostrOf: db.prepare("SELECT event_json FROM nostr_events WHERE match_id=? AND role=? ORDER BY created_at ASC"),
     agreement: db.prepare(
       "SELECT COUNT(*) AS n, COUNT(DISTINCT content) AS distinct_content FROM nostr_events WHERE match_id=? AND role='result'"
@@ -303,6 +326,12 @@ async function createTable(opts) {
   /** matchId -> live record. The DB is the source of truth; this is the hot copy. */
   const matches = new Map();
   const byCode = new Map();
+  /* The matchmaking queue is LIVE CONNECTIONS, never rows: a waiting player
+   * writes nothing to the database and the match is minted at the instant two
+   * identities are paired, with both seats already filled. That is what stops a
+   * queued player leaving a ghost table behind — the trap the open-table list
+   * has always had, where you join a code whose host went to lunch. */
+  const queue = [];
   const controlRates = new Map();
   const authRates = new Map();
 
@@ -533,7 +562,35 @@ async function createTable(opts) {
     }
     conn.pubkey = event.pubkey;
     conn.authChallenge = null; // one challenge, one proof; replay on this connection also fails
-    send(conn.ws, { t: "AUTH_OK", v: WIRE, pubkey: conn.pubkey, eventId: event.id });
+    send(conn.ws, {
+      t: "AUTH_OK", v: WIRE, pubkey: conn.pubkey, eventId: event.id,
+      /* SIGNING IN IS THE SESSION. A seat token lives in one browser; the seat
+       * itself belongs to an identity. Cleared storage, a private window or a
+       * second machine used to mean the match was simply unreachable — the row
+       * was still there, still playing, and nothing could name it. */
+      active: activeFor(conn.pubkey),
+    });
+  }
+
+  /* Every unfinished match this identity is seated at, newest first. Answered
+   * from the DB, so it survives a referee restart; `opponentOnline` comes from
+   * the live map because that is the one thing the row cannot know. */
+  function activeFor(pubkey) {
+    if (!isHex64(pubkey)) return [];
+    return q.activeOf.all(pubkey, pubkey).map((row) => {
+      const seat = row.seat0_pubkey === pubkey ? 0 : 1;
+      const rec = matches.get(row.match_id);
+      const foe = rec && rec.conns[1 - seat];
+      return {
+        matchId: row.match_id,
+        code: row.code,
+        status: row.status,
+        seat,
+        opponent: (seat === 0 ? row.seat1_name : row.seat0_name) || null,
+        opponentOnline: Boolean(foe && foe.readyState === 1),
+        updatedAt: row.updated_at,
+      };
+    });
   }
 
   function authenticatedPubkey(conn, msg) {
@@ -578,6 +635,10 @@ async function createTable(opts) {
       code: rec.code,
       seat,
       status: rec.status,
+      /* The match's own clock. Both seats sign a start announcement over these
+       * bytes, and two independently signed events are only comparable if the
+       * timestamp comes from the match rather than from either browser. */
+      createdAt: rec.createdAt,
       role: spectator ? "spectator" : "seat",
       downgraded: Boolean(extra && extra.downgraded),
       downgradeReason: (extra && extra.downgradeReason) || null,
@@ -993,6 +1054,151 @@ async function createTable(opts) {
     for (const ws of rec.spectators) send(ws, stateMessage(rec, ws.conn));
   }
 
+  // ----------------------------------------------------------- matchmaking
+
+  const queueIndex = (conn) => queue.findIndex((entry) => entry.conn === conn);
+  const queueLive = (entry) =>
+    Boolean(entry.conn.pubkey) && entry.conn.ws.readyState === 1;
+
+  const queuedMessage = (position) => ({
+    t: "QUEUED",
+    v: WIRE,
+    queued: position !== null,
+    position,
+    waiting: queue.length,
+  });
+
+  /* Everyone still waiting is told where they now stand. A queue you cannot see
+   * move is indistinguishable from a queue that is broken. */
+  function announceQueue() {
+    for (let i = 0; i < queue.length; i++) send(queue[i].conn.ws, queuedMessage(i + 1));
+  }
+
+  function leaveQueue(conn, tell) {
+    const index = queueIndex(conn);
+    if (index >= 0) queue.splice(index, 1);
+    if (tell) send(conn.ws, queuedMessage(null));
+    if (index >= 0) announceQueue();
+    return index >= 0;
+  }
+
+  /* Both seats are written in ONE transaction. A half-created pair is the worst
+   * of both worlds: a table whose host is unreachable and a guest with no
+   * board. */
+  function pairUp(first, second) {
+    const seats = [first, second].map((entry) => ({
+      name: entry.name,
+      affinity: entry.affinity,
+      pubkey: entry.conn.pubkey,
+    }));
+    const minted = mintGame(seats[0], seats[1]); // throws DECK_BUILD_FAILED (D-12)
+    const matchId = "m_" + hex(6);
+    let code = makeCode();
+    for (let i = 0; i < 20 && q.byCode.get(code); i++) code = makeCode();
+    const tokens = [hex(16), hex(16)];
+    const at = nowIso();
+    const publicHash = E.publicHash(minted.state);
+
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      q.insertMatch.run(
+        matchId, code, "open", at, at, "{}", minted.state.ruleset, minted.state.catalogDigest,
+        null, seats[0].name, seats[0].affinity, seats[0].pubkey, tokens[0]
+      );
+      q.seatOne.run(
+        seats[1].name, seats[1].affinity, seats[1].pubkey, tokens[1],
+        JSON.stringify(minted.config), JSON.stringify(minted.state),
+        minted.state.ruleset, minted.state.catalogDigest, publicHash, at, matchId
+      );
+      db.exec("COMMIT");
+    } catch (err) {
+      db.exec("ROLLBACK");
+      throw err;
+    }
+
+    const rec = remember(newRecord(q.byId.get(matchId)));
+    rec.state = minted.state;
+    rec.events = [];
+    seat(first.conn, rec, 0);
+    seat(second.conn, rec, 1);
+    for (const n of [0, 1]) send(rec.conns[n], stateMessage(rec, rec.conns[n].conn));
+    return rec;
+  }
+
+  /* Two tabs of one npub must never be paired with each other: the engine would
+   * deal it happily and one person would hold both hands. */
+  function findPair() {
+    for (let i = 0; i < queue.length; i++) {
+      for (let j = i + 1; j < queue.length; j++) {
+        if (queue[j].conn.pubkey !== queue[i].conn.pubkey) return [i, j];
+      }
+    }
+    return null;
+  }
+
+  function pumpQueue() {
+    for (let i = queue.length - 1; i >= 0; i--) {
+      if (!queueLive(queue[i])) queue.splice(i, 1);
+    }
+    let pair;
+    while ((pair = findPair())) {
+      // The higher index first, so the lower one is still valid after the splice.
+      const second = queue.splice(pair[1], 1)[0];
+      const first = queue.splice(pair[0], 1)[0];
+      try {
+        pairUp(first, second);
+      } catch (err) {
+        /* Neither player is put back in the queue: a re-roll that failed 40
+         * times will fail again, and silently looping is worse than saying so. */
+        for (const entry of [first, second]) {
+          fail(entry.conn.ws, "DECK_BUILD_FAILED", String(err && err.message));
+        }
+      }
+    }
+    announceQueue();
+  }
+
+  function handleQueue(conn, msg) {
+    const pubkey = authenticatedPubkey(conn, msg);
+    if (!pubkey) return;
+    /* Queueing while seated would deal a second board this connection cannot
+     * show. Leaving the table first is one click, and the client does it. */
+    if (conn.rec && conn.seat !== null && conn.rec.status !== "over") {
+      return fail(conn.ws, "MATCH_FULL", "leave your current match before queueing");
+    }
+    const name = String(msg.name || "Player").slice(0, 40);
+    const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
+    const index = queueIndex(conn);
+    if (index >= 0) Object.assign(queue[index], { name, affinity });
+    else queue.push({ conn, name, affinity, at: Date.now() });
+    pumpQueue();
+  }
+
+  function handleUnqueue(conn) {
+    leaveQueue(conn, true);
+  }
+
+  /* Leaving is a real message, not just a closed socket. An OPEN table whose
+   * host walks away has no game, no transcript and nothing to audit — and left
+   * in the list it is a trap, because the next player joins it and waits at an
+   * empty table for someone who is never coming back. A match in progress is
+   * only detached: the seat still belongs to that identity, and the way to end
+   * a game is to concede it, which is an engine action like any other. */
+  function handleLeave(conn) {
+    leaveQueue(conn, true);
+    const rec = conn.rec;
+    if (!rec) return;
+    const closing = conn.seat === 0 && rec.status === "open" && !rec.players[1];
+    detach(conn);
+    conn.seat = null;
+    conn.tokenSent = false;
+    if (!closing) return;
+    for (const ws of rec.spectators) fail(ws, "NO_SUCH_MATCH", "the host closed this table");
+    matches.delete(rec.matchId);
+    byCode.delete(rec.code);
+    q.dropMatch.run(rec.matchId);
+  }
+
   // ---------------------------------------------------------------- resume
 
   function seat(conn, rec, n) {
@@ -1083,10 +1289,13 @@ async function createTable(opts) {
 
   // ----------------------------------------------------------------- nostr in
 
-  /* Stored verbatim. The server does NOT verify schnorr signatures (D-11):
-   * secp256k1 schnorr is not in node:crypto and a curve dependency days before a
-   * demo is unjustified risk. Seat authentication is the server-issued token,
-   * full stop; sig_checked = 0 records the limitation honestly. */
+  /* VERIFIED, NOT MERELY STORED. This used to keep sig_checked = 0 and say so
+   * honestly, on the grounds that a curve dependency was unjustified risk — but
+   * NIP-42 login made @noble/curves a dependency anyway, so the same three lines
+   * that authenticate a seat now certify what it publishes. An event whose id
+   * does not match its own bytes, or whose signature does not verify, is not a
+   * record of anything and is refused rather than written down. That is what a
+   * ladder computed from these rows needs to be worth anything. */
   function handleNostr(conn, msg) {
     const rec = conn.rec;
     if (!rec) return fail(conn.ws, "NO_SUCH_MATCH", "not seated at a table");
@@ -1115,6 +1324,19 @@ async function createTable(opts) {
     if (role === "result" && rec.status !== "over") {
       return fail(conn.ws, "BAD_MESSAGE", "no result before OVER");
     }
+    /* The id must be the hash of the event's OWN bytes before the signature over
+     * that id means anything: without this check a valid signature could be
+     * pasted onto altered content. */
+    if (!isHex64(ev.id) || !isHex128(ev.sig) || eventId(ev) !== ev.id) {
+      return fail(conn.ws, "BAD_MESSAGE", "that event's id does not match its own bytes");
+    }
+    let signatureOk = false;
+    try {
+      signatureOk = schnorr.verify(ev.sig, ev.id, ev.pubkey);
+    } catch (err) {
+      signatureOk = false;
+    }
+    if (!signatureOk) return fail(conn.ws, "BAD_MESSAGE", "that event's signature does not verify");
     q.upsertNostr.run(
       rec.matchId, role, ev.pubkey, String(ev.id || ""), Number(ev.kind) || 0,
       Number(ev.created_at) || 0, JSON.stringify(ev), ev.content, nowIso()
@@ -1211,6 +1433,9 @@ async function createTable(opts) {
           case "JOIN": return handleJoin(conn, msg);
           case "ACT": return handleAct(conn, msg);
           case "RESUME": return handleResume(conn, msg);
+          case "QUEUE": return handleQueue(conn, msg);
+          case "UNQUEUE": return handleUnqueue(conn);
+          case "LEAVE": return handleLeave(conn);
           case "NOSTR": return handleNostr(conn, msg);
           default: return fail(ws, "BAD_MESSAGE", `unknown message ${msg.t}`);
         }
@@ -1222,8 +1447,12 @@ async function createTable(opts) {
       }
     });
 
-    ws.on("close", () => detach(conn));
-    ws.on("error", () => detach(conn));
+    /* A dropped socket leaves the queue too, and the people behind it are told
+     * their new position — otherwise the queue fills with connections that
+     * cannot be paired and everyone waits behind a ghost. */
+    const gone = () => { leaveQueue(conn, false); detach(conn); };
+    ws.on("close", gone);
+    ws.on("error", gone);
     send(ws, {
       t: "AUTH", v: WIRE, challenge: conn.authChallenge,
       relay: conn.authRelay, kind: KIND_AUTH, expiresIn: AUTH_MAX_AGE_SECONDS,
@@ -1288,20 +1517,31 @@ async function createTable(opts) {
       return json(res, 200, {
         ok: true,
         matches: matches.size,
+        // So the lobby can say "2 players searching" before anyone commits to
+        // waiting, rather than only after they have joined the queue.
+        queued: queue.length,
         uptime: Math.round((Date.now() - startedAt) / 1000),
       });
     }
     if (pathname === "/api/tables") {
       // The RELAY-FREE join path: if every relay dies on stage, players still
       // see and join tables.
-      return json(res, 200, q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => ({
-        matchId: r.match_id,
-        code: r.code,
-        name: r.seat0_name,
-        pubkey: r.seat0_pubkey,
-        affinity: r.seat0_affinity,
-        createdAt: r.created_at,
-      })));
+      return json(res, 200, q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
+        const rec = matches.get(r.match_id);
+        const host = rec && rec.conns[0];
+        return {
+          matchId: r.match_id,
+          code: r.code,
+          name: r.seat0_name,
+          pubkey: r.seat0_pubkey,
+          affinity: r.seat0_affinity,
+          createdAt: r.created_at,
+          /* Whether anyone is actually sitting there. A code whose host closed
+           * the tab looks identical to a live one in a bare list, and joining it
+           * is a wait with no end. */
+          hostOnline: Boolean(host && host.readyState === 1),
+        };
+      }));
     }
     if (pathname.startsWith("/api/match/")) {
       const id = pathname.slice("/api/match/".length);
@@ -1354,22 +1594,96 @@ async function createTable(opts) {
       res.writeHead(403).end("forbidden");
       return;
     }
-    fs.readFile(file, (err, body) => {
-      if (err) {
+    sendFile(req, res, file);
+  }
+
+  /* Text assets only. Card art and world plates are already compressed formats;
+   * gzipping them burns CPU to make them very slightly larger. */
+  const COMPRESSIBLE = new Set([".html", ".js", ".mjs", ".css", ".json", ".svg", ".md"]);
+  /* Compressing engine.js on every request is 300 KB of pointless work, and the
+   * site is a fixed, small set of files. Keyed by mtime so an edit invalidates
+   * itself — this must never serve yesterday's play.js during development. */
+  const gzipCache = new Map();
+
+  /* THE TABLE SHIPPED ~3.9 MB OF UNCOMPRESSED JS ON EVERY SINGLE NAVIGATION.
+   * `cache-control: no-cache` does not mean "do not store" — it means "ask me
+   * first" — so pairing it with an ETag keeps every asset always-fresh (a stale
+   * play.js against a new engine.js is a desync, never worth risking) while
+   * turning a repeat visit into a 304 with no body at all. Compression handles
+   * the first visit; revalidation handles the rest. */
+  function sendFile(req, res, file) {
+    fs.stat(file, (statErr, stat) => {
+      if (statErr || !stat.isFile()) {
         res.writeHead(404, { "content-type": "text/plain" }).end("not found");
         return;
       }
-      res.writeHead(200, {
-        "content-type": MIME[path.extname(file).toLowerCase()] || "application/octet-stream",
-        "content-length": body.length,
+      const ext = path.extname(file).toLowerCase();
+      const etag = `W/"${stat.size.toString(16)}-${Math.round(stat.mtimeMs).toString(16)}"`;
+      const base = {
+        "content-type": MIME[ext] || "application/octet-stream",
         "cache-control": "no-cache",
+        etag,
+        vary: "accept-encoding",
+      };
+      if (req.headers["if-none-match"] === etag) {
+        res.writeHead(304, base).end();
+        return;
+      }
+      const wantsGzip =
+        COMPRESSIBLE.has(ext) && /\bgzip\b/.test(String(req.headers["accept-encoding"] || ""));
+      const cached = wantsGzip ? gzipCache.get(file) : null;
+      if (cached && cached.etag === etag) {
+        res.writeHead(200, Object.assign({}, base, {
+          "content-encoding": "gzip",
+          "content-length": cached.body.length,
+        }));
+        res.end(cached.body);
+        return;
+      }
+      fs.readFile(file, (err, body) => {
+        if (err) {
+          res.writeHead(404, { "content-type": "text/plain" }).end("not found");
+          return;
+        }
+        if (!wantsGzip) {
+          res.writeHead(200, Object.assign({}, base, { "content-length": body.length }));
+          res.end(body);
+          return;
+        }
+        zlib.gzip(body, (zipErr, out) => {
+          // A compression failure is not a serving failure: send the bytes.
+          if (zipErr) {
+            res.writeHead(200, Object.assign({}, base, { "content-length": body.length }));
+            res.end(body);
+            return;
+          }
+          if (gzipCache.size > 64) gzipCache.clear();
+          gzipCache.set(file, { etag, body: out });
+          res.writeHead(200, Object.assign({}, base, {
+            "content-encoding": "gzip",
+            "content-length": out.length,
+          }));
+          res.end(out);
+        });
       });
-      res.end(body);
     });
   }
 
   let boundPort = 0;
-  const publicTableUrl = () => `ws://${options.publicHost || "localhost"}:${boundPort}/ws`;
+  /* WHAT AN INVITE ACTUALLY CARRIES. Hardcoding `ws://` and the bound port was
+   * right on a LAN and wrong everywhere else: behind a TLS reverse proxy the
+   * page is https, the proxy answers on 443, and an invite reading
+   * ws://host:8777/ws is BOTH mixed-content-blocked by the browser and aimed at
+   * a port the internet cannot reach — silently, because nothing here fails.
+   * The scheme and the port are deployment facts, not process facts, so a
+   * deployment states them. PUBLIC_URL is the one-variable answer; PUBLIC_HOST
+   * alone keeps its old meaning for a LAN or Tailscale table. */
+  const publicTableUrl = () => {
+    if (publicUrl) return publicUrl;
+    const scheme = options.publicScheme === "wss" ? "wss" : "ws";
+    const host = options.publicHost || "localhost";
+    return `${scheme}://${host}:${boundPort}/ws`;
+  };
 
   recover();
 
@@ -1414,6 +1728,11 @@ if (require.main === module) {
   createTable({
     port, dbPath, pinSeed, rateMax, controlMax, maxPayload, allowedOrigins,
     publicHost: process.env.PUBLIC_HOST,
+    /* Behind TLS set PUBLIC_URL=wss://your.host/ws — one variable, and the
+     * scheme and port stop being guesses. PUBLIC_HOST alone still covers a LAN
+     * or Tailscale table on the bound port. */
+    publicUrl: process.env.PUBLIC_URL,
+    publicScheme: process.env.PUBLIC_SCHEME,
   })
     .then((table) => {
       console.log(`[table] 600B referee on ${table.url}  (ws ${table.wsUrl})`);
