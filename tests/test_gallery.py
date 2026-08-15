@@ -11,7 +11,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def test_gallery_joins_all_final_card_files():
     cards = json.loads((REPO_ROOT / "cards" / "e1-cards.json").read_text(encoding="utf-8"))["cards"]
     face_manifest = json.loads(
-        (REPO_ROOT / "art" / "cards" / "final" / "manifest.json").read_text(encoding="utf-8")
+        (REPO_ROOT / "art" / "cards" / "node-runner-web" / "manifest.json").read_text(
+            encoding="utf-8"
+        )
     )
     records = gallery_records(cards, face_manifest)
 

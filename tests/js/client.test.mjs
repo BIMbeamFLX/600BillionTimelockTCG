@@ -30,7 +30,10 @@ function loadNet(env) {
   // omitting it models a brand new tab.
   const session = env.session || new Map();
   const opened = [];
+  const sockets = [];
   globalThis.location = env.location;
+  if (env.nostr) globalThis.nostr = env.nostr;
+  else delete globalThis.nostr;
   globalThis.localStorage = {
     getItem: (k) => (store.has(k) ? store.get(k) : null),
     setItem: (k, v) => store.set(k, String(v)),
@@ -45,12 +48,14 @@ function loadNet(env) {
     opened.push(url);
     if (env.failOnSocket) throw new Error(`a socket was opened: ${url}`);
     this.readyState = 0;
-    this.send = () => {};
+    this.sent = [];
+    this.send = (raw) => this.sent.push(JSON.parse(raw));
     this.close = () => {};
+    sockets.push(this);
   };
   delete globalThis.E1Net;
   new Function(NET_JS)();
-  return { net: globalThis.E1Net, opened, store, session };
+  return { net: globalThis.E1Net, opened, sockets, store, session };
 }
 
 const FILE_ENV = {
@@ -60,6 +65,7 @@ const FILE_ENV = {
 const HTTP_ENV = {
   location: { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/play.html", search: "" },
 };
+const NIP07_PUBKEY = "a".repeat(64);
 
 test("from file:// with no saved match, net.js opens NOTHING", () => {
   const { net, opened } = loadNet(FILE_ENV);
@@ -74,7 +80,7 @@ test("create() with no table fails with a code, not a stack trace", () => {
   const { net, opened } = loadNet(FILE_ENV);
   let code = null;
   net.start({ onError: (m) => { code = m.code; } });
-  net.create({ name: "felix", affinity: "Power", pubkey: null });
+  net.create({ name: "felix", affinity: "Power", pubkey: NIP07_PUBKEY });
   assert.equal(code, "NO_TABLE");
   assert.deepEqual(opened, []);
 });
@@ -88,7 +94,10 @@ test("a saved match auto-resumes, and only then — the reload path", () => {
   cold.net.start({});
   assert.deepEqual(cold.opened, [], "no saved match, no socket — even over http");
 
-  const warm = loadNet({ ...HTTP_ENV, storage: { "600b:match": JSON.stringify(saved) } });
+  const warm = loadNet({ ...HTTP_ENV, storage: {
+    "600b:match": JSON.stringify(saved),
+    "600b:pubkey": NIP07_PUBKEY,
+  } });
   const started = warm.net.start({});
   assert.equal(started.resuming, true);
   assert.equal(started.seat, 1);
@@ -101,7 +110,7 @@ test("a saved match auto-resumes, and only then — the reload path", () => {
  * whichever tab saved last destroyed the other's credential, so a reload came
  * back as the wrong seat. */
 test("two tabs at one table keep two separate seats", () => {
-  const shared = new Map();
+  const shared = new Map([["600b:pubkey", NIP07_PUBKEY]]);
   const HOST = { matchId: "m_0123456789ab", seat: 0, token: "a".repeat(32),
     table: "ws://bitbeam:8777/ws", code: "K7M2QF" };
   const GUEST = { ...HOST, seat: 1, token: "b".repeat(32) };
@@ -155,7 +164,10 @@ test("a seat saved by the previous single-key build still resumes", () => {
     matchId: "m_0123456789ab", seat: 1, token: "a".repeat(32),
     table: "ws://bitbeam:8777/ws", code: "K7M2QF",
   };
-  const warm = loadNet({ ...HTTP_ENV, storage: { "600b:match": JSON.stringify(legacy) } });
+  const warm = loadNet({ ...HTTP_ENV, storage: {
+    "600b:match": JSON.stringify(legacy),
+    "600b:pubkey": NIP07_PUBKEY,
+  } });
   const started = warm.net.start({});
   assert.equal(started.resuming, true);
   assert.equal(started.seat, 1);
@@ -182,6 +194,7 @@ test("publicTable never advertises a loopback address if it can avoid it", () =>
     location: { protocol: "http:", host: "bitbeam.tail1a2b.ts.net:8777", href: "", search: "" },
     storage: {
       "600b:match": JSON.stringify({ matchId: "m_0123456789ab", seat: 0, token: "b".repeat(32) }),
+      "600b:pubkey": NIP07_PUBKEY,
     },
   });
   net.start({});
@@ -267,17 +280,36 @@ const PLAY_JS = fs.readFileSync(path.join(HERE, "..", "..", "site", "play.js"), 
 const ENGINE_JS = path.join(HERE, "..", "..", "site", "engine.js");
 
 function stubElement(id) {
+  const style = {
+    setProperty(name, value) { this[name] = String(value); },
+    getPropertyValue(name) { return this[name] || ""; },
+  };
   const node = {
     id, hidden: false, textContent: "", value: "", className: "", innerHTML: "",
-    disabled: false, dataset: {}, children: [], style: {}, listeners: {},
+    disabled: false, dataset: {}, children: [], style, listeners: {}, attributes: {},
     classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
     addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); },
     removeEventListener() {},
-    append(...kids) { this.children.push(...kids); },
-    appendChild(kid) { this.children.push(kid); return kid; },
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    getAttribute(name) { return this.attributes[name]; },
+    append(...kids) {
+      for (const kid of kids) {
+        if (kid && typeof kid === "object") kid._parent = this;
+        this.children.push(kid);
+      }
+    },
+    appendChild(kid) {
+      if (kid && typeof kid === "object") kid._parent = this;
+      this.children.push(kid);
+      return kid;
+    },
     closest: () => null,
     querySelectorAll: () => [],
-    remove() {},
+    remove() {
+      if (!this._parent) return;
+      this._parent.children = this._parent.children.filter((child) => child !== this);
+      this._parent = null;
+    },
     click() { for (const fn of this.listeners.click || []) fn({ preventDefault() {} }); },
   };
   return node;
@@ -285,14 +317,16 @@ function stubElement(id) {
 
 /* Loads play.js against a stub DOM and returns handles to poke at it. The
  * DOMContentLoaded listener is fired by hand, which is what runs initNet(). */
-function loadPlay(netStub) {
+function loadPlay(netStub, fxStub) {
   const nodes = new Map();
   const byId = (id) => {
     if (!nodes.has(id)) nodes.set(id, stubElement(id));
     return nodes.get(id);
   };
   const fired = {};
+  const body = byId("body");
   globalThis.document = {
+    body,
     getElementById: byId,
     createElement: (tag) => stubElement(tag),
     querySelector: () => null,
@@ -316,6 +350,8 @@ function loadPlay(netStub) {
   globalThis.E1_PRECONS = require(path.join(HERE, "..", "..", "site", "precons.js"));
   globalThis.E1Engine.setCatalog(globalThis.E1_CARDS);
   globalThis.E1Net = netStub;
+  if (fxStub) globalThis.E1FX = fxStub;
+  else delete globalThis.E1FX;
   new Function(PLAY_JS)();
   for (const fn of fired.DOMContentLoaded || []) fn();
   return { byId, game: globalThis.window.E1_GAME || globalThis.E1_GAME };
@@ -331,7 +367,7 @@ function netStub(extra) {
     start(handlers) { stub.handlers = handlers; return { resuming: false }; },
     create(o) { calls.push(["create", o]); },
     join(o) { calls.push(["join", o]); },
-    act() { return true; },
+    act(action) { calls.push(["act", action]); return true; },
     sendNostr(role, ev) { calls.push(["nostr", role, ev]); return true; },
     leave() {}, resume() {}, tables: async () => [],
     tableUrl: () => "ws://bitbeam:8777/ws",
@@ -367,6 +403,40 @@ const STATE_BASE = {
   ],
   view: null, events: [], full: true, publicHash: null, result: null,
 };
+
+function clientGame(seed = 990000) {
+  return globalThis.E1Engine.createGame({
+    seats: [{ name: "A", affinity: "Power" }, { name: "B", affinity: "Signal" }],
+    seeds: { public: seed, hidden: [seed + 1, seed + 2] },
+    firstPlayer: 0,
+    modules: { stake: true, toss: true },
+  });
+}
+
+function clientSeed(state, seat, name, zone = "network") {
+  const card = globalThis.E1_CARDS.find((entry) => entry.name === name);
+  assert.ok(card, `missing fixture card ${name}`);
+  const uid = `o${state.nextUid++}`;
+  state.objects[uid] = {
+    uid, cardId: card.id, owner: seat, controller: seat, zone: `${seat}:${zone}`,
+    committed: false, bootDelay: false, damage: 0, damageSources: {}, counters: {}, attachedTo: null,
+    rebootShields: 0, facedown: false, revealedTo: [], revealedUntil: null,
+    token: false, tokenProfile: null, chosenAffinity: null, chosenSeat: null,
+    controlSource: null, activations: {}, maskedCardId: null, sovereign: false,
+    copyBaseCardId: null, affinityOverride: null, typeAdditions: [], adaptive: false,
+    entersSeq: state.seq, prevUid: null,
+  };
+  state.zones[`${seat}:${zone}`].push(uid);
+  return uid;
+}
+
+function latestUidNode(byId, zoneId, uid) {
+  const children = byId(zoneId).children;
+  for (let index = children.length - 1; index >= 0; index--) {
+    if (children[index]?.dataset?.uid === uid) return children[index];
+  }
+  return null;
+}
 
 test("the host's share link offers a Join, not the host panel", () => {
   const stub = netStub();
@@ -432,8 +502,99 @@ test("a finished match can be published from a STATE alone — no live OVER need
   assert.equal(byId("publishResult").hidden, true);
 });
 
+test("Remote Command asks for and forwards Convert Uptime's Avatar cost", () => {
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+  const state = clientGame(990100);
+  const sacrifice = clientSeed(state, 1, "FLX, Culture Curator");
+  const card = globalThis.E1_CARDS.find((entry) => entry.name === "Convert Uptime");
+  const remoteUid = clientSeed(state, 1, "Convert Uptime", "wallet");
+  state.awaiting = { kind: "remotePlay", seat: 0, payer: 1, uid: remoteUid, cardId: card.id };
+  state.priority = { seat: null, passed: [false, false], window: "remote-play" };
+
+  stub.handlers.onState({
+    ...STATE_BASE, seat: 0, role: "seat", status: "playing", claimable: false, view: state,
+  });
+  byId("continue").click();
+  assert.equal(stub.calls.filter((call) => call[0] === "act").length, 0,
+    "the client must wait for the mandatory Avatar cost");
+
+  const avatar = latestUidNode(byId, "foeNetwork", sacrifice);
+  assert.ok(avatar, "the remote payer's Avatar must be offered as the cost");
+  avatar.click();
+
+  const sent = stub.calls.find((call) => call[0] === "act");
+  assert.ok(sent, "the completed remote play sent no action");
+  assert.equal(sent[1].type, "REMOTE_PLAY_CARD");
+  assert.deepEqual(sent[1].payload.additionalCosts, [sacrifice]);
+});
+
+test("mandatory unlock cards cannot be toggled out of the submitted selection", () => {
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+  const state = clientGame(990200);
+  const required = clientSeed(state, 0, "Power Plant — Hydro");
+  const selectable = clientSeed(state, 0, "FLX, Culture Curator");
+  state.objects[required].committed = true;
+  state.objects[selectable].committed = true;
+  state.awaiting = {
+    kind: "unlock", seat: 0, required: [required], selectable: [selectable], caps: { Avatar: 1 },
+  };
+  state.priority = { seat: null, passed: [false, false], window: "unlock" };
+
+  stub.handlers.onState({
+    ...STATE_BASE, seat: 0, role: "seat", status: "playing", claimable: false, view: state,
+  });
+  latestUidNode(byId, "youNetwork", selectable).click();
+  latestUidNode(byId, "youNetwork", required).click();
+  byId("continue").click();
+
+  const sent = stub.calls.find((call) => call[0] === "act");
+  assert.ok(sent, "the unlock choice sent no action");
+  assert.equal(sent[1].type, "CHOOSE_UNLOCK");
+  assert.deepEqual(sent[1].payload.uids.sort(), [required, selectable].sort());
+});
+
+test("variable-target cards stay open until the player confirms every target", () => {
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+  const state = clientGame(990300);
+  const card = globalThis.E1_CARDS.find((entry) => entry.name === "Power Burst");
+  const remoteUid = clientSeed(state, 1, "Power Burst", "wallet");
+  state.awaiting = { kind: "remotePlay", seat: 0, payer: 1, uid: remoteUid, cardId: card.id };
+  state.priority = { seat: null, passed: [false, false], window: "remote-play" };
+
+  stub.handlers.onState({
+    ...STATE_BASE, seat: 0, role: "seat", status: "playing", claimable: false, view: state,
+  });
+  byId("continue").click();
+  const menu = byId("body").children.at(-1);
+  const xTwo = menu?.children.find((node) => node.textContent === "X = 2");
+  assert.ok(xTwo, "the X chooser did not offer X = 2");
+  xTwo.click();
+
+  byId("youBar").click();
+  assert.equal(stub.calls.filter((call) => call[0] === "act").length, 0,
+    "a variable target card was submitted after its first target");
+  byId("foeBar").click();
+  assert.equal(stub.calls.filter((call) => call[0] === "act").length, 0,
+    "a variable target card must wait for explicit confirmation");
+  byId("continue").click();
+
+  const sent = stub.calls.find((call) => call[0] === "act");
+  assert.ok(sent, "confirming variable targets sent no action");
+  assert.equal(sent[1].type, "REMOTE_PLAY_CARD");
+  assert.deepEqual(sent[1].payload.targets, [
+    { kind: "seat", seat: 0 },
+    { kind: "seat", seat: 1 },
+  ]);
+});
+
 test("a player is a clickable target: Zap resolves at the opponent's face", () => {
-  const { byId, game } = loadPlay(netStub());
+  const { byId, game } = loadPlay(netStub(), {
+    emit() {},
+    get: () => ({ motionActive: "reduced" }),
+  });
 
   /* Seed 70's Power opening hand holds Zap ("any target") and Power Plant —
    * Hydro. Before the playerbar became a target surface, an "any" pick could
@@ -444,6 +605,9 @@ test("a player is a clickable target: Zap resolves at the opponent's face", () =
   byId("seed").value = "70";
   byId("start").click();
   assert.ok(game.state, "the hotseat game must start");
+  assert.equal(game.state.policy.freeform, "deny", "released hotseat play uses scripted rules only");
+  assert.equal(byId("youUptimeMeter").style.getPropertyValue("--uptime-ratio"), "100%",
+    "full Uptime has no full graphical meter");
 
   // A stub zone never clears its children, so the freshest render sits at the
   // END: scan backwards for the node whose face is the named card.
@@ -471,7 +635,17 @@ test("a player is a clickable target: Zap resolves at the opponent's face", () =
   // Resolve through the same button the player presses.
   for (let i = 0; i < 6 && game.state.queue.length; i++) byId("continue").click();
   assert.equal(game.state.queue.length, 0, "the Queue must resolve");
+  // Resolution immediately produces mundane pass/phase events as play moves on.
+  // They must not evict the hit that the player is still trying to read.
+  byId("continue").click();
+  byId("continue").click();
   assert.equal(game.state.seats[1].uptime, 17, "Zap's 3 damage lands on the chosen player");
+  assert.equal(byId("foeUptimeMeter").style.getPropertyValue("--uptime-ratio"), "85%",
+    "damage did not change the graphical Uptime meter");
+  assert.ok(byId("actionFx").children.some((node) => /takes 3 damage/i.test(node.textContent)),
+    "the damage action produced no visible action animation");
+  assert.ok(byId("actionFx").children.every((node) => /(?:^|\s)reduced(?:\s|$)/.test(node.className)),
+    "the reduced-motion setting did not switch action feedback to its static fallback");
 
   /* The console verify() must replay this hotseat: it needs the createGame
    * config, which the table now keeps. Before, it passed config:null and
@@ -479,6 +653,101 @@ test("a player is a clickable target: Zap resolves at the opponent's face", () =
   const verdict = game.verify();
   assert.equal(verdict.ok, true, JSON.stringify(verdict.error));
   assert.equal(verdict.divergedAt, null, "a self-played transcript must not diverge");
+});
+
+test("the attack UI forms and submits an original-rules Mesh group", () => {
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "Signal";
+  byId("deckB").value = "Power";
+  byId("seed").value = "70";
+  byId("start").click();
+
+  const first = clientSeed(game.state, 0, "Cuddy, Signal Organizer");
+  const second = clientSeed(game.state, 0, "BK, Mesh Pack");
+  game.state.objects[first].bootDelay = false;
+  game.state.objects[second].bootDelay = false;
+  game.state.turn.active = 0;
+  game.state.turn.phase = "clash";
+  game.state.turn.step = "attackers";
+  game.state.awaiting = { kind: "attackers", seat: 0 };
+  game.state.priority = { seat: null, passed: [false, false] };
+  game.dispatch("NOT_AN_ACTION", 0, {}); // rejected, but refreshes the DOM fixture
+
+  latestUidNode(byId, "youNetwork", first).click();
+  latestUidNode(byId, "youNetwork", second).click();
+  assert.equal(byId("meshGroup").hidden, false, "two Mesh attackers offered no grouping control");
+  byId("meshGroup").click();
+  assert.match(byId("meshGroup").textContent, /Split Mesh/);
+  byId("continue").click();
+
+  assert.equal(game.state.clash.meshGroups[first], "mesh-1");
+  assert.equal(game.state.clash.meshGroups[second], "mesh-1");
+});
+
+test("online create and join require a NIP-07 identity before opening a socket", () => {
+  const { net, opened } = loadNet(HTTP_ENV);
+  const codes = [];
+  net.start({ onError: (m) => codes.push(m.code) });
+  assert.equal(net.create({ name: "felix", affinity: "Power", pubkey: null }), false);
+  assert.equal(net.join({ code: "K7M2QF", name: "anna", affinity: "Signal", pubkey: null }), false);
+  assert.deepEqual(codes, ["NIP07_REQUIRED", "NIP07_REQUIRED"]);
+  assert.deepEqual(opened, [], "identity failures must happen before network access");
+});
+
+test("online intents wait for a signed NIP-42 challenge", async () => {
+  const signed = [];
+  const { net, sockets } = loadNet({
+    ...HTTP_ENV,
+    storage: { "600b:pubkey": NIP07_PUBKEY },
+    nostr: {
+      getPublicKey: async () => NIP07_PUBKEY,
+      signEvent: async (event) => {
+        signed.push(event);
+        return { ...event, pubkey: NIP07_PUBKEY, id: "e".repeat(64), sig: "f".repeat(128) };
+      },
+    },
+  });
+  assert.equal(net.create({ name: "felix", affinity: "Power", pubkey: NIP07_PUBKEY }), true);
+  const socket = sockets[0];
+  socket.readyState = 1;
+  socket.onopen();
+  assert.deepEqual(socket.sent, [], "CREATE was sent before identity proof");
+
+  socket.onmessage({ data: JSON.stringify({
+    t: "AUTH", v: 1, challenge: "c".repeat(64), relay: "ws://bitbeam:8777/ws", kind: 22242,
+  }) });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(signed.length, 1);
+  assert.equal(signed[0].kind, 22242);
+  assert.deepEqual(signed[0].tags, [
+    ["relay", "ws://bitbeam:8777/ws"],
+    ["challenge", "c".repeat(64)],
+  ]);
+  assert.equal(socket.sent[0].t, "AUTH");
+  assert.equal(socket.sent.some((msg) => msg.t === "CREATE"), false);
+
+  socket.onmessage({ data: JSON.stringify({ t: "AUTH_OK", v: 1, pubkey: NIP07_PUBKEY }) });
+  assert.equal(socket.sent.at(-1).t, "CREATE");
+});
+
+test("player names are rendered as text in the turn HUD", () => {
+  const { byId, game } = loadPlay(netStub());
+  const payload = '<img src=x onerror="globalThis.pwned=true">';
+  byId("nameA").value = payload;
+  byId("nameB").value = "Opponent";
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = "70";
+
+  byId("start").click();
+
+  assert.ok(game.state, "the fixture must start a real game");
+  assert.equal(
+    byId("youName").textContent,
+    payload,
+    "the name must remain visible as literal text"
+  );
+  assert.ok(!byId("turnchip").innerHTML.includes("<img"), "the name reached an HTML parser");
 });
 
 test("the clash preview promises exactly what the engine then does", () => {
@@ -498,6 +767,7 @@ test("the clash preview promises exactly what the engine then does", () => {
    * the same dispatch the UI uses; the clash steps themselves are driven
    * through the real DOM path, which is what this test is about. */
   const E = globalThis.E1Engine;
+  assert.equal(typeof E.previewClash, "function", "the UI has no authoritative preview API");
   const NPC = require(path.join(HERE, "..", "..", "site", "npc.js"));
   const catalogById = Object.fromEntries(globalThis.E1_CARDS.map((c) => [c.id, c]));
   const compiledCache = {};

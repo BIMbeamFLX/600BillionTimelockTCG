@@ -11,6 +11,12 @@ results/stats.**
 > own seed. The commitment prevents changing the order, not knowing it, and the resulting transcript
 > verifies clean. Replaced by per-card commitments plus an opponent-held secret permutation.
 
+> **Amended 2026-08-15 for the public Table topology** — online create, join and resume require
+> a NIP-07 pubkey; anonymous seats are no longer offered. Local hotseat remains extension-free.
+> The Table verifies a fresh NIP-42 Schnorr proof before accepting a table intent. This
+> supersedes the anonymous identity fallbacks below wherever they describe the Table
+> implementation.
+
 ```
 nappletType: 600b-timelock-tcg
 purpose: Play two-player 600B Timelock TCG (E1) matches over shell-mediated WebRTC;
@@ -83,7 +89,7 @@ data flow:
             result events; agreement => confirmed, mismatch => shown as disputed.
   cards     trimmed card database (id, name, cost, type line, affinity, A/R, rules
             text) bundled inline from cards/e1-cards.json (483 KB source, trimmed
-            subset well under budget). Card face images (art/cards/final/) are NOT
+            subset well under budget). Card face images (art/cards/node-runner-web/) are NOT
             bundled: fetched via resource.bytes from the published asset location,
             in-memory LRU cache, text-card fallback.
 
@@ -132,17 +138,17 @@ bytes in `OVER.resultTags` / `OVER.resultContent` and `net.js` passes them throu
 because re-serialising a parsed object in two browsers is a needless way to manufacture a
 dispute.
 
-**Signature verification — the honest limitation (D-11).** The Table referee does **not** verify
-schnorr signatures in v1: secp256k1 schnorr is not in `node:crypto`. Seat authentication is the
-server-issued token, full stop; the npub shown at the table is a **claim**, recorded as
-`nostr_events.sig_checked = 0`. The lobby must not imply otherwise. Cryptographic binding
-happens where it matters — each player signs their own 31600 with their own key, published to
-relays where anyone can verify.
+**Signature verification.** The Table referee verifies a fresh, connection-bound NIP-42 login
+event with `@noble/curves` before it accepts `CREATE`, `JOIN` or `RESUME`. The npub shown at the
+table is therefore the NIP-07 identity that proved possession of the key. Invite, accept and
+result-event verification remains a later slice; those rows still record
+`nostr_events.sig_checked = 0` honestly.
 
 **Nostr is the announcement, never the gate.** The table is created, joined, played and finished
 over the socket and a six-character code; the table exists on the server *before* any invite is
-published. No extension, a declined popup, or three dead relays degrades the beat to "anonymous
-seats, no published result" and the match continues untouched.
+published. Three dead relays degrade only invite/result publication. A missing extension or a
+declined login signature blocks online seating; anonymous remote seats are not offered. Local
+hotseat remains extension-free.
 
 ## Flagged gaps (resolve at build time, do not invent)
 
@@ -161,12 +167,10 @@ seats, no published result" and the match continues untouched.
    identically. Rulebook §9–§17 is the contract; `cards/e1-cards.json` is the card
    authority. Built as `site/engine.js` — one headless JS module shared by the
    napplet, the local hotseat table and the optional Table referee.
-6. **Assisted cards**: 204 of 295 cards resolve by human judgement. They carry an assist
-   tier (A scripted / B bounded envelope / C typed proposal). `Certified` = A+B is the
-   ranked format. Free-form manual state edits are not permitted between remote seats.
-7. **Keyword enforcement**: Broadcast, Broadcast Guard, Attach, Shielded, Backchannel,
-   Mesh and Reboot are parsed into card data but not yet enforced by the engine — 68
-   cards whose printed text currently does nothing. Must be closed before P2P play.
+6. ~~**Assisted cards**~~ — **RESOLVED 2026-08-15**: all 295 cards compile to engine
+   operations; released local and remote policies deny free-form resolution.
+7. ~~**Keyword enforcement**~~ — **RESOLVED 2026-08-15**: the printed keyword and static-rule
+   families are enforced and covered by card-family regression tests and bot soaks.
 
 ## Explicitly out of scope for v1
 

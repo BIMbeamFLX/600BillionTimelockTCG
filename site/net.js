@@ -20,6 +20,7 @@
   const LS_PUBKEY = "600b:pubkey"; // the same key index.html's login writes
   const KIND_HANDSHAKE = 4600;     // invite + accept, discriminated by the t tag
   const KIND_RESULT = 31600;       // addressable, d = matchId
+  const KIND_AUTH = 22242;         // NIP-42 ephemeral connection proof
   const RELAYS = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
   const BACKOFF = [250, 500, 1000, 2000, 4000];
   const PUBLISH_MS = 3000;
@@ -122,6 +123,7 @@
     handlers: {},
     lastState: null,
     peers: [false, false],
+    authenticated: false,
   };
 
   const H = (name, arg) => {
@@ -294,6 +296,11 @@
 
   function open() {
     if (net.ws && (net.ws.readyState === 0 || net.ws.readyState === 1)) return;
+    if (net.session && net.session.matchId && !savedPubkey()) {
+      setStatus("idle");
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before opening a remote table" });
+      return;
+    }
     const url = net.url || tableUrl();
     if (!url) {
       H("onError", { code: "NO_TABLE", message: "no table server for this page — open it over http, or pass ?table=" });
@@ -310,11 +317,13 @@
     net.ws = ws;
 
     ws.onopen = () => {
-      net.attempt = 0;
-      setStatus("live");
-      /* One recovery mechanism, used for the very first connection and every one
-       * after it: either resume a seat we hold, or replay the intent that has
-       * not been answered yet. */
+      net.authenticated = false;
+      // The referee sends a one-use NIP-42 challenge. No table intent leaves
+      // this browser until the NIP-07 extension has signed it and the referee
+      // has verified the Schnorr signature.
+    };
+
+    const sendIntent = () => {
       if (net.session && net.session.matchId) {
         const hello = { t: "RESUME", v: WIRE, matchId: net.session.matchId };
         if (net.session.token) hello.token = net.session.token;
@@ -335,6 +344,7 @@
 
     ws.onclose = (ev) => {
       net.ws = null;
+      net.authenticated = false;
       /* 4009 SUPERSEDED: another connection legitimately claimed this seat.
        * Retrying would make two tabs evict each other forever. */
       if (ev && ev.code === 4009) return void setStatus("superseded");
@@ -343,6 +353,45 @@
     };
 
     ws.onerror = () => { /* onclose always follows; nothing useful to add here */ };
+
+    async function answerAuth(msg) {
+      const pubkey = savedPubkey();
+      if (!pubkey || !hasNip07() || !globalThis.nostr.signEvent) {
+        H("onError", { code: "NIP07_REQUIRED", message: "a NIP-07 signer is required for online play" });
+        return;
+      }
+      if (!/^[0-9a-f]{64}$/.test(msg.challenge || "") || typeof msg.relay !== "string") {
+        H("onError", { code: "AUTH_FAILED", message: "the table sent an invalid login challenge" });
+        return;
+      }
+      try {
+        const event = await sign({
+          kind: KIND_AUTH,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [["relay", msg.relay], ["challenge", msg.challenge]],
+          content: "",
+        });
+        if (!event || event.pubkey !== pubkey) throw new Error("the signer returned a different identity");
+        raw({ t: "AUTH", v: WIRE, event });
+      } catch (err) {
+        H("onError", { code: "AUTH_FAILED", message: String(err && err.message || err) });
+      }
+    }
+
+    function acceptAuth(msg) {
+      const pubkey = savedPubkey();
+      if (!pubkey || msg.pubkey !== pubkey) {
+        H("onError", { code: "IDENTITY_MISMATCH", message: "the referee authenticated a different identity" });
+        return;
+      }
+      net.authenticated = true;
+      net.attempt = 0;
+      setStatus("live");
+      sendIntent();
+    }
+
+    ws.answerAuth = answerAuth;
+    ws.acceptAuth = acceptAuth;
   }
 
   /* Forever, no give-up state and no dialog: on stage the board stays on screen,
@@ -365,6 +414,8 @@
 
   function receive(msg) {
     switch (msg.t) {
+      case "AUTH": return net.ws && net.ws.answerAuth ? net.ws.answerAuth(msg) : undefined;
+      case "AUTH_OK": return net.ws && net.ws.acceptAuth ? net.ws.acceptAuth(msg) : undefined;
       case "STATE": return onState(msg);
       case "FRAME": return H("onFrame", msg);
       case "REJECT": return H("onReject", msg);
@@ -429,6 +480,10 @@
       net.session = saved;
     }
     if (!net.session) return { resuming: false };
+    if (!savedPubkey()) {
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before opening a remote table" });
+      return { resuming: false, loginRequired: true, matchId: net.session.matchId, seat: net.session.seat };
+    }
     /* Auto-open, no click: after a reload on stage the presenter should see the
      * board, not a dialog. */
     net.url = net.session.table || tableUrl();
@@ -437,6 +492,11 @@
   }
 
   function create(opts) {
+    const pubkey = toHexPubkey(opts && opts.pubkey);
+    if (!pubkey) {
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before creating a table" });
+      return false;
+    }
     net.session = null;
     forgetMatch();
     net.attempt = 0;
@@ -444,14 +504,20 @@
       t: "CREATE", v: WIRE,
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
-      pubkey: opts.pubkey || null,
+      pubkey,
     };
     net.url = opts.table || tableUrl();
-    if (net.ws && net.ws.readyState === 1) raw(net.intent);
+    if (net.ws && net.ws.readyState === 1 && net.authenticated) raw(net.intent);
     else open();
+    return true;
   }
 
   function join(opts) {
+    const pubkey = toHexPubkey(opts && opts.pubkey);
+    if (!pubkey) {
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before joining a table" });
+      return false;
+    }
     net.session = null;
     forgetMatch();
     net.attempt = 0;
@@ -460,11 +526,12 @@
       code: String(opts.code || "").trim().toUpperCase(),
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
-      pubkey: opts.pubkey || null,
+      pubkey,
     };
     net.url = opts.table || tableUrl();
-    if (net.ws && net.ws.readyState === 1) raw(net.intent);
+    if (net.ws && net.ws.readyState === 1 && net.authenticated) raw(net.intent);
     else open();
+    return true;
   }
 
   /* Actions only, never state. A send while disconnected is DROPPED, not queued:
@@ -493,9 +560,13 @@
   function resume() {
     // The panic button: force a fresh RESUME without waiting for the backoff.
     if (!net.session) return false;
+    if (!savedPubkey()) {
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before opening a remote table" });
+      return false;
+    }
     clearTimeout(net.timer);
     net.attempt = 0;
-    if (net.ws && net.ws.readyState === 1) {
+    if (net.ws && net.ws.readyState === 1 && net.authenticated) {
       const hello = { t: "RESUME", v: WIRE, matchId: net.session.matchId };
       if (net.session.token) hello.token = net.session.token;
       const pubkey = savedPubkey();
@@ -532,7 +603,7 @@
   }
 
   async function login() {
-    if (!hasNip07()) throw new Error("no NIP-07 extension — install Alby or nos2x, or play anonymously");
+    if (!hasNip07()) throw new Error("no NIP-07 extension — install Alby or nos2x to play online");
     const pubkey = await globalThis.nostr.getPublicKey();
     if (!/^[0-9a-f]{64}$/.test(pubkey || "")) throw new Error("the extension returned no usable pubkey");
     try { localStorage.setItem(LS_PUBKEY, pubkey); } catch (err) { /* private mode */ }

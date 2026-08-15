@@ -1,5 +1,6 @@
-"""Unit tests for the final Edition One card renderer."""
+"""Unit tests for the Edition One card renderer and published release set."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -133,18 +134,17 @@ def test_three_line_rule_fit_reports_long_copy_as_overflow():
     assert long_overflow is True
 
 
-def test_final_card_manifest_contains_only_visible_text_metrics():
-    manifest = json.loads(
-        (REPO_ROOT / "art" / "cards" / "final" / "manifest.json").read_text(encoding="utf-8")
-    )
+def test_release_card_manifest_matches_every_published_webp():
+    release_dir = REPO_ROOT / "art" / "cards" / "node-runner-web"
+    manifest = json.loads((release_dir / "manifest.json").read_text(encoding="utf-8"))
 
-    assert manifest["layout_version"] == "600B-E1-card-v5"
-    assert manifest["overflow_count"] == 0
-    assert all(item["metrics"]["rules_lines"] <= 3 for item in manifest["files"])
-    assert all(
-        item["metrics"]["text_label"] in {"PLAY", "ABILITY", "TRIGGER", "STATIC"}
-        for item in manifest["files"]
-    )
-    assert all(item["metrics"]["flavor_y"] >= 840 for item in manifest["files"])
-    assert all("guide_size" not in item["metrics"] for item in manifest["files"])
-    assert all("note_size" not in item["metrics"] for item in manifest["files"])
+    assert manifest["source"] == "node-runner-web"
+    assert manifest["count"] == 297
+    assert sum(item["id"] is not None for item in manifest["files"]) == 295
+    assert {path.name for path in release_dir.glob("*.webp")} == {
+        item["file"] for item in manifest["files"]
+    }
+    for item in manifest["files"]:
+        payload = (release_dir / item["file"]).read_bytes()
+        assert len(payload) == item["bytes"]
+        assert hashlib.sha256(payload).hexdigest() == item["sha256"]

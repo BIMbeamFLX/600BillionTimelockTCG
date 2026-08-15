@@ -141,23 +141,15 @@ test("the optional-cost families compile as scripted", () => {
 function receiverMoment() {
   let state = game();
   seed(state, 0, byName["Timelock Receiver"].id);
-  const zap = CARDS.find(
-    (c) =>
-      c.type === "Zap" &&
-      (c.affinity || []).includes("Timelock") &&
-      c.costParsed &&
-      !c.costParsed.x &&
-      !compiled(c.id).playModes &&
-      compiled(c.id).playTargetSpec.length === 0
-  );
-  assert.ok(zap, "a Timelock Zap exists");
-  const uid = seed(state, 1, zap.id, {}, "wallet");
+  const playedCard = byName["First Memory"];
+  assert.ok(playedCard, "the scripted Timelock test card exists");
+  const uid = seed(state, 1, playedCard.id, {}, "wallet");
   state = passUntil(state, (s) => s.priority.seat === 1);
   state.seats[1].buffer.T = 9;
   state.seats[1].buffer.N = 9;
   state.seats[0].buffer.N = 1; // enough for the Receiver's optional 1
   const before = state.seats[0].uptime;
-  state = ok(act(state, "PLAY_CARD", 1, { uid }));
+  state = ok(act(state, "PLAY_CARD", 1, { uid, targets: [{ kind: "seat", seat: 1 }] }));
   state = passUntil(state, (s) => s.pendingChoice && s.pendingChoice.kind === "mayPay");
   assert.equal(state.pendingChoice.seat, 0, "the Receiver's controller chooses");
   return { state, before };
@@ -182,22 +174,15 @@ test("Receiver, declined: nothing happens and nothing is paid", () => {
 test("Receiver, broke: no choice is even raised", () => {
   let state = game();
   seed(state, 0, byName["Timelock Receiver"].id);
-  const zap = CARDS.find(
-    (c) =>
-      c.type === "Zap" &&
-      (c.affinity || []).includes("Timelock") &&
-      c.costParsed &&
-      !c.costParsed.x &&
-      !compiled(c.id).playModes &&
-      compiled(c.id).playTargetSpec.length === 0
-  );
-  const uid = seed(state, 1, zap.id, {}, "wallet");
+  const playedCard = byName["First Memory"];
+  assert.ok(playedCard, "the scripted Timelock test card exists");
+  const uid = seed(state, 1, playedCard.id, {}, "wallet");
   state = passUntil(state, (s) => s.priority.seat === 1);
   state.seats[1].buffer.T = 9;
   state.seats[1].buffer.N = 9;
   // seat 0 has nothing — the mayPay must resolve silently to its else branch
   const before = state.seats[0].uptime;
-  state = ok(act(state, "PLAY_CARD", 1, { uid }));
+  state = ok(act(state, "PLAY_CARD", 1, { uid, targets: [{ kind: "seat", seat: 1 }] }));
   state = passUntil(state, (s) => !s.queue.length && !s.pendingChoice);
   assert.equal(state.seats[0].uptime, before);
 });

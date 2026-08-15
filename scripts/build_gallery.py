@@ -16,11 +16,11 @@ def gallery_records(
 ) -> list[dict[str, Any]]:
     """Join card text with its Node Runner face.
 
-    Faces are keyed by card name rather than by the manifest's filenames: the
-    manifest is still required as proof the art lock is complete, but the
-    rendered set is one flat directory of `<name>.webp`.
+    The release manifest also contains the shared back and one promo, so only
+    Edition One ids participate in this exact-set check.
     """
-    if len(face_manifest["files"]) != len(cards):
+    faces = {item["id"]: item for item in face_manifest["files"] if item.get("id")}
+    if set(faces) != {card["id"] for card in cards}:
         raise ValueError("card text and the face lock disagree on card count")
     return [
         {
@@ -32,7 +32,7 @@ def gallery_records(
             "cost": card["cost"] or "—",
             "stats": card["action_resilience"],
             "rarity": card["rarity"],
-            "faceFile": f"{card['name']}.webp",
+            "faceFile": faces[card["id"]]["file"],
             "rules": card["rules_text"],
             "flavor": card["flavor_text"],
             "help": card["help_text"],
@@ -136,6 +136,8 @@ def render_html(records: list[dict[str, Any]]) -> str:
   <meta name="description"
     content="Every 600B Timelock TCG Edition One and promo card, with artwork and text.">
   <title>600B Timelock TCG — All Cards</title>
+  <link rel="icon" href="../art/brand/600B-logo-primary.png">
+  <link rel="stylesheet" href="600b.css">
   <style>
     @font-face {{
       font-family: Anton600;
@@ -233,7 +235,8 @@ def render_html(records: list[dict[str, Any]]) -> str:
     }}
     .controls {{
       position: sticky;
-      top: 76px;
+      /* Clears the shared .nav: 10px pad + 38px mark + 10px pad + 1px rule. */
+      top: 59px;
       z-index: 18;
       display: grid;
       grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(150px, 220px));
@@ -448,7 +451,9 @@ def render_html(records: list[dict[str, Any]]) -> str:
     @media (max-width: 760px) {{
       .masthead {{ position: static; }}
       .masthead .brand span {{ display: none; }}
-      .controls {{ top: 0; grid-template-columns: 1fr; }}
+      /* The shared nav stays sticky here and wraps to a variable height, so no
+         fixed offset is right — let the controls scroll with the gallery. */
+      .controls {{ position: static; grid-template-columns: 1fr; }}
       .controls select {{ width: 100%; }}
       .modal-grid {{ grid-template-columns: 1fr; }}
       .modal-grid > img {{ max-height: 72vh; object-fit: contain; }}
@@ -459,16 +464,25 @@ def render_html(records: list[dict[str, Any]]) -> str:
   </style>
 </head>
 <body>
-  <header class="masthead">
-    <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
-    <div class="brand">
-      <strong>TIMELOCK TCG</strong>
-      <span>Edition One · Artwork + Text</span>
-    </div>
-    <a class="nav-link" href="leaderboard.html">Leaderboard</a>
-    <a class="nav-link" href="rules.html">Rulebook</a>
-  </header>
-  <main>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav">
+  <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
+  <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">
+    600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small>
+  </a>
+  <div class="nav__links">
+    <a class="link" href="play.html">Play</a>
+    <a class="link" href="shop.html">Shop</a>
+    <a class="link" href="cards.html" aria-current="page">Cards</a>
+    <a class="link" href="deck.html">Stacks</a>
+    <a class="link" href="rules.html">Rules</a>
+    <a class="link" href="lore.html">Lore</a>
+    <a class="link" href="leaderboard.html">Leaderboard</a>
+  </div>
+</nav>
+
+  <main id="main">
     <section class="hero">
       <div class="eyebrow">600 Billion · 295 E1 + 1 Promo · Complete Catalog</div>
       <h1>All Cards. <span>Artwork + Text.</span></h1>
@@ -522,6 +536,15 @@ def render_html(records: list[dict[str, Any]]) -> str:
       </div>
     </div>
   </dialog>
+
+<footer class="site-footer">
+  <span>600 000 000 000 · Edition One · E1.0-draft</span>
+  <a href="https://join.600.wtf" rel="noopener">join.600.wtf</a>
+  <span class="tag">WE STACK. WE BUILD. WE MEME.</span>
+</footer>
+
+  <script src="blob-map.js"></script>
+  <script src="faces.js"></script>
   <script>
     const cards = {data};
     const gallery = document.getElementById("gallery");
@@ -597,8 +620,10 @@ def render_html(records: list[dict[str, Any]]) -> str:
     }}
 
     function openCard(card) {{
-      document.getElementById("modalImage").src = faceUrl(card);
-      document.getElementById("modalImage").alt = card.name + " card";
+      const modalImage = document.getElementById("modalImage");
+      if (globalThis.E1Faces) E1Faces.setFace(modalImage, card.faceFile);
+      else modalImage.src = faceUrl(card);
+      modalImage.alt = card.name + " card";
       document.getElementById("modalId").textContent = card.id + " · " + card.rarity;
       document.getElementById("modalName").textContent = card.name;
       document.getElementById("modalMeta").textContent = metaText(card);
@@ -620,7 +645,8 @@ def render_html(records: list[dict[str, Any]]) -> str:
       button.type = "button";
       button.setAttribute("aria-label", "Open details for " + card.name);
       const face = document.createElement("img");
-      face.src = faceUrl(card);
+      if (globalThis.E1Faces) E1Faces.setFace(face, card.faceFile);
+      else face.src = faceUrl(card);
       face.alt = card.name + " card";
       face.loading = "lazy";
       face.decoding = "async";
@@ -716,7 +742,7 @@ def main() -> None:
     parser.add_argument(
         "--face-manifest",
         type=Path,
-        default=repo_root / "art" / "cards" / "final" / "manifest.json",
+        default=repo_root / "art" / "cards" / "node-runner-web" / "manifest.json",
     )
     parser.add_argument(
         "--promos",
@@ -740,7 +766,7 @@ def main() -> None:
     face_manifest = json.loads(args.face_manifest.read_text(encoding="utf-8"))
     promo_payload = json.loads(args.promos.read_text(encoding="utf-8"))
     promo_manifest = json.loads(args.promo_manifest.read_text(encoding="utf-8"))
-    if len(cards) != 295 or face_manifest["card_count"] != 295:
+    if len(cards) != 295:
         raise ValueError("complete text and card-face locks are required")
     if promo_payload["set"]["card_count"] != promo_manifest["card_count"]:
         raise ValueError("complete promo card lock is required")

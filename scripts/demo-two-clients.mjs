@@ -15,10 +15,12 @@
  * Env: TABLE (ws url, default ws://127.0.0.1:8777/ws)
  */
 import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
 const require = createRequire(import.meta.url);
 const E = require("../site/engine.js");
 const CARDS = require("../site/play-data.js");
 const WebSocket = require("ws");
+const { schnorr } = require("@noble/curves/secp256k1");
 E.setCatalog(CARDS);
 
 const CATALOG = E.buildCatalog(CARDS);
@@ -26,12 +28,31 @@ const card = (id) => CATALOG.byId[id] || null;
 const URL = process.env.TABLE || "ws://127.0.0.1:8777/ws";
 const ok = (label, value) => console.log(`${value ? "  PASS" : "  FAIL"}  ${label}`);
 
+const keyFor = (label) => Uint8Array.from(createHash("sha256").update(`demo:${label}`).digest());
+const authEvent = (challenge, privateKey) => {
+  const event = {
+    pubkey: Buffer.from(schnorr.getPublicKey(privateKey)).toString("hex"),
+    created_at: Math.floor(Date.now() / 1000),
+    kind: 22242,
+    tags: [["relay", challenge.relay], ["challenge", challenge.challenge]],
+    content: "",
+  };
+  event.id = createHash("sha256").update(JSON.stringify([
+    0, event.pubkey, event.created_at, event.kind, event.tags, event.content,
+  ])).digest("hex");
+  event.sig = Buffer.from(schnorr.sign(event.id, privateKey)).toString("hex");
+  return event;
+};
+
 class Client {
-  constructor() { this.inbox = []; this.waiters = []; this.over = null; }
-  static async open(url) {
-    const c = new Client();
+  constructor(identity) {
+    this.inbox = []; this.waiters = []; this.over = null;
+    this.privateKey = keyFor(identity);
+    this.pubkey = Buffer.from(schnorr.getPublicKey(this.privateKey)).toString("hex");
+  }
+  static async open(url, identity) {
+    const c = new Client(identity);
     c.ws = new WebSocket(url);
-    await new Promise((res, rej) => { c.ws.once("open", res); c.ws.once("error", rej); });
     c.ws.on("message", (raw) => {
       const m = JSON.parse(String(raw));
       if (m.t === "STATE") { c.seat = m.seat; c.view = m.view; c.matchId = m.matchId; c.code = m.code; c.token = m.token || c.token; }
@@ -40,6 +61,11 @@ class Client {
       c.inbox.push(m);
       for (const w of c.waiters.splice(0)) w();
     });
+    await new Promise((res, rej) => { c.ws.once("open", res); c.ws.once("error", rej); });
+    const challenge = await c.type("AUTH");
+    c.send({ t: "AUTH", event: authEvent(challenge, c.privateKey) });
+    const accepted = await c.type("AUTH_OK");
+    if (accepted.pubkey !== c.pubkey) throw new Error("table authenticated a different identity");
     return c;
   }
   send(m) { this.ws.send(JSON.stringify({ v: 1, ...m })); }
@@ -79,26 +105,33 @@ function chooseAction(view, seat, banned) {
   }
   if (view.pendingChoice && view.pendingChoice.seat === seat) {
     const o = view.pendingChoice.options || [];
-    return act("CHOOSE", { choiceId: view.pendingChoice.id, selection: o.slice(0, 1).map((x) => (x && x.value !== undefined ? x.value : x)) });
+    const minimum = Math.max(0, Number(view.pendingChoice.min) || 0);
+    const maximum = Math.min(o.length, Math.max(minimum, Number(view.pendingChoice.max) || 0));
+    const count = minimum || (maximum > 0 ? 1 : 0);
+    return act("CHOOSE", {
+      choiceId: view.pendingChoice.id,
+      selection: Array.from({ length: count }, (_, index) => index),
+    });
   }
   const aw = view.awaiting;
   if (aw) {
     if (aw.seat !== seat) return null;
     switch (aw.kind) {
       case "attackers": {
-        if (vetoed("ATTACK")) return act("DECLARE_ATTACKERS", { attackers: [] });
         const mine = view.zones[`${seat}:network`] || [];
+        const env = { state: view, ctx: E.resolveCtx({}) };
         return act("DECLARE_ATTACKERS", {
           attackers: mine.filter((u) => {
-            const o = view.objects[u];
-            if (!o || !o.cardId || o.committed || o.bootDelay) return false;
-            const c = card(o.cardId);
-            return !!(c && c.isAvatar && (c.keywords || []).indexOf("Firewall") < 0);
+            try { return E.canAttack(env, u); } catch { return false; }
           }),
         });
       }
       case "blockers": return act("DECLARE_BLOCKERS", { blocks: {} });
-      case "order": return act("ORDER_BLOCKERS", { order: {} });
+      case "order": return act("ORDER_BLOCKERS", {
+        order: Object.fromEntries(
+          Object.entries(view.clash.blocks || {}).map(([attacker, blockers]) => [attacker, blockers.slice()])
+        ),
+      });
       case "damage": return act("ASSIGN_COMBAT_DAMAGE", { assignment: null });
       case "discard": return act("DISCARD_TO_LIMIT", { uids: (view.zones[`${seat}:wallet`] || []).slice(0, aw.count) });
       case "triggers":
@@ -146,13 +179,13 @@ const settle = async (cs, seq) => {
 // ------------------------------------------------------------------------ run
 
 console.log(`table: ${URL}`);
-const a = await Client.open(URL);
-a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: "a".repeat(64) });
+const a = await Client.open(URL, "felix");
+a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey });
 const created = await a.type("STATE");
 console.log(`match ${created.matchId}  code ${created.code}  (seat 0 = felix)`);
 
-const b = await Client.open(URL);
-b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: "b".repeat(64) });
+const b = await Client.open(URL, "anna");
+b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
 await b.type("STATE");
 await a.type("STATE");
 console.log(`seat 1 = anna joined; game ${a.view.gameId}\n`);

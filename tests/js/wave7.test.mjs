@@ -19,7 +19,8 @@ test("all three modal cards compile scripted, each mode with its own spec", () =
   }
   const inval = E.compileCard(byName["Power Invalidation"]);
   assert.equal(inval.playModes[0].targetSpec[0].kind, "queue", "mode 1 targets the Queue");
-  assert.equal(inval.playModes[1].targetSpec[0].kind, "type:Power", "mode 2 targets the board");
+  assert.equal(inval.playModes[1].targetSpec[0].kind, "permanent", "mode 2 targets the board");
+  assert.equal(inval.playModes[1].targetSpec[0].affinity, "Power", "mode 2 keeps the affinity filter");
 });
 
 test("playing a modal card without choosing a mode is refused", () => {

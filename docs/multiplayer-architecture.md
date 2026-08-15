@@ -4,14 +4,14 @@ Decision record. Supersedes the transport and hidden-information decisions locke
 2026-07-28 in `napplet-spec.md`; everything else in that spec stands.
 
 **End state:** the game ships as a napplet on `napplet.run`, card faces live on Blossom,
-identity is NIP-07, and the ladder runs on that identity.
+identity is NIP-07, and both public unranked and ranked table play run on that identity.
 
 ---
 
 ## The shape
 
 ```
-napplet (default)                          Table (optional, ranked only)
+napplet (future P2P option)                Table (public unranked + ranked)
 ┌────────────────────────────┐             ┌──────────────────────────┐
 │ peer A          peer B     │             │ referee + dealer         │
 │  engine.js  ≡  engine.js   │◄── same ───►│  engine.js (headless)    │
@@ -35,8 +35,8 @@ One engine, three topologies. The only thing that varies is who answers
 
 | # | Decision | Choice |
 | --- | --- | --- |
-| D1 | Where authority stops | Napplet P2P by default; a **Table** exists as an optional referee for ranked play |
-| D2 | What "assisted" means | **Three assist tiers**; `Certified` = tiers A+B is the ranked format |
+| D1 | Where authority stops | The **Table** is authoritative for public unranked and ranked play; P2P remains a future option |
+| D2 | Card legality | **All 295 Edition One cards are scripted**; no assisted or free-form cards in either format |
 | D3 | Engine language | **JavaScript**, one pure headless module |
 | D4 | 2026-07-28 napplet lock | **Amended** — P2P target and symmetric engines kept, shuffle scheme replaced |
 | D5 | Hidden information | **Opponent-held secret permutation** over per-card commitments |
@@ -71,19 +71,11 @@ draw equivocation and self-knowledge rather than detecting them afterwards.
 Because a TCG has no shared deck — each player shuffles only their own — the mental-poker
 impossibility results do not bind here, which is why this is cheap.
 
-### D2 — assist tiers
+### D2 — one rules surface
 
-204 of 295 cards resolve "assisted": their rules exist only as English prose. No referee
-can be authoritative over a rule it does not implement, so the guarantee is split.
-
-| Tier | Meaning | Enforcement |
-| --- | --- | --- |
-| **A** | Scripted | Engine resolves it fully |
-| **B** | Bounded | Engine computes legal targets and enforces a machine-checkable *effect envelope* |
-| **C** | Free-form | Typed proposal citing card and ability; opponent accepts or disputes. Logged and attributed, never silent |
-
-`Certified` = A + B, and is the ranked format. Tier C is legal in casual play. The trust
-surface shrinks card by card as abilities are promoted from C to B to A.
+The compiler now emits zero assisted cards: all 295 Edition One cards resolve through
+engine operations. Casual and Ranked therefore use the same rules surface. Ranked may later
+restrict deck construction or matchmaking, but it does not need a smaller card pool.
 
 ### D6 — what "verified" means on the ladder
 
@@ -116,13 +108,13 @@ and the napplet shell's WebRTC NAP solves that instead.
 
 | Phase | Delivers |
 | --- | --- |
-| **P0** | Keyword enforcement gaps closed; assist tiers in card data |
+| **P0** | All 295 cards compiled and enforced; no assisted tier remains |
 | **P1** | Headless `engine.js`: seeded, serialisable, action-log replayable, redacting |
-| **P2** | Assist protocol — free-form manual controls replaced by typed proposals |
+| **P2** | Remove the legacy manual proposal path after compatibility migration |
 | **P3** | Napplet build: shell-brokered WebRTC, symmetric engines, `DeckOracle` v1 |
-| **P4** | NIP-07 identity, dual-signed results, authority-key leaderboard |
+| **P4** | NIP-07/NIP-42 login complete; dual-verified results and authority-key leaderboard remain |
 | **P5** | `DeckOracle` v2 — opponent-held permutation |
-| **P6** | Table referee for ranked; async play; spectating and replays |
+| **P6** | Table referee hardening for ranked; async play; spectating and replays |
 
 ## Open, not yet decided
 

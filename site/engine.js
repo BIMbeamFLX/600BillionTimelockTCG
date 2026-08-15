@@ -371,11 +371,21 @@
           else if (op.target === "player") spec.push({ kind: "seat", prompt: "player to damage" });
           break;
         case "pump":
-          if (op.target === "target-avatar") spec.push({ kind: "avatar", prompt: "Avatar to pump" });
+          if (op.target === "target-avatar") {
+            spec.push({ kind: "avatar", require: op.require, prompt: "Avatar to pump" });
+          }
           break;
         case "decommission":
           if (op.scope === "target") {
-            spec.push({ kind: "type:" + op.kind, prompt: `${op.kind} to decommission` });
+            spec.push({
+              kind: op.kind === "Permanent" ? "permanent" : "type:" + op.kind,
+              types: op.kinds || [op.kind],
+              affinity: op.affinity,
+              notAffinity: op.notAffinity,
+              notType: op.notType,
+              requireCommitted: op.requireCommitted,
+              prompt: `${(op.kinds || [op.kind]).join(" or ")} to decommission`,
+            });
           }
           break;
         case "reboot":
@@ -418,6 +428,97 @@
             prompt: (op.filter && op.filter.affinity ? op.filter.affinity + " " : "") + "card on the Queue",
           });
           break;
+        case "moveTarget":
+          spec.push({
+            kind: op.kind === "Card" ? "card" : "type:" + op.kind,
+            zone: op.fromZone,
+            whose: op.whose,
+            prompt: `${op.kind} from ${op.whose === "you" ? "your " : ""}${op.fromZone}`,
+          });
+          break;
+        case "toggleCommitted":
+          spec.push({ kind: op.kind || "permanent", prompt: "card to commit or unlock" });
+          break;
+        case "setAffinity":
+          spec.push({ kind: "queueOrPermanent", prompt: "card on the Queue or Network" });
+          break;
+        case "revealWallet":
+          spec.push({ kind: "seat", prompt: "player whose Wallet to view" });
+          break;
+        case "forceBlockAll":
+          spec.push({ kind: "avatar", whose: "opponent-controller", prompt: "defending Avatar" });
+          break;
+        case "cantBeBlocked":
+          spec.push({ kind: "avatar", maximumAction: op.maximumAction, prompt: "Avatar" });
+          break;
+        case "limitClashDamage":
+          spec.push({ kind: "avatar", prompt: "unblocked Avatar source" });
+          break;
+        case "redirectDamage":
+          spec.push({ kind: "permanent", prompt: "damage source" });
+          spec.push({ kind: "avatar", prompt: "Avatar whose damage is redirected" });
+          break;
+        case "preventAndRefund":
+          spec.push({ kind: "permanent", prompt: "damage source" });
+          break;
+        case "drainBuffer":
+        case "stealGeneratedBuffer":
+          spec.push({ kind: "seat", prompt: "target player" });
+          break;
+        case "invalidateByCostX":
+          spec.push({ kind: "queue", costX: true, prompt: "card on the Queue with cost X" });
+          break;
+        case "stateMirror":
+          spec.push({ kind: "avatar", whose: "you-controller", prompt: "Avatar you control" });
+          break;
+        case "divideDamage":
+          spec.push({ kind: "any", variable: true, min: 1, prompt: "one or more damage targets" });
+          break;
+        case "setAffinityWhileSource":
+          spec.push({ kind: "type:" + (op.kind || "Resource"), prompt: "Resource" });
+          break;
+        case "guardianSignal":
+        case "finalSettlement":
+        case "uptimeChannel":
+          spec.push({ kind: "any", prompt: "damage target" });
+          break;
+        case "rewriteWords":
+          spec.push({ kind: "queueOrPermanent", prompt: "card on the Queue or Network" });
+          break;
+        case "feeSpike":
+        case "copyQueue":
+          spec.push({ kind: "queue", prompt: "card on the Queue" });
+          break;
+        case "gridEruption":
+          spec.push({
+            kind: "type:Resource", affinity: "Power", variable: true,
+            exactX: true, prompt: "Power Resources",
+          });
+          break;
+        case "archiveBoot":
+          spec.push({ kind: "avatar", zone: "archive", prompt: "Avatar card in an Archive" });
+          break;
+        case "routeMisdirection":
+          spec.push({ kind: "avatar", require: "blocking", prompt: "defending Avatar" });
+          break;
+        case "launchAvatar":
+          spec.push({ kind: "avatar", whose: "you-controller", resilienceBelowSourceAction: true, prompt: "Avatar you control" });
+          break;
+        case "committedGrowth":
+          spec.push({ kind: "avatar", prompt: "Avatar" });
+          break;
+        case "topologyScan":
+          spec.push({ kind: "seat", prompt: "player whose Stack to scan" });
+          break;
+        case "forceAttackTarget":
+          spec.push({ kind: "avatar", whose: "opponent-controller", notKeyword: "Firewall", controlledAllTurn: true, prompt: "opponent Avatar" });
+          break;
+        case "resourceTombstone":
+          spec.push({ kind: "type:Resource", notAffinity: "Keys", prompt: "non-Keys Resource" });
+          break;
+        case "identityMask":
+          spec.push({ kind: "avatar", zone: "wallet", whose: "you", costAtMostX: true, prompt: "Avatar from your Wallet" });
+          break;
         default:
           break;
       }
@@ -431,6 +532,13 @@
     for (const ability of card.abilities) {
       if (ability.manual || !ability.ops) continue;
       if (ability.kind === "play" || ability.kind === "static") ops.push(...ability.ops);
+    }
+    for (const ability of card.abilities) {
+      const rule = ability.kind === "rule-static" && ability.rule;
+      if (!rule) continue;
+      if (rule.name === "chooseAffinityOnEnter") ops.push({ op: "chooseAffinityOnEnter" });
+      if (rule.name === "copyOnEnter") ops.push({ op: "copyOnEnter", kind: rule.kind, keepType: rule.keepType });
+      if (rule.name === "adaptiveCopy") ops.push({ op: "adaptiveCopy", entering: true });
     }
     return ops;
   }
@@ -458,6 +566,9 @@
       return compiled;
     });
     card.playOps = cardPlayOps(card);
+    card.playRestrictions = card.abilities
+      .filter((ability) => ability.kind === "play-restriction" && ability.restriction)
+      .map((ability) => ability.restriction);
     // "Choose one —": each mode carries its own ops and target spec.
     const modal = card.abilities.find((a) => a.kind === "modal" && !a.manual && a.modes);
     card.playModes = modal
@@ -470,7 +581,7 @@
       const to = attach.to || "Avatar";
       const kind =
         to === "Avatar" ? "avatar" : to === "Firewall" ? "keyword:Firewall" : "type:" + to;
-      card.playTargetSpec = [{ kind, prompt: `${to} to attach ${card.name} to` }];
+      card.playTargetSpec = [{ kind, attachment: true, prompt: `${to} to attach ${card.name} to` }];
     }
     card.isResource = isResourceCard(card);
     card.isAvatar = isAvatarCard(card);
@@ -497,6 +608,9 @@
         cost: a.cost,
         text: a.text,
         ops: a.ops || null,
+        trigger: a.trigger || null,
+        rule: a.rule || null,
+        grants: a.grants || null,
         manual: Boolean(a.manual),
       })),
     };
@@ -642,7 +756,7 @@
   function newObjectRecord(state, ctx, cardId, owner, controller, key, prevUid) {
     const card = cardOf(ctx, cardId);
     const zone = zoneName(key);
-    return {
+    const record = {
       uid: mintUid(state),
       cardId,
       owner,
@@ -654,6 +768,7 @@
       // handful of cards that print the word were ever delayed.
       bootDelay: zone === "network" && card.isAvatar,
       damage: 0,
+      damageSources: {},
       counters: {},
       attachedTo: null,
       rebootShields: 0,
@@ -661,9 +776,25 @@
       revealedTo: [],
       revealedUntil: null,
       token: false,
+      tokenProfile: null,
+      chosenAffinity: null,
+      chosenSeat: null,
+      controlSource: null,
+      activations: {},
+      maskedCardId: null,
+      sovereign: false,
+      copyBaseCardId: null,
+      affinityOverride: null,
+      typeAdditions: [],
+      adaptive: false,
       entersSeq: state.seq,
       prevUid: prevUid || null,
     };
+    if (zone === "network" && cardHasRule(card, "entersCommitted")) record.committed = true;
+    if (zone === "network" && cardHasRule(card, "chooseOpponentOnEnter")) {
+      record.chosenSeat = 1 - controller;
+    }
+    return record;
   }
 
   /* §6.1 — every zone change except Network->Network mints a fresh object with
@@ -676,6 +807,24 @@
     const object = objectOf(state, uid);
     const settings = options || {};
     const fromKey = object.zone;
+    const leavingNetwork = zoneName(fromKey) === "network" && toZone !== "network";
+    const leavingCard = cardOf(env.ctx, object.cardId);
+    if (leavingNetwork && leavingCard.name === "Archive Boot" && object.attachedTo && state.objects[object.attachedTo]) {
+      const host = state.objects[object.attachedTo];
+      emit(env, "ARCHIVED", { uid: host.uid, cardId: host.cardId, reason: "Archive Boot left" });
+      moveUid(env, host.uid, "archive");
+    }
+    if (leavingNetwork && object.sovereign) {
+      state.seats[object.controller].conceded = true;
+      emit(env, "SOVEREIGN_LEFT", { seat: object.controller, uid });
+    }
+    if (leavingNetwork && leavingCard.name === "Resource Tombstone") {
+      state.archivedTombstones = state.archivedTombstones || [];
+      const key = "tombstone:" + uid;
+      if (!state.archivedTombstones.some((entry) => entry.key === key)) {
+        state.archivedTombstones.push({ key, controller: object.controller });
+      }
+    }
     const publicZone = toZone === "network" || toZone === "queue" || toZone === "stake";
     const toSeat =
       settings.seat !== undefined && settings.seat !== null
@@ -694,7 +843,10 @@
       return object;
     }
     delete state.objects[uid];
-    const record = newObjectRecord(state, env.ctx, object.cardId, object.owner, toSeat, toKey, uid);
+    const destinationCardId = leavingNetwork && object.copyBaseCardId
+      ? object.copyBaseCardId
+      : object.cardId;
+    const record = newObjectRecord(state, env.ctx, destinationCardId, object.owner, toSeat, toKey, uid);
     record.token = object.token;
     record.facedown = toZone === "cold" ? Boolean(settings.facedown) : false;
     state.objects[record.uid] = record;
@@ -766,30 +918,233 @@
     return matching;
   }
 
+  function cardHasRule(card, name) {
+    return card.abilities.some(
+      (ability) => ability.kind === "rule-static" && ability.rule && ability.rule.name === name
+    );
+  }
+
+  function hasRule(state, ctx, uid, name) {
+    const object = state.objects[uid];
+    if (!object) return false;
+    if (cardHasRule(cardOf(ctx, object.cardId), name)) return true;
+    for (const seat of seatsOf(state)) {
+      for (const attachmentUid of zoneArray(state, zoneKey(seat, "network"))) {
+        const attachment = state.objects[attachmentUid];
+        if (!attachment || attachment.attachedTo !== uid) continue;
+        const grants = cardOf(ctx, attachment.cardId).abilities.some(
+          (ability) =>
+            ability.kind === "rule-static" && ability.rule && ability.rule.grants === name
+        );
+        if (grants) return true;
+      }
+    }
+    return false;
+  }
+
+  function controllerHasRule(state, ctx, seat, name) {
+    return zoneArray(state, zoneKey(seat, "network")).some((uid) =>
+      hasRule(state, ctx, uid, name)
+    );
+  }
+
+  function ruleEntries(state, ctx, name) {
+    const entries = [];
+    for (const seat of seatsOf(state)) {
+      for (const uid of zoneArray(state, zoneKey(seat, "network"))) {
+        const object = state.objects[uid];
+        if (!object || !object.cardId) continue;
+        for (const ability of cardOf(ctx, object.cardId).abilities) {
+          if (ability.kind !== "rule-static" || !ability.rule || ability.rule.name !== name) continue;
+          if (ability.rule.whileUnlocked && object.committed) continue;
+          entries.push({ uid, object, rule: ability.rule });
+        }
+      }
+    }
+    return entries;
+  }
+
+  function affinitiesOf(state, ctx, uid) {
+    const object = objectOf(state, uid);
+    let affinities = object.affinityOverride
+      ? object.affinityOverride.slice()
+      : cardOf(ctx, object.cardId).affinity.slice();
+    if (zoneName(object.zone) === "network") {
+      for (const entry of ruleEntries(state, ctx, "globalResourceAffinity")) {
+        if (!isResourceUid(state, ctx, uid)) continue;
+        if (affinities.indexOf(entry.rule.from) >= 0) affinities = [entry.rule.to];
+      }
+      for (const grants of attachmentGrants(state, ctx, uid)) {
+        if (!grants.affinity) continue;
+        const chosen = grants.affinity === "chosen"
+          ? (state.objects[grants.sourceUid] || {}).chosenAffinity
+          : grants.affinity;
+        if (chosen) affinities = [chosen];
+      }
+      for (const effect of state.effects) {
+        if (effect.kind === "affinity" && effect.targetUid === uid) affinities = [effect.affinity];
+        if (effect.kind === "tombstoneAffinity" && effect.targetUid === uid &&
+            (object.counters[effect.mark] || 0) > 0) affinities = [effect.affinity];
+      }
+    }
+    return affinities;
+  }
+
+  function resourceAvatarRule(state, ctx, uid) {
+    if (!isResourceUid(state, ctx, uid)) return null;
+    const affinities = affinitiesOfWithoutAnimation(state, ctx, uid);
+    return ruleEntries(state, ctx, "resourceAvatars").find(
+      (entry) => affinities.indexOf(entry.rule.affinity) >= 0
+    ) || null;
+  }
+
+  // Kept separate to avoid affinitiesOf -> isResourceUid -> resourceAvatarRule recursion.
+  function affinitiesOfWithoutAnimation(state, ctx, uid) {
+    const object = objectOf(state, uid);
+    let affinities = object.affinityOverride
+      ? object.affinityOverride.slice()
+      : cardOf(ctx, object.cardId).affinity.slice();
+    for (const entry of ruleEntries(state, ctx, "globalResourceAffinity")) {
+      if (cardOf(ctx, object.cardId).isResource && affinities.indexOf(entry.rule.from) >= 0) {
+        affinities = [entry.rule.to];
+      }
+    }
+    for (const grants of attachmentGrants(state, ctx, uid)) {
+      if (!grants.affinity) continue;
+      const chosen = grants.affinity === "chosen"
+        ? (state.objects[grants.sourceUid] || {}).chosenAffinity
+        : grants.affinity;
+      if (chosen) affinities = [chosen];
+    }
+    for (const effect of state.effects) {
+      if (effect.kind === "affinity" && effect.targetUid === uid) affinities = [effect.affinity];
+      if (effect.kind === "tombstoneAffinity" && effect.targetUid === uid &&
+          (object.counters[effect.mark] || 0) > 0) affinities = [effect.affinity];
+    }
+    return affinities;
+  }
+
+  function isResourceUid(state, ctx, uid) {
+    const object = objectOf(state, uid);
+    return cardOf(ctx, object.cardId).isResource || Boolean(object.tokenProfile && object.tokenProfile.isResource);
+  }
+
+  function cardTypeOf(state, ctx, uid) {
+    const object = objectOf(state, uid);
+    return [cardOf(ctx, object.cardId).type].concat(object.typeAdditions || []).join(" ");
+  }
+
+  function isAvatarUid(state, ctx, uid) {
+    const object = objectOf(state, uid);
+    if (object.tokenProfile) return Boolean(object.tokenProfile.isAvatar);
+    if (cardOf(ctx, object.cardId).isAvatar) return true;
+    if (state.effects.some((effect) => effect.kind === "becomesAvatar" && effect.targetUid === uid)) return true;
+    return Boolean(resourceAvatarRule(state, ctx, uid));
+  }
+
+  const maximumWalletSize = (state, ctx, seat) =>
+    controllerHasRule(state, ctx, seat, "noMaximumWallet") ? Infinity : state.handLimit;
+
+  const resourcePlayLimit = (state, ctx, seat) =>
+    controllerHasRule(state, ctx, seat, "unlimitedResourcePlays")
+      ? Infinity
+      : state.turn.resourcePlays.allowed;
+
   function statsOf(state, ctx, uid) {
     const object = objectOf(state, uid);
     const card = cardOf(ctx, object.cardId);
-    if (!card.isAvatar) return { action: 0, resilience: 0 };
-    let action = card.action || 0;
-    let resilience = card.resilience || 0;
+    if (!isAvatarUid(state, ctx, uid)) return { action: 0, resilience: 0 };
+    const animated = resourceAvatarRule(state, ctx, uid);
+    const transformed = state.effects.find(
+      (effect) => effect.kind === "becomesAvatar" && effect.targetUid === uid
+    );
+    let action = object.tokenProfile
+      ? object.tokenProfile.action || 0
+      : transformed
+        ? transformed.action
+      : animated
+        ? animated.rule.action
+        : card.action || 0;
+    let resilience = object.tokenProfile
+      ? object.tokenProfile.resilience || 0
+      : transformed
+        ? transformed.resilience
+      : animated
+        ? animated.rule.resilience
+        : card.resilience || 0;
     // "Action and Resilience are each equal to the number of …" — a live base.
-    const statStatic = card.abilities.find((a) => a.kind === "stat-static" && a.statCount);
-    if (statStatic) {
-      const n = statStaticCount(state, ctx, statStatic.statCount, object);
-      action = n;
-      resilience = n;
+    for (const statStatic of card.abilities.filter((a) => a.kind === "stat-static" && a.statCount)) {
+      const spec = statStatic.statCount;
+      if (spec.attachedHalfResource) continue;
+      if (spec.dynamicBitcoinController) {
+        const countingSeat = state.clash.attackers.indexOf(uid) >= 0
+          ? 1 - object.controller
+          : object.controller;
+        const count = zoneArray(state, zoneKey(countingSeat, "network")).filter(
+          (otherUid) => isResourceUid(state, ctx, otherUid) &&
+            affinitiesOf(state, ctx, otherUid).indexOf("Bitcoin") >= 0
+        ).length;
+        action = count;
+        resilience = count;
+        continue;
+      }
+      if (spec.ifResourceAffinity) {
+        const holds = zoneArray(state, zoneKey(object.controller, "network")).some(
+          (otherUid) => isResourceUid(state, ctx, otherUid) &&
+            affinitiesOf(state, ctx, otherUid).indexOf(spec.ifResourceAffinity) >= 0
+        );
+        if (holds) {
+          action += spec.bonus.action || 0;
+          resilience += spec.bonus.resilience || 0;
+        }
+      } else {
+        const n = statStaticCount(state, ctx, spec, object);
+        action = n;
+        resilience = n;
+      }
     }
     const plusOne = object.counters["+1/+1"] || 0; // §18.2
     action += plusOne;
     resilience += plusOne;
+    action += object.counters["+1/+0"] || 0;
     for (const effect of effectsFor(state, uid)) {
-      if (effect.scope === "controlledAvatars" && !card.isAvatar) continue;
+      if (effect.scope === "controlledAvatars" && !isAvatarUid(state, ctx, uid)) continue;
       action += effect.action || 0;
       resilience += effect.resilience || 0;
     }
     for (const grants of attachmentGrants(state, ctx, uid)) {
       action += grants.action || 0;
       resilience += grants.resilience || 0;
+    }
+    for (const seat of seatsOf(state)) {
+      for (const auraUid of zoneArray(state, zoneKey(seat, "network"))) {
+        if (auraUid === uid) continue;
+        const aura = state.objects[auraUid];
+        for (const ability of cardOf(ctx, aura.cardId).abilities) {
+          const rule = ability.kind === "rule-static" && ability.rule && ability.rule.name === "tribalAura"
+            ? ability.rule
+            : null;
+          if (!rule || !card.subtype || card.subtype.indexOf(rule.tribe) < 0) continue;
+          action += rule.action || 0;
+          resilience += rule.resilience || 0;
+        }
+      }
+    }
+    for (const seat of seatsOf(state)) {
+      for (const attachmentUid of zoneArray(state, zoneKey(seat, "network"))) {
+        const attachment = state.objects[attachmentUid];
+        if (!attachment || attachment.attachedTo !== uid) continue;
+        for (const ability of cardOf(ctx, attachment.cardId).abilities) {
+          const spec = ability.kind === "stat-static" && ability.statCount;
+          if (!spec || !spec.attachedHalfResource) continue;
+          const count = zoneArray(state, zoneKey(attachment.controller, "network")).filter(
+            (otherUid) => isResourceUid(state, ctx, otherUid) &&
+              affinitiesOf(state, ctx, otherUid).indexOf(spec.attachedHalfResource) >= 0
+          ).length;
+          action += Math.floor(count / 2);
+          resilience += Math.ceil(count / 2);
+        }
+      }
     }
     return { action, resilience };
   }
@@ -802,8 +1157,13 @@
       for (const attachUid of zoneArray(state, zoneKey(seat, "network"))) {
         const object = state.objects[attachUid];
         if (!object || object.attachedTo !== uid || !object.cardId) continue;
+        if (cardOf(ctx, object.cardId).name === "Archive Boot") {
+          grants.push({ sourceUid: attachUid, action: -1 });
+        }
         for (const ability of cardOf(ctx, object.cardId).abilities) {
-          if (ability.kind === "attach-static" && ability.grants) grants.push(ability.grants);
+          if (ability.kind === "attach-static" && ability.grants) {
+            grants.push(Object.assign({ sourceUid: attachUid }, ability.grants));
+          }
         }
       }
     }
@@ -819,9 +1179,9 @@
         if (!other || !other.cardId) continue;
         const card = cardOf(ctx, other.cardId);
         if (spec.type && card.type.indexOf(spec.type) < 0) continue;
-        if (spec.affinity && card.affinity.indexOf(spec.affinity) < 0) continue;
+        if (spec.affinity && affinitiesOf(state, ctx, uid).indexOf(spec.affinity) < 0) continue;
         if (spec.namedSelf && other.cardId !== object.cardId) continue;
-        if (spec.avatars && !card.isAvatar) continue;
+        if (spec.avatars && !isAvatarUid(state, ctx, uid)) continue;
         if (spec.notKeyword && hasKeywordUid(state, ctx, uid, spec.notKeyword)) continue;
         n += 1;
       }
@@ -832,7 +1192,9 @@
   function keywordsOf(state, ctx, uid) {
     const object = objectOf(state, uid);
     const card = cardOf(ctx, object.cardId);
-    const names = card.keywords.map((k) => k.name);
+    const names = object.tokenProfile
+      ? (object.tokenProfile.keywords || []).slice()
+      : card.keywords.map((k) => k.name);
     for (const effect of state.effects) {
       if (effect.kind !== "grant" || effect.targetUid !== uid) continue;
       if (effect.remove) {
@@ -854,14 +1216,41 @@
 
   const hasKeywordUid = (state, ctx, uid, name) => keywordsOf(state, ctx, uid).indexOf(name) >= 0;
 
+  function backchannelsOf(state, ctx, uid) {
+    const object = objectOf(state, uid);
+    const card = cardOf(ctx, object.cardId);
+    const out = card.keywords
+      .filter((keyword) => keyword.name === "Backchannel")
+      .map((keyword) => rewrittenWord(state, uid, keyword.resource, "basic"));
+    for (const grants of attachmentGrants(state, ctx, uid)) {
+      if (grants.backchannel) out.push(grants.backchannel);
+    }
+    for (const entry of ruleEntries(state, ctx, "tribalAura")) {
+      if (entry.uid === uid || !card.subtype || card.subtype.indexOf(entry.rule.tribe) < 0) continue;
+      if (entry.rule.backchannel) out.push(entry.rule.backchannel);
+    }
+    return Array.from(new Set(out));
+  }
+
   function shieldedFrom(state, ctx, uid) {
     const card = cardOf(ctx, objectOf(state, uid).cardId);
     const entry = card.keywords.find((k) => k.name === "Shielded");
-    if (entry) return entry.from;
+    if (entry) return rewrittenWord(state, uid, entry.from, "basic");
     for (const grants of attachmentGrants(state, ctx, uid)) {
       if (grants.shieldedFrom) return grants.shieldedFrom;
     }
     return null;
+  }
+
+  function rewrittenWord(state, uid, value, vocabulary) {
+    let result = value;
+    for (const effect of state.effects) {
+      if (effect.kind === "wordRewrite" && effect.targetUid === uid &&
+          (!vocabulary || effect.vocabulary === vocabulary) && result === effect.from) {
+        result = effect.to;
+      }
+    }
+    return result;
   }
 
   // ------------------------------------------------------------- costs (§11, §12)
@@ -930,6 +1319,103 @@
       fail("BAD_PAYMENT", `payment totals ${total}, cost totals ${specific + (cost.generic || 0)}`);
     }
     return payment;
+  }
+
+  function convertersFor(state, ctx, seat) {
+    return ruleEntries(state, ctx, "resourceConverter")
+      .filter((entry) => entry.object.controller === seat)
+      .map((entry) => ({ from: entry.rule.from, to: entry.rule.to }));
+  }
+
+  function autoPaymentFor(env, seat, cost) {
+    const buffer = env.state.seats[seat].buffer;
+    const converters = convertersFor(env.state, env.ctx, seat);
+    if (!converters.length) return autoPayment(buffer, cost);
+    const payment = emptyBuffer();
+    const pool = Object.assign({}, buffer);
+    for (const symbol of SYMBOLS) {
+      let need = cost && cost[symbol] || 0;
+      const own = Math.min(need, pool[symbol]);
+      pool[symbol] -= own;
+      payment[symbol] += own;
+      need -= own;
+      for (const converter of converters.filter((entry) => entry.to === symbol)) {
+        const substitute = Math.min(need, pool[converter.from]);
+        pool[converter.from] -= substitute;
+        payment[converter.from] += substitute;
+        need -= substitute;
+      }
+      if (need) fail("CANNOT_AFFORD", `not enough ${symbol} or permitted substitute in the Buffer`);
+    }
+    let generic = cost && cost.generic || 0;
+    for (const key of ["N", "P", "B", "K", "S", "T"]) {
+      const take = Math.min(generic, pool[key]);
+      pool[key] -= take;
+      payment[key] += take;
+      generic -= take;
+    }
+    if (generic) fail("CANNOT_AFFORD", "not enough Resources in the Buffer");
+    return payment;
+  }
+
+  function verifyPaymentFor(env, seat, cost, payment) {
+    const buffer = env.state.seats[seat].buffer;
+    const converters = convertersFor(env.state, env.ctx, seat);
+    if (!converters.length) return verifyPayment(buffer, cost, payment);
+    const remaining = emptyBuffer();
+    for (const key of BUFFER_KEYS) {
+      const amount = payment[key] || 0;
+      if (!Number.isInteger(amount) || amount < 0 || amount > buffer[key]) {
+        fail("BAD_PAYMENT", `bad amount for ${key}`);
+      }
+      remaining[key] = amount;
+    }
+    let specific = 0;
+    for (const symbol of SYMBOLS) {
+      let need = cost && cost[symbol] || 0;
+      specific += need;
+      const own = Math.min(need, remaining[symbol]);
+      remaining[symbol] -= own;
+      need -= own;
+      for (const converter of converters.filter((entry) => entry.to === symbol)) {
+        const substitute = Math.min(need, remaining[converter.from]);
+        remaining[converter.from] -= substitute;
+        need -= substitute;
+      }
+      if (need) fail("BAD_PAYMENT", `${symbol} is not fully paid`);
+    }
+    if (bufferTotal(remaining) !== (cost && cost.generic || 0)) {
+      fail("BAD_PAYMENT", "payment does not match the generic remainder");
+    }
+    if (bufferTotal(payment) !== specific + (cost && cost.generic || 0)) {
+      fail("BAD_PAYMENT", "payment total does not match cost");
+    }
+    return payment;
+  }
+
+  function addGeneric(cost, amount) {
+    if (!amount) return cost;
+    const adjusted = Object.assign({ generic: 0 }, cost || {});
+    adjusted.generic += amount;
+    return adjusted;
+  }
+
+  function cardTax(state, ctx, card) {
+    return ruleEntries(state, ctx, "cardTax").reduce(
+      (sum, entry) => sum + (card.affinity.indexOf(entry.rule.affinity) >= 0 ? entry.rule.generic : 0),
+      0
+    );
+  }
+
+  function abilityTax(state, ctx, card) {
+    return ruleEntries(state, ctx, "abilityTax").reduce(
+      (sum, entry) => sum + (
+        card.affinity.indexOf(entry.rule.affinity) >= 0 && card.type.indexOf(entry.rule.type) >= 0
+          ? entry.rule.generic
+          : 0
+      ),
+      0
+    );
   }
 
   function spendBuffer(seat, buffer, payment) {
@@ -1067,6 +1553,11 @@
         step: "unlock",
         resourcePlays: { used: 0, allowed: 1 },
         repeatCleanup: false,
+        damageTaken: [0, 0],
+        avatarsDied: 0,
+        attacked: [],
+        startUnlockedResources: [0, 0],
+        startedSeq: 0,
       },
       priority: { seat: null, passed: [false, false], window: "setup" },
       clash: emptyClash(),
@@ -1080,6 +1571,9 @@
       nextChoiceId: 1,
       effects: [],
       nextEid: 1,
+      delayed: [],
+      sovereignDamage: [0, 0],
+      archivedTombstones: [],
       handLimit: intOr(settings.handLimit, HAND_LIMIT),
       rng: {
         public: newStream(seeds.public),
@@ -1133,6 +1627,7 @@
     order: {},
     assignment: {},
     blockedOnce: [],
+    routeRestriction: null,
     damageDone: { firstStrike: false, regular: false },
   });
 
@@ -1162,14 +1657,33 @@
     const state = env.state;
     for (let guard = 0; guard < 64; guard++) {
       let changed = false;
+      changed = syncAttachmentControl(env) || changed;
       for (const seat of [0, 1]) {
         for (const uid of zoneArray(state, zoneKey(seat, "network")).slice()) {
           const object = state.objects[uid];
           if (!object) continue;
           const card = cardOf(env.ctx, object.cardId);
 
+          const resourceDependency = card.abilities.find(
+            (ability) => ability.kind === "rule-static" && ability.rule &&
+              ability.rule.name === "archiveWithoutResource"
+          );
+          if (resourceDependency) {
+            const affinity = resourceDependency.rule.affinity;
+            const hasResource = zoneArray(state, zoneKey(object.controller, "network")).some(
+              (otherUid) => otherUid !== uid && isResourceUid(state, env.ctx, otherUid) &&
+                affinitiesOf(state, env.ctx, otherUid).indexOf(affinity) >= 0
+            );
+            if (!hasResource) {
+              emit(env, "ARCHIVED", { uid, cardId: object.cardId, reason: `no ${affinity} Resource` });
+              moveUid(env, uid, "archive");
+              changed = true;
+              continue;
+            }
+          }
+
           if (object.token && zoneName(object.zone) !== "network") continue;
-          if (card.isAvatar) {
+          if (isAvatarUid(state, env.ctx, uid)) {
             const { resilience } = statsOf(state, env.ctx, uid);
             const lethal = object.damage >= resilience;
             if (resilience <= 0) {
@@ -1180,7 +1694,10 @@
               continue;
             }
             if (lethal) {
-              if (object.rebootShields > 0) {
+              if (attachmentGrants(state, env.ctx, uid).some((grants) => grants.indestructible)) {
+                continue;
+              }
+              if (object.rebootShields > 0 && object.noRebootTurn !== state.turn.number) {
                 // §14 Reboot: not decommissioned, damage removed, Commit it,
                 // remove it from combat, consume the shield.
                 object.rebootShields -= 1;
@@ -1189,8 +1706,7 @@
                 removeFromCombat(state, uid);
                 emit(env, "REBOOT", { uid, cardId: object.cardId });
               } else {
-                moveUid(env, uid, "archive");
-                emit(env, "DECOMMISSIONED", { uid, cardId: object.cardId });
+                decommissionUid(env, uid, null);
               }
               changed = true;
               continue;
@@ -1245,6 +1761,62 @@
     recomputeResult(env);
   }
 
+  function decommissionUid(env, uid, sourceUid) {
+    const state = env.state;
+    const object = state.objects[uid];
+    if (!object || zoneName(object.zone) !== "network") return null;
+    if (attachmentGrants(state, env.ctx, uid).some((grants) => grants.indestructible)) return object;
+    if (object.coldOnDecommissionTurn === state.turn.number) {
+      emit(env, "COLD_STORED", { uid, cardId: object.cardId, reason: "Final Settlement" });
+      return moveUid(env, uid, "cold", { facedown: true });
+    }
+    const card = cardOf(env.ctx, object.cardId);
+    const context = {
+      uid,
+      seat: object.controller,
+      owner: object.owner,
+      type: card.type,
+      affinity: affinitiesOf(state, env.ctx, uid),
+      resilience: isAvatarUid(state, env.ctx, uid) ? statsOf(state, env.ctx, uid).resilience : 0,
+      damageSources: Object.keys(object.damageSources || {}),
+      sourceUid: sourceUid || null,
+    };
+    raiseTriggers(env, "decommissioned", context);
+    raiseTriggers(env, "decommissioned-damaged-by-self", context);
+    if (isAvatarUid(state, env.ctx, uid)) state.turn.avatarsDied = (state.turn.avatarsDied || 0) + 1;
+    emit(env, "DECOMMISSIONED", { uid, cardId: object.cardId });
+    return moveUid(env, uid, "archive");
+  }
+
+  function syncAttachmentControl(env) {
+    const state = env.state;
+    let changed = false;
+    for (const uid of Object.keys(state.objects)) {
+      const object = state.objects[uid];
+      if (!object || zoneName(object.zone) !== "network") continue;
+      const controlling = attachmentGrants(state, env.ctx, uid).find(
+        (grants) => grants.controller === "attachment"
+      );
+      const source = controlling ? state.objects[controlling.sourceUid] : null;
+      const desired = source ? source.controller : object.controlSource ? object.owner : object.controller;
+      const nextSource = source ? source.uid : null;
+      if (desired === object.controller && nextSource === object.controlSource) continue;
+      const oldZone = object.zone;
+      const newZone = zoneKey(desired, "network");
+      if (oldZone !== newZone) {
+        removeFromZone(state, oldZone, uid);
+        object.zone = newZone;
+        insertIntoZone(state, newZone, uid);
+      }
+      object.controller = desired;
+      object.controlSource = nextSource;
+      if (source) object.bootDelay = isAvatarUid(state, env.ctx, uid);
+      emit(env, "CONTROL", { uid, seat: desired, sourceUid: nextSource });
+      changed = true;
+    }
+    return changed;
+  }
+
   function removeFromCombat(state, uid) {
     state.clash.attackers = state.clash.attackers.filter((u) => u !== uid);
     delete state.clash.blocks[uid];
@@ -1270,7 +1842,9 @@
       if (player.conceded) {
         losers.push(seat);
         reasons[seat] = "concede";
-      } else if (player.uptime <= 0) {
+      } else if (player.uptime <= 0 && !zoneArray(state, zoneKey(seat, "network")).some(
+        (uid) => state.objects[uid] && state.objects[uid].sovereign
+      )) {
         losers.push(seat);
         reasons[seat] = "uptime";
       } else if (player.deckedOut) {
@@ -1325,23 +1899,60 @@
   /* Turn-scoped prevention shields, consumed before damage lands. A shield
    * may be capped ("the next 2") or affinity-gated ("the next time a Keys
    * source would…"); cleanup sweeps them with the turn. */
-  function consumePrevention(env, target, amount, sourceUid) {
+  function consumePrevention(env, target, amount, sourceUid, meta) {
     const state = env.state;
     const shields = state.prevention || [];
+    const redirects = [];
     for (let i = 0; i < shields.length && amount > 0; i++) {
       const shield = shields[i];
       if (shield.turn !== state.turn.number) continue;
+      if (shield.combatOnly && !(meta && meta.combat)) continue;
+      if (shield.sourceUid && shield.sourceUid !== sourceUid) continue;
       const matches =
+        shield.kind === "all" ||
         (shield.kind === "seat" && target.kind === "seat" && shield.seat === target.seat) ||
         (shield.kind === "object" && target.kind === "object" && shield.uid === target.uid);
       if (!matches) continue;
+      if (shield.kind === "all") {
+        emit(env, "PREVENTED", { amount, reason: "clash" });
+        return { amount: 0, redirects };
+      }
+      if (shield.mode === "cap") {
+        const prevented = Math.max(0, amount - shield.maximum);
+        amount = Math.min(amount, shield.maximum);
+        shields.splice(i, 1);
+        if (prevented) emit(env, "PREVENTED", { amount: prevented, reason: "cap" });
+        i -= 1;
+        continue;
+      }
+      if (shield.mode === "redirect") {
+        const used = Math.min(shield.amount, amount);
+        amount -= used;
+        shield.amount -= used;
+        redirects.push({ target: shield.redirect, amount: used });
+        emit(env, "REDIRECTED", { amount: used, to: shield.redirect });
+        if (!shield.amount) shields.splice(i, 1);
+        i -= 1;
+        continue;
+      }
+      if (shield.mode === "preventRefund") {
+        const used = Math.min(shield.amount, amount);
+        amount -= used;
+        shield.amount -= used;
+        emit(env, "PREVENTED", { amount: used, reason: "refund" });
+        gainUptime(env, shield.refundSeat, used);
+        if (!shield.amount) shields.splice(i, 1);
+        i -= 1;
+        continue;
+      }
       if (shield.fromAffinity) {
         const source = sourceUid && state.objects[sourceUid];
-        const sourceCard = source && cardOf(env.ctx, source.cardId);
-        if (!sourceCard || sourceCard.affinity.indexOf(shield.fromAffinity) < 0) continue;
+        if (!source || affinitiesOf(state, env.ctx, sourceUid).indexOf(shield.fromAffinity) < 0) {
+          continue;
+        }
         shields.splice(i, 1);
         emit(env, "PREVENTED", { amount, reason: "shield" });
-        return 0; // the whole event
+        return { amount: 0, redirects }; // the whole event
       }
       const used = Math.min(shield.amount, amount);
       shield.amount -= used;
@@ -1350,16 +1961,55 @@
       if (!shield.amount) shields.splice(i, 1);
       i -= 1;
     }
-    return amount;
+    return { amount, redirects };
   }
 
-  function damageTarget(env, target, amount, sourceUid) {
+  function damageTarget(env, target, amount, sourceUid, meta) {
     if (!target) return;
     const state = env.state;
-    amount = consumePrevention(env, target, amount, sourceUid);
+    if (target.kind === "seat" && meta && meta.combat && meta.unblocked && !meta.redirected) {
+      const redirect = ruleEntries(state, env.ctx, "redirectUnblockedDamage").find(
+        (entry) => entry.object.controller === target.seat
+      );
+      if (redirect) {
+        damageTarget(env, { kind: "object", uid: redirect.uid }, amount, sourceUid, { redirected: true });
+        emit(env, "REDIRECTED", { amount, to: { kind: "object", uid: redirect.uid } });
+        return;
+      }
+    }
+    const prevention = consumePrevention(env, target, amount, sourceUid, meta);
+    amount = prevention.amount;
+    for (const redirected of prevention.redirects) {
+      damageTarget(env, redirected.target, redirected.amount, sourceUid, { redirected: true });
+    }
     if (amount <= 0) return;
     if (target.kind === "seat") {
+      const sovereign = zoneArray(state, zoneKey(target.seat, "network")).some(
+        (uid) => state.objects[uid] && state.objects[uid].sovereign
+      );
+      if (sovereign) {
+        const eligible = zoneArray(state, zoneKey(target.seat, "network")).filter(
+          (uid) => state.objects[uid] && !state.objects[uid].token
+        );
+        if (eligible.length < amount) {
+          state.seats[target.seat].conceded = true;
+          emit(env, "SOVEREIGN_FAILED", { seat: target.seat, amount, available: eligible.length });
+        } else {
+          state.sovereignDamage = state.sovereignDamage || [0, 0];
+          state.sovereignDamage[target.seat] += amount;
+          state.awaiting = {
+            kind: "sovereignDamage",
+            seat: target.seat,
+            amount: state.sovereignDamage[target.seat],
+          };
+          state.priority.seat = null;
+          emit(env, "SOVEREIGN_DAMAGE", { seat: target.seat, amount });
+        }
+        return;
+      }
       state.seats[target.seat].uptime -= amount; // §15.1
+      state.turn.damageTaken = state.turn.damageTaken || [0, 0];
+      state.turn.damageTaken[target.seat] += amount;
       emit(env, "DAMAGE", { to: "seat", seat: target.seat, amount, sourceUid: sourceUid || null });
       if (amount > 0 && sourceUid) {
         const source = state.objects[sourceUid];
@@ -1371,21 +2021,53 @@
     }
     const object = state.objects[target.uid];
     if (!object) return; // §11.2 do as much as possible
+    revealMasked(env, target.uid, "damage");
     if (sourceUid && isShieldedFromSource(env, target.uid, sourceUid)) {
       emit(env, "PREVENTED", { uid: target.uid, amount, reason: "shielded" });
       return;
     }
+    const counterPrevention = cardOf(env.ctx, object.cardId).abilities.find(
+      (ability) => ability.kind === "rule-static" && ability.rule &&
+        ability.rule.name === "entersXCounter" && ability.rule.preventDamage
+    );
+    if (counterPrevention) {
+      const name = counterPrevention.rule.counter;
+      const used = Math.min(object.counters[name] || 0, amount);
+      if (used) {
+        object.counters[name] -= used;
+        amount -= used * counterPrevention.rule.preventDamage;
+        emit(env, "PREVENTED", { uid: target.uid, amount: used, reason: "counter" });
+      }
+      if (amount <= 0) return;
+    }
     object.damage += amount; // §15.2 marked until Cleanup
+    object.damageSources = object.damageSources || {};
+    if (sourceUid) object.damageSources[sourceUid] = (object.damageSources[sourceUid] || 0) + amount;
     emit(env, "DAMAGE", { to: "object", uid: target.uid, amount, sourceUid: sourceUid || null });
     if (amount > 0) raiseTriggers(env, "self-damaged", { uid: target.uid, seat: object.controller });
+  }
+
+  function revealMasked(env, uid, reason) {
+    const object = env.state.objects[uid];
+    if (!object || !object.maskedCardId) return false;
+    object.cardId = object.maskedCardId;
+    object.maskedCardId = null;
+    object.facedown = false;
+    object.tokenProfile = null;
+    object.revealedTo = [0, 1];
+    emit(env, "MASK_REVEALED", { uid, cardId: object.cardId, reason });
+    return true;
   }
 
   function isShieldedFromSource(env, uid, sourceUid) {
     const shield = shieldedFrom(env.state, env.ctx, uid);
     if (!shield) return false;
+    if (env.resolvingItem && env.resolvingItem.copiedAffinity) {
+      return env.resolvingItem.copiedAffinity === shield;
+    }
     const source = env.state.objects[sourceUid];
     if (!source) return false;
-    return cardOf(env.ctx, source.cardId).affinity.indexOf(shield) >= 0;
+    return affinitiesOf(env.state, env.ctx, sourceUid).indexOf(shield) >= 0;
   }
 
   function addModEffect(env, uid, action, resilience, duration, sourceUid, scope, controller) {
@@ -1417,12 +2099,18 @@
    * re-enters at the same op once CHOOSE stores the pick into acc. */
   function runFrame(env, item) {
     const ops = frameOps(env, item);
+    const previousItem = env.resolvingItem;
+    env.resolvingItem = item;
     while (item.resume.opIndex < ops.length) {
       const op = ops[item.resume.opIndex];
       const outcome = runOp(env, item, op);
-      if (outcome === "pause") return "pause";
+      if (outcome === "pause") {
+        env.resolvingItem = previousItem;
+        return "pause";
+      }
       item.resume.opIndex += 1;
     }
+    env.resolvingItem = previousItem;
     return "done";
   }
 
@@ -1431,6 +2119,12 @@
    * trigger bound one, else for the controller. */
   function resolveAmount(env, item, op, raw) {
     if (raw === "x") return item.x || 0;
+    if (raw === "event-resilience") return op.eventResilience || 0;
+    if (raw === "avatarsDiedThisTurn") return env.state.turn.avatarsDied || 0;
+    if (raw === "startUnlockedResources") {
+      const seat = op.seat !== undefined && op.seat !== null ? op.seat : item.controller;
+      return (env.state.turn.startUnlockedResources || [0, 0])[seat] || 0;
+    }
     if (raw && typeof raw === "object" && raw.count) {
       const state = env.state;
       const seat = op.seat !== undefined && op.seat !== null ? op.seat : item.controller;
@@ -1443,6 +2137,11 @@
       }
       return n;
     }
+    if (raw && typeof raw === "object" && raw.walletCount !== undefined) {
+      const seat = op.seat !== undefined && op.seat !== null ? op.seat : item.controller;
+      const count = zoneArray(env.state, zoneKey(seat, "wallet")).length - (raw.minus || 0);
+      return Math.max(raw.minimum || 0, count);
+    }
     return typeof raw === "number" ? raw : 0;
   }
 
@@ -1450,6 +2149,12 @@
     const state = env.state;
     const controller = item.controller;
     const sourceUid = item.sourceUid;
+    if (op.condition) {
+      if (op.condition.resourcePlayBeyondFirst && !op.conditionMet) return "done";
+      if (op.condition.sourceUnlocked && (!sourceUid || !state.objects[sourceUid] || state.objects[sourceUid].committed)) {
+        return "done";
+      }
+    }
     switch (op.op) {
       case "generate": {
         let key;
@@ -1475,7 +2180,7 @@
           }
           if (allowed.indexOf(chosen) < 0) fail("BAD_CHOICE", "that affinity is not offered");
           key = chosen;
-        } else key = AFFINITY_SYMBOL[op.affinity] || "N";
+        } else key = AFFINITY_SYMBOL[rewrittenWord(state, sourceUid, op.affinity, "basic")] || "N";
         // A trigger may generate for the event's player ("its controller
         // generates…") rather than for the ability's controller.
         const beneficiary = op.seat !== undefined && op.seat !== null ? op.seat : controller;
@@ -1517,7 +2222,7 @@
         return "done";
       }
       case "draw":
-        drawCards(env, controller, op.amount);
+        drawCards(env, op.seat !== undefined && op.seat !== null ? op.seat : controller, op.amount);
         return "done";
       case "uptime": {
         // play.js:285 was `op.target === "player" ? controller : controller` —
@@ -1532,32 +2237,59 @@
               : { kind: "seat", seat: controller };
         const seat = target && target.kind === "seat" ? target.seat : controller;
         const delta = resolveAmount(env, item, op, op.amount);
-        state.seats[seat].uptime += delta;
-        emit(env, "UPTIME", { seat, delta });
+        gainUptime(env, seat, delta);
         return "done";
       }
       case "discard": {
         // Seeded from rng.public and honouring op.target. play.js:293 used
         // Math.random(), the one live nondeterminism in the old engine.
         // A trigger may have bound the discarding seat already.
-        const target = op.target === "player" && op.seat === undefined ? nextTarget(env, item) : null;
-        const seat =
-          op.seat !== undefined && op.seat !== null
+        const key = "discard" + item.resume.opIndex;
+        const progress = item.resume.acc[key] || { done: 0, seat: null, uid: null };
+        if (progress.seat === null) {
+          const target = op.target === "player" && op.seat === undefined ? nextTarget(env, item) : null;
+          progress.seat = op.seat !== undefined && op.seat !== null
             ? op.seat
             : target && target.kind === "seat"
               ? target.seat
               : 1 - controller;
+          item.resume.acc[key] = progress;
+        }
+        const seat = progress.seat;
         const count = resolveAmount(env, item, op, op.amount);
-        for (let i = 0; i < count; i++) {
+        while (progress.done < count) {
           const wallet = zoneArray(state, zoneKey(seat, "wallet"));
           if (!wallet.length) break;
-          const index = nextInt(state.rng.public, wallet.length);
-          const uid = wallet[index];
-          // §18.4 log the eligible set and the result so the draw is auditable.
-          emit(env, "RANDOM_PICK", { seat, eligible: wallet.slice(), picked: uid, stream: "public" });
-          moveUid(env, uid, "archive");
+          if (!progress.uid) {
+            const index = nextInt(state.rng.public, wallet.length);
+            progress.uid = wallet[index];
+            emit(env, "RANDOM_PICK", {
+              seat, eligible: wallet.slice(), picked: progress.uid, stream: "public",
+            });
+          }
+          if (controllerHasRule(state, env.ctx, seat, "discardToStackOption")) {
+            const slot = `${key}:destination:${progress.done}`;
+            const picked = item.resume.acc[slot];
+            if (!picked) {
+              item.resume.acc[key] = progress;
+              return raiseChoice(env, item, {
+                seat, kind: "may", prompt: "Put the discarded card on top of your Stack?",
+                options: [{ kind: "option", value: "stack" }, { kind: "option", value: "archive" }],
+                min: 1, max: 1, slot,
+              });
+            }
+            const value = Array.isArray(picked) ? picked[0].value : picked.value;
+            moveUid(env, progress.uid, value === "stack" ? "stack" : "archive", {
+              seat, position: value === "stack" ? 0 : undefined,
+            });
+          } else {
+            moveUid(env, progress.uid, "archive");
+          }
+          progress.uid = null;
+          progress.done += 1;
+          item.resume.acc[key] = progress;
         }
-        emit(env, "DISCARD", { seat, count });
+        emit(env, "DISCARD", { seat, count: progress.done });
         return "done";
       }
       case "pump": {
@@ -1586,18 +2318,21 @@
         if (op.scope === "all") {
           for (const seat of seatsOf(state)) {
             for (const uid of zoneArray(state, zoneKey(seat, "network")).slice()) {
-              if (cardOf(env.ctx, state.objects[uid].cardId).type.indexOf(op.kind) >= 0) {
-                emit(env, "DECOMMISSIONED", { uid, cardId: state.objects[uid].cardId });
-                moveUid(env, uid, "archive");
+              if ((op.kinds || [op.kind]).some(
+                (kind) => cardTypeOf(state, env.ctx, uid).indexOf(kind) >= 0
+              ) && (!op.affinity || affinitiesOf(state, env.ctx, uid).indexOf(op.affinity) >= 0) &&
+                  !attachmentGrants(state, env.ctx, uid).some((grants) => grants.indestructible)) {
+                decommissionUid(env, uid, sourceUid);
               }
             }
           }
           return "done";
         }
         const target = nextTarget(env, item);
-        if (target && target.kind === "object" && state.objects[target.uid]) {
-          emit(env, "DECOMMISSIONED", { uid: target.uid, cardId: state.objects[target.uid].cardId });
-          moveUid(env, target.uid, "archive");
+        if (target && target.kind === "object" && state.objects[target.uid] &&
+            !attachmentGrants(state, env.ctx, target.uid).some((grants) => grants.indestructible)) {
+          if (op.preventReboot) state.objects[target.uid].noRebootTurn = state.turn.number;
+          decommissionUid(env, target.uid, sourceUid);
         }
         return "done";
       }
@@ -1611,7 +2346,8 @@
             : op.scope === "attached"
               ? { kind: "object", uid: (state.objects[sourceUid] || {}).attachedTo }
               : { kind: "object", uid: sourceUid };
-        if (target && target.uid && target.kind === "object" && state.objects[target.uid]) {
+        if (target && target.uid && target.kind === "object" && state.objects[target.uid] &&
+            state.objects[target.uid].noRebootTurn !== state.turn.number) {
           state.objects[target.uid].rebootShields += 1;
           emit(env, "REBOOT_SHIELD", { uid: target.uid });
         }
@@ -1705,7 +2441,7 @@
             seat: shieldTarget.seat !== undefined ? shieldTarget.seat : null,
             uid: shieldTarget.uid || null,
             amount: resolveAmount(env, item, op, op.amount) || 0,
-            fromAffinity: op.fromAffinity || null,
+            fromAffinity: rewrittenWord(state, sourceUid, op.fromAffinity, "affinity") || null,
             turn: state.turn.number,
           });
         }
@@ -1719,9 +2455,11 @@
           const index = state.queue.findIndex((q) => q.qid === target.qid);
           if (index >= 0) {
             const queued = state.queue[index];
-            const queuedCard = queued.cardId ? cardOf(env.ctx, queued.cardId) : null;
-            const wanted = op.filter && op.filter.affinity;
-            if (!wanted || (queuedCard && queuedCard.affinity.indexOf(wanted) >= 0)) {
+            const wanted = op.filter && rewrittenWord(
+              state, sourceUid, op.filter.affinity, "affinity"
+            );
+            if (!wanted || (queued.objectUid && state.objects[queued.objectUid] &&
+                affinitiesOf(state, env.ctx, queued.objectUid).indexOf(wanted) >= 0)) {
               invalidateQueueItem(env, index, "invalidated");
             }
           }
@@ -1739,15 +2477,1180 @@
           emit(env, "MOVE", { uid: target.uid, cardId: object.cardId, toZone: "cold" });
           moveUid(env, target.uid, "cold");
           if (gain > 0) {
-            state.seats[owner].uptime += gain;
-            emit(env, "UPTIME", { seat: owner, delta: gain });
+            gainUptime(env, owner, gain);
           }
         }
         return "done";
       }
+      case "extraTurn": {
+        state.extraTurns = state.extraTurns || [0, 0];
+        state.extraTurns[controller] += 1;
+        emit(env, "EXTRA_TURN", { seat: controller, count: state.extraTurns[controller] });
+        return "done";
+      }
+      case "moveTarget": {
+        const target = nextTarget(env, item);
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          const object = state.objects[target.uid];
+          emit(env, "MOVE", { uid: target.uid, cardId: object.cardId, toZone: op.toZone });
+          moveUid(env, target.uid, op.toZone, { seat: controller });
+        }
+        return "done";
+      }
+      case "resetZones": {
+        const affectedSeats = op.seats === "each" ? seatsOf(state) : [controller];
+        for (const seat of affectedSeats) {
+          for (const fromZone of op.fromZones || []) {
+            for (const uid of zoneArray(state, zoneKey(seat, fromZone)).slice()) {
+              moveUid(env, uid, op.toZone || "stack", { seat });
+            }
+          }
+          runManualOp(env, item, {
+            op: "shuffleZone",
+            zone: zoneKey(seat, op.toZone || "stack"),
+          });
+          drawCards(env, seat, op.draw || 0);
+        }
+        return "done";
+      }
+      case "discardWalletDraw": {
+        const affectedSeats = op.seats === "each" ? seatsOf(state) : [controller];
+        for (const seat of affectedSeats) {
+          for (const uid of zoneArray(state, zoneKey(seat, "wallet")).slice()) {
+            moveUid(env, uid, "archive", { seat });
+          }
+          drawCards(env, seat, op.draw || 0);
+          emit(env, "DISCARD_WALLET_DRAW", { seat, draw: op.draw || 0 });
+        }
+        return "done";
+      }
+      case "toggleCommitted": {
+        const target = nextTarget(env, item);
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          const object = state.objects[target.uid];
+          runManualOp(env, item, {
+            op: "setCommitted",
+            uid: target.uid,
+            value: !object.committed,
+          });
+        }
+        return "done";
+      }
+      case "unlockSelf":
+        if (sourceUid && state.objects[sourceUid]) state.objects[sourceUid].committed = false;
+        emit(env, "COMMIT", { uid: sourceUid, value: false });
+        return "done";
+      case "unlockAttached": {
+        const source = sourceUid && state.objects[sourceUid];
+        const host = source && source.attachedTo ? state.objects[source.attachedTo] : null;
+        if (host) {
+          host.committed = false;
+          emit(env, "COMMIT", { uid: host.uid, value: false });
+        }
+        return "done";
+      }
+      case "revealWallet": {
+        const target = nextTarget(env, item);
+        const seat = target && target.kind === "seat" ? target.seat : controller;
+        for (const uid of zoneArray(state, zoneKey(seat, "wallet"))) {
+          const object = state.objects[uid];
+          object.revealedTo = Array.from(new Set(object.revealedTo.concat([controller]))).sort();
+          object.revealedUntil = { turn: state.turn.number, phase: state.turn.phase };
+        }
+        emit(env, "REVEAL", { seat, zone: "wallet", toSeats: [controller] });
+        return "done";
+      }
+      case "createProxy": {
+        for (let index = 0; index < (op.count || 1); index++) {
+          const record = newObjectRecord(
+            state,
+            env.ctx,
+            item.cardId,
+            controller,
+            controller,
+            zoneKey(controller, "network"),
+            null
+          );
+          record.token = true;
+          record.tokenProfile = {
+            name: op.name,
+            type: op.type,
+            subtype: op.subtype || "",
+            affinity: op.affinity || ["Neutral"],
+            action: op.action || 0,
+            resilience: op.resilience || 0,
+            keywords: op.keywords || [],
+            isAvatar: String(op.type || "").indexOf("Avatar") >= 0,
+            isResource: String(op.type || "").indexOf("Resource") >= 0,
+          };
+          record.bootDelay = record.tokenProfile.isAvatar;
+          state.objects[record.uid] = record;
+          state.zones[zoneKey(controller, "network")].push(record.uid);
+          emit(env, "TOKEN", { uid: record.uid, cardId: item.cardId, seat: controller, name: op.name });
+        }
+        return "done";
+      }
+      case "setAffinity": {
+        const target = nextTarget(env, item);
+        const targetUid = target && target.kind === "queue"
+          ? ((state.queue.find((entry) => entry.qid === target.qid) || {}).objectUid)
+          : target && target.kind === "object"
+            ? target.uid
+            : null;
+        if (targetUid && state.objects[targetUid]) {
+          const affinity = rewrittenWord(state, sourceUid, op.affinity, "affinity");
+          state.effects.push({
+            id: "e" + state.nextEid++, sourceUid: null, layer: 5, kind: "affinity",
+            scope: "object", targetUid, affinity,
+            expires: { kind: "whileTargetExists", uid: targetUid }, startedSeq: state.seq,
+          });
+          emit(env, "AFFINITY", { uid: targetUid, affinity });
+        }
+        return "done";
+      }
+      case "forceBlockAll":
+      case "cantBeBlocked": {
+        const target = nextTarget(env, item);
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          state.effects.push({
+            id: "e" + state.nextEid++, sourceUid: null, layer: 6,
+            kind: "clashRule", targetUid: target.uid,
+            forceBlockAll: op.op === "forceBlockAll",
+            cantBeBlocked: op.op === "cantBeBlocked",
+            expires: { kind: "eot", turn: state.turn.number }, startedSeq: state.seq,
+          });
+        }
+        return "done";
+      }
+      case "preventClashDamage":
+        state.prevention = state.prevention || [];
+        state.prevention.push({ kind: "all", combatOnly: true, turn: state.turn.number });
+        return "done";
+      case "limitClashDamage": {
+        const source = nextTarget(env, item);
+        if (source && source.kind === "object") {
+          state.prevention = state.prevention || [];
+          state.prevention.push({
+            kind: "seat", seat: controller, sourceUid: source.uid,
+            combatOnly: true, mode: "cap", maximum: op.maximum, turn: state.turn.number,
+          });
+        }
+        return "done";
+      }
+      case "redirectDamage": {
+        const source = nextTarget(env, item);
+        const target = nextTarget(env, item);
+        if (source && source.kind === "object" && target && target.kind === "object") {
+          state.prevention = state.prevention || [];
+          state.prevention.push({
+            kind: "object", uid: target.uid, sourceUid: source.uid,
+            mode: "redirect", redirect: { kind: "seat", seat: controller },
+            amount: 1000000, turn: state.turn.number,
+          });
+        }
+        return "done";
+      }
+      case "redirectSelfDamage": {
+        const source = sourceUid && state.objects[sourceUid];
+        if (source) {
+          state.prevention = state.prevention || [];
+          state.prevention.push({
+            kind: "object", uid: source.uid, mode: "redirect",
+            redirect: { kind: "seat", seat: source.owner },
+            amount: op.amount || 1, turn: state.turn.number,
+          });
+        }
+        return "done";
+      }
+      case "preventAndRefund": {
+        const source = nextTarget(env, item);
+        if (source && source.kind === "object") {
+          state.prevention = state.prevention || [];
+          state.prevention.push({
+            kind: "seat", seat: controller, sourceUid: source.uid,
+            mode: "preventRefund", refundSeat: controller,
+            amount: 1000000, turn: state.turn.number,
+          });
+        }
+        return "done";
+      }
+      case "becomesAvatar": {
+        if (sourceUid && state.objects[sourceUid]) {
+          state.effects.push({
+            id: "e" + state.nextEid++, sourceUid: null, layer: 4,
+            kind: "becomesAvatar", targetUid: sourceUid,
+            action: op.action, resilience: op.resilience, subtype: op.subtype || "",
+            expires: { kind: "endClash", turn: state.turn.number }, startedSeq: state.seq,
+          });
+        }
+        return "done";
+      }
+      case "variableTargetTax":
+        return "done";
+      case "drainBuffer": {
+        const target = nextTarget(env, item);
+        const seat = target && target.kind === "seat" ? target.seat : 1 - controller;
+        if (op.commitResources) {
+          for (const uid of zoneArray(state, zoneKey(seat, "network"))) {
+            if (!isResourceUid(state, env.ctx, uid)) continue;
+            const object = state.objects[uid];
+            if (!object.committed) {
+              object.committed = true;
+              raiseTriggers(env, "committed", {
+                uid, seat, type: cardOf(env.ctx, object.cardId).type,
+                affinity: affinitiesOf(state, env.ctx, uid), produced: null,
+              });
+            }
+          }
+        }
+        const lost = bufferTotal(state.seats[seat].buffer);
+        state.seats[seat].buffer = emptyBuffer();
+        emit(env, "BUFFER_DRAINED", { seat, amount: lost });
+        return "done";
+      }
+      case "stealGeneratedBuffer": {
+        const target = item.targets[0];
+        const seat = target && target.kind === "seat" ? target.seat : 1 - controller;
+        const key = "stealBuffer" + item.resume.opIndex;
+        const progress = item.resume.acc[key] || { index: 0 };
+        const resources = zoneArray(state, zoneKey(seat, "network")).filter(
+          (uid) => isResourceUid(state, env.ctx, uid)
+        );
+        while (progress.index < resources.length) {
+          const uid = resources[progress.index];
+          const object = state.objects[uid];
+          progress.index += 1;
+          item.resume.acc[key] = progress;
+          if (!object || object.committed) continue;
+          const card = cardOf(env.ctx, object.cardId);
+          const ability = card.abilities.find((entry) => entry.resourceAbility);
+          if (!ability || !ability.ops.length) continue;
+          const generate = ability.ops.find((entry) => entry.op === "generate");
+          if (!generate) continue;
+          let symbol = AFFINITY_SYMBOL[generate.affinity];
+          if (generate.affinity === "neutral") symbol = "N";
+          if (generate.affinity === "choice") {
+            const slot = key + ":choice:" + uid;
+            const picked = item.resume.acc[slot];
+            if (!picked) {
+              progress.index -= 1;
+              return raiseChoice(env, item, {
+                seat,
+                kind: "mode",
+                prompt: "Choose the Resource produced",
+                options: (generate.options || Object.keys(AFFINITY_SYMBOL)).map(
+                  (name) => ({ kind: "symbol", symbol: AFFINITY_SYMBOL[name] || name })
+                ),
+                min: 1, max: 1, slot,
+              });
+            }
+            symbol = picked;
+          }
+          object.committed = true;
+          state.seats[seat].buffer[symbol] += generate.amount;
+          emit(env, "GENERATE", { seat, symbol, amount: generate.amount });
+          raiseTriggers(env, "committed", {
+            uid, seat, type: card.type, affinity: affinitiesOf(state, env.ctx, uid), produced: symbol,
+          });
+        }
+        for (const symbol of BUFFER_KEYS) {
+          const amount = state.seats[seat].buffer[symbol];
+          state.seats[seat].buffer[symbol] = 0;
+          state.seats[controller].buffer[symbol] += amount;
+        }
+        emit(env, "BUFFER_STOLEN", { from: seat, to: controller });
+        return "done";
+      }
+      case "searchStack": {
+        const slot = "search" + item.resume.opIndex;
+        const picked = item.resume.acc[slot];
+        const stack = zoneArray(state, zoneKey(controller, "stack"));
+        if (!picked) {
+          return raiseChoice(env, item, {
+            kind: "search", prompt: "Choose a card from your Stack",
+            options: stack.map((uid) => ({ kind: "object", uid })), min: 1, max: 1, slot,
+          });
+        }
+        const choice = Array.isArray(picked) ? picked[0] : picked;
+        if (choice && state.objects[choice.uid] && state.objects[choice.uid].zone === zoneKey(controller, "stack")) {
+          moveUid(env, choice.uid, op.toZone || "wallet", { seat: controller });
+        }
+        runManualOp(env, item, { op: "shuffleZone", zone: zoneKey(controller, "stack") });
+        return "done";
+      }
+      case "invalidateByCostX": {
+        const target = nextTarget(env, item);
+        if (target && target.kind === "queue") {
+          const index = state.queue.findIndex((entry) => entry.qid === target.qid);
+          const queued = state.queue[index];
+          if (queued && cardTotalCost(cardOf(env.ctx, queued.cardId), queued.x) === item.x) {
+            invalidateQueueItem(env, index, "invalidated by total cost");
+          }
+        }
+        return "done";
+      }
+      case "stakeContract": {
+        const top = zoneArray(state, zoneKey(controller, "stack"))[0];
+        if (top) moveUid(env, top, "stake", { seat: controller });
+        for (const uid of zoneArray(state, zoneKey(controller, "wallet")).slice()) {
+          moveUid(env, uid, "archive", { seat: controller });
+        }
+        drawCards(env, controller, 7);
+        return "done";
+      }
+      case "stakeSwap": {
+        const own = zoneArray(state, zoneKey(controller, "stake"));
+        const theirs = zoneArray(state, zoneKey(1 - controller, "stake"));
+        if (!own.length || !theirs.length) return "done";
+        const otherUid = theirs[nextInt(state.rng.public, theirs.length)];
+        const ownUid = own[0];
+        state.objects[ownUid].owner = 1 - controller;
+        state.objects[otherUid].owner = controller;
+        removeFromZone(state, zoneKey(controller, "stake"), ownUid);
+        removeFromZone(state, zoneKey(1 - controller, "stake"), otherUid);
+        insertIntoZone(state, zoneKey(controller, "stake"), otherUid, 0);
+        insertIntoZone(state, zoneKey(1 - controller, "stake"), ownUid, 0);
+        state.objects[ownUid].zone = zoneKey(1 - controller, "stake");
+        state.objects[otherUid].zone = zoneKey(controller, "stake");
+        emit(env, "STAKE_SWAP", { seats: [controller, 1 - controller] });
+        return "done";
+      }
+      case "stateMirror": {
+        const amount = (state.turn.damageTaken || [0, 0])[controller] || 0;
+        gainUptime(env, controller, amount);
+        const target = nextTarget(env, item);
+        damageTarget(env, target, amount, sourceUid);
+        return "done";
+      }
+      case "divideDamage": {
+        const amount = Math.floor(resolveAmount(env, item, op, op.amount) / item.targets.length);
+        while ((item.resume.acc.targetIndex || 0) < item.targets.length) {
+          damageTarget(env, nextTarget(env, item), amount, sourceUid);
+        }
+        return "done";
+      }
+      case "grantUptimeResourceAbility":
+        state.effects.push({
+          id: "e" + state.nextEid++, sourceUid: null, layer: 8,
+          kind: "uptimeResourceAbility", controller,
+          expires: { kind: "eot", turn: state.turn.number }, startedSeq: state.seq,
+        });
+        return "done";
+      case "overclock": {
+        if (sourceUid && state.objects[sourceUid]) {
+          addModEffect(env, sourceUid, op.action || 0, 0, "eot", sourceUid, "object");
+          const abilityIndex = item.abilityIndex;
+          const activity = (state.objects[sourceUid].activations || {})[abilityIndex];
+          if (activity && activity.turn === state.turn.number && activity.count >= op.threshold) {
+            state.delayed = state.delayed || [];
+            state.delayed.push({ at: "end-step", op: "decommission", uid: sourceUid });
+          }
+        }
+        return "done";
+      }
+      case "refillCounter": {
+        const object = sourceUid && state.objects[sourceUid];
+        if (object) {
+          const current = object.counters[op.name] || 0;
+          const add = Math.min(resolveAmount(env, item, op, op.amount), op.maximum - current);
+          object.counters[op.name] = current + Math.max(0, add);
+          emit(env, "COUNTER", { uid: sourceUid, name: op.name, amount: Math.max(0, add) });
+        }
+        return "done";
+      }
+      case "preventSelf":
+        if (sourceUid && state.objects[sourceUid]) {
+          state.prevention = state.prevention || [];
+          state.prevention.push({
+            kind: "object", uid: sourceUid, amount: op.amount,
+            turn: state.turn.number,
+          });
+        }
+        return "done";
+      case "setAffinityWhileSource": {
+        const target = nextTarget(env, item);
+        if (target && target.kind === "object") {
+          state.effects.push({
+            id: "e" + state.nextEid++, sourceUid, layer: 5, kind: "affinity",
+            scope: "object", targetUid: target.uid, affinity: op.affinity,
+            expires: { kind: "whileSourceInZone", uid: sourceUid, zone: "network" },
+            startedSeq: state.seq,
+          });
+        }
+        return "done";
+      }
+      case "addCounter": {
+        const uid = op.uid || sourceUid;
+        if (uid && state.objects[uid]) {
+          const amount = resolveAmount(env, item, op, op.amount);
+          state.objects[uid].counters[op.name] = (state.objects[uid].counters[op.name] || 0) + amount;
+          emit(env, "COUNTER", { uid, name: op.name, amount });
+        }
+        return "done";
+      }
+      case "loseHalfUptime": {
+        const seat = op.seat !== undefined ? op.seat : controller;
+        const amount = Math.ceil(state.seats[seat].uptime / 2);
+        state.seats[seat].uptime -= amount;
+        emit(env, "UPTIME", { seat, delta: -amount });
+        return "done";
+      }
+      case "archiveSelfIfNoAvatars": {
+        const anyAvatar = seatsOf(state).some((seat) =>
+          zoneArray(state, zoneKey(seat, "network")).some((uid) => isAvatarUid(state, env.ctx, uid))
+        );
+        if (!anyAvatar && sourceUid && state.objects[sourceUid]) moveUid(env, sourceUid, "archive");
+        return "done";
+      }
+      case "generateEventAffinity": {
+        const seat = op.seat !== undefined ? op.seat : controller;
+        const symbol = op.eventProduced || "N";
+        state.seats[seat].buffer[symbol] += op.amount || 1;
+        emit(env, "GENERATE", { seat, symbol, amount: op.amount || 1 });
+        return "done";
+      }
+      case "delayDecommissionEventAvatar":
+        if (op.eventUid && state.objects[op.eventUid]) {
+          state.delayed = state.delayed || [];
+          state.delayed.push({ at: op.at || "end-clash", op: "decommission", uid: op.eventUid });
+        }
+        return "done";
+      case "groundAttachedBroadcast": {
+        const source = sourceUid && state.objects[sourceUid];
+        const hostUid = source && source.attachedTo;
+        if (hostUid && state.objects[hostUid] && hasKeywordUid(state, env.ctx, hostUid, "Broadcast")) {
+          damageTarget(env, { kind: "object", uid: hostUid }, op.damage || 0, sourceUid);
+          state.effects.push({
+            id: "e" + state.nextEid++, sourceUid, layer: 6, kind: "grant",
+            scope: "object", targetUid: hostUid, keyword: "Broadcast", remove: true,
+            expires: { kind: "whileSourceInZone", uid: sourceUid, zone: "network" },
+            startedSeq: state.seq,
+          });
+        }
+        return "done";
+      }
+      case "additionalArchiveAvatar":
+        return "done";
+      case "generateArchivedCost": {
+        const symbol = AFFINITY_SYMBOL[op.affinity] || "N";
+        const amount = item.additionalCostTotal || 0;
+        state.seats[controller].buffer[symbol] += amount;
+        emit(env, "GENERATE", { seat: controller, symbol, amount });
+        return "done";
+      }
+      case "fairState": {
+        const key = "fairState" + item.resume.opIndex;
+        const progress = item.resume.acc[key] || { task: 0 };
+        const types = [
+          { name: "Resources", zone: "network", test: (uid) => isResourceUid(state, env.ctx, uid) },
+          { name: "Wallet cards", zone: "wallet", test: () => true },
+          { name: "Avatars", zone: "network", test: (uid) => isAvatarUid(state, env.ctx, uid) },
+        ];
+        const tasks = [];
+        for (const type of types) {
+          const lists = seatsOf(state).map((seat) =>
+            zoneArray(state, zoneKey(seat, type.zone)).filter(type.test)
+          );
+          const keep = Math.min(lists[0].length, lists[1].length);
+          for (const seat of seatsOf(state)) {
+            if (lists[seat].length > keep) tasks.push({ seat, type, uids: lists[seat], remove: lists[seat].length - keep });
+          }
+        }
+        while (progress.task < tasks.length) {
+          const task = tasks[progress.task];
+          const slot = key + ":" + progress.task;
+          const picked = item.resume.acc[slot];
+          if (!picked) {
+            item.resume.acc[key] = progress;
+            return raiseChoice(env, item, {
+              seat: task.seat, kind: "objects", prompt: `Choose ${task.remove} ${task.type.name} to archive`,
+              options: task.uids.map((uid) => ({ kind: "object", uid })),
+              min: task.remove, max: task.remove, slot,
+            });
+          }
+          for (const choice of picked) {
+            if (state.objects[choice.uid]) moveUid(env, choice.uid, "archive", { seat: task.seat });
+          }
+          progress.task += 1;
+          item.resume.acc[key] = progress;
+        }
+        return "done";
+      }
+      case "guardianSignal": {
+        const target = nextTarget(env, item);
+        if (target) {
+          state.prevention = state.prevention || [];
+          state.prevention.push({
+            kind: target.kind === "seat" ? "seat" : "object",
+            seat: target.seat, uid: target.uid, amount: resolveAmount(env, item, op, op.amount),
+            turn: state.turn.number,
+          });
+          state.effects.push({
+            id: "e" + state.nextEid++, sourceUid: null, layer: 8,
+            kind: "guardianRepeat", controller,
+            expires: { kind: "eot", turn: state.turn.number }, startedSeq: state.seq,
+          });
+        }
+        return "done";
+      }
+      case "rewriteWords": {
+        const target = item.targets[0];
+        const words = Object.keys(AFFINITY_SYMBOL);
+        const fromSlot = "rewriteFrom" + item.resume.opIndex;
+        const toSlot = "rewriteTo" + item.resume.opIndex;
+        if (!item.resume.acc[fromSlot]) {
+          return raiseChoice(env, item, {
+            kind: "mode", prompt: "Word to replace",
+            options: words.map((word) => ({ kind: "word", value: word })), min: 1, max: 1, slot: fromSlot,
+          });
+        }
+        if (!item.resume.acc[toSlot]) {
+          return raiseChoice(env, item, {
+            kind: "mode", prompt: "Replacement word",
+            options: words.map((word) => ({ kind: "word", value: word })), min: 1, max: 1, slot: toSlot,
+          });
+        }
+        const read = (slot) => {
+          const value = item.resume.acc[slot];
+          return Array.isArray(value) ? value[0].value : value.value || value;
+        };
+        const targetUid = target.kind === "queue"
+          ? ((state.queue.find((entry) => entry.qid === target.qid) || {}).objectUid)
+          : target.uid;
+        if (targetUid && state.objects[targetUid]) {
+          state.effects.push({
+            id: "e" + state.nextEid++, sourceUid: null, layer: 5,
+            kind: "wordRewrite", targetUid, vocabulary: op.vocabulary,
+            from: read(fromSlot), to: read(toSlot),
+            expires: { kind: "whileTargetExists", uid: targetUid }, startedSeq: state.seq,
+          });
+        }
+        return "done";
+      }
+      case "maintenanceLeak": {
+        const seat = op.seat !== undefined ? op.seat : controller;
+        const slot = "leak" + item.resume.opIndex;
+        const chosen = item.resume.acc[slot];
+        const maximum = Math.min(op.damage, bufferTotal(state.seats[seat].buffer));
+        if (!chosen) {
+          return raiseChoice(env, item, {
+            seat, kind: "number", prompt: "Resources to pay to prevent Maintenance Leak",
+            options: Array.from({ length: maximum + 1 }, (_, value) => ({ kind: "number", value })),
+            min: 1, max: 1, slot,
+          });
+        }
+        const picked = Array.isArray(chosen) ? chosen[0].value : chosen.value;
+        if (picked) settleCost(env, seat, { generic: picked }, null);
+        damageTarget(env, { kind: "seat", seat }, op.damage - picked, sourceUid);
+        return "done";
+      }
+      case "feeSpike": {
+        const target = item.targets[0];
+        const queued = target && state.queue.find((entry) => entry.qid === target.qid);
+        if (!queued) return "done";
+        const seat = queued.controller;
+        const slot = "feeSpike" + item.resume.opIndex;
+        const chosen = item.resume.acc[slot];
+        let payable = true;
+        try { autoPaymentFor(env, seat, { generic: item.x }); } catch { payable = false; }
+        if (!chosen && payable && item.x > 0) {
+          return raiseChoice(env, item, {
+            seat, kind: "mayPay", prompt: `Pay ${item.x} to keep the queued card?`,
+            options: [{ kind: "option", value: "pay" }, { kind: "option", value: "decline" }],
+            min: 1, max: 1, slot,
+          });
+        }
+        const pick = chosen && (Array.isArray(chosen) ? chosen[0].value : chosen.value);
+        if (payable && (item.x === 0 || pick === "pay")) {
+          settleCost(env, seat, { generic: item.x }, null);
+          return "done";
+        }
+        const index = state.queue.indexOf(queued);
+        if (index >= 0) invalidateQueueItem(env, index, "Fee Spike");
+        for (const uid of zoneArray(state, zoneKey(seat, "network"))) {
+          const card = cardOf(env.ctx, state.objects[uid].cardId);
+          if (isResourceUid(state, env.ctx, uid) && card.abilities.some((ability) => ability.resourceAbility)) {
+            state.objects[uid].committed = true;
+          }
+        }
+        state.seats[seat].buffer = emptyBuffer();
+        return "done";
+      }
+      case "callToRelay":
+        state.effects.push({
+          id: "e" + state.nextEid++, sourceUid: null, layer: 6,
+          kind: "forceAttackAll", controller: state.turn.active,
+          startedSeq: state.seq, expires: { kind: "eot", turn: state.turn.number },
+        });
+        return "done";
+      case "gridEruption": {
+        let archived = 0;
+        for (const target of item.targets) {
+          if (target.kind === "object" && state.objects[target.uid] &&
+              affinitiesOf(state, env.ctx, target.uid).indexOf("Power") >= 0) {
+            decommissionUid(env, target.uid, sourceUid);
+            archived += 1;
+          }
+        }
+        for (const seat of seatsOf(state)) {
+          for (const uid of zoneArray(state, zoneKey(seat, "network")).slice()) {
+            if (isAvatarUid(state, env.ctx, uid)) damageTarget(env, { kind: "object", uid }, archived, sourceUid);
+          }
+          damageTarget(env, { kind: "seat", seat }, archived, sourceUid);
+        }
+        return "done";
+      }
+      case "moveObject":
+        return runManualOp(env, item, op);
+      case "archiveBoot": {
+        const target = item.targets[0];
+        if (target && target.kind === "object" && state.objects[target.uid] &&
+            zoneName(state.objects[target.uid].zone) === "archive") {
+          const returned = moveUid(env, target.uid, "network", { seat: controller });
+          item.archiveBootHostUid = returned.uid;
+          emit(env, "ARCHIVE_BOOT", { uid: returned.uid, seat: controller });
+        }
+        return "done";
+      }
+      case "archiveReturn": {
+        const object = sourceUid && state.objects[sourceUid];
+        if (!object || zoneName(object.zone) !== "archive") return "done";
+        const archive = zoneArray(state, object.zone);
+        const index = archive.indexOf(sourceUid);
+        const avatarsAbove = archive.slice(index + 1).filter((uid) => isAvatarUid(state, env.ctx, uid)).length;
+        if (avatarsAbove < 3) return "done";
+        const slot = "archiveReturn" + item.resume.opIndex;
+        const picked = item.resume.acc[slot];
+        if (!picked) {
+          return raiseChoice(env, item, {
+            kind: "may", prompt: "Return this Avatar to the Network?",
+            options: [{ kind: "option", value: "return" }, { kind: "option", value: "decline" }],
+            min: 1, max: 1, slot,
+          });
+        }
+        const value = Array.isArray(picked) ? picked[0].value : picked.value;
+        if (value === "return" && state.objects[sourceUid]) moveUid(env, sourceUid, "network", { seat: controller });
+        return "done";
+      }
+      case "launchAvatar": {
+        const target = item.targets[0];
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          runManualOp(env, item, {
+            op: "grantKeyword", uid: target.uid, keyword: "Broadcast", duration: "eot",
+          });
+          state.delayed.push({ at: "end-step", op: "decommission", uid: target.uid, sourceUid });
+        }
+        return "done";
+      }
+      case "committedGrowth": {
+        const target = item.targets[0];
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          const action = statsOf(state, env.ctx, target.uid).action;
+          addModEffect(env, target.uid, action, 0, "eot", sourceUid, "object");
+          runManualOp(env, item, {
+            op: "grantKeyword", uid: target.uid, keyword: "Overflow", duration: "eot",
+          });
+          state.delayed.push({
+            at: "end-step", op: "decommission", uid: target.uid,
+            sourceUid, onlyIfAttacked: true,
+          });
+        }
+        return "done";
+      }
+      case "finalSettlement": {
+        const target = item.targets[0];
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          state.objects[target.uid].noRebootTurn = state.turn.number;
+          state.objects[target.uid].coldOnDecommissionTurn = state.turn.number;
+        }
+        damageTarget(env, target, resolveAmount(env, item, op, op.amount), sourceUid);
+        return "done";
+      }
+      case "forceAttackTarget": {
+        const target = item.targets[0];
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          state.effects.push({
+            id: "e" + state.nextEid++, sourceUid, layer: 6, kind: "forceAttack",
+            targetUid: target.uid, expires: { kind: "eot", turn: state.turn.number }, startedSeq: state.seq,
+          });
+          state.delayed.push({
+            at: "end-step", op: "decommission", uid: target.uid,
+            sourceUid, onlyIfNotAttacked: true,
+          });
+        }
+        return "done";
+      }
+      case "uptimeChannel": {
+        const target = item.targets[0];
+        const amount = resolveAmount(env, item, op, op.amount);
+        let before = 0;
+        let marker = 0;
+        if (target && target.kind === "seat") {
+          before = state.seats[target.seat].uptime;
+          marker = before;
+        } else if (target && target.kind === "object" && state.objects[target.uid]) {
+          before = statsOf(state, env.ctx, target.uid).resilience;
+          marker = state.objects[target.uid].damage;
+        }
+        damageTarget(env, target, amount, sourceUid);
+        let dealt = 0;
+        if (target && target.kind === "seat") dealt = Math.max(0, marker - state.seats[target.seat].uptime);
+        else if (target && target.kind === "object" && state.objects[target.uid]) {
+          dealt = Math.max(0, state.objects[target.uid].damage - marker);
+        } else if (target && target.kind === "object") dealt = Math.min(amount, before);
+        const gain = Math.min(before, dealt);
+        gainUptime(env, controller, gain);
+        return "done";
+      }
+      case "selfCustodyMaintenance": {
+        const choices = zoneArray(state, zoneKey(controller, "network")).filter(
+          (uid) => uid !== sourceUid && isAvatarUid(state, env.ctx, uid)
+        );
+        if (!choices.length) {
+          damageTarget(env, { kind: "seat", seat: controller }, op.damage || 0, sourceUid);
+          return "done";
+        }
+        const slot = "selfCustody" + item.resume.opIndex;
+        const picked = item.resume.acc[slot];
+        if (!picked) {
+          return raiseChoice(env, item, {
+            kind: "objects", prompt: "Choose another Avatar to archive",
+            options: choices.map((uid) => ({ kind: "object", uid })), min: 1, max: 1, slot,
+          });
+        }
+        const choice = Array.isArray(picked) ? picked[0] : picked;
+        if (choice && state.objects[choice.uid]) moveUid(env, choice.uid, "archive");
+        return "done";
+      }
+      case "resourceReclaimer": {
+        const paySlot = "reclaimerPay" + item.resume.opIndex;
+        const paid = item.resume.acc[paySlot];
+        if (!paid) {
+          let payable = true;
+          try { autoPaymentFor(env, controller, op.cost); } catch { payable = false; }
+          if (payable) {
+            return raiseChoice(env, item, {
+              kind: "mayPay", prompt: "Pay KKK to avoid the maintenance cost?",
+              options: [{ kind: "option", value: "pay" }, { kind: "option", value: "decline" }],
+              min: 1, max: 1, slot: paySlot,
+            });
+          }
+          item.resume.acc[paySlot] = [{ kind: "option", value: "decline" }];
+        }
+        const payChoice = item.resume.acc[paySlot];
+        const payValue = Array.isArray(payChoice) ? payChoice[0].value : payChoice.value;
+        if (payValue === "pay") {
+          settleCost(env, controller, op.cost, null);
+          return "done";
+        }
+        if (sourceUid && state.objects[sourceUid]) state.objects[sourceUid].committed = true;
+        const resources = zoneArray(state, zoneKey(controller, "network")).filter(
+          (uid) => isResourceUid(state, env.ctx, uid)
+        );
+        if (!resources.length) return "done";
+        const slot = "reclaimerResource" + item.resume.opIndex;
+        const picked = item.resume.acc[slot];
+        if (!picked) {
+          return raiseChoice(env, item, {
+            seat: 1 - controller, kind: "objects", prompt: "Choose an opponent Resource to archive",
+            options: resources.map((uid) => ({ kind: "object", uid })), min: 1, max: 1, slot,
+          });
+        }
+        const choice = Array.isArray(picked) ? picked[0] : picked;
+        if (choice && state.objects[choice.uid]) moveUid(env, choice.uid, "archive");
+        return "done";
+      }
+      case "routeMisdirection": {
+        const blocker = item.targets[0] && item.targets[0].uid;
+        if (!blocker || !state.objects[blocker]) return "done";
+        for (const attacker of Object.keys(state.clash.blocks)) {
+          state.clash.blocks[attacker] = state.clash.blocks[attacker].filter((uid) => uid !== blocker);
+          if (state.clash.order[attacker]) {
+            state.clash.order[attacker] = state.clash.order[attacker].filter((uid) => uid !== blocker);
+          }
+        }
+        const options = state.clash.attackers.filter((uid) => state.objects[uid] && canBlock(env, blocker, uid));
+        const slot = "misdirection" + item.resume.opIndex;
+        const picked = item.resume.acc[slot];
+        if (!picked && options.length) {
+          return raiseChoice(env, item, {
+            seat: state.objects[blocker].controller, kind: "objects", prompt: "Choose a new attacker to block, or none",
+            options: options.map((uid) => ({ kind: "object", uid })), min: 0, max: 1, slot,
+          });
+        }
+        const choice = Array.isArray(picked) ? picked[0] : picked;
+        if (choice && state.objects[choice.uid]) {
+          state.clash.blocks[choice.uid] = (state.clash.blocks[choice.uid] || []).concat(blocker);
+          if (state.clash.blockedOnce.indexOf(choice.uid) < 0) state.clash.blockedOnce.push(choice.uid);
+        }
+        return "done";
+      }
+      case "topologyScan": {
+        const target = item.targets[0];
+        const seat = target && target.kind === "seat" ? target.seat : controller;
+        const stack = zoneArray(state, zoneKey(seat, "stack"));
+        const top = stack.slice(0, 3);
+        const orderSlot = "topologyOrder" + item.resume.opIndex;
+        const ordered = item.resume.acc[orderSlot];
+        if (!ordered && top.length) {
+          for (const uid of top) {
+            state.objects[uid].revealedTo = Array.from(new Set(state.objects[uid].revealedTo.concat(controller))).sort();
+          }
+          return raiseChoice(env, item, {
+            kind: "order", prompt: "Put the top cards back in order (first is top)",
+            options: top.map((uid) => ({ kind: "object", uid })), min: top.length, max: top.length, slot: orderSlot,
+          });
+        }
+        if (ordered) {
+          const uids = ordered.map((entry) => entry.uid);
+          stack.splice(0, uids.length, ...uids);
+        }
+        const shuffleSlot = "topologyShuffle" + item.resume.opIndex;
+        const shuffled = item.resume.acc[shuffleSlot];
+        if (!shuffled) {
+          return raiseChoice(env, item, {
+            kind: "may", prompt: "Shuffle that Stack?",
+            options: [{ kind: "option", value: "shuffle" }, { kind: "option", value: "keep" }],
+            min: 1, max: 1, slot: shuffleSlot,
+          });
+        }
+        const value = Array.isArray(shuffled) ? shuffled[0].value : shuffled.value;
+        if (value === "shuffle") runManualOp(env, item, { op: "shuffleZone", zone: zoneKey(seat, "stack") });
+        return "done";
+      }
+      case "identityMask": {
+        const target = item.targets[0];
+        if (target && target.kind === "object" && state.objects[target.uid] &&
+            state.objects[target.uid].zone === zoneKey(controller, "wallet")) {
+          const deployed = moveUid(env, target.uid, "network", { seat: controller });
+          deployed.maskedCardId = deployed.cardId;
+          deployed.facedown = true;
+          deployed.revealedTo = [controller];
+          deployed.tokenProfile = {
+            isAvatar: true, isResource: false, action: 2, resilience: 2,
+            keywords: [], affinity: ["Neutral"], subtype: "",
+          };
+          emit(env, "MASK_DEPLOYED", { uid: deployed.uid, seat: controller });
+        }
+        return "done";
+      }
+      case "migrateAttachment": {
+        const attachment = sourceUid && state.objects[sourceUid];
+        const host = attachment && attachment.attachedTo && state.objects[attachment.attachedTo];
+        if (!attachment || !host) return "done";
+        const choices = zoneArray(state, zoneKey(host.controller, "network")).filter(
+          (uid) => uid !== host.uid && isResourceUid(state, env.ctx, uid)
+        );
+        const slot = "migrate" + item.resume.opIndex;
+        const picked = item.resume.acc[slot];
+        if (!picked && choices.length) {
+          return raiseChoice(env, item, {
+            seat: host.controller, kind: "objects", prompt: "Move Migrating Workload to another Resource?",
+            options: choices.map((uid) => ({ kind: "object", uid })), min: 0, max: 1, slot,
+          });
+        }
+        const choice = Array.isArray(picked) ? picked[0] : picked;
+        decommissionUid(env, host.uid, sourceUid);
+        if (state.objects[sourceUid] && choice && state.objects[choice.uid]) {
+          state.objects[sourceUid].attachedTo = choice.uid;
+        }
+        return "done";
+      }
+      case "digitalToss": {
+        if (!state.modules.toss) fail("MODULE_REQUIRED", "Chaos Kernel needs the Toss module");
+        const eligible = seatsOf(state).flatMap((seat) =>
+          zoneArray(state, zoneKey(seat, "network")).filter(
+            (uid) => uid !== sourceUid && state.objects[uid] && !state.objects[uid].token
+          )
+        );
+        const count = eligible.length ? nextInt(state.rng.public, Math.min(3, eligible.length) + 1) : 0;
+        const pool = eligible.slice();
+        const touched = [];
+        for (let index = 0; index < count; index++) {
+          const pick = nextInt(state.rng.public, pool.length);
+          touched.push(pool.splice(pick, 1)[0]);
+        }
+        emit(env, "DIGITAL_TOSS", { eligible, touched, stream: "public" });
+        for (const uid of touched) if (state.objects[uid]) moveUid(env, uid, "archive");
+        if (sourceUid && state.objects[sourceUid]) moveUid(env, sourceUid, "archive");
+        return "done";
+      }
+      case "copyQueue": {
+        const target = item.targets[0];
+        const original = target && state.queue.find((entry) => entry.qid === target.qid);
+        if (!original || !original.cardId) return "done";
+        const copiedCard = cardOf(env.ctx, original.cardId);
+        if (["Zap", "Operation"].indexOf(copiedCard.type) < 0) return "done";
+        pushQueue(env, {
+          kind: "copy", controller, objectUid: null, cardId: original.cardId,
+          sourceUid: original.sourceUid, abilityIndex: null,
+          targets: item.copyTargets || cloneJson(original.targets),
+          modes: item.copyModes || cloneJson(original.modes),
+          x: original.x, paid: {}, copiedAffinity: op.affinity,
+        });
+        return "done";
+      }
+      case "stakeArbitration": {
+        if (!state.modules.stake) fail("MODULE_REQUIRED", "Stake Arbitration needs the Stake module");
+        const key = "stakeArbitration" + item.resume.opIndex;
+        const progress = item.resume.acc[key] || { round: 0, seatIndex: 0 };
+        const order = [controller, 1 - controller];
+        while (progress.seatIndex < order.length) {
+          const seat = order[progress.seatIndex];
+          const slot = key + ":" + progress.round + ":" + seat;
+          const picked = item.resume.acc[slot];
+          if (!picked) {
+            item.resume.acc[key] = progress;
+            return raiseChoice(env, item, {
+              seat, kind: "may", prompt: "Add the top card of your Stack to the Stake?",
+              options: [{ kind: "option", value: "add" }, { kind: "option", value: "decline" }],
+              min: 1, max: 1, slot,
+            });
+          }
+          const value = Array.isArray(picked) ? picked[0].value : picked.value;
+          if (value === "add") {
+            const top = zoneArray(state, zoneKey(seat, "stack"))[0];
+            if (top) moveUid(env, top, "stake", { seat });
+          }
+          progress.seatIndex += 1;
+          item.resume.acc[key] = progress;
+          if (seat !== controller && value === "decline") {
+            const replaySlot = key + ":replay:" + progress.round;
+            const replay = item.resume.acc[replaySlot];
+            if (!replay) {
+              progress.seatIndex -= 1;
+              item.resume.acc[key] = progress;
+              return raiseChoice(env, item, {
+                kind: "may", prompt: "Play Stake Arbitration again without paying?",
+                options: [{ kind: "option", value: "again" }, { kind: "option", value: "stop" }],
+                min: 1, max: 1, slot: replaySlot,
+              });
+            }
+            const replayValue = Array.isArray(replay) ? replay[0].value : replay.value;
+            if (replayValue === "again") {
+              progress.round += 1;
+              progress.seatIndex = 0;
+            }
+          }
+        }
+        return "done";
+      }
+      case "sovereignMode":
+        item.sovereignMode = true;
+        return "done";
+      case "resourceTombstone": {
+        const target = item.targets[0];
+        if (target && target.kind === "object" && state.objects[target.uid]) {
+          const mark = "tombstone:" + sourceUid;
+          state.objects[target.uid].counters[mark] = (state.objects[target.uid].counters[mark] || 0) + 1;
+          state.effects.push({
+            id: "e" + state.nextEid++, sourceUid: null, layer: 5, kind: "tombstoneAffinity",
+            targetUid: target.uid, mark, affinity: "Keys", controller,
+            expires: { kind: "whileMarked", uid: target.uid, mark }, startedSeq: state.seq,
+          });
+        }
+        return "done";
+      }
+      case "chooseAffinityOnEnter": {
+        const slot = "enterAffinity" + item.resume.opIndex;
+        const picked = item.resume.acc[slot];
+        if (!picked) {
+          return raiseChoice(env, item, {
+            kind: "mode", prompt: "Choose a basic Resource type",
+            options: Object.keys(AFFINITY_SYMBOL).map((value) => ({ kind: "option", value })),
+            min: 1, max: 1, slot,
+          });
+        }
+        item.enterAffinity = Array.isArray(picked) ? picked[0].value : picked.value;
+        return "done";
+      }
+      case "copyOnEnter":
+      case "adaptiveCopy": {
+        const entering = op.op === "copyOnEnter" || op.entering;
+        const source = sourceUid && state.objects[sourceUid];
+        const choices = seatsOf(state).flatMap((seat) =>
+          zoneArray(state, zoneKey(seat, "network")).filter((uid) => {
+            if (uid === sourceUid || !state.objects[uid]) return false;
+            if (op.op === "adaptiveCopy" || op.kind === "Avatar") return isAvatarUid(state, env.ctx, uid);
+            return cardTypeOf(state, env.ctx, uid).indexOf(op.kind) >= 0;
+          })
+        );
+        const slot = `${op.op}${item.resume.opIndex}`;
+        const picked = item.resume.acc[slot];
+        if (!picked && choices.length) {
+          return raiseChoice(env, item, {
+            kind: "objects", prompt: "Choose a card to copy, or decline",
+            options: choices.map((uid) => ({ kind: "object", uid })), min: 0, max: 1, slot,
+          });
+        }
+        const choice = Array.isArray(picked) ? picked[0] : picked;
+        if (!choice || !state.objects[choice.uid]) return "done";
+        if (entering) {
+          item.enterCopyCardId = state.objects[choice.uid].cardId;
+          item.enterCopyKeepType = op.keepType || null;
+          item.enterCopyKeepAffinity = op.op === "adaptiveCopy";
+          item.enterAdaptive = op.op === "adaptiveCopy";
+        } else if (source) {
+          const baseAffinity = source.affinityOverride || affinitiesOf(state, env.ctx, source.uid);
+          source.copyBaseCardId = source.copyBaseCardId || source.cardId;
+          source.cardId = state.objects[choice.uid].cardId;
+          source.affinityOverride = baseAffinity.slice();
+          source.adaptive = true;
+          emit(env, "BECAME_COPY", { uid: source.uid, copiedCardId: source.cardId });
+        }
+        return "done";
+      }
+      case "splitRoute":
+      case "obfuscatedFormation": {
+        const splitAttackers = op.op === "obfuscatedFormation";
+        const splitSeat = splitAttackers ? controller : 1 - controller;
+        const units = splitAttackers
+          ? state.clash.attackers.filter((uid) => state.objects[uid])
+          : zoneArray(state, zoneKey(splitSeat, "network")).filter(
+            (uid) => isAvatarUid(state, env.ctx, uid) && !hasKeywordUid(state, env.ctx, uid, "Broadcast")
+          );
+        const key = op.op + item.resume.opIndex;
+        const split = item.resume.acc[key + ":split"];
+        if (!split && units.length) {
+          return raiseChoice(env, item, {
+            seat: splitSeat, kind: "objects", prompt: "Choose the left pile; the rest form the right pile",
+            options: units.map((uid) => ({ kind: "object", uid })), min: 0, max: units.length,
+            slot: key + ":split",
+          });
+        }
+        const left = new Set((split || []).map((entry) => entry.uid));
+        const assignments = {};
+        for (const uid of units) assignments[uid] = left.has(uid) ? "left" : "right";
+        const choosers = splitAttackers
+          ? zoneArray(state, zoneKey(1 - controller, "network")).filter((uid) => isAvatarUid(state, env.ctx, uid))
+          : state.clash.attackers.filter((uid) => state.objects[uid]);
+        const progress = item.resume.acc[key + ":progress"] || { index: 0, routes: {} };
+        while (progress.index < choosers.length) {
+          const uid = choosers[progress.index];
+          const slot = key + ":route:" + uid;
+          const picked = item.resume.acc[slot];
+          if (!picked) {
+            item.resume.acc[key + ":progress"] = progress;
+            return raiseChoice(env, item, {
+              seat: splitAttackers ? 1 - controller : controller,
+              kind: "mode", prompt: "Choose left or right pile",
+              options: [{ kind: "option", value: "left" }, { kind: "option", value: "right" }],
+              min: 1, max: 1, slot,
+            });
+          }
+          progress.routes[uid] = Array.isArray(picked) ? picked[0].value : picked.value;
+          progress.index += 1;
+          item.resume.acc[key + ":progress"] = progress;
+        }
+        state.clash.routeRestriction = splitAttackers
+          ? { kind: "obfuscated", attackerPiles: assignments, blockerRoutes: progress.routes }
+          : { kind: "split", blockerPiles: assignments, attackerRoutes: progress.routes };
+        return "done";
+      }
+      case "remoteCommand":
+        return runRemoteCommand(env, item);
       default:
         return runManualOp(env, item, op);
     }
+  }
+
+  function gainUptime(env, seat, amount, extra) {
+    if (amount <= 0) {
+      env.state.seats[seat].uptime += amount;
+      emit(env, "UPTIME", Object.assign({ seat, delta: amount }, extra || {}));
+      return;
+    }
+    const sovereign = zoneArray(env.state, zoneKey(seat, "network")).some(
+      (uid) => env.state.objects[uid] && env.state.objects[uid].sovereign
+    );
+    if (sovereign) {
+      drawCards(env, seat, amount);
+      emit(env, "SOVEREIGN_DRAW", { seat, count: amount });
+      return;
+    }
+    env.state.seats[seat].uptime += amount;
+    emit(env, "UPTIME", Object.assign({ seat, delta: amount }, extra || {}));
+  }
+
+  function controlledNetworkAvatars(state, ctx, seat) {
+    return zoneArray(state, zoneKey(seat, "network")).filter((uid) =>
+      state.objects[uid] && state.objects[uid].controller === seat && isAvatarUid(state, ctx, uid)
+    );
+  }
+
+  function remoteTargetSpecPlayable(env, spec, payer, sourceUid, ignoredQid) {
+    if (!spec.length) return true;
+    const variable = spec.length === 1 && spec[0].variable ? spec[0] : null;
+    if (variable && variable.exactX && !(variable.min > 0)) return true; // X = 0
+    const wantedSpecs = variable ? [variable] : spec;
+    const sourceAffinity = affinitiesOf(env.state, env.ctx, sourceUid);
+    return wantedSpecs.every((wanted) => {
+      if (wanted.kind === "seat" || wanted.kind === "any") return true;
+      if (wanted.kind === "queue" || wanted.kind === "queueOrPermanent") {
+        const queued = env.state.queue.some((entry) =>
+          entry.qid !== ignoredQid && targetLegal(
+            env, { kind: "queue", qid: entry.qid }, wanted, payer, 0, sourceUid
+          )
+        );
+        if (queued || wanted.kind === "queue") return queued;
+      }
+      return Object.keys(env.state.objects).some((uid) => {
+        const target = { kind: "object", uid };
+        return targetLegal(env, target, wanted, payer, 0, sourceUid) &&
+          !targetShieldedFrom(env, target, sourceAffinity);
+      });
+    });
+  }
+
+  function remoteCardPlayable(env, card, payer, sourceUid, ignoredQid) {
+    if (card.playOps.some((op) => op.op === "additionalArchiveAvatar") &&
+        !controlledNetworkAvatars(env.state, env.ctx, payer).length) {
+      return false;
+    }
+    const specs = card.playModes
+      ? card.playModes.map((mode) => mode.targetSpec)
+      : [card.playTargetSpec];
+    return specs.some((spec) => remoteTargetSpecPlayable(env, spec, payer, sourceUid, ignoredQid));
+  }
+
+  function runRemoteCommand(env, item) {
+    const state = env.state;
+    const controller = item.controller;
+    const payer = 1 - controller;
+    const key = "remoteCommand" + item.resume.opIndex;
+    const picked = item.resume.acc[key];
+    const wallet = zoneArray(state, zoneKey(payer, "wallet"));
+    const playable = wallet.filter((uid) => {
+      const card = cardOf(env.ctx, state.objects[uid].cardId);
+      if (card.isResource) return false;
+      try {
+        autoPaymentFor(env, payer, addGeneric(effectiveCardCost(card, 0), cardTax(state, env.ctx, card)));
+        return remoteCardPlayable(env, card, payer, uid, item.qid);
+      } catch {
+        return false;
+      }
+    });
+    for (const uid of wallet) {
+      const object = state.objects[uid];
+      object.revealedTo = Array.from(new Set(object.revealedTo.concat(controller))).sort();
+      object.revealedUntil = { turn: state.turn.number, phase: state.turn.phase };
+    }
+    if (!picked && playable.length) {
+      return raiseChoice(env, item, {
+        kind: "search", prompt: "Choose a card from the opponent's Wallet to play",
+        options: playable.map((uid) => ({ kind: "object", uid })), min: 1, max: 1, slot: key,
+      });
+    }
+    const choice = Array.isArray(picked) ? picked[0] : picked;
+    if (choice && state.objects[choice.uid] && state.objects[choice.uid].zone === zoneKey(payer, "wallet")) {
+      state.awaiting = {
+        kind: "remotePlay", seat: controller, payer, uid: choice.uid,
+        cardId: state.objects[choice.uid].cardId,
+      };
+      state.priority.seat = null;
+      emit(env, "REMOTE_CARD_CHOSEN", { controller, payer, uid: choice.uid });
+    }
+    return "done";
   }
 
   /* Run a mayPay branch inline. A nested op that tried to pause would leave
@@ -1765,7 +3668,7 @@
     const state = env.state;
     state.pendingChoice = {
       id: "c" + state.nextChoiceId,
-      seat: item.controller,
+      seat: request.seat === 0 || request.seat === 1 ? request.seat : item.controller,
       kind: request.kind,
       prompt: request.prompt,
       options: request.options,
@@ -1974,8 +3877,7 @@
     }
     switch (op.op) {
       case "addUptime":
-        state.seats[op.seat].uptime += op.delta;
-        emit(env, "UPTIME", { seat: op.seat, delta: op.delta, manual: true });
+        gainUptime(env, op.seat, op.delta, { manual: true });
         return "done";
       case "addBuffer":
         state.seats[op.seat].buffer[op.symbol] += op.amount;
@@ -2039,6 +3941,7 @@
       case "setCommitted": {
         const target = objectOf(state, op.uid);
         const wasCommitted = target.committed;
+        if (op.value) revealMasked(env, op.uid, "commit");
         target.committed = Boolean(op.value);
         emit(env, "COMMIT", { uid: op.uid, value: Boolean(op.value) });
         if (!wasCommitted && target.committed) {
@@ -2182,6 +4085,14 @@
    * not objects. Last element is the TOP (LIFO, §10.2). */
   function pushQueue(env, item) {
     const state = env.state;
+    item.objectUid = item.objectUid || null;
+    item.sourceUid = item.sourceUid || null;
+    item.abilityIndex = Number.isInteger(item.abilityIndex) ? item.abilityIndex : null;
+    item.targets = Array.isArray(item.targets) ? item.targets : [];
+    item.modes = Array.isArray(item.modes) ? item.modes : [];
+    item.x = Number.isInteger(item.x) ? item.x : 0;
+    item.paid = item.paid && typeof item.paid === "object" ? item.paid : {};
+    item.manual = item.manual || null;
     item.qid = "q" + state.nextQid;
     state.nextQid += 1;
     item.addedSeq = state.seq;
@@ -2197,31 +4108,82 @@
     return item;
   }
 
-  function targetLegal(env, target, spec) {
+  function targetLegal(env, target, spec, controller, x, sourceUid) {
     const state = env.state;
+    const wantedAffinity = spec && spec.affinity
+      ? rewrittenWord(state, sourceUid, spec.affinity, "affinity")
+      : null;
+    const forbiddenAffinity = spec && spec.notAffinity
+      ? rewrittenWord(state, sourceUid, spec.notAffinity, "affinity")
+      : null;
     if (!target) return false;
     if (target.kind === "seat") return target.seat === 0 || target.seat === 1;
     if (target.kind === "queue") {
+      if (spec && spec.kind !== "queue" && spec.kind !== "queueOrPermanent") return false;
       const queued = state.queue.find((q) => q.qid === target.qid);
       if (!queued) return false;
-      if (spec && spec.affinity) {
-        const queuedCard = queued.cardId ? cardOf(env.ctx, queued.cardId) : null;
-        return Boolean(queuedCard && queuedCard.affinity.indexOf(spec.affinity) >= 0);
+      if (wantedAffinity) {
+        return Boolean(
+          queued.objectUid && state.objects[queued.objectUid] &&
+          affinitiesOf(state, env.ctx, queued.objectUid).indexOf(wantedAffinity) >= 0
+        );
       }
       return true;
     }
     if (target.kind !== "object") return false;
     const object = state.objects[target.uid];
-    if (!object || zoneName(object.zone) !== "network") return false;
+    if (!object) return false;
+    const wantedZone = spec && spec.zone ? spec.zone : "network";
+    if (zoneName(object.zone) !== wantedZone) return false;
     if (!spec) return true;
     const card = cardOf(env.ctx, object.cardId);
-    if (spec.kind === "avatar" || spec.kind === "any") return card.isAvatar;
+    if (spec.attachment && attachmentGrants(state, env.ctx, target.uid).some((grants) => grants.exclusiveAttachment)) {
+      return false;
+    }
+    if (spec.whose === "you" && object.owner !== controller) return false;
+    if (spec.whose === "you-controller" && object.controller !== controller) return false;
+    if (spec.whose === "opponent-controller" && object.controller === controller) return false;
+    if (spec.maximumAction !== undefined && statsOf(state, env.ctx, target.uid).action > spec.maximumAction) return false;
+    if (wantedAffinity && affinitiesOf(state, env.ctx, target.uid).indexOf(wantedAffinity) < 0) return false;
+    if (forbiddenAffinity && affinitiesOf(state, env.ctx, target.uid).indexOf(forbiddenAffinity) >= 0) return false;
+    if (spec.notType && cardTypeOf(state, env.ctx, target.uid).indexOf(spec.notType) >= 0) return false;
+    if (spec.requireCommitted && !object.committed) return false;
+    if (spec.notKeyword && hasKeywordUid(state, env.ctx, target.uid, spec.notKeyword)) return false;
+    if (spec.controlledAllTurn && object.entersSeq >= (state.turn.startedSeq || 0)) return false;
+    if (spec.resilienceBelowSourceAction && sourceUid &&
+        statsOf(state, env.ctx, target.uid).resilience >= statsOf(state, env.ctx, sourceUid).action) return false;
+    if (spec.costAtMostX && cardTotalCost(card, 0) > (x || 0)) return false;
+    if (spec.require === "blocking") {
+      const blocking = Object.values(state.clash.blocks || {}).some((uids) => uids.indexOf(target.uid) >= 0);
+      if (!blocking) return false;
+    }
+    if (spec.kind === "card") return true;
+    if (spec.kind === "avatar" || spec.kind === "any") return isAvatarUid(state, env.ctx, target.uid);
+    if (spec.kind === "queueOrPermanent") return true;
     if (spec.kind === "permanent") return true; // any Network card
-    if (spec.kind.indexOf("type:") === 0) return card.type.indexOf(spec.kind.slice(5)) >= 0;
+    if (spec.types) return spec.types.some((type) => cardTypeOf(state, env.ctx, target.uid).indexOf(type) >= 0);
+    if (spec.kind.indexOf("type:") === 0) return cardTypeOf(state, env.ctx, target.uid).indexOf(spec.kind.slice(5)) >= 0;
     return true;
   }
 
-  function validateTargets(env, spec, targets, sourceAffinity) {
+  function validateTargets(env, spec, targets, sourceAffinity, controller, x, sourceUid) {
+    if (spec.length === 1 && spec[0].variable) {
+      const variable = spec[0];
+      if (targets.length < (variable.min || 0)) {
+        fail("TARGET_COUNT", `this item takes at least ${variable.min || 0} target(s)`);
+      }
+      if (variable.exactX && targets.length !== (x || 0)) {
+        fail("TARGET_COUNT", `choose exactly ${x || 0} target(s)`);
+      }
+      for (const target of targets) {
+        if (variable.kind === "any" && target.kind === "seat") continue;
+        if (!targetLegal(env, target, variable, controller, x, sourceUid)) fail("ILLEGAL_TARGET", variable.prompt);
+        if (targetShieldedFrom(env, target, sourceAffinity)) {
+          fail("ILLEGAL_TARGET", `that object is Shielded from ${shieldedFrom(env.state, env.ctx, target.uid)}`);
+        }
+      }
+      return;
+    }
     if (targets.length !== spec.length) {
       fail("TARGET_COUNT", `this item takes ${spec.length} target(s), got ${targets.length}`);
     }
@@ -2230,15 +4192,18 @@
       const want = spec[i];
       if (want.kind === "seat" && target.kind !== "seat") fail("ILLEGAL_TARGET", "a player is required");
       if (want.kind === "any" && target.kind === "seat") continue;
-      if (!targetLegal(env, target, want)) fail("ILLEGAL_TARGET", `illegal target for ${want.prompt}`);
-      if (target.kind === "object" && sourceAffinity) {
+      if (!targetLegal(env, target, want, controller, x, sourceUid)) fail("ILLEGAL_TARGET", `illegal target for ${want.prompt}`);
+      if (targetShieldedFrom(env, target, sourceAffinity)) {
         const shield = shieldedFrom(env.state, env.ctx, target.uid);
-        // §14 Shielded from [Affinity]: cannot be targeted by that affinity.
-        if (shield && sourceAffinity.indexOf(shield) >= 0) {
-          fail("ILLEGAL_TARGET", `that object is Shielded from ${shield}`);
-        }
+        fail("ILLEGAL_TARGET", `that object is Shielded from ${shield}`);
       }
     }
+  }
+
+  function targetShieldedFrom(env, target, sourceAffinity) {
+    if (!target || target.kind !== "object" || !sourceAffinity) return false;
+    const shield = shieldedFrom(env.state, env.ctx, target.uid);
+    return Boolean(shield && sourceAffinity.indexOf(shield) >= 0);
   }
 
   /* §11.2 — if every target is illegal the whole item is invalidated by the
@@ -2303,11 +4268,25 @@
             ? card.playModes[item.modes[0]].targetSpec
             : card ? card.playTargetSpec : [];
       if (spec.length) {
-        const legal = item.targets.filter((t, i) => targetLegal(env, t, spec[i]));
+        const variable = spec.length === 1 && spec[0].variable ? spec[0] : null;
+        const sourceAffinity = item.copiedAffinity
+          ? [item.copiedAffinity]
+          : item.sourceUid && state.objects[item.sourceUid]
+            ? affinitiesOf(state, env.ctx, item.sourceUid)
+            : card ? card.affinity : [];
+        const legal = item.targets.filter((target, targetIndex) => {
+          const wanted = variable || spec[targetIndex];
+          return Boolean(
+            wanted &&
+            targetLegal(env, target, wanted, item.controller, item.x || 0, item.sourceUid) &&
+            !targetShieldedFrom(env, target, sourceAffinity)
+          );
+        });
         if (!legal.length) {
           invalidateQueueItem(env, index, "all targets illegal");
           return;
         }
+        item.targets = legal;
       }
     }
 
@@ -2315,34 +4294,7 @@
     if (outcome === "pause") return; // stays on the Queue with its cursor
 
     state.queue.splice(index, 1);
-    if (item.kind === "card" && item.objectUid && state.objects[item.objectUid]) {
-      if (card.isPermanent) {
-        // §11.4 the card enters the Network under its controller's control.
-        const record = moveUid(env, item.objectUid, "network", { seat: item.controller });
-        emit(env, "ENTERS", { uid: record.uid, cardId: item.cardId, seat: item.controller });
-        // An Attachment fastens to the host it targeted. A host that left in
-        // response leaves the Attachment unattached, and the state check
-        // archives orphans — §11.2 do as much as possible.
-        const attach = (card.keywords || []).find((k) => k.name === "Attach");
-        const host = attach && item.targets[0];
-        if (host && host.kind === "object" && state.objects[host.uid]) {
-          if (zoneName(state.objects[host.uid].zone) === "network") {
-            record.attachedTo = host.uid;
-          }
-        }
-        announceManual(env, item, record.uid);
-      } else {
-        // §9.4 archived first, then announced, so a manual delta that moves the
-        // card again starts from the right zone.
-        const record = moveUid(env, item.objectUid, "archive");
-        emit(env, "ARCHIVED", { uid: record.uid, cardId: item.cardId, reason: "resolved" });
-        announceManual(env, item, record.uid);
-      }
-    } else if (item.kind === "ability") {
-      const ability = card.abilities[item.abilityIndex];
-      if (ability.manual) announceManual(env, item, item.sourceUid);
-      emit(env, "RESOLVED", { qid: item.qid, cardId: item.cardId, abilityIndex: item.abilityIndex });
-    }
+    finishResolvedItem(env, item);
   }
 
   // ------------------------------------------------------- the turn machine
@@ -2372,19 +4324,56 @@
     switch (step) {
       case "unlock": {
         const seat = state.turn.active;
-        for (const uid of zoneArray(state, zoneKey(seat, "network"))) {
-          state.objects[uid].committed = false;
-          // §5.2 Boot Delay ends when its controller BEGINS a turn with it.
-          state.objects[uid].bootDelay = false;
+        state.effects = state.effects.filter(
+          (effect) => !(effect.kind === "attackShield" && effect.controller === seat)
+        );
+        const network = zoneArray(state, zoneKey(seat, "network"));
+        for (const uid of network) state.objects[uid].bootDelay = false;
+        if (ruleEntries(state, env.ctx, "skipUnlockSteps").length) {
+          emit(env, "UNLOCK", { seat, uids: [], skipped: true });
+          return "ok";
         }
-        emit(env, "UNLOCK", { seat });
+        const caps = {};
+        for (const entry of ruleEntries(state, env.ctx, "unlockCap")) {
+          caps[entry.rule.kind] = Math.min(caps[entry.rule.kind] || Infinity, entry.rule.count);
+        }
+        const eligible = network.filter((uid) => {
+          if (!state.objects[uid].committed || hasRule(state, env.ctx, uid, "skipSelfUnlock")) return false;
+          return !ruleEntries(state, env.ctx, "skipAvatarUnlockAtAction").some(
+            (entry) => isAvatarUid(state, env.ctx, uid) &&
+              statsOf(state, env.ctx, uid).action >= entry.rule.minimum
+          );
+        });
+        const kindFor = (uid) => isAvatarUid(state, env.ctx, uid)
+          ? "Avatar"
+          : isResourceUid(state, env.ctx, uid)
+            ? "Resource"
+            : "Other";
+        const required = eligible.filter((uid) => caps[kindFor(uid)] === undefined);
+        const selectable = eligible.filter((uid) => caps[kindFor(uid)] !== undefined);
+        const needsChoice = Object.keys(caps).some(
+          (kind) => selectable.filter((uid) => kindFor(uid) === kind).length > caps[kind]
+        );
+        if (needsChoice) {
+          state.awaiting = { kind: "unlock", seat, required, selectable, caps };
+          return "await";
+        }
+        for (const uid of eligible) state.objects[uid].committed = false;
+        emit(env, "UNLOCK", { seat, uids: eligible });
         return "ok";
       }
       case "maintenance":
         raiseTriggers(env, "maintenance", { active: state.turn.active, seat: state.turn.active });
+        raiseGrantedMaintenance(env, state.turn.active);
+        prepareTombstoneCleanup(env, state.turn.active);
         return "ok";
       case "draw":
         // §8 the first player does draw during their first turn.
+        raiseTriggers(env, "draw-step", { active: state.turn.active, seat: state.turn.active });
+        if (controllerHasRule(state, env.ctx, state.turn.active, "optionalDrawShield")) {
+          state.awaiting = { kind: "drawReplacement", seat: state.turn.active };
+          return "await";
+        }
         drawCards(env, state.turn.active, 1);
         return "ok";
       case "main":
@@ -2437,20 +4426,27 @@
         return startDamageStep(env, false);
       }
       case "end": {
+        processDelayed(env, "end-clash");
         for (const uid of state.clash.attackers) removeFromCombat(state, uid);
+        state.effects = state.effects.filter(
+          (effect) => !(effect.expires && effect.expires.kind === "endClash")
+        );
         state.clash = emptyClash();
         burnBuffers(env, "clash ends"); // §12.1
         return "ok";
       }
       case "endStep":
+        raiseTriggers(env, "end-step", { active: state.turn.active, seat: state.turn.active });
+        processDelayed(env, "end-step");
         return "ok";
       case "cleanup": {
         const seat = state.turn.active;
         const wallet = zoneArray(state, zoneKey(seat, "wallet"));
-        if (wallet.length > state.handLimit) {
+        const maximum = maximumWalletSize(state, env.ctx, seat);
+        if (wallet.length > maximum) {
           // A player decision. play.js:463 silently discarded from the end of
           // the array, which is the engine choosing which cards you lose.
-          state.awaiting = { kind: "discard", seat, count: wallet.length - state.handLimit };
+          state.awaiting = { kind: "discard", seat, count: wallet.length - maximum };
           return "await";
         }
         runCleanup(env);
@@ -2481,12 +4477,24 @@
 
   function endTurn(env) {
     const state = env.state;
-    state.turn.active = 1 - state.turn.active;
+    state.extraTurns = state.extraTurns || [0, 0];
+    const endingSeat = state.turn.active;
+    if (state.extraTurns[endingSeat] > 0) state.extraTurns[endingSeat] -= 1;
+    else state.turn.active = 1 - state.turn.active;
     if (state.turn.active === state.turn.firstPlayer) state.turn.number += 1;
     state.turn.phase = "open";
     state.turn.step = "unlock";
     state.turn.resourcePlays = { used: 0, allowed: 1 };
     state.turn.repeatCleanup = false;
+    state.turn.damageTaken = [0, 0];
+    state.turn.avatarsDied = 0;
+    state.turn.attacked = [];
+    state.turn.startUnlockedResources = seatsOf(state).map((seat) =>
+      zoneArray(state, zoneKey(seat, "network")).filter(
+        (uid) => isResourceUid(state, env.ctx, uid) && !state.objects[uid].committed
+      ).length
+    );
+    state.turn.startedSeq = state.seq;
     state.clash = emptyClash();
     emit(env, "TURN", { number: state.turn.number, seat: state.turn.active });
     return enterStep(env);
@@ -2628,7 +4636,17 @@
   function raiseTriggers(env, on, ctx) {
     const state = env.state;
     for (const seat of seatsOf(state)) {
-      for (const uid of zoneArray(state, zoneKey(seat, "network")).slice()) {
+      const watchers = zoneArray(state, zoneKey(seat, "network")).slice();
+      if (on === "maintenance" && ctx.active === seat) {
+        for (const uid of zoneArray(state, zoneKey(seat, "archive"))) {
+          const card = state.objects[uid] && cardOf(env.ctx, state.objects[uid].cardId);
+          if (card && card.abilities.some(
+            (ability) => ability.kind === "triggered" && ability.ops &&
+              ability.ops.some((op) => op.op === "archiveReturn")
+          )) watchers.push(uid);
+        }
+      }
+      for (const uid of watchers) {
         const object = state.objects[uid];
         if (!object || !object.cardId) continue;
         const card = cardOf(env.ctx, object.cardId);
@@ -2651,6 +4669,16 @@
           });
           emit(env, "TRIGGERED", { seat, uid, cardId: object.cardId, on });
         });
+        if (on === "maintenance" && ctx.active === seat && object.adaptive) {
+          state.nextTriggerId = state.nextTriggerId || 1;
+          const pendingId = "t" + state.nextTriggerId++;
+          state.pendingTriggers[String(seat)].push({
+            kind: "triggered", pendingId, controller: seat, sourceUid: uid,
+            cardId: object.cardId, targets: [], ops: [{ op: "adaptiveCopy", entering: false }],
+            abilityIndex: null,
+          });
+          emit(env, "TRIGGERED", { seat, uid, cardId: object.cardId, on: "maintenance" });
+        }
       }
     }
   }
@@ -2663,13 +4691,31 @@
       if (!host) return false;
       if (on === "maintenance") return ctx.active === host.controller;
       if (on === "committed") return ctx.uid === object.attachedTo;
+      if (on === "decommissioned") return ctx.uid === object.attachedTo;
       return false;
     }
     switch (on) {
       case "maintenance":
         // "your Maintenance" fires only on the controller's own turn;
         // "each player's" fires on both.
+        if (trigger.whose === "chosen") return object.chosenSeat === ctx.active;
         return trigger.whose === "each" || ctx.active === seat;
+      case "draw-step":
+        return trigger.whose === "each" || ctx.active === seat;
+      case "resource-played":
+        return trigger.whose !== "you" || ctx.seat === seat;
+      case "end-step":
+        return trigger.whose === "each" || trigger.whose === undefined || ctx.active === seat;
+      case "attackers-declared":
+        return trigger.whose !== "you" || ctx.seat === seat;
+      case "decommissioned":
+        return trigger.whose === "self" && ctx.uid === uid;
+      case "decommissioned-damaged-by-self":
+        return Array.isArray(ctx.damageSources) && ctx.damageSources.indexOf(uid) >= 0;
+      case "blocks-non-firewall":
+        return ctx.uid === uid;
+      case "self-enters":
+        return ctx.uid === uid;
       case "self-damaged":
         return ctx.uid === uid;
       case "self-deals-player-damage":
@@ -2708,6 +4754,18 @@
         bound.uid = sourceUid;
         delete bound.target;
       }
+      if (bound.condition && bound.condition.resourcePlayBeyondFirst) {
+        bound.conditionMet = (ctx.count || 0) > 1;
+      }
+      if (bound.amount === "event-resilience") bound.eventResilience = ctx.resilience || 0;
+      if (bound.amount === "event-produced" || bound.op === "generateEventAffinity") {
+        bound.eventProduced = ctx.produced || "N";
+      }
+      if (bound.target === "event-owner") {
+        bound.seat = ctx.owner;
+        delete bound.target;
+      }
+      if (bound.op === "delayDecommissionEventAvatar") bound.eventUid = ctx.otherUid;
       if (Array.isArray(bound.then)) bound.then = bindTriggerOps(bound.then, ctx, sourceUid);
       if (Array.isArray(bound.else)) bound.else = bindTriggerOps(bound.else, ctx, sourceUid);
       return bound;
@@ -2737,7 +4795,7 @@
     const object = state.objects[uid];
     if (!object) return false;
     const card = cardOf(env.ctx, object.cardId);
-    if (!card.isAvatar) return false;
+    if (!isAvatarUid(state, env.ctx, uid)) return false;
     /* §13.1 attackers are declared FROM THE NETWORK. Without this the Wallet and
      * the Archive are attack-legal: a modified client could declare its whole
      * opening hand, pay nothing, and the defender would see only uid shells and
@@ -2745,17 +4803,26 @@
      * the zone; this is the same check on the other side of the same phase. */
     if (zoneName(object.zone) !== "network") return false;
     if (object.committed) return false; // §13.1
-    if (object.bootDelay) return false; // §5.2
+    if (object.bootDelay && !hasRule(state, env.ctx, uid, "ignoreBootDelay")) return false; // §5.2
     const keywords = keywordsOf(state, env.ctx, uid);
-    if (keywords.indexOf("Firewall") >= 0) return false; // §14 Firewall
+    const defender = 1 - object.controller;
+    if (state.effects.some((effect) => effect.kind === "attackShield" && effect.controller === defender)) {
+      if (keywords.indexOf("Broadcast") < 0 && backchannelsOf(state, env.ctx, uid).indexOf("Timelock") < 0) {
+        return false;
+      }
+    }
+    if (
+      keywords.indexOf("Firewall") >= 0 &&
+      !hasRule(state, env.ctx, uid, "canAttackWithFirewall")
+    ) return false; // §14 Firewall
     // "can't attack unless defending player controls a … Resource"
     for (const ability of card.abilities) {
       const need = ability.kind === "clash-static" && ability.rule && ability.rule.attackNeedsDefender;
       if (!need) continue;
-      const defender = 1 - object.controller;
       const holds = zoneArray(state, zoneKey(defender, "network")).some((other) => {
         const otherCard = cardOf(env.ctx, state.objects[other].cardId);
-        return otherCard.type.indexOf("Resource") >= 0 && otherCard.affinity.indexOf(need.affinity) >= 0;
+        return isResourceUid(state, env.ctx, other) &&
+          affinitiesOf(state, env.ctx, other).indexOf(need.affinity) >= 0;
       });
       if (!holds) return false;
     }
@@ -2779,8 +4846,18 @@
     const blocker = state.objects[blockerUid];
     const attacker = state.objects[attackerUid];
     if (!blocker || !attacker) return false;
-    if (!cardOf(env.ctx, blocker.cardId).isAvatar) return false;
+    if (!isAvatarUid(state, env.ctx, blockerUid)) return false;
     if (blocker.committed) return false; // §13.2 a committed Avatar cannot block
+    if (state.effects.some(
+      (effect) => effect.kind === "clashRule" && effect.targetUid === attackerUid && effect.cantBeBlocked
+    )) return false;
+    const route = state.clash.routeRestriction;
+    if (route && route.kind === "split" && !hasKeywordUid(state, env.ctx, blockerUid, "Broadcast")) {
+      if (route.blockerPiles[blockerUid] !== route.attackerRoutes[attackerUid]) return false;
+    }
+    if (route && route.kind === "obfuscated") {
+      if (route.attackerPiles[attackerUid] !== route.blockerRoutes[blockerUid]) return false;
+    }
     const blockerKeywords = keywordsOf(state, env.ctx, blockerUid);
     const attackerKeywords = keywordsOf(state, env.ctx, attackerUid);
     // §14 Broadcast
@@ -2791,12 +4868,17 @@
     }
     // §14 Shielded from [Affinity] cannot be blocked by that affinity
     const shield = shieldedFrom(state, env.ctx, attackerUid);
-    if (shield && cardOf(env.ctx, blocker.cardId).affinity.indexOf(shield) >= 0) return false;
+    if (shield && affinitiesOf(state, env.ctx, blockerUid).indexOf(shield) >= 0) return false;
     // Scripted clash rules: "can't be blocked by …", "… except by …",
     // "can't block Avatars with Action N or greater".
     for (const rule of clashRules(state, env.ctx, attackerUid)) {
       if (rule.cantBeBlockedBy && blockerKeywords.indexOf(rule.cantBeBlockedBy) >= 0) return false;
       if (rule.onlyBlockedBy && blockerKeywords.indexOf(rule.onlyBlockedBy) < 0) return false;
+    }
+    if (attachmentGrants(state, env.ctx, attackerUid).some((grants) => grants.fear)) {
+      const blockerCard = cardOf(env.ctx, blocker.cardId);
+      if (blockerCard.type.indexOf("Hardware") < 0 &&
+          affinitiesOf(state, env.ctx, blockerUid).indexOf("Keys") < 0) return false;
     }
     for (const rule of clashRules(state, env.ctx, blockerUid)) {
       if (rule.cantBlockActionGE !== undefined) {
@@ -2804,12 +4886,11 @@
       }
     }
     // §14 Backchannel — [Resource]
-    const backchannel = cardOf(env.ctx, attacker.cardId).keywords.find((k) => k.name === "Backchannel");
-    if (backchannel) {
+    for (const backchannel of backchannelsOf(state, env.ctx, attackerUid)) {
       const defender = blocker.controller;
       const holds = zoneArray(state, zoneKey(defender, "network")).some((uid) => {
-        const card = cardOf(env.ctx, state.objects[uid].cardId);
-        return card.isResource && (card.subtype || "").indexOf(backchannel.resource) >= 0;
+        return isResourceUid(state, env.ctx, uid) &&
+          affinitiesOf(state, env.ctx, uid).indexOf(backchannel) >= 0;
       });
       if (holds) return false;
     }
@@ -2828,6 +4909,21 @@
   const dealsInStep = (env, uid, firstStrike) =>
     hasKeywordUid(env.state, env.ctx, uid, "First Strike") === firstStrike;
 
+  const meshMembers = (state, groupId) => Object.keys(state.clash.meshGroups || {})
+    .filter((uid) => state.clash.meshGroups[uid] === groupId && state.objects[uid]);
+
+  function meshDamageTarget(env, attackerUid) {
+    const groupId = env.state.clash.meshGroups[attackerUid];
+    if (!groupId) return attackerUid;
+    const members = meshMembers(env.state, groupId);
+    if (!members.some((uid) => hasKeywordUid(env.state, env.ctx, uid, "Mesh"))) return attackerUid;
+    return members.sort((left, right) => {
+      const leftRemaining = statsOf(env.state, env.ctx, left).resilience - env.state.objects[left].damage;
+      const rightRemaining = statsOf(env.state, env.ctx, right).resilience - env.state.objects[right].damage;
+      return leftRemaining - rightRemaining || (left < right ? -1 : left > right ? 1 : 0);
+    })[0] || attackerUid;
+  }
+
   /* Minimal lethal in order, then excess to the defending player only with
    * Overflow (§13.3, §14). Offered to the UI as a prefilled template so the
    * common case is one click, but always verified by the engine. */
@@ -2841,6 +4937,16 @@
       const rows = [];
       if (!state.clash.blockedOnce.includes(attackerUid)) {
         rows.push({ to: "seat:" + (1 - state.objects[attackerUid].controller), amount: power });
+      } else if (blockers.some((uid) => hasKeywordUid(state, env.ctx, uid, "Mesh"))) {
+        // The controller of blocking Mesh Avatars routes the opposing damage.
+        // The automated table uses a deterministic legal default: pile it on
+        // the already easiest member to lose, preserving the rest of the group.
+        const target = blockers.slice().sort((left, right) => {
+          const leftRemaining = statsOf(state, env.ctx, left).resilience - state.objects[left].damage;
+          const rightRemaining = statsOf(state, env.ctx, right).resilience - state.objects[right].damage;
+          return leftRemaining - rightRemaining || (left < right ? -1 : left > right ? 1 : 0);
+        })[0];
+        if (target && power > 0) rows.push({ to: target, amount: power });
       } else {
         let remaining = power;
         for (const blockerUid of blockers) {
@@ -2878,9 +4984,15 @@
       if (!state.objects[attackerUid] || !dealsInStep(env, attackerUid, firstStrike)) continue;
       for (const row of assignment[attackerUid] || []) {
         if (typeof row.to === "string" && row.to.indexOf("seat:") === 0) {
-          damageTarget(env, { kind: "seat", seat: Number(row.to.slice(5)) }, row.amount, attackerUid);
+          damageTarget(
+            env,
+            { kind: "seat", seat: Number(row.to.slice(5)) },
+            row.amount,
+            attackerUid,
+            { combat: true, unblocked: state.clash.blockedOnce.indexOf(attackerUid) < 0 }
+          );
         } else {
-          damageTarget(env, { kind: "object", uid: row.to }, row.amount, attackerUid);
+          damageTarget(env, { kind: "object", uid: row.to }, row.amount, attackerUid, { combat: true });
         }
       }
     }
@@ -2891,7 +5003,13 @@
         if (!state.objects[blockerUid] || !state.objects[attackerUid]) continue;
         if (!dealsInStep(env, blockerUid, firstStrike)) continue;
         const power = statsOf(state, env.ctx, blockerUid).action;
-        damageTarget(env, { kind: "object", uid: attackerUid }, power, blockerUid);
+        damageTarget(
+          env,
+          { kind: "object", uid: meshDamageTarget(env, attackerUid) },
+          power,
+          blockerUid,
+          { combat: true }
+        );
       }
     }
     state.clash.damageDone[firstStrike ? "firstStrike" : "regular"] = true;
@@ -2899,6 +5017,75 @@
     // §13.4 triggers caused by that damage wait for the damage event and the
     // state checks to complete.
     stateChecks(env);
+  }
+
+  /* Authoritative, side-effect-free clash forecast. The UI supplies only
+   * declarations that have not been submitted yet; every damage assignment,
+   * First Strike removal, prevention, redirect and state check is then run by
+   * the same engine functions as the real clash. */
+  function previewClash(source, declarations, ctx) {
+    const state = cloneJson(source);
+    const options = declarations || {};
+    const env = { state, ctx: resolveCtx(ctx), events: [] };
+    const requested = Array.isArray(options.attackers)
+      ? options.attackers
+      : state.clash.attackers || [];
+    state.clash.attackers = requested.filter((uid) => state.objects[uid]);
+    state.clash.blocks = {};
+    state.clash.order = {};
+    state.clash.blockedOnce = (state.clash.blockedOnce || []).filter(
+      (uid) => state.clash.attackers.indexOf(uid) >= 0
+    );
+    for (const attackerUid of state.clash.attackers) {
+      const supplied = options.blocks && Object.prototype.hasOwnProperty.call(options.blocks, attackerUid)
+        ? options.blocks[attackerUid]
+        : (source.clash.blocks && source.clash.blocks[attackerUid]) || [];
+      const blockers = supplied.filter((uid) => state.objects[uid]);
+      if (blockers.length) {
+        state.clash.blocks[attackerUid] = blockers.slice();
+        if (state.clash.blockedOnce.indexOf(attackerUid) < 0) state.clash.blockedOnce.push(attackerUid);
+      }
+      const suppliedOrder = options.order && options.order[attackerUid];
+      state.clash.order[attackerUid] = Array.isArray(suppliedOrder)
+        ? suppliedOrder.filter((uid) => blockers.indexOf(uid) >= 0)
+        : blockers.slice();
+    }
+
+    const initial = state.clash.attackers.map((uid) => ({
+      uid,
+      power: statsOf(state, env.ctx, uid).action,
+      blockers: (state.clash.order[uid] || []).slice(),
+      controller: state.objects[uid].controller,
+    }));
+    const initialUids = initial.flatMap((row) => [row.uid].concat(row.blockers));
+    if (combatants(env).some((uid) => hasKeywordUid(state, env.ctx, uid, "First Strike"))) {
+      applyCombatDamage(env, canonicalAssignment(env, true), true);
+    }
+    if (!state.result && state.clash.attackers.length) {
+      applyCombatDamage(env, canonicalAssignment(env, false), false);
+    }
+
+    const damageEvents = env.events.filter((event) => event.t === "DAMAGE").map((event) => event.pub);
+    const rows = initial.map((row) => {
+      const toPlayer = damageEvents
+        .filter((event) => event.to === "seat" && event.sourceUid === row.uid)
+        .reduce((sum, event) => sum + event.amount, 0);
+      return {
+        uid: row.uid,
+        power: row.power,
+        blockers: row.blockers,
+        toPlayer,
+        dies: !state.objects[row.uid],
+        kills: row.blockers.filter((uid) => !state.objects[uid]),
+      };
+    });
+    const defenderSeat = initial.length ? 1 - initial[0].controller : null;
+    return {
+      rows,
+      dying: Array.from(new Set(initialUids.filter((uid) => !state.objects[uid]))),
+      toPlayer: rows.reduce((sum, row) => sum + row.toPlayer, 0),
+      defenderSeat,
+    };
   }
   // ---------------------------------------------------------- actions.js
 
@@ -2912,15 +5099,22 @@
     PASS_PRIORITY: [],
     CONCEDE: [],
     PLAY_RESOURCE: ["uid"],
-    PLAY_CARD: ["uid", "targets", "modes", "x", "additionalCosts", "payment"],
+    PLAY_CARD: ["uid", "targets", "modes", "x", "additionalCosts", "payment", "copyTargets", "copyModes"],
     ACTIVATE_ABILITY: ["uid", "abilityIndex", "targets", "modes", "x", "payment"],
     ACTIVATE_RESOURCE_ABILITY: ["uid", "abilityIndex", "choice"],
+    ACTIVATE_UPTIME_RESOURCE: [],
+    ACTIVATE_GRANTED_ABILITY: ["uid", "grantorUid", "payment"],
     DECLARE_ATTACKERS: ["attackers"],
     DECLARE_BLOCKERS: ["blocks"],
     ORDER_BLOCKERS: ["order"],
     ASSIGN_COMBAT_DAMAGE: ["assignment"],
     CHOOSE: ["choiceId", "selection"],
     ORDER_TRIGGERS: ["qids"],
+    CHOOSE_UNLOCK: ["uids"],
+    CHOOSE_DRAW: ["skip"],
+    CHOOSE_SOVEREIGN_ARCHIVE: ["uids"],
+    REMOTE_PLAY_CARD: ["targets", "modes", "x", "payment", "additionalCosts"],
+    CHOOSE_TOMBSTONE_CLEANUP: ["uids"],
     DISCARD_TO_LIMIT: ["uids"],
     REVEAL: ["uids", "to"],
     MANUAL_PROPOSE: ["warrant", "ops", "reason"],
@@ -3026,7 +5220,7 @@
       requirePriority(env, action.seat);
       if (["build1", "build2"].indexOf(state.turn.phase) < 0) fail("WRONG_PHASE", "Build I or Build II only");
       if (state.queue.length) fail("QUEUE_NOT_EMPTY", "the Queue must be empty");
-      if (state.turn.resourcePlays.used >= state.turn.resourcePlays.allowed) {
+      if (state.turn.resourcePlays.used >= resourcePlayLimit(state, env.ctx, action.seat)) {
         fail("RESOURCE_PLAY_USED", "you have already played a Resource this turn");
       }
       const object = requireUid(state, payload.uid);
@@ -3036,6 +5230,11 @@
       const record = moveUid(env, payload.uid, "network", { seat: action.seat });
       state.turn.resourcePlays.used += 1;
       emit(env, "ENTERS", { uid: record.uid, cardId: object.cardId, seat: action.seat, resourcePlay: true });
+      raiseTriggers(env, "resource-played", {
+        seat: action.seat,
+        uid: record.uid,
+        count: state.turn.resourcePlays.used,
+      });
       announceManual(env, { controller: action.seat, cardId: object.cardId }, record.uid);
       state.priority.seat = action.seat;
       state.priority.passed = [false, false];
@@ -3051,6 +5250,7 @@
       if (object.zone !== zoneKey(action.seat, "wallet")) fail("NOT_IN_ZONE", "that card is not in your Wallet");
       const card = cardOf(env.ctx, object.cardId);
       if (card.isResource) fail("NOT_RESOURCE", "play a Resource with PLAY_RESOURCE");
+      validatePlayRestrictions(state, action.seat, card);
       if (card.type !== "Zap") {
         // §5.6 / §9.2 sorcery speed: your own Build phase, Queue empty.
         if (action.seat !== state.turn.active) fail("NOT_YOUR_SEAT", "only on your own turn");
@@ -3066,8 +5266,61 @@
         }
         playSpec = card.playModes[mode].targetSpec;
       }
-      validateTargets(env, playSpec, targets, card.affinity);
-      const payment = settleCost(env, action.seat, costWithX(card.costParsed, payload.x), payload.payment);
+      validateTargets(
+        env, playSpec, targets, affinitiesOf(state, env.ctx, payload.uid),
+        action.seat, payload.x || 0, payload.uid
+      );
+      let copyTargets = null;
+      let copyModes = null;
+      if (card.playOps.some((op) => op.op === "copyQueue")) {
+        const queueTarget = targets.find((target) => target.kind === "queue");
+        const original = queueTarget && state.queue.find((entry) => entry.qid === queueTarget.qid);
+        if (original && original.cardId) {
+          const copiedCard = cardOf(env.ctx, original.cardId);
+          copyModes = Array.isArray(payload.copyModes) ? payload.copyModes : cloneJson(original.modes || []);
+          let copiedSpec = copiedCard.playTargetSpec;
+          if (copiedCard.playModes) {
+            const mode = copyModes[0];
+            if (!Number.isInteger(mode) || mode < 0 || mode >= copiedCard.playModes.length) {
+              fail("SCHEMA", "choose one of the copied card's modes");
+            }
+            copiedSpec = copiedCard.playModes[mode].targetSpec;
+          }
+          copyTargets = payload.copyTargets === undefined
+            ? cloneJson(original.targets)
+            : normalizeTargets(payload.copyTargets);
+          validateTargets(env, copiedSpec, copyTargets, ["Power"], action.seat, original.x || 0, payload.uid);
+        }
+      }
+      let additionalCostTotal = 0;
+      const needsArchivedAvatar = card.playOps.some((op) => op.op === "additionalArchiveAvatar");
+      if (needsArchivedAvatar) {
+        const costs = Array.isArray(payload.additionalCosts) ? payload.additionalCosts : [];
+        if (costs.length !== 1) fail("SCHEMA", "archive exactly one Avatar as an additional cost");
+        const sacrificed = requireUid(state, costs[0]);
+        if (sacrificed.controller !== action.seat || zoneName(sacrificed.zone) !== "network" ||
+            !isAvatarUid(state, env.ctx, sacrificed.uid)) {
+          fail("ILLEGAL_TARGET", "additional cost must be an Avatar you control");
+        }
+        additionalCostTotal = cardTotalCost(cardOf(env.ctx, sacrificed.cardId), 0);
+        emit(env, "ARCHIVED", { uid: sacrificed.uid, cardId: sacrificed.cardId, reason: "additional cost" });
+        moveUid(env, sacrificed.uid, "archive");
+      } else if (payload.additionalCosts && payload.additionalCosts.length) {
+        fail("SCHEMA", "this card has no additional cost");
+      }
+      const variableTargetTax = card.playOps.reduce(
+        (sum, op) => sum + (
+          op.op === "variableTargetTax"
+            ? Math.max(0, targets.length - 1) * (op.genericEachBeyondFirst || 0)
+            : 0
+        ),
+        0
+      );
+      const taxed = addGeneric(
+        effectiveCardCost(card, payload.x),
+        cardTax(state, env.ctx, card) + variableTargetTax
+      );
+      const payment = settleCost(env, action.seat, taxed, payload.payment);
       const record = moveUid(env, payload.uid, "queue", { seat: action.seat });
       pushQueue(env, {
         kind: "card",
@@ -3080,6 +5333,9 @@
         modes: payload.modes || [],
         x: payload.x || 0,
         paid: payment,
+        additionalCostTotal,
+        copyTargets,
+        copyModes,
         manual: null,
       });
       // "Whenever a player plays a … card on the Queue" — raised after the
@@ -3087,7 +5343,7 @@
       raiseTriggers(env, "card-queued", {
         seat: action.seat,
         type: card.type,
-        affinity: card.affinity,
+        affinity: affinitiesOf(state, env.ctx, record.uid),
       });
     },
 
@@ -3101,9 +5357,31 @@
       const ability = card.abilities[payload.abilityIndex];
       if (!ability || ability.kind !== "activated") fail("SCHEMA", "not an activated ability");
       if (ability.resourceAbility) fail("SCHEMA", "use ACTIVATE_RESOURCE_ABILITY (§10.3)");
+      if (ability.timing === "your-turn" && state.turn.active !== action.seat) {
+        fail("WRONG_PHASE", "activate only during your turn");
+      }
+      if (ability.timing === "clash" && state.turn.phase !== "clash") {
+        fail("WRONG_PHASE", "activate only during clash");
+      }
+      if (ability.timing === "maintenance" &&
+          !(state.turn.phase === "open" && state.turn.step === "maintenance")) {
+        fail("WRONG_PHASE", "activate only during Maintenance");
+      }
+      object.activations = object.activations || {};
+      const previousActivity = object.activations[payload.abilityIndex];
+      if (ability.oncePerTurn && previousActivity &&
+          previousActivity.turn === state.turn.number && previousActivity.count >= 1) {
+        fail("ACTIVATION_LIMIT", "this ability was already activated this turn");
+      }
       const targets = normalizeTargets(payload.targets);
-      validateTargets(env, ability.targetSpec, targets, card.affinity);
-      payAbilityCost(env, action.seat, object, ability, payload.payment);
+      validateTargets(
+        env, ability.targetSpec, targets, affinitiesOf(state, env.ctx, payload.uid),
+        action.seat, payload.x || 0, payload.uid
+      );
+      payAbilityCost(env, action.seat, object, ability, payload.payment, null, payload.x || 0);
+      object.activations[payload.abilityIndex] = previousActivity && previousActivity.turn === state.turn.number
+        ? { turn: state.turn.number, count: previousActivity.count + 1 }
+        : { turn: state.turn.number, count: 1 };
       pushQueue(env, {
         kind: "ability",
         controller: action.seat,
@@ -3129,7 +5407,15 @@
       const card = cardOf(env.ctx, object.cardId);
       const ability = card.abilities[payload.abilityIndex];
       if (!ability || !ability.resourceAbility) fail("NOT_RESOURCE", "not a Resource ability");
-      payAbilityCost(env, action.seat, object, ability, null);
+      const generateOp = ability.ops.find((op) => op.op === "generate");
+      const produced = generateOp
+        ? generateOp.affinity === "neutral"
+          ? "N"
+          : generateOp.affinity === "choice"
+            ? payload.choice
+            : AFFINITY_SYMBOL[generateOp.affinity]
+        : null;
+      payAbilityCost(env, action.seat, object, ability, null, produced);
       const item = {
         kind: "manual",
         qid: null,
@@ -3145,6 +5431,41 @@
       }
       const outcome = runFrame(env, item);
       if (outcome === "pause") fail("BAD_CHOICE", "this Resource ability needs an affinity choice");
+    },
+
+    ACTIVATE_UPTIME_RESOURCE(env, payload, action) {
+      const state = env.state;
+      const granted = state.effects.some(
+        (effect) => effect.kind === "uptimeResourceAbility" && effect.controller === action.seat
+      );
+      if (!granted) fail("SCHEMA", "no Uptime Resource ability is active");
+      if (state.seats[action.seat].uptime < 1) fail("CANNOT_AFFORD", "not enough Uptime");
+      state.seats[action.seat].uptime -= 1;
+      state.seats[action.seat].buffer.N += 1;
+      emit(env, "UPTIME", { seat: action.seat, delta: -1 });
+      emit(env, "GENERATE", { seat: action.seat, symbol: "N", amount: 1 });
+    },
+
+    ACTIVATE_GRANTED_ABILITY(env, payload, action) {
+      const state = env.state;
+      requirePriority(env, action.seat);
+      const object = requireUid(state, payload.uid);
+      const grantor = requireUid(state, payload.grantorUid);
+      if (object.controller !== action.seat) fail("NOT_CONTROLLER", "you must control the Zombie");
+      if (zoneName(object.zone) !== "network" || zoneName(grantor.zone) !== "network") {
+        fail("NOT_IN_ZONE", "the Zombie and grantor must be on the Network");
+      }
+      if (object.uid === grantor.uid) fail("SCHEMA", "the granted ability applies to other Zombies");
+      const grant = cardOf(env.ctx, grantor.cardId).abilities
+        .map((ability) => ability.kind === "rule-static" ? ability.rule : null)
+        .find((rule) => rule && rule.name === "tribalActivatedAbility" &&
+          String(cardOf(env.ctx, object.cardId).subtype || "").indexOf(rule.tribe) >= 0);
+      if (!grant) fail("SCHEMA", "that card has no granted ability");
+      settleCost(env, action.seat, grant.cost, payload.payment);
+      pushQueue(env, {
+        kind: "manual", controller: action.seat, sourceUid: object.uid,
+        cardId: grantor.cardId, targets: [], ops: grant.ops,
+      });
     },
 
     DECLARE_ATTACKERS(env, payload, action) {
@@ -3164,13 +5485,57 @@
           fail("NOT_IN_ZONE", "that object is not on the Network", { uid });
         }
         if (!canAttack(env, uid)) fail("CANNOT_ATTACK", `${uid} cannot attack`);
+        revealMasked(env, uid, "commit");
         state.clash.attackers.push(uid);
         // §13.1 declaring an Avatar as an attacker commits it.
-        state.objects[uid].committed = true;
+        if (!hasRule(state, env.ctx, uid, "attackDoesNotCommit")) {
+          state.objects[uid].committed = true;
+        }
+        state.turn.attacked = state.turn.attacked || [];
+        if (state.turn.attacked.indexOf(uid) < 0) state.turn.attacked.push(uid);
+        for (const ability of cardOf(env.ctx, state.objects[uid].cardId).abilities) {
+          const rule = ability.kind === "rule-static" && ability.rule;
+          if (rule && rule.removeAfterCombat && state.objects[uid].counters[rule.counter] > 0) {
+            state.objects[uid].counters[rule.counter] -= rule.removeAfterCombat;
+          }
+        }
         if (entry && entry.mesh) state.clash.meshGroups[uid] = String(entry.mesh);
       }
+      const meshGroups = Object.create(null);
+      for (const [uid, groupId] of Object.entries(state.clash.meshGroups)) {
+        if (typeof groupId !== "string" || !groupId || groupId.length > 32) {
+          fail("ILLEGAL_MESH", "Mesh group ids must be 1-32 characters");
+        }
+        (meshGroups[groupId] = meshGroups[groupId] || []).push(uid);
+      }
+      for (const members of Object.values(meshGroups)) {
+        const meshCount = members.filter((uid) => hasKeywordUid(state, env.ctx, uid, "Mesh")).length;
+        if (!meshCount || members.length - meshCount > 1) {
+          fail("ILLEGAL_MESH", "a Mesh needs Mesh Avatars and at most one non-Mesh Avatar");
+        }
+      }
+      for (const uid of zoneArray(state, zoneKey(action.seat, "network"))) {
+        const forced = state.effects.some(
+          (effect) => (effect.kind === "forceAttack" && effect.targetUid === uid) ||
+            (effect.kind === "forceAttackAll" && effect.controller === action.seat &&
+              !hasKeywordUid(state, env.ctx, uid, "Firewall") &&
+              state.objects[uid].entersSeq < (state.turn.startedSeq || 0))
+        );
+        if ((hasRule(state, env.ctx, uid, "mustAttack") || forced) && canAttack(env, uid) && !seen[uid]) {
+          fail("MUST_ATTACK", `${uid} attacks each clash if able`);
+        }
+      }
       state.awaiting = null;
-      emit(env, "ATTACKERS", { seat: action.seat, attackers: state.clash.attackers.slice() });
+      state.priority.seat = state.turn.active;
+      state.priority.passed = [false, false];
+      emit(env, "ATTACKERS", {
+        seat: action.seat,
+        attackers: state.clash.attackers.slice(),
+        meshGroups: cloneJson(state.clash.meshGroups),
+      });
+      if (state.clash.attackers.length) {
+        raiseTriggers(env, "attackers-declared", { seat: action.seat, attackers: state.clash.attackers.slice() });
+      }
       if (!state.clash.attackers.length) skipRestOfPhase(env);
     },
 
@@ -3187,8 +5552,18 @@
         if (!Array.isArray(list)) fail("SCHEMA", "blocks values must be arrays");
         for (const blockerUid of list) {
           requireUid(state, blockerUid);
-          if (used[blockerUid]) fail("CANNOT_BLOCK", "a blocker may block one attacker");
-          used[blockerUid] = true;
+          const allowance = 1 + cardOf(env.ctx, state.objects[blockerUid].cardId).abilities.reduce(
+            (sum, ability) => sum + (
+              ability.kind === "rule-static" && ability.rule && ability.rule.name === "additionalBlock"
+                ? ability.rule.count || 0
+                : 0
+            ),
+            0
+          ) + (state.effects.some(
+            (effect) => effect.kind === "clashRule" && effect.targetUid === blockerUid && effect.forceBlockAll
+          ) ? 1000 : 0);
+          used[blockerUid] = (used[blockerUid] || 0) + 1;
+          if (used[blockerUid] > allowance) fail("CANNOT_BLOCK", "that blocker reached its block limit");
           if (state.objects[blockerUid].controller !== action.seat) fail("NOT_CONTROLLER", blockerUid);
           if (zoneName(state.objects[blockerUid].zone) !== "network") fail("NOT_IN_ZONE", blockerUid);
           if (!canBlock(env, blockerUid, attackerUid)) fail("CANNOT_BLOCK", `${blockerUid} cannot block that attacker`);
@@ -3202,7 +5577,55 @@
           }
         }
       }
+      for (const effect of state.effects) {
+        if (effect.kind !== "clashRule" || !effect.forceBlockAll || !state.objects[effect.targetUid]) continue;
+        for (const attackerUid of state.clash.attackers) {
+          if (canBlock(env, effect.targetUid, attackerUid) &&
+              !(blocks[attackerUid] || []).includes(effect.targetUid)) {
+            fail("MUST_BLOCK", `${effect.targetUid} must block each attacker if able`);
+          }
+        }
+      }
+      const blockedMeshGroups = new Set();
+      for (const attackerUid of Object.keys(state.clash.blocks)) {
+        if ((state.clash.blocks[attackerUid] || []).length && state.clash.meshGroups[attackerUid]) {
+          blockedMeshGroups.add(state.clash.meshGroups[attackerUid]);
+        }
+      }
+      for (const [attackerUid, groupId] of Object.entries(state.clash.meshGroups)) {
+        if (blockedMeshGroups.has(groupId) && state.clash.blockedOnce.indexOf(attackerUid) < 0) {
+          state.clash.blockedOnce.push(attackerUid);
+        }
+      }
+      for (const blockerUid of Object.keys(used)) {
+        for (const ability of cardOf(env.ctx, state.objects[blockerUid].cardId).abilities) {
+          const rule = ability.kind === "rule-static" && ability.rule;
+          if (rule && rule.removeAfterCombat && state.objects[blockerUid].counters[rule.counter] > 0) {
+            state.objects[blockerUid].counters[rule.counter] -= rule.removeAfterCombat;
+          }
+        }
+      }
+      for (const [attackerUid, blockerUids] of Object.entries(blocks)) {
+        for (const blockerUid of blockerUids) {
+          if (!hasKeywordUid(state, env.ctx, blockerUid, "Firewall")) {
+            raiseTriggers(env, "blocks-non-firewall", { uid: attackerUid, otherUid: blockerUid });
+          }
+          if (!hasKeywordUid(state, env.ctx, attackerUid, "Firewall")) {
+            raiseTriggers(env, "blocks-non-firewall", { uid: blockerUid, otherUid: attackerUid });
+          }
+        }
+      }
+      for (const attackerUid of state.clash.attackers) {
+        if (!attachmentGrants(state, env.ctx, attackerUid).some((grants) => grants.mustBeBlocked)) continue;
+        for (const blockerUid of zoneArray(state, zoneKey(action.seat, "network"))) {
+          if (canBlock(env, blockerUid, attackerUid) && !(blocks[attackerUid] || []).includes(blockerUid)) {
+            fail("MUST_BLOCK", `${blockerUid} must block ${attackerUid}`);
+          }
+        }
+      }
       state.awaiting = null;
+      state.priority.seat = state.turn.active;
+      state.priority.passed = [false, false];
       emit(env, "BLOCKERS", { seat: action.seat, blocks: cloneJson(state.clash.blocks) });
     },
 
@@ -3251,6 +5674,7 @@
       if (pending.seat !== action.seat) fail("NOT_YOUR_SEAT", "not your choice");
       const selection = payload.selection;
       if (!Array.isArray(selection)) fail("BAD_CHOICE", "selection must be an array");
+      if (new Set(selection).size !== selection.length) fail("BAD_CHOICE", "choose each option at most once");
       if (selection.length < pending.min || selection.length > pending.max) {
         fail("BAD_CHOICE", `choose between ${pending.min} and ${pending.max}`);
       }
@@ -3272,7 +5696,7 @@
         }
       }
       emit(env, "CHOSE", { seat: action.seat, choiceId: pending.id, count: picks.length });
-      state.priority.seat = state.turn.active;
+      state.priority.seat = state.awaiting ? null : state.turn.active;
       state.priority.passed = [false, false];
     },
 
@@ -3294,13 +5718,163 @@
       emit(env, "TRIGGERS_ORDERED", { seat: action.seat, count: ordered.length });
     },
 
+    CHOOSE_UNLOCK(env, payload, action) {
+      const state = env.state;
+      requireAwaiting(env, "unlock", action.seat);
+      const awaiting = state.awaiting;
+      const chosen = Array.isArray(payload.uids) ? payload.uids : [];
+      if (new Set(chosen).size !== chosen.length) fail("SCHEMA", "duplicate unlock choice");
+      for (const uid of awaiting.required) {
+        if (chosen.indexOf(uid) < 0) fail("SCHEMA", "all uncapped cards must unlock");
+      }
+      const allowed = awaiting.required.concat(awaiting.selectable);
+      for (const uid of chosen) {
+        if (allowed.indexOf(uid) < 0) fail("ILLEGAL_TARGET", "that card cannot unlock");
+      }
+      for (const [kind, cap] of Object.entries(awaiting.caps)) {
+        const matches = (uid) => kind === "Avatar"
+          ? isAvatarUid(state, env.ctx, uid)
+          : isResourceUid(state, env.ctx, uid);
+        const count = chosen.filter(matches).length;
+        const available = awaiting.selectable.filter(matches).length;
+        if (count !== Math.min(cap, available)) {
+          fail("SCHEMA", `choose exactly ${Math.min(cap, available)} ${kind}`);
+        }
+      }
+      for (const uid of chosen) state.objects[uid].committed = false;
+      state.awaiting = null;
+      emit(env, "UNLOCK", { seat: action.seat, uids: chosen });
+    },
+
+    CHOOSE_DRAW(env, payload, action) {
+      const state = env.state;
+      requireAwaiting(env, "drawReplacement", action.seat);
+      if (typeof payload.skip !== "boolean") fail("SCHEMA", "skip must be a boolean");
+      state.awaiting = null;
+      if (payload.skip) {
+        state.effects.push({
+          id: "e" + state.nextEid++, sourceUid: null, layer: 6,
+          kind: "attackShield", controller: action.seat,
+          startedSeq: state.seq,
+        });
+        emit(env, "DRAW_SKIPPED", { seat: action.seat });
+      } else {
+        drawCards(env, action.seat, 1);
+      }
+    },
+
+    CHOOSE_SOVEREIGN_ARCHIVE(env, payload, action) {
+      const state = env.state;
+      const awaiting = requireAwaiting(env, "sovereignDamage", action.seat);
+      const uids = Array.isArray(payload.uids) ? payload.uids : [];
+      if (new Set(uids).size !== uids.length || uids.length !== awaiting.amount) {
+        fail("SCHEMA", `archive exactly ${awaiting.amount} non-proxy card(s)`);
+      }
+      for (const uid of uids) {
+        const object = requireUid(state, uid);
+        if (object.controller !== action.seat || zoneName(object.zone) !== "network" || object.token) {
+          fail("ILLEGAL_TARGET", "choose a non-proxy card you control on the Network");
+        }
+      }
+      state.awaiting = null;
+      state.sovereignDamage[action.seat] = 0;
+      for (const uid of uids) {
+        if (state.objects[uid]) moveUid(env, uid, "archive");
+      }
+      emit(env, "SOVEREIGN_ARCHIVE", { seat: action.seat, uids });
+    },
+
+    REMOTE_PLAY_CARD(env, payload, action) {
+      const state = env.state;
+      const awaiting = requireAwaiting(env, "remotePlay", action.seat);
+      const payer = awaiting.payer;
+      const object = requireUid(state, awaiting.uid);
+      if (object.zone !== zoneKey(payer, "wallet") || object.cardId !== awaiting.cardId) {
+        fail("NOT_IN_ZONE", "the chosen card is no longer in that Wallet");
+      }
+      const card = cardOf(env.ctx, object.cardId);
+      const targets = normalizeTargets(payload.targets);
+      let playSpec = card.playTargetSpec;
+      if (card.playModes) {
+        const mode = Array.isArray(payload.modes) ? payload.modes[0] : undefined;
+        if (!Number.isInteger(mode) || mode < 0 || mode >= card.playModes.length) {
+          fail("SCHEMA", "choose one of this card's modes");
+        }
+        playSpec = card.playModes[mode].targetSpec;
+      }
+      validateTargets(
+        env, playSpec, targets, affinitiesOf(state, env.ctx, object.uid),
+        payer, payload.x || 0, object.uid
+      );
+      let additionalCostTotal = 0;
+      const needsArchivedAvatar = card.playOps.some((op) => op.op === "additionalArchiveAvatar");
+      if (needsArchivedAvatar) {
+        const costs = Array.isArray(payload.additionalCosts) ? payload.additionalCosts : [];
+        if (costs.length !== 1) fail("SCHEMA", "archive exactly one Avatar as an additional cost");
+        const sacrificed = requireUid(state, costs[0]);
+        if (sacrificed.controller !== payer || zoneName(sacrificed.zone) !== "network" ||
+            !isAvatarUid(state, env.ctx, sacrificed.uid)) {
+          fail("ILLEGAL_TARGET", "additional cost must be an Avatar the payer controls");
+        }
+        additionalCostTotal = cardTotalCost(cardOf(env.ctx, sacrificed.cardId), 0);
+        emit(env, "ARCHIVED", {
+          uid: sacrificed.uid,
+          cardId: sacrificed.cardId,
+          reason: "additional cost",
+        });
+        moveUid(env, sacrificed.uid, "archive");
+      } else if (payload.additionalCosts && payload.additionalCosts.length) {
+        fail("SCHEMA", "this card has no additional cost");
+      }
+      const taxed = addGeneric(
+        effectiveCardCost(card, payload.x),
+        cardTax(state, env.ctx, card)
+      );
+      const payment = settleCost(env, payer, taxed, payload.payment);
+      const record = moveUid(env, object.uid, "queue", { seat: payer });
+      state.awaiting = null;
+      pushQueue(env, {
+        kind: "card", controller: payer, objectUid: record.uid, cardId: object.cardId,
+        sourceUid: record.uid, abilityIndex: null, targets, modes: payload.modes || [],
+        x: payload.x || 0, paid: payment, additionalCostTotal, manual: null,
+      });
+      raiseTriggers(env, "card-queued", {
+        seat: payer,
+        type: card.type,
+        affinity: affinitiesOf(state, env.ctx, record.uid),
+      });
+      emit(env, "REMOTE_PLAYED", { controller: action.seat, payer, cardId: card.id });
+    },
+
+    CHOOSE_TOMBSTONE_CLEANUP(env, payload, action) {
+      const state = env.state;
+      const awaiting = requireAwaiting(env, "tombstoneCleanup", action.seat);
+      const uids = Array.isArray(payload.uids) ? payload.uids : [];
+      if (uids.length !== awaiting.tasks.length) {
+        fail("SCHEMA", "choose one marked Resource for each archived Tombstone");
+      }
+      awaiting.tasks.forEach((task, index) => {
+        const uid = uids[index];
+        if (task.options.indexOf(uid) < 0 || !state.objects[uid]) {
+          fail("ILLEGAL_TARGET", "that Resource is not marked by this Tombstone");
+        }
+        delete state.objects[uid].counters[task.key];
+        state.effects = state.effects.filter(
+          (effect) => !(effect.kind === "tombstoneAffinity" && effect.targetUid === uid && effect.mark === task.key)
+        );
+      });
+      state.awaiting = null;
+      emit(env, "TOMBSTONE_CLEANUP", { seat: action.seat, uids });
+    },
+
     DISCARD_TO_LIMIT(env, payload, action) {
       const state = env.state;
       requireAwaiting(env, "discard", action.seat);
       const wallet = zoneArray(state, zoneKey(action.seat, "wallet"));
       const uids = payload.uids || [];
-      if (wallet.length - uids.length !== state.handLimit) {
-        fail("HAND_LIMIT", `discard exactly ${wallet.length - state.handLimit}`);
+      const maximum = maximumWalletSize(state, env.ctx, action.seat);
+      if (wallet.length - uids.length !== maximum) {
+        fail("HAND_LIMIT", `discard exactly ${wallet.length - maximum}`);
       }
       for (const uid of uids) {
         requireUid(state, uid);
@@ -3508,14 +6082,55 @@
     if (item.kind === "card" && item.objectUid && env.state.objects[item.objectUid]) {
       if (card.isPermanent) {
         const record = moveUid(env, item.objectUid, "network", { seat: item.controller });
+        configureEnteredPermanent(env, record, item, card);
+        const attach = (card.keywords || []).find((keyword) => keyword.name === "Attach");
+        const host = attach && item.targets[0];
+        const hostUid = item.archiveBootHostUid || (host && host.kind === "object" ? host.uid : null);
+        if (hostUid && env.state.objects[hostUid] && zoneName(env.state.objects[hostUid].zone) === "network") {
+          record.attachedTo = hostUid;
+        }
+        if (item.sovereignMode) {
+          record.sovereign = true;
+          env.state.seats[item.controller].uptime = 0;
+          emit(env, "SOVEREIGN_MODE", { seat: item.controller, uid: record.uid });
+        }
+        for (const ability of card.abilities) {
+          const rule = ability.kind === "rule-static" && ability.rule;
+          if (!rule) continue;
+          if (rule.name === "entersCounter") record.counters[rule.counter] = rule.amount;
+          if (rule.name === "entersXCounter") record.counters[rule.counter] = item.x || 0;
+        }
         emit(env, "ENTERS", { uid: record.uid, cardId: item.cardId, seat: item.controller });
+        raiseTriggers(env, "self-enters", {
+          uid: record.uid,
+          seat: record.controller,
+          type: card.type,
+          affinity: affinitiesOf(env.state, env.ctx, record.uid),
+        });
         announceManual(env, item, record.uid);
       } else {
         const record = moveUid(env, item.objectUid, "archive");
         emit(env, "ARCHIVED", { uid: record.uid, cardId: item.cardId, reason: "resolved" });
         announceManual(env, item, record.uid);
       }
+    } else if (item.kind === "ability") {
+      const ability = card && card.abilities[item.abilityIndex];
+      if (ability && ability.manual) announceManual(env, item, item.sourceUid);
+      emit(env, "RESOLVED", { qid: item.qid, cardId: item.cardId, abilityIndex: item.abilityIndex });
     }
+  }
+
+  function configureEnteredPermanent(env, record, item, originalCard) {
+    if (item.enterAffinity) record.chosenAffinity = item.enterAffinity;
+    if (!item.enterCopyCardId) return;
+    const originalAffinity = originalCard.affinity.slice();
+    record.copyBaseCardId = record.cardId;
+    record.cardId = item.enterCopyCardId;
+    record.typeAdditions = item.enterCopyKeepType ? [item.enterCopyKeepType] : [];
+    record.affinityOverride = item.enterCopyKeepAffinity ? originalAffinity : null;
+    record.adaptive = Boolean(item.enterAdaptive);
+    record.bootDelay = cardOf(env.ctx, record.cardId).isAvatar;
+    emit(env, "ENTERS_AS_COPY", { uid: record.uid, copiedCardId: record.cardId });
   }
 
   /* An X in the printed cost ("XB") charges X generic per X symbol, at the
@@ -3530,35 +6145,145 @@
     return effective;
   }
 
+  function effectiveCardCost(card, x) {
+    const effective = costWithX(card.costParsed, x);
+    const xAffinity = card.playOps.find((op) => op.xPayment);
+    if (!xAffinity || !card.costParsed || !card.costParsed.x) return effective;
+    const adjusted = Object.assign({}, effective);
+    const amount = (x || 0) * card.costParsed.x;
+    adjusted.generic = Math.max(0, (adjusted.generic || 0) - amount);
+    adjusted[xAffinity.xPayment] = (adjusted[xAffinity.xPayment] || 0) + amount;
+    return adjusted;
+  }
+
   function settleCost(env, seat, cost, payment) {
     const buffer = env.state.seats[seat].buffer;
     if (!cost) return emptyBuffer();
-    if (!canPay(buffer, cost)) fail("CANNOT_AFFORD", "not enough Resources in the Buffer");
-    const settled = payment ? verifyPayment(buffer, cost, payment) : autoPayment(buffer, cost);
+    let automatic;
+    try {
+      automatic = autoPaymentFor(env, seat, cost);
+    } catch (error) {
+      fail("CANNOT_AFFORD", "not enough Resources in the Buffer");
+    }
+    const settled = payment ? verifyPaymentFor(env, seat, cost, payment) : automatic;
     spendBuffer(seat, buffer, settled);
     emit(env, "PAID", { seat, payment: settled, auto: !payment });
     return settled;
   }
 
-  function payAbilityCost(env, seat, object, ability, payment) {
+  function payAbilityCost(env, seat, object, ability, payment, produced, x) {
     if (ability.commit) {
       // §19.4 an ability with Commit is usable once per Unlock.
       if (object.committed) fail("CANNOT_AFFORD", "that object is already committed");
       if (object.bootDelay) fail("CANNOT_AFFORD", "Boot Delay: it cannot pay a Commit cost yet");
     }
-    const settled = settleCost(env, seat, ability.costParsed, payment);
+    const card = cardOf(env.ctx, object.cardId);
+    const settled = settleCost(
+      env,
+      seat,
+      addGeneric(costWithX(ability.costParsed, x), abilityTax(env.state, env.ctx, card)),
+      payment
+    );
     if (ability.commit) {
+      revealMasked(env, object.uid, "commit");
       object.committed = true;
-      const card = cardOf(env.ctx, object.cardId);
       raiseTriggers(env, "committed", {
         uid: object.uid,
         seat: object.controller,
         type: card.type,
-        affinity: card.affinity,
+        affinity: affinitiesOf(env.state, env.ctx, object.uid),
+        produced: produced || null,
       });
     }
     if (ability.archiveSelf) moveUid(env, object.uid, "archive");
     return settled;
+  }
+
+  function processDelayed(env, at) {
+    const state = env.state;
+    const ready = (state.delayed || []).filter((entry) => entry.at === at);
+    state.delayed = (state.delayed || []).filter((entry) => entry.at !== at);
+    for (const entry of ready) {
+      if (entry.op === "decommission" && state.objects[entry.uid]) {
+        if (entry.onlyIfAttacked && (state.turn.attacked || []).indexOf(entry.uid) < 0) continue;
+        if (entry.onlyIfNotAttacked && (state.turn.attacked || []).indexOf(entry.uid) >= 0) continue;
+        decommissionUid(env, entry.uid, entry.sourceUid || null);
+      }
+    }
+  }
+
+  function prepareTombstoneCleanup(env, seat) {
+    const state = env.state;
+    const tasks = (state.archivedTombstones || []).filter((entry) => entry.controller === seat)
+      .map((entry) => ({
+        key: entry.key,
+        options: zoneArray(state, zoneKey(seat, "network")).filter(
+          (uid) => state.objects[uid] && (state.objects[uid].counters[entry.key] || 0) > 0
+        ),
+      }))
+      .filter((entry) => entry.options.length);
+    if (!tasks.length) return;
+    state.awaiting = { kind: "tombstoneCleanup", seat, tasks };
+    state.priority.seat = null;
+    emit(env, "TOMBSTONE_CLEANUP_REQUIRED", { seat, count: tasks.length });
+  }
+
+  function raiseGrantedMaintenance(env, activeSeat) {
+    const state = env.state;
+    for (const seat of seatsOf(state)) {
+      for (const uid of zoneArray(state, zoneKey(seat, "network"))) {
+        const attachment = state.objects[uid];
+        if (!attachment || !attachment.attachedTo) continue;
+        const host = state.objects[attachment.attachedTo];
+        if (!host || host.controller !== activeSeat) continue;
+        for (const grants of attachmentGrants(state, env.ctx, attachment.attachedTo)) {
+          if (grants.sourceUid !== uid || !grants.maintenanceAbility) continue;
+          state.nextTriggerId = state.nextTriggerId || 1;
+          state.pendingTriggers[String(activeSeat)].push({
+            kind: "triggered",
+            pendingId: "t" + state.nextTriggerId++,
+            controller: activeSeat,
+            sourceUid: uid,
+            cardId: attachment.cardId,
+            targets: [],
+            ops: [{
+              op: "mayPay",
+              cost: grants.maintenanceAbility.cost,
+              then: [{ op: "uptime", amount: grants.maintenanceAbility.uptime, target: "you" }],
+              prompt: "Pay for the attached Maintenance ability?",
+              payLabel: "Pay",
+            }],
+            abilityIndex: null,
+          });
+          emit(env, "TRIGGERED", { seat: activeSeat, uid, cardId: attachment.cardId, on: "maintenance" });
+        }
+      }
+    }
+  }
+
+  function cardTotalCost(card, x) {
+    const cost = costWithX(card.costParsed, x) || {};
+    return (cost.generic || 0) + SYMBOLS.reduce((sum, symbol) => sum + (cost[symbol] || 0), 0);
+  }
+
+  function validatePlayRestrictions(state, seat, card) {
+    for (const restriction of card.playRestrictions || []) {
+      const phase = state.turn.phase;
+      const step = state.turn.step;
+      let legal = true;
+      if (restriction.window === "clash-before-blockers") {
+        legal = phase === "clash" && ["start", "attackers"].indexOf(step) >= 0;
+      } else if (restriction.window === "opponent-before-attackers") {
+        legal = state.turn.active !== seat && (
+          ["open", "build1"].indexOf(phase) >= 0 || (phase === "clash" && step === "start")
+        );
+      } else if (restriction.window === "blockers") {
+        legal = phase === "clash" && step === "blockers";
+      } else if (restriction.window === "before-clash-damage") {
+        legal = phase === "clash" && ["start", "attackers", "blockers", "order"].indexOf(step) >= 0;
+      }
+      if (!legal) fail("WRONG_PHASE", `card may only be played in ${restriction.window}`);
+    }
   }
 
   function verifyAssignment(env, assignment, firstStrike) {
@@ -3643,6 +6368,14 @@
       }
       if (state.pendingChoice && ["CHOOSE", "CONCEDE", "MANUAL_FLAG"].indexOf(action.type) < 0) {
         fail("NO_PENDING_CHOICE", "answer the open prompt first");
+      }
+      const awaitedAction = state.awaiting && {
+        remotePlay: "REMOTE_PLAY_CARD",
+        sovereignDamage: "CHOOSE_SOVEREIGN_ARCHIVE",
+        tombstoneCleanup: "CHOOSE_TOMBSTONE_CLEANUP",
+      }[state.awaiting.kind];
+      if (awaitedAction && [awaitedAction, "CONCEDE"].indexOf(action.type) < 0) {
+        fail("WRONG_STEP", `complete ${state.awaiting.kind} first`);
       }
 
       const draft = cloneJson(state); // 7. mutate a draft, never the input
@@ -3972,8 +6705,9 @@
 
   /* Computed from the REDACTED state when served to a client: the COUNT of
    * legal actions discloses the contents of a hidden hand. */
-  function legalActions(source, seat) {
+  function legalActions(source, seat, ctx) {
     const state = source;
+    const context = resolveCtx(ctx);
     const out = [];
     const push = (type, payload) => out.push({ type, seat, seq: state.seq, payload: payload || {} });
     if (!state || state.result) {
@@ -4008,10 +6742,18 @@
       if (awaiting.kind === "damage") push("ASSIGN_COMBAT_DAMAGE", { assignment: null });
       if (awaiting.kind === "discard") push("DISCARD_TO_LIMIT", { uids: [] });
       if (awaiting.kind === "triggers") push("ORDER_TRIGGERS", { qids: [] });
+      if (awaiting.kind === "unlock") push("CHOOSE_UNLOCK", { uids: awaiting.required || [] });
+      if (awaiting.kind === "drawReplacement") push("CHOOSE_DRAW", { skip: false });
+      if (awaiting.kind === "sovereignDamage") push("CHOOSE_SOVEREIGN_ARCHIVE", { uids: [] });
+      if (awaiting.kind === "remotePlay") push("REMOTE_PLAY_CARD", { targets: [] });
+      if (awaiting.kind === "tombstoneCleanup") push("CHOOSE_TOMBSTONE_CLEANUP", { uids: [] });
       return out;
     }
     if (state.priority.seat !== seat) return out;
     push("PASS_PRIORITY");
+    if (state.effects.some(
+      (effect) => effect.kind === "uptimeResourceAbility" && effect.controller === seat
+    )) push("ACTIVATE_UPTIME_RESOURCE");
 
     const wallet = state.zones[zoneKey(seat, "wallet")];
     const network = state.zones[zoneKey(seat, "network")];
@@ -4020,7 +6762,10 @@
         const object = state.objects[uid];
         if (!object || !object.cardId) continue;
         push("PLAY_CARD", { uid });
-        if (state.turn.active === seat && state.turn.resourcePlays.used < state.turn.resourcePlays.allowed) {
+        if (
+          state.turn.active === seat &&
+          state.turn.resourcePlays.used < resourcePlayLimit(state, context, seat)
+        ) {
           push("PLAY_RESOURCE", { uid });
         }
       }
@@ -4054,6 +6799,7 @@
       entryHash,
       setCatalog,
       buildCatalog,
+      previewClash,
     });
 
   return {
@@ -4072,6 +6818,7 @@
     entryHash,
     setCatalog,
     buildCatalog,
+    previewClash,
     compileCard,
     canonicalJSON,
     cloneJson,
@@ -4081,6 +6828,7 @@
     shuffleInPlace,
     newStream,
     statsOf,
+    affinitiesOf,
     keywordsOf,
     shieldedFrom,
     canAttack,

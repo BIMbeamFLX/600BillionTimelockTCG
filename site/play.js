@@ -54,7 +54,12 @@
    * intent between the first click and the one action that gets dispatched. */
   let picking = null; // { kind:"play"|"ability", uid, abilityIndex, spec, targets }
   let attackers = [];
+  let meshGroupActive = false;
   let blocks = {};
+  let choiceSelection = [];
+  let choiceSelectionId = null;
+  let awaitingSelection = [];
+  let awaitingSelectionKey = null;
 
   /* Which seat the hotseat table is currently speaking to. Priority rather than
    * turn.active, because the defender acts during the blockers step — and for a
@@ -223,6 +228,7 @@
   const FX_PHASE = { open: "unlock", build1: "build1", clash: "clash", build2: "build2", close: "cleanup" };
 
   function fx(event) {
+    showActionFx(event);
     const FX = globalThis.E1FX;
     if (!FX) return; // the game must run with fx.js absent
     const card = event.cardId ? CARD_BY_ID[event.cardId] : null;
@@ -266,6 +272,39 @@
   const nameOf = (cardId) => (CARD_BY_ID[cardId] ? CARD_BY_ID[cardId].name : "a card");
   const seatName = (seat) => (session.full ? session.full.seats[seat].name : `Seat ${seat}`);
 
+  function showActionFx(event) {
+    const host = document.getElementById("actionFx");
+    if (!host || !event) return;
+    const described = describe(event);
+    const label = described && described[0]
+      ? described[0]
+      : String(event.t || "ACTION").replaceAll("_", " ");
+    const impact = ["DAMAGE", "BURN", "ARCHIVED", "DECOMMISSIONED", "INVALIDATED", "GAME_OVER"];
+    const gains = ["UPTIME", "GENERATE", "DRAW", "REBOOT", "PREVENTED", "PUMP", "COUNTER"];
+    const actions = ["QUEUED", "ENTERS", "RESOLVED", "ATTACKERS", "BLOCKERS", "COMMIT", "PAID", "SPEND"];
+    const tone = impact.indexOf(event.t) >= 0
+      ? "impact"
+      : gains.indexOf(event.t) >= 0
+        ? "gain"
+        : actions.indexOf(event.t) >= 0 ? "action" : "system";
+    const icon = tone === "impact" ? "⚡" : tone === "gain" ? "▲" : tone === "action" ? "◆" : "·";
+    const FX = globalThis.E1FX;
+    const reducedMotion = FX && typeof FX.get === "function" && FX.get().motionActive === "reduced";
+    const node = el("div", `action-burst ${tone}${reducedMotion ? " reduced" : ""}`, `${icon} ${label}`);
+    host.append(node);
+    if (host.children.length > 5) {
+      // Phase/pass chatter can arrive immediately after resolution. Keep the
+      // bounded overlay, but sacrifice ordinary beats before a hit or Uptime
+      // change that the player still needs to understand.
+      const removable = Array.from(host.children).find((child) =>
+        child !== node && !/(?:^|\s)(?:impact|gain)(?:\s|$)/.test(child.className || ""),
+      ) || host.children[0];
+      if (removable && removable.remove) removable.remove();
+    }
+    const timer = setTimeout(() => node.remove(), 1400);
+    if (timer && typeof timer.unref === "function") timer.unref();
+  }
+
   /* The engine emits structured events and never prose; all wording lives here
    * so it can change without touching a hashed byte. */
   function describe(event) {
@@ -298,7 +337,12 @@
       case "PUMP": return ["A stat modifier is applied.", "good"];
       case "COUNTER": return [`A ${p.name} counter is placed.`, "good"];
       case "COMMIT": return [p.value ? "An object is committed." : "An object is unlocked.", ""];
-      case "ATTACKERS": return [p.attackers.length ? `${seatName(p.seat)} attacks with ${p.attackers.length}.` : `${seatName(p.seat)} declares no attackers.`, ""];
+      case "ATTACKERS": {
+        const meshCount = new Set(Object.values(p.meshGroups || {})).size;
+        return [p.attackers.length
+          ? `${seatName(p.seat)} attacks with ${p.attackers.length}${meshCount ? ` in ${meshCount} Mesh group${meshCount === 1 ? "" : "s"}` : ""}.`
+          : `${seatName(p.seat)} declares no attackers.`, ""];
+      }
       case "BLOCKERS": return [`${seatName(p.seat)} declares blocks.`, ""];
       case "ORDER": return ["Blockers are ordered.", ""];
       case "COMBAT_DAMAGE": return [p.firstStrike ? "First Strike damage." : "Combat damage.", "warn"];
@@ -606,6 +650,20 @@
         run: () => beginAbility(v, seat, uid, index),
       });
     });
+    for (const grantorUid of v.zones[`${seat}:network`] || []) {
+      const grantor = v.objects[grantorUid];
+      if (!grantor || !grantor.cardId) continue;
+      for (const ability of compiled(grantor.cardId).abilities) {
+        const rule = ability.kind === "rule-static" && ability.rule &&
+          ability.rule.name === "tribalActivatedAbility" ? ability.rule : null;
+        if (!rule || String(card.subtype || "").indexOf(rule.tribe) < 0) continue;
+        entries.push({
+          label: `${rule.tribe}: granted ability`,
+          disabled: false,
+          run: () => dispatch("ACTIVATE_GRANTED_ABILITY", seat, { uid, grantorUid }),
+        });
+      }
+    }
     if (!entries.length) return void openCardDetail(v, seat, uid, false, at);
     const live = entries.filter((e) => !e.disabled);
     if (live.length === 1 && entries.length === 1) return void live[0].run();
@@ -622,6 +680,9 @@
     if (card.isResource) return void playAdvancing(seat, () => dispatch("PLAY_RESOURCE", seat, { uid }));
     const finish = (x, modes) => {
       const spec = modes ? card.playModes[modes[0]].targetSpec : card.playTargetSpec;
+      if (spec.length === 1 && spec[0].variable && spec[0].exactX && !x) {
+        return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, playPayload(uid, [], 0, modes)));
+      }
       if (!spec.length) {
         return void playAdvancing(seat, () => dispatch("PLAY_CARD", seat, playPayload(uid, [], x, modes)));
       }
@@ -644,6 +705,54 @@
     chooseMode(0);
   }
 
+  function beginRemotePlay(v, seat, additionalCosts) {
+    const awaiting = v.awaiting;
+    if (!awaiting || awaiting.kind !== "remotePlay" || awaiting.seat !== seat) return;
+    const card = compiled(awaiting.cardId);
+    const costs = Array.isArray(additionalCosts) ? additionalCosts.slice() : [];
+    if (card.playOps.some((op) => op.op === "additionalArchiveAvatar") && !costs.length) {
+      picking = {
+        kind: "remoteCost",
+        uid: awaiting.uid,
+        spec: [{ kind: "avatar", whose: "remote-payer", prompt: "an Avatar to archive as the additional cost" }],
+        targets: [],
+      };
+      return void render();
+    }
+    const finish = (x, modes) => {
+      const spec = modes ? card.playModes[modes[0]].targetSpec : card.playTargetSpec;
+      if (spec.length === 1 && spec[0].variable && spec[0].exactX && !x) {
+        const payload = { targets: [], x: 0 };
+        if (modes) payload.modes = modes;
+        if (costs.length) payload.additionalCosts = costs;
+        return void dispatch("REMOTE_PLAY_CARD", seat, payload);
+      }
+      if (!spec.length) {
+        const payload = { targets: [], x: x || 0 };
+        if (modes) payload.modes = modes;
+        if (costs.length) payload.additionalCosts = costs;
+        return void dispatch("REMOTE_PLAY_CARD", seat, payload);
+      }
+      picking = { kind: "remote", uid: awaiting.uid, spec, targets: [], x, modes, additionalCosts: costs };
+      render();
+    };
+    const chooseMode = (x) => {
+      if (!card.playModes) return finish(x, undefined);
+      openActionMenu(
+        `${card.name} — choose one`,
+        card.playModes.map((mode, index) => ({ label: mode.text, run: () => finish(x, [index]) }))
+      );
+    };
+    if (card.costParsed && card.costParsed.x) {
+      openActionMenu(
+        `${card.name} — choose X`,
+        Array.from({ length: 7 }, (_, x) => ({ label: `X = ${x}`, run: () => chooseMode(x) }))
+      );
+      return;
+    }
+    chooseMode(0);
+  }
+
   /* canonicalJSON refuses `undefined` — that is what keeps a replay honest.
    * So an absent mode must be ABSENT from the payload, not present-and-
    * undefined: passing `modes: undefined` threw on every non-modal card and
@@ -662,39 +771,131 @@
       if (choice) payload.choice = choice;
       return void dispatch("ACTIVATE_RESOURCE_ABILITY", seat, payload);
     }
-    if (!ability.targetSpec.length) {
-      return void dispatch("ACTIVATE_ABILITY", seat, { uid, abilityIndex, targets: [] });
+    const finish = (x) => {
+      if (ability.targetSpec.length === 1 && ability.targetSpec[0].variable &&
+          ability.targetSpec[0].exactX && !x) {
+        return void dispatch("ACTIVATE_ABILITY", seat, { uid, abilityIndex, targets: [], x: 0 });
+      }
+      if (!ability.targetSpec.length) {
+        return void dispatch("ACTIVATE_ABILITY", seat, { uid, abilityIndex, targets: [], x: x || 0 });
+      }
+      picking = { kind: "ability", uid, abilityIndex, spec: ability.targetSpec, targets: [], x };
+      render();
+    };
+    if (ability.costParsed && ability.costParsed.x) {
+      return void openActionMenu(
+        `${card.name} — choose X`,
+        Array.from({ length: 7 }, (_, x) => ({ label: `X = ${x}`, run: () => finish(x) }))
+      );
     }
-    picking = { kind: "ability", uid, abilityIndex, spec: ability.targetSpec, targets: [] };
-    render();
+    finish(0);
+  }
+
+  const currentPickSpec = () => {
+    if (!picking) return null;
+    const variable = picking.spec.length === 1 && picking.spec[0].variable;
+    return variable ? picking.spec[0] : picking.spec[picking.targets.length];
+  };
+
+  function completePicking() {
+    if (!picking) return false;
+    const {
+      kind, uid, abilityIndex, targets, x, modes, baseTargets,
+      copyModes: pendingCopyModes, additionalCosts,
+    } = picking;
+    picking = null;
+    if (kind === "remoteCost") {
+      beginRemotePlay(session.full, uiSeat(session.full), targets.map((entry) => entry.uid));
+    } else if (kind === "play") {
+      const played = compiled(session.full.objects[uid].cardId);
+      if (played.playOps.some((op) => op.op === "copyQueue")) {
+        const queueTarget = targets.find((target) => target.kind === "queue");
+        const original = queueTarget && session.full.queue.find((entry) => entry.qid === queueTarget.qid);
+        const copied = original && original.cardId ? compiled(original.cardId) : null;
+        const copyModes = original ? (original.modes || []).slice() : [];
+        const copySpec = copied
+          ? copied.playModes && copyModes.length
+            ? copied.playModes[copyModes[0]].targetSpec
+            : copied.playTargetSpec
+          : [];
+        if (copySpec.length) {
+          picking = {
+            kind: "copyPlay", uid, spec: copySpec, targets: [], x, modes,
+            baseTargets: targets, copyModes,
+          };
+          return void render();
+        }
+        const payload = playPayload(uid, targets, x, modes);
+        payload.copyTargets = [];
+        if (copyModes.length) payload.copyModes = copyModes;
+        return void dispatch("PLAY_CARD", uiSeat(session.full), payload);
+      }
+      dispatch("PLAY_CARD", uiSeat(session.full), playPayload(uid, targets, x, modes));
+    }
+    else if (kind === "copyPlay") {
+      const payload = playPayload(uid, baseTargets || [], x, modes);
+      payload.copyTargets = targets;
+      if (pendingCopyModes && pendingCopyModes.length) payload.copyModes = pendingCopyModes;
+      dispatch("PLAY_CARD", uiSeat(session.full), payload);
+    }
+    else if (kind === "remote") {
+      const payload = { targets, x: x || 0 };
+      if (Array.isArray(modes)) payload.modes = modes;
+      if (Array.isArray(additionalCosts) && additionalCosts.length) payload.additionalCosts = additionalCosts;
+      dispatch("REMOTE_PLAY_CARD", uiSeat(session.full), payload);
+    } else dispatch("ACTIVATE_ABILITY", uiSeat(session.full), { uid, abilityIndex, targets, x: x || 0 });
+    return true;
   }
 
   function offerTarget(target) {
     if (!picking) return false;
+    const spec = currentPickSpec();
+    if (!spec) return false;
+    if (spec.variable) {
+      const encoded = JSON.stringify(target);
+      const duplicate = picking.targets.findIndex((entry) => JSON.stringify(entry) === encoded);
+      if (duplicate >= 0) picking.targets.splice(duplicate, 1);
+      else picking.targets.push(target);
+      if (spec.exactX && picking.targets.length === (picking.x || 0)) return completePicking();
+      render();
+      return true;
+    }
     picking.targets.push(target);
     if (picking.targets.length < picking.spec.length) {
       render();
       return true;
     }
-    const { kind, uid, abilityIndex, targets, x, modes } = picking;
-    picking = null;
-    if (kind === "play") dispatch("PLAY_CARD", uiSeat(session.full), playPayload(uid, targets, x, modes));
-    else dispatch("ACTIVATE_ABILITY", uiSeat(session.full), { uid, abilityIndex, targets });
-    return true;
+    return completePicking();
   }
 
   const wantsTarget = (v, uid) => {
     if (!picking) return false;
-    const spec = picking.spec[picking.targets.length];
+    const spec = currentPickSpec();
     if (!spec) return false;
     const object = v.objects[uid];
     if (!object || !object.cardId) return false;
     const card = compiled(object.cardId);
     if (spec.kind === "seat" || spec.kind === "queue") return false;
+    const zone = String(object.zone || "").split(":")[1];
+    if (spec.zone && zone !== spec.zone) return false;
+    if (spec.whose === "you" && object.owner !== uiSeat(session.full)) return false;
+    if (spec.whose === "you-controller" && object.controller !== uiSeat(session.full)) return false;
+    if (spec.whose === "opponent-controller" && object.controller === uiSeat(session.full)) return false;
+    if (spec.whose === "remote-payer") {
+      const awaiting = session.full.awaiting;
+      if (!awaiting || object.controller !== awaiting.payer || zone !== "network") return false;
+    }
+    const ctx = E.resolveCtx({});
+    if (spec.affinity && E.affinitiesOf(v, ctx, uid).indexOf(spec.affinity) < 0) return false;
+    if (spec.notAffinity && E.affinitiesOf(v, ctx, uid).indexOf(spec.notAffinity) >= 0) return false;
+    if (spec.maximumAction !== undefined && E.statsOf(v, ctx, uid).action > spec.maximumAction) return false;
+    if (spec.requireCommitted && !object.committed) return false;
+    if (spec.notKeyword && E.keywordsOf(v, ctx, uid).indexOf(spec.notKeyword) >= 0) return false;
+    if (spec.kind === "card") return true;
     if (spec.kind === "avatar" || spec.kind === "any") return card.isAvatar;
     if (spec.kind.indexOf("type:") === 0) return card.type.indexOf(spec.kind.slice(5)) >= 0;
     if (spec.kind.indexOf("keyword:") === 0) {
-      return E.keywordsOf(v, E.resolveCtx({}), uid).indexOf(spec.kind.slice(8)) >= 0;
+      return E.keywordsOf(v, ctx, uid).indexOf(spec.kind.slice(8)) >= 0;
     }
     return true;
   };
@@ -705,7 +906,7 @@
    * clickable surface. The playerbar IS the player. */
   const wantsSeatTarget = () => {
     if (!picking) return false;
-    const spec = picking.spec[picking.targets.length];
+    const spec = currentPickSpec();
     return Boolean(spec && (spec.kind === "seat" || spec.kind === "any"));
   };
 
@@ -725,6 +926,8 @@
     const card = CARD_BY_ID[object.cardId];
     if (object.committed) node.classList.add("committed");
     if (v.clash.attackers.indexOf(uid) >= 0 || attackers.indexOf(uid) >= 0) node.classList.add("attacking");
+    if ((meshGroupActive && attackers.indexOf(uid) >= 0) ||
+        (v.clash.meshGroups && v.clash.meshGroups[uid])) node.classList.add("meshed");
     const blocking = Object.keys(v.clash.blocks).some((a) => v.clash.blocks[a].indexOf(uid) >= 0) ||
       Object.keys(blocks).some((a) => blocks[a].indexOf(uid) >= 0);
     if (blocking) node.classList.add("blocking");
@@ -907,19 +1110,18 @@
         button.addEventListener("click", () => beginAbility(v, seat, uid, index));
         acts.append(button);
       });
-      /* The inspector's zone and commit buttons used to be unattributed
-       * arbitrary state writes. They are now one-op proposals that land in the
-       * chain with an author, and the opponent sees anything that helps you. */
-      for (const zone of ["archive", "cold"]) {
-        const button = el("button", "ghost", `→ ${zone} (propose)`);
-        button.addEventListener("click", () =>
-          propose(seat, [{ op: "moveObject", uid, toZone: zone }], `move ${card.name} to ${zone}`));
-        acts.append(button);
+      if (v.policy && v.policy.freeform === "allow") {
+        for (const zone of ["archive", "cold"]) {
+          const button = el("button", "ghost", `→ ${zone} (propose)`);
+          button.addEventListener("click", () =>
+            propose(seat, [{ op: "moveObject", uid, toZone: zone }], `move ${card.name} to ${zone}`));
+          acts.append(button);
+        }
+        const toggle = el("button", "ghost", (object.committed ? "Unlock" : "Commit") + " (propose)");
+        toggle.addEventListener("click", () =>
+          propose(seat, [{ op: "setCommitted", uid, value: !object.committed }], `toggle ${card.name}`));
+        acts.append(toggle);
       }
-      const toggle = el("button", "ghost", (object.committed ? "Unlock" : "Commit") + " (propose)");
-      toggle.addEventListener("click", () =>
-        propose(seat, [{ op: "setCommitted", uid, value: !object.committed }], `toggle ${card.name}`));
-      acts.append(toggle);
     }
     info.append(acts);
     box.append(info);
@@ -1110,10 +1312,17 @@
     /* The name is whoever the table is speaking to, which in remote play is
      * always you — so the turn owner is named separately whenever it is not the
      * same person. Hotseat gets it too: the defender speaks during blockers. */
-    document.getElementById("turnchip").innerHTML =
-      `Turn <b>${v.turn.number}</b> · <b>${v.seats[seat].name}</b>` +
-      (v.turn.active !== seat ? ` · ${v.seats[v.turn.active].name}'s turn` : "") +
-      (v.result ? ` · <b>${v.result.reason === "draw" ? "draw" : v.seats[v.result.winners[0]].name + " wins"}</b>` : "");
+    const turnchip = document.getElementById("turnchip");
+    turnchip.innerHTML = "";
+    turnchip.append(
+      "Turn ", el("b", null, String(v.turn.number)),
+      " · ", el("b", null, v.seats[seat].name)
+    );
+    if (v.turn.active !== seat) turnchip.append(" · ", `${v.seats[v.turn.active].name}'s turn`);
+    if (v.result) {
+      const outcome = v.result.reason === "draw" ? "draw" : `${v.seats[v.result.winners[0]].name} wins`;
+      turnchip.append(" · ", el("b", null, outcome));
+    }
 
     const ribbon = document.getElementById("phases");
     ribbon.innerHTML = "";
@@ -1127,7 +1336,26 @@
     for (const [side, who] of [["you", seat], ["foe", foe]]) {
       document.getElementById(`${side}Bar`).classList.toggle("seat-target", wantsSeatTarget());
       document.getElementById(`${side}Name`).textContent = v.seats[who].name;
-      document.getElementById(`${side}Uptime`).textContent = v.seats[who].uptime;
+      const uptime = v.seats[who].uptime;
+      document.getElementById(`${side}Uptime`).textContent = uptime;
+      const uptimeMeter = document.getElementById(`${side}UptimeMeter`);
+      const uptimeRatio = Math.max(0, Math.min(100, uptime / 20 * 100));
+      if (uptimeMeter) {
+        if (uptimeMeter.style && uptimeMeter.style.setProperty) {
+          uptimeMeter.style.setProperty("--uptime-ratio", `${Math.round(uptimeRatio * 10) / 10}%`);
+        }
+        if (uptimeMeter.setAttribute) uptimeMeter.setAttribute("aria-valuenow", String(uptime));
+        uptimeMeter.classList.toggle("offline", uptime <= 0);
+        uptimeMeter.classList.toggle("critical", uptime > 0 && uptime <= 5);
+        uptimeMeter.classList.toggle("low", uptime > 5 && uptime <= 10);
+        uptimeMeter.classList.toggle("boosted", uptime > 20);
+      }
+      const uptimeStatus = document.getElementById(`${side}UptimeStatus`);
+      if (uptimeStatus) {
+        uptimeStatus.textContent = uptime <= 0
+          ? "OFFLINE"
+          : uptime <= 5 ? "CRITICAL" : uptime <= 10 ? "DEGRADED" : uptime > 20 ? "BOOSTED" : "ONLINE";
+      }
       document.getElementById(`${side}Counts`).textContent =
         `Stack ${v.zoneCounts[`${who}:stack`]} · Wallet ${v.zoneCounts[`${who}:wallet`]} · Archive ${v.zoneCounts[`${who}:archive`]}` +
         (v.seats[who].stats.manualRejected ? ` · rejected ${v.seats[who].stats.manualRejected}` : "");
@@ -1173,6 +1401,7 @@
        * activateFromBoard on it — assigning the block and firing the card. */
       onClick: (uid, event) => {
         const awaiting = v.awaiting && v.awaiting.seat === seat ? v.awaiting.kind : null;
+        if (toggleAwaitingSelection(v, seat, uid)) return;
         if (awaiting === "attackers") return void toggleAttacker(uid);
         if (awaiting === "blockers") return void assignBlocker(uid);
         activateFromBoard(v, seat, uid, pt(event));
@@ -1183,6 +1412,7 @@
       arc: { mode: "ring", spread: 4, depth: -14 },
       mark: (uid) => {
         const marks = [];
+        if (awaitingSelection.indexOf(uid) >= 0) marks.push("selected");
         if (plan.dying.has(uid)) marks.push("willdie");
         // While an attacker is picked, say which Avatars may legally answer it
         // instead of letting the player find out by being refused.
@@ -1237,6 +1467,7 @@
     renderHud(v, seat);
     renderClashStrip(v, seat, plan);
     renderQuickClash(v, seat);
+    renderMeshGroup(v, seat);
     // While a clash step is open the Avatars are draggable, so a touch on one
     // must pull a line rather than scroll the page.
     const youZone = document.getElementById("youNetwork");
@@ -1507,12 +1738,18 @@
   }
 
   function continueLabel(v, seat) {
+    const spec = currentPickSpec();
+    if (spec && spec.variable) return `Confirm ${picking.targets.length} target(s)`;
     if (v.awaiting && v.awaiting.seat === seat) {
       if (v.awaiting.kind === "attackers") return "Declare attackers";
       if (v.awaiting.kind === "blockers") return "Declare blocks";
       if (v.awaiting.kind === "order") return "Confirm order";
       if (v.awaiting.kind === "damage") return "Assign damage";
       if (v.awaiting.kind === "discard") return "Discard";
+      if (v.awaiting.kind === "unlock") return "Unlock chosen cards";
+      if (v.awaiting.kind === "sovereignDamage") return `Archive ${v.awaiting.amount} cards`;
+      if (v.awaiting.kind === "tombstoneCleanup") return "Remove Tombstone marks";
+      if (v.awaiting.kind === "remotePlay") return "Play chosen card";
     }
     return "Continue";
   }
@@ -1526,7 +1763,7 @@
     row.innerHTML = "";
     /* Picking a card ON THE QUEUE (the set's counterspells): the Queue has no
      * board zone of its own, so its items appear here as buttons. */
-    if (picking && picking.spec[picking.targets.length] && picking.spec[picking.targets.length].kind === "queue") {
+    if (picking && currentPickSpec() && currentPickSpec().kind === "queue") {
       for (const item of v.queue) {
         if (!item.cardId) continue;
         const button = el("button", "btn ghost", `→ ${nameOf(item.cardId)}`);
@@ -1536,16 +1773,126 @@
       return;
     }
     const choice = v.pendingChoice;
-    if (!choice || !choice.options || choice.seat !== seat) return;
+    if (!choice || !choice.options || choice.seat !== seat) {
+      choiceSelection = [];
+      choiceSelectionId = null;
+      if (v.awaiting && v.awaiting.seat === seat && v.awaiting.kind === "drawReplacement") {
+        const draw = el("button", "btn ghost", "Draw a card");
+        draw.addEventListener("click", () => dispatch("CHOOSE_DRAW", seat, { skip: false }));
+        const skip = el("button", "btn ghost", "Skip draw — gain protection");
+        skip.addEventListener("click", () => dispatch("CHOOSE_DRAW", seat, { skip: true }));
+        row.append(draw, skip);
+      }
+      if (!v.awaiting && v.priority && v.priority.seat === seat && (v.effects || []).some(
+        (effect) => effect.kind === "uptimeResourceAbility" && effect.controller === seat
+      )) {
+        const uptime = el("button", "btn ghost", "Pay 1 Uptime → 1 neutral Resource");
+        uptime.addEventListener("click", () => dispatch("ACTIVATE_UPTIME_RESOURCE", seat, {}));
+        row.append(uptime);
+      }
+      return;
+    }
+    if (choiceSelectionId !== choice.id) {
+      choiceSelectionId = choice.id;
+      choiceSelection = [];
+    }
+    const immediate = choice.min === 1 && choice.max === 1;
     choice.options.forEach((option, index) => {
+      const object = option.uid && v.objects[option.uid];
       const label =
         option.label ||
-        (option.symbol ? SYMBOL_NAME[option.symbol] || option.symbol : option.value || `Option ${index + 1}`);
-      const button = el("button", "btn ghost", label);
-      button.addEventListener("click", () =>
-        dispatch("CHOOSE", seat, { choiceId: choice.id, selection: [index] }));
+        (option.symbol
+          ? SYMBOL_NAME[option.symbol] || option.symbol
+          : option.value || (object && object.cardId ? nameOf(object.cardId) : `Option ${index + 1}`));
+      const selectedAt = choiceSelection.indexOf(index);
+      const prefix = choice.kind === "order" && selectedAt >= 0 ? `${selectedAt + 1}. ` : "";
+      const button = el("button", "btn ghost" + (selectedAt >= 0 ? " active" : ""), prefix + label);
+      button.addEventListener("click", () => {
+        if (immediate) return void dispatch("CHOOSE", seat, { choiceId: choice.id, selection: [index] });
+        const at = choiceSelection.indexOf(index);
+        if (at >= 0) choiceSelection.splice(at, 1);
+        else if (choiceSelection.length < choice.max) choiceSelection.push(index);
+        render();
+      });
       row.append(button);
     });
+    if (!immediate) {
+      const allowed = choiceSelection.length >= choice.min && choiceSelection.length <= choice.max;
+      const confirm = el("button", "btn" + (allowed ? " primary" : " ghost"),
+        choiceSelection.length ? `Confirm ${choiceSelection.length}` : "Choose none");
+      confirm.disabled = !allowed;
+      confirm.addEventListener("click", () => {
+        if (!allowed) return;
+        const selection = choiceSelection.slice();
+        choiceSelection = [];
+        dispatch("CHOOSE", seat, { choiceId: choice.id, selection });
+      });
+      row.append(confirm);
+    }
+  }
+
+  function selectedMesh(v) {
+    const selected = attackers.filter((uid) => v.objects[uid]);
+    const meshCount = selected.filter((uid) => {
+      try {
+        return E.keywordsOf(v, E.resolveCtx({}), uid).indexOf("Mesh") >= 0;
+      } catch (error) {
+        return false;
+      }
+    }).length;
+    return { selected, legal: selected.length >= 2 && meshCount >= 1 && selected.length - meshCount <= 1 };
+  }
+
+  function renderMeshGroup(v, seat) {
+    const button = document.getElementById("meshGroup");
+    if (!button) return;
+    const awaiting = v.awaiting && v.awaiting.seat === seat && v.awaiting.kind === "attackers";
+    const selection = selectedMesh(v);
+    button.hidden = !awaiting || !selection.legal;
+    button.textContent = meshGroupActive ? "Split Mesh" : `Form Mesh (${selection.selected.length})`;
+    button.classList.toggle("active", meshGroupActive);
+  }
+
+  function toggleMeshGroup() {
+    const v = viewNow();
+    if (!v || !selectedMesh(v).legal) return;
+    meshGroupActive = !meshGroupActive;
+    session.notice = meshGroupActive
+      ? "Mesh formed — if one member is blocked, the whole group is blocked."
+      : null;
+    render();
+  }
+
+  function toggleAwaitingSelection(v, seat, uid) {
+    const awaiting = v.awaiting;
+    if (!awaiting || awaiting.seat !== seat) return false;
+    const key = `${awaiting.kind}:${v.seq}`;
+    if (awaitingSelectionKey !== key) {
+      awaitingSelectionKey = key;
+      awaitingSelection = awaiting.kind === "unlock" ? (awaiting.required || []).slice() : [];
+    }
+    let allowed = false;
+    let maximum = Infinity;
+    if (awaiting.kind === "sovereignDamage") {
+      const object = v.objects[uid];
+      allowed = Boolean(object && object.controller === seat && !object.token);
+      maximum = awaiting.amount;
+    } else if (awaiting.kind === "tombstoneCleanup") {
+      const task = awaiting.tasks[awaitingSelection.length];
+      allowed = Boolean(task && task.options.indexOf(uid) >= 0);
+      maximum = awaiting.tasks.length;
+    } else if (awaiting.kind === "unlock") {
+      allowed = (awaiting.required || []).concat(awaiting.selectable || []).indexOf(uid) >= 0;
+      maximum = (awaiting.required || []).length + Object.values(awaiting.caps || {})
+        .reduce((sum, count) => sum + count, 0);
+    }
+    if (!allowed) return false;
+    const index = awaitingSelection.indexOf(uid);
+    const required = awaiting.kind === "unlock" && (awaiting.required || []).indexOf(uid) >= 0;
+    if (index >= 0 && awaiting.kind !== "tombstoneCleanup" && !required) awaitingSelection.splice(index, 1);
+    else if (awaitingSelection.length < maximum) awaitingSelection.push(uid);
+    render();
+    return true;
   }
 
   function renderPrompt(v, seat) {
@@ -1566,10 +1913,11 @@
         : `${v.seats[v.pendingManual.seat].name} proposes: ${v.pendingManual.cardText}`;
       tone = "prompt manual";
     } else if (picking) {
-      const spec = picking.spec[picking.targets.length];
+      const spec = currentPickSpec();
       const surface =
         spec.kind === "seat" ? "player bar" : spec.kind === "any" ? "card or player bar" : "card";
-      text = `Choose ${spec.prompt} — click a highlighted ${surface}.`;
+      const picked = spec.variable ? ` ${picking.targets.length} selected; Continue confirms.` : "";
+      text = `Choose ${spec.prompt} — click a highlighted ${surface}.${picked}`;
       tone = "prompt target";
     } else if (v.pendingChoice && v.pendingChoice.options) {
       text = v.pendingChoice.prompt;
@@ -1582,6 +1930,11 @@
         blockers: "click an attacker, then your Avatar, to block. Then Continue.",
         order: "confirm the order your blockers take damage in.",
         damage: "confirm combat damage assignment.",
+        unlock: "choose the capped cards to unlock, then Continue.",
+        drawReplacement: "choose whether to draw or gain the attack shield.",
+        sovereignDamage: `choose ${v.awaiting.amount || 0} non-proxy cards to archive.`,
+        tombstoneCleanup: "choose one marked Resource for each archived Tombstone.",
+        remotePlay: "choose targets and play the selected opponent card.",
         discard: "your Wallet is over the limit — click cards to discard, then Continue.",
       };
       text = `${v.seats[seat].name}: ${map[v.awaiting.kind] || "act."}`;
@@ -1605,7 +1958,9 @@
   }
 
   function renderManualPanel(v, seat) {
+    const panel = document.getElementById("manualPanel");
     const box = document.getElementById("manualPending");
+    panel.hidden = !v.pendingManual && !(v.manualOpen || []).length;
     box.innerHTML = "";
     if (v.pendingManual) {
       const p = v.pendingManual;
@@ -1659,6 +2014,7 @@
     const index = attackers.indexOf(uid);
     if (index >= 0) {
       attackers.splice(index, 1);
+      if (meshGroupActive && !selectedMesh(viewNow()).legal) meshGroupActive = false;
       return void render();
     }
     const v = viewNow();
@@ -1675,82 +2031,23 @@
       return void render();
     }
     attackers.push(uid);
+    if (meshGroupActive && !selectedMesh(v).legal) meshGroupActive = false;
     render();
   }
 
-  /* What this clash is about to do, computed the way the engine computes it:
-   * minimal lethal in order, excess to the player only with Overflow, and
-   * First Strike landing in its own step so a dead blocker never strikes back
-   * (engine.js canonicalAssignment / applyCombatDamage). A preview that
-   * disagrees with the engine is worse than no preview at all, so this mirrors
-   * it deliberately and a test plays real clashes out to compare the two. */
+  /* Pending local declarations are the only UI-owned input. The forecast itself
+   * comes from engine.js, which simulates the real combat-damage path on a clone. */
   function previewClash(v) {
-    const ctx = E.resolveCtx({});
     const alive = (uid) => Boolean(v.objects[uid]);
-    const keywords = (uid) => {
-      try {
-        return E.keywordsOf(v, ctx, uid) || [];
-      } catch (error) {
-        return [];
-      }
-    };
-    const stat = (uid) => {
-      try {
-        return engineStats(v, uid);
-      } catch (error) {
-        return { action: 0, resilience: 0 };
-      }
-    };
-    // Pending local declarations win while they are being made; once the
-    // engine holds them, they are the truth.
     const declared = (attackers.length ? attackers : v.clash.attackers || []).filter(alive);
-    const blockersFor = (uid) => {
+    const pendingBlocks = {};
+    for (const uid of declared) {
       const pending = blocks[uid] || [];
       const confirmed = (v.clash.blocks && v.clash.blocks[uid]) || [];
-      return (pending.length ? pending : confirmed).filter(alive);
-    };
-
-    const dying = new Set();
-    const rows = [];
-    let toPlayer = 0;
-    let defenderSeat = null;
-    for (const attacker of declared) {
-      const object = v.objects[attacker];
-      defenderSeat = 1 - object.controller;
-      const power = stat(attacker).action;
-      const mine = blockersFor(attacker);
-      const row = { uid: attacker, power, blockers: mine, toPlayer: 0, dies: false, kills: [] };
-      if (!mine.length) {
-        row.toPlayer = power;
-      } else {
-        let remaining = power;
-        for (const blocker of mine) {
-          const lethal = Math.max(0, stat(blocker).resilience - v.objects[blocker].damage);
-          const give = Math.min(remaining, lethal);
-          if (lethal > 0 && give >= lethal) {
-            row.kills.push(blocker);
-            dying.add(blocker);
-          }
-          remaining -= give;
-        }
-        if (remaining > 0 && keywords(attacker).indexOf("Overflow") >= 0) row.toPlayer = remaining;
-        const attackerStrikesFirst = keywords(attacker).indexOf("First Strike") >= 0;
-        let back = 0;
-        for (const blocker of mine) {
-          const blockerStrikesFirst = keywords(blocker).indexOf("First Strike") >= 0;
-          // Killed in the First Strike step, so it never deals its damage.
-          if (attackerStrikesFirst && !blockerStrikesFirst && row.kills.indexOf(blocker) >= 0) continue;
-          back += stat(blocker).action;
-        }
-        if (back + v.objects[attacker].damage >= stat(attacker).resilience) {
-          row.dies = true;
-          dying.add(attacker);
-        }
-      }
-      toPlayer += row.toPlayer;
-      rows.push(row);
+      pendingBlocks[uid] = (pending.length ? pending : confirmed).filter(alive);
     }
-    return { rows, dying, toPlayer, defenderSeat };
+    const plan = E.previewClash(v, { attackers: declared, blocks: pendingBlocks });
+    return { ...plan, dying: new Set(plan.dying) };
   }
 
   let blockTarget = null;
@@ -1807,11 +2104,23 @@
     const full = session.full;
     if (!full || full.result) return;
     const seat = uiSeat(full);
+    const pickSpec = currentPickSpec();
+    if (pickSpec && pickSpec.variable) {
+      const minimum = pickSpec.exactX ? (picking.x || 0) : (pickSpec.min || 0);
+      if (picking.targets.length < minimum) {
+        session.notice = `Choose ${minimum} target(s) before confirming.`;
+        return void render();
+      }
+      return void completePicking();
+    }
     const awaiting = full.awaiting;
     if (awaiting && awaiting.seat === seat) {
       if (awaiting.kind === "attackers") {
-        const declared = attackers.slice();
+        const declared = meshGroupActive
+          ? attackers.map((uid) => ({ uid, mesh: "mesh-1" }))
+          : attackers.slice();
         attackers = [];
+        meshGroupActive = false;
         return void dispatch("DECLARE_ATTACKERS", seat, { attackers: declared });
       }
       if (awaiting.kind === "blockers") {
@@ -1842,6 +2151,30 @@
         const waiting = full.myTriggers || full.pendingTriggers[String(seat)];
         return void dispatch("ORDER_TRIGGERS", seat, { qids: waiting.map((t) => t.pendingId) });
       }
+      if (awaiting.kind === "unlock") {
+        const uids = awaitingSelection.length ? awaitingSelection.slice() : (awaiting.required || []).slice();
+        awaitingSelection = [];
+        return void dispatch("CHOOSE_UNLOCK", seat, { uids });
+      }
+      if (awaiting.kind === "sovereignDamage") {
+        if (awaitingSelection.length !== awaiting.amount) {
+          session.notice = `Choose exactly ${awaiting.amount} non-proxy card(s) on your Network.`;
+          return void render();
+        }
+        const uids = awaitingSelection.slice();
+        awaitingSelection = [];
+        return void dispatch("CHOOSE_SOVEREIGN_ARCHIVE", seat, { uids });
+      }
+      if (awaiting.kind === "tombstoneCleanup") {
+        if (awaitingSelection.length !== awaiting.tasks.length) {
+          session.notice = "Choose one marked Resource for each Tombstone.";
+          return void render();
+        }
+        const uids = awaitingSelection.slice();
+        awaitingSelection = [];
+        return void dispatch("CHOOSE_TOMBSTONE_CLEANUP", seat, { uids });
+      }
+      if (awaiting.kind === "remotePlay") return void beginRemotePlay(full, seat);
     }
     if (full.priority.seat === null) {
       session.notice = "Waiting on a pending decision.";
@@ -1914,7 +2247,7 @@
     const line = (text) => info.append(el("div", "netline", text));
     line(`Match ${state.matchId}${state.code ? " · code " + state.code : ""}`);
     for (const p of state.players || []) {
-      const tag = p.pubkey ? " · " + nostr().shortNpub(p.pubkey) : " · anonymous";
+      const tag = p.pubkey ? " · " + nostr().shortNpub(p.pubkey) : " · identity missing";
       line(`Seat ${p.seat}: ${p.name || "—"}${tag} · ${p.online ? "online" : "away"}`);
     }
     if (state.downgraded) line(`Spectating — ${state.downgradeReason || "seat taken"}.`);
@@ -1954,6 +2287,7 @@
     session.notice = null;
     picking = null;
     attackers = [];
+    meshGroupActive = false;
     blocks = {};
     blockTarget = null;
     if (msg.view) {
@@ -1992,7 +2326,7 @@
 
     if (msg.status === "open" && msg.downgraded) {
       /* THE PERSON FOLLOWING THE HOST'S SHARE LINK CAME TO PLAY. They arrive
-       * with no token and no pubkey, so the referee downgrades them to a
+       * with no token but with a NIP-07 identity, so the referee downgrades them to a
        * spectator — of an empty table. Showing them the HOST panel then left
        * both people staring at the same screen waiting for the other to join.
        * The referee says whether the seat is still free; offer it. */
@@ -2091,6 +2425,9 @@
         DECK_BUILD_FAILED: "The referee could not build a legal deck pair — try again.",
         RATE_LIMITED: "Too many actions too quickly.",
         SUPERSEDED: "Your seat was claimed by another tab or machine.",
+        NIP07_REQUIRED: "NIP-07 sign-in is required for every online table.",
+        AUTH_FAILED: "The NIP-07 login proof was rejected or expired. Reconnect and sign the fresh challenge.",
+        IDENTITY_MISMATCH: "This seat belongs to a different NIP-07 identity.",
         NO_TABLE: "This page is not being served by a table. Open it from the referee (npm run table), or pass ?table=ws://host:8777/ws.",
       }[msg.code] || msg.message || msg.code;
       netNotice(text, "bad");
@@ -2107,12 +2444,16 @@
 
   function createTable() {
     if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
+    const pubkey = nostr().savedPubkey();
+    if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
     netNotice("Opening a table…", "");
-    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey: nostr().savedPubkey() });
+    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey });
   }
 
   function joinTable(code, invite) {
     if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
+    const pubkey = nostr().savedPubkey();
+    if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
     const value = String(code || $("joinCode").value || "").trim().toUpperCase();
     if (!/^[A-HJ-NP-Z2-9]{6}$/.test(value)) return void netNotice("A table code is six characters, no 0/O/1/I.", "bad");
     remote.invite = invite || null;
@@ -2121,7 +2462,7 @@
       code: value,
       name: lobbyName(),
       affinity: lobbyAffinity(),
-      pubkey: nostr().savedPubkey(),
+      pubkey,
       table: invite ? invite.table : undefined,
     });
   }
@@ -2148,6 +2489,10 @@
   function checkInvites() {
     const list = $("inviteList");
     list.innerHTML = "";
+    if (!nostr().savedPubkey()) {
+      list.append(el("div", "netline", "Sign in with NIP-07 before checking invitations."));
+      return;
+    }
     list.append(el("div", "netline", "Listening for invites on the relays…"));
     if (remote.unsubscribe) remote.unsubscribe();
     let first = true;
@@ -2238,18 +2583,22 @@
    * referee refuses it now; the button simply stops offering. */
   function renderLobbyButtons() {
     const url = NET.tableUrl();
+    const identified = Boolean(nostr().savedPubkey());
     $("netTable").textContent = url ? `table ${url}` : "no table server — hotseat only";
     const state = NET.lastState;
     const hosting = Boolean(state && state.status === "open" && state.seat === 0);
-    $("createTable").disabled = !url || hosting;
-    $("joinTable").disabled = !url || hosting;
+    $("createTable").disabled = !url || !identified || hosting;
+    $("joinTable").disabled = !url || !identified || hosting;
+    $("refreshTables").disabled = !url || !identified;
+    $("checkInvites").disabled = !url || !identified;
   }
 
   async function login() {
     try {
       await nostr().login();
       renderIdentity();
-      netNotice("Signed in. Your npub is a claim at the table — the referee does not verify signatures in v1 (D-11).", "");
+      netNotice("Signed in with NIP-07. Online tables are now available.", "good");
+      if (NET.session) NET.resume();
     } catch (error) {
       netNotice(String(error.message || error), "bad");
     }
@@ -2315,6 +2664,7 @@
      * ?match= link). A cold play.html opens no socket at all. */
     const started = NET.start(NET_HANDLERS);
     if (started.resuming) netNotice("Rejoining your table…", "");
+    else if (started.loginRequired) netNotice("Sign in with NIP-07 to open this table.", "bad");
   }
 
   // -------------------------------------------------------------- setup
@@ -2354,6 +2704,7 @@
       ],
       seeds: { public: base, hidden: [(base ^ 0x5f3759df) | 0, (base + 7717) | 0] },
       firstPlayer: 0,
+      policy: { freeform: "deny" },
     };
     session.npc = solo ? 1 : null;
     // "All" is a fine stack but no answer to "generate 1 of one affinity";
@@ -2390,6 +2741,7 @@
     session.role = "hotseat";
     session.awaitingSeq = null;
     attackers = [];
+    meshGroupActive = false;
     blocks = {};
     picking = null;
     document.getElementById("setup").hidden = true;
@@ -2504,6 +2856,7 @@
     document.getElementById("cancelTarget").addEventListener("click", () => {
       picking = null;
       attackers = [];
+      meshGroupActive = false;
       blocks = {};
       blockTarget = null;
       session.notice = null;
@@ -2521,6 +2874,7 @@
     }
 
     document.getElementById("quickClash").addEventListener("click", quickClashAction);
+    document.getElementById("meshGroup").addEventListener("click", toggleMeshGroup);
     installClashDrag();
 
     // Fewer clicks: the waiting Queue is itself the Continue button, and the

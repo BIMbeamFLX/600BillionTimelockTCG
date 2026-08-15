@@ -17,7 +17,9 @@ CARDS = json.loads((REPO_ROOT / "cards" / "e1-cards.json").read_text(encoding="u
 FACE_FILES = {
     item["id"]: item["file"]
     for item in json.loads(
-        (REPO_ROOT / "art" / "cards" / "final" / "manifest.json").read_text(encoding="utf-8")
+        (REPO_ROOT / "art" / "cards" / "node-runner-web" / "manifest.json").read_text(
+            encoding="utf-8"
+        )
     )["files"]
 }
 
@@ -49,6 +51,15 @@ def test_keywords_the_engine_enforces_are_detected():
     assert names("Broadcast Guard") == ["Broadcast Guard"]
 
 
+def test_keyword_only_lines_do_not_create_manual_abilities():
+    records = {record["id"]: record for record in playable_records(CARDS, FACE_FILES)}
+
+    assert records["E1-034"]["manual"] is False
+    assert records["E1-034"]["abilities"] == []
+    assert records["E1-193"]["manual"] is False
+    assert records["E1-193"]["abilities"] == []
+
+
 def test_recurring_ability_templates_compile_to_ops():
     assert parse_ops("generate 1 Power", "X") == [
         {"op": "generate", "amount": 1, "affinity": "Power"}
@@ -74,9 +85,57 @@ def test_recurring_ability_templates_compile_to_ops():
     ]
 
 
-def test_unrecognised_text_stays_unscripted_for_manual_resolution():
-    assert parse_ops("After this turn, take one additional turn", "X") is None
+def test_wave_eight_gameplay_families_compile_to_authoritative_ops():
+    assert parse_ops("After this turn, take one additional turn", "X") == [{"op": "extraTurn"}]
+    assert parse_ops("Return target Avatar card from your Archive to the Network", "X") == [
+        {
+            "op": "moveTarget",
+            "kind": "Avatar",
+            "fromZone": "archive",
+            "whose": "you",
+            "toZone": "network",
+        }
+    ]
+    assert parse_ops(
+        "Each player shuffles their Wallet and Archive into their Stack, then draws seven cards",
+        "X",
+    ) == [
+        {
+            "op": "resetZones",
+            "seats": "each",
+            "fromZones": ["wallet", "archive"],
+            "toZone": "stack",
+            "draw": 7,
+        }
+    ]
+    assert parse_ops("You may commit or unlock target Hardware, Avatar, or Resource", "X") == [
+        {"op": "toggleCommitted", "kind": "permanent"}
+    ]
+    assert parse_ops("Each player discards their Wallet, then draws seven cards", "X") == [
+        {"op": "discardWalletDraw", "seats": "each", "draw": 7}
+    ]
+
+
+def test_still_unrecognised_text_stays_unscripted_for_manual_resolution():
     assert parse_ops("Each player chooses a number of Resources", "X") is None
+
+
+def test_wave_eight_static_rules_compile_without_manual_fallback():
+    records = {record["name"]: record for record in playable_records(CARDS, FACE_FILES)}
+    expected = {
+        "FLX, Culture Curator": "attackDoesNotCommit",
+        "Firmware for Firewalls": "attachedCanAttackWithFirewall",
+        "Nind, Archive Returner": "ignoreBootDelay",
+        "Instant Boot": "attachedIgnoreBootDelay",
+        "Basalt Battery": "skipSelfUnlock",
+        "Memory Palace": "noMaximumWallet",
+        "Fast Channel": "unlimitedResourcePlays",
+        "Network Reset Disk": "entersCommitted",
+    }
+
+    for name, rule_name in expected.items():
+        rules = [ability.get("rule", {}).get("name") for ability in records[name]["abilities"]]
+        assert rule_name in rules, name
 
 
 def test_every_card_compiles_and_keeps_its_face():
@@ -92,6 +151,13 @@ def test_every_card_compiles_and_keeps_its_face():
     scripted = [record for record in records if not record["manual"]]
     assert len(scripted) >= 80, "the recurring templates should cover a solid core"
     assert any(record["abilities"] for record in records)
+
+
+def test_every_e1_card_is_fully_authoritative():
+    records = playable_records(CARDS, FACE_FILES)
+    manual = [f"{record['id']} {record['name']}" for record in records if record["manual"]]
+
+    assert manual == [], "manual cards remain:\n" + "\n".join(manual)
 
 
 def test_avatars_expose_playable_stats():

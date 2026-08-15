@@ -16,7 +16,6 @@ art/
   brand/       official 600B identity assets
   cards/node-runner-web/ 296 card faces + back in the Node Runner frame, shipped
   cards/node-runner-print/ ignored 300 dpi print masters, rebuilt on demand
-  cards/final/ superseded first-generation card faces
   cards/promos/ separately locked promotional card faces
   fonts/       local open-source display fonts
   generated/   ignored local raw ImageGen sources and high-resolution exports
@@ -87,9 +86,9 @@ Then open <http://localhost:8777/site/play.html>.
 The engine enforces the rules framework from `rules/600B-Timelock-TCG-Rulebook-E1.md`:
 the eight-step turn structure, the once-per-turn Resource play, Buffer generation and
 classic resource burn, printed costs, clash with First Strike and Overflow, and the
-state checks. `scripts/build_play_data.py` compiles the locked catalog and auto-scripts
-the ability templates that recur across the set; the remaining cards are marked `!` and
-resolved at the table with the manual controls, so no card is locked out of play.
+state checks. `scripts/build_play_data.py` compiles the locked catalog into engine operations:
+all 295 Edition One cards are scripted, and released local and remote tables deny free-form
+resolution. Casual and future Ranked play therefore share one complete rules surface.
 
 ```bash
 uv run python scripts/build_play_data.py
@@ -288,8 +287,8 @@ uv run python scripts/build_gallery.py
 ```
 
 Open `site/cards.html` for the searchable, filterable 295-card E1 set plus promos.
-`site/index.html` links to it from the landing-page hero. The shared card back is
-`art/cards/final/600B-Timelock-card-back.jpg`.
+`site/index.html` links to it from the landing-page hero. The shared release card back is
+`art/cards/node-runner-web/600B-Timelock-card-back.webp`.
 
 The official circular 600B mark is rebuilt from the unmodified source artwork as a
 small, low-opacity lower-right watermark. Card frames use print-safe resource stripes
