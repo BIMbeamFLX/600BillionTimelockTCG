@@ -1106,3 +1106,69 @@ test("a malformed challenge is refused before the signer is ever asked", async (
   assert.deepEqual(tab.signed, []);
   assert.ok(tab.errors.some((e) => e.code === "AUTH_FAILED"));
 });
+
+test("the Queue zone is actually DRAWN, not merely populated in state", () => {
+  /* A regression this suite could not see: two `function renderQueue` in one
+   * scope, the later winning, so render() called the lobby's queue-status
+   * helper instead of the board's — and the Queue, the one zone every played
+   * card passes through, silently stopped being drawn. Every existing test
+   * still passed, because they all asserted `game.state.queue` and never once
+   * asked whether the player could SEE it. */
+  const { byId, game } = loadPlay(netStub(), { emit() {}, get: () => ({ motionActive: "reduced" }) });
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = "70";
+  byId("start").click();
+
+  const lastCard = (zoneId, name) => {
+    const kids = byId(zoneId).children;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const img = kids[i].children && kids[i].children[0];
+      if (img && img.alt === name) return kids[i];
+    }
+    return null;
+  };
+
+  lastCard("youHand", "Power Plant — Hydro").click();
+  lastCard("youNetwork", "Power Plant — Hydro").click();
+  lastCard("youHand", "Zap").click();
+  byId("foeBar").click();
+
+  assert.ok(game.state.queue[0], "the engine announced it");
+  assert.equal(byId("queueWrap").hidden, false, "and the Queue wrapper is revealed");
+  assert.ok(lastCard("queue", "Zap"), "and the card is rendered INTO the Queue zone");
+});
+
+test("the Network's two rails are drawn, and cards stay direct children", () => {
+  /* The rails are CSS `order` plus one break element precisely so that cards
+   * remain direct children of the zone — three helpers in this file resolve a
+   * card by scanning direct children, and nesting would make every card
+   * invisible to them without failing loudly. */
+  const { byId, game } = loadPlay(netStub(), { emit() {}, get: () => ({ motionActive: "reduced" }) });
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = "70";
+  byId("start").click();
+
+  const lastCard = (zoneId, name) => {
+    const kids = byId(zoneId).children;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const img = kids[i].children && kids[i].children[0];
+      if (img && img.alt === name) return kids[i];
+    }
+    return null;
+  };
+
+  lastCard("youHand", "Power Plant — Hydro").click();
+  const plant = lastCard("youNetwork", "Power Plant — Hydro");
+  /* THE LOAD-BEARING ASSERTION. The rails are CSS `order` plus one break
+   * element specifically so cards stay direct children; nesting them would make
+   * every card invisible to this very helper — silently, since a missing node
+   * reads as "not played yet" rather than as a layout change. The rail CLASS
+   * itself cannot be checked here (this harness's classList is a no-op, so
+   * classList.add leaves className untouched); that was verified in a real
+   * browser instead, where the Resource carries `netres`. */
+  assert.ok(plant, "a Resource must be findable as a DIRECT child of the Network");
+  assert.equal(plant.dataset.uid, game.state.zones["0:network"][0], "and it is the card the engine put there");
+  assert.ok(game.state.zones["0:network"].length >= 1);
+});

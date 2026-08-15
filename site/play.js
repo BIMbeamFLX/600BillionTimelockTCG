@@ -237,6 +237,7 @@
   let fxCues = [];   // [{ name, detail, bind }] — E1FX.emit, in engine order
   let fxPrims = [];  // [{ prim, uid, opts, delay }] — E1FX.anim on one card
   let fxBefore = []; // last frame's cards: { uid, cardId, zone, node, rect }
+  let fxLive = new Map(); // this frame's cards, uid -> node
   let fxPicking = false;
 
   /* `bind` says how to attach a cue to the DOM once the frame exists:
@@ -326,6 +327,7 @@
       // so the event is not the truth. fxTurns() below reads the truth off the
       // board instead, which covers paying a Commit cost, declaring an
       // attacker, entering committed, and the unlock step with one rule.
+
       // A trigger firing is a card DOING something; say which card.
       case "TRIGGERED": return cue("ability:activate", { uid: event.uid }, { el: true });
       // "You survived that" is a beat, not a silence.
@@ -387,14 +389,25 @@
     }
   }
 
-  const fxLiveNode = (uid) => {
-    if (uid == null || typeof document.querySelector !== "function") return null;
+  /* Where every card is in the frame that was just drawn. One pass, because the
+   * flush asks "and where is this one now?" for every card on the table, twice
+   * over — once to work out what left, once to bind the cues that stayed. */
+  function fxIndex() {
+    fxLive = new Map();
+    if (typeof document.querySelectorAll !== "function") return;
+    let cards = [];
     try {
-      return document.querySelector(`.gcard[data-uid="${String(uid).replace(/"/g, "")}"]`);
+      cards = document.querySelectorAll(".gcard[data-uid]");
     } catch (error) {
-      return null;
+      return;
     }
-  };
+    for (const node of cards) {
+      const uid = node.dataset && node.dataset.uid;
+      if (uid) fxLive.set(uid, node);
+    }
+  }
+
+  const fxLiveNode = (uid) => (uid == null ? null : fxLive.get(String(uid)) || null);
 
   const fxQueueNode = (cardId) => {
     const zone = document.getElementById("queue");
@@ -491,6 +504,7 @@
   function renderWithFx() {
     fxSnapshot();
     render();
+    fxIndex();
     fxTurns();
     fxFlush();
   }
@@ -505,9 +519,7 @@
     /* Everything that was on the table a frame ago and is not on it now: the
      * Wallet card that became a Queue card, the Queue card that became a
      * permanent, the permanent that was archived. */
-    const live = [];
-    for (const entry of fxBefore) if (entry.uid && fxLiveNode(entry.uid)) live.push(entry.uid);
-    const gone = fxBefore.filter((entry) => !entry.uid || live.indexOf(entry.uid) < 0);
+    const gone = fxBefore.filter((entry) => !entry.uid || !fxLive.has(entry.uid));
     for (const entry of cues) {
       try {
         FX.emit(entry.name, fxBind(entry, gone));
@@ -2069,6 +2081,34 @@
     }
   }
 
+  /* The press-and-hold in flight, if any (see cardNode). One watcher for the
+   * whole table rather than a listener per card: the zones are rebuilt from
+   * scratch on every render, so anything bound per node is bound thousands of
+   * times a game. Capture phase, so the hold is given up before the drag or a
+   * click handler gets a say. */
+  let cardHold = null;
+
+  function dropCardHold() {
+    if (!cardHold) return;
+    clearTimeout(cardHold.timer);
+    cardHold = null;
+  }
+
+  function installCardHold() {
+    if (!window.addEventListener) return;
+    window.addEventListener("pointermove", (event) => {
+      if (!cardHold) return;
+      // Finger jitter is not travel; the slop is the clash drag's own.
+      if (Math.abs(event.clientX - cardHold.x) > 6 || Math.abs(event.clientY - cardHold.y) > 6) {
+        dropCardHold();
+      }
+    }, true);
+    window.addEventListener("pointerup", dropCardHold, true);
+    window.addEventListener("pointercancel", dropCardHold, true);
+    // A finger that leaves the window is not still pressing anything.
+    window.addEventListener("blur", dropCardHold);
+  }
+
   /* Drag an Avatar at what it should fight: onto the opponent to attack, onto
    * an attacker to block it. The same declarations the clicks make — this is
    * the gesture, not a second rulebook. Below the movement threshold nothing
@@ -3611,6 +3651,7 @@
     fxCues = [];
     fxPrims = [];
     fxBefore = [];
+    fxLive = new Map();
     fxPicking = false;
     document.getElementById("setup").hidden = true;
     document.getElementById("table").hidden = false;
@@ -3754,6 +3795,7 @@
     document.getElementById("quickClash").addEventListener("click", quickClashAction);
     document.getElementById("meshGroup").addEventListener("click", toggleMeshGroup);
     installClashDrag();
+    installCardHold();
 
     // Fewer clicks: the waiting Queue is itself the Continue button, and the
     // space bar is Continue for hands that never leave the keyboard.
