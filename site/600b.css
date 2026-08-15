@@ -268,6 +268,15 @@ a.panel:hover { border-color: var(--line-strong); background: rgba(31, 26, 39, .
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
 
+/* THE `hidden` ATTRIBUTE HAD STOPPED WORKING, EVERYWHERE. The UA sheet's
+ * [hidden]{display:none} is beaten by ANY author-origin display rule, and
+ * .btn/.chip below both set one — so every `<button class="btn" hidden>` and
+ * `<span class="chip" hidden>` on the site rendered regardless of what the code
+ * thought. The visible symptom was a "Sign out" button offered to a signed-out
+ * player. One declaration here fixes every page at once, which is why it lives
+ * in the shared sheet rather than being pasted into each. */
+[hidden] { display: none !important; }
+
 @media (max-width: 720px) {
   .nav { gap: 8px; }
   .nav__brand small { display: none; }
