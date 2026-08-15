@@ -237,9 +237,17 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
     under the table with the reason, because a ladder that quietly discards results looks exactly
     like one that is broken.</p>
     <p><b>Sats staked is what both players signed up to at the start of the match</b>, before either
-    knew how it would go — it is not proof that anyone paid. Settlement is wallet to wallet over
+    knew how it would go — it is not proof that anyone paid. It counts only when the two keys that
+    signed the start are the same two the result names. Settlement is wallet to wallet over
     Lightning and this site never touches it. Rating is Elo, K=24, everyone starts at 1500, replayed
     oldest match first so two browsers reading the same events get the same table.</p>
+    <p><b>And here is what this cannot tell you.</b> Every signature above is real, but nothing
+    proves a match was ever <i>played</i>: two keys that agree can publish a result for a game that
+    never happened, and both start at 1500, so anyone willing to make fresh keys can manufacture
+    wins. Nor can it see a match somebody walked away from — an abandoned game simply produces no
+    result at all. Read this as <b>a verified record of what people signed, not a ranking of who is
+    best</b>. Closing that gap needs a referee to co-sign the transcript it refereed, which is
+    designed and not yet built.</p>
   </section>
 
   <section class="metrics" aria-label="Ladder totals">
