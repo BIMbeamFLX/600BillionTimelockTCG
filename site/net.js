@@ -266,8 +266,13 @@
    * seated at, then the origin that served this page. On file:// there is no
    * third option and the answer is null — no server, no socket, hotseat only. */
   function tableUrl() {
+    /* ?table= decides where this client's socket goes and, through the NIP-42
+     * challenge, what it is asked to sign — so it is validated as a websocket
+     * URL rather than passed through. A crafted link cannot make the page dial
+     * an http endpoint or a javascript: URI, and the relay-tag check on the
+     * login proof is what stops the referee at the other end being an impostor. */
     const q = param("table");
-    if (q) return q;
+    if (q) return /^wss?:\/\/[^\s]+$/i.test(q) ? q : null;
     const saved = savedMatch();
     if (saved && saved.table) return saved.table;
     if (location.protocol === "https:") return `wss://${location.host}/ws`;
@@ -808,6 +813,12 @@
         host: { name: opts.name, affinity: opts.affinity },
         ruleset: opts.ruleset,
         catalogDigest: opts.catalogDigest,
+        /* WHAT THIS TABLE PLAYS FOR. The invite carried no wager at all, so
+         * following one off a relay was the one path that could seat a player
+         * in a stake they were never shown — the referee refuses a join that
+         * names the wrong number, but a client with no number to name simply
+         * accepted whatever the host had set. */
+        stake: satsOf(opts.stake),
         wire: WIRE,
       }),
     };
@@ -933,6 +944,8 @@
       host: body.host && typeof body.host === "object" ? body.host : { name: "?", affinity: "?" },
       ruleset: body.ruleset || null,
       catalogDigest: body.catalogDigest || null,
+      // Absent on invites from older builds, which is honestly "unknown", not 0.
+      stake: Number.isInteger(body.stake) ? body.stake : null,
     };
   }
 

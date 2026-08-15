@@ -320,6 +320,15 @@ Build:
 Referee:
 
 - [ ] `PUBLIC_URL=wss://<public host>/ws` is set — **not** `PUBLIC_HOST` alone
+- [ ] **`DB` points at a FRESH, EMPTY file.** Not the development database, and not
+      a copy of it. `server/matches.db-wal` was committed in `2fec8f1`, which is on
+      the public remote, and that blob contains `config_json` for matches still
+      marked `playing` — the hidden seeds, which generate both decklists, both
+      shuffles and every future draw. Anyone with a clone can reconstruct those
+      opponents' hands. The seeds are worthless the moment production starts on a
+      database that does not contain those matches, and worth real money if it
+      does. (The leaked seat tokens are separately contained: `handleResume`
+      refuses a token whose NIP-07 identity does not own the seat.)
 - [ ] `DB` points at a persistent volume, and it is backed up
 - [ ] `PIN_SEED` is **unset**
 - [ ] `RATE_MAX`, `CONTROL_RATE_MAX`, `MAX_PAYLOAD` are unset (defaults protect the table)
