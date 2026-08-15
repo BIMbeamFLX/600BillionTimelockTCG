@@ -746,6 +746,9 @@
     if (wantsTarget(v, uid)) node.classList.add("targetable");
     node.dataset.uid = uid; // the arrow layer finds its endpoints by uid
     if (blockTarget === uid) node.classList.add("blockpick");
+    if (options && options.mark) {
+      for (const name of (options.mark(uid) || "").split(" ")) if (name) node.classList.add(name);
+    }
 
     node.addEventListener("click", (event) => {
       if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
@@ -1145,6 +1148,9 @@
       }
     }
 
+    const plan = previewClash(v);
+    const blocking = Boolean(v.awaiting && v.awaiting.kind === "blockers" && v.awaiting.seat === seat);
+
     renderZone("foeNetwork", v, v.zones[`${foe}:network`], {
       // Same hand on the enemy board: left acts (select the attacker to
       // block), right explains. Details were left-click-only here before,
@@ -1152,18 +1158,45 @@
       onClick: (uid) => toggleBlock(v, uid),
       onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
       arc: { mode: "ring", spread: -4, depth: 14 },
+      mark: (uid) => {
+        // An attacker still looking for a blocker is the thing to click next.
+        const unblocked = blocking && v.clash.attackers.indexOf(uid) >= 0 && !(blocks[uid] || []).length;
+        return (plan.dying.has(uid) ? "willdie " : "") + (unblocked ? "needsblock" : "");
+      },
     });
     renderZone("youNetwork", v, v.zones[`${seat}:network`], {
       // Same hand as the Wallet: left acts, right explains. During the
       // attackers step the left click is the attack declaration instead.
+      /* One handler owns the click, so a step never gets two answers. The
+       * blockers case used to live in a separate capture listener on the
+       * zone, which meant clicking your Avatar to block ALSO ran
+       * activateFromBoard on it — assigning the block and firing the card. */
       onClick: (uid, event) => {
-        if (v.awaiting && v.awaiting.kind === "attackers" && v.awaiting.seat === seat) toggleAttacker(uid);
-        else activateFromBoard(v, seat, uid, pt(event));
+        const awaiting = v.awaiting && v.awaiting.seat === seat ? v.awaiting.kind : null;
+        if (awaiting === "attackers") return void toggleAttacker(uid);
+        if (awaiting === "blockers") return void assignBlocker(uid);
+        activateFromBoard(v, seat, uid, pt(event));
       },
       onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
       canAct: (uid) => actGlow(v, seat, uid),
       canAttack: (uid) => attackGlow(v, seat, uid),
       arc: { mode: "ring", spread: 4, depth: -14 },
+      mark: (uid) => {
+        const marks = [];
+        if (plan.dying.has(uid)) marks.push("willdie");
+        // While an attacker is picked, say which Avatars may legally answer it
+        // instead of letting the player find out by being refused.
+        if (blocking && blockTarget && !blockingWhat(uid)) {
+          let legal = false;
+          try {
+            legal = E.canBlock({ state: v, ctx: E.resolveCtx({}) }, uid, blockTarget);
+          } catch (error) {
+            legal = false;
+          }
+          marks.push(legal ? "canblock" : "cantblock");
+        }
+        return marks.join(" ");
+      },
     });
     renderZone("youHand", v, v.zones[`${seat}:wallet`], {
       onClick: (uid, event) => beginPlay(v, seat, uid, pt(event)),
@@ -1202,7 +1235,88 @@
       !(v.manualOpen || []).some((entry) => entry.seat === seat);
 
     renderHud(v, seat);
+    renderClashStrip(v, seat, plan);
+    renderQuickClash(v, seat);
+    // While a clash step is open the Avatars are draggable, so a touch on one
+    // must pull a line rather than scroll the page.
+    const youZone = document.getElementById("youNetwork");
+    if (youZone && youZone.classList) {
+      const draggable = Boolean(
+        v.awaiting && v.awaiting.seat === seat &&
+        (v.awaiting.kind === "attackers" || v.awaiting.kind === "blockers")
+      );
+      youZone.classList.toggle("draggable", draggable);
+    }
     drawClashArrows();
+  }
+
+  /* The arithmetic nobody should have to do in their head: what gets through,
+   * and who does not come back. Same numbers the engine will produce. */
+  function renderClashStrip(v, seat, plan) {
+    const strip = document.getElementById("clashStrip");
+    if (!strip) return;
+    const show = Boolean(plan.rows.length) && v.turn.phase === "clash" && !v.result;
+    strip.hidden = !show;
+    if (!show) return;
+    strip.innerHTML = "";
+    const chip = (cls, text) => strip.append(el("span", cls, text));
+    chip("cs-label", "If this resolves");
+
+    const defender = v.seats[plan.defenderSeat];
+    const hitting = plan.defenderSeat === seat ? "you take" : `${defender.name} takes`;
+    chip(plan.toPlayer ? "cs-hit" : "cs-none", `${hitting} ${plan.toPlayer}`);
+    if (plan.toPlayer >= defender.uptime) chip("cs-lethal", "lethal");
+
+    let mine = 0;
+    let theirs = 0;
+    for (const uid of plan.dying) {
+      if (!v.objects[uid]) continue;
+      if (v.objects[uid].controller === seat) mine += 1;
+      else theirs += 1;
+    }
+    if (theirs) chip("cs-kill", `they lose ${theirs}`);
+    if (mine) chip("cs-loss", `you lose ${mine}`);
+    if (!mine && !theirs) chip("cs-none", "nothing dies");
+  }
+
+  /* One button for the tedious part of the step: sending everything, or
+   * taking every block back. It never confirms — Continue still does that.
+   * The label is rendered here; the behaviour is installed once at init, so
+   * the listener is not rebuilt on every frame. */
+  function renderQuickClash(v, seat) {
+    const button = document.getElementById("quickClash");
+    if (!button) return;
+    const awaiting = v.awaiting && v.awaiting.seat === seat ? v.awaiting.kind : null;
+    if (awaiting === "attackers") {
+      const eligible = (v.zones[`${seat}:network`] || []).filter((uid) => attackGlow(v, seat, uid));
+      button.hidden = !eligible.length;
+      button.textContent = `Send all ${eligible.length}`;
+    } else if (awaiting === "blockers") {
+      const assigned = Object.keys(blocks).reduce((n, key) => n + blocks[key].length, 0);
+      button.hidden = !assigned;
+      button.textContent = `Clear ${assigned} block${assigned === 1 ? "" : "s"}`;
+    } else {
+      button.hidden = true;
+    }
+  }
+
+  function quickClashAction() {
+    const full = session.full;
+    if (!full || full.result) return;
+    const seat = uiSeat(full);
+    const v = viewNow();
+    const awaiting = v.awaiting && v.awaiting.seat === seat ? v.awaiting.kind : null;
+    if (awaiting === "attackers") {
+      for (const uid of v.zones[`${seat}:network`] || []) {
+        if (attackGlow(v, seat, uid) && attackers.indexOf(uid) < 0) attackers.push(uid);
+      }
+      return void render();
+    }
+    if (awaiting === "blockers") {
+      blocks = {};
+      blockTarget = null;
+      render();
+    }
   }
 
   /* One line that answers "where are we, and what can I do": the active
@@ -1231,6 +1345,12 @@
     if (v.awaiting && v.awaiting.seat === seat && v.awaiting.kind === "blockers") chip("assign blocks", "attack");
     chip(playable ? `${playable} playable` : "nothing to play", playable ? "" : "quiet");
   }
+
+  /* A drag in progress: which card is being pulled, what the pull means, and
+   * where the pointer is. `moved` is what separates a drag from a click — a
+   * pointer that never travelled is still a click, and the click path stays
+   * the primary one. */
+  let dragging = null;
 
   /* Attacks and blocks are lines you can see: ember arrows from attackers to
    * the player they are sent at, violet arrows from blockers to attackers.
@@ -1290,6 +1410,100 @@
       const to = cardRect(atk);
       if (from && to) draw(center(from), center(to), "blk", pending);
     }
+
+    // The line you are currently pulling, following the pointer.
+    if (dragging && dragging.moved) {
+      const rect = cardRect(dragging.uid);
+      if (rect) {
+        draw(center(rect), { x: dragging.x, y: dragging.y }, dragging.kind === "attack" ? "atk" : "blk", true);
+      }
+    }
+  }
+
+  /* Drag an Avatar at what it should fight: onto the opponent to attack, onto
+   * an attacker to block it. The same declarations the clicks make — this is
+   * the gesture, not a second rulebook. Below the movement threshold nothing
+   * happens here and the click handler does its usual job. */
+  function installClashDrag() {
+    const zone = document.getElementById("youNetwork");
+    if (!zone || !zone.addEventListener) return;
+    let suppressClick = false;
+
+    const dragKind = () => {
+      const full = session.full;
+      if (!full || full.result) return null;
+      const seat = uiSeat(full);
+      if (!full.awaiting || full.awaiting.seat !== seat) return null;
+      if (full.awaiting.kind === "attackers") return "attack";
+      if (full.awaiting.kind === "blockers") return "block";
+      return null;
+    };
+
+    /* A drop does not always produce a click — release outside a target, or
+     * on a surface that swallows it, and none arrives. Arming the suppressor
+     * for exactly one interaction, and disarming it when the next one begins,
+     * is what stops a stale flag from eating a legitimate click later. */
+    window.addEventListener("pointerdown", () => { suppressClick = false; }, true);
+
+    zone.addEventListener("pointerdown", (event) => {
+      const node = event.target && event.target.closest ? event.target.closest(".gcard") : null;
+      if (!node || !node.dataset || !node.dataset.uid) return;
+      const kind = dragKind();
+      if (!kind) return;
+      dragging = { uid: node.dataset.uid, kind, x: event.clientX, y: event.clientY, moved: false };
+    });
+
+    window.addEventListener("pointermove", (event) => {
+      if (!dragging) return;
+      if (Math.abs(event.clientX - dragging.x) > 6 || Math.abs(event.clientY - dragging.y) > 6) {
+        dragging.moved = true;
+      }
+      dragging.x = event.clientX;
+      dragging.y = event.clientY;
+      if (dragging.moved) drawClashArrows();
+    });
+
+    window.addEventListener("pointerup", (event) => {
+      const drag = dragging;
+      dragging = null;
+      if (!drag) return;
+      if (!drag.moved) return void drawClashArrows(); // it was a click after all
+      suppressClick = true; // the click that follows a drag must not act twice
+
+      const target = document.elementFromPoint
+        ? document.elementFromPoint(event.clientX, event.clientY)
+        : null;
+      const within = (selector) => Boolean(target && target.closest && target.closest(selector));
+      const droppedCard = target && target.closest ? target.closest(".gcard") : null;
+      const droppedUid = droppedCard && droppedCard.dataset ? droppedCard.dataset.uid : null;
+
+      if (drag.kind === "attack") {
+        // Anywhere on the opponent's side means "go at them".
+        if (within("#foeBar") || within("#foeNetwork") || within("#foeHand")) {
+          if (attackers.indexOf(drag.uid) < 0) return void toggleAttacker(drag.uid);
+        }
+        return void render();
+      }
+
+      const full = session.full;
+      const attacking = full && full.clash ? full.clash.attackers : [];
+      if (droppedUid && attacking.indexOf(droppedUid) >= 0) {
+        blockTarget = droppedUid;
+        return void assignBlocker(drag.uid);
+      }
+      render();
+    });
+
+    window.addEventListener(
+      "click",
+      (event) => {
+        if (!suppressClick) return;
+        suppressClick = false;
+        event.stopPropagation();
+        if (event.preventDefault) event.preventDefault();
+      },
+      true
+    );
   }
 
   function continueLabel(v, seat) {
@@ -1464,6 +1678,81 @@
     render();
   }
 
+  /* What this clash is about to do, computed the way the engine computes it:
+   * minimal lethal in order, excess to the player only with Overflow, and
+   * First Strike landing in its own step so a dead blocker never strikes back
+   * (engine.js canonicalAssignment / applyCombatDamage). A preview that
+   * disagrees with the engine is worse than no preview at all, so this mirrors
+   * it deliberately and a test plays real clashes out to compare the two. */
+  function previewClash(v) {
+    const ctx = E.resolveCtx({});
+    const alive = (uid) => Boolean(v.objects[uid]);
+    const keywords = (uid) => {
+      try {
+        return E.keywordsOf(v, ctx, uid) || [];
+      } catch (error) {
+        return [];
+      }
+    };
+    const stat = (uid) => {
+      try {
+        return engineStats(v, uid);
+      } catch (error) {
+        return { action: 0, resilience: 0 };
+      }
+    };
+    // Pending local declarations win while they are being made; once the
+    // engine holds them, they are the truth.
+    const declared = (attackers.length ? attackers : v.clash.attackers || []).filter(alive);
+    const blockersFor = (uid) => {
+      const pending = blocks[uid] || [];
+      const confirmed = (v.clash.blocks && v.clash.blocks[uid]) || [];
+      return (pending.length ? pending : confirmed).filter(alive);
+    };
+
+    const dying = new Set();
+    const rows = [];
+    let toPlayer = 0;
+    let defenderSeat = null;
+    for (const attacker of declared) {
+      const object = v.objects[attacker];
+      defenderSeat = 1 - object.controller;
+      const power = stat(attacker).action;
+      const mine = blockersFor(attacker);
+      const row = { uid: attacker, power, blockers: mine, toPlayer: 0, dies: false, kills: [] };
+      if (!mine.length) {
+        row.toPlayer = power;
+      } else {
+        let remaining = power;
+        for (const blocker of mine) {
+          const lethal = Math.max(0, stat(blocker).resilience - v.objects[blocker].damage);
+          const give = Math.min(remaining, lethal);
+          if (lethal > 0 && give >= lethal) {
+            row.kills.push(blocker);
+            dying.add(blocker);
+          }
+          remaining -= give;
+        }
+        if (remaining > 0 && keywords(attacker).indexOf("Overflow") >= 0) row.toPlayer = remaining;
+        const attackerStrikesFirst = keywords(attacker).indexOf("First Strike") >= 0;
+        let back = 0;
+        for (const blocker of mine) {
+          const blockerStrikesFirst = keywords(blocker).indexOf("First Strike") >= 0;
+          // Killed in the First Strike step, so it never deals its damage.
+          if (attackerStrikesFirst && !blockerStrikesFirst && row.kills.indexOf(blocker) >= 0) continue;
+          back += stat(blocker).action;
+        }
+        if (back + v.objects[attacker].damage >= stat(attacker).resilience) {
+          row.dies = true;
+          dying.add(attacker);
+        }
+      }
+      toPlayer += row.toPlayer;
+      rows.push(row);
+    }
+    return { rows, dying, toPlayer, defenderSeat };
+  }
+
   let blockTarget = null;
   function toggleBlock(v, uid) {
     const seat = uiSeat(session.full);
@@ -1478,9 +1767,23 @@
     }
   }
 
+  /* Which attacker, if any, this Avatar is currently holding off. */
+  function blockingWhat(uid) {
+    return Object.keys(blocks).find((attacker) => blocks[attacker].indexOf(uid) >= 0) || null;
+  }
+
   function assignBlocker(uid) {
+    // A second click takes the blocker back — the same hand as the Wallet,
+    // where clicking a declared attacker un-declares it.
+    const already = blockingWhat(uid);
+    if (already) {
+      blocks[already] = blocks[already].filter((u) => u !== uid);
+      if (!blocks[already].length) delete blocks[already];
+      session.notice = null;
+      return void render();
+    }
     if (!blockTarget) {
-      session.notice = "Click the attacker you want to block first.";
+      session.notice = "Click the attacker you want to block first, then the Avatar that blocks it.";
       return void render();
     }
     const v = viewNow();
@@ -2217,6 +2520,9 @@
       });
     }
 
+    document.getElementById("quickClash").addEventListener("click", quickClashAction);
+    installClashDrag();
+
     // Fewer clicks: the waiting Queue is itself the Continue button, and the
     // space bar is Continue for hands that never leave the keyboard.
     document.getElementById("queue").addEventListener("click", advance);
@@ -2271,18 +2577,6 @@
       });
     });
 
-    // Clicking your own Avatar during the blockers step assigns it to the
-    // attacker you selected; the network zone handler routes it here.
-    document.getElementById("youNetwork").addEventListener("click", (event) => {
-      const full = session.full;
-      if (!full || !full.awaiting || full.awaiting.kind !== "blockers") return;
-      const node = event.target.closest(".gcard");
-      if (!node) return;
-      const index = Array.from(node.parentNode.children).indexOf(node);
-      const uid = full.zones[`${uiSeat(full)}:network`][index];
-      if (uid) assignBlocker(uid);
-    }, true);
-
     document.getElementById("cardCount").textContent = CARDS.length;
 
     // Last, and guarded: a missing net.js must not take the hotseat down with it.
@@ -2312,6 +2606,9 @@
     hash: () => E.hashState(session.full),
     publicHash: () => E.publicHash(session.full),
     verify: () => E.verifyMatch({ config: session.config, log: session.log }),
+    /* The clash preview, exposed so a test can play the fight out and prove
+     * the numbers on screen are the numbers the engine will produce. */
+    preview: () => (session.full ? previewClash(viewNow()) : null),
     startGame,
     dispatch,
   };
