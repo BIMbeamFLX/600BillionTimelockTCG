@@ -2353,6 +2353,17 @@
     return true;
   }
 
+  /* THE PROMPT BAR WAS PRINTING ENGINE IDENTIFIERS AT PLAYERS. "build1/main"
+   * and "clash/blockers" are internal names; the phase ribbon two inches above
+   * already shows the human ones, so the bar was the only place on screen
+   * speaking code. Same source as the ribbon, so they can never disagree. */
+  function stepLabel(v) {
+    const slot = E.TURN_RIBBON.find(
+      (entry) => entry.phase === v.turn.phase && (entry.step === null || entry.step === v.turn.step)
+    );
+    return slot ? slot.label : v.turn.phase;
+  }
+
   function renderPrompt(v, seat) {
     const prompt = document.getElementById("prompt");
     let text;
@@ -2406,10 +2417,10 @@
        * always addressed to whoever is holding it; a networked seat that cannot
        * act must be told so, or it clicks Continue into a rejection. */
       text = v.priority.seat === null
-        ? `Waiting on the other seat — ${v.turn.phase}/${v.turn.step}.`
-        : `Waiting for ${v.seats[v.priority.seat].name} — ${v.turn.phase}/${v.turn.step}.`;
+        ? `Waiting on the other seat — ${stepLabel(v)}.`
+        : `Waiting for ${v.seats[v.priority.seat].name} — ${stepLabel(v)}.`;
     } else {
-      text = `${v.seats[seat].name} — ${v.turn.phase}/${v.turn.step}. Play from your Wallet, then Continue.`;
+      text = `${v.seats[seat].name} — ${stepLabel(v)}. Play from your Wallet, then Continue.`;
     }
     prompt.textContent = text;
     prompt.className = tone;
@@ -2654,6 +2665,25 @@
    * difference is where a state change comes from. Nothing here runs unless the
    * player asks for a table or already holds one, which is what keeps play.html
    * a working offline hotseat from file:// with no server. */
+
+  /* Stacks saved by the Stack Builder. Read ONCE through the napplet adapter,
+   * because inside a shell the library lives in the storage NAP and reading
+   * localStorage directly would show this page an empty shelf while deck.html
+   * showed the real one. Held in memory because the two readers below run
+   * synchronously inside startGame and a menu build. */
+  let stackLibrary = {};
+  function loadStackLibrary(onReady) {
+    const N = globalThis.E1Napplet;
+    const done = (value) => {
+      stackLibrary = value && typeof value === "object" ? value : {};
+      if (typeof onReady === "function") onReady();
+    };
+    if (N && N.storage) {
+      N.storage.json("600b:decks", {}).then(done, () => done({}));
+      return;
+    }
+    try { done(JSON.parse(localStorage.getItem("600b:decks"))); } catch (error) { done({}); }
+  }
 
   const NET = globalThis.E1Net;
   const remote = {
@@ -3584,13 +3614,7 @@
     // A "custom:<name>" choice is a Stack saved by the Stack Builder: the
     // explicit decklist goes to the engine, which validates it (min 40, no
     // Stake cards) before a single object is minted.
-    const stacks = (() => {
-      try {
-        return JSON.parse(localStorage.getItem("600b:decks")) || {};
-      } catch (error) {
-        return {};
-      }
-    })();
+    const stacks = stackLibrary;
     const choose = (value) => {
       const precons = globalThis.E1_PRECONS || {};
       if (value && value.startsWith("precon:") && precons[value.slice(7)]) {
@@ -3660,38 +3684,20 @@
     scheduleNpc();
   }
 
-  function init() {
-    /* Mount the audio control into the table's control row. Mounting is lazy
-     * about the AudioContext: nothing is created until a real user gesture, so
-     * this never trips the browser's autoplay policy. */
-    if (globalThis.E1FX) {
-      try {
-        globalThis.E1FX.init({
-          control: true,
-          parent: document.getElementById("fxControl"),
-          /* WHICH PANEL A SEAT IS ON. Left to itself the effects layer answers
-           * "whose turn is it", which is only right for a table that reseats
-           * itself every turn. This one is laid out against uiSeat() — in solo
-           * play the human is at the bottom for the whole game — so without
-           * this every seat-anchored cue lands on the wrong half of the board
-           * for the entire NPC turn. */
-          sideOf: (seat) => (session.full && uiSeat(session.full) === seat ? "you" : "foe"),
-        });
-      } catch (error) {
-        void error; // sound is never load-bearing
-      }
+  /* The seat menus: affinity presets, the precon library, then whatever the
+   * player has saved. Separated out so it can be called again once the
+   * asynchronous Stack library arrives. */
+  function buildSeatMenus() {
+    for (const id of ["deckA", "deckB"]) {
+      const select = document.getElementById(id);
+      if (!select) return;
+      select.innerHTML = "";
     }
     const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock"];
     // Stacks saved by the Stack Builder (site/deck.html) join the affinity
     // presets. Custom Stacks are a local-table feature: the referee mints
     // networked games from affinities, so remote play keeps the presets only.
-    const savedStacks = (() => {
-      try {
-        return JSON.parse(localStorage.getItem("600b:decks")) || {};
-      } catch (error) {
-        return {};
-      }
-    })();
+    const savedStacks = stackLibrary;
     const precons = globalThis.E1_PRECONS || {};
     for (const id of ["deckA", "deckB"]) {
       const select = document.getElementById(id);
@@ -3726,8 +3732,35 @@
       }
       select.value = id === "deckA" ? "Power" : "Signal";
     }
-    document.getElementById("start").addEventListener("click", startGame);
-    document.getElementById("continue").addEventListener("click", advance);
+  }
+
+  function init() {
+    /* Mount the audio control into the table's control row. Mounting is lazy
+     * about the AudioContext: nothing is created until a real user gesture, so
+     * this never trips the browser's autoplay policy. */
+    if (globalThis.E1FX) {
+      try {
+        globalThis.E1FX.init({
+          control: true,
+          parent: document.getElementById("fxControl"),
+          /* WHICH PANEL A SEAT IS ON. Left to itself the effects layer answers
+           * "whose turn is it", which is only right for a table that reseats
+           * itself every turn. This one is laid out against uiSeat() — in solo
+           * play the human is at the bottom for the whole game — so without
+           * this every seat-anchored cue lands on the wrong half of the board
+           * for the entire NPC turn. */
+          sideOf: (seat) => (session.full && uiSeat(session.full) === seat ? "you" : "foe"),
+        });
+      } catch (error) {
+        void error; // sound is never load-bearing
+      }
+    }
+    /* Built as soon as the saved-Stack library answers, and rebuilt if it
+     * answers late: inside a shell the storage NAP is asynchronous, so a menu
+     * assembled at boot would list the presets and silently omit every Stack
+     * the player had built. */
+    loadStackLibrary(buildSeatMenus);
+    document.getElementById("start").addEventListener("click", startGame);    document.getElementById("continue").addEventListener("click", advance);
 
     document.getElementById("coachNext").addEventListener("click", () => {
       coachIndex += 1;

@@ -6,6 +6,14 @@
 <meta name="theme-color" content="#09080b">
 <meta name="description" content="Play the 600B Timelock TCG Edition One locally: two-player hotseat with all 295 cards.">
 <title>600B Timelock TCG — Play</title>
+<!-- The napplet seam, before the palette below, so a shell-themed panel does
+     not flash the fallback colours first. This page carries its own :root
+     rather than loading 600b.css, and the adapter writes the same token names,
+     so a shell owns the chrome here exactly as it does everywhere else — while
+     the five affinity Plate colours stay brand-fixed, because they are how a
+     player reads the board and must match the printed cards. -->
+<script src="napplet.js"></script>
+<script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
 <style>
 @font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
 :root {

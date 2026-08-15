@@ -80,8 +80,27 @@ function renderWebsite() {
     '<p class="resource-icon"><img src="$1" alt="$2" loading="lazy"></p>',
   );
 
+  /* Each chapter's own words, folded onto its link, so the filter can find a
+   * section by what is IN it rather than only by what it is called. Trimmed to
+   * a few hundred characters per chapter: enough for the vocabulary a player
+   * types, small enough not to bloat the page. */
+  const sectionTerms = (id) => {
+    const start = article.indexOf(`id="${id}"`);
+    if (start < 0) return "";
+    const nextH2 = article.indexOf('<h2 id="', start + 1);
+    const body = article.slice(start, nextH2 < 0 ? article.length : nextH2);
+    const words = body
+      .replace(/<[^>]+>/g, " ")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length > 2);
+    return Array.from(new Set(words)).join(" ").slice(0, 600);
+  };
+
   const toc = headings
-    .map(({ id, title }) => `<a href="#${id}">${escapeXml(title)}</a>`)
+    .map(({ id, title }) =>
+      `<a href="#${id}" data-terms="${escapeXml(sectionTerms(id))}">${escapeXml(title)}</a>`)
     .join("\n");
 
   const html = `<!doctype html>
@@ -94,6 +113,11 @@ function renderWebsite() {
   <title>600B Timelock TCG — Edition One Rules</title>
   <link rel="icon" href="../art/brand/600B-logo-primary.png">
   <link rel="stylesheet" href="600b.css">
+  <!-- The napplet seam. Loaded before the stylesheet's tokens are used so a
+       shell-themed panel never flashes the fallback palette first; absent a
+       shell it paints exactly what 600b.css already says. -->
+  <script src="napplet.js"></script>
+  <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
   <style>
     @font-face {
       font-family: "Anton600";
@@ -367,14 +391,44 @@ function renderWebsite() {
       position: sticky;
       top: 0;
       z-index: 10;
-      padding: 11px 18px;
       color: var(--black);
       background: var(--purple);
       font-weight: 900;
-      text-decoration: none;
       text-transform: uppercase;
       letter-spacing: .08em;
     }
+    .mobile-index > summary {
+      padding: 12px 18px;
+      cursor: pointer;
+      list-style: none;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
+    .mobile-index > summary::-webkit-details-marker { display: none; }
+    .mobile-index > summary::after { content: " ▾"; margin-left: auto; }
+    .mobile-index[open] > summary::after { content: " ▴"; }
+    .mobile-toc {
+      display: flex;
+      flex-direction: column;
+      max-height: 60vh;
+      overflow: auto;
+      background: var(--black);
+      border-top: 1px solid var(--purple);
+    }
+    .mobile-toc a {
+      padding: 12px 18px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      color: var(--cream);
+      text-decoration: none;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      border-bottom: 1px solid rgba(185,145,228,.18);
+    }
+    .mobile-toc a:hover, .mobile-toc a:focus { color: var(--orange); }
     @media (max-width: 1050px) {
       .page-shell { grid-template-columns: minmax(0, var(--content)); }
       .toc { display: none; }
@@ -443,7 +497,16 @@ function renderWebsite() {
       <a class="link" href="leaderboard.html">Leaderboard</a>
     </div>
   </nav>
-  <a class="mobile-index" href="#fast-start">Jump to rules</a>
+  <!-- PHONES USED TO GET NO RULEBOOK NAVIGATION AT ALL. The sidebar contents
+       is hidden below 1050px, and its only replacement was a single link to
+       "#fast-start" — an id that does not exist, because the heading slugs are
+       numbered ("1-fast-start"). So the one control a phone had did nothing,
+       and a 1,400-line rulebook had to be scrolled from the top to find
+       anything. It is a real contents list now, closed by default. -->
+  <details class="mobile-index">
+    <summary>Contents — jump to a chapter</summary>
+    <nav class="mobile-toc" aria-label="Rulebook contents">${toc}</nav>
+  </details>
   <header class="hero">
     <div class="hero-inner">
       <div class="hero-copy">
