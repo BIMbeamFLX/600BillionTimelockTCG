@@ -1214,6 +1214,32 @@
 
   // ------------------------------------------------------------ card nodes
 
+  /* What a screen reader is told a card IS. Without this every card on the
+   * board announced as "button" and nothing else — 40 identical buttons. The
+   * state words are the same ones the glows carry, so a player who cannot see
+   * the ring is told the same thing it says. */
+  function ariaFor(v, uid, card) {
+    const object = v.objects[uid];
+    const bits = [card && card.name ? card.name : "face-down card"];
+    /* `typeLine` is a gallery field and does not exist here — play-data carries
+     * `type`, `subtype`, `action` and `resilience`. Announcing the numbers
+     * matters: the .gstats badge renders them as "3/4", which reads aloud as a
+     * date. */
+    if (card && card.type) bits.push(card.subtype ? `${card.type} — ${card.subtype}` : card.type);
+    if (card && card.action !== undefined && card.action !== null && card.resilience !== undefined) {
+      bits.push(`${card.action} action, ${card.resilience} resilience`);
+    }
+    if (card && card.cost) bits.push(`cost ${card.cost}`);
+    if (object) {
+      if (object.committed) bits.push("committed");
+      if (object.facedown) bits.push("face down");
+      if (object.bootDelay) bits.push("boot delay");
+      if (object.damage) bits.push(`${object.damage} damage`);
+    }
+    if (attackers.indexOf(uid) >= 0) bits.push("attacking");
+    return bits.join(", ");
+  }
+
   function cardNode(v, uid, options) {
     const object = v.objects[uid];
     const node = el("div", "gcard");
@@ -1304,6 +1330,37 @@
       });
     }
     node.addEventListener("mouseenter", () => showInspector(v, uid));
+
+    /* THE GAME WAS UNPLAYABLE WITHOUT A MOUSE. A card was a bare <div> with
+     * click, contextmenu, pointerdown and mouseenter — no tabindex, no role, no
+     * keydown — so a keyboard-only player could press Continue and End turn and
+     * nothing else: they could not play a card, choose a target, pick an
+     * attacker, assign a blocker, or even READ a card, because the inspector
+     * was bound to hover and the reader to right-click.
+     *
+     * This is the same shape shop.js and deck.html already use for their cards,
+     * deliberately: three implementations of "a div that behaves like a button"
+     * is how they drift apart. ENTER acts, and the reader is on a key rather
+     * than a chord because Shift+F10 and the Menu key are not on every
+     * keyboard — and the reader is the half a new player needs most. */
+    node.tabIndex = 0;
+    node.setAttribute("role", "button");
+    node.setAttribute("aria-label", ariaFor(v, uid, card));
+    node.addEventListener("focus", () => showInspector(v, uid));
+    node.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (wantsTarget(v, uid)) return void offerTarget({ kind: "object", uid });
+        if (options && options.onClick) options.onClick(uid, event);
+        return;
+      }
+      // The keyboard's right click.
+      if ((event.key === "i" || event.key === "I") && options && options.onContext) {
+        event.preventDefault();
+        options.onContext(uid, event);
+      }
+    });
+
     if (options && options.canPlay && options.canPlay(uid)) node.classList.add("canplay");
     if (options && options.canAct && options.canAct(uid)) node.classList.add("canact");
     if (options && options.canAttack && options.canAttack(uid)) node.classList.add("canattack");
