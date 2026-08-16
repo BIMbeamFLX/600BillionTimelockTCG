@@ -115,7 +115,13 @@ a { color: var(--orange-soft); }
   50% { box-shadow: 0 0 0 6px rgba(243,194,68,.35); }
 }
 #endturn.ready { color: var(--black); background: var(--gold); border-color: var(--gold); animation: turnReady 1.8s ease-in-out infinite; }
-#endturn.foeturn { opacity: .45; }
+/* "Their turn…" is NOT a disabled control — it stays clickable, because in
+   hotseat the same button ends both seats' turns — so the 1.4.3 exemption for
+   inactive components does not apply to it. `opacity:.45` put its label at
+   4.01:1 and its border at 1.24:1. Quiet is a colour choice, not a transparency
+   one: --muted reads 8:1 and the border, at just over half strength, clears the
+   3:1 floor for a non-text boundary while still looking switched off. */
+#endturn.foeturn { color: var(--muted); border-color: rgba(199,187,204,.55); }
 
 /* The coach: one bubble, one highlighted target, first game only. */
 .coach-target { position: relative; z-index: 61; outline: 3px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
@@ -128,7 +134,11 @@ a { color: var(--orange-soft); }
 #coach .row { display: flex; gap: 8px; margin-top: 10px; }
 #coach button { padding: 6px 12px; cursor: pointer; font: 700 11px Arial; letter-spacing: .06em; text-transform: uppercase; }
 #coach .next { color: var(--black); background: var(--gold); border: 0; }
-#coach .skip { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+/* NOT `.skip`: that name belongs to the site-wide skip-to-content link, which
+   parks itself at left:-9999px until focused — and this button inherited that
+   and walked straight off the screen, leaving the tour with no way out. Two
+   different meanings of "skip" cannot share one class. */
+#coach .skipstep { color: var(--muted); background: transparent; border: 1px solid var(--line); }
 
 /* Card window: right-click explains the card in its own frame — double line,
    corner pads, type banner — and hangs at the mouse that asked. */
@@ -186,6 +196,26 @@ a { color: var(--orange-soft); }
  * signed-out player, because .btn sets display and the UA's [hidden] loses. */
 [hidden] { display: none !important; }
 
+/* ...and for the same reason it does not get the shared LANDMARKS either. Every
+ * other page on this site opens with a skip link, wraps its links in <nav> and
+ * its content in <main>; the one page a player spends an hour inside had none
+ * of the three, so a screen reader or a keyboard had to walk the masthead, the
+ * whole lobby and both Stack menus to reach the board. Same class names as
+ * 600b.css on purpose — two spellings of "visually hidden" is how they drift. */
+.skip {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+  padding: 10px 16px; background: var(--orange); color: var(--black);
+  font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase;
+}
+.skip:focus { left: 8px; top: 8px; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+/* A visible focus ring everywhere, because the board is now fully keyboard
+ * operable and the UA default is invisible against this palette. */
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
 /* ---------- matchmaking ---------- */
 .resumecard { margin-top: 14px; padding: 10px 12px; background: var(--soot); border: 1px solid var(--orange); }
 .resumerow { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; padding: 6px 0; font-size: 12px; }
@@ -227,7 +257,10 @@ a { color: var(--orange-soft); }
 .endstake .qr { display: block; margin: 10px auto 0; width: min(196px, 60%); background: var(--cream); padding: 7px; }
 .endrow { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
 .endnote { color: var(--muted); font-size: 11.5px; margin-top: 10px; min-height: 16px; }
-.endcard .terminal-line { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font: 9px/1.3 ui-monospace, Consolas, monospace; letter-spacing: .22em; color: var(--purple-deep); }
+/* --purple-deep on --panel is 2.86:1. It is 9px text on the screen that closes
+   a match, so it is exactly the size that needs the ratio most. --purple is the
+   same family at 7:1, and is already what .endeyebrow uses two lines above. */
+.endcard .terminal-line { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font: 9px/1.3 ui-monospace, Consolas, monospace; letter-spacing: .22em; color: var(--purple); }
 @media (prefers-reduced-motion: no-preference) {
   .endgame[open] .endcard { animation: endrise .26s cubic-bezier(.2,.7,.3,1) both; }
   @keyframes endrise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
@@ -390,16 +423,22 @@ a { color: var(--orange-soft); }
    zone breathes a little less, so a split Network is ~1.6x a single row and
    the single-column breakpoint still fits the board. */
 .zone.netsplit { flex-wrap: wrap; align-content: center; row-gap: 2px; padding: 5px 6px; overflow: visible; }
+/* THE OPACITY WAS THE WHOLE PROBLEM. --purple on the board's own composited
+   background is 7.7:1; at .7 it blends toward the world plate showing through
+   the board scrim and measures 3.57:1 — a caption that names which rail you are
+   looking at, under the 4.5 floor. Full strength is 5.7:1 against the plate's
+   brightest region. The trace keeps its own faintness in its own gradient, so
+   the line stays a hint and the words stay readable. */
 .zone.netsplit .netcut {
   flex: 0 0 100%; align-self: center; display: flex; align-items: center; gap: 8px;
   height: 12px; overflow: visible; pointer-events: none;
   font: 9px/1 Anton600, Impact, sans-serif; letter-spacing: .22em; text-transform: uppercase;
-  color: var(--purple); opacity: .7;
+  color: var(--purple);
 }
 /* A trace running off the caption, not a ruled line. */
 .zone.netsplit .netcut::after {
   content: ""; flex: 1 1 auto; height: 1px;
-  background: linear-gradient(90deg, rgba(185,145,228,.42), rgba(185,145,228,0));
+  background: linear-gradient(90deg, rgba(185,145,228,.3), rgba(185,145,228,0));
 }
 /* The back rail is support, not bodies: smaller, so two rows cost far less
    than two card heights. It opens up properly on hover. */
@@ -423,6 +462,36 @@ a { color: var(--orange-soft); }
   .zone.arc { flex-wrap: wrap; }
   .zone.fan .gcard { margin: 0 calc(var(--card-w) * -0.05); }
 }
+/* ---------- the clash states, said in something other than colour ----------
+   SC 1.4.1: red border = attacking, teal = blocking, green glow = may block,
+   dimmed = may not, purple = meshed. Five meanings, one channel, and about one
+   player in twelve cannot separate the first two. Only .willdie had a shape.
+   So every combat state also wears a chip on the card's top edge — the same
+   steel type-banner the zone names use, shrunk to card scale — with a glyph
+   AND a word, so the state survives colour blindness, a greyscale screen and a
+   photograph of the table. It is a class, never a keyframe: reduced motion
+   removes animation, and a state that lives in an animation is a state a
+   calmed-down player never sees. */
+.gcard.attacking::before, .gcard.blocking::before, .gcard.canblock::before,
+.gcard.cantblock::before, .gcard.meshed::before {
+  position: absolute; left: 50%; top: -7px; transform: translateX(-50%); z-index: 4;
+  padding: 1px 4px 2px; white-space: nowrap; pointer-events: none;
+  background: #09080b; border: 1px solid currentColor;
+  font: 900 7.5px/1 ui-monospace, Consolas, monospace; letter-spacing: .08em;
+}
+/* Order is precedence: a meshed attacker says MESH, because the mesh is the
+   thing that changes how the fight resolves. */
+.gcard.attacking::before { content: "▲ ATK"; color: var(--danger); }
+.gcard.blocking::before  { content: "▼ BLK"; color: var(--violet); }
+.gcard.canblock::before  { content: "✓ BLK"; color: var(--good); }
+.gcard.cantblock::before { content: "✕ BLK"; color: var(--muted); }
+.gcard.meshed::before    { content: "⬢ MESH"; color: var(--purple); }
+/* A committed card is turned a quarter turn, and the chip turns with it — an
+   attacker is committed the moment it is declared, so this is the COMMON case,
+   not the corner one. Moving the chip to the card's left edge and spinning it
+   back puts it upright, above the card, once the card's own +90° is applied. */
+.gcard.committed::before { left: -2px; top: 50%; transform: translate(-50%,-50%) rotate(-90deg); }
+
 .gcard.attacking { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.35); }
 .gcard.blocking { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(94,90,203,.4); }
 /* The attacker you picked to block: violet pulse until you name the blocker. */
@@ -433,9 +502,14 @@ a { color: var(--orange-soft); }
 #youNetwork.draggable .gcard:active { cursor: grabbing; }
 /* An attacker nobody is answering yet — the thing to click next. */
 .gcard.needsblock { outline: 2px dashed rgba(255,77,61,.7); outline-offset: 2px; }
-/* Once an attacker is picked: who may legally answer it, and who may not. */
+/* Once an attacker is picked: who may legally answer it, and who may not.
+   The refusal used to be `opacity:.38` on the whole card, which also took the
+   "✕ BLK" chip down with it — opacity groups its children — leaving the one
+   readable explanation at 38% over a live background. The dimming now lands on
+   the ART, where it belongs, and the label stays at full strength. */
 .gcard.canblock { box-shadow: 0 0 0 2px var(--good), 0 0 14px rgba(110,231,168,.5); }
-.gcard.cantblock { opacity: .38; filter: grayscale(.6); }
+.gcard.cantblock { opacity: .62; }
+.gcard.cantblock img { filter: grayscale(.85) brightness(.6); }
 /* This one does not come back from the clash. */
 .gcard.willdie::after {
   content: "✖"; position: absolute; inset: 0; display: grid; place-items: center;
@@ -505,6 +579,29 @@ a { color: var(--orange-soft); }
 #manualPending button { padding: 5px 8px; color: var(--black); background: var(--orange-soft); border: 0; cursor: pointer; font-size: 11px; font-weight: 700; }
 #manualPending button.ghost { color: var(--muted); background: transparent; border: 1px solid var(--line); }
 .mreason { width: 100%; padding: 5px 7px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font-size: 11px; }
+/* ---------- keyword help ----------
+   The table names rules it never explains: Boot Delay governs the first turn of
+   every Avatar and appeared nowhere but a ⏻ badge, and the blocking refusal
+   told players to "check Broadcast, Shielded or Backchannel" with nothing on
+   the page to check. This is the glossary, plus a real BUTTON everywhere those
+   words appear — a button, because a finger has no hover and this codebase's
+   rule is that nothing lives behind a gesture the device does not have. */
+.kwlist { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 44vh; overflow-y: auto; }
+.kwitem { padding: 7px 8px; background: var(--soot); border-left: 2px solid var(--line); font-size: 12px; line-height: 1.5; }
+.kwitem.on { border-left-color: var(--gold); background: var(--panel-2); }
+.kwitem b { display: block; color: var(--gold); font: 400 11px Anton600, Impact, sans-serif; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 3px; }
+.kwitem p { margin: 0; color: var(--cream); }
+.kwitem a { display: inline-block; margin-top: 4px; font-size: 11px; }
+.kwnote { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.5; }
+.kwrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#promptKeywords { margin: -6px 0 10px; }
+.kwcap { color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.kwlink {
+  padding: 5px 9px 6px; cursor: pointer; color: var(--gold); background: transparent;
+  border: 1px dashed var(--gold); font: 700 10.5px/1.2 Arial, sans-serif; letter-spacing: .04em;
+}
+.kwlink:hover, .kwlink:focus-visible { color: var(--black); background: var(--gold); }
+
 #log { max-height: 300px; overflow-y: auto; font-size: 11px; }
 .logline { padding: 3px 0; border-bottom: 1px solid rgba(185,145,228,.12); color: var(--muted); }
 .logline.good { color: var(--good); }
@@ -521,11 +618,16 @@ a { color: var(--orange-soft); }
   #cardPanel { order: -1; }
   /* Thumb-sized targets for the controls a turn is actually made of. */
   .controls .btn, .controls button { min-height: 44px; }
+  /* The keyword panel is the reference a thumb reaches for mid-turn, so it
+     travels with the card reader instead of sitting below the table admin. */
+  #keywordPanel { order: -1; }
+  .kwlink { min-height: 34px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <div class="stage">
 <div class="wrap">
 
@@ -534,15 +636,17 @@ a { color: var(--orange-soft); }
     <div class="brand"><strong>TIMELOCK TCG</strong><span>Edition One · Local Table</span></div>
     <div class="turnchip" id="turnchip" role="status" aria-live="polite">Not started</div>
     <div class="turnchip netchip" id="netchip" hidden></div>
-    <div class="navlinks">
+    <nav class="navlinks" aria-label="Site">
       <a class="navlink" href="index.html">Home</a>
       <a class="navlink" href="quickstart.html">Quick start</a>
       <a class="navlink" href="rules.html">Rulebook</a>
       <a class="navlink" href="cards.html">Cards</a>
       <a class="navlink" href="deck.html">Stacks</a>
       <a class="navlink" href="shop.html">Shop</a>
-    </div>
+    </nav>
   </header>
+
+  <main id="main">
 
   <!-- ---------------- setup ---------------- -->
   <section class="setup" id="setup">
@@ -665,8 +769,16 @@ a { color: var(--orange-soft); }
   </section>
 
   <!-- ---------------- table ---------------- -->
-  <section id="table" hidden>
-    <div class="phases" id="phases"></div>
+  <section id="table" hidden aria-labelledby="tableHeading">
+    <!-- THE DOCUMENT LOST ITS ONLY <h1> THE MOMENT THE GAME STARTED. The setup
+         panel's "Play locally" is inside #setup, and #setup is hidden as soon
+         as the table opens — so for the entire match the page had no heading at
+         all and a screen reader's heading list was empty. Exactly one of these
+         two is ever exposed, because exactly one of the two sections is. It is
+         visually hidden because the masthead and the turn chip already say all
+         of this on screen; repeating it in 58px would be a worse table. -->
+    <h1 class="visually-hidden" id="tableHeading">Timelock TCG — the table</h1>
+    <div class="phases" id="phases" role="group" aria-label="Turn phases"></div>
     <!-- Where we are and what there is to do, at one glance. -->
     <div class="hud" id="hud">
       <span class="hud-phase" id="hudPhase"></span>
@@ -677,6 +789,10 @@ a { color: var(--orange-soft); }
     <!-- The game's primary instruction ("Choose a target — click a highlighted
          card") changed silently for anyone not watching it. -->
     <div class="prompt" id="prompt" role="status" aria-live="polite"></div>
+    <!-- OUTSIDE the live region, deliberately: these buttons are a standing
+         offer, not news, and a polite region re-announces everything inside it
+         every time its text changes. -->
+    <div class="kwrow" id="promptKeywords" role="group" aria-label="Keyword help" hidden></div>
     <!-- What the declared clash will actually do, before it is confirmed. -->
     <div class="clashstrip" id="clashStrip" hidden></div>
     <div id="choiceRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
@@ -686,7 +802,14 @@ a { color: var(--orange-soft); }
         <span class="bcorner tl"></span><span class="bcorner tr"></span>
         <span class="bcorner bl"></span><span class="bcorner br"></span>
 
-        <div class="side foe">
+        <!-- EVERY ZONE BOUNDARY WAS INVISIBLE TO ASSISTIVE TECH. The .zonechip
+             captions are siblings of the zones they name, not labels of them,
+             so a screen reader walked one flat stream of forty card names with
+             nothing between "their Network" and "your hand". role="group" with
+             aria-labelledby turns each chip into the label of the zone it
+             introduces, and the two hands — which have no chip on screen,
+             because a player can see whose hand is whose — get one in text. -->
+        <div class="side foe" role="group" aria-label="Opponent">
           <div class="playerbar" id="foeBar">
             <span class="name" id="foeName">Opponent</span>
             <span class="uptime" id="foeUptimeMeter" role="meter" aria-label="Opponent Uptime" aria-valuemin="0" aria-valuemax="20" aria-valuenow="20">
@@ -697,21 +820,21 @@ a { color: var(--orange-soft); }
             <span class="counts" id="foeCounts"></span>
             <span class="buffer" id="foeBuffer"></span>
           </div>
-          <div class="zone arc foehand" id="foeHand"></div>
-          <div class="zonechip">Their Network</div>
-          <div class="zone arc netsplit" id="foeNetwork"></div>
+          <div class="zone arc foehand" id="foeHand" role="group" aria-label="Their Wallet — face down"></div>
+          <div class="zonechip" id="foeNetLabel">Their Network</div>
+          <div class="zone arc netsplit" id="foeNetwork" role="group" aria-labelledby="foeNetLabel"></div>
         </div>
 
         <!-- The Queue is shared information (§6) and the one zone a played
              card passes through: the clash lane between the two Networks. -->
         <div id="queueWrap" hidden>
-          <div class="zonechip">Queue // resolves on Continue</div>
-          <div class="zone queue" id="queue"></div>
+          <div class="zonechip" id="queueLabel">Queue // resolves on Continue</div>
+          <div class="zone queue" id="queue" role="group" aria-labelledby="queueLabel"></div>
         </div>
 
-        <div class="side you">
-          <div class="zonechip">Your Network</div>
-          <div class="zone arc netsplit" id="youNetwork"></div>
+        <div class="side you" role="group" aria-label="You">
+          <div class="zonechip" id="youNetLabel">Your Network</div>
+          <div class="zone arc netsplit" id="youNetwork" role="group" aria-labelledby="youNetLabel"></div>
           <div class="playerbar" id="youBar">
             <span class="name" id="youName">You</span>
             <span class="uptime" id="youUptimeMeter" role="meter" aria-label="Your Uptime" aria-valuemin="0" aria-valuemax="20" aria-valuenow="20">
@@ -722,7 +845,7 @@ a { color: var(--orange-soft); }
             <span class="counts" id="youCounts"></span>
             <span class="buffer" id="youBuffer"></span>
           </div>
-          <div class="zone arc fan" id="youHand"></div>
+          <div class="zone arc fan" id="youHand" role="group" aria-label="Your Wallet — the cards in your hand"></div>
         </div>
 
         <div class="action-fx" id="actionFx" aria-live="polite" aria-atomic="false"></div>
@@ -756,6 +879,15 @@ a { color: var(--orange-soft); }
           <!-- Not "Hover a card": half the people reading this have no hover. -->
           <div id="inspector"><span style="color:var(--muted);font-size:12px">Point at a card, or hold one to open it.</span></div>
         </div>
+        <details class="panel" id="keywordPanel">
+          <summary>Keywords</summary>
+          <p style="margin:6px 0 0;color:var(--muted);font-size:11.5px">
+            The words this table uses. Every card window lists the ones on that card,
+            and wherever the game names a keyword it is a button that opens it here.
+          </p>
+          <div class="kwlist" id="keywordBody"></div>
+          <p class="kwnote" id="keywordNote"></p>
+        </details>
         <details class="panel">
           <summary>Match controls</summary>
           <button class="btn ghost rug" id="rugpull"
@@ -772,6 +904,8 @@ a { color: var(--orange-soft); }
       </aside>
     </div>
   </section>
+
+  </main>
 
 </div>
 </div>
@@ -831,7 +965,7 @@ a { color: var(--orange-soft); }
   <span id="coachText"></span>
   <div class="row">
     <button class="next" id="coachNext">Next</button>
-    <button class="skip" id="coachSkip">Skip tour</button>
+    <button class="skipstep" id="coachSkip">Skip tour</button>
   </div>
 </div>
 
@@ -846,6 +980,11 @@ a { color: var(--orange-soft); }
       <div class="rules cd-rules"></div>
       <div class="flavor cd-flavor"></div>
       <div class="help"><b>What it does</b><span class="cd-help"></span></div>
+      <!-- The keywords ON THIS CARD, looked up in place. Reached by right-click
+           on a mouse and by a 420 ms press on a finger — the same door the rest
+           of the table uses for "explain this". -->
+      <div class="kwrow" id="cdKeywords" role="group" aria-label="Keywords on this card"
+        style="margin-bottom:12px" hidden></div>
       <div class="row" id="cdActs" style="flex-wrap:wrap;margin-bottom:10px"></div>
       <div class="row">
         <button class="btn" id="cdPlay">Play card</button>

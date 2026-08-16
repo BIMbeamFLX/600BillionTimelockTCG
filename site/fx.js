@@ -1559,6 +1559,11 @@
     var prev = lastText.has(key) ? lastText.get(key) : now;
     lastText.set(key, now);
     if (reduced()) return;
+    /* An odometer that rolls the same number past itself says NOTHING, and the
+       host may legitimately ask twice for one change — once off its own render
+       diff, once off the rules event that caused it. The cache is still
+       updated above, so the next real change still knows where it came from. */
+    if (prev === now) return;
     var r = rectOf(el);
     if (!r || !r.width) return;
     var n = take('roll');
@@ -1580,6 +1585,32 @@
     var c = '';
     guard(function () { c = global.getComputedStyle ? global.getComputedStyle(el).color : ''; });
     return c || PALETTE.orange;
+  }
+
+  /* --- P7b · FLIGHT (FLIP) ---------------------------------------------- *
+   * A card that MOVED between two frames of the host's board. The host wipes
+   * and rebuilds its zones, so it measures every card BEFORE the redraw and
+   * again after; `dx`/`dy` are old-minus-new, i.e. the invert half of a FLIP.
+   * We start there and play to identity, so the card appears to travel from
+   * where it was to where it now is.
+   *
+   * `composite:'add'` is not an optimisation here, it is the whole trick: a
+   * .gcard already carries `transform: rotate(var(--rot)) translateY(var(--lift))`
+   * written per card by the host's arc layout, and a plain WAAPI transform
+   * REPLACES that — every flying card would snap flat and upright mid-flight,
+   * then pop back onto the arc at the end. additiveFor() answers 'add' for
+   * exactly that class.
+   *
+   * Reduced motion: suppressed. The card is already AT its destination the
+   * moment the host redraws; the slide is how it got there, not what it is. */
+  function pFlight(el, dx, dy) {
+    if (!el || reduced()) return null;
+    var x = Number(dx) || 0, y = Number(dy) || 0;
+    if (!x && !y) return null;
+    return play(el, [
+      { transform: 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)' },
+      { transform: 'translate3d(0,0,0)' }
+    ], { duration: D.lg, easing: EASE.snap, composite: additiveFor(el) });
   }
 
   /* --- P8 · BAR DRAIN --------------------------------------------------- */
@@ -1849,9 +1880,15 @@
     }
   };
 
+  /* THE HANDOVER IS THE BIGGEST STATE CHANGE IN THE GAME and it read as a
+     one-pixel wobble on a chip in the masthead. The ring outlines the incoming
+     half; the wipe travels DOWN it, which is the same gesture game:start and
+     game:win use for "this whole block is now the subject". Suppressed under
+     reduced motion by pWipe itself — the ring (which lands statically there)
+     and the turnchip's colour flash still carry the information. */
   MOTION['turn:begin'] = function (d) {
     var side = sideBlockOf(d.seat);
-    if (side) pRing(side, PALETTE.orange, D.xl);
+    if (side) { pRing(side, PALETTE.orange, D.xl); pWipe(side, PALETTE.orange, D.xl, 0.45); }
     var tc = q('turnchip');
     if (tc) { pJitter(tc, 2); pRoll(tc, 'turnchip'); }
   };
@@ -2279,7 +2316,15 @@
     function push(e) { if (e) out.push(e); }
     switch (ev.name) {
       case 'game:start': push(q('stage')); push(q('phases')); break;
-      case 'turn:begin': push(sideBlockOf(d.seat)); push(q('turnchip')); break;
+      /* Both sides, deliberately. turn:begin is the one event whose WRITE pass
+         reassigns activeSeat (runOne), and a host that does not supply the
+         sideOf hook resolves the seat through activeSeat — so the read pass and
+         the write pass would answer with different halves of the board and the
+         ring and the wipe would both measure during the write. Measuring the
+         other block costs one rect and removes the whole class of mistake. */
+      case 'turn:begin':
+        push(sideBlockOf(d.seat)); push(sideBlockOf(1 - normSeat(d.seat)));
+        push(q('turnchip')); break;
       case 'phase:enter':
         var ph = q('phases');
         push(ph && ph.querySelector ? ph.querySelector('.phase.active') : null); break;
@@ -2648,6 +2693,7 @@
     jitter: function (el, o) { pJitter(el, (o && o.amp) || 2); },
     rackSlide: function (el, o) { pRackSlide(el, o && o.dx, o && o.out); },
     commit: function (el, o) { pCommit(el, o && o.angle); },
+    flight: function (el, o) { pFlight(el, o && o.dx, o && o.dy); },
     roll: function (el, o) { pRoll(el, (o && o.key) || 'debug'); },
     drain: function (el, o) { pDrain(el, !!(o && o.gain)); },
     ring: function (el, o) { pRing(el, (o && o.color) || PALETTE.orange, (o && o.duration) || D.xl); },

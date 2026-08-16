@@ -237,8 +237,25 @@
   let fxCues = [];   // [{ name, detail, bind }] — E1FX.emit, in engine order
   let fxPrims = [];  // [{ prim, uid, opts, delay }] — E1FX.anim on one card
   let fxBefore = []; // last frame's cards: { uid, cardId, zone, node, rect }
+  let fxBoardBefore = null; // where the battlefield itself was, last frame
   let fxLive = new Map(); // this frame's cards, uid -> node
   let fxPicking = false;
+  /* Cards whose motion this frame is already spoken for, so the generic flight
+   * diff below does not animate them a second time from a different origin. */
+  let fxOwned = new Set();
+  /* Cues that MOVE the card they name. Anything else (a jitter, a damage chip,
+   * an activation ring) leaves the card where it is, so a card carrying one of
+   * those may still fly. */
+  const FX_MOVES = new Set(["card:play", "resource:play", "card:draw"]);
+  /* The last Uptime each PANEL was drawn with. The gauge bar animates itself —
+   * it is static markup with a width transition, so no render can kill it — but
+   * the numeral beside it only ever rolled when a rules event happened to name
+   * that seat, which covers damage, burn and gains and nothing else. This is
+   * the render's own diff, so the two halves of the meter always move together
+   * whatever moved the number. The KEYS ARE fx.js's OWN ('uptimeYou' /
+   * 'uptimeFoe'), so the odometer keeps ONE cache: whichever of us asks first
+   * shows the change, and the other is a no-op instead of a second roll. */
+  const fxUptime = new Map();
 
   /* `bind` says how to attach a cue to the DOM once the frame exists:
    *   el:     fill detail.el from detail.uid (the card's NEW node)
@@ -365,7 +382,17 @@
    * getBoundingClientRect, and simply produces an empty snapshot. */
   function fxSnapshot() {
     fxBefore = [];
+    fxBoardBefore = null;
     if (!globalThis.E1FX || typeof document.querySelectorAll !== "function") return;
+    /* THE FRAME OF REFERENCE IS THE BOARD, NOT THE WINDOW. getBoundingClientRect
+     * is viewport-relative, so scrolling the page — or the prompt bar growing a
+     * line, or the Queue opening above you — moves EVERY rect on the table by
+     * the same amount, and a naive before/after diff reads that as forty cards
+     * flying in formation. Measured against the board's own corner, a page that
+     * scrolled cancels to zero and only cards that actually moved on the table
+     * are left. The card rects themselves stay in viewport space, because the
+     * exit clones are positioned in a fixed overlay and need them that way. */
+    fxBoardBefore = fxBoardRect();
     let cards = [];
     try {
       cards = document.querySelectorAll(".gcard");
@@ -454,6 +481,7 @@
   function fxBind(entry, gone) {
     const detail = entry.detail;
     const bind = entry.bind;
+    if (FX_MOVES.has(entry.name) && detail.uid != null) fxOwned.add(String(detail.uid));
     if (bind.el && detail.uid != null) {
       const node = fxLiveNode(detail.uid);
       if (node) detail.el = node;
@@ -495,6 +523,11 @@
       if (node.classList.contains("committed") === entry.committed) continue;
       // The board is read left to right; so is the unlock.
       prim("commit", entry.uid, { angle: 90 }, Math.min(turned, 8) * 40);
+      /* A card turning 90° changes its own bounding box and shoves its
+       * neighbours along the arc (.zone.arc .gcard.committed carries a margin).
+       * The sweep IS that motion; letting the flight diff below also "correct"
+       * the box would translate the card by half its own diagonal. */
+      fxOwned.add(String(entry.uid));
       turned += 1;
     }
   }
@@ -502,11 +535,84 @@
   /* Snapshot, redraw, then play. Called instead of render() on the two paths
    * that carry engine events — a local dispatch and a referee FRAME. */
   function renderWithFx() {
+    fxOwned = new Set();
     fxSnapshot();
     render();
     fxIndex();
     fxTurns();
     fxFlush();
+    fxFlight();
+  }
+
+  /* EVERY OTHER CARD ON THE TABLE MOVED TOO, AND ALL OF THEM TELEPORTED.
+   * The named cues cover the card the event was ABOUT. But render() rebuilds
+   * every zone, and the arc layout is a function of how many cards are in the
+   * row — so playing one card out of a seven-card hand re-fans the other six,
+   * a permanent entering the Network re-bows the whole rail, and an archive
+   * closes the gap behind it. All of that is real information ("the row you
+   * are reading has changed shape") and all of it happened between two paints.
+   *
+   * So: the same before/after rect maps the exit animations already depend on,
+   * diffed by uid, and anything that actually moved is flown from where it was.
+   * Cross-zone travel is caught too — the engine mints a fresh uid on every
+   * zone change, so a card that has no `before` entry under its own uid is
+   * asked for its provenance chain (fxPrevUid), which is how a Wallet card
+   * that became a Queue card finds the Wallet slot it left.
+   *
+   * The diff is capped at the eight biggest movers: past that it is a shuffling
+   * crowd rather than a readable change, and fx.js's own non-essential budget
+   * would start dropping frames of it anyway. */
+  const FX_FLIGHT_CAP = 8;
+  const FX_FLIGHT_MIN = 3; // px — below this it is a reflow rounding difference
+
+  function fxBoardRect() {
+    const board = document.querySelector ? document.querySelector(".board") : null;
+    if (!board || typeof board.getBoundingClientRect !== "function") return null;
+    const box = board.getBoundingClientRect();
+    return box && box.width ? { left: box.left, top: box.top } : null;
+  }
+
+  function fxFlight() {
+    const FX = globalThis.E1FX;
+    if (!FX || typeof FX.anim !== "function" || !fxBefore.length) return;
+    const boardNow = fxBoardRect();
+    // No board on either side of the redraw means no honest frame to measure
+    // against, and a viewport-relative diff is worse than no animation at all.
+    if (!fxBoardBefore || !boardNow) return;
+    const shiftX = boardNow.left - fxBoardBefore.left;
+    const shiftY = boardNow.top - fxBoardBefore.top;
+    const was = new Map();
+    for (const entry of fxBefore) if (entry.uid) was.set(entry.uid, entry.rect);
+
+    // Measure first, animate second: interleaving reads and writes across a
+    // freshly rebuilt board is a layout thrash per card.
+    const flights = [];
+    for (const [uid, node] of fxLive) {
+      if (fxOwned.has(uid)) continue;
+      if (!node || typeof node.getBoundingClientRect !== "function") continue;
+      if (typeof node.animate !== "function") continue;
+      let from = was.get(uid);
+      if (!from) {
+        const previous = fxPrevUid(uid);
+        if (previous) from = was.get(previous);
+      }
+      if (!from || !from.width) continue;
+      const now = node.getBoundingClientRect();
+      if (!now || !now.width) continue;
+      const dx = from.left + shiftX - now.left;
+      const dy = from.top + shiftY - now.top;
+      const travel = Math.abs(dx) + Math.abs(dy);
+      if (travel < FX_FLIGHT_MIN) continue;
+      flights.push({ node, dx, dy, travel });
+    }
+    flights.sort((a, b) => b.travel - a.travel);
+    for (const flight of flights.slice(0, FX_FLIGHT_CAP)) {
+      try {
+        FX.anim("flight", flight.node, { dx: flight.dx, dy: flight.dy });
+      } catch (error) {
+        void error; // sound and motion are never load-bearing
+      }
+    }
   }
 
   function fxFlush() {
@@ -811,6 +917,14 @@
     dialog.querySelector(".cd-flavor").textContent = card.flavor || "";
     dialog.querySelector(".cd-help").textContent =
       card.help || "No extra help for this one — the rules text is the whole story.";
+    /* Every Avatar is offered Boot Delay whether or not it prints the words,
+     * because every Avatar HAS it and not one card in the set says so. */
+    keywordRow(
+      document.getElementById("cdKeywords"),
+      `${card.text || ""} ${card.type || ""} ${card.subtype || ""}`,
+      compiled(card.id).isAvatar ? ["Boot Delay"] : null,
+      "Keywords"
+    );
     const play = document.getElementById("cdPlay");
     play.hidden = !canPlay;
     play.onclick = () => {
@@ -1218,7 +1332,27 @@
    * board announced as "button" and nothing else — 40 identical buttons. The
    * state words are the same ones the glows carry, so a player who cannot see
    * the ring is told the same thing it says. */
-  function ariaFor(v, uid, card) {
+  /* Every state class the board paints, in words. Read off the NODE rather than
+   * recomputed, so the label and the paint can never disagree — and so a cue
+   * that is added later cannot be forgotten here. The label is written LAST, by
+   * which point every one of these has been applied. */
+  const ARIA_STATE = [
+    ["attacking", "attacking"],
+    ["meshed", "in a mesh"],
+    ["blocking", "blocking"],
+    ["needsblock", "unblocked — nothing is answering it yet"],
+    ["canblock", "can block the selected attacker"],
+    ["cantblock", "cannot block the selected attacker"],
+    ["blockpick", "selected — now choose the Avatar that blocks it"],
+    ["willdie", "will be decommissioned if this clash resolves"],
+    ["targetable", "a legal target for the current choice"],
+    ["selected", "selected"],
+    ["canplay", "you can afford to play this now"],
+    ["canact", "has an ability you can use now"],
+    ["canattack", "can be sent at your opponent"],
+  ];
+
+  function ariaFor(v, uid, card, node) {
     const object = v.objects[uid];
     const bits = [card && card.name ? card.name : "face-down card"];
     /* `typeLine` is a gallery field and does not exist here — play-data carries
@@ -1226,17 +1360,30 @@
      * matters: the .gstats badge renders them as "3/4", which reads aloud as a
      * date. */
     if (card && card.type) bits.push(card.subtype ? `${card.type} — ${card.subtype}` : card.type);
-    if (card && card.action !== undefined && card.action !== null && card.resilience !== undefined) {
+    /* The SAME numbers the badge shows, from the same source. The printed pair
+     * is what the card was in the box; a Protocol two rails away may have
+     * changed both, and the badge has always shown the live ones. */
+    if (card && compiled(card.id).isAvatar) {
+      const stats = engineStats(v, uid);
+      const hurt = object && object.damage ? object.damage : 0;
+      bits.push(hurt
+        ? `${stats.action} action, ${Math.max(0, stats.resilience - hurt)} of ${stats.resilience} resilience left`
+        : `${stats.action} action, ${stats.resilience} resilience`);
+    } else if (card && card.action != null && card.resilience != null) {
       bits.push(`${card.action} action, ${card.resilience} resilience`);
     }
     if (card && card.cost) bits.push(`cost ${card.cost}`);
     if (object) {
       if (object.committed) bits.push("committed");
       if (object.facedown) bits.push("face down");
-      if (object.bootDelay) bits.push("boot delay");
+      if (object.bootDelay) bits.push("boot delay — cannot attack yet");
       if (object.damage) bits.push(`${object.damage} damage`);
     }
-    if (attackers.indexOf(uid) >= 0) bits.push("attacking");
+    if (card && card.manual) bits.push("assisted card");
+    const classes = node && node.classList;
+    if (classes && typeof classes.contains === "function") {
+      for (const [name, word] of ARIA_STATE) if (classes.contains(name)) bits.push(word);
+    }
     return bits.join(", ");
   }
 
@@ -1262,14 +1409,37 @@
     img.loading = "lazy";
     node.append(img);
 
+    /* THE THREE BADGES ARE GLYPHS, AND A GLYPH IS NOT A LABEL. "3/4" is a date
+     * to anyone who has not been told what the two numbers are, "!" is
+     * punctuation and "⏻" is a power symbol doing duty as a rules term. Each
+     * one now carries a `title`, which is the tooltip a mouse gets; the CARD
+     * itself carries the same words in its aria-label, which is what a screen
+     * reader gets; and the keyword panel carries the long version, which is
+     * what a finger gets — a tooltip is the one affordance touch does not
+     * have, so it can never be the only copy of an explanation. */
     if (compiled(card.id).isAvatar) {
       const stats = engineStats(v, uid);
-      const badge = el("span", "gstats", `${stats.action}/${stats.resilience - object.damage}`);
+      const left = Math.max(0, stats.resilience - object.damage);
+      const badge = el("span", "gstats", `${stats.action}/${left}`);
+      badge.title = object.damage
+        ? `Action ${stats.action} / Resilience ${left} left of ${stats.resilience} — ${object.damage} damage marked`
+        : `Action ${stats.action} / Resilience ${left}`;
+      badge.setAttribute("aria-hidden", "true");
       if (object.damage) badge.classList.add("hurt");
       node.append(badge);
     }
-    if (object.bootDelay) node.append(el("span", "gboot", "⏻"));
-    if (card.manual) node.append(el("span", "gmanual", "!"));
+    if (object.bootDelay) {
+      const boot = el("span", "gboot", "⏻");
+      boot.title = "Boot Delay — still starting up. It cannot attack or pay a Commit cost until you begin a turn with it (§5.2).";
+      boot.setAttribute("aria-hidden", "true");
+      node.append(boot);
+    }
+    if (card.manual) {
+      const manual = el("span", "gmanual", "!");
+      manual.title = "Assisted card — its effect is proposed at the table and your opponent accepts or rejects it.";
+      manual.setAttribute("aria-hidden", "true");
+      node.append(manual);
+    }
     if (wantsTarget(v, uid)) node.classList.add("targetable");
     node.dataset.uid = uid; // the arrow layer finds its endpoints by uid
     /* The engine mints a NEW uid every time a card changes zone and keeps the
@@ -1345,7 +1515,6 @@
      * keyboard — and the reader is the half a new player needs most. */
     node.tabIndex = 0;
     node.setAttribute("role", "button");
-    node.setAttribute("aria-label", ariaFor(v, uid, card));
     node.addEventListener("focus", () => showInspector(v, uid));
     node.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -1364,6 +1533,10 @@
     if (options && options.canPlay && options.canPlay(uid)) node.classList.add("canplay");
     if (options && options.canAct && options.canAct(uid)) node.classList.add("canact");
     if (options && options.canAttack && options.canAttack(uid)) node.classList.add("canattack");
+    /* LAST. The label reads the finished node, so every glow and every clash
+     * state above is in it — written any earlier and the three affordance
+     * classes right above this line would be missing from every card. */
+    node.setAttribute("aria-label", ariaFor(v, uid, card, node));
     return node;
   }
 
@@ -1537,6 +1710,181 @@
     box.append(info);
   }
 
+  // ---------------------------------------------------------- keyword help
+
+  /* THE TABLE NAMED RULES IT NEVER EXPLAINED. Boot Delay decides what every
+   * Avatar may do on its first turn and appeared nowhere on this page but a ⏻
+   * badge. The blocking refusal told players to "check Broadcast, Shielded or
+   * Backchannel" and then offered nothing to check. The rulebook has all of it
+   * and is one navigation away — which mid-turn means losing the table.
+   *
+   * So: the glossary lives in the rail, and every place the game says one of
+   * these words gets a BUTTON that opens it. A button and not a tooltip,
+   * because half the people reading this have no hover; and in the rail rather
+   * than a popup, because the answer is usually wanted WHILE looking at the
+   * board that raised the question. Wording is the rulebook's own (§5.2, §14),
+   * shortened to what a player needs at the table, and each entry keeps a link
+   * to the full rule for the argument that follows. */
+  const KEYWORDS = {
+    "Boot Delay": {
+      ref: "5-2-avatar",
+      text: "Every Avatar is still booting until you BEGIN a turn with it already on your Network. While it is, it cannot attack and cannot pay a cost that commits it — but it can block, and it can use abilities that do not commit. The ⏻ badge means a card is still booting.",
+    },
+    Commit: {
+      text: "To commit a card is to turn it sideways, and it is how most cards pay for what they do. A committed card cannot be committed again, cannot attack and cannot block. Everything you control unlocks at the start of your own turn.",
+    },
+    Broadcast: {
+      ref: "broadcast",
+      text: "An attacking Avatar with Broadcast can be blocked ONLY by an Avatar that has Broadcast or Broadcast Guard. It may itself block anything.",
+    },
+    "Broadcast Guard": {
+      ref: "broadcast-guard",
+      text: "This Avatar may block Avatars that have Broadcast. It is not itself a broadcaster, and it does not change who can block it.",
+    },
+    Backchannel: {
+      ref: "backchannel-resource",
+      text: "Backchannel names a Resource. An attacker with it cannot be blocked at all while the DEFENDER controls a Resource of that kind — so Backchannel — Timelock walks straight past anyone holding a Timelock Resource.",
+    },
+    Shielded: {
+      ref: "shielded-from-affinity",
+      text: "Shielded from an affinity means that affinity cannot touch it: it cannot be targeted or attached by cards of that affinity, cannot be blocked by Avatars of it, and damage from its sources is prevented. Rule changes, costs and state checks still apply.",
+    },
+    Mesh: {
+      ref: "mesh",
+      text: "As attackers are declared, any number of Avatars with Mesh plus at most one without may form a mesh. Block any member and every member counts as blocked; the mesh's controller then chooses how the damage coming back is divided among them.",
+    },
+    Reboot: {
+      ref: "reboot",
+      text: "A shield for the rest of the turn. The next time this Avatar would be decommissioned it is not: all damage comes off it, it is committed, and it leaves the clash. It cannot save a card that is archived as a cost or sacrificed.",
+    },
+    "First Strike": {
+      ref: "first-strike",
+      text: "Clash gains an extra damage step before the normal one, and only First Strike Avatars deal damage in it. Anything that dies there never deals its own damage back.",
+    },
+    Overflow: {
+      ref: "overflow",
+      text: "Once an attacker with Overflow has assigned lethal damage to every blocker in order, it may send the leftover damage through to the defending player.",
+    },
+    Firewall: {
+      ref: "firewall",
+      text: "This Avatar cannot attack. It still blocks, and it still uses its abilities.",
+    },
+    Uptime: {
+      ref: "2-3-uptime",
+      text: "Your life total, and the gauge beside your name. It starts at 20; at 0 you are offline and the game is over.",
+    },
+    Burn: {
+      ref: "12-1-classic-resource-burn",
+      text: "Resources left unspent in your Buffer are burned when the phase ends, and each one burned costs you 1 Uptime. This is why the End turn button says how much a turn will cost you.",
+    },
+    Queue: {
+      ref: "10-priority-and-the-queue",
+      text: "The lane between the two Networks. A card you play waits there where both players can see it, and resolves when priority passes — which is what Continue does.",
+    },
+  };
+
+  const kwSlug = (name) => "kw-" + String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+  /* Which keywords a piece of text names. Longest-first is deliberate: the
+   * scan is a plain substring test, so "Broadcast Guard" has to be claimed
+   * before "Broadcast" would swallow it — and where both genuinely apply,
+   * offering both is right rather than a bug. */
+  const KW_NAMES = Object.keys(KEYWORDS).sort((a, b) => b.length - a.length);
+  const KW_MAX = 6;
+
+  function keywordsIn(text, extra) {
+    const found = [];
+    const seen = new Set();
+    for (const name of extra || []) {
+      if (KEYWORDS[name] && !seen.has(name)) { seen.add(name); found.push(name); }
+    }
+    const haystack = String(text == null ? "" : text);
+    for (const name of KW_NAMES) {
+      if (seen.has(name) || haystack.indexOf(name) < 0) continue;
+      seen.add(name);
+      found.push(name);
+    }
+    return found.slice(0, KW_MAX);
+  }
+
+  /* Fills a row with one lookup button per keyword and hides it when empty.
+   * Returns how many it offered, so a caller can decide whether the row is
+   * worth a caption at all. */
+  function keywordRow(host, text, extra, caption) {
+    if (!host) return 0;
+    const names = keywordsIn(text, extra);
+    /* renderPrompt runs on EVERY render, and a render happens on every click.
+     * Rebuilding an unchanged row would take the focus out from under a
+     * keyboard player mid-Tab, so an identical row is left exactly alone. */
+    const signature = `${caption || ""}|${names.join(",")}`;
+    if (host.dataset && host.dataset.kw === signature) return names.length;
+    if (host.dataset) host.dataset.kw = signature;
+    host.innerHTML = "";
+    if (names.length && caption) host.append(el("span", "kwcap", caption));
+    for (const name of names) {
+      const button = el("button", "kwlink", name);
+      button.type = "button";
+      button.title = `What does “${name}” mean?`;
+      button.addEventListener("click", (event) => {
+        if (event && event.preventDefault) event.preventDefault();
+        if (event && event.stopPropagation) event.stopPropagation();
+        openKeyword(name);
+      });
+      host.append(button);
+    }
+    host.hidden = names.length === 0;
+    return names.length;
+  }
+
+  function openKeyword(name) {
+    const panel = document.getElementById("keywordPanel");
+    if (!panel) return;
+    panel.open = true;
+    if (typeof document.querySelectorAll === "function") {
+      try {
+        for (const lit of document.querySelectorAll(".kwitem.on")) lit.classList.remove("on");
+      } catch (error) {
+        void error;
+      }
+    }
+    const item = document.getElementById(kwSlug(name));
+    if (!item) return;
+    if (item.classList) item.classList.add("on");
+    /* Focus, not merely scroll: a keyboard or a screen reader that pressed the
+     * button has to arrive AT the answer, not near it. */
+    if (typeof item.scrollIntoView === "function") item.scrollIntoView({ block: "nearest" });
+    item.tabIndex = -1;
+    if (typeof item.focus === "function") item.focus();
+  }
+
+  function buildKeywordPanel() {
+    const box = document.getElementById("keywordBody");
+    if (!box) return;
+    box.innerHTML = "";
+    for (const name of Object.keys(KEYWORDS)) {
+      const item = el("div", "kwitem");
+      item.id = kwSlug(name);
+      item.append(el("b", null, name));
+      item.append(el("p", null, KEYWORDS[name].text));
+      if (KEYWORDS[name].ref) {
+        const link = el("a", null, "The full rule →");
+        link.href = `rules.html#${KEYWORDS[name].ref}`;
+        link.target = "_blank";
+        link.rel = "noopener";
+        item.append(link);
+      }
+      box.append(item);
+    }
+    const note = document.getElementById("keywordNote");
+    /* The one mark on a card that is not a rule: where its picture came from.
+     * It is a 9px dot with a tooltip, and a tooltip is invisible to a finger. */
+    if (note) {
+      note.textContent =
+        "Not a rule: the small dot on a card face says where its picture came from — " +
+        "ember for a fresh copy from a Blossom mirror, violet for this browser's cache.";
+    }
+  }
+
   // ------------------------------------------------------------------ coach
 
   /* The first-game tour, Hearthstone style: one bubble, one highlighted
@@ -1612,13 +1960,47 @@
         return Boolean(full && full.turn.active !== 0);
       },
     },
+    /* THE TOUR USED TO STOP HERE — one step short of the entire second half of
+     * the game. Declaring attackers and assigning blockers are the two hardest
+     * things on this table and the only two the player must drive themselves;
+     * they were handed over in a single sentence with "GLHF" attached. These
+     * two steps wait as long as they have to: the board decides when a clash
+     * happens, so the predicate latches on the player DOING it rather than on
+     * a phase that may be several turns away. */
+    {
+      title: "Send them in",
+      text: "This is Clash. When the ribbon reaches it on your turn, every Avatar that may legally attack glows orange — click one to send it, then press Continue. The strip that appears does the arithmetic for you: what gets through, and who does not come back. An Avatar that arrived this turn is still booting (the ⏻ badge) and has to sit this one out.",
+      anchor: "#youNetwork",
+      done: () => coachTaught("attacked",
+        attackers.length > 0 ||
+        Boolean(session.full && session.full.clash && (session.full.clash.attackers || []).length)),
+    },
+    {
+      title: "Answer an attack",
+      text: "When they swing at you, their attackers are outlined in red. Click the attacker first, then the Avatar of yours that stops it — your side then marks who may legally answer it (✓ BLK) and who may not (✕ BLK). Nothing has to block; unblocked attackers hit your Uptime. Continue locks it in.",
+      anchor: "#foeNetwork",
+      done: () => coachTaught("blocked",
+        Object.keys(blocks).length > 0 ||
+        Boolean(session.full && session.full.clash &&
+          Object.keys(session.full.clash.blocks || {}).length)),
+    },
     {
       title: "You are live",
-      text: "Uptime 0 = offline. Attack during Clash, block on defense, and right-click — or press and hold — anything you don't understand: every card explains itself. GLHF!",
+      text: "Uptime 0 = offline. Anything you don't understand: right-click a card, or press and hold it, and the window explains it — keywords on it included. The Keywords panel in the sidebar holds the rest. GLHF!",
       anchor: null,
       done: () => false,
     },
   ];
+
+  /* A clash is over as fast as it starts: the engine clears clash.attackers the
+   * moment damage resolves, so a predicate that only asked "is anything
+   * attacking right now" would tick the step off and then bring it straight
+   * back. Once taught, taught. */
+  const coachLatch = {};
+  function coachTaught(key, now) {
+    if (now) coachLatch[key] = true;
+    return Boolean(coachLatch[key]);
+  }
 
   function finishCoach() {
     coachIndex = -1;
@@ -1844,7 +2226,14 @@
         if (uptimeMeter.style && uptimeMeter.style.setProperty) {
           uptimeMeter.style.setProperty("--uptime-ratio", `${Math.round(uptimeRatio * 10) / 10}%`);
         }
-        if (uptimeMeter.setAttribute) uptimeMeter.setAttribute("aria-valuenow", String(uptime));
+        if (uptimeMeter.setAttribute) {
+          uptimeMeter.setAttribute("aria-valuenow", String(uptime));
+          /* A boosted seat sits ABOVE the printed maximum, and role="meter"
+           * with valuenow past valuemax is an invalid range — some readers
+           * announce a percentage computed from it and get it wrong. The bar
+           * still tops out at 100%; only the announced scale grows. */
+          uptimeMeter.setAttribute("aria-valuemax", String(Math.max(20, uptime)));
+        }
         uptimeMeter.classList.toggle("offline", uptime <= 0);
         uptimeMeter.classList.toggle("critical", uptime > 0 && uptime <= 5);
         uptimeMeter.classList.toggle("low", uptime > 5 && uptime <= 10);
@@ -1992,7 +2381,29 @@
       youZone.classList.toggle("draggable", draggable);
     }
     drawClashArrows();
+    fxUptimeRoll();
     fxPickState();
+  }
+
+  /* Last, deliberately: the numeral is measured where the FINISHED frame puts
+   * it, not where the half-rebuilt one did. */
+  function fxUptimeRoll() {
+    const FX = globalThis.E1FX;
+    if (!FX || typeof FX.anim !== "function") return;
+    for (const side of ["you", "foe"]) {
+      const node = document.getElementById(`${side}Uptime`);
+      if (!node) continue;
+      const shown = String(node.textContent == null ? "" : node.textContent).trim();
+      const key = side === "you" ? "uptimeYou" : "uptimeFoe";
+      const before = fxUptime.has(key) ? fxUptime.get(key) : shown;
+      fxUptime.set(key, shown);
+      if (before === shown) continue;
+      try {
+        FX.anim("roll", node, { key });
+      } catch (error) {
+        void error; // sound and motion are never load-bearing
+      }
+    }
   }
 
   /* The arithmetic nobody should have to do in their head: what gets through,
@@ -2508,6 +2919,10 @@
     }
     prompt.textContent = text;
     prompt.className = tone;
+    /* Whatever the bar just said, any rule it NAMED is now one click from its
+     * definition — including the two that used to be dead ends: the attackers
+     * prompt's "Boot Delay", and the blocking refusal's three keyword gates. */
+    keywordRow(document.getElementById("promptKeywords"), text, null, "Explain");
   }
 
   function renderManualPanel(v, seat) {
@@ -2642,9 +3057,14 @@
     // player learns immediately which blocks are legal.
     if (!E.canBlock({ state: v, ctx: E.resolveCtx({}) }, uid, blockTarget)) {
       const card = CARD_BY_ID[v.objects[uid].cardId];
+      /* "check Broadcast, Shielded or Backchannel" was a dead end: three rules
+       * named, nowhere on the page to read any of them, and a rulebook one
+       * navigation — and one lost table — away. Naming them still, because they
+       * ARE the three gates; the difference is that renderPrompt now turns
+       * every one of those words into a button. */
       session.notice = v.objects[uid].committed
         ? `${card.name} is committed and cannot block (§13.2).`
-        : `${card.name} cannot block that attacker — check Broadcast, Shielded or Backchannel.`;
+        : `${card.name} cannot block that attacker. Broadcast, Shielded and Backchannel each stop a block — open one below to see which applies.`;
       return void render();
     }
     for (const key of Object.keys(blocks)) blocks[key] = blocks[key].filter((u) => u !== uid);
@@ -3870,6 +4290,7 @@
       else coachStep();
     });
     document.getElementById("coachSkip").addEventListener("click", finishCoach);
+    buildKeywordPanel(); // built once: the glossary does not change mid-match
     coachStep(); // the lobby step, for a first visit
 
     /* Rugpull = concede with the setting's own word for it. The win goes to
