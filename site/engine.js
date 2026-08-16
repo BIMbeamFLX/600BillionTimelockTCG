@@ -1954,6 +1954,38 @@
 
   const seatsOf = (state) => [0, 1];
 
+  /* An effects cue is pinned to a seat or to a card, so an event that names
+   * neither renders as nothing at all. Prevention and redirection are the
+   * game's "you survived" beats and they shipped an amount and a reason and
+   * nothing to hang them on — the one moment a player most wants to see was
+   * the one moment the table stayed silent. The anchor is the damage target
+   * itself, which is already public knowledge: DAMAGE publishes the very same
+   * seat/uid whenever the hit is NOT prevented, and §11.2 announces Queue
+   * targets to both seats before any of this runs. Naming it here discloses
+   * nothing that survival would not have disclosed a line later. */
+  function damageAnchor(state, target) {
+    if (!target) return {};
+    if (target.kind === "seat") return { seat: target.seat };
+    if (target.kind !== "object" || !target.uid) return {};
+    /* The controller is the seat whose board was protected. Omitted, never
+     * guessed, when the object has already left — an anchor pointing at a
+     * dead uid is worse than no anchor, because the UI would render it. */
+    const object = state.objects[target.uid];
+    return object ? { uid: target.uid, seat: object.controller } : { uid: target.uid };
+  }
+
+  /* The far end of a redirect, flattened the same way. A redirect is a
+   * two-ended cue — it has to be drawn FROM the thing that was spared TO the
+   * thing that took it instead — and the nested `to` shape is not something
+   * the effects layer can anchor on without special-casing it. */
+  function redirectAnchor(state, target) {
+    const near = damageAnchor(state, target);
+    const out = {};
+    if (near.uid !== undefined) out.toUid = near.uid;
+    if (near.seat !== undefined) out.toSeat = near.seat;
+    return out;
+  }
+
   /* Turn-scoped prevention shields, consumed before damage lands. A shield
    * may be capped ("the next 2") or affinity-gated ("the next time a Keys
    * source would…"); cleanup sweeps them with the turn. */
@@ -1972,14 +2004,16 @@
         (shield.kind === "object" && target.kind === "object" && shield.uid === target.uid);
       if (!matches) continue;
       if (shield.kind === "all") {
-        emit(env, "PREVENTED", { amount, reason: "clash" });
+        emit(env, "PREVENTED", Object.assign(damageAnchor(state, target), { amount, reason: "clash" }));
         return { amount: 0, redirects };
       }
       if (shield.mode === "cap") {
         const prevented = Math.max(0, amount - shield.maximum);
         amount = Math.min(amount, shield.maximum);
         shields.splice(i, 1);
-        if (prevented) emit(env, "PREVENTED", { amount: prevented, reason: "cap" });
+        if (prevented) {
+          emit(env, "PREVENTED", Object.assign(damageAnchor(state, target), { amount: prevented, reason: "cap" }));
+        }
         i -= 1;
         continue;
       }
@@ -1988,7 +2022,11 @@
         amount -= used;
         shield.amount -= used;
         redirects.push({ target: shield.redirect, amount: used });
-        emit(env, "REDIRECTED", { amount: used, to: shield.redirect });
+        emit(env, "REDIRECTED", Object.assign(
+          damageAnchor(state, target),
+          redirectAnchor(state, shield.redirect),
+          { amount: used, to: shield.redirect }
+        ));
         if (!shield.amount) shields.splice(i, 1);
         i -= 1;
         continue;
@@ -1997,7 +2035,7 @@
         const used = Math.min(shield.amount, amount);
         amount -= used;
         shield.amount -= used;
-        emit(env, "PREVENTED", { amount: used, reason: "refund" });
+        emit(env, "PREVENTED", Object.assign(damageAnchor(state, target), { amount: used, reason: "refund" }));
         gainUptime(env, shield.refundSeat, used);
         if (!shield.amount) shields.splice(i, 1);
         i -= 1;
@@ -2009,13 +2047,13 @@
           continue;
         }
         shields.splice(i, 1);
-        emit(env, "PREVENTED", { amount, reason: "shield" });
+        emit(env, "PREVENTED", Object.assign(damageAnchor(state, target), { amount, reason: "shield" }));
         return { amount: 0, redirects }; // the whole event
       }
       const used = Math.min(shield.amount, amount);
       shield.amount -= used;
       amount -= used;
-      emit(env, "PREVENTED", { amount: used, reason: "shield" });
+      emit(env, "PREVENTED", Object.assign(damageAnchor(state, target), { amount: used, reason: "shield" }));
       if (!shield.amount) shields.splice(i, 1);
       i -= 1;
     }
@@ -2031,7 +2069,11 @@
       );
       if (redirect) {
         damageTarget(env, { kind: "object", uid: redirect.uid }, amount, sourceUid, { redirected: true });
-        emit(env, "REDIRECTED", { amount, to: { kind: "object", uid: redirect.uid } });
+        emit(env, "REDIRECTED", Object.assign(
+          damageAnchor(state, target),
+          redirectAnchor(state, { kind: "object", uid: redirect.uid }),
+          { amount, to: { kind: "object", uid: redirect.uid } }
+        ));
         return;
       }
     }
@@ -2081,7 +2123,7 @@
     if (!object) return; // §11.2 do as much as possible
     revealMasked(env, target.uid, "damage");
     if (sourceUid && isShieldedFromSource(env, target.uid, sourceUid)) {
-      emit(env, "PREVENTED", { uid: target.uid, amount, reason: "shielded" });
+      emit(env, "PREVENTED", Object.assign(damageAnchor(state, target), { uid: target.uid, amount, reason: "shielded" }));
       return;
     }
     const counterPrevention = cardOf(env.ctx, object.cardId).abilities.find(
@@ -2094,7 +2136,7 @@
       if (used) {
         object.counters[name] -= used;
         amount -= used * counterPrevention.rule.preventDamage;
-        emit(env, "PREVENTED", { uid: target.uid, amount: used, reason: "counter" });
+        emit(env, "PREVENTED", Object.assign(damageAnchor(state, target), { uid: target.uid, amount: used, reason: "counter" }));
       }
       if (amount <= 0) return;
     }
@@ -2407,7 +2449,7 @@
         if (target && target.uid && target.kind === "object" && state.objects[target.uid] &&
             state.objects[target.uid].noRebootTurn !== state.turn.number) {
           state.objects[target.uid].rebootShields += 1;
-          emit(env, "REBOOT_SHIELD", { uid: target.uid });
+          emit(env, "REBOOT_SHIELD", { uid: target.uid, seat: state.objects[target.uid].controller });
         }
         return "done";
       }
@@ -4067,10 +4109,12 @@
         emit(env, "CONTROL", { uid: op.uid, seat: op.seat });
         return "done";
       }
-      case "addRebootShield":
-        objectOf(state, op.uid).rebootShields += op.delta;
-        emit(env, "REBOOT_SHIELD", { uid: op.uid, delta: op.delta });
+      case "addRebootShield": {
+        const shielded = objectOf(state, op.uid);
+        shielded.rebootShields += op.delta;
+        emit(env, "REBOOT_SHIELD", { uid: op.uid, seat: shielded.controller, delta: op.delta });
         return "done";
+      }
       case "createToken": {
         cardOf(env.ctx, op.cardId); // must be catalog-backed
         for (let i = 0; i < (op.count || 1); i++) {

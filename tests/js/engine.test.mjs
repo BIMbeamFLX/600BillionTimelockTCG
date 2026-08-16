@@ -941,3 +941,219 @@ test("previewClash survives a redacted view, whose trigger counts are numbers", 
   // And the source view is untouched: a preview may never mutate what it read.
   assert.equal(typeof view.pendingTriggers["0"], "number");
 });
+
+// ------------------------------------------------------------- event anchors
+
+/* An effects cue is pinned to a seat or to a card. There is no third thing to
+ * hang one on, so an event naming neither is not merely terse — it is
+ * unrenderable, and the moment it describes never happens on screen. That is
+ * what had befallen the prevention family: PREVENTED and REDIRECTED shipped an
+ * amount and a reason, which is enough for a text log and nothing else, so the
+ * game's whole "you survived" beat was silent at the table. */
+
+const cardNamed = (name) => findCard((c) => c.name === name).id;
+
+/* One point of damage into `target` with `build`'s shield already standing.
+ * The shields go straight onto state.prevention in the engine's own shape, as
+ * wave8 does: routing each one through its printed card would test the card,
+ * and what is under test here is the anchor. */
+function preventionBeat(build) {
+  const state = E.createGame(baseConfig());
+  const injector = seed(state, 0, cardNamed("Fault Injector"));
+  const victim = seed(state, 1, cardNamed("Toni China, Rough Miner"));
+  const target = build(state, victim, injector);
+  state.seats[0].buffer.N = 9;
+  let result = act(state, "ACTIVATE_ABILITY", 0, { uid: injector, abilityIndex: 0, targets: [target] });
+  let current = ok(result);
+  const events = result.events.slice();
+  for (let i = 0; i < 6 && current.queue.length; i++) {
+    result = act(current, "PASS_PRIORITY", current.priority.seat);
+    current = ok(result);
+    events.push(...result.events);
+  }
+  return { state: current, events, victim, injector };
+}
+
+const cues = (events, t) => events.filter((e) => e.t === t).map((e) => e.pub);
+
+test("a prevented hit names the player it saved", () => {
+  /* Every shield mode, because the anchor is not a property of one branch:
+   * a whole-event shield, a cap, a Clash-wide wall and a prevent-and-refund
+   * all reach the same emit and all used to leave the UI with nothing. */
+  for (const shield of [
+    { kind: "seat", seat: 1, amount: 5 },                                  // reason: shield
+    { kind: "seat", seat: 1, mode: "cap", maximum: 0 },                    // reason: cap
+    { kind: "all" },                                                       // reason: clash
+    { kind: "seat", seat: 1, mode: "preventRefund", refundSeat: 1, amount: 5 }, // reason: refund
+  ]) {
+    const { events } = preventionBeat((state) => {
+      state.prevention = [Object.assign({ turn: state.turn.number }, shield)];
+      return { kind: "seat", seat: 1 };
+    });
+    const [prevented] = cues(events, "PREVENTED");
+    assert.ok(prevented, `no PREVENTED at all for ${JSON.stringify(shield)}`);
+    assert.equal(prevented.seat, 1, `reason "${prevented.reason}" must name the seat it protected`);
+    // The log renderer and the transcript read these; an anchor may only be
+    // added alongside them, never in place of them.
+    assert.equal(prevented.amount, 1);
+    assert.ok(prevented.reason);
+  }
+});
+
+test("a prevented hit on a card names the card AND the seat whose board it was on", () => {
+  /* Both anchors are meaningful and both are wanted: the card is where the
+   * cue is drawn, the seat is whose side of the table lights up. The seat is
+   * the object's CONTROLLER, not the seat that swung — a shield on a stolen
+   * Avatar protects whoever is holding it now. */
+  for (const shield of [
+    { kind: "object", amount: 5 },  // reason: shield
+    { kind: "all" },                // reason: clash
+  ]) {
+    const { events, victim } = preventionBeat((state, uid) => {
+      state.prevention = [Object.assign({ turn: state.turn.number, uid }, shield)];
+      return { kind: "object", uid };
+    });
+    const [prevented] = cues(events, "PREVENTED");
+    assert.ok(prevented, `no PREVENTED at all for ${JSON.stringify(shield)}`);
+    assert.equal(prevented.uid, victim, "the card that was spared");
+    assert.equal(prevented.seat, 1, "and the seat that controls it — seat 0 is the one that swung");
+    assert.equal(prevented.amount, 1);
+  }
+});
+
+test("a redirect names both ends, because a redirect is drawn between them", () => {
+  /* REDIRECTED carried `to` and nothing else: the destination in a nested
+   * shape the effects layer would have to special-case, and no origin at all —
+   * so the one thing the cue exists to show, that the hit MOVED, was the one
+   * thing it could not express. Both ends are now flat: seat/uid for what was
+   * spared, toSeat/toUid for what took it instead. */
+  {
+    const { events, victim } = preventionBeat((state, uid) => {
+      state.prevention = [{
+        kind: "object", uid, mode: "redirect",
+        redirect: { kind: "seat", seat: 1 }, amount: 5, turn: state.turn.number,
+      }];
+      return { kind: "object", uid };
+    });
+    const [moved] = cues(events, "REDIRECTED");
+    assert.ok(moved, "no REDIRECTED emitted");
+    assert.equal(moved.uid, victim, "spared: the card");
+    assert.equal(moved.seat, 1, "on seat 1's board");
+    assert.equal(moved.toSeat, 1, "took it instead: the player");
+    assert.equal(moved.toUid, undefined, "a seat destination has no uid to invent");
+    assert.deepEqual(moved.to, { kind: "seat", seat: 1 }, "and `to` survives for the transcript");
+  }
+  {
+    const { events, victim } = preventionBeat((state, uid) => {
+      state.prevention = [{
+        kind: "seat", seat: 1, mode: "redirect",
+        redirect: { kind: "object", uid }, amount: 5, turn: state.turn.number,
+      }];
+      return { kind: "seat", seat: 1 };
+    });
+    const [moved] = cues(events, "REDIRECTED");
+    assert.ok(moved, "no REDIRECTED emitted");
+    assert.equal(moved.seat, 1, "spared: the player");
+    assert.equal(moved.uid, undefined, "a seat origin has no uid to invent");
+    assert.equal(moved.toUid, victim, "took it instead: the card");
+    assert.equal(moved.toSeat, 1, "and whose board it stands on");
+  }
+});
+
+test("a Reboot shield names the seat whose card is protected, not the seat that cast it", () => {
+  /* Reboot is a replacement shield hung on someone else's Avatar as often as
+   * your own, so `uid` alone left the UI unable to say whose board just got
+   * safer without going back to the state to look the object up. */
+  const state = E.createGame(baseConfig());
+  const guarded = seed(state, 1, cardNamed("Toni China, Rough Miner"));
+  const spell = seed(state, 0, "E1-023", {}, "wallet"); // Emergency Reboot
+  state.seats[0].buffer.S = 1;
+  let result = act(state, "PLAY_CARD", 0, { uid: spell, targets: [{ kind: "object", uid: guarded }] });
+  let current = ok(result);
+  const events = result.events.slice();
+  for (let i = 0; i < 8 && current.queue.length; i++) {
+    result = act(current, "PASS_PRIORITY", current.priority.seat);
+    current = ok(result);
+    events.push(...result.events);
+  }
+  const [shielded] = cues(events, "REBOOT_SHIELD");
+  assert.ok(shielded, "no REBOOT_SHIELD emitted");
+  assert.equal(shielded.uid, guarded);
+  assert.equal(shielded.seat, 1, "seat 0 cast it; seat 1 controls the card that is now shielded");
+  assert.equal(current.objects[guarded].rebootShields, 1, "and the rule itself is unchanged");
+});
+
+test("an anchor never names a uid its viewer is not entitled to see", () => {
+  /* redactEvents() merges `pub` wholesale into the seat's copy — there is no
+   * field-level filter anywhere in it — so anything put in `pub` is something
+   * every seat AND every spectator receives. This engine has already shipped
+   * one fog-of-war leak (a spectator could read a face-down Cold card), so a
+   * new field in `pub` is exactly the shape of that mistake.
+   *
+   * The line it must stay on is the one the engine already draws everywhere
+   * else: a uid is a public handle, a cardId is the secret. DRAW has always
+   * said so out loud — it publishes the uid of a card going to a hand in `pub`
+   * and puts only the cardId in `priv`. So the test is not "is there a uid",
+   * it is "is this a uid the viewer could already resolve", measured against
+   * the engine's own entitlement oracle, and "did a cardId ride in with it". */
+  const ANCHORED = ["PREVENTED", "REDIRECTED", "REBOOT_SHIELD"];
+  const beats = [
+    preventionBeat((state, uid) => {
+      state.prevention = [{ kind: "object", uid, amount: 5, turn: state.turn.number }];
+      return { kind: "object", uid };
+    }),
+    preventionBeat((state, uid) => {
+      state.prevention = [{
+        kind: "seat", seat: 1, mode: "redirect",
+        redirect: { kind: "object", uid }, amount: 5, turn: state.turn.number,
+      }];
+      return { kind: "seat", seat: 1 };
+    }),
+  ];
+  let checked = 0;
+  for (const beat of beats) {
+    for (const seat of [0, 1, null]) {
+      const entitled = E.visibleUids(beat.state, seat);
+      for (const event of E.redactEvents(beat.events, seat)) {
+        if (!ANCHORED.includes(event.t)) continue;
+        for (const key of ["uid", "toUid"]) {
+          if (event[key] === undefined) continue;
+          assert.ok(entitled[event[key]], `${event.t}.${key}=${event[key]} is hidden from seat ${seat}`);
+          checked += 1;
+        }
+        assert.equal(event.cardId, undefined, `${event.t} must never carry a cardId`);
+        assert.equal(event.priv, undefined, "the redactor flattens priv; nothing may survive as a blob");
+      }
+    }
+  }
+  assert.ok(checked >= 6, `only ${checked} uid anchors were reached — the fixtures stopped firing`);
+});
+
+test("adding an anchor to an event changes no hash a signed result depends on", () => {
+  /* Events are returned from apply() beside the state, never inside it, so
+   * hashState/publicHash cannot see them and the entryHash chain cannot
+   * either. That is load-bearing rather than incidental: every match result
+   * ever published is signed over this chain, and an event payload that could
+   * reach it would mean the UI could not be improved without invalidating
+   * history. Pin it, so nobody ever "helpfully" folds events into the state. */
+  const cfg = baseConfig();
+  let state = E.createGame(cfg);
+  const injector = seed(state, 0, cardNamed("Fault Injector"));
+  state.prevention = [{ kind: "seat", seat: 1, amount: 5, turn: state.turn.number }];
+  state.seats[0].buffer.N = 9;
+
+  const result = act(state, "ACTIVATE_ABILITY", 0, { uid: injector, abilityIndex: 0, targets: [{ kind: "seat", seat: 1 }] });
+  const next = ok(result);
+  assert.ok(result.events.length, "the fixture produced no events to reason about");
+  assert.equal(next.events, undefined, "events must not be reachable from the state at all");
+  assert.equal(JSON.stringify(next).includes('"PREVENTED"'), false, "no event text anywhere in the state");
+
+  // Same actions, same hashes, whatever the events said.
+  const twin = E.createGame(cfg);
+  const twinInjector = seed(twin, 0, cardNamed("Fault Injector"));
+  twin.prevention = [{ kind: "seat", seat: 1, amount: 5, turn: twin.turn.number }];
+  twin.seats[0].buffer.N = 9;
+  const twinNext = ok(act(twin, "ACTIVATE_ABILITY", 0, { uid: twinInjector, abilityIndex: 0, targets: [{ kind: "seat", seat: 1 }] }));
+  assert.equal(E.hashState(twinNext), E.hashState(next));
+  assert.equal(E.publicHash(twinNext), E.publicHash(next));
+});
