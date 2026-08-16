@@ -36,26 +36,76 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def find_raw(raw_dir: Path, card_id: str) -> Path | None:
-    """Find one generated source without assuming its codec."""
-    for extension in SUPPORTED_EXTENSIONS:
-        candidate = raw_dir / f"{card_id}{extension}"
-        if candidate.exists():
-            return candidate
+def find_raw(raw_dir: Path, card_id: str, qa_dir: Path | None = None) -> Path | None:
+    """Find one generated source, preferring a reviewed QA edit over the raw take.
+
+    Thirty-five cards were re-shot during art QA and the edit, not the original
+    take, is the released artwork. That preference used to live in a separate
+    staging directory that no longer exists, so normalizing from the raw folder
+    alone silently reverted all thirty-five to their pre-QA takes -- the kind of
+    regression that only shows up as a changed hash, long after the fact.
+    Resolving the preference here keeps the whole chain reproducible from the
+    two source directories that actually survive on disk.
+    """
+    for directory in (qa_dir, raw_dir):
+        if directory is None:
+            continue
+        for extension in SUPPORTED_EXTENSIONS:
+            candidate = directory / f"{card_id}{extension}"
+            if candidate.exists():
+                return candidate
     return None
 
 
 def center_crop_box(width: int, height: int) -> tuple[int, int, int, int]:
-    """Return the largest centered 4:5 portrait crop."""
+    """Return the largest centered 4:5 portrait crop, for sources WIDER than 4:5."""
     target_ratio = ART_WIDTH / ART_HEIGHT
-    current_ratio = width / height
-    if current_ratio > target_ratio:
-        crop_width = round(height * target_ratio)
-        left = (width - crop_width) // 2
-        return left, 0, left + crop_width, height
-    crop_height = round(width / target_ratio)
-    top = (height - crop_height) // 2
-    return 0, top, width, top + crop_height
+    crop_width = round(height * target_ratio)
+    left = (width - crop_width) // 2
+    return left, 0, left + crop_width, height
+
+
+def fit_to_frame(image: Image.Image) -> Image.Image:
+    """Return the image as a 4:5 portrait without ever cutting a subject off.
+
+    A source WIDER than 4:5 is centre-cropped: the lost pixels are at the left
+    and right edges, which in this set is background.
+
+    A source TALLER than 4:5 is PADDED, not cropped. Centre-cropping one takes
+    equal bites out of the top and the bottom -- and on a standing full-body
+    character the top is the head. Sixteen cards were decapitated that way, up
+    to 12.5% of the frame, and the loss was invisible afterwards because the
+    only surviving copy was the cropped one. Cropping from the bottom instead
+    would just move the amputation to the boots, so nothing is cut at all: the
+    frame grows sideways into a field sampled from the image's own edges, which
+    the card then letterboxes exactly as it already letterboxes every 4:5
+    portrait inside its wider art window.
+    """
+    width, height = image.size
+    target_ratio = ART_WIDTH / ART_HEIGHT
+    if width / height >= target_ratio:
+        box = center_crop_box(width, height)
+        return image.crop(box), {"frame": "crop", "kept_box": list(box)}
+
+    padded_width = round(height * target_ratio)
+    pad = padded_width - width
+    left = pad // 2
+    # A flat black field would read as a printing error; the edge columns keep
+    # the illustration's own light and colour running to the frame.
+    canvas = Image.new("RGB", (padded_width, height))
+    if left:
+        canvas.paste(image.crop((0, 0, 1, height)).resize((left, height)), (0, 0))
+    right = pad - left
+    if right:
+        edge = image.crop((width - 1, 0, width, height)).resize((right, height))
+        canvas.paste(edge, (left + width, 0))
+    canvas.paste(image, (left, 0))
+    return canvas, {
+        "frame": "pad",
+        "kept_box": [0, 0, width, height],
+        "pad_box": [left, 0, left + width, height],
+        "padded_size": [padded_width, height],
+    }
 
 
 def record_decisions(
@@ -115,12 +165,11 @@ def normalize_one(
     *,
     watermark_logo: Image.Image | None = None,
 ) -> dict[str, Any]:
-    """Crop and resize one generated image, optionally adding the official watermark."""
+    """Fit and resize one generated image, optionally adding the official watermark."""
     with Image.open(source) as image:
         image = ImageOps.exif_transpose(image).convert("RGB")
         original_size = list(image.size)
-        crop_box = center_crop_box(*image.size)
-        image = image.crop(crop_box)
+        image, framing = fit_to_frame(image)
         image = image.resize((ART_WIDTH, ART_HEIGHT), Image.Resampling.LANCZOS)
         watermark_box = None
         if watermark_logo is not None:
@@ -131,12 +180,13 @@ def normalize_one(
         "source_file": source.as_posix(),
         "source_size": original_size,
         "source_sha256": file_sha256(source),
-        "crop_box": list(crop_box),
+        "crop_box": framing["kept_box"],
         "file": output.name,
         "size": [ART_WIDTH, ART_HEIGHT],
         "sha256": file_sha256(output),
         "status": "art-locked",
     }
+    result.update({k: v for k, v in framing.items() if k != "kept_box"})
     if watermark_box is not None:
         result["watermark"] = {
             "asset": "art/brand/600B-logo-primary.png",
@@ -167,6 +217,12 @@ def main() -> None:
         default=repo_root / "art" / "generated" / "prompts-v2",
     )
     parser.add_argument(
+        "--qa-edits",
+        type=Path,
+        default=repo_root / "art" / "generated" / "prompts-v2-qa-edits",
+        help="reviewed re-shoots that supersede the raw take for those cards",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         default=repo_root / "art" / "generated" / "prompts-v2-final-1920x2400",
@@ -190,7 +246,7 @@ def main() -> None:
     files = []
     missing = []
     for card in prompt_cards:
-        source = find_raw(args.raw, card["id"])
+        source = find_raw(args.raw, card["id"], args.qa_edits)
         if source is None:
             missing.append(card["id"])
             continue
