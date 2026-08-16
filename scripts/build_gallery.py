@@ -689,7 +689,10 @@ TEMPLATE = """<!doctype html>
       affinity, card type, cost, rarity and printing. Press <b>/</b> to search,
       <b>Esc</b> to clear. Left-click a card for details; right-click — or press
       <b>⋯</b>, which is the same menu without a mouse — for its menu.
-      Every filtered view has its own link, so a search can be shared as it stands.</p>
+      Every filtered view has its own link, so a search can be shared as it stands,
+      and every card has one of its own — <span class="mono">cards.html?card=E1-001</span>,
+      which is what <b>Copy link</b> hands you. Set numbers never move, so that link
+      is what other pages cite.</p>
     </section>
     <section class="console" aria-label="Card search and filters">
       <div class="framed">
@@ -1188,7 +1191,10 @@ TEMPLATE = """<!doctype html>
       }
       const sort = query.get("sort") || "";
       state.sort = SORTS.includes(sort) ? sort : "id";
-      return query.get("card") || "";
+      /* Set numbers print uppercase, but a link is written by hand in somebody
+         else's prose and comes back lowercased, or wrapped by a mail client and
+         pasted with a stray space. Normalise here so all of those resolve. */
+      return (query.get("card") || "").trim().toUpperCase();
     }
 
     function writeState(card) {
@@ -1277,8 +1283,31 @@ TEMPLATE = """<!doctype html>
       byId("modalSource").href = card.source;
       byId("modalFace").href = faceUrl(card);
       byId("modalCopy").onclick = () => copyLink(card);
-      dialog.showModal();
+      if (!dialog.open) dialog.showModal();
       writeState(card.id);
+    }
+
+    /* THE ANCHOR. A set number is the one name for a card that never moves, so
+       cards.html?card=E1-042 is what every other page cites. Resolving it in one
+       place is what lets the first paint, a back button and a pasted link all
+       mean the same thing. */
+    function showCard(id) {
+      const wanted = String(id || "").trim().toUpperCase();
+      if (!wanted) return false;
+      const index = CARDS.findIndex((entry) => entry.id.toUpperCase() === wanted);
+      /* A citation that misses says so. Silence here reads as a broken page. */
+      if (index < 0) {
+        say("NO CARD " + wanted);
+        return false;
+      }
+      /* Land the reader ON the tile, so closing the dialog leaves them looking
+         at the card rather than at the top of two hundred and ninety-six of
+         them. A tile the current filters hide is left alone — a link that
+         carries filters asked for them. */
+      const tile = tiles[index];
+      if (tile && !tile.hidden && tile.scrollIntoView) tile.scrollIntoView({ block: "center" });
+      openCard(CARDS[index]);
+      return true;
     }
 
     let flashTimer = 0;
@@ -1288,9 +1317,18 @@ TEMPLATE = """<!doctype html>
       flashTimer = setTimeout(() => { flash.textContent = ""; }, 2200);
     }
 
+    /* The citation, built from where this page actually sits so it is right on
+       the live site, on a mirror and on file:// alike — and deliberately WITHOUT
+       my filters riding along, because a link to a card is not a link to my
+       search. The address bar still carries the whole view for anyone who wants
+       to share that instead. */
+    function cardLink(card) {
+      return location.href.split("#")[0].split("?")[0] + "?card=" + encodeURIComponent(card.id);
+    }
+
     function copyLink(card) {
       writeState(card.id);
-      const link = location.href;
+      const link = cardLink(card);
       const fallback = () => {
         const field = document.createElement("textarea");
         field.value = link;
@@ -1416,9 +1454,15 @@ TEMPLATE = """<!doctype html>
     window.addEventListener("scroll", closeMenu, { passive: true });
     window.addEventListener("resize", closeMenu);
     window.addEventListener("popstate", () => {
-      readState();
+      const wanted = readState();
       syncControls();
       render();
+      /* A restored page has to agree with its own address bar: the card the URL
+         names is the card that is open, and no card named means none open. */
+      const shown = dialog.open && openCard.current ? openCard.current.id.toUpperCase() : "";
+      if (wanted === shown) return;
+      if (dialog.open) dialog.close();
+      if (wanted) showCard(wanted);
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
@@ -1457,10 +1501,7 @@ TEMPLATE = """<!doctype html>
       }).catch(() => {});
     }
 
-    if (deepLink) {
-      const card = CARDS.find((entry) => entry.id === deepLink);
-      if (card) openCard(card);
-    }
+    if (deepLink) showCard(deepLink);
   </script>
 </body>
 </html>

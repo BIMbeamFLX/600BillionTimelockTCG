@@ -337,6 +337,22 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   const PROBE = "600b:probe";
   const MIN_STACK = 40;
 
+  /* ------------------------------------------------------- the way in
+   * "600b:decks" is this page's own library and nobody else's business. Two
+   * documented doors exist instead, so another page never has to reach into it:
+   *
+   *   deck.html?load=<name>   opens a saved Stack — or a starter deck — by name,
+   *                           exactly as pressing its Load button here does.
+   *   600b:deck-handoff       a { name, cards: ["E1-001", …] } record ANY page
+   *                           may write. This one reads it on boot and REMOVES
+   *                           the key, so it is one-shot: a reload never
+   *                           re-imports over work done since.
+   *
+   * Both land the cards in the pane UNSAVED. Saving stays this page's job,
+   * because this is the page that knows the 40-card floor, the name and the
+   * storage budget — which is exactly what reaching into the key got wrong. */
+  const HANDOFF = "600b:deck-handoff";
+
   /* ------------------------------------------------------------ the budget
    * Inside a shell the WHOLE napplet lives in 512 KB (docs/napplet-spec.md,
    * flagged gap 4). A Stack is a card-ID list — forty ids is about 360 bytes —
@@ -414,6 +430,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * hopes. */
   const memory = new Map();
   const store = (globalThis.E1Napplet && globalThis.E1Napplet.storage) || {
+    async get(key) { const raw = memory.get(key); return raw === undefined ? null : raw; },
     async json(key, fallback) { const raw = memory.get(key); return raw ? JSON.parse(raw) : fallback; },
     async set(key, value) { memory.set(key, String(value)); return false; },
     async setJson(key, value) { memory.set(key, JSON.stringify(value)); return false; },
@@ -1089,6 +1106,73 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     }
   }
 
+  // ---- the entry point ---------------------------------------------------
+  function param(name) {
+    try { return new URLSearchParams(location.search).get(name) || ""; }
+    catch (err) { return ""; }
+  }
+
+  /* Spent once. The querystring is dropped the moment it has been applied, so a
+   * reload — or the back button after a save — never re-imports on top of a
+   * Stack the player has since edited. */
+  function dropParam(name) {
+    try {
+      const q = new URLSearchParams(location.search);
+      if (!q.has(name)) return;
+      q.delete(name);
+      const text = q.toString();
+      history.replaceState(null, "", text ? `?${text}` : location.pathname);
+    } catch (err) { /* file:// forbids URL rewrites; the load already happened */ }
+  }
+
+  /* Whatever arrives is untrusted — a querystring is typed by anyone and the
+   * handoff key is written by another page — so it is shaped by the same caps
+   * the Save path uses before a single card reaches the pane. */
+  function importCards(name, ids) {
+    const clean = String(name || "").trim().slice(0, MAX_NAME) || "Imported Stack";
+    const asked = (Array.isArray(ids) ? ids : [])
+      .filter((id) => typeof id === "string").slice(0, MAX_CARDS);
+    const known = asked.filter((id) => byId[id]);
+    loadDeck(clean, known);
+    const lost = asked.length - known.length;
+    say(`Loaded "${clean}" — ${known.length} cards${lost ? `, ${lost} not in E1` : ""}. ` +
+      "Name it and press Save to keep it.", "good");
+    return known.length;
+  }
+
+  /* Read RAW, not through json(): a key that fails to parse is indistinguishable
+   * from an absent one once json() has swallowed it into the fallback, and a
+   * record that can never be read is exactly the one that must not be kept. So
+   * the key is cleared on the strength of the bytes being there at all, before
+   * anything tries to make sense of them. That is what makes this one-shot. */
+  async function takeHandoff() {
+    let raw = null;
+    try { if (typeof store.get === "function") raw = await store.get(HANDOFF); }
+    catch (err) { raw = null; }
+    if (!raw) return null;
+    try { await store.remove(HANDOFF); } catch (err) { /* nothing to undo */ }
+    try { return JSON.parse(raw); } catch (err) { return null; }
+  }
+
+  /** Applies whichever door was used. Runs AFTER the library is read, because
+   *  `?load=` names a Stack that lives in it. */
+  async function applyEntryPoint() {
+    const record = await takeHandoff();
+    if (record && typeof record === "object" && Array.isArray(record.cards)) {
+      importCards(record.name, record.cards);
+      dropParam("load");
+      return;
+    }
+    const wanted = param("load");
+    if (!wanted) return;
+    dropParam("load");
+    // The player's own Stack outranks a starter deck that happens to share a name.
+    if (Array.isArray(library[wanted])) { importCards(wanted, library[wanted]); return; }
+    const precon = (globalThis.E1_PRECONS || {})[wanted];
+    if (precon && Array.isArray(precon.cards)) { importCards(wanted, precon.cards); return; }
+    say(`No Stack called "${wanted}" is saved here.`, "bad");
+  }
+
   // A phone has no room for an open drawer; a desk does.
   if (globalThis.matchMedia && globalThis.matchMedia("(min-width: 760px)").matches) bank.open = true;
 
@@ -1100,7 +1184,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * exactly the spec's fallback: "preconstructed decks only". */
   renderPrecons();
   renderSaved();
-  bootLibrary();
+  /* The doors open only once the library is in hand, and they open either way:
+   * a handoff still has to be consumed and cleared even if the library failed
+   * to read, or it would sit there re-firing on every visit. */
+  bootLibrary().then(applyEntryPoint, applyEntryPoint).catch(() => {});
 })();
 </script>
 </body>
