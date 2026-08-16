@@ -17,29 +17,37 @@ from __future__ import annotations
 # first pass (the owner's verdict: schneller, mit Pausen, nicht robotisch) --
 # the character spread stays: BlackCoffee slowest, FLX quickest.
 VOICES: dict[str, dict[str, str]] = {
-    "MICHAEL1011": {"voice": "en-GB-RyanNeural", "rate": "+14%", "pitch": "-2Hz"},
-    "ROOTZOLL": {"voice": "en-US-GuyNeural", "rate": "+16%", "pitch": "-3Hz"},
-    "SAT": {"voice": "en-US-RogerNeural", "rate": "+18%", "pitch": "+0Hz"},
-    "FLX": {"voice": "en-US-ChristopherNeural", "rate": "+20%", "pitch": "+3Hz"},
-    "BLACKCOFFEE": {"voice": "en-US-EricNeural", "rate": "+10%", "pitch": "-4Hz"},
+    "MICHAEL1011": {"voice": "en-GB-RyanNeural", "rate": "+18%", "pitch": "-2Hz"},
+    "ROOTZOLL": {"voice": "en-US-GuyNeural", "rate": "+20%", "pitch": "-3Hz"},
+    "SAT": {"voice": "en-US-RogerNeural", "rate": "+22%", "pitch": "+0Hz"},
+    "FLX": {"voice": "en-US-ChristopherNeural", "rate": "+24%", "pitch": "+3Hz"},
+    "BLACKCOFFEE": {"voice": "en-US-EricNeural", "rate": "+14%", "pitch": "-4Hz"},
 }
 
 # Shots, in cut order, with the source clip and how the cut treats it.
 # head: seconds trimmed off the AI clip's wobbly start. xfade_in: crossfade
 # from the previous shot (0 = hard cut -- tension beats cut hard).
+# The tension arc lives in the speeds: the ally scenes run brisk so the
+# picture keeps pace with the fast dialogue, A5 holds still (the wait IS the
+# tension), B1/C2 accelerate again, the clash lands near real time. "discs"
+# marks the blank glowing chest circles that get the 600 billion digit stack
+# tracked onto them (seeds in 1280x720 segment pixels).
 SHOTS: list[dict] = [
-    {"id": "A0", "clip": "A0-network-alive.mp4", "head": 0.12, "xfade_in": 0.0},
-    {"id": "A1", "clip": "A1-power-rootzoll.mp4", "head": 0.12, "xfade_in": 0.3},
-    {"id": "A2", "clip": "A2-bitcoin-sat.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 0.94},
-    {"id": "A3", "clip": "A3-keys-blackcoffee.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 0.94},
-    {"id": "A4", "clip": "A4-signal-flx.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 0.94},
-    {"id": "A5", "clip": "A5-timelock-michael.mp4", "head": 0.12, "xfade_in": 0.45},
-    {"id": "B1", "clip": "B1-network-fails.mp4", "head": 0.12, "xfade_in": 0.0},
-    {"id": "C2", "clip": "C2-charge.mp4", "head": 0.12, "xfade_in": 0.0},
-    # The clash breathes: slowed a touch so the beat of silence before
-    # Michael's line is real screen time, not a rushed frame.
-    {"id": "C3", "clip": "C3-clash.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 0.92},
-    {"id": "TITLE", "clip": "09-title.png", "still": 3.6, "xfade_in": 0.7},
+    {"id": "A0", "clip": "A0-network-alive.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 1.12},
+    {"id": "A1", "clip": "A1-power-rootzoll.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.12},
+    {"id": "A2", "clip": "A2-bitcoin-sat.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.1},
+    {"id": "A3", "clip": "A3-keys-blackcoffee.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.1},
+    {"id": "A4", "clip": "A4-signal-flx.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.1},
+    {"id": "A5", "clip": "A5-timelock-michael.mp4", "head": 0.12, "xfade_in": 0.45,
+     "discs": [{"seed": (660, 345), "r": 46}]},
+    {"id": "B1", "clip": "B1-network-fails.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 1.06},
+    {"id": "C2", "clip": "C2-charge.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 1.08,
+     "discs": [{"seed": (456, 304), "r": 42}, {"seed": (924, 300), "r": 44}]},
+    # C3 carries no brand: the lightning occludes both discs and the tracker
+    # locks onto the knight's glowing buckle instead -- a wrong logo is worse
+    # than a blank prop, so the clash stays clean.
+    {"id": "C3", "clip": "C3-clash.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 0.98},
+    {"id": "TITLE", "clip": "09-title.png", "still": 3.1, "xfade_in": 0.5},
 ]
 
 # The dialogue, tightened against the first pass -- the DIALOGUE.txt rule is
@@ -64,10 +72,10 @@ LINES: list[dict] = [
     {"shot": "C2", "who": "MICHAEL1011", "text": "Clash clean."},
     # C3 opens with one beat of nothing: the Zap is the line.
     # "into" holds the line off the shot's first beats: the Zap talks first.
-    {"shot": "C3", "who": "MICHAEL1011", "text": "Sequenced. Not a panic.", "hold": 1.2, "into": 1.5},
-    {"shot": "C3", "who": "MICHAEL1011", "text": "Protect the Uptime.", "pause": 0.5},
+    {"shot": "C3", "who": "MICHAEL1011", "text": "Sequenced. Not a panic.", "hold": 1.0, "into": 1.5},
+    {"shot": "C3", "who": "MICHAEL1011", "text": "Protect the Uptime.", "pause": 0.4},
 ]
 
 # Air between consecutive lines (seconds). "hold" on a line overrides the gap
 # before it; shots without dialogue stay silent on their own.
-PAUSE = 0.28
+PAUSE = 0.24

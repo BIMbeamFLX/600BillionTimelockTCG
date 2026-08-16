@@ -13,6 +13,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from brand_discs import brand_segment
 from cues import SHOTS
 
 ROOT = Path(__file__).resolve().parent
@@ -63,6 +64,8 @@ def main() -> None:
                 "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-an", str(seg),
             ]
         subprocess.check_call(cmd)
+        if shot.get("discs"):
+            brand_segment(seg, shot["discs"], FPS)
         segments.append((shot["id"], seg, probe_duration(seg)))
 
     # Pass 2: chain with per-boundary xfade (0 = concat hard). Each xfade

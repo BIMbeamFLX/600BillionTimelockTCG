@@ -47,13 +47,12 @@ def main() -> None:
         "[bed][voxm]amix=inputs=2:normalize=0:dropout_transition=0,"
         "loudnorm=I=-14:TP=-1.3:LRA=13,alimiter=limit=0.93[a]",
     ]
-    captions = str(WORK / "captions.ass").replace("\\", "/").replace(":", "\\:")
-    fonts = str(ROOT / "_work").replace("\\", "/").replace(":", "\\:")
+    # No burned subtitles -- the owner cut them. The video stream passes
+    # through untouched, so the mix step cannot cost picture quality.
     args += [
         "-filter_complex", ";".join(filters),
         "-map", "0:v:0", "-map", "[a]",
-        "-vf", f"ass=filename='{captions}':fontsdir='{fonts}'",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+        "-c:v", "copy",
         "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
         "-shortest", "-movflags", "+faststart",
         str(OUT),

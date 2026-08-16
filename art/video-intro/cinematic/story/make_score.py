@@ -45,26 +45,28 @@ def render() -> tuple[list[float], list[float]]:
     beat = 60 / 96  # tempo 96
     title = shots["TITLE"]
 
-    # Harmony map: (start, chord, strings, horns, choir, drive 0..1)
+    # Harmony map: (start, chord, strings, horns, choir, drive 0..1). The
+    # tension arc is the point: near-silence at the top, one new layer per
+    # ally scene, everything STRIPPED at the wait, then a continuous climb to
+    # the clash. Dynamic range is doubled against the first score -- the
+    # opening sits at a fifth of the climax's energy.
     a, b, c = shots["A1"], shots["B1"], shots["C2"]
     clash = shots["C3"]
     sections = [
-        (0.0, chord("C", "G"), 0.5, 0.0, 0.25, 0.10),
-        (a, chord("C", "Eb", "G"), 0.7, 0.0, 0.3, 0.25),
-        (shots["A2"], chord("Ab", "C", "Eb"), 0.75, 0.35, 0.3, 0.35),
-        (shots["A3"], chord("F", "Ab", "C"), 0.8, 0.45, 0.35, 0.45),
-        (shots["A4"], chord("Ab", "C", "Eb"), 0.8, 0.55, 0.4, 0.5),
-        # The wait: open fifth, everything pulls back, the clock is loudest.
-        (shots["A5"], chord("C", "G"), 0.45, 0.2, 0.5, 0.2),
-        (b, chord("C", "Eb", "G"), 0.9, 0.6, 0.45, 0.7),
-        (c, chord("C", "Eb", "G", "Bb"), 1.0, 0.85, 0.5, 0.9),
-        (clash, chord("C", "G"), 0.55, 0.4, 0.6, 0.4),
-        # Picardy: the future already works.
-        (title, chord("C", "G", "C", "Eb"), 0.7, 0.5, 0.8, 0.3),
+        (0.0, chord("C", "G"), 0.28, 0.0, 0.0, 0.06),
+        (a, chord("C", "Eb", "G"), 0.5, 0.0, 0.0, 0.22),
+        (shots["A2"], chord("Ab", "C", "Eb"), 0.62, 0.3, 0.0, 0.34),
+        (shots["A3"], chord("F", "Ab", "C"), 0.7, 0.42, 0.3, 0.46),
+        (shots["A4"], chord("Ab", "C", "Eb"), 0.78, 0.55, 0.42, 0.58),
+        # The wait: hollowed out. Sub, ticks and a thin choir -- absence as
+        # tension, with a swell rising through the final second.
+        (shots["A5"], chord("C", "G"), 0.18, 0.0, 0.5, 0.10),
+        (b, chord("C", "Eb", "G"), 0.95, 0.7, 0.5, 0.8),
+        (c, chord("C", "Eb", "G", "Bb"), 1.1, 1.0, 0.6, 1.0),
+        (clash, chord("C", "G"), 0.5, 0.4, 0.7, 0.35),
+        (title, [NOTE["C"], NOTE["G"], NOTE["C"] * 2, NOTE["Eb"] * 2 * 2 ** (1 / 12)],
+         0.85, 0.6, 1.0, 0.3),
     ]
-    # Title chord: raise the Eb a semitone by hand -> C major.
-    sections[-1] = (title, [NOTE["C"], NOTE["G"], NOTE["C"] * 2, NOTE["E" "b"] * 2 * 2 ** (1 / 12)],
-                    0.7, 0.5, 0.8, 0.3)
 
     def section_at(t: float):
         current = sections[0]
@@ -73,14 +75,30 @@ def render() -> tuple[list[float], list[float]]:
                 current = s
         return current
 
-    # Percussion events: (time, kind) -- taiko on tension boundaries, doubled
-    # pulse through C2, one true impact at the clash, soft close at the title.
+    # Percussion: taiko enters at A4 (sparse), doubles at B1, full war-drum
+    # pattern through C2 with off-beat answers, one true impact at the clash,
+    # a rolled close under the title.
     drums: list[tuple[float, str]] = [(b, "taiko"), (c, "taiko"), (clash, "impact"), (title, "soft")]
-    t0 = c
-    while t0 < clash - 0.2:
+    t0 = shots["A4"]
+    while t0 < shots["A5"] - 0.2:
+        drums.append((t0, "pulse"))
+        t0 += beat * 2
+    t0 = b
+    while t0 < c - 0.2:
         drums.append((t0, "pulse"))
         t0 += beat
+    t0 = c
+    step = 0
+    while t0 < clash - 0.2:
+        drums.append((t0, "taiko" if step % 4 == 0 else "pulse"))
+        if step % 2 == 1:
+            drums.append((t0 + beat * 0.5, "pulse"))
+        t0 += beat
+        step += 1
+    # Two risers: a short one into B1, the true one into the clash. Rendered
+    # later, once the buffers exist.
     riser_start = clash - 1.4
+    riser_b = b - 0.9
 
     # Speech pockets: music gives way where words live.
     pockets = [(item["start"] - 0.15, item["end"] + 0.1) for item in placed]
@@ -200,6 +218,22 @@ def render() -> tuple[list[float], list[float]]:
         v = (noise() * 0.16 + 0.1 * math.sin(two_pi * (200 + 700 * rel**2) * dt)) * rel**1.6
         left[i] += v
         right[i] += v
+    i0 = int(riser_b * SR)
+    for i in range(i0, min(n, int(b * SR))):
+        dt = (i - i0) / SR
+        rel = dt / 0.9
+        v = (noise() * 0.08 + 0.1 * rel * rel * math.sin(two_pi * (300 + 500 * rel) * dt))
+        left[i] += v
+        right[i] += v
+    # A5 swell: the held breath crescendos through its last 1.2 seconds.
+    i0 = int((b - 1.2) * SR)
+    for i in range(i0, min(n, int(b * SR))):
+        dt = (i - i0) / SR
+        rel = dt / 1.2
+        for hz, w in ((NOTE["C"] * 2, 1.0), (NOTE["G"] * 2, 0.7)):
+            v = 0.09 * rel**2.2 * w * math.sin(two_pi * hz * dt)
+            left[i] += v
+            right[i] += v * 0.95
 
     # Pockets under the words, then a safe ceiling.
     peak = 0.0
