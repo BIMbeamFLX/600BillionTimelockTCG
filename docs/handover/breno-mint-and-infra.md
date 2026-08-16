@@ -194,9 +194,11 @@ These are not preferences; they are load-bearing and reviewed.
   set to the public `wss://` URL — the referee cannot infer scheme or port and a
   wrong value produces invites that fail silently on someone else's machine.
 - **A published Blossom pipeline.** Card faces are on Blossom, but uploading is
-  currently a manual step outside the repo. Right now **13 faces are re-rendered
-  and unpublished** (`uv run python scripts/check_blobs.py` lists them). A scripted,
-  keyed upload path would close that.
+  currently a manual step outside the repo. Right now **all 296 faces are
+  re-rendered and unpublished** — a frame redesign moved every card to a full
+  4:5 art window and re-hashed the whole set except the card back
+  (`uv run python scripts/check_blobs.py` lists them). A scripted, keyed upload
+  path would close that.
 - **Production DB hygiene.** Start on a fresh `matches.db`. A historic commit on
   the public remote contains a WAL file with hidden per-match seeds; those seeds
   are worthless against a database that does not contain those matches, which is

@@ -41,6 +41,10 @@ function renderWebsite() {
   markdown = markdown.replace(/^# 600B Timelock TCG\r?\n+## Edition One Rules\r?\n+/m, "");
   markdown = markdown
     .replaceAll("600B-rulebook-assets/", "../art/rulebook/")
+    .replaceAll(
+      "../art/rulebook/banner-02-five-resources.svg",
+      "../art/rulebook/banner-02-five-resources.webp",
+    )
     .replaceAll("600B-resource-icons/", "../art/resources/")
     .replaceAll("../site/lore.html", "lore.html")
     .replaceAll(
@@ -73,7 +77,7 @@ function renderWebsite() {
   );
   article = article.replace(
     /<p><img src="\.\.\/art\/cards\/600B-E1-iconic-six-contact-sheet\.png" alt="([^"]*)"><\/p>/g,
-    '<figure class="card-system-preview"><img src="../art/cards/600B-E1-iconic-six-contact-sheet.png" alt="$1" loading="lazy"><figcaption>First six E1 pipeline proofs. Rules text and educational notes are rendered separately from the art.</figcaption></figure>',
+    '<figure class="card-system-preview"><img src="../art/cards/600B-E1-iconic-six-contact-sheet.png" alt="$1" loading="lazy"><figcaption>Six Edition One faces in the Node Runner frame — the full illustration on the card, rules printed in full below it.</figcaption></figure>',
   );
   article = article.replace(
     /<p><img src="(\.\.\/art\/resources\/[^"]+)" alt="([^"]*)"><\/p>/g,
@@ -225,7 +229,7 @@ function renderWebsite() {
       overflow: hidden;
       background:
         linear-gradient(90deg, rgba(0,0,0,.98) 0, rgba(0,0,0,.78) 46%, rgba(0,0,0,.12) 78%),
-        url("../art/rulebook/banner-01-build-the-network.webp") center/cover;
+        url("../art/site/hero-rules.webp") center/cover;
       border-bottom: 1px solid var(--line);
     }
     .hero-inner {

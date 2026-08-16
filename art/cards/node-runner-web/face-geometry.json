@@ -1,0 +1,2672 @@
+{
+ "size": [
+  744,
+  1039
+ ],
+ "faces": {
+  "Genesis Lotus": {
+   "id": "E1-001",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Satoshi Orchard": {
+   "id": "E1-002",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "FLX, Culture Curator": {
+   "id": "E1-003",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Zap": {
+   "id": "E1-004",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Next Block": {
+   "id": "E1-005",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Multisig Quorum": {
+   "id": "E1-006",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Firmware for Firewalls": {
+   "id": "E1-007",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Grid Reset": {
+   "id": "E1-008",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Fair State": {
+   "id": "E1-009",
+   "art": [
+    129,
+    115,
+    485,
+    606
+   ]
+  },
+  "Cuddy, Signal Organizer": {
+   "id": "E1-010",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Keys Shield": {
+   "id": "E1-011",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Last Broadcast": {
+   "id": "E1-012",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Shared Uptime": {
+   "id": "E1-013",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Timelock Shield": {
+   "id": "E1-014",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Local Citadel": {
+   "id": "E1-015",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Timelock Protection Circuit": {
+   "id": "E1-016",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Bitcoin Protection Circuit": {
+   "id": "E1-017",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Power Protection Circuit": {
+   "id": "E1-018",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Signal Protection Circuit": {
+   "id": "E1-019",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Hardened Resource": {
+   "id": "E1-020",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Grid Conversion": {
+   "id": "E1-021",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Public Goods Drive": {
+   "id": "E1-022",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Emergency Reboot": {
+   "id": "E1-023",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Protocol Cleanup": {
+   "id": "E1-024",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Home Miner": {
+   "id": "E1-025",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Bitcoin Shield": {
+   "id": "E1-026",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Guardian Signal": {
+   "id": "E1-027",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Repair Packet": {
+   "id": "E1-028",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Hardened Identity": {
+   "id": "E1-029",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Community Strength": {
+   "id": "E1-030",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Offline Sanctuary": {
+   "id": "E1-031",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Consequence Ledger": {
+   "id": "E1-032",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Fast Path": {
+   "id": "E1-033",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Sat, Relay Rider": {
+   "id": "E1-034",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "MHB, Keys Auditor": {
+   "id": "E1-035",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Morgs, Friendly Fork": {
+   "id": "E1-036",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "AJ, Uptime Anchor": {
+   "id": "E1-037",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Signal Rewrite": {
+   "id": "E1-038",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Power Shield": {
+   "id": "E1-039",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Archive Restore": {
+   "id": "E1-040",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Damage Refund": {
+   "id": "E1-041",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Courage Under Load": {
+   "id": "E1-042",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "AJ, First Responder": {
+   "id": "E1-043",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Cuddy, Fast Starter": {
+   "id": "E1-044",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Peaceful Exit": {
+   "id": "E1-045",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "MHB, Community Shield": {
+   "id": "E1-046",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Sat, Blade Firewall": {
+   "id": "E1-047",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Morgs, Signal Knight": {
+   "id": "E1-048",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Signal Shield": {
+   "id": "E1-049",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Clean Slate": {
+   "id": "E1-050",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Michael1011, Packet Shaper": {
+   "id": "E1-051",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "First Memory": {
+   "id": "E1-052",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Boot Hardware": {
+   "id": "E1-053",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Power Invalidation": {
+   "id": "E1-054",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Query Burst": {
+   "id": "E1-055",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Benarc, Mirror Client": {
+   "id": "E1-056",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Remote Control": {
+   "id": "E1-057",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Hardware Clone": {
+   "id": "E1-058",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Invalid Signature": {
+   "id": "E1-059",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Exit Fee": {
+   "id": "E1-060",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Buffer Drain": {
+   "id": "E1-061",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Relay Feedback": {
+   "id": "E1-062",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Broadcast Upgrade": {
+   "id": "E1-063",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Hidden Route": {
+   "id": "E1-064",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Quick Uplink": {
+   "id": "E1-065",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Resource Tap": {
+   "id": "E1-066",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Tal, Relay Captain": {
+   "id": "E1-067",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Resource Rewrite": {
+   "id": "E1-068",
+   "art": [
+    113,
+    115,
+    518,
+    647
+   ]
+  },
+  "Jedai, Protocol Architect": {
+   "id": "E1-069",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Buffer Lock": {
+   "id": "E1-070",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Darren, Channel Operator": {
+   "id": "E1-071",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Snick, Phantom Process": {
+   "id": "E1-072",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Resource Reclassification": {
+   "id": "E1-073",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Tal, Ghost Router": {
+   "id": "E1-074",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Darren, Channel Raider": {
+   "id": "E1-075",
+   "art": [
+    129,
+    115,
+    485,
+    606
+   ]
+  },
+  "Maintenance Leak": {
+   "id": "E1-076",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Fee Spike": {
+   "id": "E1-077",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Michael1011, Debugger": {
+   "id": "E1-078",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Cognitive Surge": {
+   "id": "E1-079",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Hot Resource": {
+   "id": "E1-080",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Benarc, Deep Channel": {
+   "id": "E1-081",
+   "art": [
+    123,
+    115,
+    497,
+    621
+   ]
+  },
+  "Call to Relay": {
+   "id": "E1-082",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Affinity Rewrite": {
+   "id": "E1-083",
+   "art": [
+    123,
+    115,
+    497,
+    621
+   ]
+  },
+  "Queue Filter": {
+   "id": "E1-084",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Consensus Pause": {
+   "id": "E1-085",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Remote Hardware Control": {
+   "id": "E1-086",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Timelock Rewrite": {
+   "id": "E1-087",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "State Reset": {
+   "id": "E1-088",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Toggle State": {
+   "id": "E1-089",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Return to Wallet": {
+   "id": "E1-090",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Jedai, Adaptive Client": {
+   "id": "E1-091",
+   "art": [
+    109,
+    115,
+    526,
+    657
+   ]
+  },
+  "Grid Eruption": {
+   "id": "E1-092",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Snick, Airgap Firewall": {
+   "id": "E1-093",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Tal, Liquid Firewall": {
+   "id": "E1-094",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Darren, Flow Controller": {
+   "id": "E1-095",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Archive Boot": {
+   "id": "E1-096",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "DNI, Sovereign Knight": {
+   "id": "E1-097",
+   "art": [
+    129,
+    115,
+    485,
+    606
+   ]
+  },
+  "Nind, Backchannel Walker": {
+   "id": "E1-098",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Stake Contract": {
+   "id": "E1-099",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Leaking Key Vault": {
+   "id": "E1-100",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Proof of Work": {
+   "id": "E1-101",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Stake Swap": {
+   "id": "E1-102",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Bitcoin Gatekeeper": {
+   "id": "E1-103",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Keys Rewrite": {
+   "id": "E1-104",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Stake Arbitration": {
+   "id": "E1-105",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "NC, Resource Reclaimer": {
+   "id": "E1-106",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Deep Search": {
+   "id": "E1-107",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Uptime Channel": {
+   "id": "E1-108",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "BlackCoffee, Reboot Crew": {
+   "id": "E1-109",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Resource Corruption": {
+   "id": "E1-110",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Onion Route": {
+   "id": "E1-111",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Proton, Cold Signer": {
+   "id": "E1-112",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Signal Tax": {
+   "id": "E1-113",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Burst Signature": {
+   "id": "E1-114",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Gadaj, Wallet Whisperer": {
+   "id": "E1-115",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Sovereign Mode": {
+   "id": "E1-116",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "DNI, Self-Custody Giant": {
+   "id": "E1-117",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Wallet Scramble": {
+   "id": "E1-118",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Nind, Archive Returner": {
+   "id": "E1-119",
+   "art": [
+    129,
+    115,
+    485,
+    606
+   ]
+  },
+  "NC, Forced Signal": {
+   "id": "E1-120",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Proton, Keyed Nightmare": {
+   "id": "E1-121",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Locked Process": {
+   "id": "E1-122",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Broadcast Storm": {
+   "id": "E1-123",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "BlackCoffee, Shared Secret Swarm": {
+   "id": "E1-124",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Restore Backup": {
+   "id": "E1-125",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Gadaj, Commit Auditor": {
+   "id": "E1-126",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Convert Uptime": {
+   "id": "E1-127",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "NC, Offline Operator": {
+   "id": "E1-128",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Nind, Archive Collector": {
+   "id": "E1-129",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "DNI, Sovereign Accumulator": {
+   "id": "E1-130",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "State Mirror": {
+   "id": "E1-131",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Resource Sink": {
+   "id": "E1-132",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Hard Shutdown": {
+   "id": "E1-133",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Sovereign Strength": {
+   "id": "E1-134",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "BlackCoffee, Backup Firewall": {
+   "id": "E1-135",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Hardware Leak": {
+   "id": "E1-136",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Reduced Permissions": {
+   "id": "E1-137",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Proton, Ephemeral Signer": {
+   "id": "E1-138",
+   "art": [
+    123,
+    115,
+    497,
+    621
+   ]
+  },
+  "Remote Command": {
+   "id": "E1-139",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Gadaj, Archive Maintainer": {
+   "id": "E1-140",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Tunneling Patch": {
+   "id": "E1-141",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Power Rewrite": {
+   "id": "E1-142",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Final Settlement": {
+   "id": "E1-143",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "MadMunky, Young Overclocker": {
+   "id": "E1-144",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Rootzoll, Hardware Breaker": {
+   "id": "E1-145",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Bam, Tunnel Builder": {
+   "id": "E1-146",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Leon, Grid Stabilizer": {
+   "id": "E1-147",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Grounded Signal": {
+   "id": "E1-148",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Hashquake": {
+   "id": "E1-149",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Route Misdirection": {
+   "id": "E1-150",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Essex, Thermal Operator": {
+   "id": "E1-151",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Power Burst": {
+   "id": "E1-152",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Overclock": {
+   "id": "E1-153",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Signal Outage": {
+   "id": "E1-154",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Process Fork": {
+   "id": "E1-155",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Toni China, Hot-Air Relay": {
+   "id": "E1-156",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "MadMunky, Chaos Coordinator": {
+   "id": "E1-157",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Rootzoll, Stone Sentinel": {
+   "id": "E1-158",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Leon, Shift Worker": {
+   "id": "E1-159",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Bam, Heavy Lifter": {
+   "id": "E1-160",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Essex, Bull Runner": {
+   "id": "E1-161",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Toni China, Rough Miner": {
+   "id": "E1-162",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Rootzoll, Crew Multiplier": {
+   "id": "E1-163",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Grid Amplifier": {
+   "id": "E1-164",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Hot Grid": {
+   "id": "E1-165",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "MadMunky, Meme Raider": {
+   "id": "E1-166",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Bam, Power Artillery": {
+   "id": "E1-167",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Miner Rally": {
+   "id": "E1-168",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Idle Grid Penalty": {
+   "id": "E1-169",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Split Route": {
+   "id": "E1-170",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Timelock Invalidation": {
+   "id": "E1-171",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Leon, High Relay Rider": {
+   "id": "E1-172",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Toni China, Multihead Miner": {
+   "id": "E1-173",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Essex, Grid Rebooter": {
+   "id": "E1-174",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Hardware Shatter": {
+   "id": "E1-175",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "MadMunky, Hashrate Dragon": {
+   "id": "E1-176",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Thermal Throttle": {
+   "id": "E1-177",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Bam, Launch Engineer": {
+   "id": "E1-178",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Resource Cut": {
+   "id": "E1-179",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Firewall Tunnel": {
+   "id": "E1-180",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Rootzoll & Leon, Dual Operator": {
+   "id": "E1-181",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Essex, Resilient Operator": {
+   "id": "E1-182",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Toni China, Thermal Firewall": {
+   "id": "E1-183",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Rootzoll, Stone Firewall": {
+   "id": "E1-184",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Freedom Market": {
+   "id": "E1-185",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Hashrate Aura": {
+   "id": "E1-186",
+   "art": [
+    129,
+    115,
+    485,
+    606
+   ]
+  },
+  "Committed Growth": {
+   "id": "E1-187",
+   "art": [
+    91,
+    115,
+    562,
+    702
+   ]
+  },
+  "Shillie, Multisource Scout": {
+   "id": "E1-188",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Obfuscated Formation": {
+   "id": "E1-189",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Human Hashrate": {
+   "id": "E1-190",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Mtoshi, Lethal Courier": {
+   "id": "E1-191",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Longy, Deep Node": {
+   "id": "E1-192",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Tobo, First-Strike Archer": {
+   "id": "E1-193",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Fast Channel": {
+   "id": "E1-194",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Quiet Block": {
+   "id": "E1-195",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Arbadacarba, Natural Hashrate": {
+   "id": "E1-196",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "BK, Feedback Grower": {
+   "id": "E1-197",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Longy, Resource Sovereign": {
+   "id": "E1-198",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Number Go Up": {
+   "id": "E1-199",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Shillie, Mesh Sentinel": {
+   "id": "E1-200",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "BK, Bear Market Builder": {
+   "id": "E1-201",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Network Storm": {
+   "id": "E1-202",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Resource Freeze": {
+   "id": "E1-203",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Instant Boot": {
+   "id": "E1-204",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Mtoshi, Rooted Node": {
+   "id": "E1-205",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Migrating Workload": {
+   "id": "E1-206",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Tobo, Resource Unlocker": {
+   "id": "E1-207",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Keys Invalidation": {
+   "id": "E1-208",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Bitcoin Rewrite": {
+   "id": "E1-209",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Living Hardware": {
+   "id": "E1-210",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Resource Awakening": {
+   "id": "E1-211",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Arbadacarba, Grid Steward": {
+   "id": "E1-212",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Attention Market": {
+   "id": "E1-213",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Topology Scan": {
+   "id": "E1-214",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Reboot Protocol": {
+   "id": "E1-215",
+   "art": [
+    113,
+    115,
+    518,
+    647
+   ]
+  },
+  "Recovery Phrase": {
+   "id": "E1-216",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Shillie, Tiny Broadcaster": {
+   "id": "E1-217",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Tobo, Bitcoin Backchanneler": {
+   "id": "E1-218",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Uptime Stream": {
+   "id": "E1-219",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Mtoshi, Finality Keeper": {
+   "id": "E1-220",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "BK, Mesh Pack": {
+   "id": "E1-221",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Protocol Reset": {
+   "id": "E1-222",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Timelock Outage": {
+   "id": "E1-223",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Arbadacarba, Protocol Gardener": {
+   "id": "E1-224",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Longy, Thorn Firewall": {
+   "id": "E1-225",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Shillie, Cold Firewall": {
+   "id": "E1-226",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Tobo, Wooden Firewall": {
+   "id": "E1-227",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Restless Client": {
+   "id": "E1-228",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "BK, Heavy Settler": {
+   "id": "E1-229",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Mesh Upgrade": {
+   "id": "E1-230",
+   "art": [
+    129,
+    115,
+    485,
+    606
+   ]
+  },
+  "Yield Router": {
+   "id": "E1-231",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Entry Fee Device": {
+   "id": "E1-232",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Basalt Battery": {
+   "id": "E1-233",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Wallet Pressure": {
+   "id": "E1-234",
+   "art": [
+    119,
+    115,
+    506,
+    632
+   ]
+  },
+  "Resource Prism": {
+   "id": "E1-235",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Chaos Kernel": {
+   "id": "E1-236",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Cuddy, Clockwork Node": {
+   "id": "E1-237",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Damage Limiter": {
+   "id": "E1-238",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Uptime Clock": {
+   "id": "E1-239",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Timelock Receiver": {
+   "id": "E1-240",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Resource Tombstone": {
+   "id": "E1-241",
+   "art": [
+    104,
+    115,
+    536,
+    670
+   ]
+  },
+  "Resource Exit Sensor": {
+   "id": "E1-242",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Wallet Scrubber": {
+   "id": "E1-243",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Damage Firewall": {
+   "id": "E1-244",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Hashrate Gauntlet": {
+   "id": "E1-245",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Public Wallet Viewer": {
+   "id": "E1-246",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Mesh Router": {
+   "id": "E1-247",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "Open Feed": {
+   "id": "E1-248",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Cold Storage Controller": {
+   "id": "E1-249",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Identity Mask": {
+   "id": "E1-250",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "Power Receiver": {
+   "id": "E1-251",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Signal Receiver": {
+   "id": "E1-252",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Damage Router": {
+   "id": "E1-253",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Hot Wallet Statue": {
+   "id": "E1-254",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Genesis Archive": {
+   "id": "E1-255",
+   "art": [
+    69,
+    115,
+    606,
+    758
+   ]
+  },
+  "FLX, Unstoppable Rig": {
+   "id": "E1-256",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Keyed Resource Bell": {
+   "id": "E1-257",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Memory Palace": {
+   "id": "E1-258",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  },
+  "MHB, Living Firewall": {
+   "id": "E1-259",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Boost Converter": {
+   "id": "E1-260",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Low-Power Mode": {
+   "id": "E1-261",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Bitcoin Seed": {
+   "id": "E1-262",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Keys Shard": {
+   "id": "E1-263",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Signal Beacon": {
+   "id": "E1-264",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Power Cell": {
+   "id": "E1-265",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Timelock Crystal": {
+   "id": "E1-266",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Network Reset Disk": {
+   "id": "E1-267",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Michael1011, Obsidian Node": {
+   "id": "E1-268",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Fault Injector": {
+   "id": "E1-269",
+   "art": [
+    73,
+    115,
+    597,
+    746
+   ]
+  },
+  "Genesis Ring": {
+   "id": "E1-270",
+   "art": [
+    58,
+    115,
+    627,
+    784
+   ]
+  },
+  "Archive Listener": {
+   "id": "E1-271",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Resource Converter": {
+   "id": "E1-272",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Swarm Node": {
+   "id": "E1-273",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Keys Receiver": {
+   "id": "E1-274",
+   "art": [
+    84,
+    115,
+    576,
+    720
+   ]
+  },
+  "Timelock Vault": {
+   "id": "E1-275",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Difficulty Winter": {
+   "id": "E1-276",
+   "art": [
+    89,
+    115,
+    566,
+    708
+   ]
+  },
+  "Bitcoin Receiver": {
+   "id": "E1-277",
+   "art": [
+    99,
+    115,
+    546,
+    682
+   ]
+  },
+  "Power–Keys Junction": {
+   "id": "E1-278",
+   "art": [
+    98,
+    115,
+    547,
+    684
+   ]
+  },
+  "Keys–Bitcoin Junction": {
+   "id": "E1-279",
+   "art": [
+    98,
+    115,
+    547,
+    684
+   ]
+  },
+  "Power–Signal Junction": {
+   "id": "E1-280",
+   "art": [
+    98,
+    115,
+    547,
+    684
+   ]
+  },
+  "Bitcoin–Signal Junction": {
+   "id": "E1-281",
+   "art": [
+    98,
+    115,
+    547,
+    684
+   ]
+  },
+  "Signal–Keys Junction": {
+   "id": "E1-282",
+   "art": [
+    98,
+    115,
+    547,
+    684
+   ]
+  },
+  "Power–Bitcoin Junction": {
+   "id": "E1-283",
+   "art": [
+    98,
+    115,
+    547,
+    684
+   ]
+  },
+  "Bitcoin–Timelock Junction": {
+   "id": "E1-284",
+   "art": [
+    98,
+    115,
+    547,
+    684
+   ]
+  },
+  "Signal–Timelock Junction": {
+   "id": "E1-285",
+   "art": [
+    98,
+    115,
+    547,
+    684
+   ]
+  },
+  "Timelock–Keys Junction": {
+   "id": "E1-286",
+   "art": [
+    98,
+    115,
+    547,
+    684
+   ]
+  },
+  "Signal Commons — Sunrise": {
+   "id": "E1-287",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "Signal Commons — Rooftop": {
+   "id": "E1-288",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "Timelock Channel — Dawn": {
+   "id": "E1-289",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "Timelock Channel — Midnight": {
+   "id": "E1-290",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "Key Vault — Workshop": {
+   "id": "E1-291",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "Key Vault — Cold Room": {
+   "id": "E1-292",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "Power Plant — Solar": {
+   "id": "E1-293",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "Power Plant — Hydro": {
+   "id": "E1-294",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "Satoshi Orchard — Commons": {
+   "id": "E1-295",
+   "art": [
+    118,
+    115,
+    507,
+    634
+   ]
+  },
+  "Global FIPS Balloon Network": {
+   "id": "FIPS-P01",
+   "art": [
+    114,
+    115,
+    515,
+    644
+   ]
+  }
+ }
+}

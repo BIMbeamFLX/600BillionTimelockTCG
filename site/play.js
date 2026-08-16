@@ -804,6 +804,49 @@
     else img.src = faceUrl(card);
   };
 
+  /* Per-face illustration rectangles (face-geometry.js), keyed exactly like
+   * E1_BLOBS: face file name, extension included. The sidecar may not exist
+   * yet — then GEO is null and every table card renders the full face exactly
+   * as before. Nothing here may break while the geometry is unpublished. */
+  const GEO = (() => {
+    const geo = globalThis.FACE_GEOMETRY;
+    if (!geo || !geo.faces || !Array.isArray(geo.size)) return null;
+    return geo.size[0] > 0 && geo.size[1] > 0 ? geo : null;
+  })();
+  const artRect = (card) => {
+    if (!GEO || !card || !card.face) return null;
+    const rect = GEO.faces[card.face];
+    return Array.isArray(rect) && rect.length === 4 && rect[2] > 0 && rect[3] > 0 ? rect : null;
+  };
+
+  /* The art-tile: a window over the SAME face <img>, scaled so exactly the
+   * illustration rectangle fills it. Percentages, not pixels, so one formula
+   * serves every card width the board draws (hand fan, back rail, foe hand).
+   * On the table a card is its picture; the full face stays one right click
+   * (or hold, or hover) away in the inspector and the card window. */
+  function artTile(img, rect) {
+    const [x, y, w, h] = rect;
+    const [fw, fh] = GEO.size;
+    const tile = el("div", "gart");
+    tile.style.aspectRatio = `${w} / ${h}`;
+    img.style.width = `${((fw / w) * 100).toFixed(4)}%`;
+    img.style.left = `${((-x / w) * 100).toFixed(4)}%`;
+    img.style.top = `${((-y / h) * 100).toFixed(4)}%`;
+    img.style.aspectRatio = `${fw} / ${fh}`;
+    tile.append(img);
+    return tile;
+  }
+
+  /* The printed cost, top-right on an art-tile — the Stack Builder's cost
+   * chip, board-sized. aria-hidden: ariaFor already speaks "cost …" on the
+   * card node itself, so the chip must not be announced twice. */
+  const costChip = (card) => {
+    const chip = el("span", "gcost", card.cost);
+    chip.title = `Cost ${card.cost}`;
+    chip.setAttribute("aria-hidden", "true");
+    return chip;
+  };
+
   // ------------------------------------------------------- click intentions
 
   /* Clicking a card during Unlock/Maintenance/Draw used to answer only "Build
@@ -862,7 +905,18 @@
       const img = el("img");
       setFace(img, card, node);
       img.alt = card.name;
-      node.append(img);
+      /* The Queue is a table zone too: with geometry the card in flight is its
+       * picture and its cost. The controller badge keeps the bottom-right slot
+       * it always had, so no ACT/RES pair here — the inspector one hover away
+       * carries the numbers. */
+      const rect = artRect(card);
+      if (rect) {
+        node.classList.add("arttile");
+        node.append(artTile(img, rect));
+        if (card.cost) node.append(costChip(card));
+      } else {
+        node.append(img);
+      }
       node.append(el("span", "gstats", v.seats[item.controller].name));
       node.addEventListener("mouseenter", () => {
         const box = document.getElementById("inspector");
@@ -1407,7 +1461,19 @@
     setFace(img, card, node);
     img.alt = card.name;
     img.loading = "lazy";
-    node.append(img);
+    /* With geometry a table card is only its picture: the art-tile windows the
+     * same face image onto the illustration rectangle and the printed cost
+     * rides on top. No sidecar yet, or no entry for this face — the full face,
+     * exactly as before. The tile replaces only the face IMAGE; every badge,
+     * marker and state class below still lands on the card node itself. */
+    const rect = artRect(card);
+    if (rect) {
+      node.classList.add("arttile");
+      node.append(artTile(img, rect));
+      if (card.cost) node.append(costChip(card));
+    } else {
+      node.append(img);
+    }
 
     /* THE THREE BADGES ARE GLYPHS, AND A GLYPH IS NOT A LABEL. "3/4" is a date
      * to anyone who has not been told what the two numbers are, "!" is
@@ -1420,13 +1486,30 @@
     if (compiled(card.id).isAvatar) {
       const stats = engineStats(v, uid);
       const left = Math.max(0, stats.resilience - object.damage);
-      const badge = el("span", "gstats", `${stats.action}/${left}`);
-      badge.title = object.damage
-        ? `Action ${stats.action} / Resilience ${left} left of ${stats.resilience} — ${object.damage} damage marked`
-        : `Action ${stats.action} / Resilience ${left}`;
-      badge.setAttribute("aria-hidden", "true");
-      if (object.damage) badge.classList.add("hurt");
-      node.append(badge);
+      if (rect) {
+        /* On an art-tile the pair splits into the bottom corners: ACT left,
+         * RES right. RES keeps the .gstats class and is appended first, so
+         * fx.js's damage flash keeps landing on the number damage changes. */
+        const res = el("span", "gstats gres", `${left}`);
+        res.title = object.damage
+          ? `Resilience ${left} left of ${stats.resilience} — ${object.damage} damage marked`
+          : `Resilience ${left}`;
+        res.setAttribute("aria-hidden", "true");
+        if (object.damage) res.classList.add("hurt");
+        node.append(res);
+        const act = el("span", "gstats gact", `${stats.action}`);
+        act.title = `Action ${stats.action}`;
+        act.setAttribute("aria-hidden", "true");
+        node.append(act);
+      } else {
+        const badge = el("span", "gstats", `${stats.action}/${left}`);
+        badge.title = object.damage
+          ? `Action ${stats.action} / Resilience ${left} left of ${stats.resilience} — ${object.damage} damage marked`
+          : `Action ${stats.action} / Resilience ${left}`;
+        badge.setAttribute("aria-hidden", "true");
+        if (object.damage) badge.classList.add("hurt");
+        node.append(badge);
+      }
     }
     if (object.bootDelay) {
       const boot = el("span", "gboot", "⏻");

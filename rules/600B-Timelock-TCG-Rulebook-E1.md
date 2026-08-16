@@ -102,7 +102,7 @@ Every playable card has the following rules-facing fields.
 | Simple Guide | A plain-language explanation of the card's practical job; no gameplay effect. |
 | Protocol note | A factual learning note; no gameplay effect. |
 
-![Edition One card-system examples](600B-E1-iconic-six-contact-sheet.png)
+![Six Edition One card faces in the Node Runner frame](600B-E1-iconic-six-contact-sheet.png)
 
 ### 3.1 Affinity
 

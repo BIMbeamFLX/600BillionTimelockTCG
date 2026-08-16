@@ -33,7 +33,7 @@ a { color: var(--orange-soft); }
 .stage { position: relative; min-height: 100vh; }
 .stage::before {
   content: ""; position: fixed; inset: 0; z-index: 0;
-  background: url("../art/world-plates/power.png") center / cover no-repeat;
+  background: url("../art/site/hero-play.webp") center / cover no-repeat;
   filter: saturate(.9) brightness(.55);
 }
 .stage::after {
@@ -541,6 +541,28 @@ a { color: var(--orange-soft); }
 .gsrc-blossom { background: var(--orange-soft); box-shadow: 0 0 6px rgba(247,147,26,.8); }
 .gsrc-cache { background: var(--purple); box-shadow: 0 0 5px rgba(185,145,228,.7); }
 
+/* ---------- the art-tile ----------
+   With face-geometry.js on the page a table card is only its picture: the tile
+   windows the SAME face image onto that card's illustration rectangle (inline
+   width/left/top written by cardNode from FACE_GEOMETRY), and the printed cost
+   and ACT/RES ride on top as chips. No sidecar, or no entry for a face — the
+   full face renders exactly as before; the rules text lives one right click
+   away in the card window. */
+.gcard .gart { position: relative; overflow: hidden; width: 100%; }
+.gcard .gart img { position: absolute; height: auto; max-width: none; aspect-ratio: auto; object-fit: fill; }
+/* Tiles are shorter than full faces and every rect has its own shape: centred
+   in the row, so a mixed lane (some faces published, some not yet) still reads
+   as one lane instead of a ragged top edge. */
+.gcard.arttile { align-self: center; }
+/* The cost chip wears the Stack Builder's .cv idiom at board scale. */
+.gcost { position: absolute; right: 3px; top: 3px; min-width: 18px; padding: 1px 5px; text-align: center; background: rgba(9,8,11,.9); border: 1px solid var(--line); color: var(--cream); font-size: 11px; font-weight: 900; }
+/* The stats pair splits into the tile's bottom corners: ACT left, RES right —
+   the reading every card game taught, and the titles say it in words. */
+.gstats.gact { right: auto; left: 3px; }
+/* Chips claim corners other badges lived in; the displaced shift one slot. */
+.gcard.arttile .gboot { top: 22px; }
+.gstats.gact ~ .gsrc { bottom: 22px; }
+
 .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 4px 2px; }
 .chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
 /* The card face's bottom line, table-sized. */
@@ -1004,6 +1026,10 @@ a { color: var(--orange-soft); }
 <!-- Faces by hash: the blob map and the Blossom resolver load before the game. -->
 <script src="blob-map.js"></script>
 <script src="faces.js"></script>
+<!-- Per-face illustration rectangles, keyed like the blob map (file name with
+     extension). A sidecar that may not exist yet: with it the table crops every
+     card to its art; without it every card renders as the full face. -->
+<script src="face-geometry.js"></script>
 <!-- The precon library: curated Starter and Classic Stacks for the seat menus. -->
 <script src="precons.js"></script>
 <script src="fx.js"></script>
