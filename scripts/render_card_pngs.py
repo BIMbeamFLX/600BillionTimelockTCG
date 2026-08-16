@@ -54,17 +54,20 @@ INK = (17, 17, 17)
 # The owner's verdict was blunt and right: leave the pictures whole. The board
 # shows the pure art region in-game (face-geometry sidecar); the printed face
 # is the reference document, so it carries the full text -- smaller, and below.
-# The header hugs the cut line: 9px of trimmed margin above the badge, title
-# right under it, and the art starts under the title's own em box -- so a card
-# with a short name starts its picture higher. ART_TOP_MIN keeps the picture
-# out of the well's ring and corner brackets, which begin at y=138.
-BADGE_TOP = 44
-TITLE_TOP = 86
+# Header and footer both hug the cut line -- 3px of trimmed margin above the
+# badge, 12px under the footer ink -- and everything freed in between belongs
+# to the picture. The title sits right under the badge, and the art starts
+# under the title's own em box, so a card with a short name starts its picture
+# higher. ART_TOP_MIN keeps the picture out of the well's ring and corner
+# brackets, which begin at y=138; the well runs to y=1032 so the text always
+# sits on its plate.
+BADGE_TOP = 38
+TITLE_TOP = 80
 ART_TOP_MIN = 150
 ART_MAX_H = 845
-TEXT_BOTTOM = 1006
+TEXT_BOTTOM = 1024
 ART_TEXT_GAP = 14
-WELL_BOX = (61, 142, 692, 861)
+WELL_BOX = (61, 142, 692, 890)
 
 
 def corner_marks(box: tuple[int, int, int, int], arm: int = 36) -> list[list[tuple[int, int]]]:
@@ -275,7 +278,7 @@ def paint_frame(
         for px, py in mesh["points"]:
             draw.ellipse((px - 4, py - 4, px + 4, py + 4), fill=rgba("#f7931a", 0.55))
 
-    circuit = circuit_geometry(57, 138, 700, 869, 44, 601 + index, k)
+    circuit = circuit_geometry(57, 138, 700, 898, 44, 601 + index, k)
     ring = [(p[0], p[1]) for p in circuit["points"]]
     draw.line(ring + ring[:1], fill=(*accent_rgb, 140), width=2)
     for x0, y0, x1, y1 in circuit["ticks"]:
@@ -504,12 +507,12 @@ def render_card(
 
     # Footer
     mono22 = font(MONO, 22)
-    tracked_text(draw, (72, 1022), "TIMELOCK_TCG :: 600000000000", mono22, (*BONE, 153), 4.4)
+    tracked_text(draw, (72, 1040), "TIMELOCK_TCG :: 600000000000", mono22, (*BONE, 153), 4.4)
     set_id = card["id"].replace("-", " · ")
     id_w = tracked_width(draw, set_id, mono22, 4.4)
-    tracked_text(draw, (CARD_W - 72 - id_w - 26, 1022), set_id, mono22, (*BONE, 153), 4.4)
+    tracked_text(draw, (CARD_W - 72 - id_w - 26, 1040), set_id, mono22, (*BONE, 153), 4.4)
     dot_fill, _ = RARITY_DOT.get(card["rarity"], RARITY_DOT["common"])
-    cx, cy = CARD_W - 72 - 7, 1033
+    cx, cy = CARD_W - 72 - 7, 1051
     draw.ellipse((cx - 7, cy - 7, cx + 7, cy + 7), fill=hex_rgb(dot_fill))
 
     return canvas
