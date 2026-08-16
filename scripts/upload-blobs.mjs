@@ -117,22 +117,31 @@ async function isLive(mirror, sha) {
 }
 
 async function upload(mirror, sha, name, bytes, secret) {
-  const res = await fetch(`${mirror}/upload`, {
-    method: "PUT",
-    headers: { Authorization: signedAuth(secret, "upload", sha, name), "Content-Type": "image/webp" },
-    body: bytes,
-    signal: AbortSignal.timeout(120000),
-  });
-  return { ok: res.ok, status: res.status };
+  // A mirror that hangs or drops the socket is a result, not a crash.
+  try {
+    const res = await fetch(`${mirror}/upload`, {
+      method: "PUT",
+      headers: { Authorization: signedAuth(secret, "upload", sha, name), "Content-Type": "image/webp" },
+      body: bytes,
+      signal: AbortSignal.timeout(120000),
+    });
+    return { ok: res.ok, status: res.status };
+  } catch (error) {
+    return { ok: false, status: error.name === "TimeoutError" ? "timeout" : "error" };
+  }
 }
 
 async function removeBlob(mirror, sha, secret) {
-  const res = await fetch(`${mirror}/${sha}`, {
-    method: "DELETE",
-    headers: { Authorization: signedAuth(secret, "delete", sha, sha) },
-    signal: AbortSignal.timeout(30000),
-  });
-  return { ok: res.ok, status: res.status };
+  try {
+    const res = await fetch(`${mirror}/${sha}`, {
+      method: "DELETE",
+      headers: { Authorization: signedAuth(secret, "delete", sha, sha) },
+      signal: AbortSignal.timeout(60000),
+    });
+    return { ok: res.ok, status: res.status };
+  } catch (error) {
+    return { ok: false, status: error.name === "TimeoutError" ? "timeout" : "error" };
+  }
 }
 
 /* ----------------------------------------------------------- manifests */
