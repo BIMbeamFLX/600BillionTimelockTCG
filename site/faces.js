@@ -16,7 +16,12 @@
   "use strict";
 
   const BLOBS = root.E1_BLOBS || {};
-  const MIRRORS = ["https://blossom.primal.net", "https://blossom.bimcvp.com", "https://nostr.download"];
+  /* A shell (napplet host, deployment) may prepend its own mirror — e.g. the game's own
+   * origin serving sha-named files — so the table works first-party even while the public
+   * mirrors are missing blobs. Content addressing keeps this honest: whatever the mirror,
+   * the bytes must still digest to the sha. */
+  const MIRRORS = (Array.isArray(root.E1_MIRRORS) && root.E1_MIRRORS.length ? root.E1_MIRRORS : [])
+    .concat(["https://blossom.primal.net", "https://blossom.bimcvp.com", "https://nostr.download"]);
   const LOCAL = "../art/cards/node-runner-web/";
   const CACHE_NAME = "600b-card-faces";
 
@@ -36,7 +41,17 @@
     }
   })();
   const mode = forced === "local" || (offline && forced !== "blossom") ? "local" : "blossom";
-  const cacheApi = typeof caches !== "undefined" ? caches : null;
+  /* In a sandboxed document (napplet iframe) even READING `caches` throws a
+   * SecurityError — and an uncaught throw here would take the whole module down
+   * with it, which is exactly the failure the header forbids. No Cache API is a
+   * slow day, not a broken game. */
+  const cacheApi = (() => {
+    try {
+      return typeof caches !== "undefined" ? caches : null;
+    } catch (error) {
+      return null;
+    }
+  })();
 
   const resolved = new Map(); // sha256 -> { url, source, server }
   const pending = new Map(); // sha256 -> Promise of the same
@@ -115,7 +130,12 @@
           const entry = got
             ? { url: URL.createObjectURL(got.blob), source: got.source, server: got.server }
             : local;
-          resolved.set(sha, entry);
+          /* Only a HIT is cached. A mirror miss is transient (cold-start burst,
+           * flaky network) — pinning the local fallback for the whole session
+           * turns one bad moment into a permanently faceless game, and inside a
+           * napplet the local path does not even exist. The next render simply
+           * tries the mirrors again. */
+          if (got) resolved.set(sha, entry);
           pending.delete(sha);
           return entry;
         })
