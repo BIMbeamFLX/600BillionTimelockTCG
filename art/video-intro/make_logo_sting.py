@@ -31,9 +31,13 @@ LOGO = ROOT / "art" / "brand" / "600B-logo-primary.png"
 ICONS = ROOT / "art" / "resources" / "png"
 RESOURCES = ("power", "bitcoin", "keys", "signal", "timelock")
 ANTON = ROOT / "art" / "fonts" / "Anton-Regular.ttf"
-OUT = Path(__file__).with_name("logo-sting.mp4")
+OUT = Path(__file__).with_name("logo-opener.mp4" if "--opener" in __import__("sys").argv else "logo-sting.mp4")
 
-W, H, FPS, DUR = 1280, 720, 24, 5.0
+import sys
+
+OPENER = "--opener" in sys.argv
+W, H, FPS = 1280, 720, 24
+DUR = 2.8 if OPENER else 5.0
 CX, CY, DISC_R = W // 2, 320, 150
 SOOT = (9, 8, 11)
 ORANGE = (247, 147, 26)
@@ -140,7 +144,7 @@ def render_frames(frames_dir: Path) -> None:
         draw = ImageDraw.Draw(overlay)
 
         # Rain: full field early, then it survives only OUTSIDE the mark.
-        condense = ease((t - 1.2) / 1.2)
+        condense = ease((t - 0.7) / 0.9) if OPENER else ease((t - 1.2) / 1.2)
         for col in columns:
             base = (col["phase"] + t * col["speed"]) % (H + 400) - 200
             for k, ch in enumerate(col["chars"][:22]):
@@ -159,12 +163,15 @@ def render_frames(frames_dir: Path) -> None:
                 draw.text((col["x"], y), ch, font=mono, fill=(*color, alpha))
 
         # Gear behind the disc, always turning.
-        gear_alpha = int(120 * ease((t - 0.5) / 0.9) * (1.0 - 0.45 * ease((t - 3.8) / 0.9)))
+        if OPENER:
+            gear_alpha = int(120 * ease((t - 0.2) / 0.6))
+        else:
+            gear_alpha = int(120 * ease((t - 0.5) / 0.9) * (1.0 - 0.45 * ease((t - 3.8) / 0.9)))
         if gear_alpha > 0:
             gear(draw, CX, CY, DISC_R + 62, t * 0.35, gear_alpha)
 
         # The disc lands: circular wipe reveal of the actual logo asset.
-        reveal = ease((t - 1.5) / 1.2)
+        reveal = ease((t - 0.9) / 0.9) if OPENER else ease((t - 1.5) / 1.2)
         if reveal > 0:
             mask = Image.new("L", logo.size, 0)
             md = ImageDraw.Draw(mask)
@@ -176,7 +183,7 @@ def render_frames(frames_dir: Path) -> None:
             overlay.paste(logo, (CX - DISC_R, CY - DISC_R), piece_mask)
 
         # Circuit ring draws itself; ticks and nodes pop in mark order.
-        ring_prog = ease((t - 2.8) / 1.2)
+        ring_prog = ease((t - 1.6) / 0.9) if OPENER else ease((t - 2.8) / 1.2)
         if ring_prog > 0:
             radius = DISC_R + 30
             steps = int(140 * ring_prog)
@@ -202,7 +209,7 @@ def render_frames(frames_dir: Path) -> None:
 
         # The five resources fly in and dock on the ring as it draws.
         ring_r = DISC_R + 30
-        for idx, icon in enumerate(icons):
+        for idx, icon in enumerate([] if OPENER else icons):
             angle = -math.pi / 2 + 2 * math.pi * idx / 5
             arrive = ease((t - 2.6 - idx * 0.16) / 0.7)
             if arrive <= 0:
@@ -219,7 +226,7 @@ def render_frames(frames_dir: Path) -> None:
             overlay.paste(ic, (int(px - 28), int(py - 28)), ic)
 
         # Lockup: extruded 3D type rising into place.
-        text_a = ease((t - 4.0) / 0.6)
+        text_a = 0.0 if OPENER else ease((t - 4.0) / 0.6)
         if text_a > 0:
             piece = lockup.copy()
             piece.putalpha(lockup.split()[3].point(lambda a: int(a * text_a)))
@@ -242,27 +249,28 @@ def render_sting_audio(path: Path) -> None:
     left = [0.0] * n
     right = [0.0] * n
     two_pi = 2 * math.pi
-    for i in range(int(0.4 * sr), int(1.6 * sr)):
+    riser_start, impact_at = (0.1, 0.9) if OPENER else (0.4, 1.6)
+    for i in range(int(riser_start * sr), int(impact_at * sr)):
         t = i / sr
-        rel = (t - 0.4) / 1.2
+        rel = (t - riser_start) / (impact_at - riser_start)
         v = (seed() - 0.5) * 0.22 * rel * rel + 0.08 * rel * math.sin(two_pi * (160 + 500 * rel * rel) * t)
         left[i] += v
         right[i] += v * 0.96
-    i0 = int(1.6 * sr)
+    i0 = int(impact_at * sr)
     for i in range(i0, min(n, i0 + int(1.6 * sr))):
         dt = (i - i0) / sr
         hz = 70 * math.exp(-dt * 4) + 36
         v = (math.sin(two_pi * hz * dt) * math.exp(-dt * 2.6) + (seed() - 0.5) * math.exp(-dt * 28) * 0.7) * 0.5
         left[i] += v
         right[i] += v * 0.97
-    for tick_t in (2.9, 3.3, 3.7, 4.1):
+    for tick_t in ((1.8, 2.2) if OPENER else (2.9, 3.3, 3.7, 4.1)):
         i0 = int(tick_t * sr)
         for i in range(i0, min(n, i0 + int(0.12 * sr))):
             dt = (i - i0) / sr
             v = math.exp(-dt * 30) * 0.16 * math.sin(two_pi * 987.77 * dt)
             left[i] += v * 0.9
             right[i] += v
-    i0 = int(4.1 * sr)
+    i0 = int((2.3 if OPENER else 4.1) * sr)
     for i in range(i0, n):
         dt = (i - i0) / sr
         v = 0.2 * math.exp(-dt * 3) * (math.sin(two_pi * 130.81 * dt) + 0.5 * math.sin(two_pi * 196.0 * dt))
