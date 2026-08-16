@@ -28,6 +28,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
 LOGO = ROOT / "art" / "brand" / "600B-logo-primary.png"
+ICONS = ROOT / "art" / "resources" / "png"
+RESOURCES = ("power", "bitcoin", "keys", "signal", "timelock")
 ANTON = ROOT / "art" / "fonts" / "Anton-Regular.ttf"
 OUT = Path(__file__).with_name("logo-sting.mp4")
 
@@ -100,12 +102,33 @@ def ring_marks():
     return marks
 
 
+def extruded_text(text: str, font: ImageFont.FreeTypeFont, depth: int = 10) -> Image.Image:
+    """Pseudo-3D block type: a dark extrusion stack under a lit face."""
+    probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+    bbox = probe.textbbox((0, 0), text, font=font)
+    w, h = bbox[2] - bbox[0] + depth + 8, bbox[3] - bbox[1] + depth + 8
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    for k in range(depth, 0, -1):
+        shade = int(28 + 60 * (k / depth))
+        d.text((4 + k - bbox[0], 4 + k - bbox[1]), text, font=font,
+               fill=(shade, int(shade * 0.62), 8, 255))
+    d.text((3 - bbox[0], 3 - bbox[1]), text, font=font, fill=(255, 200, 120, 255))
+    d.text((4 - bbox[0], 4 - bbox[1]), text, font=font, fill=(255, 247, 236, 255))
+    return img
+
+
 def render_frames(frames_dir: Path) -> None:
     with Image.open(LOGO) as logo_src:
         logo = logo_src.convert("RGBA")
     bbox = logo.split()[3].getbbox()
     logo = logo.crop(bbox).resize((DISC_R * 2, DISC_R * 2), Image.LANCZOS)
+    icons = []
+    for name in RESOURCES:
+        with Image.open(ICONS / f"{name}.png") as icon:
+            icons.append(icon.convert("RGBA").resize((56, 56), Image.LANCZOS))
     anton_big = ImageFont.truetype(str(ANTON), 64)
+    lockup = extruded_text("600B TIMELOCK TCG", anton_big)
     mono = ImageFont.truetype("consola.ttf", 22)
     columns = build_columns()
     marks = ring_marks()
@@ -177,20 +200,37 @@ def render_frames(frames_dir: Path) -> None:
                     oy = 12 * size * math.sin(angle)
                     draw.line((px, py, px + ox, py + oy), fill=(*ORANGE, 255), width=4)
 
-        # Lockup text.
+        # The five resources fly in and dock on the ring as it draws.
+        ring_r = DISC_R + 30
+        for idx, icon in enumerate(icons):
+            angle = -math.pi / 2 + 2 * math.pi * idx / 5
+            arrive = ease((t - 2.6 - idx * 0.16) / 0.7)
+            if arrive <= 0:
+                continue
+            flight = 1.0 - arrive
+            px = CX + (ring_r + 260 * flight) * math.cos(angle)
+            py = CY + (ring_r + 260 * flight) * math.sin(angle)
+            node_r = 34
+            draw.ellipse((px - node_r, py - node_r, px + node_r, py + node_r),
+                         fill=(14, 12, 16, int(235 * arrive)),
+                         outline=(*ORANGE, int(255 * arrive)), width=3)
+            ic = icon.copy()
+            ic.putalpha(icon.split()[3].point(lambda a: int(a * arrive)))
+            overlay.paste(ic, (int(px - 28), int(py - 28)), ic)
+
+        # Lockup: extruded 3D type rising into place.
         text_a = ease((t - 4.0) / 0.6)
         if text_a > 0:
-            label = "600B TIMELOCK TCG"
-            tw = draw.textlength(label, font=anton_big)
-            y = 560 + int(18 * (1 - text_a))
-            draw.text((CX - tw / 2 + 3, y), label, font=anton_big,
-                      fill=(255, 106, 0, int(255 * text_a)))
-            draw.text((CX - tw / 2 - 3, y), label, font=anton_big,
-                      fill=(*VIOLET, int(200 * text_a)))
-            draw.text((CX - tw / 2, y), label, font=anton_big,
-                      fill=(*CREAM, int(255 * text_a)))
+            piece = lockup.copy()
+            piece.putalpha(lockup.split()[3].point(lambda a: int(a * text_a)))
+            y = 580 + int(22 * (1 - text_a))
+            overlay.paste(piece, (CX - lockup.width // 2, y), piece)
 
         frame.paste(overlay, (0, 0), overlay)
+        # Bloom: the bright layer glows over itself.
+        from PIL import ImageChops, ImageFilter
+        glow = frame.filter(ImageFilter.GaussianBlur(6))
+        frame = ImageChops.screen(frame, glow.point(lambda v: int(v * 0.45)))
         frame.save(frames_dir / f"f{f:05d}.png")
 
 

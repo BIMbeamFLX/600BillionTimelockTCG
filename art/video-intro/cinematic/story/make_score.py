@@ -72,6 +72,12 @@ def render() -> tuple[list[float], list[float]]:
         (title, [NOTE["C"], NOTE["G"], NOTE["C"] * 2, NOTE["Eb"] * 2 * 2 ** (1 / 12)],
          0.85, 0.6, 1.0, 0.3),
     ]
+    title2 = shots.get("TITLE2")
+    if title2:
+        sections.append(
+            (title2, [NOTE["C"], NOTE["G"], NOTE["C"] * 2, NOTE["Eb"] * 2 * 2 ** (1 / 12),
+                      NOTE["G"] * 4], 1.0, 0.8, 1.1, 0.35)
+        )
 
     def section_at(t: float):
         current = sections[0]
@@ -84,6 +90,8 @@ def render() -> tuple[list[float], list[float]]:
     # pattern through C2 with off-beat answers, one true impact at the clash,
     # a rolled close under the title.
     drums: list[tuple[float, str]] = [(b, "taiko"), (c, "taiko"), (clash, "impact"), (title, "soft")]
+    if title2:
+        drums.append((title2, "soft"))
     t0 = shots["A4"]
     while t0 < shots["A5"] - 0.2:
         drums.append((t0, "pulse"))

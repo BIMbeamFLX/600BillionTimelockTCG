@@ -156,6 +156,36 @@ def smooth(series: list, window: int = 7) -> list:
     return out
 
 
+def keyed_path(disc: dict, count: int, fps: int):
+    """Hand-set keyframes -> per-frame path. Blizzard quality is hand-polished:
+    where the tracker guessed, an editor reads the frames and writes the truth.
+    Linear interpolation between keys, clamped ends, optional radius keys and
+    an optional fade_out time after which the brand alphas away."""
+
+    def interp(keys, t):
+        if t <= keys[0][0]:
+            return keys[0][1:]
+        for a, b in zip(keys, keys[1:]):
+            if t <= b[0]:
+                f = (t - a[0]) / max(1e-6, b[0] - a[0])
+                return tuple(av + (bv - av) * f for av, bv in zip(a[1:], b[1:]))
+        return keys[-1][1:]
+
+    keys = [tuple(k) for k in disc["keys"]]
+    r_keys = [tuple(k) for k in disc.get("r_keys", [(0, disc.get("r", 40))])]
+    fade = disc.get("fade_out")
+    path = []
+    for i in range(count):
+        t = i / fps
+        x, y = interp(keys, t)
+        (r,) = interp(r_keys, t)
+        alpha = 1.0
+        if fade is not None:
+            alpha = max(0.0, min(1.0, 1.0 - (t - fade) / 0.35))
+        path.append((x, y, r, alpha))
+    return path
+
+
 def brand_segment(segment: Path, discs: list[dict], fps: int) -> None:
     """Track every configured plaque and composite the logo, smaller than it."""
     stamp = full_logo()
@@ -169,22 +199,30 @@ def brand_segment(segment: Path, discs: list[dict], fps: int) -> None:
         frames = sorted(frames_dir.glob("f*.png"))
         tracks = []
         for d in discs:
-            path, accepted = track_circle(frames, d["seed"], float(d.get("r", 45)))
+            if d.get("keys"):
+                path = keyed_path(d, len(frames), fps)
+                print(f"  plaque keyframed ({len(d['keys'])} keys)")
+                tracks.append((path, float(d.get("scale", 0.72))))
+                continue
+            raw_path, accepted = track_circle(frames, d["seed"], float(d.get("r", 45)))
             label = f"  plaque at {d["seed"]}"
             if accepted < 0.5:
                 print(f"{label}: lock {accepted:.0%}, skipped")
                 continue
             print(f"{label}: lock {accepted:.0%}")
-            tracks.append((path, float(d.get("scale", 0.72))))
+            tracks.append(([(x, y, r, 1.0) for x, y, r in raw_path], float(d.get("scale", 0.72))))
         for index, frame_path in enumerate(frames):
             with Image.open(frame_path) as full:
                 frame = full.convert("RGB")
             for path, rel in tracks:
-                x, y, r = path[index]
+                x, y, r, alpha = path[index]
+                if alpha <= 0.02:
+                    continue
                 width = max(16, int(2 * r * rel))
                 scaled = stamp.resize((width, int(width * ratio)), Image.LANCZOS)
                 faded = scaled.copy()
-                faded.putalpha(scaled.split()[3].point(lambda a: int(a * 0.92)))
+                opacity = 0.92 * alpha
+                faded.putalpha(scaled.split()[3].point(lambda a: int(a * opacity)))
                 frame.paste(faded, (int(x - width / 2), int(y - faded.height / 2)), faded)
             frame.save(frame_path)
         branded = segment.with_name(segment.stem + "-branded.mp4")

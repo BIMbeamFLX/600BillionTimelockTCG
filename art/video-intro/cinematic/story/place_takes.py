@@ -77,7 +77,8 @@ def main() -> None:
         length = probe_duration(take)
         gap = float(line.get("hold", line.get("pause", PAUSE)))
         into = float(line.get("into", 0.2 if cursor == 0.0 else 0.0))
-        start = max(shots[line["shot"]] + into, cursor + gap)
+        anchor = shots.get(line["shot"], title_start)
+        start = max(anchor + into, cursor + gap)
         end = start + length
         placed.append(
             {
@@ -99,14 +100,17 @@ def main() -> None:
             f"  (+{drift:5.2f} into shot)  {item['text']}"
         )
     print(f"speech ends {cursor:.2f}s; title at {title_start:.2f}s; clean tail {tail:.2f}s")
-    # The LAST line may bridge onto the title card -- the card reads PROTECT
-    # YOUR UPTIME while Michael says it; voice and type carry one message.
-    # Everything before it must clear the title, and nothing may touch the end.
-    if placed[-2]["end"] > title_start - 0.4:
-        raise SystemExit(
-            f"take {placed[-2]['index']} ends {placed[-2]['end']:.2f}, "
-            f"needs to clear the title at {title_start:.2f} -- tighten cues.py"
-        )
+    # Lines marked over_title may ride the cards (voice and type carry one
+    # message there); everything else must clear the first card, and nothing
+    # may touch the end of the film.
+    for item, line in zip(placed, LINES):
+        if line.get("over_title"):
+            continue
+        if item["end"] > title_start - 0.4:
+            raise SystemExit(
+                f"take {item['index']} ends {item['end']:.2f}, needs to clear "
+                f"the title at {title_start:.2f} -- tighten cues.py"
+            )
     if cursor > total - 0.8:
         raise SystemExit(
             f"the closing line runs to {cursor:.2f} of {total:.2f} -- tighten cues.py"
