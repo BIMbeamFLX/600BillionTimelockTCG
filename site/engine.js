@@ -2363,9 +2363,16 @@
           if (!progress.uid) {
             const index = nextInt(state.rng.public, wallet.length);
             progress.uid = wallet[index];
-            emit(env, "RANDOM_PICK", {
-              seat, eligible: wallet.slice(), picked: progress.uid, stream: "public",
-            });
+            /* `eligible` is the §18.4 audit record and it is also the uid list
+             * of a HIDDEN zone. A seat is entitled to it — both players see a
+             * Wallet as uid shells — but a SPECTATOR is shown only a count by
+             * view(), so publishing it here handed the audience more than the
+             * board does. Same shape as the face-down Cold leak. Seats get it
+             * privately; the unredacted log keeps the whole set for the
+             * transcript, which is where the audit belongs. */
+            emit(env, "RANDOM_PICK",
+              { seat, picked: progress.uid, stream: "public" },
+              { "0": { eligible: wallet.slice() }, "1": { eligible: wallet.slice() } });
           }
           if (controllerHasRule(state, env.ctx, seat, "discardToStackOption")) {
             const slot = `${key}:destination:${progress.done}`;
@@ -4019,9 +4026,10 @@
            * handling one dropped the other. A seat number discloses nothing:
            * the eligible uid list beside it is the §18.4 audit record and is
            * already the more revealing half of this payload. */
-          emit(env, "RANDOM_PICK", {
-            zone: from, seat: zoneSeat(from), eligible: list.slice(), picked: uid, stream: "public",
-          });
+          // Same split as the discard-op sibling above: seats yes, audience no.
+          emit(env, "RANDOM_PICK",
+            { zone: from, seat: zoneSeat(from), picked: uid, stream: "public" },
+            { "0": { eligible: list.slice() }, "1": { eligible: list.slice() } });
           moveUid(env, uid, zoneName(op.toZone), { seat: zoneSeat(op.toZone) });
         }
         return "done";

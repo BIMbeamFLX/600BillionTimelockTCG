@@ -1224,7 +1224,24 @@ test("both RANDOM_PICK emits describe one beat, so both name a seat", () => {
   assert.equal(pick.seat, 1, "the seat being picked FROM — the same sense as the discard-op sibling");
   assert.equal(pick.seat, Number(pick.zone.split(":")[0]));
   assert.equal(pick.stream, "public", "the audit fields are untouched");
-  assert.ok(pick.eligible.includes(pick.picked), "and the pick still comes from the logged eligible set");
+  assert.equal(pick.eligible, undefined, "the eligible set is NOT public — see below");
+
+  /* THE EVENT MUST NOT DISCLOSE MORE THAN THE BOARD DOES. `eligible` is the
+   * §18.4 audit record of a random choice, and it is also the uid list of a
+   * HIDDEN zone. Both SEATS are entitled to it — each sees the other's Wallet
+   * as uid shells — but view() shows a SPECTATOR only a count, so publishing it
+   * handed the audience strictly more than the game does. That is the same
+   * shape as the face-down Cold card a spectator could once read. */
+  const raw = events.find((e) => e.t === "RANDOM_PICK");
+  for (const seat of [0, 1]) {
+    const seen = E.redactEvents([raw], seat)[0];
+    assert.ok(seen.eligible.includes(seen.picked), `seat ${seat} still audits the choice`);
+  }
+  const audience = E.redactEvents([raw], null)[0];
+  assert.equal(audience.eligible, undefined, "a spectator is not handed a hidden zone's uids");
+  assert.equal(audience.picked, raw.pub.picked, "but still sees what was picked");
+  // The unredacted log keeps the whole set, which is where the audit lives.
+  assert.ok(raw.priv["0"].eligible.includes(raw.pub.picked));
 });
 
 test("a skipped op anchors on the controller, never on the uid that just died", () => {
