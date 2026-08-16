@@ -44,14 +44,36 @@ BONE = (232, 223, 207)
 ORANGE = (247, 147, 26)
 INK = (17, 17, 17)
 
-ART_BOX = (68, 204, 678, 624)
-WELL_BOX = (60, 196, 694, 640)
-CORNER_MARKS = [
-    [(60, 232), (60, 196), (96, 196)],
-    [(718, 196), (754, 196), (754, 232)],
-    [(754, 800), (754, 836), (718, 836)],
-    [(96, 836), (60, 836), (60, 800)],
-]
+# 676x845 is exactly 4:5, which is the aspect the art is normalized to, so the
+# whole illustration lands in the window with nothing cropped and nothing
+# letterboxed. The old window was 678x624 -- almost square -- so every portrait
+# pillarboxed to 499 wide and threw away 26% of the window. The art now runs
+# down to y=995 and the rules text sits on a scrim over its lower edge.
+ART_BOX = (69, 150, 676, 845)
+WELL_BOX = (61, 142, 692, 861)
+
+
+def corner_marks(box: tuple[int, int, int, int], arm: int = 36) -> list[list[tuple[int, int]]]:
+    """Bracket the four corners of the well, so the marks follow it when it moves."""
+    x, y, width, height = box
+    right, bottom = x + width, y + height
+    return [
+        [(x, y + arm), (x, y), (x + arm, y)],
+        [(right - arm, y), (right, y), (right, y + arm)],
+        [(right, bottom - arm), (right, bottom), (right - arm, bottom)],
+        [(x + arm, bottom), (x, bottom), (x, bottom - arm)],
+    ]
+
+
+CORNER_MARKS = corner_marks(WELL_BOX)
+
+# Every card prints its rules in full. The old budget was two lines at one of two
+# sizes, which silently truncated 149 of 295 -- several of them printing an
+# ability the engine grants but the card never mentions. Five lines over this
+# ladder fits all 276 rules-text cards, worst case 200px.
+RULES_STEPS = ((31, 40), (29, 38), (27, 35), (25, 33), (23, 30))
+RULES_MAX_LINES = 5
+FABLE_STEPS = ((21, 27), (20, 26))
 
 MONO = ["consola.ttf", "DejaVuSansMono.ttf", "cour.ttf"]
 MONO_ITALIC = ["consolai.ttf", "DejaVuSansMono-Oblique.ttf", "couri.ttf"]
@@ -75,7 +97,7 @@ def resource_symbols(card: dict[str, Any]) -> list[str]:
 
 
 # Titles never wrap; they step down this ladder until they clear the cost cluster.
-TITLE_LADDER = (68, 66, 62, 60, 58, 52, 46, 40, 34)
+TITLE_LADDER = (68, 66, 62, 60, 58, 52, 46, 40, 34, 30, 27, 24)
 _ICONS: dict[tuple[str, int], Image.Image] = {}
 
 
@@ -165,7 +187,12 @@ def fit_block(
         lines = wrap(draw, text, block_font, width)
         if len(lines) <= max_lines:
             break
-    return block_font, height, lines[:max_lines]
+    if len(lines) > max_lines:
+        # Truncating here is how 149 cards silently lost their printed abilities.
+        # A card that no longer fits its budget fails the render, like a missing
+        # blob fails the deploy.
+        raise ValueError(f"text needs {len(lines)} lines, budget is {max_lines}: {text[:60]!r}")
+    return block_font, height, lines
 
 
 def quad_points(
@@ -199,8 +226,45 @@ def fit_contain(image: Image.Image, box: tuple[int, int]) -> Image.Image:
 # ------------------------------------------------------------------ frame paint
 
 
+def paint_scrim(
+    canvas: Image.Image,
+    top: int,
+    bottom: int,
+    fade: int = 78,
+    *,
+    strength: int = 238,
+    descending: bool = False,
+) -> None:
+    """Sink the art behind the text without dropping a solid plate over it.
+
+    The text used to sit on the card's own background below the art. Now that the
+    art runs the full height of the well, it has to be dimmed where words cross
+    it -- but a hard-edged panel would read as a second frame, so the scrim rises
+    from nothing over `fade` pixels and holds under the type. `descending` flips
+    it for the title zone at the art's top edge: full strength at the top, gone
+    `fade` pixels down.
+    """
+    height = bottom - top
+    band = Image.new("RGBA", (canvas.width, height), (0, 0, 0, 0))
+    pixels = band.load()
+    for y in range(height):
+        if descending:
+            ramp = max(0.0, 1.0 - y / fade) if fade else 1.0
+        else:
+            ramp = min(1.0, y / fade) if fade else 1.0
+        alpha = int(strength * (ramp**1.7))
+        for x in range(canvas.width):
+            pixels[x, y] = (5, 4, 3, alpha)
+    canvas.alpha_composite(band, (0, top))
+
+
 def paint_frame(
-    canvas: Image.Image, index: int, accent: str, border_amp: int, guides: bool
+    canvas: Image.Image,
+    index: int,
+    accent: str,
+    border_amp: int,
+    guides: bool,
+    rule_y: int = 852,
 ) -> None:
     """Draw the generative frame for one card onto the canvas."""
     k = border_amp / 6
@@ -214,15 +278,18 @@ def paint_frame(
     for x0, y0, x1, y1 in spine["main"]:
         draw.rectangle((x0, y0, x1, y1), fill=(*accent_rgb, 255))
 
+    # The node meshes used to fill the two dead gutters either side of the
+    # pillarboxed art. There are no gutters any more, so they run down the card's
+    # outer margin instead of over the picture.
     for side, seed in (("L", 631 + index), ("R", 661 + index)):
-        box = (68, 214) if side == "L" else (672, 214)
-        mesh = net_geometry(box[0], box[1], 74, 520, 12, seed)
+        box = (14, 300) if side == "L" else (760, 300)
+        mesh = net_geometry(box[0], box[1], 40, 520, 12, seed)
         for link in mesh["links"]:
             draw.line(link, fill=rgba("#f7931a", 0.3), width=2)
         for px, py in mesh["points"]:
             draw.ellipse((px - 4, py - 4, px + 4, py + 4), fill=rgba("#f7931a", 0.55))
 
-    circuit = circuit_geometry(56, 192, 702, 648, 44, 601 + index, k)
+    circuit = circuit_geometry(57, 138, 700, 869, 44, 601 + index, k)
     ring = [(p[0], p[1]) for p in circuit["points"]]
     draw.line(ring + ring[:1], fill=(*accent_rgb, 140), width=2)
     for x0, y0, x1, y1 in circuit["ticks"]:
@@ -230,7 +297,7 @@ def paint_frame(
     for px, py, radius in circuit["nodes"]:
         draw.ellipse((px - radius, py - radius, px + radius, py + radius), fill=(*accent_rgb, 255))
 
-    joints = open_geometry(72, 852, 742, 852, 30, 3, 691 + index, k)
+    joints = open_geometry(72, rule_y, 742, rule_y, 30, 3, 691 + index, k)
     rule = [joints[0]]
     for i in range(1, len(joints) - 1):
         end = ((joints[i][0] + joints[i + 1][0]) / 2, (joints[i][1] + joints[i + 1][1]) / 2)
@@ -312,7 +379,42 @@ def render_card(
             ),
         )
 
-    paint_frame(canvas, index, accent, border_amp, guides)
+    # The text is measured before it is drawn, because the scrim behind it and
+    # the hand-drawn rule above it both have to know how tall the block came out.
+    art_bottom = ART_BOX[1] + ART_BOX[3]
+    # The title's descenders and the cost pips cross the art's top edge, so it
+    # fades up into the header the same way it fades down into the rules.
+    paint_scrim(canvas, ART_BOX[1], ART_BOX[1] + 126, 126, strength=212, descending=True)
+    symbols = resource_symbols(card)
+    blocks = []
+    icon_top = 0
+    if not symbols:
+        if card["rules_text"]:
+            body, height, lines = fit_block(
+                draw, card["rules_text"], BODY, RULES_STEPS, max_lines=RULES_MAX_LINES
+            )
+            blocks.append((body, height, lines, BONE, 0))
+        if card["flavor_text"]:
+            italic, height, lines = fit_block(
+                draw, f"// {card['flavor_text']}", MONO_ITALIC, FABLE_STEPS
+            )
+            blocks.append((italic, height, lines, (*BONE, 128), 12))
+    text_height = sum(gap + height * len(lines) for _, height, lines, _, gap in blocks)
+    text_top = art_bottom - 18 - text_height
+
+    if symbols:
+        # One giant symbol IS the rules text, so it gets the same treatment.
+        icon_size = BASIC_ICON if len(symbols) == 1 else JUNCTION_ICON
+        icon_top = art_bottom - 44 - icon_size
+        paint_scrim(canvas, icon_top - 96, art_bottom)
+        rule_y = icon_top - 34
+    elif blocks:
+        paint_scrim(canvas, max(ART_BOX[1], text_top - 88), art_bottom)
+        rule_y = text_top - 26
+    else:
+        rule_y = art_bottom - 20
+
+    paint_frame(canvas, index, accent, border_amp, guides, rule_y)
     draw = ImageDraw.Draw(canvas)
 
     # Type badge
@@ -323,13 +425,13 @@ def render_card(
     tracked_text(draw, (88, 65), badge, mono22, hex_rgb(badge_fg), 6)
 
     # Cost row is measured first so the title can be fitted to what is left.
-    generic, symbols = cost_tokens(card["cost"] or "")
+    generic, cost_symbols = cost_tokens(card["cost"] or "")
     cost_width = 0
-    if generic or symbols:
+    if generic or cost_symbols:
         cost_width = (
             (78 if generic else 0)
-            + len(symbols) * PIP_SIZE
-            + 10 * (bool(generic) + len(symbols) - 1)
+            + len(cost_symbols) * PIP_SIZE
+            + 10 * (bool(generic) + len(cost_symbols) - 1)
         )
 
     # Title steps down a fixed ladder rather than shrinking freely, and must never
@@ -345,7 +447,7 @@ def render_card(
     draw.text((72, 98), name, font=title_font, fill=CREAM)
 
     # Cost row, right aligned, using the canonical resource icons as-is
-    if generic or symbols:
+    if generic or cost_symbols:
         x = CARD_W - 64 - cost_width
         if generic:
             draw.rectangle((x, 92, x + 78, 170), fill=INK, outline=rgba("#fff7ec", 0.7), width=3)
@@ -353,7 +455,7 @@ def render_card(
             tw = draw.textlength(generic, font=big)
             draw.text((x + (78 - tw) / 2, 108), generic, font=big, fill=CREAM)
             x += 88
-        for symbol in symbols:
+        for symbol in cost_symbols:
             icon = resource_icon(COST_AFFINITY[symbol], PIP_SIZE)
             canvas.alpha_composite(icon, (int(x), 92 + (78 - PIP_SIZE) // 2))
             x += PIP_SIZE + 10
@@ -363,29 +465,30 @@ def render_card(
     if stats and "/" in stats:
         action, _, resilience = stats.partition("/")
         mono40, mono14 = font(MONO, 40), font(MONO, 14)
+        # Anchored just above the divider rather than at a fixed height, because
+        # the text block below it now grows and shrinks with the rules.
+        stat_top = rule_y - 12 - 88
         for left, value, label in ((78, action, "ACT"), (676, resilience, "RES")):
             draw.rectangle(
-                (left, 724, left + 60, 812),
+                (left, stat_top, left + 60, stat_top + 88),
                 fill=(17, 17, 17, 217),
                 outline=hex_rgb(accent),
                 width=2,
             )
             tw = draw.textlength(value, font=mono40)
-            draw.text((left + (60 - tw) / 2, 736), value, font=mono40, fill=CREAM)
+            draw.text((left + (60 - tw) / 2, stat_top + 12), value, font=mono40, fill=CREAM)
             lw = tracked_width(draw, label, mono14, 1.4)
-            tracked_text(draw, (left + (60 - lw) / 2, 786), label, mono14, ORANGE, 1.4)
+            tracked_text(draw, (left + (60 - lw) / 2, stat_top + 62), label, mono14, ORANGE, 1.4)
     # A Resource is played every turn, so it gets a simplified face: the symbols
     # ARE the rules text. One symbol means it makes that Resource; two side by
     # side mean choose. A player reads the count before they read a word, which
     # is why the printed line is dropped rather than shrunk.
-    symbols = resource_symbols(card)
     if symbols:
         size = BASIC_ICON if len(symbols) == 1 else JUNCTION_ICON
         gap = 40
         total = len(symbols) * size + (len(symbols) - 1) * gap
         x = (CARD_W - total) // 2
-        # Centred in the band between the art plate (ends 828) and the footer (1022).
-        top = (836 + 1010) // 2 - size // 2
+        top = icon_top
         for index, name in enumerate(symbols):
             canvas.alpha_composite(resource_icon(name, size), (int(x), top))
             if index + 1 < len(symbols):
@@ -400,25 +503,17 @@ def render_card(
                 )
             x += size + gap
 
-    # Rules and flavour. The handoff budgets 146px here: two lines of effect, a
-    # 12px gap, then two lines of fable. Shrink a step rather than overrun it.
-    y = 864
-    if card["rules_text"] and not symbols:
-        body, height, lines = fit_block(draw, card["rules_text"], BODY, ((31, 40), (29, 38)))
+    # Rules and flavour, laid out above and bottom-anchored to the art's lower edge.
+    y = text_top
+    for block_font, height, lines, fill, gap in blocks:
+        y += gap
         for line in lines:
-            draw.text((72, y), line, font=body, fill=BONE)
-            y += height
-    if card["flavor_text"] and not symbols:
-        y += 12
-        fable_text = f"// {card['flavor_text']}"
-        italic, height, lines = fit_block(draw, fable_text, MONO_ITALIC, ((21, 27), (20, 26)))
-        for line in lines:
-            draw.text((72, y), line, font=italic, fill=(*BONE, 128))
+            draw.text((72, y), line, font=block_font, fill=fill)
             y += height
 
     # Footer
     mono22 = font(MONO, 22)
-    tracked_text(draw, (72, 1022), "TIMELOCK_TCG :: 600B", mono22, (*BONE, 153), 4.4)
+    tracked_text(draw, (72, 1022), "TIMELOCK_TCG :: 600000000000", mono22, (*BONE, 153), 4.4)
     set_id = card["id"].replace("-", " · ")
     id_w = tracked_width(draw, set_id, mono22, 4.4)
     tracked_text(draw, (CARD_W - 72 - id_w - 26, 1022), set_id, mono22, (*BONE, 153), 4.4)
