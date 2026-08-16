@@ -3,7 +3,7 @@
   "frame": "Node Runner",
   "source": "node-runner-web",
   "count": 297,
-  "total_bytes": 41814212,
+  "total_bytes": 41843618,
   "unmatched": [
     "600B-Timelock-card-back",
     "Global FIPS Balloon Network"
@@ -113,8 +113,8 @@
       "name": "Archive Listener",
       "file": "Archive Listener.webp",
       "mime": "image/webp",
-      "bytes": 133444,
-      "sha256": "573e6795fbc353868a05b764a7dee9f82161f1217b0d24762715feb28d5d20e8",
+      "bytes": 132742,
+      "sha256": "7f2db71c148be9f36cdcb0ba1ccb5041b49d2e1983249979ff89b66a12dc5afd",
       "card_type": "Hardware",
       "affinity": [
         "Neutral"
@@ -349,8 +349,8 @@
       "name": "BK, Bear Market Builder",
       "file": "BK, Bear Market Builder.webp",
       "mime": "image/webp",
-      "bytes": 158922,
-      "sha256": "98314fb903b350b58efdb489050ce681c2057314c78222caae2760beb47feae9",
+      "bytes": 165202,
+      "sha256": "feca71c6b21f65e4cd553d693b10b8b4376559b8abcd4183de8234faf0da4c67",
       "card_type": "Avatar",
       "affinity": [
         "Bitcoin"
@@ -869,8 +869,8 @@
       "name": "Emergency Reboot",
       "file": "Emergency Reboot.webp",
       "mime": "image/webp",
-      "bytes": 141336,
-      "sha256": "ae39b193b5094fb336cfdde9acd583f25e2e1db94f3efb378fff63613a174bfd",
+      "bytes": 143094,
+      "sha256": "2c90abc844f7aef544bcd0abf0278033809886053c1439df63e43d3fe9a1fa25",
       "card_type": "Zap",
       "affinity": [
         "Signal"
@@ -1155,8 +1155,8 @@
       "name": "Genesis Archive",
       "file": "Genesis Archive.webp",
       "mime": "image/webp",
-      "bytes": 128074,
-      "sha256": "6359edaf805eb8fc32c25e106cf8227962a318658b48924de2cb9480bba31375",
+      "bytes": 127746,
+      "sha256": "5df683af021e8a235f35f6aa978103149e6d30256ab76f76bde615b5fba72cbb",
       "card_type": "Hardware",
       "affinity": [
         "Neutral"
@@ -1697,8 +1697,8 @@
       "name": "Leon, Grid Stabilizer",
       "file": "Leon, Grid Stabilizer.webp",
       "mime": "image/webp",
-      "bytes": 149340,
-      "sha256": "f4cf3c78282cc2d48ee297a7a68b675750828d284106cd1bbd7bb8540913be84",
+      "bytes": 150354,
+      "sha256": "53de0aa8ca27539a96f17cc9e2fc14ac6785273b58f5eba5e68fb19b0f060e09",
       "card_type": "Avatar",
       "affinity": [
         "Power"
@@ -1749,8 +1749,8 @@
       "name": "Local Citadel",
       "file": "Local Citadel.webp",
       "mime": "image/webp",
-      "bytes": 150940,
-      "sha256": "2d021fce1a45d399ac3617345e31d32273e7997cb8cb3354f5badac64da473eb",
+      "bytes": 152840,
+      "sha256": "bc9391b36d78a91e657af96d9abc3b3ef1778e1b9ddc38792055cf59d186db49",
       "card_type": "Protocol",
       "affinity": [
         "Signal"
@@ -2022,8 +2022,8 @@
       "name": "Miner Rally",
       "file": "Miner Rally.webp",
       "mime": "image/webp",
-      "bytes": 144846,
-      "sha256": "697cd6a99682081fa5703d031489f11fc8e9a367eb4861dd6636fe5bdb414e78",
+      "bytes": 144398,
+      "sha256": "b892d440a7f992b9b6667a09021fc90dcd6823985d7572186481ead0babb356f",
       "card_type": "Protocol",
       "affinity": [
         "Power"
@@ -2532,8 +2532,8 @@
       "name": "Proton, Cold Signer",
       "file": "Proton, Cold Signer.webp",
       "mime": "image/webp",
-      "bytes": 132946,
-      "sha256": "7a6199f564a3c9f767b422b8cda9d90e15e5f53a7408431f0bd5be6beb8af129",
+      "bytes": 127902,
+      "sha256": "07c6c752cf82dcb5e6c908dce42179312c72e96251146e46c2a04d41bd7a4bc3",
       "card_type": "Avatar",
       "affinity": [
         "Keys"
@@ -2662,8 +2662,8 @@
       "name": "Recovery Phrase",
       "file": "Recovery Phrase.webp",
       "mime": "image/webp",
-      "bytes": 137738,
-      "sha256": "cee05834d5796cfca0e856b452fd46decdd214162fb341a7be440097ffdb2108",
+      "bytes": 132742,
+      "sha256": "e6be6f23b9a6de9d1206055bd054de388c7efe0232de6592b3054138a14c272a",
       "card_type": "Operation",
       "affinity": [
         "Bitcoin"
@@ -2792,8 +2792,8 @@
       "name": "Resource Cut",
       "file": "Resource Cut.webp",
       "mime": "image/webp",
-      "bytes": 130938,
-      "sha256": "92571b968beeaeea86a40979dee8c59c99777f2e25af208461f6287938526234",
+      "bytes": 132520,
+      "sha256": "8f4e953239ab7177e46ea8087a312c54525a241802510863c3e8f62ecdde0a9a",
       "card_type": "Operation",
       "affinity": [
         "Power"
@@ -2922,8 +2922,8 @@
       "name": "Restore Backup",
       "file": "Restore Backup.webp",
       "mime": "image/webp",
-      "bytes": 118874,
-      "sha256": "458d3e21fa40c28d9c6b31154285fb9f3f04be8df3c1c18377e825d6fcc6348e",
+      "bytes": 118638,
+      "sha256": "901408e75bdd5cea7aff5c1b6e1ddfa32846f5396c8e6638ac39768e904f641c",
       "card_type": "Operation",
       "affinity": [
         "Keys"
@@ -3679,8 +3679,8 @@
       "name": "Toggle State",
       "file": "Toggle State.webp",
       "mime": "image/webp",
-      "bytes": 129042,
-      "sha256": "064a1f7776ddce990148da28e4a8baa20accc4ed3bfac05a2ab7ea2bb4db8c24",
+      "bytes": 128756,
+      "sha256": "dc4e6c5097b71b748c3d806dabfd8c19338be7a9adb8e87c6204a9cf9f49e158",
       "card_type": "Zap",
       "affinity": [
         "Timelock"
@@ -3861,8 +3861,8 @@
       "name": "Zap",
       "file": "Zap.webp",
       "mime": "image/webp",
-      "bytes": 111016,
-      "sha256": "314740850a4418917a4590206590e2d322d09418f34bae5d361e17af12a6cd72",
+      "bytes": 139928,
+      "sha256": "e306217db1c25292098dd998d8ed12cd67b5ad85a14583a77d517a4ef8dd56df",
       "card_type": "Zap",
       "affinity": [
         "Power"
