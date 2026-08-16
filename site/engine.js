@@ -3972,7 +3972,15 @@
      * UNKNOWN_OBJECT wedged the whole match. Action payloads still validate
      * their uids up front; this guard is for resolution time only. */
     if (op.uid && !state.objects[op.uid]) {
-      emit(env, "OP_SKIPPED", { op: op.op, uid: op.uid, cardId: (item && item.cardId) || null });
+      /* A seat anchor and deliberately NOT a uid one. This branch runs
+       * precisely BECAUSE op.uid names an object that no longer exists, so the
+       * uid in the payload is a dead handle — kept, because it says which
+       * bound op fizzled and the log reads it, but never an anchor, on the
+       * same rule damageAnchor follows. The item's controller is the one live
+       * thing on the table to hang the cue on. */
+      const skipped = { op: op.op, uid: op.uid, cardId: (item && item.cardId) || null };
+      if (item && item.controller !== undefined) skipped.seat = item.controller;
+      emit(env, "OP_SKIPPED", skipped);
       return "done";
     }
     switch (op.op) {
@@ -4005,7 +4013,15 @@
           if (!list.length) break;
           const index = nextInt(state.rng.public, list.length);
           const uid = list[index];
-          emit(env, "RANDOM_PICK", { zone: from, eligible: list.slice(), picked: uid, stream: "public" });
+          /* `seat` matches the sibling RANDOM_PICK raised by the `discard` op,
+           * which has always named the seat being picked from. The two emits
+           * describe the identical beat and disagreed only in shape, so a UI
+           * handling one dropped the other. A seat number discloses nothing:
+           * the eligible uid list beside it is the §18.4 audit record and is
+           * already the more revealing half of this payload. */
+          emit(env, "RANDOM_PICK", {
+            zone: from, seat: zoneSeat(from), eligible: list.slice(), picked: uid, stream: "public",
+          });
           moveUid(env, uid, zoneName(op.toZone), { seat: zoneSeat(op.toZone) });
         }
         return "done";
@@ -4035,7 +4051,10 @@
           remade.push(record.uid);
         }
         state.zones[op.zone] = remade;
-        emit(env, "SHUFFLE", { zone: op.zone });
+        // `seat` is the same number zoneSeat() pulled out of the key above, so
+        // the UI does not have to string-parse a zone key to learn whose Stack
+        // just got shuffled — the one thing this cue is for.
+        emit(env, "SHUFFLE", { zone: op.zone, seat });
         return "done";
       }
       case "setCommitted": {
@@ -4308,15 +4327,48 @@
     return Boolean(shield && sourceAffinity.indexOf(shield) >= 0);
   }
 
+  /* The Queue's own anchor, in the shape damageAnchor established. A qid names
+   * an item to the RULES, but the effects layer cannot pin a cue to one —
+   * there is nothing on the table at a qid to draw on. Both of the Queue's
+   * loudest beats, an item fizzling and an item resolving, shipped a qid and
+   * nothing else, so the two moments a player most needs explained ("why did
+   * nothing happen?") rendered as nothing at all.
+   *
+   * None of this is a disclosure. QUEUED already announces `seat:
+   * item.controller` when the item goes on, and §11.2 puts its targets in the
+   * same payload because the response window cannot work without them. Beyond
+   * that, viewFor() copies every queue item's controller, objectUid AND
+   * sourceUid into the public view outside any seat-or-spectator guard, so all
+   * three are already readable by an audience member with no seat at all. */
+  function queueAnchor(state, item, uid) {
+    const out = { seat: item.controller };
+    /* Live uids only, on damageAnchor's rule: an anchor pointing at a dead uid
+     * is worse than no anchor, because the UI would render it. pruneReferences
+     * keeps objectUid/sourceUid null-or-live for as long as the item sits ON
+     * the Queue, but both of these beats fire just AFTER it was spliced off,
+     * where that invariant no longer sweeps. */
+    if (uid && state.objects[uid]) out.uid = uid;
+    return out;
+  }
+
   /* §11.2 — if every target is illegal the whole item is invalidated by the
    * rules: it goes to its owner's Archive and its paid costs are not refunded. */
   function invalidateQueueItem(env, index, reason) {
     const item = env.state.queue[index];
     env.state.queue.splice(index, 1);
+    let resting = item.objectUid;
     if (item.objectUid && env.state.objects[item.objectUid]) {
-      moveUid(env, item.objectUid, "archive");
+      /* Read the uid back off the record. The move re-mints it (§6.1), and the
+       * item is already off the Queue, so pruneReferences will not rewrite
+       * item.objectUid the way it does for every item still queued — pointing
+       * the cue at that stale handle would name the object just deleted. The
+       * Archive it lands in is a PUBLIC_ZONE, so the new uid is public too. */
+      resting = moveUid(env, item.objectUid, "archive").uid;
     }
-    emit(env, "INVALIDATED", { qid: item.qid, cardId: item.cardId, reason });
+    emit(env, "INVALIDATED", Object.assign(
+      queueAnchor(env.state, item, resting),
+      { qid: item.qid, cardId: item.cardId, reason }
+    ));
   }
 
   function announceManual(env, item, uid) {
@@ -6231,7 +6283,10 @@
     } else if (item.kind === "ability") {
       const ability = card && card.abilities[item.abilityIndex];
       if (ability && ability.manual) announceManual(env, item, item.sourceUid);
-      emit(env, "RESOLVED", { qid: item.qid, cardId: item.cardId, abilityIndex: item.abilityIndex });
+      emit(env, "RESOLVED", Object.assign(
+        queueAnchor(env.state, item, item.sourceUid),
+        { qid: item.qid, cardId: item.cardId, abilityIndex: item.abilityIndex }
+      ));
     }
   }
 

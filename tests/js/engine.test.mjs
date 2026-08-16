@@ -1157,3 +1157,216 @@ test("adding an anchor to an event changes no hash a signed result depends on", 
   assert.equal(E.hashState(twinNext), E.hashState(next));
   assert.equal(E.publicHash(twinNext), E.publicHash(next));
 });
+
+// ------------------------------------------------------- Queue and zone anchors
+
+/* A Queue item seeded straight onto the Queue and then resolved. `manual` and
+ * `triggered` items carry their own ops (frameOps reads item.ops for those two
+ * kinds), which is the only way in: moveRandomFromZone is printed on no card in
+ * the set, and runManualOp's dead-uid guard is unreachable through the manual
+ * door because MANUAL_PROPOSE validates every uid up front — the guard exists
+ * for resolution time, when a uid that was live at announce has since been
+ * re-minted. The Queue is LIFO, so the last item pushed resolves first. */
+function queueBeat(build, limit = 8) {
+  const state = E.createGame(baseConfig());
+  const push = (over) => {
+    const item = Object.assign({
+      qid: "q" + state.nextQid, kind: "manual", controller: 0, cardId: null,
+      sourceUid: null, objectUid: null, abilityIndex: null, targets: [], modes: [],
+      x: 0, paid: {}, manual: null, ops: [], addedSeq: state.seq,
+      resume: { opIndex: 0, acc: {} },
+    }, over || {});
+    state.nextQid += 1;
+    state.queue.push(item);
+    return item;
+  };
+  const extra = build(state, push) || {};
+  let current = state;
+  const events = [];
+  for (let i = 0; i < limit && current.queue.length; i++) {
+    const result = act(current, "PASS_PRIORITY", current.priority.seat);
+    current = ok(result);
+    events.push(...result.events);
+  }
+  return Object.assign({ state: current, events }, extra);
+}
+
+test("a shuffle says whose Stack moved instead of making the UI parse a zone key", () => {
+  /* `zone` is a composite key like "1:stack", so the renderer was splitting a
+   * string on ":" to find the seat — reimplementing zoneSeat() in the UI,
+   * against a key format that is an engine internal and free to change. The
+   * engine had already computed the number two lines above the emit. */
+  const { events } = queueBeat((state, push) => {
+    push({ controller: 0, ops: [{ op: "shuffleZone", zone: "1:stack" }] });
+  });
+  const [shuffle] = cues(events, "SHUFFLE");
+  assert.ok(shuffle, "no SHUFFLE emitted");
+  assert.equal(shuffle.seat, 1, "seat 0 ordered the shuffle; seat 1's Stack is the one that moved");
+  assert.equal(shuffle.zone, "1:stack", "and the zone key survives for the transcript");
+  assert.equal(shuffle.seat, Number(shuffle.zone.split(":")[0]), "exactly the parse the UI was doing by hand");
+});
+
+test("both RANDOM_PICK emits describe one beat, so both name a seat", () => {
+  /* There are two of these. The `discard` op has always emitted {seat, …}; the
+   * moveRandomFromZone op emitted {zone, …}. One beat — a card taken at random
+   * out of somebody's hidden zone — in two shapes, so a UI written against one
+   * rendered nothing for the other. The seat is not new information: it is
+   * Number(zone.split(":")[0]). The eligible/picked uids are the §18.4 audit
+   * record of a random choice and are deliberately left exactly as they were. */
+  const { events } = queueBeat((state, push) => {
+    push({
+      controller: 0,
+      ops: [{ op: "moveRandomFromZone", fromZone: "1:wallet", toZone: "1:archive", count: 1 }],
+    });
+  });
+  const [pick] = cues(events, "RANDOM_PICK");
+  assert.ok(pick, "no RANDOM_PICK emitted");
+  assert.equal(pick.seat, 1, "the seat being picked FROM — the same sense as the discard-op sibling");
+  assert.equal(pick.seat, Number(pick.zone.split(":")[0]));
+  assert.equal(pick.stream, "public", "the audit fields are untouched");
+  assert.ok(pick.eligible.includes(pick.picked), "and the pick still comes from the logged eligible set");
+});
+
+test("a skipped op anchors on the controller, never on the uid that just died", () => {
+  /* This branch runs precisely BECAUSE op.uid names an object that is gone:
+   * lethal damage that both decommissions a card and raises its trigger mints
+   * a new uid on the zone change, so a bound op can point at nothing by the
+   * time the Queue reaches it. That makes this the one uid in the engine
+   * guaranteed dead, and anchoring a cue on it is the exact mistake
+   * damageAnchor refuses to make. It stays in the payload because the log
+   * needs to say WHICH op fizzled; it is not the anchor. */
+  const { state, events } = queueBeat((s, push) => {
+    push({
+      controller: 1, cardId: cardNamed("Fault Injector"),
+      ops: [{ op: "moveObject", uid: "oGONE", toZone: "archive" }],
+    });
+  });
+  const [skipped] = cues(events, "OP_SKIPPED");
+  assert.ok(skipped, "no OP_SKIPPED emitted");
+  // Controller 1 while seat 0 is the active player, so an anchor that merely
+  // guessed "the seat whose turn it is" cannot pass this.
+  assert.equal(state.turn.active, 0, "fixture assumes seat 0 is active");
+  assert.equal(skipped.seat, 1, "the item's controller, not the active seat");
+  assert.equal(skipped.uid, "oGONE", "the dead uid stays for the log");
+  assert.equal(skipped.op, "moveObject", "and so does the op name");
+  assert.equal(state.objects[skipped.uid], undefined, "which is dead, as this event's whole premise");
+});
+
+test("a fizzled Queue item names its controller and where its card came to rest", () => {
+  /* A qid identifies an item to the RULES and to nothing on the table, so
+   * INVALIDATED — the "your card did nothing" beat, the one a player most
+   * needs explained — was unrenderable.
+   *
+   * The uid is the subtle half. invalidateQueueItem splices the item off the
+   * Queue and THEN moves its card to the Archive, and that move re-mints the
+   * uid (§6.1). pruneReferences would normally rewrite item.objectUid to match,
+   * but it only sweeps items still ON the Queue and this one is already off —
+   * so item.objectUid is stale by the time the event is emitted, and publishing
+   * it would point the UI at an object that no longer exists. */
+  const { state, events, onQueue } = queueBeat((s, push) => {
+    const staged = seed(s, 0, cardNamed("Fault Injector"), {}, "queue");
+    const victim = push({
+      kind: "card", controller: 0, cardId: cardNamed("Fault Injector"), objectUid: staged,
+    });
+    push({ controller: 0, ops: [{ op: "invalidateQueueItem", qid: victim.qid }] });
+    return { onQueue: staged };
+  });
+  const [dead] = cues(events, "INVALIDATED");
+  assert.ok(dead, "no INVALIDATED emitted");
+  assert.equal(dead.seat, 0, "whose item fizzled");
+  assert.equal(dead.reason, "invalidated", "and the reason survives for the log");
+
+  assert.equal(state.objects[onQueue], undefined,
+    "the pre-move uid must really be dead, or this test proves nothing");
+  assert.notEqual(dead.uid, onQueue, "publishing item.objectUid here would name a deleted object");
+  assert.ok(state.objects[dead.uid], "an anchor must name an object that exists");
+  assert.equal(state.objects[dead.uid].zone, "0:archive",
+    "§11.2 sends an invalidated card to its owner's Archive — which is where the cue points");
+});
+
+test("a resolved ability names its controller and the card it resolved from", () => {
+  const state = E.createGame(baseConfig());
+  const injector = seed(state, 0, cardNamed("Fault Injector"));
+  seed(state, 1, cardNamed("Toni China, Rough Miner"));
+  state.seats[0].buffer.N = 9;
+  let result = act(state, "ACTIVATE_ABILITY", 0, {
+    uid: injector, abilityIndex: 0, targets: [{ kind: "seat", seat: 1 }],
+  });
+  let current = ok(result);
+  const events = result.events.slice();
+  for (let i = 0; i < 8 && current.queue.length; i++) {
+    result = act(current, "PASS_PRIORITY", current.priority.seat);
+    current = ok(result);
+    events.push(...result.events);
+  }
+  const [done] = cues(events, "RESOLVED");
+  assert.ok(done, "no RESOLVED emitted");
+  assert.equal(done.seat, 0, "whose ability resolved");
+  assert.equal(done.uid, injector, "the source card, which is where the cue is drawn");
+  assert.equal(done.abilityIndex, 0, "the pre-existing fields are untouched");
+  assert.ok(done.qid, "including the qid the rules identify the item by");
+});
+
+test("a resolved ability whose source has died omits the uid rather than inventing one", () => {
+  /* The other half of the same rule. An ability outlives its source constantly
+   * — the card is decommissioned in response, or by its own effect — and
+   * pruneReferences nulls item.sourceUid when that happens. The seat anchor
+   * still gets the cue on screen; a uid anchor would put it on a dead object. */
+  const { events } = queueBeat((state, push) => {
+    push({
+      kind: "ability", controller: 1, cardId: cardNamed("Fault Injector"),
+      abilityIndex: 0, sourceUid: "oGONE", targets: [{ kind: "seat", seat: 0 }],
+    });
+  });
+  const [done] = cues(events, "RESOLVED");
+  assert.ok(done, "no RESOLVED emitted");
+  assert.equal(done.seat, 1, "the seat anchor always survives — it cannot go stale");
+  assert.equal(done.uid, undefined, "and no anchor at all beats an anchor on an object that is gone");
+});
+
+test("a Queue anchor publishes only what the Queue already publishes to everyone", () => {
+  /* redactEvents() has no field-level filter — {t, seq} plus Object.assign of
+   * `pub` — so a uid put in `pub` is a uid handed to both seats AND every
+   * spectator. This engine has already shipped one fog-of-war leak, so the
+   * question has to be answered rather than assumed.
+   *
+   * It is answered by viewFor(): the loop that copies queue items into the
+   * public view emits each item's controller, objectUid AND sourceUid OUTSIDE
+   * every seat-and-spectator guard, and QUEUED announces the controller when
+   * the item goes on. An audience member holding no seat can already read all
+   * three. Verified below against visibleUids(), the engine's own entitlement
+   * oracle, rather than against that reasoning. */
+  const beats = [
+    queueBeat((s, push) => {
+      const staged = seed(s, 0, cardNamed("Fault Injector"), {}, "queue");
+      const victim = push({
+        kind: "card", controller: 0, cardId: cardNamed("Fault Injector"), objectUid: staged,
+      });
+      push({ controller: 0, ops: [{ op: "invalidateQueueItem", qid: victim.qid }] });
+    }),
+    queueBeat((s, push) => {
+      const source = seed(s, 1, cardNamed("Fault Injector"));
+      push({
+        kind: "ability", controller: 1, cardId: cardNamed("Fault Injector"),
+        abilityIndex: 0, sourceUid: source, targets: [{ kind: "seat", seat: 0 }],
+      });
+    }),
+  ];
+  const ANCHORED = ["INVALIDATED", "RESOLVED"];
+  let checked = 0;
+  for (const beat of beats) {
+    for (const seat of [0, 1, null]) {
+      const entitled = E.visibleUids(beat.state, seat);
+      for (const event of E.redactEvents(beat.events, seat)) {
+        if (!ANCHORED.includes(event.t)) continue;
+        assert.equal(typeof event.seat, "number", `${event.t} lost its seat anchor for viewer ${seat}`);
+        if (event.uid !== undefined) {
+          assert.ok(entitled[event.uid], `${event.t}.uid=${event.uid} is hidden from seat ${seat}`);
+          checked += 1;
+        }
+        assert.equal(event.priv, undefined, "the redactor flattens priv; nothing may survive as a blob");
+      }
+    }
+  }
+  assert.ok(checked >= 6, `only ${checked} uid anchors were reached — the fixtures stopped firing`);
+});
