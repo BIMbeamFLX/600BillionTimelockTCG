@@ -44,12 +44,20 @@ BONE = (232, 223, 207)
 ORANGE = (247, 147, 26)
 INK = (17, 17, 17)
 
-# 676x845 is exactly 4:5, which is the aspect the art is normalized to, so the
-# whole illustration lands in the window with nothing cropped and nothing
-# letterboxed. The old window was 678x624 -- almost square -- so every portrait
-# pillarboxed to 499 wide and threw away 26% of the window. The art now runs
-# down to y=995 and the rules text sits on a scrim over its lower edge.
-ART_BOX = (69, 150, 676, 845)
+# The illustration is never covered and never cropped: it is contain-fit into
+# the space between the header (badge, cost, title own y < 170) and the text,
+# which sits BELOW the art on the well plate, bottom-anchored at y=1006 above
+# the footer. Short rules leave room for a tall picture; the five-line cards
+# give some of it back. ART_MAX_H is the 4:5 ceiling at the well's width.
+#
+# The first full-art frame instead ran the text over the picture on a scrim.
+# The owner's verdict was blunt and right: leave the pictures whole. The board
+# shows the pure art region in-game (face-geometry sidecar); the printed face
+# is the reference document, so it carries the full text -- smaller, and below.
+ART_TOP = 170
+ART_MAX_H = 845
+TEXT_BOTTOM = 1006
+ART_TEXT_GAP = 14
 WELL_BOX = (61, 142, 692, 861)
 
 
@@ -70,10 +78,14 @@ CORNER_MARKS = corner_marks(WELL_BOX)
 # Every card prints its rules in full. The old budget was two lines at one of two
 # sizes, which silently truncated 149 of 295 -- several of them printing an
 # ability the engine grants but the card never mentions. Five lines over this
-# ladder fits all 276 rules-text cards, worst case 200px.
-RULES_STEPS = ((31, 40), (29, 38), (27, 35), (25, 33), (23, 30))
+# ladder fits every card, worst total block 254px (E1-009), swept set-wide.
+RULES_STEPS = ((29, 38), (27, 35), (25, 33), (23, 30))
 RULES_MAX_LINES = 5
-FABLE_STEPS = ((21, 27), (20, 26))
+FABLE_STEPS = ((20, 26), (19, 25))
+
+# Per-card art placement, in full-bleed pixels, collected during a render so
+# main() can emit the face-geometry sidecar the game board crops tiles from.
+FACE_GEOMETRY: dict[str, tuple[int, int, int, int]] = {}
 
 MONO = ["consola.ttf", "DejaVuSansMono.ttf", "cour.ttf"]
 MONO_ITALIC = ["consolai.ttf", "DejaVuSansMono-Oblique.ttf", "couri.ttf"]
@@ -226,38 +238,6 @@ def fit_contain(image: Image.Image, box: tuple[int, int]) -> Image.Image:
 # ------------------------------------------------------------------ frame paint
 
 
-def paint_scrim(
-    canvas: Image.Image,
-    top: int,
-    bottom: int,
-    fade: int = 78,
-    *,
-    strength: int = 238,
-    descending: bool = False,
-) -> None:
-    """Sink the art behind the text without dropping a solid plate over it.
-
-    The text used to sit on the card's own background below the art. Now that the
-    art runs the full height of the well, it has to be dimmed where words cross
-    it -- but a hard-edged panel would read as a second frame, so the scrim rises
-    from nothing over `fade` pixels and holds under the type. `descending` flips
-    it for the title zone at the art's top edge: full strength at the top, gone
-    `fade` pixels down.
-    """
-    height = bottom - top
-    band = Image.new("RGBA", (canvas.width, height), (0, 0, 0, 0))
-    pixels = band.load()
-    for y in range(height):
-        if descending:
-            ramp = max(0.0, 1.0 - y / fade) if fade else 1.0
-        else:
-            ramp = min(1.0, y / fade) if fade else 1.0
-        alpha = int(strength * (ramp**1.7))
-        for x in range(canvas.width):
-            pixels[x, y] = (5, 4, 3, alpha)
-    canvas.alpha_composite(band, (0, top))
-
-
 def paint_frame(
     canvas: Image.Image,
     index: int,
@@ -367,24 +347,8 @@ def render_card(
     draw.rectangle(
         (wx, wy, wx + ww, wy + wh), fill=(*hex_rgb(base_plate), 255), outline=rgba("#f7931a", 0.25)
     )
-    art_path = art_dir / f"{card['id']}.jpg"
-    if art_path.exists():
-        with Image.open(art_path) as source:
-            art = fit_contain(source.convert("RGB"), (ART_BOX[2], ART_BOX[3]))
-        canvas.paste(
-            art,
-            (
-                ART_BOX[0] + (ART_BOX[2] - art.width) // 2,
-                ART_BOX[1] + (ART_BOX[3] - art.height) // 2,
-            ),
-        )
-
-    # The text is measured before it is drawn, because the scrim behind it and
-    # the hand-drawn rule above it both have to know how tall the block came out.
-    art_bottom = ART_BOX[1] + ART_BOX[3]
-    # The title's descenders and the cost pips cross the art's top edge, so it
-    # fades up into the header the same way it fades down into the rules.
-    paint_scrim(canvas, ART_BOX[1], ART_BOX[1] + 126, 126, strength=212, descending=True)
+    # The text is measured BEFORE the art is placed: the block sits on the well
+    # plate below the picture, so its height decides how tall the picture gets.
     symbols = resource_symbols(card)
     blocks = []
     icon_top = 0
@@ -400,31 +364,35 @@ def render_card(
             )
             blocks.append((italic, height, lines, (*BONE, 128), 12))
     text_height = sum(gap + height * len(lines) for _, height, lines, _, gap in blocks)
-    text_top = art_bottom - 18 - text_height
+    text_top = TEXT_BOTTOM - text_height
 
     if symbols:
-        # One giant symbol IS the rules text, so it gets the same treatment.
+        # One giant symbol IS the rules text; it takes the text zone instead.
         icon_size = BASIC_ICON if len(symbols) == 1 else JUNCTION_ICON
-        icon_top = art_bottom - 44 - icon_size
-        paint_scrim(canvas, icon_top - 96, art_bottom)
-        rule_y = icon_top - 34
+        icon_top = TEXT_BOTTOM - 16 - icon_size
+        zone_top = icon_top - 24
     elif blocks:
-        paint_scrim(canvas, max(ART_BOX[1], text_top - 88), art_bottom)
-        rule_y = text_top - 26
+        zone_top = text_top - ART_TEXT_GAP
     else:
-        rule_y = art_bottom - 20
+        zone_top = TEXT_BOTTOM
+
+    art_h = min(ART_MAX_H, zone_top - ART_TOP)
+    art_w = round(art_h * 4 / 5)
+    art_x = (CARD_W - art_w) // 2
+    art_path = art_dir / f"{card['id']}.jpg"
+    if art_path.exists():
+        with Image.open(art_path) as source:
+            art = fit_contain(source.convert("RGB"), (art_w, art_h))
+        canvas.paste(art, (art_x + (art_w - art.width) // 2, ART_TOP))
+    art_bottom = ART_TOP + art_h
+    FACE_GEOMETRY[card["id"]] = (art_x, ART_TOP, art_w, art_h)
+    rule_y = art_bottom + 10
 
     paint_frame(canvas, index, accent, border_amp, guides, rule_y)
     draw = ImageDraw.Draw(canvas)
 
-    # Type badge
-    mono22 = font(MONO, 22)
-    badge = f"{card['card_type']} // {card['subtype'] or affinity}".upper()
-    badge_w = tracked_width(draw, badge, mono22, 6)
-    draw.rectangle((72, 58, 72 + badge_w + 32, 58 + 39), fill=hex_rgb(accent))
-    tracked_text(draw, (88, 65), badge, mono22, hex_rgb(badge_fg), 6)
-
-    # Cost row is measured first so the title can be fitted to what is left.
+    # The cost cluster is measured before the badge because they share the
+    # header row: badge left, cost right.
     generic, cost_symbols = cost_tokens(card["cost"] or "")
     cost_width = 0
     if generic or cost_symbols:
@@ -433,11 +401,23 @@ def render_card(
             + len(cost_symbols) * PIP_SIZE
             + 10 * (bool(generic) + len(cost_symbols) - 1)
         )
+    cost_x = CARD_W - 64 - cost_width
+
+    # Type badge. It steps down a size when a long type line would run into the
+    # cost cluster -- one promo does this; every E1 badge fits at 22.
+    badge = f"{card['card_type']} // {card['subtype'] or affinity}".upper()
+    for badge_size in (22, 20, 18, 16):
+        badge_font = font(MONO, badge_size)
+        badge_w = tracked_width(draw, badge, badge_font, 6)
+        if not cost_width or 72 + badge_w + 32 <= cost_x - 12:
+            break
+    draw.rectangle((72, 58, 72 + badge_w + 32, 58 + 39), fill=hex_rgb(accent))
+    tracked_text(draw, (88, 65 + (22 - badge_size) // 2), badge, badge_font, hex_rgb(badge_fg), 6)
 
     # Title steps down a fixed ladder rather than shrinking freely, and must never
     # wrap or reach the cost cluster.
     name = card["name"].upper()
-    available = CARD_W - 64 - cost_width - 72 - 20 if cost_width else 600
+    available = CARD_W - 72 - 72
     for title_size in TITLE_LADDER:
         title_font = font(DISPLAY, title_size)
         if draw.textlength(name, font=title_font) <= available:
@@ -448,16 +428,16 @@ def render_card(
 
     # Cost row, right aligned, using the canonical resource icons as-is
     if generic or cost_symbols:
-        x = CARD_W - 64 - cost_width
+        x = cost_x
         if generic:
-            draw.rectangle((x, 92, x + 78, 170), fill=INK, outline=rgba("#fff7ec", 0.7), width=3)
+            draw.rectangle((x, 50, x + 78, 128), fill=INK, outline=rgba("#fff7ec", 0.7), width=3)
             big = font(MONO, 44)
             tw = draw.textlength(generic, font=big)
-            draw.text((x + (78 - tw) / 2, 108), generic, font=big, fill=CREAM)
+            draw.text((x + (78 - tw) / 2, 66), generic, font=big, fill=CREAM)
             x += 88
         for symbol in cost_symbols:
             icon = resource_icon(COST_AFFINITY[symbol], PIP_SIZE)
-            canvas.alpha_composite(icon, (int(x), 92 + (78 - PIP_SIZE) // 2))
+            canvas.alpha_composite(icon, (int(x), 50 + (78 - PIP_SIZE) // 2))
             x += PIP_SIZE + 10
 
     # Action / Resilience
@@ -465,9 +445,10 @@ def render_card(
     if stats and "/" in stats:
         action, _, resilience = stats.partition("/")
         mono40, mono14 = font(MONO, 40), font(MONO, 14)
-        # Anchored just above the divider rather than at a fixed height, because
-        # the text block below it now grows and shrinks with the rules.
-        stat_top = rule_y - 12 - 88
+        # Bottom-aligned to the art's lower edge, at the card's fixed margins.
+        # The art is narrower than the frame on most cards now, so the plates
+        # usually sit on the well BESIDE the picture's lower corners, not on it.
+        stat_top = art_bottom - 88
         for left, value, label in ((78, action, "ACT"), (676, resilience, "RES")):
             draw.rectangle(
                 (left, stat_top, left + 60, stat_top + 88),
@@ -503,7 +484,7 @@ def render_card(
                 )
             x += size + gap
 
-    # Rules and flavour, laid out above and bottom-anchored to the art's lower edge.
+    # Rules and flavour, on the plate below the art, bottom-anchored above the footer.
     y = text_top
     for block_font, height, lines, fill, gap in blocks:
         y += gap
@@ -635,8 +616,15 @@ def main() -> None:
 
     missing_art = []
     written = 0
+    geometry = {}
     for index, (card, art_dir) in enumerate(entries, start=1):
         image = render_card(card, index, art_dir, args.border_amp, args.guides)
+        x, y, w, h = FACE_GEOMETRY[card["id"]]
+        if args.format == "webp":
+            x, y = x - TRIM_INSET, y - TRIM_INSET
+        if args.scale != 1.0:
+            x, y, w, h = (round(v * args.scale) for v in (x, y, w, h))
+        geometry[card["name"]] = {"id": card["id"], "art": [x, y, w, h]}
         if not (art_dir / f"{card['id']}.jpg").exists():
             missing_art.append(card["id"])
         # Web faces are trimmed to the cut line: the 35px bleed exists for the
@@ -664,6 +652,18 @@ def main() -> None:
     back_target = args.out / f"600B-Timelock-card-back{suffix}"
     back.convert("RGB").save(back_target, args.format.upper(), **options)
     written += back_target.stat().st_size
+
+    # The sidecar the game board crops art tiles from: per card, where the
+    # illustration sits inside the emitted face image, in that image's pixels.
+    face_w = TRIM_W if args.format == "webp" else CARD_W
+    face_h = TRIM_H if args.format == "webp" else CARD_H
+    if args.scale != 1.0:
+        face_w, face_h = round(face_w * args.scale), round(face_h * args.scale)
+    (args.out / "face-geometry.json").write_text(
+        json.dumps({"size": [face_w, face_h], "faces": geometry}, indent=1, ensure_ascii=False)
+        + "\n",
+        encoding="utf-8",
+    )
 
     average = written / max(1, len(entries))
     print(f"wrote {len(entries)} {args.format} card faces to {args.out}")
