@@ -62,7 +62,12 @@ INK = (17, 17, 17)
 # brackets, which begin at y=138; the well runs to y=1032 so the text always
 # sits on its plate.
 BADGE_TOP = 38
-TITLE_TOP = 80
+# The title is anchored by its INK, not its em box: Anton carries 16-21px of
+# dead ascender air, and anchoring the box let glyphs reach the frame. Ink
+# starts at 84 (badge ends 77) and must end above TITLE_INK_FLOOR -- the ring
+# begins at 138 -- which caps the ladder at 48. The owner's law: no collision.
+TITLE_INK_TOP = 84
+TITLE_INK_FLOOR = 134
 ART_TOP_MIN = 150
 ART_MAX_H = 845
 TEXT_BOTTOM = 1024
@@ -118,7 +123,7 @@ def resource_symbols(card: dict[str, Any]) -> list[str]:
 
 
 # Titles never wrap; they step down this ladder until they clear the cost cluster.
-TITLE_LADDER = (68, 66, 62, 60, 58, 52, 46, 40, 34, 30, 27, 24)
+TITLE_LADDER = (48, 46, 42, 38, 34, 30, 27, 24)
 _ICONS: dict[tuple[str, int], Image.Image] = {}
 
 
@@ -403,7 +408,13 @@ def render_card(
         title_font = font(DISPLAY, title_size)
         if draw.textlength(name, font=title_font) <= available:
             break
-    art_top = max(ART_TOP_MIN, TITLE_TOP + title_size + 8)
+    ink = draw.textbbox((0, 0), name, font=title_font)
+    title_y = TITLE_INK_TOP - ink[1]
+    title_ink_bottom = title_y + ink[3]
+    if title_ink_bottom > TITLE_INK_FLOOR:
+        # The frame starts at y=138. A title that reaches it fails the render.
+        raise ValueError(f"title ink reaches {title_ink_bottom}: {name!r}")
+    art_top = max(ART_TOP_MIN, title_ink_bottom + 10)
 
     art_h = min(ART_MAX_H, zone_top - art_top)
     art_w = round(art_h * 4 / 5)
@@ -433,10 +444,10 @@ def render_card(
         draw, (88, BADGE_TOP + 7 + (22 - badge_size) // 2), badge, badge_font, hex_rgb(badge_fg), 6
     )
 
-    # The title's size and font were already chosen before the art was placed.
+    # The title's size, font and ink anchor were chosen before the art was placed.
     for offset, colour in ((3, (255, 106, 0)), (-3, (116, 71, 184))):
-        draw.text((72 + offset, TITLE_TOP), name, font=title_font, fill=colour)
-    draw.text((72, TITLE_TOP), name, font=title_font, fill=CREAM)
+        draw.text((72 + offset, title_y), name, font=title_font, fill=colour)
+    draw.text((72, title_y), name, font=title_font, fill=CREAM)
 
     # Cost row, right aligned, using the canonical resource icons as-is
     if generic or cost_symbols:
