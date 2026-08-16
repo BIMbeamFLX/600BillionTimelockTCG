@@ -54,7 +54,13 @@ INK = (17, 17, 17)
 # The owner's verdict was blunt and right: leave the pictures whole. The board
 # shows the pure art region in-game (face-geometry sidecar); the printed face
 # is the reference document, so it carries the full text -- smaller, and below.
-ART_TOP = 170
+# The header hugs the cut line: 9px of trimmed margin above the badge, title
+# right under it, and the art starts under the title's own em box -- so a card
+# with a short name starts its picture higher. ART_TOP_MIN keeps the picture
+# out of the well's ring and corner brackets, which begin at y=138.
+BADGE_TOP = 44
+TITLE_TOP = 86
+ART_TOP_MIN = 150
 ART_MAX_H = 845
 TEXT_BOTTOM = 1006
 ART_TEXT_GAP = 14
@@ -376,23 +382,9 @@ def render_card(
     else:
         zone_top = TEXT_BOTTOM
 
-    art_h = min(ART_MAX_H, zone_top - ART_TOP)
-    art_w = round(art_h * 4 / 5)
-    art_x = (CARD_W - art_w) // 2
-    art_path = art_dir / f"{card['id']}.jpg"
-    if art_path.exists():
-        with Image.open(art_path) as source:
-            art = fit_contain(source.convert("RGB"), (art_w, art_h))
-        canvas.paste(art, (art_x + (art_w - art.width) // 2, ART_TOP))
-    art_bottom = ART_TOP + art_h
-    FACE_GEOMETRY[card["id"]] = (art_x, ART_TOP, art_w, art_h)
-    rule_y = art_bottom + 10
-
-    paint_frame(canvas, index, accent, border_amp, guides, rule_y)
-    draw = ImageDraw.Draw(canvas)
-
-    # The cost cluster is measured before the badge because they share the
-    # header row: badge left, cost right.
+    # Cost first, then title, then art: the cost cluster caps the title's
+    # width (a title must never run under the pips), and the title's size sets
+    # the art's top edge -- short name, higher picture.
     generic, cost_symbols = cost_tokens(card["cost"] or "")
     cost_width = 0
     if generic or cost_symbols:
@@ -402,6 +394,28 @@ def render_card(
             + 10 * (bool(generic) + len(cost_symbols) - 1)
         )
     cost_x = CARD_W - 64 - cost_width
+    name = card["name"].upper()
+    available = min(CARD_W - 72 - 72, cost_x - 72 - 12) if cost_width else CARD_W - 72 - 72
+    for title_size in TITLE_LADDER:
+        title_font = font(DISPLAY, title_size)
+        if draw.textlength(name, font=title_font) <= available:
+            break
+    art_top = max(ART_TOP_MIN, TITLE_TOP + title_size + 8)
+
+    art_h = min(ART_MAX_H, zone_top - art_top)
+    art_w = round(art_h * 4 / 5)
+    art_x = (CARD_W - art_w) // 2
+    art_path = art_dir / f"{card['id']}.jpg"
+    if art_path.exists():
+        with Image.open(art_path) as source:
+            art = fit_contain(source.convert("RGB"), (art_w, art_h))
+        canvas.paste(art, (art_x + (art_w - art.width) // 2, art_top))
+    art_bottom = art_top + art_h
+    FACE_GEOMETRY[card["id"]] = (art_x, art_top, art_w, art_h)
+    rule_y = art_bottom + 10
+
+    paint_frame(canvas, index, accent, border_amp, guides, rule_y)
+    draw = ImageDraw.Draw(canvas)
 
     # Type badge. It steps down a size when a long type line would run into the
     # cost cluster -- one promo does this; every E1 badge fits at 22.
@@ -411,33 +425,29 @@ def render_card(
         badge_w = tracked_width(draw, badge, badge_font, 6)
         if not cost_width or 72 + badge_w + 32 <= cost_x - 12:
             break
-    draw.rectangle((72, 58, 72 + badge_w + 32, 58 + 39), fill=hex_rgb(accent))
-    tracked_text(draw, (88, 65 + (22 - badge_size) // 2), badge, badge_font, hex_rgb(badge_fg), 6)
+    draw.rectangle((72, BADGE_TOP, 72 + badge_w + 32, BADGE_TOP + 39), fill=hex_rgb(accent))
+    tracked_text(
+        draw, (88, BADGE_TOP + 7 + (22 - badge_size) // 2), badge, badge_font, hex_rgb(badge_fg), 6
+    )
 
-    # Title steps down a fixed ladder rather than shrinking freely, and must never
-    # wrap or reach the cost cluster.
-    name = card["name"].upper()
-    available = CARD_W - 72 - 72
-    for title_size in TITLE_LADDER:
-        title_font = font(DISPLAY, title_size)
-        if draw.textlength(name, font=title_font) <= available:
-            break
+    # The title's size and font were already chosen before the art was placed.
     for offset, colour in ((3, (255, 106, 0)), (-3, (116, 71, 184))):
-        draw.text((72 + offset, 98), name, font=title_font, fill=colour)
-    draw.text((72, 98), name, font=title_font, fill=CREAM)
+        draw.text((72 + offset, TITLE_TOP), name, font=title_font, fill=colour)
+    draw.text((72, TITLE_TOP), name, font=title_font, fill=CREAM)
 
     # Cost row, right aligned, using the canonical resource icons as-is
     if generic or cost_symbols:
         x = cost_x
         if generic:
-            draw.rectangle((x, 50, x + 78, 128), fill=INK, outline=rgba("#fff7ec", 0.7), width=3)
+            box = (x, BADGE_TOP, x + 78, BADGE_TOP + 78)
+            draw.rectangle(box, fill=INK, outline=rgba("#fff7ec", 0.7), width=3)
             big = font(MONO, 44)
             tw = draw.textlength(generic, font=big)
-            draw.text((x + (78 - tw) / 2, 66), generic, font=big, fill=CREAM)
+            draw.text((x + (78 - tw) / 2, BADGE_TOP + 16), generic, font=big, fill=CREAM)
             x += 88
         for symbol in cost_symbols:
             icon = resource_icon(COST_AFFINITY[symbol], PIP_SIZE)
-            canvas.alpha_composite(icon, (int(x), 50 + (78 - PIP_SIZE) // 2))
+            canvas.alpha_composite(icon, (int(x), BADGE_TOP + (78 - PIP_SIZE) // 2))
             x += PIP_SIZE + 10
 
     # Action / Resilience

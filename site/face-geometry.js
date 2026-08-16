@@ -4,1780 +4,1780 @@
 globalThis.FACE_GEOMETRY = {
  "faces": {
   "AJ, First Responder.webp": [
-   99,
-   135,
-   546,
-   682
+   95,
+   125,
+   554,
+   692
   ],
   "AJ, Uptime Anchor.webp": [
-   134,
-   135,
-   475,
-   594
+   126,
+   115,
+   491,
+   614
   ],
   "Affinity Rewrite.webp": [
-   139,
    135,
-   466,
-   583
+   127,
+   473,
+   591
   ],
   "Arbadacarba, Grid Steward.webp": [
-   84,
-   135,
-   576,
-   720
+   76,
+   115,
+   592,
+   740
   ],
   "Arbadacarba, Natural Hashrate.webp": [
-   119,
-   135,
-   506,
-   632
+   111,
+   115,
+   522,
+   652
   ],
   "Arbadacarba, Protocol Gardener.webp": [
-   99,
-   135,
-   546,
-   682
+   91,
+   115,
+   562,
+   702
   ],
   "Archive Boot.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Archive Listener.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Archive Restore.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Attention Market.webp": [
-   99,
-   135,
-   546,
-   682
+   93,
+   121,
+   557,
+   696
   ],
   "BK, Bear Market Builder.webp": [
-   89,
-   135,
-   566,
-   708
+   81,
+   115,
+   582,
+   728
   ],
   "BK, Feedback Grower.webp": [
-   99,
-   135,
-   546,
-   682
+   93,
+   121,
+   557,
+   696
   ],
   "BK, Heavy Settler.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "BK, Mesh Pack.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Bam, Heavy Lifter.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Bam, Launch Engineer.webp": [
-   129,
-   135,
-   485,
-   606
+   121,
+   115,
+   501,
+   626
   ],
   "Bam, Power Artillery.webp": [
-   99,
-   135,
-   546,
-   682
+   91,
+   115,
+   562,
+   702
   ],
   "Bam, Tunnel Builder.webp": [
-   99,
-   135,
-   546,
-   682
+   93,
+   121,
+   557,
+   696
   ],
   "Basalt Battery.webp": [
-   129,
-   135,
-   485,
-   606
+   126,
+   127,
+   491,
+   614
   ],
   "Benarc, Deep Channel.webp": [
-   139,
-   135,
-   466,
-   583
+   132,
+   119,
+   479,
+   599
   ],
   "Benarc, Mirror Client.webp": [
-   89,
-   135,
-   566,
-   708
+   81,
+   117,
+   581,
+   726
   ],
   "Bitcoin Gatekeeper.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Bitcoin Protection Circuit.webp": [
-   104,
-   135,
-   536,
-   670
+   96,
+   115,
+   552,
+   690
   ],
   "Bitcoin Receiver.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Bitcoin Rewrite.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Bitcoin Seed.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Bitcoin Shield.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Bitcoin–Signal Junction.webp": [
-   113,
-   135,
-   517,
-   646
+   110,
+   127,
+   523,
+   654
   ],
   "Bitcoin–Timelock Junction.webp": [
-   113,
-   135,
-   517,
-   646
+   108,
+   121,
+   528,
+   660
   ],
   "BlackCoffee, Backup Firewall.webp": [
-   134,
-   135,
-   475,
-   594
+   126,
+   115,
+   491,
+   614
   ],
   "BlackCoffee, Reboot Crew.webp": [
-   119,
-   135,
-   506,
-   632
+   111,
+   115,
+   522,
+   652
   ],
   "BlackCoffee, Shared Secret Swarm.webp": [
-   119,
-   135,
-   506,
-   632
+   111,
+   115,
+   522,
+   652
   ],
   "Boost Converter.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Boot Hardware.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Broadcast Storm.webp": [
-   129,
-   135,
-   485,
-   606
+   124,
+   121,
+   496,
+   620
   ],
   "Broadcast Upgrade.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Buffer Drain.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Buffer Lock.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Burst Signature.webp": [
-   84,
-   135,
-   576,
-   720
+   81,
+   127,
+   582,
+   728
   ],
   "Call to Relay.webp": [
-   134,
-   135,
-   475,
-   594
+   131,
+   127,
+   482,
+   602
   ],
   "Chaos Kernel.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Clean Slate.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Cognitive Surge.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Cold Storage Controller.webp": [
-   89,
-   135,
-   566,
-   708
+   81,
+   117,
+   581,
+   726
   ],
   "Committed Growth.webp": [
+   103,
+   127,
+   538,
+   672
+  ],
+  "Community Strength.webp": [
+   85,
+   127,
+   573,
+   716
+  ],
+  "Consensus Pause.webp": [
+   111,
+   127,
+   522,
+   652
+  ],
+  "Consequence Ledger.webp": [
+   96,
+   115,
+   552,
+   690
+  ],
+  "Convert Uptime.webp": [
+   116,
+   127,
+   512,
+   640
+  ],
+  "Courage Under Load.webp": [
+   96,
+   127,
+   552,
+   690
+  ],
+  "Cuddy, Clockwork Node.webp": [
+   124,
+   121,
+   496,
+   620
+  ],
+  "Cuddy, Fast Starter.webp": [
+   70,
+   127,
+   603,
+   754
+  ],
+  "Cuddy, Signal Organizer.webp": [
+   68,
+   121,
+   608,
+   760
+  ],
+  "DNI, Self-Custody Giant.webp": [
+   121,
+   115,
+   501,
+   626
+  ],
+  "DNI, Sovereign Accumulator.webp": [
+   126,
+   115,
+   491,
+   614
+  ],
+  "DNI, Sovereign Knight.webp": [
+   139,
+   121,
+   466,
+   582
+  ],
+  "Damage Firewall.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "Damage Limiter.webp": [
+   96,
+   127,
+   552,
+   690
+  ],
+  "Damage Refund.webp": [
+   126,
+   127,
+   491,
+   614
+  ],
+  "Damage Router.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "Darren, Channel Operator.webp": [
+   66,
+   117,
+   611,
+   764
+  ],
+  "Darren, Channel Raider.webp": [
+   137,
+   115,
+   470,
+   588
+  ],
+  "Darren, Flow Controller.webp": [
+   65,
+   115,
+   613,
+   766
+  ],
+  "Deep Search.webp": [
+   85,
+   127,
+   573,
+   716
+  ],
+  "Difficulty Winter.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "Emergency Reboot.webp": [
+   96,
+   127,
+   552,
+   690
+  ],
+  "Entry Fee Device.webp": [
+   85,
+   127,
+   573,
+   716
+  ],
+  "Essex, Bull Runner.webp": [
+   77,
+   119,
+   589,
+   736
+  ],
+  "Essex, Grid Rebooter.webp": [
+   109,
+   121,
+   526,
+   658
+  ],
+  "Essex, Resilient Operator.webp": [
+   65,
+   115,
+   613,
+   766
+  ],
+  "Essex, Thermal Operator.webp": [
+   76,
+   115,
+   592,
+   740
+  ],
+  "Exit Fee.webp": [
+   126,
+   127,
+   491,
+   614
+  ],
+  "FLX, Culture Curator.webp": [
+   91,
+   115,
+   562,
+   702
+  ],
+  "FLX, Unstoppable Rig.webp": [
+   96,
+   127,
+   552,
+   690
+  ],
+  "Fair State.webp": [
+   141,
+   127,
+   461,
+   576
+  ],
+  "Fast Channel.webp": [
+   131,
+   127,
+   482,
+   602
+  ],
+  "Fast Path.webp": [
+   85,
+   127,
+   573,
+   716
+  ],
+  "Fault Injector.webp": [
+   85,
+   127,
+   573,
+   716
+  ],
+  "Fee Spike.webp": [
+   116,
+   127,
+   512,
+   640
+  ],
+  "Final Settlement.webp": [
+   116,
+   127,
+   512,
+   640
+  ],
+  "Firewall Tunnel.webp": [
+   96,
+   127,
+   552,
+   690
+  ],
+  "Firmware for Firewalls.webp": [
+   98,
+   121,
+   547,
+   684
+  ],
+  "First Memory.webp": [
+   96,
+   127,
+   552,
+   690
+  ],
+  "Freedom Market.webp": [
+   96,
+   127,
+   552,
+   690
+  ],
+  "Gadaj, Archive Maintainer.webp": [
+   126,
+   115,
+   491,
+   614
+  ],
+  "Gadaj, Commit Auditor.webp": [
+   65,
+   115,
+   613,
+   766
+  ],
+  "Gadaj, Wallet Whisperer.webp": [
    106,
-   135,
+   115,
    531,
    664
   ],
-  "Community Strength.webp": [
-   89,
-   135,
-   566,
-   708
-  ],
-  "Consensus Pause.webp": [
-   114,
-   135,
-   515,
-   644
-  ],
-  "Consequence Ledger.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Convert Uptime.webp": [
-   119,
-   135,
-   506,
-   632
-  ],
-  "Courage Under Load.webp": [
-   99,
-   135,
-   546,
-   682
-  ],
-  "Cuddy, Clockwork Node.webp": [
-   129,
-   135,
-   485,
-   606
-  ],
-  "Cuddy, Fast Starter.webp": [
-   73,
-   135,
-   597,
-   746
-  ],
-  "Cuddy, Signal Organizer.webp": [
-   73,
-   135,
-   597,
-   746
-  ],
-  "DNI, Self-Custody Giant.webp": [
-   129,
-   135,
-   485,
-   606
-  ],
-  "DNI, Sovereign Accumulator.webp": [
-   134,
-   135,
-   475,
-   594
-  ],
-  "DNI, Sovereign Knight.webp": [
-   145,
-   135,
-   454,
-   568
-  ],
-  "Damage Firewall.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Damage Limiter.webp": [
-   99,
-   135,
-   546,
-   682
-  ],
-  "Damage Refund.webp": [
-   129,
-   135,
-   485,
-   606
-  ],
-  "Damage Router.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Darren, Channel Operator.webp": [
-   73,
-   135,
-   597,
-   746
-  ],
-  "Darren, Channel Raider.webp": [
-   145,
-   135,
-   454,
-   568
-  ],
-  "Darren, Flow Controller.webp": [
-   73,
-   135,
-   597,
-   746
-  ],
-  "Deep Search.webp": [
-   89,
-   135,
-   566,
-   708
-  ],
-  "Difficulty Winter.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Emergency Reboot.webp": [
-   99,
-   135,
-   546,
-   682
-  ],
-  "Entry Fee Device.webp": [
-   89,
-   135,
-   566,
-   708
-  ],
-  "Essex, Bull Runner.webp": [
-   84,
-   135,
-   576,
-   720
-  ],
-  "Essex, Grid Rebooter.webp": [
-   114,
-   135,
-   515,
-   644
-  ],
-  "Essex, Resilient Operator.webp": [
-   73,
-   135,
-   597,
-   746
-  ],
-  "Essex, Thermal Operator.webp": [
-   84,
-   135,
-   576,
-   720
-  ],
-  "Exit Fee.webp": [
-   129,
-   135,
-   485,
-   606
-  ],
-  "FLX, Culture Curator.webp": [
-   99,
-   135,
-   546,
-   682
-  ],
-  "FLX, Unstoppable Rig.webp": [
-   99,
-   135,
-   546,
-   682
-  ],
-  "Fair State.webp": [
-   145,
-   135,
-   454,
-   568
-  ],
-  "Fast Channel.webp": [
-   134,
-   135,
-   475,
-   594
-  ],
-  "Fast Path.webp": [
-   89,
-   135,
-   566,
-   708
-  ],
-  "Fault Injector.webp": [
-   89,
-   135,
-   566,
-   708
-  ],
-  "Fee Spike.webp": [
-   119,
-   135,
-   506,
-   632
-  ],
-  "Final Settlement.webp": [
-   119,
-   135,
-   506,
-   632
-  ],
-  "Firewall Tunnel.webp": [
-   99,
-   135,
-   546,
-   682
-  ],
-  "Firmware for Firewalls.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "First Memory.webp": [
-   99,
-   135,
-   546,
-   682
-  ],
-  "Freedom Market.webp": [
-   99,
-   135,
-   546,
-   682
-  ],
-  "Gadaj, Archive Maintainer.webp": [
-   134,
-   135,
-   475,
-   594
-  ],
-  "Gadaj, Commit Auditor.webp": [
-   73,
-   135,
-   597,
-   746
-  ],
-  "Gadaj, Wallet Whisperer.webp": [
-   114,
-   135,
-   515,
-   644
-  ],
   "Genesis Archive.webp": [
-   84,
-   135,
-   576,
-   720
+   81,
+   127,
+   582,
+   728
   ],
   "Genesis Lotus.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Genesis Ring.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Global FIPS Balloon Network.webp": [
-   129,
-   135,
-   485,
-   606
+   121,
+   115,
+   501,
+   626
   ],
   "Grid Amplifier.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Grid Conversion.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Grid Eruption.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Grid Reset.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Grounded Signal.webp": [
-   134,
-   135,
-   475,
-   594
+   131,
+   127,
+   482,
+   602
   ],
   "Guardian Signal.webp": [
-   134,
-   135,
-   475,
-   594
+   131,
+   127,
+   482,
+   602
   ],
   "Hard Shutdown.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Hardened Identity.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Hardened Resource.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Hardware Clone.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Hardware Leak.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Hardware Shatter.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Hashquake.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Hashrate Aura.webp": [
-   145,
-   135,
-   454,
-   568
+   141,
+   127,
+   461,
+   576
   ],
   "Hashrate Gauntlet.webp": [
-   129,
-   135,
-   485,
-   606
+   126,
+   127,
+   491,
+   614
   ],
   "Hidden Route.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Home Miner.webp": [
-   129,
-   135,
-   485,
-   606
+   126,
+   127,
+   491,
+   614
   ],
   "Hot Grid.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Hot Resource.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Hot Wallet Statue.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Human Hashrate.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Identity Mask.webp": [
-   129,
-   135,
-   485,
-   606
+   126,
+   127,
+   491,
+   614
   ],
   "Idle Grid Penalty.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Instant Boot.webp": [
-   134,
-   135,
-   475,
-   594
+   131,
+   127,
+   482,
+   602
   ],
   "Invalid Signature.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Jedai, Adaptive Client.webp": [
-   124,
-   135,
-   495,
-   619
+   116,
+   115,
+   511,
+   639
   ],
   "Jedai, Protocol Architect.webp": [
-   99,
-   135,
-   546,
-   682
+   91,
+   115,
+   562,
+   702
   ],
   "Key Vault — Cold Room.webp": [
-   133,
-   135,
-   477,
-   596
+   130,
+   127,
+   483,
+   604
   ],
   "Key Vault — Workshop.webp": [
-   133,
-   135,
-   477,
-   596
+   130,
+   127,
+   483,
+   604
   ],
   "Keyed Resource Bell.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Keys Invalidation.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Keys Receiver.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Keys Rewrite.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Keys Shard.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Keys Shield.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Keys–Bitcoin Junction.webp": [
-   113,
-   135,
-   517,
-   646
+   110,
+   127,
+   523,
+   654
   ],
   "Last Broadcast.webp": [
-   134,
-   135,
-   475,
-   594
+   131,
+   127,
+   482,
+   602
   ],
   "Leaking Key Vault.webp": [
-   129,
-   135,
-   485,
-   606
+   125,
+   125,
+   493,
+   616
   ],
   "Leon, Grid Stabilizer.webp": [
-   73,
-   135,
-   597,
-   746
+   65,
+   115,
+   613,
+   766
   ],
   "Leon, High Relay Rider.webp": [
-   84,
-   135,
-   576,
-   720
+   77,
+   117,
+   590,
+   738
   ],
   "Leon, Shift Worker.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Living Hardware.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Local Citadel.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Locked Process.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Longy, Deep Node.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Longy, Resource Sovereign.webp": [
-   119,
-   135,
-   506,
-   632
+   111,
+   115,
+   522,
+   652
   ],
   "Longy, Thorn Firewall.webp": [
-   99,
-   135,
-   546,
-   682
+   92,
+   117,
+   560,
+   700
   ],
   "Low-Power Mode.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "MHB, Community Shield.webp": [
-   114,
-   135,
-   515,
-   644
+   106,
+   115,
+   531,
+   664
   ],
   "MHB, Keys Auditor.webp": [
-   89,
-   135,
-   566,
-   708
+   83,
+   121,
+   578,
+   722
   ],
   "MHB, Living Firewall.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "MadMunky, Chaos Coordinator.webp": [
-   99,
-   135,
-   546,
-   682
+   91,
+   115,
+   562,
+   702
   ],
   "MadMunky, Hashrate Dragon.webp": [
-   114,
-   135,
-   515,
-   644
+   106,
+   115,
+   531,
+   664
   ],
   "MadMunky, Meme Raider.webp": [
-   73,
-   135,
-   597,
-   746
+   67,
+   119,
+   610,
+   762
   ],
   "MadMunky, Young Overclocker.webp": [
-   134,
-   135,
-   475,
-   594
+   126,
+   115,
+   491,
+   614
   ],
   "Maintenance Leak.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Memory Palace.webp": [
-   129,
-   135,
-   485,
-   606
+   126,
+   127,
+   491,
+   614
   ],
   "Mesh Router.webp": [
-   84,
-   135,
-   576,
-   720
+   81,
+   127,
+   582,
+   728
   ],
   "Mesh Upgrade.webp": [
-   145,
-   135,
-   454,
-   568
+   141,
+   127,
+   461,
+   576
   ],
   "Michael1011, Debugger.webp": [
-   73,
-   135,
-   597,
-   746
+   66,
+   117,
+   611,
+   764
   ],
   "Michael1011, Obsidian Node.webp": [
-   73,
-   135,
-   597,
-   746
+   65,
+   115,
+   613,
+   766
   ],
   "Michael1011, Packet Shaper.webp": [
-   84,
-   135,
-   576,
-   720
+   76,
+   115,
+   592,
+   740
   ],
   "Migrating Workload.webp": [
-   134,
-   135,
-   475,
-   594
+   126,
+   115,
+   491,
+   614
   ],
   "Miner Rally.webp": [
-   129,
-   135,
-   485,
-   606
+   126,
+   127,
+   491,
+   614
   ],
   "Morgs, Friendly Fork.webp": [
-   73,
-   135,
-   597,
-   746
+   67,
+   119,
+   610,
+   762
   ],
   "Morgs, Signal Knight.webp": [
-   134,
-   135,
-   475,
-   594
+   129,
+   121,
+   486,
+   608
   ],
   "Mtoshi, Finality Keeper.webp": [
-   104,
-   135,
-   536,
-   670
+   96,
+   115,
+   552,
+   690
   ],
   "Mtoshi, Lethal Courier.webp": [
-   119,
-   135,
-   506,
-   632
+   111,
+   115,
+   522,
+   652
   ],
   "Mtoshi, Rooted Node.webp": [
-   73,
-   135,
-   597,
-   746
+   68,
+   121,
+   608,
+   760
   ],
   "Multisig Quorum.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "NC, Forced Signal.webp": [
-   129,
-   135,
-   485,
-   606
+   126,
+   127,
+   491,
+   614
   ],
   "NC, Offline Operator.webp": [
-   73,
-   135,
-   597,
-   746
+   68,
+   121,
+   608,
+   760
   ],
   "NC, Resource Reclaimer.webp": [
-   129,
-   135,
-   485,
-   606
+   121,
+   115,
+   501,
+   626
   ],
   "Network Reset Disk.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Network Storm.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Next Block.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Nind, Archive Collector.webp": [
-   134,
-   135,
-   475,
-   594
+   126,
+   115,
+   491,
+   614
   ],
   "Nind, Archive Returner.webp": [
-   145,
-   135,
-   454,
-   568
+   138,
+   119,
+   467,
+   584
   ],
   "Nind, Backchannel Walker.webp": [
-   104,
-   135,
-   536,
-   670
+   96,
+   115,
+   552,
+   690
   ],
   "Number Go Up.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Obfuscated Formation.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Offline Sanctuary.webp": [
-   134,
-   135,
-   475,
-   594
+   131,
+   127,
+   482,
+   602
   ],
   "Onion Route.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Open Feed.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Overclock.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Peaceful Exit.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Power Burst.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Power Cell.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Power Invalidation.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Power Plant — Hydro.webp": [
-   133,
-   135,
-   477,
-   596
+   130,
+   127,
+   483,
+   604
   ],
   "Power Plant — Solar.webp": [
-   133,
-   135,
-   477,
-   596
+   130,
+   127,
+   483,
+   604
   ],
   "Power Protection Circuit.webp": [
-   104,
-   135,
-   536,
-   670
+   96,
+   115,
+   552,
+   690
   ],
   "Power Receiver.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Power Rewrite.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Power Shield.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Power–Bitcoin Junction.webp": [
-   113,
-   135,
-   517,
-   646
+   110,
+   127,
+   523,
+   654
   ],
   "Power–Keys Junction.webp": [
-   113,
-   135,
-   517,
-   646
+   110,
+   127,
+   523,
+   654
   ],
   "Power–Signal Junction.webp": [
-   113,
-   135,
-   517,
-   646
+   110,
+   127,
+   523,
+   654
   ],
   "Process Fork.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Proof of Work.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Protocol Cleanup.webp": [
-   84,
-   135,
-   576,
-   720
+   81,
+   127,
+   582,
+   728
   ],
   "Protocol Reset.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Proton, Cold Signer.webp": [
-   73,
-   135,
-   597,
-   746
+   69,
+   125,
+   605,
+   756
   ],
   "Proton, Ephemeral Signer.webp": [
-   139,
-   135,
-   466,
-   583
+   131,
+   117,
+   481,
+   601
   ],
   "Proton, Keyed Nightmare.webp": [
-   134,
-   135,
-   475,
-   594
+   126,
+   115,
+   491,
+   614
   ],
   "Public Goods Drive.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Public Wallet Viewer.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Query Burst.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Queue Filter.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Quick Uplink.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Quiet Block.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Reboot Protocol.webp": [
-   128,
-   135,
-   487,
-   609
+   125,
+   127,
+   494,
+   617
   ],
   "Recovery Phrase.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Reduced Permissions.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Relay Feedback.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Remote Command.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Remote Control.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Remote Hardware Control.webp": [
-   89,
-   135,
-   566,
-   708
+   81,
+   115,
+   582,
+   728
   ],
   "Repair Packet.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Resource Awakening.webp": [
-   89,
-   135,
-   566,
-   708
+   83,
+   121,
+   578,
+   722
   ],
   "Resource Converter.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Resource Corruption.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Resource Cut.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Resource Exit Sensor.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Resource Freeze.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Resource Prism.webp": [
-   84,
-   135,
-   576,
-   720
+   81,
+   127,
+   582,
+   728
   ],
   "Resource Reclassification.webp": [
-   119,
-   135,
-   506,
-   632
+   111,
+   115,
+   522,
+   652
   ],
   "Resource Rewrite.webp": [
-   128,
-   135,
-   487,
-   609
+   125,
+   127,
+   494,
+   617
   ],
   "Resource Sink.webp": [
-   84,
-   135,
-   576,
-   720
+   81,
+   127,
+   582,
+   728
   ],
   "Resource Tap.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Resource Tombstone.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Restless Client.webp": [
-   129,
-   135,
-   485,
-   606
+   126,
+   127,
+   491,
+   614
   ],
   "Restore Backup.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Return to Wallet.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Rootzoll & Leon, Dual Operator.webp": [
-   114,
-   135,
-   515,
-   644
+   106,
+   115,
+   531,
+   664
   ],
   "Rootzoll, Crew Multiplier.webp": [
-   114,
-   135,
-   515,
-   644
+   106,
+   115,
+   531,
+   664
   ],
   "Rootzoll, Hardware Breaker.webp": [
-   73,
-   135,
-   597,
-   746
+   65,
+   115,
+   613,
+   766
   ],
   "Rootzoll, Stone Firewall.webp": [
-   84,
-   135,
-   576,
-   720
+   76,
+   115,
+   592,
+   740
   ],
   "Rootzoll, Stone Sentinel.webp": [
-   114,
-   135,
-   515,
-   644
+   106,
+   115,
+   531,
+   664
   ],
   "Route Misdirection.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Sat, Blade Firewall.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   125,
+   574,
+   718
   ],
   "Sat, Relay Rider.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Satoshi Orchard — Commons.webp": [
-   133,
-   135,
-   477,
-   596
+   125,
+   115,
+   493,
+   616
   ],
   "Satoshi Orchard.webp": [
-   133,
-   135,
-   477,
-   596
+   130,
+   127,
+   483,
+   604
   ],
   "Shared Uptime.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Shillie, Cold Firewall.webp": [
-   73,
-   135,
-   597,
-   746
+   67,
+   119,
+   610,
+   762
   ],
   "Shillie, Mesh Sentinel.webp": [
-   89,
-   135,
-   566,
-   708
+   81,
+   117,
+   581,
+   726
   ],
   "Shillie, Multisource Scout.webp": [
-   99,
-   135,
-   546,
-   682
+   91,
+   115,
+   562,
+   702
   ],
   "Shillie, Tiny Broadcaster.webp": [
-   73,
-   135,
-   597,
-   746
+   67,
+   119,
+   610,
+   762
   ],
   "Signal Beacon.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Signal Commons — Rooftop.webp": [
-   133,
-   135,
-   477,
-   596
+   127,
+   119,
+   490,
+   612
   ],
   "Signal Commons — Sunrise.webp": [
-   133,
-   135,
-   477,
-   596
+   128,
+   121,
+   488,
+   610
   ],
   "Signal Outage.webp": [
-   84,
-   135,
-   576,
-   720
+   81,
+   127,
+   582,
+   728
   ],
   "Signal Protection Circuit.webp": [
-   104,
-   135,
-   536,
-   670
+   96,
+   115,
+   552,
+   690
   ],
   "Signal Receiver.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Signal Rewrite.webp": [
-   114,
-   135,
-   515,
-   644
+   111,
+   127,
+   522,
+   652
   ],
   "Signal Shield.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Signal Tax.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Signal–Keys Junction.webp": [
-   113,
-   135,
-   517,
-   646
+   110,
+   127,
+   523,
+   654
   ],
   "Signal–Timelock Junction.webp": [
-   113,
-   135,
-   517,
-   646
+   108,
+   121,
+   528,
+   660
   ],
   "Snick, Airgap Firewall.webp": [
-   114,
-   135,
-   515,
-   644
+   106,
+   115,
+   531,
+   664
   ],
   "Snick, Phantom Process.webp": [
-   114,
-   135,
-   515,
-   644
+   106,
+   115,
+   531,
+   664
   ],
   "Sovereign Mode.webp": [
-   119,
-   135,
-   506,
-   632
+   115,
+   125,
+   514,
+   642
   ],
   "Sovereign Strength.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Split Route.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Stake Arbitration.webp": [
-   119,
-   135,
-   506,
-   632
-  ],
-  "Stake Contract.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Stake Swap.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "State Mirror.webp": [
-   119,
-   135,
-   506,
-   632
-  ],
-  "State Reset.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Swarm Node.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Tal, Ghost Router.webp": [
-   73,
-   135,
-   597,
-   746
-  ],
-  "Tal, Liquid Firewall.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Tal, Relay Captain.webp": [
-   129,
-   135,
-   485,
-   606
-  ],
-  "Thermal Throttle.webp": [
-   99,
-   135,
-   546,
-   682
-  ],
-  "Timelock Channel — Dawn.webp": [
-   133,
-   135,
-   477,
-   596
-  ],
-  "Timelock Channel — Midnight.webp": [
-   133,
-   135,
-   477,
-   596
-  ],
-  "Timelock Crystal.webp": [
-   73,
-   135,
-   597,
-   746
-  ],
-  "Timelock Invalidation.webp": [
-   114,
-   135,
-   515,
-   644
-  ],
-  "Timelock Outage.webp": [
-   84,
-   135,
-   576,
-   720
-  ],
-  "Timelock Protection Circuit.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Timelock Receiver.webp": [
-   114,
-   135,
-   515,
-   644
-  ],
-  "Timelock Rewrite.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Timelock Shield.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Timelock Vault.webp": [
-   104,
-   135,
-   536,
-   670
-  ],
-  "Timelock–Keys Junction.webp": [
    113,
-   135,
+   121,
    517,
    646
   ],
+  "Stake Contract.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "Stake Swap.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "State Mirror.webp": [
+   116,
+   127,
+   512,
+   640
+  ],
+  "State Reset.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "Swarm Node.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "Tal, Ghost Router.webp": [
+   70,
+   127,
+   603,
+   754
+  ],
+  "Tal, Liquid Firewall.webp": [
+   97,
+   117,
+   550,
+   688
+  ],
+  "Tal, Relay Captain.webp": [
+   126,
+   127,
+   491,
+   614
+  ],
+  "Thermal Throttle.webp": [
+   96,
+   127,
+   552,
+   690
+  ],
+  "Timelock Channel — Dawn.webp": [
+   128,
+   121,
+   488,
+   610
+  ],
+  "Timelock Channel — Midnight.webp": [
+   125,
+   115,
+   493,
+   616
+  ],
+  "Timelock Crystal.webp": [
+   70,
+   127,
+   603,
+   754
+  ],
+  "Timelock Invalidation.webp": [
+   111,
+   127,
+   522,
+   652
+  ],
+  "Timelock Outage.webp": [
+   81,
+   127,
+   582,
+   728
+  ],
+  "Timelock Protection Circuit.webp": [
+   96,
+   115,
+   552,
+   690
+  ],
+  "Timelock Receiver.webp": [
+   111,
+   127,
+   522,
+   652
+  ],
+  "Timelock Rewrite.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "Timelock Shield.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "Timelock Vault.webp": [
+   101,
+   127,
+   542,
+   678
+  ],
+  "Timelock–Keys Junction.webp": [
+   110,
+   127,
+   523,
+   654
+  ],
   "Tobo, Bitcoin Backchanneler.webp": [
-   104,
-   135,
-   536,
-   670
+   96,
+   115,
+   552,
+   690
   ],
   "Tobo, First-Strike Archer.webp": [
-   89,
-   135,
-   566,
-   708
+   81,
+   115,
+   582,
+   728
   ],
   "Tobo, Resource Unlocker.webp": [
-   73,
-   135,
-   597,
-   746
+   65,
+   115,
+   613,
+   766
   ],
   "Tobo, Wooden Firewall.webp": [
-   73,
-   135,
-   597,
-   746
+   69,
+   125,
+   605,
+   756
   ],
   "Toggle State.webp": [
-   104,
-   135,
-   536,
-   670
+   101,
+   127,
+   542,
+   678
   ],
   "Toni China, Hot-Air Relay.webp": [
-   84,
-   135,
-   576,
-   720
+   77,
+   119,
+   589,
+   736
   ],
   "Toni China, Multihead Miner.webp": [
-   129,
-   135,
-   485,
-   606
+   121,
+   115,
+   501,
+   626
   ],
   "Toni China, Rough Miner.webp": [
-   89,
-   135,
-   566,
-   708
+   81,
+   115,
+   582,
+   728
   ],
   "Toni China, Thermal Firewall.webp": [
-   114,
-   135,
-   515,
-   644
+   106,
+   115,
+   531,
+   664
   ],
   "Topology Scan.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Tunneling Patch.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Uptime Channel.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Uptime Clock.webp": [
-   99,
-   135,
-   546,
-   682
+   96,
+   127,
+   552,
+   690
   ],
   "Uptime Stream.webp": [
-   73,
-   135,
-   597,
-   746
+   70,
+   127,
+   603,
+   754
   ],
   "Wallet Pressure.webp": [
-   134,
-   135,
-   475,
-   594
+   131,
+   127,
+   482,
+   602
   ],
   "Wallet Scramble.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Wallet Scrubber.webp": [
-   89,
-   135,
-   566,
-   708
+   85,
+   127,
+   573,
+   716
   ],
   "Yield Router.webp": [
-   119,
-   135,
-   506,
-   632
+   116,
+   127,
+   512,
+   640
   ],
   "Zap.webp": [
-   84,
-   135,
-   576,
-   720
+   81,
+   127,
+   582,
+   728
   ]
  },
  "size": [
