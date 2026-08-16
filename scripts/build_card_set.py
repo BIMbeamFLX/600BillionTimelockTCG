@@ -1,9 +1,13 @@
-"""Build the Node Runner frame sheet for the Edition One playtest set.
+"""Build the Edition One proof sheet from the shipped card face renders.
 
-Ports the generative card frame from the claude.ai design canvas
-(`E1 Card Set.dc.html`) into a dependency-free, print-ready page. The border
-geometry is emitted as static SVG paths so the artifact is deterministic and
-reviewable, and every build is recorded in the audit database first.
+site/e1-card-set.html shows the real faces written by `scripts/render_card_pngs.py`
+— one image per shipped render, with the card's printed data laid out beside it —
+so the page can never drift from the cards again: the renderer is the single
+geometry authority. This module keeps the generative frame geometry (spine,
+circuit ring, node mesh, blob, digit rain), ported 1:1 from the claude.ai design
+canvas (`E1 Card Set.dc.html`), as an importable library for the renderer, the
+icon builder and the golden tests. Every build is recorded in the audit database
+first.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ import math
 import sqlite3
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 # 814 x 1109 px = 69 x 94 mm at 300 dpi: a 63 x 88 mm trim plus 3 mm bleed.
 CARD_W = 814
@@ -387,24 +392,62 @@ def build_geometry(border_amp: int) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# Rendering
+# Page emission. The page draws no frame of its own: every face is the exact
+# bitmap scripts/render_card_pngs.py shipped, and the markup around it is the
+# card's printed data, styled as data rather than as a second card.
 # --------------------------------------------------------------------------
 
+BACK_STEM = "600B-Timelock-card-back"
 
-def _rgba(hex_color: str, alpha: str) -> str:
-    """Convert `#rrggbb` to an `rgba()` string."""
-    value = hex_color.lstrip("#")
-    r, g, b = (int(value[i : i + 2], 16) for i in (0, 2, 4))
-    return f"rgba({r},{g},{b},{alpha})"
+# Section per card type, in the order a player sorts a box. Payloads that carry
+# an explicit per-card "group" (the archived 18-card playtest lock) keep their
+# own section names and their own order instead.
+SECTION_NAMES = {
+    "Basic Resource": "Basic Resources",
+    "Resource": "Junction Resources",
+    "Avatar": "Avatars",
+    "Hardware Avatar": "Hardware Avatars",
+    "Zap": "Zaps",
+    "Operation": "Operations",
+    "Hardware": "Hardware",
+    "Protocol": "Protocols",
+}
+SECTION_RANK = {name: rank for rank, name in enumerate(SECTION_NAMES.values())}
+
+
+def card_affinities(card: dict[str, Any]) -> list[str]:
+    """Normalize the affinity field: the catalog holds a list, the old lock a string."""
+    value = card.get("affinity") or []
+    return [value] if isinstance(value, str) else list(value)
+
+
+def card_stats(card: dict[str, Any]) -> tuple[str, str] | None:
+    """Action/Resilience from either lock shape: `action`+`resilience` or `"A/R"`."""
+    if card.get("action") is not None:
+        return str(card["action"]), str(card["resilience"])
+    stats = card.get("action_resilience") or ""
+    if "/" in stats:
+        action, _, resilience = stats.partition("/")
+        return action, resilience
+    return None
+
+
+def find_face(stem: str, art_dir: Path) -> str | None:
+    """Return a page-relative URL to a shipped face render, when it exists.
+
+    Face files are named after the card, so the URL is percent-encoded: the set
+    has spaces, commas, an ampersand and en-dash names like "Signal–Keys Junction".
+    """
+    for suffix in ART_SUFFIXES:
+        candidate = art_dir / f"{stem}{suffix}"
+        if candidate.exists():
+            return f"../art/cards/{quote(art_dir.name)}/{quote(candidate.name)}"
+    return None
 
 
 def find_art(card: dict[str, Any], art_dir: Path) -> str | None:
-    """Return a page-relative path to this card's artwork, when it exists."""
-    for suffix in ART_SUFFIXES:
-        candidate = art_dir / f"{card['art']}{suffix}"
-        if candidate.exists():
-            return f"../art/cards/{art_dir.name}/{candidate.name}"
-    return None
+    """Return a page-relative URL to this card's face render, when it exists."""
+    return find_face(card.get("art") or card["name"], art_dir)
 
 
 def cost_pips(cost: str) -> str:
@@ -424,111 +467,90 @@ def cost_pips(cost: str) -> str:
     return f'<div class="cost{modifier}">{pips}</div>'
 
 
-def render_card(card: dict[str, Any], paths: dict[str, Any], art_dir: Path) -> str:
-    """Render one card face at full bleed size."""
-    affinity = card["affinity"]
-    accent = AFFINITY_ACCENT[affinity]
-    badge_fg = AFFINITY_BADGE_FG[affinity]
-    dot_fill, dot_glow = RARITY_DOT[card["rarity"]]
-    badge = f"{card['card_type']} // {card['subtype']}".upper()
+def render_card(card: dict[str, Any], art_dir: Path) -> str:
+    """Lay out one shipped face image with the card's printed data beside it."""
+    affinities = card_affinities(card)
+    affinity = affinities[0] if affinities else "Neutral"
+    accent = AFFINITY_ACCENT.get(affinity, AFFINITY_ACCENT["Neutral"])
+    badge_fg = AFFINITY_BADGE_FG.get(affinity, "#050403")
+    dot_fill, dot_glow = RARITY_DOT.get(card["rarity"], RARITY_DOT["common"])
+    badge = f"{card['card_type']} // {card['subtype'] or affinity}".upper()
+    name = html.escape(card["name"])
 
-    art_src = find_art(card, art_dir)
-    if art_src:
-        alt = html.escape(card["art"])
-        art = f'<img src="{html.escape(art_src)}" alt="{alt}">'
+    face_src = find_art(card, art_dir)
+    if face_src:
+        face = (
+            f'<img class="face" src="{html.escape(face_src)}" alt="{name}"'
+            f' width="{TRIM_W}" height="{TRIM_H}" loading="lazy" decoding="async">'
+        )
     else:
-        art = f'<div class="art-empty">{html.escape(card["art"])}</div>'
+        face = f'<div class="face face-missing">{name}<br>FACE NOT RENDERED</div>'
 
-    base_bg, base_plate = TYPE_BASE[TYPE_GROUP.get(card["card_type"], "avatar")]
     parts = [
-        f'<article class="card" id="{html.escape(card["id"])}" style="background:{base_bg}">',
-        f'<div class="rain rain-l">{paths["rainL"]}</div>',
-        f'<div class="rain rain-r">{paths["rainR"]}</div>',
-        f'<div class="art-well" style="background:{base_plate}"></div>',
-        f'<div class="art">{art}</div>',
-        f'<svg class="frame" viewBox="0 0 {CARD_W} {CARD_H}" aria-hidden="true">',
-        f'<path d="{paths["spineDim"]}" fill="{accent}" opacity="0.25"/>',
-        f'<path d="{paths["spine"]}" fill="{accent}"/>',
-        f'<path d="{paths["circ"]["line"]}" fill="none"'
-        f' stroke="{_rgba(accent, "0.55")}" stroke-width="2"/>',
-        f'<path d="{paths["circ"]["ticks"]}" fill="none" stroke="{accent}" stroke-width="4"/>',
-        f'<path d="{paths["circ"]["nodes"]}" fill="{accent}"/>',
-    ]
-    for side in ("netL", "netR"):
-        parts.append(
-            f'<path d="{paths[side]["links"]}" fill="none"'
-            ' stroke="rgba(247,147,26,0.3)" stroke-width="1.5"/>'
-        )
-        parts.append(f'<path d="{paths[side]["nodes"]}" fill="rgba(247,147,26,0.55)"/>')
-    parts += [
-        f'<path d="{paths["rule"]}" fill="none" stroke="rgba(247,147,26,0.45)" stroke-width="2"/>',
-        f'<path d="{CORNER_MARKS}" fill="none" stroke="#FFF7EC" stroke-width="3"/>',
-        "</svg>",
-        f'<div class="badge" style="background:{accent};color:{badge_fg}">{badge}</div>',
-        f'<h3 class="title" style="font-size:{card["title_size"]}px">'
-        f"{html.escape(card['name'])}</h3>",
-        cost_pips(card["cost"]),
+        f'<article class="card" id="{html.escape(card["id"])}">',
+        f'<div class="proof">{face}<div class="guides"><span>TRIM 63×88</span></div></div>',
+        '<div class="meta">',
+        f'<div class="meta-row"><span class="badge" style="background:{accent};'
+        f'color:{badge_fg}">{badge}</span>{cost_pips(card["cost"] or "")}</div>',
+        f'<h3 class="title">{html.escape(card["name"].upper())}</h3>',
     ]
 
-    if card["action"] is not None:
-        parts.append(
-            f'<div class="stat stat-act" style="border-color:{accent}">'
-            f"<span>{card['action']}</span><span>ACT</span></div>"
+    specs = ""
+    stats = card_stats(card)
+    if stats:
+        action, resilience = stats
+        specs += (
+            f'<span class="stat stat-act" style="border-color:{accent}">{action}<i>ACT</i></span>'
+            f'<span class="stat stat-res" style="border-color:{accent}">'
+            f"{resilience}<i>RES</i></span>"
         )
-        parts.append(
-            f'<div class="stat stat-res" style="border-color:{accent}">'
-            f"<span>{card['resilience']}</span><span>RES</span></div>"
-        )
-    if card["card_type"] == "Resource":
-        icon = affinity.lower()
-        parts.append(
-            f'<img class="resource-icon" src="../art/resources/{icon}.svg" alt="{affinity}">'
-        )
+    if "Resource" in card["card_type"]:
+        # The affinities this Resource produces, mirroring the renderer's rule.
+        for symbol in (a for a in affinities if a in COST_AFFINITY.values()):
+            specs += (
+                f'<img class="resource-icon" src="../art/resources/{symbol.lower()}.svg"'
+                f' alt="{symbol}">'
+            )
+    if specs:
+        parts.append(f'<div class="specs">{specs}</div>')
 
     body = ""
-    if card["keyword"]:
+    if card.get("keyword"):
         body += f"<strong>{html.escape(card['keyword'])}</strong>"
         if card["rules_text"]:
             body += " "
     body += html.escape(card["rules_text"])
-    parts.append('<div class="text">')
     if body:
         parts.append(f'<div class="rules">{body}</div>')
-    if card["flavor_text"]:
+    if card.get("flavor_text"):
         parts.append(f'<div class="fable">// {html.escape(card["flavor_text"])}</div>')
-    parts.append("</div>")
 
+    set_id = html.escape(card["id"].replace("-", " · "))
     parts += [
-        '<div class="footer"><span>TIMELOCK_TCG :: 600B</span>',
-        f'<span class="set-id">{html.escape(card["id"].replace("-", " · "))}'
-        f'<i style="background:{dot_fill};box-shadow:0 0 0 3px {dot_glow}"></i></span></div>',
-        '<div class="guides"><span>TRIM 63×88</span></div>',
-        "</article>",
+        f'<div class="footer"><span class="set-id">{set_id}</span>'
+        f'<span class="rarity"><i style="background:{dot_fill};'
+        f'box-shadow:0 0 0 3px {dot_glow}"></i>{html.escape(card["rarity"].upper())}</span></div>',
+        "</div></article>",
     ]
     return "".join(parts)
 
 
-def render_back(paths: dict[str, Any]) -> str:
-    """Render the shared card back."""
-    return "".join(
-        [
-            '<article class="card card-back" id="card-back">',
-            f'<div class="rain rain-l">{paths["rainL"]}</div>',
-            f'<div class="rain rain-r">{paths["rainR"]}</div>',
-            f'<svg class="frame back" viewBox="0 0 {CARD_W} {CARD_H}" aria-hidden="true">',
-            f'<path d="{paths["spineDim"]}" fill="#f7931a" opacity="0.25"/>',
-            f'<path d="{paths["spine"]}" fill="#f7931a"/>',
-            f'<path d="{paths["net"]["links"]}" fill="none"'
-            ' stroke="rgba(247,147,26,0.35)" stroke-width="1.5"/>',
-            f'<path d="{paths["net"]["nodes"]}" fill="rgba(247,147,26,0.6)"/>',
-            f'<path d="{paths["ring"]}" fill="#0a0705" stroke="#f7931a" stroke-width="6"/>',
-            "</svg>",
-            '<div class="sacred"><span>600</span><span>000</span>'
-            "<span>000</span><span>000</span></div>",
-            '<div class="back-footer">TIMELOCK_TCG :: EDITION ONE</div>',
-            '<div class="guides"></div>',
-            "</article>",
-        ]
+def render_back(art_dir: Path) -> str:
+    """Lay out the shared card back's shipped render."""
+    face_src = find_face(BACK_STEM, art_dir)
+    if face_src:
+        face = (
+            f'<img class="face" src="{html.escape(face_src)}" alt="Card back"'
+            f' width="{TRIM_W}" height="{TRIM_H}" loading="lazy" decoding="async">'
+        )
+    else:
+        face = '<div class="face face-missing">CARD BACK<br>FACE NOT RENDERED</div>'
+    return (
+        '<article class="card card-back" id="card-back">'
+        f'<div class="proof">{face}<div class="guides"><span>TRIM 63×88</span></div></div>'
+        '<div class="meta"><h3 class="title">CARD BACK</h3>'
+        '<div class="rules">Shared by every deck; one render for the whole set.</div>'
+        "</div></article>"
     )
 
 
@@ -539,29 +561,44 @@ def render_html(
     show_guides: bool,
     show_fable: bool,
 ) -> str:
-    """Render the full sheet: every card grouped by section, plus the card back."""
+    """Render the proof sheet: every shipped face grouped by section, plus the back.
+
+    `geometry` no longer reaches the page — the faces are pre-rendered by
+    scripts/render_card_pngs.py, which owns the frame geometry outright — but the
+    parameter stays because the public signature is pinned by the test suite.
+    """
+    del geometry  # the shipped bitmaps already carry the frame
     meta = payload["set"]
     cards = payload["cards"]
+    frame = meta.get("frame", "Node Runner")
+    trim_mm = meta.get("trim_mm") or [63, 88]
+    bleed_mm = meta.get("bleed_mm", 3)
+    dpi = meta.get("dpi", 300)
+
     groups: dict[str, list[dict[str, Any]]] = {}
+    order: dict[str, int] = {}
     for card in cards:
-        groups.setdefault(card["group"], []).append(card)
+        section = card.get("group") or SECTION_NAMES.get(card["card_type"], card["card_type"])
+        if section not in order:
+            order[section] = SECTION_RANK.get(section, len(SECTION_RANK) + len(order))
+        groups.setdefault(section, []).append(card)
 
     sections = []
-    for name, members in groups.items():
-        faces = "".join(render_card(card, geometry[card["slot"]], art_dir) for card in members)
+    for name in sorted(groups, key=order.__getitem__):
+        faces = "".join(render_card(card, art_dir) for card in groups[name])
         sections.append(
-            f'<section class="group"><h2>{html.escape(name)}</h2>'
+            f'<section class="group"><h2>{html.escape(name)} · {len(groups[name])}</h2>'
             f'<div class="sheet">{faces}</div></section>'
         )
     sections.append(
         '<section class="group"><h2>Card back</h2>'
-        f'<div class="sheet">{render_back(geometry["back"])}</div></section>'
+        f'<div class="sheet">{render_back(art_dir)}</div></section>'
     )
 
     body_class = " ".join(
         filter(None, ["" if show_guides else "no-guides", "" if show_fable else "no-fable"])
     )
-    trim = f"{meta['trim_mm'][0]} × {meta['trim_mm'][1]} mm"
+    trim = f"{trim_mm[0]} × {trim_mm[1]} mm"
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -569,8 +606,8 @@ def render_html(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7931a">
   <meta name="description"
-    content="The {meta["card_count"]}-card Edition One playtest set in the Node Runner frame.">
-  <title>600B Timelock TCG — {meta["frame"]} Frame</title>
+    content="Every shipped Edition One card face in the {frame} frame, laid out for proofing.">
+  <title>600B Timelock TCG — {frame} Frame</title>
   <style>
     @font-face {{
       font-family: Anton600;
@@ -606,247 +643,140 @@ def render_html(
       text-transform: uppercase;
     }}
     .intro {{ max-width: 760px; font-size: 19px; line-height: 1.55; }}
+    .intro code {{ font-family: var(--mono); font-size: .85em; }}
     .group {{ display: flex; flex-direction: column; gap: 16px; }}
     .group h2 {{
       margin: 0;
       font: 400 30px Anton600, Impact, sans-serif;
       text-transform: uppercase;
     }}
-    .sheet {{ display: flex; flex-wrap: wrap; gap: 36px; align-items: flex-start; }}
+    .sheet {{
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 28px;
+      align-items: start;
+    }}
 
-    /* One card = 69 x 94 mm at 300 dpi, previewed at half scale. */
+    /* One shipped face. The render IS the card; the page only lays it out. */
     .card {{
-      position: relative;
-      flex: none;
-      width: {CARD_W}px;
-      height: {CARD_H}px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 10px 10px 16px;
       background: var(--card-bg);
       box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
-      transform: scale(.5);
-      transform-origin: 0 0;
-      margin: 0 {-CARD_W // 2}px {-CARD_H // 2}px 0;
     }}
-    .rain {{
-      position: absolute;
-      font: 400 20px/1.4 var(--mono);
-      white-space: pre;
-      text-align: center;
-    }}
-    .rain-l {{ left: 8px; top: 40px; z-index: 2; color: rgba(5, 4, 3, .75); }}
-    .rain-r {{ right: 12px; top: 44px; z-index: 1; color: rgba(247, 147, 26, .25); }}
-    .art-well {{
-      position: absolute;
-      left: 60px;
-      top: 196px;
-      z-index: 1;
-      width: 694px;
-      height: 640px;
-      background: #0a0705;
-      border: 1px solid rgba(247, 147, 26, .25);
-    }}
-    .art {{ position: absolute; left: 68px; top: 204px; z-index: 2; width: 678px; height: 624px; }}
-    .art img {{ display: block; width: 100%; height: 100%; object-fit: contain; }}
-    .art-empty {{
+    .proof {{ position: relative; }}
+    .face {{ display: block; width: 100%; height: auto; }}
+    .face-missing {{
+      aspect-ratio: {TRIM_W} / {TRIM_H};
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100%;
-      padding: 0 40px;
-      color: rgba(232, 223, 207, .3);
+      padding: 0 24px;
+      color: rgba(232, 223, 207, .35);
       border: 2px dashed rgba(232, 223, 207, .18);
-      font: 400 26px var(--mono);
+      font: 400 13px/1.8 var(--mono);
       letter-spacing: .1em;
       text-align: center;
       text-transform: uppercase;
     }}
-    .frame {{
-      position: absolute;
-      inset: 0;
-      z-index: 3;
-      width: {CARD_W}px;
-      height: {CARD_H}px;
-      pointer-events: none;
-    }}
-    .frame.back {{ z-index: 2; }}
-    .badge {{
-      position: absolute;
-      left: 72px;
-      top: 58px;
-      z-index: 4;
-      padding: 7px 16px;
-      font: 400 22px var(--mono);
-      letter-spacing: .28em;
-    }}
-    .title {{
-      position: absolute;
-      left: 72px;
-      top: 98px;
-      z-index: 4;
-      margin: 0;
-      color: var(--cream);
-      font-family: "Chakra Petch", Anton600, Impact, sans-serif;
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: .01em;
-      white-space: nowrap;
-      text-shadow: 3px 0 0 rgba(255, 106, 0, .7), -3px 0 0 rgba(116, 71, 184, .55);
-    }}
-    .cost {{
-      position: absolute;
-      right: 64px;
-      top: 92px;
-      z-index: 4;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }}
-    .cost .generic {{
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 78px;
-      height: 78px;
-      background: var(--ink);
-      border: 3px solid rgba(255, 247, 236, .7);
-      color: var(--cream);
-      font: 400 44px var(--mono);
-    }}
-    .cost img {{ width: 54px; height: 54px; }}
-    .cost.pips-only img {{ width: 64px; height: 64px; }}
-    .stat {{
-      position: absolute;
-      top: 724px;
-      z-index: 4;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 2px;
-      width: 60px;
-      height: 88px;
-      background: rgba(17, 17, 17, .85);
-      border: 2px solid var(--cream);
-    }}
-    .stat-act {{ left: 78px; }}
-    .stat-res {{ left: 676px; }}
-    .stat span:first-child {{ color: var(--cream); font: 400 40px/1 var(--mono); }}
-    .stat span:last-child {{
-      color: var(--orange);
-      font: 400 14px var(--mono);
-      letter-spacing: .1em;
-    }}
-    .resource-icon {{
-      position: absolute;
-      right: 76px;
-      top: 736px;
-      z-index: 4;
-      width: 64px;
-      height: 64px;
-    }}
-    .text {{
-      position: absolute;
-      left: 72px;
-      right: 72px;
-      top: 864px;
-      z-index: 4;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }}
-    .rules {{ color: var(--bone); font-size: 31px; line-height: 1.3; }}
-    .rules strong {{ color: var(--cream); }}
-    .fable {{ color: rgba(232, 223, 207, .5); font: italic 400 21px/1.3 var(--mono); }}
-    .footer {{
-      position: absolute;
-      left: 72px;
-      right: 72px;
-      top: 1022px;
-      z-index: 4;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: rgba(232, 223, 207, .6);
-      font: 400 22px var(--mono);
-      letter-spacing: .2em;
-    }}
-    .set-id {{ display: flex; align-items: center; gap: 12px; }}
-    .set-id i {{ display: inline-block; width: 14px; height: 14px; border-radius: 50%; }}
-    .sacred {{
-      position: absolute;
-      left: 257px;
-      top: 404px;
-      z-index: 3;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 300px;
-      height: 300px;
-      color: var(--orange);
-      font: 400 60px/.98 Anton600, Impact, sans-serif;
-    }}
-    .back-footer {{
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 1010px;
-      z-index: 3;
-      color: rgba(232, 223, 207, .6);
-      font: 400 22px var(--mono);
-      letter-spacing: .34em;
-      text-align: center;
-    }}
+    /* The web face is trimmed to the cut line, so the guide is its exact edge. */
     .guides {{
       position: absolute;
-      left: {TRIM_INSET}px;
-      top: {TRIM_INSET}px;
-      z-index: 9;
-      width: {TRIM_W}px;
-      height: {TRIM_H}px;
-      border: 2px dashed rgba(0, 210, 255, .7);
+      inset: 0;
+      border: 1px dashed rgba(0, 210, 255, .7);
       pointer-events: none;
     }}
     .guides span {{
       position: absolute;
-      right: 10px;
-      top: 8px;
+      right: 6px;
+      top: 4px;
       color: rgba(0, 210, 255, .9);
-      font: 400 20px var(--mono);
+      font: 400 10px var(--mono);
       letter-spacing: .16em;
     }}
+
+    /* The card's locked data, set as data — never as a second frame. */
+    .meta {{ display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }}
+    .meta-row {{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }}
+    .badge {{ padding: 3px 9px; font: 400 10px var(--mono); letter-spacing: .22em; }}
+    .title {{ margin: 0; color: var(--cream); font: 400 14px var(--mono); letter-spacing: .08em; }}
+    .cost {{ display: flex; align-items: center; gap: 5px; }}
+    .cost .generic {{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: var(--ink);
+      border: 2px solid rgba(255, 247, 236, .7);
+      color: var(--cream);
+      font: 400 13px var(--mono);
+    }}
+    .cost img {{ width: 18px; height: 18px; }}
+    .cost.pips-only img {{ width: 20px; height: 20px; }}
+    .specs {{ display: flex; align-items: center; gap: 6px; }}
+    .stat {{
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+      padding: 2px 7px;
+      border: 1px solid var(--cream);
+      color: var(--cream);
+      font: 400 12px var(--mono);
+    }}
+    .stat i {{ font-style: normal; font-size: 9px; letter-spacing: .12em; color: var(--orange); }}
+    /* ACT left, RES pushed right — as the plates sit on the face. */
+    .stat-act {{ margin-right: auto; }}
+    .resource-icon {{ width: 20px; height: 20px; }}
+    .rules {{ color: var(--bone); font-size: 13px; line-height: 1.45; }}
+    .rules strong {{ color: var(--cream); }}
+    .fable {{ color: rgba(232, 223, 207, .5); font: italic 400 11px/1.4 var(--mono); }}
+    .footer {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 2px;
+      color: rgba(232, 223, 207, .6);
+      font: 400 10px var(--mono);
+      letter-spacing: .18em;
+    }}
+    .rarity {{ display: flex; align-items: center; gap: 7px; }}
+    .rarity i {{ display: inline-block; width: 9px; height: 9px; border-radius: 50%; }}
     .no-guides .guides {{ display: none; }}
     .no-fable .fable {{ display: none; }}
 
-    /* Print one card per page at true size: 63 x 88 mm trim inside 3 mm bleed. */
+    /* Print one face per page at true cut size. The web face carries no bleed;
+       the full-bleed 69mm x 94mm print masters live in art/cards/node-runner-print/. */
     @media print {{
+      @page {{ size: 69mm 94mm; margin: 3mm; }}
       html, body {{ background: #fff; }}
       .page {{ padding: 0; gap: 0; }}
-      .lede, .group h2 {{ display: none; }}
-      .sheet {{ display: block; gap: 0; }}
-      .card {{
-        width: 69mm;
-        height: 94mm;
-        margin: 0;
-        box-shadow: none;
-        transform: scale(calc(69 / 814 * 96 / 25.4));
-        break-after: page;
-      }}
-    }}
-    @media (prefers-reduced-motion: reduce) {{
-      * {{ transition: none !important; }}
+      .lede, .group h2, .meta {{ display: none; }}
+      .sheet {{ display: block; }}
+      .card {{ padding: 0; background: none; box-shadow: none; break-after: page; }}
+      .face {{ width: 63mm; height: 88mm; }}
     }}
   </style>
 </head>
 <body class="{body_class}">
   <main class="page">
     <div class="lede">
-      <div class="eyebrow">600B TIMELOCK TCG · EDITION ONE · {meta["frame"].upper()} FRAME</div>
-      <h1>The playtest set</h1>
-      <p class="intro">All {meta["card_count"]} cards in the {meta["frame"]} frame, numbered
-      E1 · 007–024 after the iconic six. {trim}, {meta["bleed_mm"]} mm bleed,
-      {meta["dpi"]} dpi, contain-fit art windows. Drop artwork into
-      <code>art/cards/{art_dir.name}/</code> named after each card to fill a window.
-      <a href="cards.html">All {295} catalog cards →</a></p>
+      <div class="eyebrow">600B TIMELOCK TCG · EDITION ONE · {frame.upper()} FRAME</div>
+      <h1>The proof sheet</h1>
+      <p class="intro">All {len(cards)} shipped card faces plus the shared back — the
+      files themselves, never a re-drawing. Each face below is the exact render written
+      by <code>scripts/render_card_pngs.py</code>, the single authority on card
+      geometry: the per-card art rectangle, the ink-anchored title ladder and the text
+      plate are its decisions, recorded in
+      <code>art/cards/{art_dir.name}/face-geometry.json</code> and shipped as these
+      bitmaps. This page lays the renders out and prints each card's locked data
+      beside its face, so a proof pass checks the render against the text with no
+      layer in between that could drift. Web faces are trimmed to the {trim} cut line
+      at {dpi} dpi; print masters keep the full {bleed_mm} mm bleed in
+      <code>art/cards/node-runner-print/</code>.
+      <a href="cards.html">All {meta["card_count"]} catalog cards →</a></p>
     </div>
     {"".join(sections)}
   </main>
@@ -905,21 +835,14 @@ def complete_site_decision(db_path: Path, output_path: Path) -> None:
 
 
 def main() -> None:
-    """Build site/e1-card-set.html from the locked Node Runner set data."""
+    """Build site/e1-card-set.html from the shipped Edition One face renders."""
     repo_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--cards", type=Path, default=repo_root / "cards" / "e1-node-runner-set.json"
-    )
+    parser.add_argument("--cards", type=Path, default=repo_root / "cards" / "e1-cards.json")
+    parser.add_argument("--promos", type=Path, default=repo_root / "cards" / "promos.json")
     parser.add_argument("--out", type=Path, default=repo_root / "site" / "e1-card-set.html")
-    parser.add_argument("--art-dir", type=Path, default=repo_root / "art" / "cards" / "node-runner")
     parser.add_argument(
-        "--border-amp",
-        type=int,
-        default=6,
-        choices=range(1, 15),
-        metavar="{1..14}",
-        help="generative border amplitude (default: 6)",
+        "--art-dir", type=Path, default=repo_root / "art" / "cards" / "node-runner-web"
     )
     parser.add_argument("--no-guides", action="store_true", help="hide the trim guides")
     parser.add_argument("--no-fable", action="store_true", help="hide flavor text")
@@ -927,18 +850,36 @@ def main() -> None:
     args = parser.parse_args()
 
     payload = json.loads(args.cards.read_text(encoding="utf-8"))
-    cards = payload["cards"]
+    cards = list(payload["cards"])
     if len(cards) != payload["set"]["card_count"]:
         raise ValueError("card count does not match the locked set header")
-    missing = [card["id"] for card in cards if card["affinity"] not in AFFINITY_ACCENT]
-    if missing:
-        raise ValueError(f"unknown affinity on {', '.join(missing)}")
+    # The promo carries the same frame and ships from the same render run, so the
+    # proof sheet shows it too, in its own section.
+    if args.promos and args.promos.exists():
+        promos = json.loads(args.promos.read_text(encoding="utf-8"))["cards"]
+        cards += [{**card, "group": "Promos"} for card in promos]
+    payload = {**payload, "cards": cards}
+    unknown = [
+        card["id"] for card in cards if any(a not in AFFINITY_ACCENT for a in card_affinities(card))
+    ]
+    if unknown:
+        raise ValueError(f"unknown affinity on {', '.join(unknown)}")
 
     record_site_decision(args.audit_db, payload, args.out)
-    geometry = build_geometry(args.border_amp)
+    # A proof sheet that points at faces which were never rendered is the drift
+    # this page exists to rule out, so a missing face fails the build outright.
+    missing = [card["id"] for card in cards if not find_art(card, args.art_dir)]
+    if not find_face(BACK_STEM, args.art_dir):
+        missing.append(BACK_STEM)
+    if missing:
+        shown = ", ".join(missing[:5]) + (", …" if len(missing) > 5 else "")
+        raise SystemExit(
+            f"{len(missing)} faces have no render in {args.art_dir} ({shown}); "
+            "run scripts/render_card_pngs.py --format webp first"
+        )
     markup = render_html(
         payload,
-        geometry,
+        {},
         args.art_dir,
         show_guides=not args.no_guides,
         show_fable=not args.no_fable,
@@ -946,8 +887,7 @@ def main() -> None:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(markup, encoding="utf-8")
     complete_site_decision(args.audit_db, args.out)
-    filled = sum(1 for card in cards if find_art(card, args.art_dir))
-    print(f"wrote {args.out} with {len(cards)} cards ({filled} with artwork) + card back")
+    print(f"wrote {args.out} with {len(cards)} shipped faces + the card back")
 
 
 if __name__ == "__main__":

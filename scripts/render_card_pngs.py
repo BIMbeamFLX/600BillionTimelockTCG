@@ -1,10 +1,11 @@
 """Render every Edition One card as a PNG in the Node Runner frame.
 
 Draws the same frame the design canvas specifies — the generative spine, circuit
-ring, node meshes and hand-drawn rule — straight to a bitmap with Pillow, reusing
-the byte-exact geometry from `build_card_set` so a rendered PNG and the HTML proof
-sheet agree. Output is full bleed: 814 x 1109 px, which is 69 x 94 mm at 300 dpi
-(a 63 x 88 mm trim plus 3 mm bleed).
+ring, node meshes and hand-drawn rule — straight to a bitmap with Pillow.
+`build_card_set` still supplies the palette and the generative geometry helpers,
+and the HTML proof sheet now displays these rendered faces themselves, so this
+renderer is the single authority on card geometry. Output is full bleed:
+814 x 1109 px, which is 69 x 94 mm at 300 dpi (a 63 x 88 mm trim plus 3 mm bleed).
 """
 
 from __future__ import annotations
