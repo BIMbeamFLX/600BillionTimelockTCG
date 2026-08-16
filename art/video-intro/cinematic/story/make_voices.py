@@ -14,9 +14,17 @@ from pathlib import Path
 
 import edge_tts
 
-from cues import LINES, VOICES
+import importlib
+import os
 
-OUT = Path(__file__).resolve().parent / "vo2"
+_cue_set = os.environ.get("CUE_SET", "story")
+_cues = importlib.import_module("cues" if _cue_set == "story" else f"cues_{_cue_set}")
+SUFFIX = "" if _cue_set == "story" else f"-{_cue_set}"
+from cues import LINES, VOICES
+LINES = _cues.LINES
+VOICES = _cues.VOICES
+
+OUT = Path(__file__).resolve().parent / f"vo2{SUFFIX}"
 
 
 def take_path(index: int, line: dict) -> Path:

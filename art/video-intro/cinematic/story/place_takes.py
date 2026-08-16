@@ -17,14 +17,22 @@ import json
 import subprocess
 from pathlib import Path
 
+import importlib
+import os
+
+_cue_set = os.environ.get("CUE_SET", "story")
+_cues = importlib.import_module("cues" if _cue_set == "story" else f"cues_{_cue_set}")
+SUFFIX = "" if _cue_set == "story" else f"-{_cue_set}"
 from cues import LINES, PAUSE
+LINES = _cues.LINES
+PAUSE = _cues.PAUSE
 from make_voices import take_path
 
 ROOT = Path(__file__).resolve().parent
 WORK = ROOT / "_work2"
 TIMELINE = WORK / "timeline.json"
-PLACED = WORK / "placed.json"
-CAPTIONS = WORK / "captions.ass"
+PLACED = WORK / f"placed{SUFFIX}.json"
+CAPTIONS = WORK / f"captions{SUFFIX}.ass"
 
 ASS_HEAD = """[Script Info]
 ScriptType: v4.00+
@@ -99,7 +107,7 @@ def main() -> None:
             f"take {placed[-2]['index']} ends {placed[-2]['end']:.2f}, "
             f"needs to clear the title at {title_start:.2f} -- tighten cues.py"
         )
-    if cursor > total - 1.2:
+    if cursor > total - 0.8:
         raise SystemExit(
             f"the closing line runs to {cursor:.2f} of {total:.2f} -- tighten cues.py"
         )

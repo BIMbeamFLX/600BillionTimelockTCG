@@ -21,9 +21,14 @@ import struct
 import wave
 from pathlib import Path
 
+import os
+
+_cue_set = os.environ.get("CUE_SET", "story")
+SUFFIX = "" if _cue_set == "story" else f"-{_cue_set}"
+
 ROOT = Path(__file__).resolve().parent
 WORK = ROOT / "_work2"
-OUT = WORK / "score.wav"
+OUT = WORK / f"score{SUFFIX}.wav"
 SR = 48000
 
 C2 = 65.406
@@ -37,7 +42,7 @@ def chord(*names: str, octave: int = 0) -> list[float]:
 
 def render() -> tuple[list[float], list[float]]:
     timeline = json.loads((WORK / "timeline.json").read_text("utf-8"))
-    placed = json.loads((WORK / "placed.json").read_text("utf-8"))["lines"]
+    placed = json.loads((WORK / f"placed{SUFFIX}.json").read_text("utf-8"))["lines"]
     shots: dict[str, float] = timeline["shots"]
     total: float = timeline["total"]
     n = int(SR * total)

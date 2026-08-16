@@ -35,18 +35,27 @@ VOICES: dict[str, dict[str, str]] = {
 SHOTS: list[dict] = [
     {"id": "A0", "clip": "A0-network-alive.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 1.12},
     {"id": "A1", "clip": "A1-power-rootzoll.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.12},
-    {"id": "A2", "clip": "A2-bitcoin-sat.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.1},
-    {"id": "A3", "clip": "A3-keys-blackcoffee.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.1},
-    {"id": "A4", "clip": "A4-signal-flx.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.1},
+    # Sat's plaques: the chest display and the blank arm patch. The logo sits
+    # deliberately small inside each surface.
+    {"id": "A2", "clip": "A2-bitcoin-sat.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.1,
+     "discs": [{"seed": (630, 272), "r": 24, "scale": 0.55},
+               {"seed": (750, 270), "r": 19, "scale": 0.7}]},
+    {"id": "A3", "clip": "A3-keys-blackcoffee.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.1,
+     "discs": [{"seed": (638, 220), "r": 24}]},
+    # FLX's canon medallion, blank in this generated take -- restoring it IS
+    # the brand.
+    {"id": "A4", "clip": "A4-signal-flx.mp4", "head": 0.12, "xfade_in": 0.3, "speed": 1.1,
+     "discs": [{"seed": (632, 302), "r": 32}]},
+    # Michael carries two: chest and belly disc, both circle-verified.
     {"id": "A5", "clip": "A5-timelock-michael.mp4", "head": 0.12, "xfade_in": 0.45,
-     "discs": [{"seed": (660, 345), "r": 46}]},
+     "discs": [{"seed": (656, 344), "r": 24}, {"seed": (656, 472), "r": 18}]},
     {"id": "B1", "clip": "B1-network-fails.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 1.06},
     {"id": "C2", "clip": "C2-charge.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 1.08,
-     "discs": [{"seed": (456, 304), "r": 42}, {"seed": (924, 300), "r": 44}]},
-    # C3 carries no brand: the lightning occludes both discs and the tracker
-    # locks onto the knight's glowing buckle instead -- a wrong logo is worse
-    # than a blank prop, so the clash stays clean.
-    {"id": "C3", "clip": "C3-clash.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 0.98},
+     "discs": [{"seed": (456, 304), "r": 34}, {"seed": (924, 300), "r": 38}]},
+    # The circle tracker holds through the lightning (streaks have no radial
+    # ring), so the clash carries the brand again -- gated like everything.
+    {"id": "C3", "clip": "C3-clash.mp4", "head": 0.12, "xfade_in": 0.0, "speed": 0.98,
+     "discs": [{"seed": (456, 288), "r": 28}, {"seed": (910, 286), "r": 50}]},
     {"id": "TITLE", "clip": "09-title.png", "still": 3.1, "xfade_in": 0.5},
 ]
 

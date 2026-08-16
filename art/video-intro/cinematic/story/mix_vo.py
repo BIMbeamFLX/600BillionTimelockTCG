@@ -14,18 +14,23 @@ import json
 import subprocess
 from pathlib import Path
 
+import os
+
+_cue_set = os.environ.get("CUE_SET", "story")
+SUFFIX = "" if _cue_set == "story" else f"-{_cue_set}"
+
 ROOT = Path(__file__).resolve().parent
 WORK = ROOT / "_work2"
-VO = ROOT / "vo2"
-OUT = ROOT / "600b-intro-story-v2.mp4"
+VO = ROOT / f"vo2{SUFFIX}"
+OUT = ROOT / ("600b-intro-story-v2.mp4" if not SUFFIX else f"600b-intro{SUFFIX}.mp4")
 
 
 def main() -> None:
-    placed = json.loads((WORK / "placed.json").read_text("utf-8"))["lines"]
+    placed = json.loads((WORK / f"placed{SUFFIX}.json").read_text("utf-8"))["lines"]
     args = [
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
         "-i", str(WORK / "cut.mp4"),
-        "-i", str(WORK / "score.wav"),
+        "-i", str(WORK / f"score{SUFFIX}.wav"),
     ]
     filters = ["[1:a]aformat=sample_rates=48000:channel_layouts=stereo,apad=pad_dur=1[score]"]
     labels = []

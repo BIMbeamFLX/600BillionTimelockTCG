@@ -1,19 +1,21 @@
-"""Brand the empty orange chest discs with the 600 billion digit stack.
+"""Brand the characters\' circular plaques with the 600 billion logo.
 
-Some generated characters carry a blank glowing disc where FLX's canon
-medallion shows 600 000 000 000. This module tracks each disc through its
-shot -- an orange-blob search in a window around the last known center, EMA
-smoothing for position and size -- and composites the logo's white digit
-rows onto it, scaled to the disc, frame by frame. A static paste would slide
-off the first time a character breathes; tracking is what makes it look lit
-into the prop instead of stuck onto the film.
+The mark is the FULL logo -- orange circle and digit rows -- composited
+deliberately smaller than the surface it sits on, per the owner\'s direction.
+Tracking is geometric, not chromatic: a circle is found where the image
+gradient aligns radially around a ring, which works equally on a glowing
+disc, a dark display and a low-contrast suit patch, and ignores lightning
+(streaks have no radial ring). Positions are tracked per frame in a window
+around a velocity prediction, gated on lock quality, interpolated where
+rejected, and smoothed.
 
-Runs on a rendered segment (already 1280x720, trimmed, retimed) so the
-tracked coordinates live in final segment space.
+Runs on rendered segments (1280x720, trimmed, retimed), coordinates in
+segment space.
 """
 
 from __future__ import annotations
 
+import math
 import shutil
 import subprocess
 import tempfile
@@ -25,127 +27,104 @@ ROOT = Path(__file__).resolve().parents[4]
 LOGO = ROOT / "art" / "brand" / "600B-logo-primary.png"
 
 
-def digit_stack() -> Image.Image:
-    """The logo's white digit rows as an RGBA stamp, background removed."""
+def full_logo() -> Image.Image:
+    """The complete logo as an RGBA stamp, cropped to its own ink."""
     with Image.open(LOGO) as logo:
         rgba = logo.convert("RGBA")
-    px = rgba.load()
-    w, h = rgba.size
-    left, top, right, bottom = w, h, 0, 0
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a > 60 and r > 215 and g > 215 and b > 215:
-                px[x, y] = (255, 255, 255, a)
-                left, top = min(left, x), min(top, y)
-                right, bottom = max(right, x), max(bottom, y)
-            else:
-                px[x, y] = (255, 255, 255, 0)
-    if right <= left:
-        raise ValueError("no white digits found in the logo")
-    return rgba.crop((left, top, right + 1, bottom + 1))
+    bbox = rgba.split()[3].getbbox()
+    return rgba.crop(bbox)
 
 
-def core_mask_integral(small, x0: int, y0: int, x1: int, y1: int):
-    """Integral image of the hard orange-core mask over a search box."""
-    px = small.load()
-    w, h = x1 - x0, y1 - y0
-    integral = [[0] * (w + 1) for _ in range(h + 1)]
-    for j in range(h):
-        row = integral[j + 1]
-        prev = integral[j]
-        acc = 0
-        for i in range(w):
-            r, g, b = px[x0 + i, y0 + j][:3]
-            if r > 195 and g > 70 and b < 140 and r > b + 80:
-                acc += 1
-            row[i + 1] = prev[i + 1] + acc
-    return integral
+def gray_field(small):
+    """Luma as a flat list plus dimensions."""
+    g = small.convert("L")
+    return list(g.getdata()), g.size[0], g.size[1]
 
 
-def box_sum(integral, x0: int, y0: int, x1: int, y1: int) -> int:
-    return integral[y1][x1] - integral[y0][x1] - integral[y1][x0] + integral[y0][x0]
+def circle_score(data, w, h, cx: float, cy: float, radius: float, samples: int = 32) -> float:
+    """Mean |radial gradient| on the ring around (cx, cy).
 
-
-def match_disc(small, cx: float, cy: float, radius: float):
-    """Find the disc as the best isolated round core near (cx, cy).
-
-    A matched filter instead of a centroid chase: a candidate scores the
-    orange core INSIDE the disc square and pays for orange in the ring around
-    it. A chain, a gold coat or a lightning bolt next door lowers that
-    candidate instead of dragging the estimate toward itself -- which is what
-    every centroid variant did.
+    A true circle edge has its gradient pointing along the radius at every
+    angle, whatever its polarity. Streaks, corners and texture average out.
     """
-    inner = max(4, int(radius * 0.85))
-    ring = int(inner * 1.7)
-    reach = int(radius * 1.6)
-    x_lo = max(0, int(cx) - reach - ring)
-    y_lo = max(0, int(cy) - reach - ring)
-    x_hi = min(small.size[0], int(cx) + reach + ring)
-    y_hi = min(small.size[1], int(cy) + reach + ring)
-    if x_hi - x_lo < 2 * ring + 2 or y_hi - y_lo < 2 * ring + 2:
-        return None
-    integral = core_mask_integral(small, x_lo, y_lo, x_hi, y_hi)
-    w, h = x_hi - x_lo, y_hi - y_lo
-    best = None
-    for gy in range(ring, h - ring):
-        for gx in range(ring, w - ring):
-            if abs(gx + x_lo - cx) > reach or abs(gy + y_lo - cy) > reach:
-                continue
-            core = box_sum(integral, gx - inner, gy - inner, gx + inner, gy + inner)
-            around = box_sum(integral, gx - ring, gy - ring, gx + ring, gy + ring) - core
-            score = core - 0.35 * around
-            if best is None or score > best[0]:
-                best = (score, gx, gy)
-    if best is None or best[0] < (inner * 2) ** 2 * 0.20:
-        return None
-    _score, gx, gy = best
-    # Sub-cell refinement: soft-gated centroid strictly INSIDE the winning
-    # square, where nothing foreign can reach.
-    px = small.load()
-    sx = sy = weight = 0.0
-    for j in range(gy - inner, gy + inner):
-        for i in range(gx - inner, gx + inner):
-            r, g, b = px[x_lo + i, y_lo + j][:3]
-            if r > 150 and g > 45 and b < 160 and r > b + 50:
-                # Radial falloff: a gold chain grazing the square's edge must
-                # not out-vote the disc body at its center.
-                d2 = ((i - gx) ** 2 + (j - gy) ** 2) / float(inner * inner)
-                wgt = (r - 140) * max(0.0, 1.0 - d2)
-                sx += (x_lo + i) * wgt
-                sy += (y_lo + j) * wgt
-                weight += wgt
-    if weight <= 0:
-        return float(x_lo + gx), float(y_lo + gy)
-    return sx / weight, sy / weight
+    total = 0.0
+    for k in range(samples):
+        ang = 2 * math.pi * k / samples
+        dx, dy = math.cos(ang), math.sin(ang)
+        x, y = cx + radius * dx, cy + radius * dy
+        ix, iy = int(x), int(y)
+        if ix < 1 or iy < 1 or ix >= w - 1 or iy >= h - 1:
+            return 0.0
+        gx = data[iy * w + ix + 1] - data[iy * w + ix - 1]
+        gy = data[(iy + 1) * w + ix] - data[(iy - 1) * w + ix]
+        total += abs(gx * dx + gy * dy)
+    return total / samples
 
 
-def smooth(series: list, window: int = 9) -> list:
-    """Centered moving average; the ends shrink their window."""
-    half = window // 2
-    out = []
-    for i in range(len(series)):
-        lo, hi = max(0, i - half), min(len(series), i + half + 1)
-        out.append(sum(series[lo:hi]) / (hi - lo))
-    return out
+def sweep(small, radii, step: int = 4, top: int = 8):
+    """Best non-overlapping circle candidates over a whole frame."""
+    data, w, h = gray_field(small)
+    hits = []
+    for r in radii:
+        r_i = int(r)
+        for cy in range(r_i + 2, h - r_i - 2, step):
+            for cx in range(r_i + 2, w - r_i - 2, step):
+                s = circle_score(data, w, h, cx, cy, r, samples=20)
+                if s > 26:
+                    hits.append((s, cx, cy, r))
+    hits.sort(reverse=True)
+    picked = []
+    for s, cx, cy, r in hits:
+        if all((cx - px) ** 2 + (cy - py) ** 2 > (max(r, pr) * 1.6) ** 2 for _, px, py, pr in picked):
+            picked.append((s, cx, cy, r))
+        if len(picked) >= top:
+            break
+    return picked
 
 
-def track(frames: list, seed: tuple, r0: float) -> list:
-    """Matched-filter hits per frame, then interpolate the rejects and smooth."""
+def refine(data, w, h, cx: float, cy: float, radius: float):
+    """Best (score, x, y, r) in a small neighbourhood, sub-stepped."""
+    best = (0.0, cx, cy, radius)
+    for r in (radius * 0.88, radius, radius * 1.12):
+        for dy in range(-3, 4):
+            for dx in range(-3, 4):
+                s = circle_score(data, w, h, cx + dx, cy + dy, r)
+                if s > best[0]:
+                    best = (s, cx + dx, cy + dy, r)
+    return best
+
+
+def track_circle(frames: list, seed: tuple, r0: float):
+    """Per-frame circle lock with velocity prediction; returns path + quality."""
     raw = []
     cx, cy = float(seed[0]) / 2, float(seed[1]) / 2
+    vx = vy = 0.0
+    r = r0 / 2
     for frame_path in frames:
         with Image.open(frame_path) as full:
             small = full.convert("RGB").resize((full.width // 2, full.height // 2))
-        hit = match_disc(small, cx, cy, r0 / 2)
-        if hit is not None:
-            cx, cy = hit
-            raw.append((cx * 2, cy * 2))
+        data, w, h = gray_field(small)
+        px, py = cx + vx, cy + vy
+        best = (0.0, px, py, r)
+        for wy in range(-9, 10, 3):
+            for wx in range(-9, 10, 3):
+                s = circle_score(data, w, h, px + wx, py + wy, r)
+                if s > best[0]:
+                    best = (s, px + wx, py + wy, r)
+        best = refine(data, w, h, best[1], best[2], best[3])
+        if best[0] > 22:
+            nx, ny = best[1], best[2]
+            vx, vy = 0.6 * (nx - cx), 0.6 * (ny - cy)
+            cx, cy, r = nx, ny, best[3] * 0.3 + r * 0.7
+            raw.append((cx * 2, cy * 2, r * 2))
         else:
+            vx *= 0.5
+            vy *= 0.5
             raw.append(None)
-    xs = [r[0] if r else None for r in raw]
-    ys = [r[1] if r else None for r in raw]
-    for series, fallback in ((xs, float(seed[0])), (ys, float(seed[1]))):
+    xs = [p[0] if p else None for p in raw]
+    ys = [p[1] if p else None for p in raw]
+    rs = [p[2] if p else None for p in raw]
+    for series, fallback in ((xs, float(seed[0])), (ys, float(seed[1])), (rs, r0)):
         last = None
         for i, v in enumerate(series):
             if v is not None:
@@ -163,14 +142,24 @@ def track(frames: list, seed: tuple, r0: float) -> list:
         else:
             for j in range(last + 1, len(series)):
                 series[j] = series[last]
-    accepted = sum(1 for r in raw if r is not None) / max(1, len(raw))
-    return list(zip(smooth(xs, 5), smooth(ys, 5))), accepted
+    accepted = sum(1 for p in raw if p is not None) / max(1, len(raw))
+    return list(zip(smooth(xs, 7), smooth(ys, 7), smooth(rs, 13))), accepted
+
+
+def smooth(series: list, window: int = 7) -> list:
+    """Centered moving average; the ends shrink their window."""
+    half = window // 2
+    out = []
+    for i in range(len(series)):
+        lo, hi = max(0, i - half), min(len(series), i + half + 1)
+        out.append(sum(series[lo:hi]) / (hi - lo))
+    return out
 
 
 def brand_segment(segment: Path, discs: list[dict], fps: int) -> None:
-    """Track every configured disc and re-encode the segment with digits on."""
-    stamp = digit_stack()
-    stamp_ratio = stamp.height / stamp.width
+    """Track every configured plaque and composite the logo, smaller than it."""
+    stamp = full_logo()
+    ratio = stamp.height / stamp.width
     with tempfile.TemporaryDirectory() as raw_dir:
         frames_dir = Path(raw_dir)
         subprocess.check_call(
@@ -180,26 +169,23 @@ def brand_segment(segment: Path, discs: list[dict], fps: int) -> None:
         frames = sorted(frames_dir.glob("f*.png"))
         tracks = []
         for d in discs:
-            path, accepted = track(frames, d["seed"], float(d.get("r", 45)))
+            path, accepted = track_circle(frames, d["seed"], float(d.get("r", 45)))
+            label = f"  plaque at {d["seed"]}"
             if accepted < 0.5:
-                # No stable lock -> no brand. A digit stack parked on thin
-                # air is worse than a disc left blank.
-                print(f"  disc at {d['seed']}: lock {accepted:.0%}, skipped")
+                print(f"{label}: lock {accepted:.0%}, skipped")
                 continue
-            print(f"  disc at {d['seed']}: lock {accepted:.0%}")
-            tracks.append((path, float(d.get("r", 45))))
+            print(f"{label}: lock {accepted:.0%}")
+            tracks.append((path, float(d.get("scale", 0.72))))
         for index, frame_path in enumerate(frames):
             with Image.open(frame_path) as full:
                 frame = full.convert("RGB")
-            for path, r0 in tracks:
-                x, y = path[index]
-                width = max(18, int(r0 * 1.15))
-                scaled = stamp.resize((width, int(width * stamp_ratio)), Image.LANCZOS)
+            for path, rel in tracks:
+                x, y, r = path[index]
+                width = max(16, int(2 * r * rel))
+                scaled = stamp.resize((width, int(width * ratio)), Image.LANCZOS)
                 faded = scaled.copy()
-                faded.putalpha(scaled.split()[3].point(lambda a: int(a * 0.88)))
-                frame.paste(
-                    faded, (int(x - width / 2), int(y - faded.height / 2)), faded
-                )
+                faded.putalpha(scaled.split()[3].point(lambda a: int(a * 0.92)))
+                frame.paste(faded, (int(x - width / 2), int(y - faded.height / 2)), faded)
             frame.save(frame_path)
         branded = segment.with_name(segment.stem + "-branded.mp4")
         subprocess.check_call(
