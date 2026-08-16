@@ -28,6 +28,25 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 /* Author-sheet display rules outrank the UA's [hidden], so state it once. */
 [hidden] { display: none !important; }
 
+.shop-hero {
+  position: relative; overflow: hidden; min-height: clamp(300px, 50vh, 540px);
+  display: grid; align-content: center; padding: clamp(52px, 8vw, 108px) var(--pad);
+  border-bottom: 1px solid var(--line);
+}
+.shop-hero::before {
+  content: ""; position: absolute; inset: 0;
+  background: url("../art/site/hero-shop.webp") center / cover no-repeat;
+  filter: brightness(.62);
+}
+.shop-hero::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(9,8,11,.96), rgba(9,8,11,.72) 46%, rgba(9,8,11,.18) 76%),
+    linear-gradient(180deg, transparent 55%, var(--black));
+}
+.shop-hero > * { position: relative; z-index: 1; }
+.shop-hero h1 { max-width: 900px; margin: 10px 0 16px; }
+.shop-hero .lead { max-width: 720px; color: var(--cream); }
+
 /* A napplet is a panel inside somebody else's window, so the head stacks on
    the CONTAINER's width as well as the viewport's. The media query keeps the
    plain website behaving exactly as it did; the container query covers a shell
@@ -259,15 +278,17 @@ main { container-type: inline-size; }
   </div>
 </nav>
 
+<header class="shop-hero">
+  <p class="eyebrow">Edition One · Booster Box</p>
+  <h1>Open a pack. <span class="accent">Check the maths.</span></h1>
+  <p class="lead">One box of <b id="boxSize">—</b> cards was shuffled once, from a published seed, and
+  the SHA-256 over that exact order was committed before a single pack was opened. Every pull comes off
+  the top. Nobody can reshuffle to keep a rare back — and you can re-hash the whole box in your own
+  browser, on this page, in about a second.</p>
+</header>
+
 <main id="main">
   <section class="section">
-    <p class="eyebrow">Edition One · Booster Box</p>
-    <h2>Open a pack. <span class="accent">Check the maths.</span></h2>
-    <p class="lead">One box of <b id="boxSize">—</b> cards was shuffled once, from a published seed, and
-    the SHA-256 over that exact order was committed before a single pack was opened. Every pull comes off
-    the top. Nobody can reshuffle to keep a rare back — and you can re-hash the whole box in your own
-    browser, on this page, in about a second.</p>
-
     <div class="shop-head">
       <div class="framed">
         <span class="pad tl"></span><span class="pad tr"></span>

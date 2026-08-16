@@ -22,6 +22,24 @@
    prefers-reduced-motion to switch off, and every network call lands on a
    definite sentence rather than an endless spinner. */
 
+.ladder-hero {
+  position: relative; overflow: hidden; min-height: clamp(300px, 50vh, 540px);
+  display: grid; align-content: center; padding: clamp(52px, 8vw, 108px) var(--pad);
+  border-bottom: 1px solid var(--line);
+}
+.ladder-hero::before {
+  content: ""; position: absolute; inset: 0;
+  background: url("../art/site/hero-leaderboard.webp") center / cover no-repeat;
+  filter: brightness(.6);
+}
+.ladder-hero::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(9,8,11,.96), rgba(9,8,11,.72) 46%, rgba(9,8,11,.18) 76%),
+    linear-gradient(180deg, transparent 55%, var(--black));
+}
+.ladder-hero > * { position: relative; z-index: 1; }
+.ladder-hero .lead { max-width: 720px; color: var(--cream); }
+
 main { width: min(1240px, calc(100% - 32px)); margin: auto; padding: clamp(46px, 7vw, 88px) 0 60px; }
 h1 { max-width: 950px; margin: 10px 0 16px; }
 .lead { font-size: 17px; }
@@ -226,12 +244,14 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
   </div>
 </nav>
 
-<main id="main">
+<header class="ladder-hero">
   <p class="eyebrow">600 Billion · Public Track Record</p>
   <h1>A rank you can <span class="accent">check yourself.</span></h1>
   <p class="lead">There is no ladder server and no row anyone can edit. This table is folded, here in
   your browser, out of match results published to public nostr relays and signed by both players.</p>
+</header>
 
+<main id="main">
   <section class="framed trust" aria-labelledby="trustHead">
     <span class="pad tl"></span><span class="pad tr"></span><span class="pad bl"></span><span class="pad br"></span>
     <span class="banner" id="trustHead">How to trust this table</span>
