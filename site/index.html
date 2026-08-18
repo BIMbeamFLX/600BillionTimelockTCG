@@ -169,11 +169,7 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 /* ------------------------------------------------------------- turn strip */
 .turnstrip { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
 .turnstrip figure { margin: 0; border: 1px solid var(--line); background: rgba(17,16,20,.86); }
-/* height:auto lets aspect-ratio win — the img's height="480" attribute plus
-   width:100% was overriding it, so object-fit:cover cropped each wide banner to
-   a narrow centre slice (only the keys, only "…LVE·REPEAT"). Now the whole
-   banner shows, uncut. */
-.turnstrip img { display: block; width: 100%; height: auto; aspect-ratio: 10/3; object-fit: contain; border-bottom: 1px solid var(--line); background: var(--soot); }
+.turnstrip img { display: block; width: 100%; height: auto; aspect-ratio: 4/5; object-fit: cover; border-bottom: 1px solid var(--line); background: var(--soot); }
 .turnstrip figcaption { padding: 14px 16px 16px; }
 .turnstrip h3 { margin-bottom: 6px; }
 .turnstrip p { color: var(--muted); font-size: 14px; }
@@ -484,7 +480,7 @@ body { container-type: inline-size; container-name: page; }
   yours — the whole game hangs off that one number.</p>
   <div class="turnstrip">
     <figure>
-      <img src="../art/rulebook/banner-02-five-resources.webp" alt="The five Resources: Power, Bitcoin, Keys, Signal and Timelock" width="1600" height="480" loading="lazy" decoding="async">
+      <img src="../art/site/turn-1-resource.webp" alt="A hand lifts one glowing orange Resource from an ordered stack" width="1600" height="2000" loading="lazy" decoding="async">
       <figcaption>
         <h3>1 · Take a Resource</h3>
         <p>One free Resource per turn, from your own Stack. Commit it to pay a cost — spend it before
@@ -492,7 +488,7 @@ body { container-type: inline-size; container-name: page; }
       </figcaption>
     </figure>
     <figure>
-      <img src="../art/rulebook/banner-04-queue.webp" alt="Actions enter the Queue; answers resolve first" width="1600" height="480" loading="lazy" decoding="async">
+      <img src="../art/site/turn-2-queue.webp" alt="Hand-built devices wait in order on a violet-and-orange Queue rail" width="1600" height="2000" loading="lazy" decoding="async">
       <figcaption>
         <h3>2 · Put it in the Queue</h3>
         <p>Everything you play enters a Queue, and the last answer resolves first. That is where the
@@ -500,7 +496,7 @@ body { container-type: inline-size; container-name: page; }
       </figcaption>
     </figure>
     <figure>
-      <img src="../art/rulebook/banner-05-clash.webp" alt="Every route has a defender" width="1600" height="480" loading="lazy" decoding="async">
+      <img src="../art/site/turn-3-clash.webp" alt="Orange energy meets a violet resilience dome between two engineered rigs" width="1600" height="2000" loading="lazy" decoding="async">
       <figcaption>
         <h3>3 · Clash</h3>
         <p>Send your rigs down a route. Every route can be defended; whatever gets through comes off
