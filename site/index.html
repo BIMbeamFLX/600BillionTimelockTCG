@@ -169,7 +169,11 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 /* ------------------------------------------------------------- turn strip */
 .turnstrip { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
 .turnstrip figure { margin: 0; border: 1px solid var(--line); background: rgba(17,16,20,.86); }
-.turnstrip img { display: block; width: 100%; aspect-ratio: 10/3; object-fit: cover; border-bottom: 1px solid var(--line); }
+/* height:auto lets aspect-ratio win — the img's height="480" attribute plus
+   width:100% was overriding it, so object-fit:cover cropped each wide banner to
+   a narrow centre slice (only the keys, only "…LVE·REPEAT"). Now the whole
+   banner shows, uncut. */
+.turnstrip img { display: block; width: 100%; height: auto; aspect-ratio: 10/3; object-fit: contain; border-bottom: 1px solid var(--line); background: var(--soot); }
 .turnstrip figcaption { padding: 14px 16px 16px; }
 .turnstrip h3 { margin-bottom: 6px; }
 .turnstrip p { color: var(--muted); font-size: 14px; }
