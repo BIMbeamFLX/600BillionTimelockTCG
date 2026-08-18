@@ -14,6 +14,7 @@ def test_static_site_pages_live_together() -> None:
         "e1-card-set.html",
         "fx-demo.html",
         "index.html",
+        "intro.html",  # the cinematic gate; Play/Skip, then it opens index
         "leaderboard.html",
         "lore.html",
         "play.html",

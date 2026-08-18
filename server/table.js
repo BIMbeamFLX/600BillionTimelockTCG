@@ -1615,6 +1615,10 @@ async function createTable(opts) {
     ".webp": "image/webp",
     ".woff2": "font/woff2",
     ".md": "text/markdown; charset=utf-8",
+    /* The intro page serves a real video; without this it goes out as
+     * application/octet-stream and strict browsers (Safari especially) refuse
+     * to play it. */
+    ".mp4": "video/mp4",
   };
 
   /* THE PAGE AND THE REFEREE CAN LIVE ON DIFFERENT ORIGINS, and when they do the
@@ -1787,6 +1791,43 @@ async function createTable(opts) {
       };
       if (req.headers["if-none-match"] === etag) {
         res.writeHead(304, base).end();
+        return;
+      }
+      /* Binary assets — video, images, fonts — are STREAMED with Range support,
+       * never read whole into memory. A 28 MB intro video must seek, Safari
+       * refuses a <video> whose server does not answer 206, and buffering the
+       * file per request is memory the referee should not spend. Compressible
+       * text keeps the gzip path below. */
+      if (!COMPRESSIBLE.has(ext)) {
+        base["accept-ranges"] = "bytes";
+        const size = stat.size;
+        let start = 0;
+        let end = size - 1;
+        let status = 200;
+        const range = req.headers["range"];
+        if (range) {
+          const m = /^bytes=(\d*)-(\d*)$/.exec(String(range).trim());
+          if (!m || (m[1] === "" && m[2] === "")) {
+            res.writeHead(416, Object.assign({}, base, { "content-range": `bytes */${size}` })).end();
+            return;
+          }
+          if (m[1] === "") start = Math.max(0, size - Number(m[2]));
+          else {
+            start = Number(m[1]);
+            if (m[2] !== "") end = Math.min(end, Number(m[2]));
+          }
+          if (start > end || start >= size) {
+            res.writeHead(416, Object.assign({}, base, { "content-range": `bytes */${size}` })).end();
+            return;
+          }
+          status = 206;
+          base["content-range"] = `bytes ${start}-${end}/${size}`;
+        }
+        res.writeHead(status, Object.assign({}, base, { "content-length": end - start + 1 }));
+        if (req.method === "HEAD") return res.end();
+        const stream = fs.createReadStream(file, { start, end });
+        stream.on("error", () => res.destroy());
+        stream.pipe(res);
         return;
       }
       const wantsGzip =

@@ -1772,6 +1772,33 @@ test("already-compressed formats are served as they are", async (t) => {
   assert.ok(png.headers.etag, "but it still revalidates");
 });
 
+test("binary assets answer byte-range requests, so a <video> plays and can seek", async (t) => {
+  /* Safari refuses a <video> whose server does not answer 206 Partial Content,
+   * and the intro page serves a real video. A byte range returns exactly that
+   * slice with Content-Range; a full GET advertises range support; an
+   * unsatisfiable range is refused, not served whole. */
+  const table = await boot(t, "h2b.db");
+  const url = `${table.url}/art/brand/600B-logo-primary.png`;
+
+  const full = await rawGet(url);
+  assert.equal(full.status, 200);
+  assert.equal(full.headers["accept-ranges"], "bytes", "range support is advertised");
+  const size = Number(full.headers["content-length"]);
+
+  const part = await rawGet(url, { range: "bytes=0-99" });
+  assert.equal(part.status, 206, "a range request is Partial Content");
+  assert.equal(part.headers["content-length"], "100");
+  assert.equal(part.body.length, 100, "and exactly the requested slice is sent");
+  assert.equal(part.headers["content-range"], `bytes 0-99/${size}`);
+
+  const suffix = await rawGet(url, { range: "bytes=-50" });
+  assert.equal(suffix.status, 206, "a suffix range is honoured");
+  assert.equal(suffix.body.length, 50);
+
+  const bad = await rawGet(url, { range: `bytes=${size + 10}-` });
+  assert.equal(bad.status, 416, "an unsatisfiable range is refused, not served whole");
+});
+
 test("a TLS deployment advertises the URL an invite must actually carry", async (t) => {
   /* The old builder hardcoded ws:// and the bound port, so behind a reverse
    * proxy every published invite was both mixed-content-blocked and aimed at a
