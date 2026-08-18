@@ -1747,7 +1747,10 @@ async function createTable(opts) {
       });
     }
 
-    const rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+    /* The site root is the cinematic gate: intro.html plays the film, then its
+     * Skip/end opens index.html. The homepage stays reachable at /index.html
+     * with all its links and metadata unchanged. */
+    const rel = pathname === "/" ? "intro.html" : pathname.replace(/^\/+/, "");
     const head = rel.split("/")[0];
     const root = STATIC_ROOTS[head] ? REPO : siteDir;
     const file = path.resolve(root, rel);

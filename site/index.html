@@ -58,6 +58,12 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 }
 @keyframes bootScan { from { top: -8%; opacity: .5; } to { top: 108%; opacity: 0; } }
 @keyframes bootFan { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+/* The brand mark spins up like a coin landing face-up, then settles. */
+@keyframes logoIn {
+  0%   { opacity: 0; transform: perspective(600px) rotateY(-220deg) scale(.55); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(600px) rotateY(0) scale(1); }
+}
 
 .boot { animation: bootLine .5s ease-out both; animation-delay: var(--d, 0s); }
 .scanline {
@@ -85,6 +91,11 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 .hero h1 { margin: 10px 0 16px; }
 .hero .sub { max-width: 56ch; font-size: clamp(16px, 1.7vw, 20px); color: var(--muted); }
 .hero .sub b { color: var(--cream); font-weight: 700; }
+.hero__logo {
+  display: block; width: clamp(60px, 8vw, 100px); height: auto; margin: 0 0 14px;
+  filter: drop-shadow(0 10px 26px rgba(247,147,26,.35));
+  animation: logoIn 1s cubic-bezier(.2,.8,.2,1) .05s both;
+}
 
 /* The promises, as chips — the same chip the table uses for a state. */
 .promises { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
@@ -134,10 +145,10 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 /* --------------------------------------------------------------- the doors */
 /* Five steps in the order a new player should take them. Ember tops the first
    one only — ember means act, and acting here means: press play. */
-/* min() on every auto-fit track: without it the named minimum is a floor the
-   grid will overflow its box to honour, which is exactly the "no horizontal
-   overflow at any size" clause failing in a narrow napplet panel. */
-.doors { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(248px, 100%), 1fr)); gap: 14px; }
+/* One deliberate row of five on desktop — minmax(0,1fr) lets the tracks shrink
+   to fit rather than overflow. It steps down to two, then one, at the narrow
+   breakpoints below. */
+.doors { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 .doors > li { display: grid; }
 .door {
   display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px;
@@ -212,6 +223,8 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
   /* One column: the hand drops under the copy and takes the whole width. */
   .hero__grid { grid-template-columns: 1fr; }
   .flipcard { --fw: clamp(180px, 62vw, 300px); order: 2; margin-bottom: 40px; }
+  /* Five thin columns are cramped on a tablet — step the doors to two. */
+  .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
   /* The shared nav wraps to three rows on a phone. Sticky, that is half the
@@ -264,6 +277,7 @@ body { container-type: inline-size; container-name: page; }
   h2 { font-size: clamp(24px, 6cqi, 44px); }
   .hero__grid { grid-template-columns: 1fr; }
   .flipcard { --fw: clamp(180px, 62cqi, 300px); order: 2; margin-bottom: 40px; }
+  .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @container page (max-width: 720px) {
   .nav { position: static; }
@@ -300,7 +314,7 @@ body { container-type: inline-size; container-name: page; }
 @media (prefers-reduced-motion: reduce) {
   .scanline { display: none; }
   .hero::before { animation: none; filter: brightness(.62); }
-  .boot, .flipcard { animation: none; opacity: 1; transform: none; }
+  .boot, .flipcard, .hero__logo { animation: none; opacity: 1; transform: none; }
   .flipcard__inner { transition: none; }
   .flipcard:hover:not(.is-flipped) .flipcard__inner { transform: none; }
 }
@@ -335,6 +349,7 @@ body { container-type: inline-size; container-name: page; }
   <div class="scanline" aria-hidden="true"></div>
   <div class="hero__grid">
     <div>
+      <img class="hero__logo" src="../art/brand/600B-logo-primary.png" alt="600B Timelock TCG" width="100" height="100" fetchpriority="high" decoding="async">
       <p class="eyebrow boot">Free browser card game · Edition One</p>
       <h1 class="boot" style="--d:.12s">Build the Network.<br><span class="accent">Protect your Uptime.</span></h1>
       <p class="sub boot" style="--d:.28s"><b>A trading card game about Bitcoin, Nostr and open systems.</b>
