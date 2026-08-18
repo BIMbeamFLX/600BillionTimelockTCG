@@ -237,6 +237,45 @@ async function createTable(opts) {
   const controlMax = Number.isInteger(options.controlMax)
     ? options.controlMax
     : RATE_MAX_CONTROL;
+  /* WHO IS BEHIND THE PROXY. The pre-auth rate buckets key on the TCP peer,
+   * because a connection has not proved an identity yet. In the prescribed
+   * deployment that peer is a reverse proxy on loopback, so every player shares
+   * one pre-auth bucket and a burst of arrivals — a launch spike, a wifi-driven
+   * reconnect storm — locks legitimate players out of the AUTH handshake before
+   * they can identify. This restores a per-client bucket WITHOUT trusting
+   * attacker-controlled headers: X-Forwarded-For is consulted ONLY when the real
+   * TCP peer is an operator-declared trusted proxy, and then only its RIGHTMOST
+   * hop — the address the trusted proxy itself observed, which a client cannot
+   * forge by pre-injecting the header. Unset (the default) ignores XFF entirely.
+   *   trustProxy: "loopback"  → trust 127.0.0.1/::1 as the proxy (the zapburg case)
+   *   trustProxy: ["10.0.0.2"] → trust these exact peer IPs */
+  const trustProxy = (() => {
+    const raw = options.trustProxy;
+    if (!raw) return { mode: "none", set: new Set() };
+    if (Array.isArray(raw)) return { mode: "list", set: new Set(raw.map(String)) };
+    const token = String(raw).trim().toLowerCase();
+    if (token === "loopback" || token === "true" || token === "1" || token === "yes") {
+      return { mode: "loopback", set: new Set() };
+    }
+    // A bare string may still be a comma-list of IPs.
+    const list = token.split(",").map((s) => s.trim()).filter(Boolean);
+    return list.length ? { mode: "list", set: new Set(list) } : { mode: "none", set: new Set() };
+  })();
+  const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+  const clientAddress = (req) => {
+    const peer = req.socket.remoteAddress || "unknown";
+    const trusted =
+      trustProxy.mode === "loopback" ? LOOPBACK.has(peer)
+      : trustProxy.mode === "list" ? trustProxy.set.has(peer)
+      : false;
+    if (!trusted) return peer;
+    const forwarded = req.headers["x-forwarded-for"];
+    if (!forwarded) return peer;
+    const hops = String(forwarded).split(",").map((s) => s.trim()).filter(Boolean);
+    // Rightmost hop = the address the trusted proxy connected from. A client
+    // that pre-injects XFF only prepends to it, so this stays unforgeable.
+    return hops.length ? hops[hops.length - 1] : peer;
+  };
   const allowedOrigins = new Set(
     (Array.isArray(options.allowedOrigins) ? options.allowedOrigins : []).map((value) => {
       const origin = new URL(value).origin;
@@ -1472,8 +1511,9 @@ async function createTable(opts) {
 
   wss.on("connection", (ws, req) => {
     /* The TCP peer is authoritative. X-Forwarded-For is attacker input unless a
-     * deployment explicitly establishes and validates a trusted proxy chain. */
-    const address = req.socket.remoteAddress || "unknown";
+     * deployment explicitly declares a trusted proxy via trustProxy — see
+     * clientAddress, which only then reads the proxy's observed hop. */
+    const address = clientAddress(req);
     const conn = {
       ws, rec: null, seat: null, tokenSent: false, tokenSentFor: null, address,
       pubkey: null, authChallenge: hex(32), authRelay: publicTableUrl(),
@@ -1847,6 +1887,10 @@ if (require.main === module) {
     : [];
   createTable({
     port, dbPath, pinSeed, rateMax, controlMax, maxPayload, allowedOrigins,
+    /* Behind the prescribed Caddy-on-loopback proxy set TRUST_PROXY=loopback so
+     * each real client keeps its own pre-auth rate bucket. Only turn this on when
+     * a trusted proxy actually fronts the table; unset, X-Forwarded-For is ignored. */
+    trustProxy: process.env.TRUST_PROXY,
     publicHost: process.env.PUBLIC_HOST,
     /* Behind TLS set PUBLIC_URL=wss://your.host/ws — one variable, and the
      * scheme and port stop being guesses. PUBLIC_HOST alone still covers a LAN
