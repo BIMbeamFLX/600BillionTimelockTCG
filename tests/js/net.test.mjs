@@ -1217,6 +1217,56 @@ test("malformed, bad-version, and unknown messages share the address budget", as
   assert.equal((await client.type("ERROR")).code, "RATE_LIMITED");
 });
 
+test("with a trusted proxy, each forwarded client keeps its own pre-auth bucket", async (t) => {
+  /* THE LAUNCH-SPIKE BUG: behind the prescribed reverse proxy every player's
+   * TCP peer is loopback, so the pre-auth AUTH bucket was shared and a burst of
+   * arrivals locked legitimate players out of the handshake. Declaring the proxy
+   * trusted restores a per-client bucket from the hop the proxy observed —
+   * without which >controlMax distinct newcomers in one window cannot all auth. */
+  const table = await boot(t, "t27.db", { controlMax: 1, trustProxy: "loopback" });
+  const authMax = Math.max(5, 1); // authOk allowance
+  // authMax + 3 genuinely distinct clients, each with its own forwarded address.
+  const clients = [];
+  for (let i = 0; i < authMax + 3; i++) {
+    const c = await table.client({
+      identity: `newcomer-${i}`,
+      headers: { "X-Forwarded-For": `198.51.100.${i}` },
+    });
+    clients.push(c);
+  }
+  // Every one reached AUTH_OK inside Client.open — a shared bucket would have
+  // RATE_LIMITED the ones past authMax.
+  assert.equal(clients.length, authMax + 3, "all distinct forwarded clients authenticated");
+});
+
+test("a trusted proxy reads its own hop, so a prepended X-Forwarded-For cannot forge a bucket", async (t) => {
+  /* The pre-auth AUTH bucket is where the forwarded address matters (afterwards
+   * the identity is the bucket). The rightmost hop is the address the proxy
+   * connected from; a client that pre-injects XFF only prepends to it. So many
+   * clients that SHARE a proxy hop share one auth bucket no matter what leftmost
+   * value they forge — an attacker cannot mint fresh auth capacity, nor poison
+   * a victim's, by writing the header. */
+  const table = await boot(t, "t28.db", { controlMax: 1, trustProxy: "loopback" });
+  const authMax = Math.max(5, 1);
+  const attempt = async (leftmost) => {
+    const c = await Client.open(table.wsUrl, {
+      identity: "forge-" + leftmost,
+      skipAuth: true,
+      headers: { "X-Forwarded-For": `${leftmost}, 203.0.113.9` },
+    });
+    t.after(() => c.close());
+    const challenge = await c.type("AUTH");
+    c.send({ t: "AUTH", event: signedAuth(challenge, c.privateKey) });
+    return c.next((m) => m.t === "AUTH_OK" || m.t === "ERROR");
+  };
+  // Distinct forged leftmost each time, but all share proxy hop 203.0.113.9.
+  const codes = [];
+  for (let i = 0; i < authMax + 2; i++) codes.push((await attempt(`10.0.0.${i}`)).code || "AUTH_OK");
+  const limited = codes.filter((c) => c === "RATE_LIMITED").length;
+  assert.ok(limited >= 1,
+    `a shared proxy hop is one auth bucket regardless of forged leftmost — got ${JSON.stringify(codes)}`);
+});
+
 test("unseated ACT messages cannot bypass the address budget", async (t) => {
   const table = await boot(t, "t28.db", { controlMax: 1 });
   const client = await table.client();
