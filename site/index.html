@@ -96,27 +96,40 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 .resrow { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 22px; }
 .resrow .r { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; letter-spacing: .13em; text-transform: uppercase; }
 
-/* ------------------------------------------------------- the arced hand */
-/* Die gerade Linie ist gottlos: five real Edition One faces, one per affinity,
-   held on an arc the way a hand sits at the table. Decorative — the gallery
-   link below is the real door — so it stays out of the accessibility tree. */
-.fan {
-  --fw: clamp(72px, 9.5vw, 124px);
-  display: flex; justify-content: center; align-items: center;
-  padding: 16px 0 44px;
+/* ------------------------------------------------------------- flip card */
+/* The front door's one toy: a card back you click to reveal a random face,
+   which flips away again after five seconds. A whole card is shown — contain,
+   never cover — so nothing is cut. Decorative but keyboard-operable. */
+.flipcard {
+  --fw: clamp(208px, 27vw, 336px);
+  justify-self: center; align-self: center;
+  width: var(--fw); aspect-ratio: 744 / 1039;
+  margin: 8px 0 34px;
+  padding: 0; border: 0; background: none; cursor: pointer;
+  perspective: 1600px;
   animation: bootFan .7s ease-out .5s both;
 }
-.fan .fc {
-  flex: 0 0 auto; width: var(--fw); aspect-ratio: 5 / 7; object-fit: cover;
-  margin-inline: calc(var(--fw) * -0.18);
-  background: var(--soot);
-  border: 1px solid var(--line-strong);
-  box-shadow: 0 18px 44px rgba(0,0,0,.66);
-  transform: translateY(var(--y, 0)) rotate(var(--r, 0deg));
-  z-index: var(--z, 1);
-  transition: transform .18s ease, box-shadow .18s ease;
+.flipcard__inner {
+  position: relative; display: block; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform .62s cubic-bezier(.2,.75,.2,1);
+  will-change: transform;
 }
-.fan .fc:hover { transform: translateY(calc(var(--y, 0px) - 14px)) rotate(var(--r, 0deg)) scale(1.05); box-shadow: 0 26px 56px rgba(0,0,0,.75); z-index: 9; }
+.flipcard.is-flipped .flipcard__inner { transform: rotateY(180deg); }
+.flipcard__face {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  filter: drop-shadow(0 24px 46px rgba(0,0,0,.6));
+}
+.flipcard__front { transform: rotateY(180deg); }
+.flipcard:hover:not(.is-flipped) .flipcard__inner { transform: translateY(-6px) scale(1.02); }
+.flipcard:focus-visible { outline: 2px solid var(--ember); outline-offset: 8px; border-radius: 14px; }
+.flipcard__hint {
+  position: absolute; left: 0; right: 0; bottom: -26px; text-align: center;
+  color: var(--muted); font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+  pointer-events: none; transition: opacity .3s;
+}
+.flipcard.is-flipped .flipcard__hint { opacity: 0; }
 
 /* --------------------------------------------------------------- the doors */
 /* Five steps in the order a new player should take them. Ember tops the first
@@ -146,7 +159,11 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 /* ------------------------------------------------------------- card teaser */
 .teaser { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 16px; }
 .teaser figure { margin: 0; }
-.teaser img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; background: var(--soot); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+/* The WHOLE card, never a crop: the frame, the badge and the footer are the
+   design, so object-fit:cover was cutting off the very thing being shown. */
+.teaser figure { transition: transform .18s ease; }
+.teaser figure:hover { transform: translateY(-6px); }
+.teaser img { display: block; width: 100%; height: auto; aspect-ratio: 744 / 1039; object-fit: contain; background: transparent; filter: drop-shadow(0 16px 38px rgba(0,0,0,.55)); }
 .teaser figcaption { margin-top: 8px; text-align: center; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 
 /* ------------------------------------------------------------- turn strip */
@@ -194,7 +211,7 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 @media (max-width: 900px) {
   /* One column: the hand drops under the copy and takes the whole width. */
   .hero__grid { grid-template-columns: 1fr; }
-  .fan { --fw: clamp(76px, 20vw, 132px); padding: 4px 0 34px; order: 2; }
+  .flipcard { --fw: clamp(180px, 62vw, 300px); order: 2; margin-bottom: 40px; }
 }
 @media (max-width: 720px) {
   /* The shared nav wraps to three rows on a phone. Sticky, that is half the
@@ -235,7 +252,7 @@ body { container-type: inline-size; container-name: page; }
   .nav, .hero, .section, .site-footer { --pad: clamp(16px, 4cqi, 56px); }
   .hero { padding-block: clamp(40px, 7cqi, 96px); }
   .hero .sub { font-size: clamp(16px, 1.7cqi, 20px); }
-  .fan { --fw: clamp(72px, 9.5cqi, 124px); }
+  .flipcard { --fw: clamp(200px, 27cqi, 320px); }
   .stat b { font-size: clamp(26px, 3.4cqi, 34px); }
 }
 
@@ -246,7 +263,7 @@ body { container-type: inline-size; container-name: page; }
   h1 { font-size: clamp(36px, 10cqi, 70px); }
   h2 { font-size: clamp(24px, 6cqi, 44px); }
   .hero__grid { grid-template-columns: 1fr; }
-  .fan { --fw: clamp(76px, 20cqi, 132px); padding: 4px 0 34px; order: 2; }
+  .flipcard { --fw: clamp(180px, 62cqi, 300px); order: 2; margin-bottom: 40px; }
 }
 @container page (max-width: 720px) {
   .nav { position: static; }
@@ -268,7 +285,7 @@ body { container-type: inline-size; container-name: page; }
      mock — and neither carries a fact the text does not: six real card faces
      survive in the teaser below, and the stake is described in words. The
      five doors, every promise chip and every link stay. */
-  .fan, .duel, .duelcap { display: none; }
+  .flipcard, .duel, .duelcap { display: none; }
   .teaser { grid-template-columns: 1fr; }
   .nav a.link { padding: 6px 7px; font-size: 11px; letter-spacing: .04em; }
   .btn { padding: 11px 14px; font-size: 13px; }
@@ -283,9 +300,9 @@ body { container-type: inline-size; container-name: page; }
 @media (prefers-reduced-motion: reduce) {
   .scanline { display: none; }
   .hero::before { animation: none; filter: brightness(.62); }
-  .boot, .fan { animation: none; opacity: 1; transform: none; }
-  .fan .fc { transition: none; }
-  .fan .fc:hover { transform: translateY(var(--y, 0)) rotate(var(--r, 0deg)); }
+  .boot, .flipcard { animation: none; opacity: 1; transform: none; }
+  .flipcard__inner { transition: none; }
+  .flipcard:hover:not(.is-flipped) .flipcard__inner { transform: none; }
 }
 </style>
 </head>
@@ -336,13 +353,16 @@ body { container-type: inline-size; container-name: page; }
       </div>
     </div>
 
-    <div class="fan" aria-hidden="true">
-      <img class="fc" src="../art/cards/node-runner-web/MadMunky%2C%20Chaos%20Coordinator.webp" alt="" style="--r:-13deg;--y:22px;--z:1" width="744" height="1039" decoding="async">
-      <img class="fc" src="../art/cards/node-runner-web/Arbadacarba%2C%20Natural%20Hashrate.webp" alt="" style="--r:-6.5deg;--y:6px;--z:2" width="744" height="1039" decoding="async">
-      <img class="fc" src="../art/cards/node-runner-web/Proton%2C%20Keyed%20Nightmare.webp" alt="" style="--r:0deg;--y:0px;--z:3" width="744" height="1039" fetchpriority="high" decoding="async">
-      <img class="fc" src="../art/cards/node-runner-web/AJ%2C%20Uptime%20Anchor.webp" alt="" style="--r:6.5deg;--y:6px;--z:2" width="744" height="1039" decoding="async">
-      <img class="fc" src="../art/cards/node-runner-web/Tal%2C%20Relay%20Captain.webp" alt="" style="--r:13deg;--y:22px;--z:1" width="744" height="1039" decoding="async">
-    </div>
+    <button class="flipcard" id="flipcard" type="button" aria-pressed="false"
+            aria-label="Flip the card to reveal a random Edition One card">
+      <span class="flipcard__inner">
+        <img class="flipcard__face flipcard__back"
+             src="../art/cards/node-runner-web/600B-Timelock-card-back.webp" alt=""
+             width="744" height="1039" fetchpriority="high" decoding="async">
+        <img class="flipcard__face flipcard__front" alt="" width="744" height="1039" decoding="async">
+      </span>
+      <span class="flipcard__hint" aria-hidden="true">Click to flip a card</span>
+    </button>
   </div>
 
   <div class="stats boot" style="--d:.6s">
@@ -575,7 +595,7 @@ body { container-type: inline-size; container-name: page; }
   "use strict";
   const BACK = "../art/cards/node-runner-web/600B-Timelock-card-back.webp";
   const isBack = img => img.src.endsWith("600B-Timelock-card-back.webp");
-  for (const img of document.querySelectorAll(".fan img, .teaser img")) {
+  for (const img of document.querySelectorAll(".teaser img, .flipcard__back")) {
     img.addEventListener("error", function onError() {
       img.removeEventListener("error", onError);
       if (!isBack(img)) img.src = BACK;
@@ -584,6 +604,54 @@ body { container-type: inline-size; container-name: page; }
     // is the only evidence left of that.
     if (img.complete && img.naturalWidth === 0 && !isBack(img)) img.src = BACK;
   }
+})();
+</script>
+<script>
+/* The flip card: click the back to reveal a random face, which flips away again
+   after five seconds. No network, no build — a static list of shipped faces the
+   repo already serves, so it works over file:// and with the referee offline.
+   Decorative, but a real <button>: click, Enter and Space all work. */
+(function () {
+  "use strict";
+  const flip = document.getElementById("flipcard");
+  if (!flip) return;
+  const front = flip.querySelector(".flipcard__front");
+  const BASE = "../art/cards/node-runner-web/";
+  /* A spread weighted to the avatars, which read best at a glance. Every name
+     is a shipped face; a miss just flips back rather than showing a gap. */
+  const FACES = [
+    "Genesis Lotus", "Satoshi Orchard", "Zap", "Next Block", "Multisig Quorum",
+    "FLX, Unstoppable Rig", "FLX, Culture Curator", "MadMunky, Chaos Coordinator",
+    "MadMunky, Hashrate Dragon", "Proton, Keyed Nightmare", "Tal, Relay Captain",
+    "Arbadacarba, Natural Hashrate", "Rootzoll, Stone Sentinel", "Rootzoll, Stone Firewall",
+    "Michael1011, Obsidian Node", "Michael1011, Debugger", "Mtoshi, Finality Keeper",
+    "Mtoshi, Rooted Node", "Sat, Blade Firewall", "BlackCoffee, Backup Firewall",
+    "DNI, Sovereign Knight", "DNI, Self-Custody Giant", "Nind, Backchannel Walker",
+    "Essex, Thermal Operator", "Longy, Deep Node", "NC, Resource Reclaimer",
+    "Shillie, Mesh Sentinel", "Snick, Phantom Process", "Cuddy, Clockwork Node",
+    "Benarc, Deep Channel",
+  ];
+  const url = (name) => BASE + encodeURIComponent(name) + ".webp";
+  let timer = null, last = -1;
+
+  function hide() {
+    clearTimeout(timer); timer = null;
+    flip.classList.remove("is-flipped");
+    flip.setAttribute("aria-pressed", "false");
+  }
+  function reveal() {
+    let i;
+    do { i = Math.floor(Math.random() * FACES.length); } while (i === last && FACES.length > 1);
+    last = i;
+    front.src = url(FACES[i]);
+    flip.classList.add("is-flipped");
+    flip.setAttribute("aria-pressed", "true");
+    clearTimeout(timer);
+    timer = setTimeout(hide, 5000);
+  }
+  // A face that will not load must not leave the card stuck mid-flip.
+  front.addEventListener("error", hide);
+  flip.addEventListener("click", () => (flip.classList.contains("is-flipped") ? hide() : reveal()));
 })();
 </script>
 <script>
