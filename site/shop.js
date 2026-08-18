@@ -36,13 +36,16 @@
   const CARDS = root.E1_CARDS || [];
   const BY_ID = Object.fromEntries(CARDS.map((c) => [c.id, c]));
   const FACES = root.E1Faces || null;
-  const STORE = "600b:shop";
-  const PROBE = "600b:probe";
+  /* The shared storage contract (site/storage-keys.js). Prefer it; fall back to
+   * this file's own literals so a missing include degrades to today's values. */
+  const K = root.E1Keys || {};
+  const STORE = K.SHOP || "600b:shop";
+  const PROBE = K.PROBE || "600b:probe";
   const BACK = "600B-Timelock-card-back.webp";
 
   /* The Stack Builder's own store, written in its own shape ({ name: [ids] }).
    * A pulled card has somewhere to go the moment it lands. */
-  const DECK_STORE = "600b:decks";
+  const DECK_STORE = K.DECKS || "600b:decks";
   const DRAFT_NAME = "Booster pulls";
 
   /* ------------------------------------------------------------ the budget
@@ -51,13 +54,13 @@
    * the ceiling as a silent loss. The log is a ring buffer; if the record is
    * still over budget the OLDEST packs are dropped until it fits, because the
    * cursor, the counters and the collection are what a player would actually
-   * miss. DECK_* mirror the same four constants in deck.html, which owns the
-   * other side of this key. */
+   * miss. DECK_* now come from site/storage-keys.js, shared with deck.html which
+   * owns the other side of this key. */
   const HISTORY_MAX = 60; // packs kept in the log; the counters keep counting
   const SHOP_BUDGET = 96 * 1024;
-  const DECK_BUDGET = 160 * 1024;
-  const MAX_DRAFT = 4600; // one whole box, so "send everything" never truncates
-  const MAX_STACKS = 32;
+  const DECK_BUDGET = K.DECKS_BUDGET || 160 * 1024;
+  const MAX_DRAFT = K.MAX_CARDS || 4600; // one whole box, so "send everything" never truncates
+  const MAX_STACKS = K.MAX_STACKS || 32;
   const kb = (n) => `${Math.max(1, Math.round(n / 1024))} KB`;
 
   /* ------------------------------------------------------ the napplet seam

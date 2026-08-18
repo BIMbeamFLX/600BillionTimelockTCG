@@ -328,14 +328,18 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 <script src="blob-map.js"></script>
 <script src="faces.js"></script>
 <script src="precons.js"></script>
+<script src="storage-keys.js"></script>
 <script>
 (() => {
   "use strict";
   const CARDS = globalThis.E1_CARDS || [];
   const byId = Object.fromEntries(CARDS.map((c) => [c.id, c]));
-  const STORE = "600b:decks";
-  const PROBE = "600b:probe";
-  const MIN_STACK = 40;
+  /* The shared storage contract (site/storage-keys.js). Prefer it; fall back to
+   * this page's own literals so a missing include degrades to today's values. */
+  const K = globalThis.E1Keys || {};
+  const STORE = K.DECKS || "600b:decks";
+  const PROBE = K.PROBE || "600b:probe";
+  const MIN_STACK = K.MIN_STACK || 40;
 
   /* ------------------------------------------------------- the way in
    * "600b:decks" is this page's own library and nobody else's business. Two
@@ -351,7 +355,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * Both land the cards in the pane UNSAVED. Saving stays this page's job,
    * because this is the page that knows the 40-card floor, the name and the
    * storage budget — which is exactly what reaching into the key got wrong. */
-  const HANDOFF = "600b:deck-handoff";
+  const HANDOFF = K.DECK_HANDOFF || "600b:deck-handoff";
 
   /* ------------------------------------------------------------ the budget
    * Inside a shell the WHOLE napplet lives in 512 KB (docs/napplet-spec.md,
@@ -360,12 +364,12 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * the pull log and the match history room inside the same budget. They are
    * checked on the serialised record, not guessed from the card count, and a
    * refusal is a sentence the player can act on: never a silent truncation of
-   * somebody's saved Stacks. Kept in step with the same four constants in
-   * shop.js, which writes this key too. */
-  const LIB_BUDGET = 160 * 1024;
-  const MAX_STACKS = 32;
-  const MAX_CARDS = 4600; // one whole booster box, so the shop's handoff never truncates
-  const MAX_NAME = 60;
+   * somebody's saved Stacks. These four caps now live in
+   * site/storage-keys.js, shared with shop.js which writes this key too. */
+  const LIB_BUDGET = K.DECKS_BUDGET || 160 * 1024;
+  const MAX_STACKS = K.MAX_STACKS || 32;
+  const MAX_CARDS = K.MAX_CARDS || 4600; // one whole booster box, so the shop's handoff never truncates
+  const MAX_NAME = 60; // page-local: the longest Stack name, not part of the shared contract
   const kb = (n) => `${Math.max(1, Math.round(n / 1024))} KB`;
 
   const NO_STORE =
