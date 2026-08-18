@@ -1217,6 +1217,66 @@ test("malformed, bad-version, and unknown messages share the address budget", as
   assert.equal((await client.type("ERROR")).code, "RATE_LIMITED");
 });
 
+test("a same-seq race never double-commits and never desyncs the seats", async (t) => {
+  /* Both seats fire an action at the SAME seq, repeatedly. Node processes the
+   * two messages in series, so the second must see the first's seq++ and be
+   * rejected — the shared seq can advance by at most one per round, no round may
+   * raise a transport ERROR, and the seats may never diverge onto different
+   * games. Found while stress-testing multiplayer; a browser never races itself
+   * but two real players do, constantly. */
+  const table = await boot(t, "t29.db");
+  const { a, b } = await twoSeats(table);
+  let advanced = 0;
+  for (let round = 0; round < 40 && !a.over && !b.over; round++) {
+    const before = a.view.seq;
+    const [ra, rb] = await Promise.all([
+      a.act({ type: "PASS_PRIORITY", seat: a.seat, seq: before, at: "", payload: {} }),
+      b.act({ type: "PASS_PRIORITY", seat: b.seat, seq: before, at: "", payload: {} }),
+    ]);
+    assert.notEqual(ra.t, "ERROR", "a race is answered on the rules, not a transport ERROR");
+    assert.notEqual(rb.t, "ERROR", "a race is answered on the rules, not a transport ERROR");
+    await new Promise((r) => setTimeout(r, 6));
+    assert.ok(a.view.seq - before <= 1, `seq advanced by <=1 (no double-commit): ${before}->${a.view.seq}`);
+    assert.equal(a.view.gameId, b.view.gameId, "the seats never diverge onto different games");
+    if (a.view.seq > before) advanced++;
+  }
+  assert.ok(advanced > 0, "the race actually drove the game forward");
+});
+
+test("a spectator sees counts, not shells, and can take no action", async (t) => {
+  /* A stranger who names a matchId is downgraded to the audience, which is even
+   * more redacted than a player: both hands and both decks are bare COUNTS with
+   * no uids, no cardId sits outside a public zone, no rng seed leaks, and a
+   * spectator's action is refused. The face-down-Cold leak lived on this exact
+   * path. */
+  const table = await boot(t, "t30.db");
+  const { a } = await twoSeats(table);
+  const stranger = await table.client({ identity: "audience" });
+  stranger.send({ t: "RESUME", matchId: a.matchId, token: "deadbeefdeadbeefdeadbeefdeadbeef", pubkey: stranger.pubkey });
+  const st = await stranger.type("STATE");
+  assert.equal(st.seat, null, "the stranger is seatless");
+  assert.equal(st.role, "spectator");
+  const v = st.view;
+  assert.equal(v.forSeat, null);
+  assert.equal(v.redacted, true);
+  const PUBLIC = ["network", "archive", "cold", "stake", "queue"];
+  for (const seat of [0, 1]) {
+    assert.equal(Array.isArray(v.zones[`${seat}:wallet`]), false, "a hand is a count to the audience");
+    assert.equal(typeof v.zones[`${seat}:wallet`].n, "number");
+    assert.equal(Array.isArray(v.zones[`${seat}:stack`]), false, "a deck is a count to the audience");
+  }
+  for (const uid of Object.keys(v.objects)) {
+    const o = v.objects[uid];
+    if (!o || o.cardId === undefined) continue;
+    const kind = (o.zone || "").split(":")[1];
+    assert.ok(PUBLIC.includes(kind), `a spectator cardId is only ever in a public zone (${kind})`);
+    if (kind === "cold") assert.equal(o.facedown, false, "a face-down cold card stays a shell to the audience");
+  }
+  assert.ok(!/"s"\s*:/.test(JSON.stringify(v.rng)), "no rng seed reaches a spectator");
+  const acted = await stranger.act({ type: "PASS_PRIORITY", seat: 0, seq: v.seq, at: "", payload: {} });
+  assert.ok(acted.t === "REJECT" || acted.t === "ERROR", "a spectator cannot act");
+});
+
 test("with a trusted proxy, each forwarded client keeps its own pre-auth bucket", async (t) => {
   /* THE LAUNCH-SPIKE BUG: behind the prescribed reverse proxy every player's
    * TCP peer is loopback, so the pre-auth AUTH bucket was shared and a burst of
