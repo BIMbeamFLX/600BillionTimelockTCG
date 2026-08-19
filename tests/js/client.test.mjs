@@ -1203,3 +1203,80 @@ test("the Network's two rails are drawn, and cards stay direct children", () => 
   assert.equal(plant.dataset.uid, game.state.zones["0:network"][0], "and it is the card the engine put there");
   assert.ok(game.state.zones["0:network"].length >= 1);
 });
+
+/* ------------------------------------------------------- the napplet hand-off
+ *
+ * Matchmaking and the table are two PAGES now, so a dealt seat has to survive a
+ * navigation rather than a screen swap. Nothing new carries it: net.js already
+ * writes the session to sessionStorage on the STATE that seats you, and
+ * sessionStorage is exactly what a same-tab navigation keeps. These two tests
+ * pin that hand-off end to end, because it is the only thing holding the split
+ * together — if it breaks, a found match drops the player at an empty table.
+ */
+const LOBBY_ENV = {
+  location: { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/matchmaking.html", search: "" },
+};
+const TABLE_ENV = {
+  location: { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/play.html", search: "" },
+};
+const SEATING_STATE = {
+  t: "STATE", v: 1, matchId: "m_0123456789ab", seat: 1, token: "b".repeat(32),
+  code: "K7M2QF", status: "playing", view: { seq: 0 }, players: [{ seat: 0, online: true }, { seat: 1, online: true }],
+};
+
+test("a seat dealt in the lobby survives the navigation to the table", () => {
+  /* ONE TAB, TWO PAGES. The same localStorage and the same sessionStorage
+   * travel across a same-tab navigation, which is what these shared maps are. */
+  const store = new Map([["600b:pubkey", NIP07_PUBKEY]]);
+  const session = new Map();
+
+  // ---- matchmaking.html: ask for an opponent, and the referee seats us.
+  const lobby = loadNet({ ...LOBBY_ENV, store, session });
+  lobby.net.start({});
+  assert.deepEqual(lobby.opened, [], "a cold lobby opens no socket until it is asked to");
+
+  lobby.net.queue({ name: "felix", affinity: "Power", pubkey: NIP07_PUBKEY, stake: 0 });
+  assert.deepEqual(lobby.opened, ["ws://bitbeam:8777/ws"], "asking for a match dials the referee");
+  lobby.sockets[0].onmessage({ data: JSON.stringify(SEATING_STATE) });
+
+  assert.equal(lobby.net.session.seat, 1, "the lobby holds the seat the referee dealt");
+  assert.ok(session.has("600b:match"), "and the seat was persisted where a navigation can find it");
+  assert.equal(JSON.parse(session.get("600b:match")).matchId, "m_0123456789ab");
+
+  // ---- play.html: the same tab, a new document. The seat is simply there.
+  const table = loadNet({ ...TABLE_ENV, store, session });
+  const started = table.net.start({});
+  assert.equal(started.resuming, true, "the table resumes the match the lobby handed it");
+  assert.equal(started.seat, 1, "and at the same seat");
+  assert.deepEqual(table.opened, ["ws://bitbeam:8777/ws"], "it reconnects to the table it was seated at");
+});
+
+test("the table claims the handed-off seat with the signed identity", async () => {
+  const store = new Map([["600b:pubkey", NIP07_PUBKEY]]);
+  const session = new Map([["600b:match", JSON.stringify({
+    matchId: "m_0123456789ab", seat: 1, token: null, table: "ws://bitbeam:8777/ws", code: "K7M2QF",
+  })]]);
+  const nostr = {
+    getPublicKey: async () => NIP07_PUBKEY,
+    signEvent: async (event) => ({ ...event, pubkey: NIP07_PUBKEY, id: "e".repeat(64), sig: "f".repeat(128) }),
+  };
+
+  const table = loadNet({ ...TABLE_ENV, store, session, nostr });
+  table.net.start({});
+  const socket = table.sockets[0];
+  socket.readyState = 1;
+  socket.onopen();
+  assert.deepEqual(socket.sent, [], "nothing is claimed before the identity is proven");
+
+  socket.onmessage({ data: JSON.stringify({
+    t: "AUTH", v: 1, challenge: "c".repeat(64), relay: "ws://bitbeam:8777/ws", kind: 22242,
+  }) });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  socket.onmessage({ data: JSON.stringify({ t: "AUTH_OK", v: 1, pubkey: NIP07_PUBKEY }) });
+
+  const resume = socket.sent.at(-1);
+  assert.equal(resume.t, "RESUME", "the table takes its seat back by resuming");
+  assert.equal(resume.matchId, "m_0123456789ab");
+  assert.equal(resume.pubkey, NIP07_PUBKEY, "the signed identity IS the claim");
+  assert.equal(resume.token, undefined, "no token had to cross the page boundary");
+});
