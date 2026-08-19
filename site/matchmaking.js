@@ -35,6 +35,7 @@
   const session = { seat: null, role: "hotseat", full: null };
   const remote = { invite: null, unsubscribe: null };
 
+  const KEYS = globalThis.E1Keys || { DECKS: "600b:decks" };
   const STAKE_KEY = "600b:stake"; // the wager last chosen, so it is not retyped every match
 
   // ------------------------------------------------------------ DOM helpers
@@ -115,6 +116,73 @@
     netNotice(`Your seat is ready. Open the table: ${url}`, "good");
   }
 
+  // ---- which Stack you play ----------------------------------------------
+
+  /* The Stack Builder's library, read through the napplet seam when there is
+   * one and localStorage otherwise — the same two doors deck.html writes it
+   * through. Shape is { name: ["E1-001", …] }. */
+  let stackLibrary = {};
+  const MIN_STACK = (globalThis.E1Keys && globalThis.E1Keys.MIN_STACK) || 40;
+
+  function loadStackLibrary(onReady) {
+    const N = globalThis.E1Napplet;
+    const done = (value) => {
+      stackLibrary = value && typeof value === "object" ? value : {};
+      if (typeof onReady === "function") onReady();
+    };
+    if (N && N.storage) {
+      N.storage.json(KEYS.DECKS, {}).then(done, () => done({}));
+      return;
+    }
+    try { done(JSON.parse(localStorage.getItem(KEYS.DECKS))); } catch (error) { done({}); }
+  }
+
+  const deckMode = () => {
+    const picked = document.querySelector('input[name="deckmode"]:checked');
+    return picked ? picked.value : "ready";
+  };
+
+  /* The Stack about to be sent, or undefined for "the referee deals". Undefined
+   * is the old behaviour exactly, so Ready mode sends nothing new. */
+  function chosenDeck() {
+    if (deckMode() !== "custom") return undefined;
+    const name = $("stackChoice").value;
+    const cards = stackLibrary[name];
+    return Array.isArray(cards) && cards.length ? cards : undefined;
+  }
+
+  function renderStackPick() {
+    const custom = deckMode() === "custom";
+    const pick = $("stackPick");
+    const note = $("stackNote");
+    const choice = $("stackChoice");
+    if (!pick || !note || !choice) return;
+    pick.hidden = !custom;
+    if (!custom) { renderLobbyButtons(); return; }
+
+    const names = Object.keys(stackLibrary);
+    if (choice.length !== names.length) {
+      choice.innerHTML = "";
+      for (const name of names) {
+        const option = el("option", null, `${name} · ${stackLibrary[name].length} cards`);
+        option.value = name;
+        choice.append(option);
+      }
+    }
+    if (!names.length) {
+      note.textContent = "No saved Stacks yet — build one in the Stack Builder, then it appears here.";
+      note.className = "stacknote bad";
+    } else {
+      const cards = stackLibrary[choice.value] || [];
+      const short = cards.length < MIN_STACK;
+      note.textContent = short
+        ? `That Stack holds ${cards.length} cards; a legal Stack is at least ${MIN_STACK} (§7). The table would refuse it.`
+        : `${cards.length} cards. The referee checks it against §7 before dealing.`;
+      note.className = "stacknote" + (short ? " bad" : "");
+    }
+    renderLobbyButtons();
+  }
+
   // ---- matchmaking --------------------------------------------------------
 
   const lobbyStake = () => {
@@ -132,7 +200,7 @@
     const stake = lobbyStake();
     try { localStorage.setItem(STAKE_KEY, String(stake)); } catch (error) { /* private mode */ }
     netNotice(`Looking for an opponent playing for ${satsWord(stake)}…`, "");
-    NET.queue({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake });
+    NET.queue({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake, deck: chosenDeck() });
     renderQueue();
   }
 
@@ -196,7 +264,7 @@
     if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
     const stake = lobbyStake();
     netNotice(`Opening a table for ${satsWord(stake)}…`, "");
-    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake });
+    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake, deck: chosenDeck() });
   }
 
   /* `stake` is what this player was SHOWN, echoed back as an acknowledgement.
@@ -216,6 +284,7 @@
       affinity: lobbyAffinity(),
       pubkey,
       stake: stake === undefined ? undefined : stake,
+      deck: chosenDeck(),
       table: invite ? invite.table : undefined,
     });
   }
@@ -327,7 +396,10 @@
     $("joinTable").disabled = !url || !identified || hosting;
     $("refreshTables").disabled = !url || !identified;
     $("checkInvites").disabled = !url || !identified;
-    $("findMatch").disabled = !url || !identified || hosting;
+    const needsStack = deckMode() === "custom" && !chosenDeck();
+    $("createTable").disabled = $("createTable").disabled || needsStack;
+    $("joinTable").disabled = $("joinTable").disabled || needsStack;
+    $("findMatch").disabled = !url || !identified || hosting || needsStack;
   }
 
   async function login() {
@@ -418,6 +490,7 @@
         AUTH_FAILED: "The NIP-07 login proof was rejected or expired. Reconnect and sign the fresh challenge.",
         IDENTITY_MISMATCH: "This seat belongs to a different NIP-07 identity.",
         STAKE_MISMATCH: msg.message || "That table plays for a different stake than the one you were shown.",
+        BAD_DECK: msg.message || "That Stack is not legal at this table.",
         NO_TABLE: "This page is not being served by a table. Open it from the referee (npm run table), or pass ?table=ws://host:8777/ws.",
       }[msg.code] || msg.message || msg.code;
       netNotice(text, "bad");
@@ -443,6 +516,12 @@
       const saved = Number(localStorage.getItem(STAKE_KEY));
       if (Number.isFinite(saved) && saved > 0) $("stakeSats").value = String(Math.floor(saved));
     } catch (error) { /* private mode */ }
+
+    for (const radio of document.querySelectorAll('input[name="deckmode"]')) {
+      radio.addEventListener("change", renderStackPick);
+    }
+    $("stackChoice").addEventListener("change", renderStackPick);
+    loadStackLibrary(renderStackPick);
 
     $("nostrLogin").addEventListener("click", login);
     $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); });

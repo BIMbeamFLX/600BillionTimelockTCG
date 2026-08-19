@@ -563,6 +563,7 @@
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
       stake: satsOf(opts.stake),
+      deck: deckOf(opts.deck),
       pubkey,
     };
     net.url = opts.table || tableUrl();
@@ -570,6 +571,13 @@
     else open();
     return true;
   }
+
+  /* A STACK THE PLAYER BUILT, on its way to the referee. Sent as a plain list of
+   * card ids; absent means "deal me one", which is what every table did before.
+   * Nothing is validated here beyond the shape — the referee refuses an illegal
+   * Stack, and it is the only place a hand-rolled client cannot talk past. */
+  const deckOf = (deck) =>
+    (Array.isArray(deck) && deck.length ? deck.filter((id) => typeof id === "string") : undefined);
 
   function join(opts) {
     const pubkey = toHexPubkey(opts && opts.pubkey);
@@ -589,6 +597,7 @@
        * The referee refuses the join if the table's number has moved, so a
        * shared link can never bind someone to a stake they never saw. */
       stake: satsOf(opts.stake),
+      deck: deckOf(opts.deck),
       pubkey,
     };
     net.url = opts.table || tableUrl();
@@ -616,6 +625,8 @@
       /* The referee pairs on this, so it is a filter and not a preference: a
        * friendly waits for a friendly, and 500 sats waits for 500 sats. */
       stake: satsOf(opts && opts.stake),
+      /* Paired on too: a Stack somebody built waits for another built Stack. */
+      deck: deckOf(opts && opts.deck),
       pubkey,
     };
     net.url = (opts && opts.table) || tableUrl();

@@ -108,6 +108,15 @@ a { color: var(--orange-soft); }
 .stakelabel { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
 .stakelabel input { width: 92px; padding: 6px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
 .stakenote { color: var(--muted); font-size: 11.5px; margin-top: 8px; max-width: 68ch; line-height: 1.5; }
+.deckmode { margin-top: 18px; padding: 12px 14px; background: var(--soot); border: 1px solid var(--line); }
+.moderow { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+.moderow b { color: var(--cream); font-weight: 700; }
+.moderow input { accent-color: var(--orange); }
+.stackpick { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.stackpick label { display: block; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
+.stackpick select { width: 100%; min-height: 40px; padding: 8px 10px; color: var(--cream); background: var(--black); border: 1px solid var(--line); }
+.stacknote { margin-top: 7px; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.stacknote.bad { color: var(--danger); }
 .prompt { padding: 10px 12px; margin: 12px 0 0; background: rgba(17,16,20,.84); border-left: 4px solid var(--purple-deep); font-weight: 700; }
 .prompt.good { border-left-color: var(--good); color: var(--good); }
 .prompt.bad { border-left-color: var(--danger); color: var(--danger); }
@@ -157,6 +166,22 @@ a { color: var(--orange-soft); }
       <div class="resumecard" id="resumeCard" hidden>
         <div class="zlabel">Match in progress</div>
         <div id="resumeList"></div>
+      </div>
+
+      <!-- WHOSE STACK IS PLAYED. Ready deals a random Stack of the chosen
+           affinity, which is how every online table worked before. My Stack
+           sends one you built in the Stack Builder — the referee checks it
+           against §7 and refuses an illegal one rather than quietly swapping it.
+           The two are matched separately, so a built Stack never faces a pile. -->
+      <div class="deckmode" id="deckMode">
+        <div class="zlabel">Which Stack do you play?</div>
+        <label class="moderow"><input type="radio" name="deckmode" value="ready" checked> <b>Ready</b> — the referee deals you a Stack of your affinity</label>
+        <label class="moderow"><input type="radio" name="deckmode" value="custom"> <b>My Stack</b> — play one you built</label>
+        <div class="stackpick" id="stackPick" hidden>
+          <label for="stackChoice">Your Stacks</label>
+          <select id="stackChoice"></select>
+          <p class="stacknote" id="stackNote"></p>
+        </div>
       </div>
 
       <!-- The fast path: no code to read aloud, no invite to publish. -->

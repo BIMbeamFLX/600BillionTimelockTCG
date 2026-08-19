@@ -315,6 +315,12 @@ async function createTable(opts) {
      * either knew how the match would go, which is the only moment consent to a
      * wager means anything. Settlement is wallet to wallet, afterwards. */
     ["stake", "INTEGER"],
+    /* THE STACK A SEAT BROUGHT, or NULL when the referee dealt it one. Stored
+     * because an open table waits for its second player: the host's Stack has
+     * to survive that wait, and a referee restart, or their deck would quietly
+     * become a random one at the moment the match is finally dealt. */
+    ["seat0_deck", "TEXT"],
+    ["seat1_deck", "TEXT"],
   ]) {
     if (!columns.has(name)) db.exec(`ALTER TABLE matches ADD COLUMN ${name} ${type}`);
   }
@@ -338,6 +344,8 @@ async function createTable(opts) {
       ORDER BY updated_at DESC LIMIT 10`),
     dropMatch: db.prepare("DELETE FROM matches WHERE match_id = ?"),
     playing: db.prepare("SELECT * FROM matches WHERE status IN ('open','playing')"),
+    setSeatDeck: db.prepare("UPDATE matches SET seat0_deck=? WHERE match_id=?"),
+    setSeatDeck1: db.prepare("UPDATE matches SET seat1_deck=? WHERE match_id=?"),
     seatOne: db.prepare(`UPDATE matches SET seat1_name=?, seat1_affinity=?, seat1_pubkey=?,
       seat1_token=?, config_json=?, state_json=?, status='playing', ruleset=?, catalog_digest=?,
       public_hash=?, updated_at=? WHERE match_id=?`),
@@ -387,6 +395,12 @@ async function createTable(opts) {
    * is to re-roll the seeds until the deck constructs, so the failure can never
    * reach a client. A pinned seed is tried FIRST so the rehearsed demo opening is
    * reproducible. */
+  const seatConfig = (seat, salt) => {
+    const config = { name: seat.name, affinity: seat.affinity, pubkey: seat.pubkey, salt };
+    if (seat.deck && seat.deck.length) config.deck = seat.deck.slice();
+    return config;
+  };
+
   function mintGame(seat0, seat1) {
     const attempts = [];
     /* HASHED, NOT ADJACENT. `hidden = [pin+1, pin+2]` meant that knowing the
@@ -415,10 +429,14 @@ async function createTable(opts) {
     const salts = [hex(16), hex(16)];
     let last = null;
     for (const seeds of attempts) {
+      /* A seat that brought its own Stack gets it; one that did not is dealt a
+       * random Stack of its affinity, exactly as before. `deck` is already
+       * checked by cleanDeck, and createGame checks it again — the engine is the
+       * authority, and this is a client-facing surface. */
       const config = {
         seats: [
-          { name: seat0.name, affinity: seat0.affinity, pubkey: seat0.pubkey, salt: salts[0] },
-          { name: seat1.name, affinity: seat1.affinity, pubkey: seat1.pubkey, salt: salts[1] },
+          seatConfig(seat0, salts[0]),
+          seatConfig(seat1, salts[1]),
         ],
         seeds,
         policy: { freeform: "deny" },
@@ -436,6 +454,18 @@ async function createTable(opts) {
 
   // ------------------------------------------------------------- record shape
 
+  /* A stored Stack that will not parse is treated as "no Stack": the seat is
+   * dealt a random one rather than the match refusing to open. */
+  const readDeck = (raw) => {
+    if (!raw) return null;
+    try {
+      const list = JSON.parse(raw);
+      return Array.isArray(list) && list.length ? list : null;
+    } catch (err) {
+      return null;
+    }
+  };
+
   function newRecord(row) {
     return {
       matchId: row.match_id,
@@ -444,6 +474,9 @@ async function createTable(opts) {
       createdAt: row.created_at,
       stake: Number.isInteger(row.stake) ? row.stake : 0,
       config: row.config_json && row.config_json !== "{}" ? JSON.parse(row.config_json) : null,
+      /* The Stacks the seats brought, if they brought any. Read back so an open
+       * table that outlives a restart still deals the host the deck they chose. */
+      decks: [readDeck(row.seat0_deck), readDeck(row.seat1_deck)],
       state: null,
       ruleset: row.ruleset,
       catalogDigest: row.catalog_digest,
@@ -1042,17 +1075,64 @@ async function createTable(opts) {
    * because the referee is recording a promise it can neither enforce nor
    * refund — it should not be recording life savings. */
   const MAX_STAKE = 1000000;
+  /* A ceiling on a submitted Stack, so a decklist cannot be used as a payload.
+   * Real Stacks are 40-60 cards; this is generous and still bounded. */
+  const MAX_DECK = 300;
   const cleanStake = (value) => {
     const sats = Number(value);
     if (!Number.isInteger(sats) || sats <= 0) return 0;
     return Math.min(sats, MAX_STAKE);
   };
 
+  /* A CLIENT-SUPPLIED STACK IS UNTRUSTED INPUT. The engine is the real
+   * authority — createGame refuses an unknown card, a Stack under §7's floor and
+   * a fourth copy of anything, and it does that on every topology — but a
+   * decklist that is going to be refused should be refused HERE, at the message
+   * boundary, with a sentence naming what is wrong. Otherwise an illegal Stack
+   * spends forty mint attempts failing identically and comes back as "the
+   * referee could not build a legal deck pair", which is both slow and a lie.
+   *
+   * Returns null for "no deck sent", which is Ready mode: the referee deals. */
+  function cleanDeck(value) {
+    if (value === undefined || value === null) return null;
+    if (!Array.isArray(value)) throw badDeck("a Stack is a list of card ids");
+    if (value.length > MAX_DECK) throw badDeck(`a Stack of ${value.length} cards is past the ${MAX_DECK} this table accepts`);
+    if (value.length < E.MIN_STACK) throw badDeck(`a Stack needs at least ${E.MIN_STACK} cards (§7) — this one has ${value.length}`);
+    const copies = {};
+    for (const raw of value) {
+      if (typeof raw !== "string") throw badDeck("a Stack is a list of card ids");
+      const card = CATALOG.byId[raw];
+      if (!card) throw badDeck(`no card called ${String(raw).slice(0, 40)} in this set`);
+      /* The same filter buildDeckList applies (D-12): the Stake module is off at
+       * this table, and a card the ruleset cannot resolve must not be dealt. */
+      if (/stake/i.test(card.type || "") || /Stake/.test(card.text || "")) {
+        throw badDeck(`${card.name} needs the Stake module, which this table does not run`);
+      }
+      copies[raw] = (copies[raw] || 0) + 1;
+      if (copies[raw] > E.MAX_COPIES && card.type !== "Basic Resource") {
+        throw badDeck(`${card.name} appears ${copies[raw]} times; ${E.MAX_COPIES} is the limit (§7)`);
+      }
+    }
+    return value.slice();
+  }
+
+  function badDeck(message) {
+    const error = new Error(message);
+    error.code = "BAD_DECK";
+    return error;
+  }
+
+  /* Ready and Custom are matched separately: a Stack somebody built should not
+   * be dealt against a random pile, and vice versa. */
+  const deckMode = (deck) => (deck ? "custom" : "ready");
+
   function handleCreate(conn, msg) {
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
     const pubkey = authenticatedPubkey(conn, msg);
     if (!pubkey) return;
+    let deck;
+    try { deck = cleanDeck(msg.deck); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
     /* An open table this connection is still hosting is closed first. Two
      * CREATEs on one socket used to leave the first as an advertised row with
      * nobody sitting at it — exactly the trap LEAVE exists to prevent, arrived
@@ -1069,6 +1149,7 @@ async function createTable(opts) {
       matchId, code, "open", at, at, "{}", "E1.0", CATALOG.digest,
       null, name, affinity, pubkey, token, cleanStake(msg.stake)
     );
+    if (deck) q.setSeatDeck.run(JSON.stringify(deck), matchId);
     const rec = remember(newRecord(q.byId.get(matchId)));
     seat(conn, rec, 0);
     send(conn.ws, stateMessage(rec, conn));
@@ -1100,6 +1181,8 @@ async function createTable(opts) {
 
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
+    let deck;
+    try { deck = cleanDeck(msg.deck); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
     // Belt and braces for the same fumble from a second tab of the same login.
     if (pubkey && rec.players[0].pubkey === pubkey) {
       return fail(conn.ws, "MATCH_FULL", "you cannot take both seats at one table");
@@ -1116,12 +1199,20 @@ async function createTable(opts) {
 
     let minted;
     try {
-      minted = mintGame(rec.players[0], { name, affinity, pubkey });
+      minted = mintGame(
+        { ...rec.players[0], deck: rec.decks[0] },
+        { name, affinity, pubkey, deck }
+      );
     } catch (err) {
-      return fail(conn.ws, "DECK_BUILD_FAILED", String(err && err.message));
+      /* A Stack somebody brought is refused as itself, not as the referee's
+       * failure to shuffle: the two have different fixes. */
+      const code = err && err.code === "BAD_DECK" ? "BAD_DECK" : "DECK_BUILD_FAILED";
+      return fail(conn.ws, code, String(err && err.message));
     }
 
     rec.players[1] = { seat: 1, name, affinity, pubkey, token, online: false };
+    rec.decks[1] = deck;
+    if (deck) q.setSeatDeck1.run(JSON.stringify(deck), rec.matchId);
     rec.config = minted.config;
     rec.state = minted.state;
     rec.status = "playing";
@@ -1179,6 +1270,7 @@ async function createTable(opts) {
       name: entry.name,
       affinity: entry.affinity,
       pubkey: entry.conn.pubkey,
+      deck: entry.deck || null,
     }));
     const minted = mintGame(seats[0], seats[1]); // throws DECK_BUILD_FAILED (D-12)
     const matchId = "m_" + hex(6);
@@ -1194,6 +1286,8 @@ async function createTable(opts) {
         matchId, code, "open", at, at, "{}", minted.state.ruleset, minted.state.catalogDigest,
         null, seats[0].name, seats[0].affinity, seats[0].pubkey, tokens[0], first.stake
       );
+      if (seats[0].deck) q.setSeatDeck.run(JSON.stringify(seats[0].deck), matchId);
+      if (seats[1].deck) q.setSeatDeck1.run(JSON.stringify(seats[1].deck), matchId);
       q.seatOne.run(
         seats[1].name, seats[1].affinity, seats[1].pubkey, tokens[1],
         JSON.stringify(minted.config), JSON.stringify(minted.state),
@@ -1226,6 +1320,10 @@ async function createTable(opts) {
       for (let j = i + 1; j < queue.length; j++) {
         if (queue[j].conn.pubkey === queue[i].conn.pubkey) continue;
         if (queue[j].stake !== queue[i].stake) continue;
+        /* A Stack somebody built and a pile the referee rolled are not the same
+         * game, so they wait in the same line but are not dealt against each
+         * other. Matched, like the wager, rather than merely announced. */
+        if (deckMode(queue[j].deck) !== deckMode(queue[i].deck)) continue;
         return [i, j];
       }
     }
@@ -1246,8 +1344,9 @@ async function createTable(opts) {
       } catch (err) {
         /* Neither player is put back in the queue: a re-roll that failed 40
          * times will fail again, and silently looping is worse than saying so. */
+        const code = err && err.code === "BAD_DECK" ? "BAD_DECK" : "DECK_BUILD_FAILED";
         for (const entry of [first, second]) {
-          fail(entry.conn.ws, "DECK_BUILD_FAILED", String(err && err.message));
+          fail(entry.conn.ws, code, String(err && err.message));
         }
       }
     }
@@ -1265,9 +1364,11 @@ async function createTable(opts) {
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
     const stake = cleanStake(msg.stake);
+    let deck;
+    try { deck = cleanDeck(msg.deck); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
     const index = queueIndex(conn);
-    if (index >= 0) Object.assign(queue[index], { name, affinity, stake });
-    else queue.push({ conn, name, affinity, stake, at: Date.now() });
+    if (index >= 0) Object.assign(queue[index], { name, affinity, stake, deck });
+    else queue.push({ conn, name, affinity, stake, deck, at: Date.now() });
     pumpQueue();
   }
 
