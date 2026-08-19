@@ -64,7 +64,9 @@ site/
   precons.js    generated preconstructed Stacks (5 Starters, 6 Classics)
   deck.html     Stack Builder
   shop.html     booster shop
-  shop.js       pack opening, demo mode with a mint-ready seam
+  wallet.html   NutFT proof wallet
+  nutft-wallet.js Cashu-TS wallet and CardBinding verifier
+  shop.js       pack opening and NutFT store integration
   shop-data.js  generated committed booster box
   faces.js      card art from Blossom by hash, with a local cache
   blob-map.js   generated card face -> SHA-256 map
@@ -77,6 +79,8 @@ site/
   arena.html    retired mockup, redirects to the live table
 server/
   table.js      the referee: authoritative engine, WebSocket, SQLite, static host
+  nutft-mint.js NutFT-aware demo mint and Cashu DLEQ signer
+  nutft-draw.js manifest-compatible booster draw
 tests/js/       the JavaScript suite — engine, client, transport, cards
 docs/
   net-protocol.md            normative wire contract for the table
@@ -193,11 +197,16 @@ published odds are a property of the box rather than a promise about a dice roll
 The box is shuffled once from a seed and committed by SHA-256 before the first
 pack; pulls come off the top.
 
-During alpha packs are free and the collection lives in the browser. The paid
-path is configuration, not a rewrite: set `MINT_URL` in `site/shop.js` and both
-modes go through the same `pullPack()`, so the button asks the LNURL mint for an
-invoice the buyer pays with their own wallet. The site never handles a payment
-credential.
+During alpha packs are free and the collection lives in the browser. The
+NutFT demo is available at `shop.html?shop=mint` when served by `npm run table`.
+It uses the census and draw vector from the 600b mint package, creates one
+P2BK-locked Cashu output per card, and asks the NutFT-aware demo mint to sign
+them with DLEQ. The browser wallet verifies the CardBinding, catalog, Blossom
+face hash, proof state, amount and unit before showing cards at `wallet.html`.
+
+The demo mint intentionally exposes no generic swap or melt endpoint. It keeps
+the booster census in memory and does not move real money; persistent state,
+Lightning payment and the atomic NutFT trade path belong before production use.
 
 ## Node Runner frame proof sheet
 

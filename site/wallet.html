@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<title>600B Timelock TCG — NutFT Wallet</title>
+<link rel="stylesheet" href="600b.css">
+<style>
+[hidden] { display: none !important; }
+.wallet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.wallet-card { border: 1px solid var(--line); background: var(--soot); }
+.wallet-card img { width: 100%; aspect-ratio: 5 / 7; object-fit: cover; display: block; }
+.wallet-card__body { padding: 10px; }
+.wallet-card__body p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.wallet-card--bad { border-color: var(--danger); }
+.wallet-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
+  <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
+  <div class="nav__links">
+    <a class="link" href="play.html">Play</a>
+    <a class="link" href="shop.html">Shop</a>
+    <a class="link" href="wallet.html" aria-current="page">Wallet</a>
+    <a class="link" href="cards.html">Cards</a>
+    <a class="link" href="deck.html">Stacks</a>
+  </div>
+</nav>
+
+<main id="main">
+  <section class="section">
+    <p class="eyebrow">Cashu · NutFT · collection wallet</p>
+    <h1>Your <span class="accent">cards</span></h1>
+    <p class="lead">Each tile is one Cashu proof: amount 1, unit 600B-E1. The wallet checks the NutFT secret, CardBinding, DLEQ, P2BK destination, proof state, and the Blossom face hash before displaying it.</p>
+    <div class="wallet-meta" id="walletMeta"><span class="chip">Loading wallet…</span></div>
+    <p class="note mode-off" id="walletError" hidden></p>
+    <div class="wallet-grid" id="walletCards"></div>
+    <p class="muted" id="empty" hidden>No NutFT proofs yet. <a href="shop.html?shop=mint">Buy a demo booster</a>.</p>
+  </section>
+</main>
+
+<script src="nutft-wallet.js"></script>
+<script>
+(async function () {
+  const root = globalThis;
+  const mint = root.location.origin;
+  const meta = document.getElementById("walletMeta");
+  const grid = document.getElementById("walletCards");
+  const error = document.getElementById("walletError");
+  const empty = document.getElementById("empty");
+  const digest = async (bytes) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
+  try {
+    const { catalog, owned } = await root.NutFTWallet.snapshot(mint);
+    meta.innerHTML = `<span class="chip">${owned.length} PROOFS</span><span class="chip">UNIT ${catalog.collection_id}</span><span class="chip">CATALOG ${catalog.census_sha256.slice(0, 12)}…</span>`;
+    empty.hidden = owned.length !== 0;
+    for (const item of owned) {
+      const card = document.createElement("article");
+      card.className = `wallet-card${item.state === "SPENT" ? " wallet-card--bad" : ""}`;
+      const image = document.createElement("img");
+      image.alt = item.asset.name;
+      const body = document.createElement("div");
+      body.className = "wallet-card__body";
+      body.innerHTML = `<strong>${item.asset.name}</strong><p>${item.asset.tier} · amount 1 · ${item.state}</p><p>DLEQ ✓ · P2BK ✓ · Blossom checking…</p>`;
+      card.append(image, body);
+      grid.append(card);
+      const url = item.asset.face.urls[0];
+      const response = await fetch(url);
+      const blob = await response.arrayBuffer();
+      if (!response.ok || await digest(blob) !== item.asset.face.sha256) throw new Error(`Blossom hash mismatch for ${item.asset.asset_id}`);
+      image.src = url;
+      body.lastChild.textContent = "DLEQ ✓ · P2BK ✓ · Blossom ✓";
+    }
+  } catch (reason) {
+    error.hidden = false;
+    error.textContent = String(reason && reason.message || reason);
+  }
+})();
+</script>
+</body>
+</html>

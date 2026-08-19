@@ -9,6 +9,7 @@
     "test:js": "node --test tests/js/*.test.mjs"
   },
   "dependencies": {
+    "@cashu/cashu-ts": "^4.7.2",
     "@noble/curves": "^1.9.7",
     "@resvg/resvg-js": "^2.6.2",
     "marked": "^17.0.5",

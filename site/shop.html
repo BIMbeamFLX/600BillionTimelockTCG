@@ -270,6 +270,7 @@ main { container-type: inline-size; }
   <div class="nav__links">
     <a class="link" href="play.html">Play</a>
     <a class="link" href="shop.html" aria-current="page">Shop</a>
+    <a class="link" href="wallet.html">Wallet</a>
     <a class="link" href="cards.html">Cards</a>
     <a class="link" href="deck.html">Stacks</a>
     <a class="link" href="rules.html">Rules</a>
@@ -413,16 +414,15 @@ main { container-type: inline-size; }
   </section>
 
   <section class="section section--tight">
-    <h2>How the <span class="accent">real thing</span> will work</h2>
+    <h2>How the <span class="accent">NutFT demo</span> works</h2>
     <div class="grid grid--3">
-      <div class="panel"><h3>1 · Pay yourself</h3><p>The mint hands you a Lightning invoice. Your wallet pays it — this site never sees a key, a card number or a balance.</p></div>
-      <div class="panel"><h3>2 · The box pulls</h3><p>A settled payment claims the next card off the same committed box. Same order, same odds, no re-roll on the operator's side.</p></div>
-      <div class="panel"><h3>3 · It is yours</h3><p>The card is issued as a signed event and the art is content-addressed on Blossom — the hash is the address, so any mirror serves the same bytes.</p></div>
+      <div class="panel"><h3>1 · Request a pack</h3><p>The store asks the NutFT-aware mint for one output per card. Demo payment is deliberately out of scope.</p></div>
+      <div class="panel"><h3>2 · Verify the proofs</h3><p>The wallet verifies amount 1, the collection unit, the CardBinding inside the secret, P2BK, and the mint's DLEQ proof.</p></div>
+      <div class="panel"><h3>3 · Read the catalog</h3><p>Cards remain bearer proofs. The wallet fetches the Blossom manifest to display artwork and metadata; game rules stay outside the token.</p></div>
     </div>
-    <p class="note mode-off" style="margin-top:20px"><strong>Paid packs are not live.</strong> There is no mint
-    connected to this page, so nothing here can take money, and no purchase is implied anywhere on it.
-    Alpha packs are free, local to this browser, and drawn from the same committed box at the same odds.
-    When the mint is wired up, the button above asks for an invoice instead — everything else stays as it is.</p>
+    <p class="note mode-off" style="margin-top:20px"><strong>Demo mode is free.</strong> Open
+    <a href="shop.html?shop=mint">the NutFT store</a> from the running table server to issue Cashu proofs
+    into the browser wallet. This demo does not move real money.</p>
   </section>
 </main>
 
@@ -436,6 +436,7 @@ main { container-type: inline-size; }
 <script src="blob-map.js"></script>
 <script src="faces.js"></script>
 <script src="shop-data.js"></script>
+<script src="nutft-wallet.js"></script>
 <script src="shop.js"></script>
 </body>
 </html>
