@@ -707,10 +707,13 @@ a { color: var(--orange-soft); }
       </label>
     </div>
 
-    <!-- ---------------- lobby ----------------
-         A panel, not a page: navigating away mid-demo would lose the socket and
-         the seat. The local game above keeps working with this whole block
-         untouched — and with no server at all. -->
+    <!-- ---------------- the online door ----------------
+         MATCHMAKING IS ITS OWN NAPPLET NOW (site/matchmaking.html). What stays
+         here is only what the TABLE itself needs: an identity, because a seat is
+         resumed and a result is signed with it, and the notice line those
+         actions speak through. The queue, create/join, the invite lists and the
+         host panel all moved — keeping a second copy here is how the two would
+         drift apart. The local game above still needs none of it. -->
     <div class="online" id="online">
       <h2>Or play <span>across the table</span></h2>
       <p>One referee runs the rules and deals both seats; every play travels over a socket, and only the
@@ -724,69 +727,11 @@ a { color: var(--orange-soft); }
         <span class="chip" id="netTable"></span>
       </div>
 
-      <!-- YOUR SEAT FOUND YOU. The referee names every unfinished match this
-           npub is sitting at, so a cleared profile, a private window or a
-           different machine is a click away from the board it left. -->
-      <div class="resumecard" id="resumeCard" hidden>
-        <div class="zlabel">Match in progress</div>
-        <div id="resumeList"></div>
-      </div>
-
-      <!-- The fast path: no code to read aloud, no invite to publish. -->
-      <div class="findrow" id="findRow">
-        <button class="btn" id="findMatch">Find an opponent</button>
-        <label class="stakelabel" for="stakeSats">Play for
-          <input id="stakeSats" type="number" min="0" step="1" value="0" inputmode="numeric" autocomplete="off">
-          sats
-        </label>
-        <span class="chip" id="queueChip" hidden></span>
-        <button class="btn ghost" id="cancelFind" hidden>Stop looking</button>
-      </div>
-      <p class="stakenote" id="stakeNote">
-        A wager is matched, not merely announced — you are only ever dealt against someone who
-        asked for the same number. Both seats sign it before the first card. Nothing is escrowed:
-        at the end the loser pays the winner from their own wallet, and a refused zap cannot
-        change a signed result. Leave it at 0 for a friendly.
-      </p>
-
-      <div class="seats" style="margin-top:14px">
-        <div class="seat">
-          <label for="netName">Your name</label>
-          <input id="netName" value="Player" autocomplete="off">
-          <label for="netAffinity">Stack affinity</label>
-          <select id="netAffinity"></select>
-        </div>
-        <div class="seat">
-          <label for="joinCode">Join with a table code</label>
-          <div class="joinrow">
-            <input id="joinCode" placeholder="K7M2QF" maxlength="6" autocomplete="off" spellcheck="false">
-            <button class="btn" id="joinTable">Join</button>
-          </div>
-          <label for="challengeNpub">Challenge an npub (optional)</label>
-          <input id="challengeNpub" placeholder="npub1… — blank makes an open invite" autocomplete="off" spellcheck="false">
-        </div>
-      </div>
-
       <div class="startrow">
-        <button class="btn" id="createTable">Create table</button>
-        <button class="btn ghost" id="refreshTables">Open tables</button>
-        <button class="btn ghost" id="checkInvites">Check invites</button>
+        <a class="btn" href="matchmaking.html">Find an opponent →</a>
       </div>
 
       <div class="prompt" id="netNotice" hidden></div>
-
-      <div class="hostpanel" id="hostPanel" hidden>
-        <div class="zlabel">Table code — read it aloud</div>
-        <div class="tablecode" id="tableCode">------</div>
-        <div class="startrow" style="margin-top:10px">
-          <button class="btn ghost" id="copyCode">Copy join link</button>
-          <button class="btn ghost" id="publishInvite">Publish invite to nostr</button>
-          <span class="chip">waiting for a second seat</span>
-        </div>
-      </div>
-
-      <div id="tableList" class="netlist"></div>
-      <div id="inviteList" class="netlist"></div>
     </div>
   </section>
 

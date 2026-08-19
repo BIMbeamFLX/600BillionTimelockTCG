@@ -3288,7 +3288,6 @@
   };
 
   const ANNOUNCED_KEY = "600b:announced";
-  const STAKE_KEY = "600b:stake";
 
   /* What we ANNOUNCED, and what we announced it FOR. The wager we sign at the
    * start is the only number both players consented to before either knew how
@@ -3436,30 +3435,20 @@
       };
     }
 
-    if (msg.status === "open" && msg.downgraded) {
-      /* THE PERSON FOLLOWING THE HOST'S SHARE LINK CAME TO PLAY. They arrive
-       * with no token but with a NIP-07 identity, so the referee downgrades them to a
-       * spectator — of an empty table. Showing them the HOST panel then left
-       * both people staring at the same screen waiting for the other to join.
-       * The referee says whether the seat is still free; offer it. */
+    if (msg.status === "open") {
+      /* A TABLE WITH NOBODY DEALT AT IT IS THE LOBBY'S JOB. Waiting for a second
+       * seat, reading the code aloud and offering a share-link visitor the free
+       * seat all live in matchmaking.html now; this page only ever renders a
+       * match. Say so and point at the door rather than showing a board that has
+       * no cards on it yet. */
       $("setup").hidden = false;
       $("table").hidden = true;
-      $("hostPanel").hidden = true;
-      if (msg.code) $("joinCode").value = msg.code;
       netNotice(
-        msg.claimable
-          ? "This table is waiting for a second player — press Join to take seat 1."
-          : "This table is full. You are watching.",
-        msg.claimable ? "good" : ""
+        msg.downgraded && msg.claimable
+          ? "This table is still waiting for its second player — take the seat from the lobby."
+          : "This table has not been dealt yet. The lobby is where it opens.",
+        ""
       );
-    } else if (msg.status === "open") {
-      // The table exists on the server before any invite is published: a relay
-      // failure can never block a match starting.
-      $("setup").hidden = false;
-      $("table").hidden = true;
-      $("hostPanel").hidden = false;
-      $("tableCode").textContent = msg.code || "------";
-      netNotice(`Table open. Read the code aloud, publish the invite, or send this link: ${matchLink(msg)}`, "good");
     } else if (session.full) {
       $("setup").hidden = true;
       $("table").hidden = false;
@@ -3467,9 +3456,7 @@
     }
     renderNetChip();
     renderNetPanel();
-    renderLobbyButtons();
-    renderQueue();
-    renderResume();
+    renderIdentity();
 
     // The opening bracket, once per match, the moment it is actually dealt.
     if (msg.status === "playing") announceStart(msg);
@@ -3481,18 +3468,6 @@
       showEndgame(remote.over);
     }
   }
-
-  const matchLink = (msg) => {
-    try {
-      const url = new URL(location.href);
-      url.search = "";
-      url.searchParams.set("match", msg.matchId);
-      if (msg.code) url.searchParams.set("code", msg.code);
-      return url.toString();
-    } catch (error) {
-      return msg.matchId;
-    }
-  };
 
   const NET_HANDLERS = {
     onState: adoptState,
@@ -3542,17 +3517,6 @@
 
     onStatus() {
       renderNetChip();
-      renderQueue();
-    },
-
-    onQueued() {
-      renderQueue();
-    },
-
-    /* The referee has just told us which matches this identity is sitting at.
-     * That is the answer to "where was I?" for a browser that kept nothing. */
-    onActive() {
-      renderResume();
     },
 
     onError(msg) {
@@ -3576,78 +3540,10 @@
     },
   };
 
-  // ---- matchmaking --------------------------------------------------------
-
-  const lobbyStake = () => {
-    const sats = Math.floor(Number($("stakeSats") && $("stakeSats").value));
-    return Number.isFinite(sats) && sats > 0 ? sats : 0;
-  };
-
+  /* The lobby moved to its own napplet (site/matchmaking.js). What the table
+   * still needs from it is this one word: the endgame and the start
+   * announcement both say the wager out loud. */
   const satsWord = (sats) => (sats > 0 ? `${sats.toLocaleString("en-US")} sats` : "a friendly");
-
-  function findMatch() {
-    if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
-    const pubkey = nostr().savedPubkey();
-    if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
-    const stake = lobbyStake();
-    try { localStorage.setItem(STAKE_KEY, String(stake)); } catch (error) { /* private mode */ }
-    netNotice(`Looking for an opponent playing for ${satsWord(stake)}…`, "");
-    NET.queue({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake });
-    renderQueue();
-  }
-
-  function cancelFind() {
-    NET.unqueue();
-    netNotice("Stopped looking.", "");
-    renderQueue();
-  }
-
-  /* The queue is the one place a player is asked to wait with nothing to do, so
-   * it says where they stand and how to stop. A line you cannot see move is
-   * indistinguishable from one that is broken. */
-  function renderQueue() {
-    const chip = $("queueChip");
-    const cancel = $("cancelFind");
-    const find = $("findMatch");
-    if (!chip || !cancel || !find) return;
-    const queued = NET.queued;
-    chip.hidden = !queued;
-    cancel.hidden = !queued;
-    find.hidden = Boolean(queued);
-    if (!queued) return;
-    chip.textContent = queued.waiting > 1
-      ? `searching · ${queued.position} of ${queued.waiting} waiting`
-      : "searching · you are first in line";
-  }
-
-  /* Every unfinished match this npub holds a seat at, offered as a way back in.
-   * The credential that used to be the only route lives in one browser; this
-   * list comes from the referee and survives anything a browser can lose. */
-  function renderResume() {
-    const card = $("resumeCard");
-    const list = $("resumeList");
-    if (!card || !list) return;
-    const active = (NET.active || []).filter((m) => !NET.session || m.matchId !== NET.session.matchId);
-    card.hidden = active.length === 0;
-    list.innerHTML = "";
-    for (const match of active) {
-      const row = el("div", "resumerow");
-      const who = el("span", "resumewho");
-      const foe = match.opponent ? `vs ${match.opponent}` : "waiting for an opponent";
-      who.append(el("b", null, `seat ${match.seat}`), document.createTextNode(` · ${foe}`));
-      if (match.status === "playing") {
-        who.append(document.createTextNode(match.opponentOnline ? " · they are here" : " · they are away"));
-      }
-      row.append(who);
-      const back = el("button", "btn", "Rejoin");
-      back.addEventListener("click", () => {
-        netNotice("Taking your seat…", "");
-        NET.rejoin(match.matchId);
-      });
-      row.append(back);
-      list.append(row);
-    }
-  }
 
   // ---- the two signed brackets --------------------------------------------
 
@@ -3927,89 +3823,6 @@
     else box.hidden = true;
   }
 
-  // ---- lobby actions ------------------------------------------------------
-
-  const lobbyName = () => ($("netName").value || "Player").slice(0, 40);
-  const lobbyAffinity = () => $("netAffinity").value;
-
-  function createTable() {
-    if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
-    const pubkey = nostr().savedPubkey();
-    if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
-    const stake = lobbyStake();
-    netNotice(`Opening a table for ${satsWord(stake)}…`, "");
-    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake });
-  }
-
-  /* `stake` is what this player was SHOWN, echoed back as an acknowledgement.
-   * The referee refuses the join if the table's number has moved since, so a
-   * shared link can never seat someone in a wager they never saw. Joining by a
-   * typed code alone sends nothing, which means "whatever the table says". */
-  function joinTable(code, invite, stake) {
-    if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
-    const pubkey = nostr().savedPubkey();
-    if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
-    const value = String(code || $("joinCode").value || "").trim().toUpperCase();
-    if (!/^[A-HJ-NP-Z2-9]{6}$/.test(value)) return void netNotice("A table code is six characters, no 0/O/1/I.", "bad");
-    remote.invite = invite || null;
-    netNotice("Joining…", "");
-    NET.join({
-      code: value,
-      name: lobbyName(),
-      affinity: lobbyAffinity(),
-      pubkey,
-      stake: stake === undefined ? undefined : stake,
-      table: invite ? invite.table : undefined,
-    });
-  }
-
-  async function refreshTables() {
-    const list = $("tableList");
-    list.innerHTML = "";
-    try {
-      const rows = await NET.tables();
-      if (!rows.length) return void list.append(el("div", "netline", "No open tables."));
-      for (const row of rows) {
-        const item = el("div", "netrow");
-        /* The wager and whether anyone is still sitting there are the two facts
-         * that decide whether this row is worth clicking. A bare code told you
-         * neither, so joining was a coin flip on both. */
-        const bits = [row.code, row.name, row.affinity];
-        if (row.stake) bits.push(`${row.stake.toLocaleString("en-US")} sats`);
-        if (row.hostOnline === false) bits.push("host away");
-        item.append(el("span", null, bits.join(" · ")));
-        const button = el("button", "btn ghost", row.stake ? `Join for ${row.stake} sats` : "Join");
-        button.addEventListener("click", () => joinTable(row.code, null, row.stake || 0));
-        item.append(button);
-        list.append(item);
-      }
-    } catch (error) {
-      list.append(el("div", "netline", "Could not reach the table's /api/tables — is the referee running?"));
-    }
-  }
-
-  function checkInvites() {
-    const list = $("inviteList");
-    list.innerHTML = "";
-    if (!nostr().savedPubkey()) {
-      list.append(el("div", "netline", "Sign in with NIP-07 before checking invitations."));
-      return;
-    }
-    list.append(el("div", "netline", "Listening for invites on the relays…"));
-    if (remote.unsubscribe) remote.unsubscribe();
-    let first = true;
-    remote.unsubscribe = nostr().subscribeInvites(nostr().savedPubkey(), (invite) => {
-      if (first) { list.innerHTML = ""; first = false; }
-      const item = el("div", "netrow");
-      item.append(el("span", null,
-        `${invite.code} · ${invite.host.name || "?"} (${invite.host.affinity || "?"}) · ${nostr().shortNpub(invite.pubkey)}`));
-      const button = el("button", "btn ghost", "Join");
-      button.addEventListener("click", () => joinTable(invite.code, invite));
-      item.append(button);
-      list.append(item);
-    });
-  }
-
   // ---- the three signed moments -------------------------------------------
 
   async function signAndSend(role, unsigned) {
@@ -4028,36 +3841,21 @@
     }
   }
 
-  function publishInvite() {
-    const state = NET.lastState;
-    if (!state) return;
-    const to = String($("challengeNpub").value || "").trim();
-    if (NET.publicTableIsLocal()) {
-      netNotice("This table is only reachable at a loopback address — an invite carrying it cannot be joined from another machine. Start the referee with PUBLIC_HOST set to the Tailscale name and open this page through it.", "bad");
-      return;
-    }
-    signAndSend("invite", nostr().inviteEvent({
-      matchId: state.matchId,
-      code: state.code,
-      table: NET.publicTable(),
-      name: lobbyName(),
-      affinity: lobbyAffinity(),
-      ruleset: state.ruleset,
-      catalogDigest: state.catalogDigest,
-      to: to ? nostr().toHexPubkey(to) : null,
-    }));
-  }
-
   function publishAccept() {
     const state = NET.lastState;
     if (!state) return;
     const host = (state.players || []).find((p) => p.seat === 0);
+    /* THE NAME AND AFFINITY COME FROM THE REFEREE'S SEAT, not from two lobby
+     * inputs that now live on another page. This is the better source anyway:
+     * it is what the table actually dealt, so the accept cannot claim an
+     * affinity the match was never played with. */
+    const mine = (state.players || []).find((p) => p.seat === session.seat) || {};
     signAndSend("accept", nostr().acceptEvent({
       matchId: state.matchId,
       invite: remote.invite ? remote.invite.id : null,
       table: NET.publicTable(),
-      name: lobbyName(),
-      affinity: lobbyAffinity(),
+      name: mine.name || "Player",
+      affinity: mine.affinity || "All",
       to: host ? host.pubkey : null,
     }));
   }
@@ -4077,61 +3875,32 @@
     $("nostrWho").hidden = !pubkey;
     $("nostrLogout").hidden = !pubkey;
     if (pubkey) $("nostrWho").textContent = nostr().shortNpub(pubkey);
-    renderLobbyButtons();
-    renderNetPanel();
-  }
-
-  /* A host waiting at their own open table must not be able to join it: typing
-   * your own code into the join box used to seat one connection at BOTH seats,
-   * which killed the table and locked the real opponent out for good. The
-   * referee refuses it now; the button simply stops offering. */
-  function renderLobbyButtons() {
     const url = NET.tableUrl();
-    const identified = Boolean(nostr().savedPubkey());
     $("netTable").textContent = url ? `table ${url}` : "no table server — hotseat only";
-    const state = NET.lastState;
-    const hosting = Boolean(state && state.status === "open" && state.seat === 0);
-    $("createTable").disabled = !url || !identified || hosting;
-    $("joinTable").disabled = !url || !identified || hosting;
-    $("refreshTables").disabled = !url || !identified;
-    $("checkInvites").disabled = !url || !identified;
-    $("findMatch").disabled = !url || !identified || hosting;
+    renderNetPanel();
   }
 
   async function login() {
     try {
       await nostr().login();
       renderIdentity();
-      netNotice("Signed in with NIP-07. Online tables are now available.", "good");
+      netNotice("Signed in with NIP-07.", "good");
       if (NET.session) NET.resume();
     } catch (error) {
       netNotice(String(error.message || error), "bad");
     }
   }
 
+  /* Leaving the table means going back to where matches are found. The seat is
+   * dropped first, so the lobby opens as a lobby and not as a resume prompt for
+   * a match this player just walked away from. */
+  function toLobby() {
+    location.href = "matchmaking.html";
+  }
+
   function initNet() {
-    const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock"];
-    const select = $("netAffinity");
-    for (const name of affinities) {
-      const option = el("option", null, name === "All" ? "All affinities" : name);
-      option.value = name;
-      select.append(option);
-    }
-    // Keys builds a legal deck on roughly a third of seeds (D-12); the referee
-    // re-rolls, but a rehearsed demo should not lean on it.
-    select.value = "Power";
-
-    /* The wager a player last chose is remembered, because retyping it before
-     * every match is how a feature stops being used. */
-    try {
-      const saved = Number(localStorage.getItem(STAKE_KEY));
-      if (Number.isFinite(saved) && saved > 0) $("stakeSats").value = String(Math.floor(saved));
-    } catch (error) { /* private mode */ }
-
     $("nostrLogin").addEventListener("click", login);
     $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); });
-    $("findMatch").addEventListener("click", findMatch);
-    $("cancelFind").addEventListener("click", cancelFind);
     $("endClose").addEventListener("click", closeEndgame);
     /* Disabled only while the signer is open, and re-enabled if it was refused:
      * declining a popup by accident must not permanently cost a player their
@@ -4152,25 +3921,12 @@
       remote.endShown = null;
       $("table").hidden = true;
       $("setup").hidden = false;
-      $("hostPanel").hidden = true;
       renderNetChip();
       renderIdentity();
-      findMatch();
+      toLobby();
     });
-    $("createTable").addEventListener("click", createTable);
-    $("joinTable").addEventListener("click", () => joinTable());
-    $("refreshTables").addEventListener("click", refreshTables);
-    $("checkInvites").addEventListener("click", checkInvites);
-    $("publishInvite").addEventListener("click", publishInvite);
     $("publishAccept").addEventListener("click", publishAccept);
     $("publishResult").addEventListener("click", publishResult);
-    $("copyCode").addEventListener("click", () => {
-      const state = NET.lastState;
-      if (state) navigator.clipboard.writeText(matchLink(state)).then(
-        () => netNotice("Link copied.", "good"),
-        () => netNotice(matchLink(state), "")
-      );
-    });
     $("forceResume").addEventListener("click", () => {
       NET.resume();
       netNotice("Resynced from the referee.", "");
@@ -4184,7 +3940,6 @@
       remote.agreement = null;
       $("table").hidden = true;
       $("setup").hidden = false;
-      $("hostPanel").hidden = true;
       renderNetChip();
       renderIdentity();
     });

@@ -475,9 +475,45 @@ function latestUidNode(byId, zoneId, uid) {
   return null;
 }
 
+/* Loads matchmaking.js against the same stub DOM. `nav` records where the
+ * lobby tried to send the browser, which is the hand-off itself. */
+function loadLobby(netStub) {
+  const nodes = new Map();
+  const byId = (id) => {
+    if (!nodes.has(id)) nodes.set(id, stubElement(id));
+    return nodes.get(id);
+  };
+  const fired = {};
+  const nav = [];
+  globalThis.document = {
+    body: byId("body"),
+    readyState: "complete",
+    getElementById: byId,
+    createElement: (tag) => stubElement(tag),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener() {},
+  };
+  globalThis.window = {
+    addEventListener(type, fn) { (fired[type] = fired[type] || []).push(fn); },
+    E1Net: netStub,
+  };
+  globalThis.location = {
+    protocol: "http:", host: "bitbeam:8777", search: "",
+    href: "http://bitbeam:8777/matchmaking.html",
+    assign(url) { nav.push(url); },
+  };
+  globalThis.E1Net = netStub;
+  new Function(fs.readFileSync(path.join(HERE, "..", "..", "site", "matchmaking.js"), "utf8"))();
+  for (const fn of fired.DOMContentLoaded || []) fn();
+  return { byId, nav };
+}
+
+/* THIS BEHAVIOUR MOVED, IT DID NOT GO AWAY. The host panel and the share-link
+ * Join belong to the lobby napplet now; the assertions follow them there. */
 test("the host's share link offers a Join, not the host panel", () => {
   const stub = netStub();
-  const { byId } = loadPlay(stub);
+  const { byId } = loadLobby(stub);
 
   // The HOST's own view of an open table: the panel with the code to read out.
   stub.lastState = { ...STATE_BASE, seat: 0, role: "seat", status: "open", downgraded: false, claimable: true };
@@ -490,7 +526,7 @@ test("the host's share link offers a Join, not the host panel", () => {
    * referee downgrades them to a spectator — of an empty table. Showing them the
    * host panel left both people staring at the same screen. */
   const guest = netStub();
-  const g = loadPlay(guest);
+  const g = loadLobby(guest);
   guest.lastState = { ...STATE_BASE, seat: null, role: "spectator", status: "open", downgraded: true, downgradeReason: "no seat credential", claimable: true };
   guest.handlers.onState(guest.lastState);
   assert.equal(g.byId("hostPanel").hidden, true, "the joiner was shown the host panel");
@@ -503,6 +539,36 @@ test("the host's share link offers a Join, not the host panel", () => {
   const join = guest.calls.find((c) => c[0] === "join");
   assert.ok(join, "Join sent nothing");
   assert.equal(join[1].code, "K7M2QF");
+
+  // Neither of them was ever sent to the table: nobody has been dealt a seat.
+  assert.deepEqual(g.nav, [], "an undealt table must not open the board");
+});
+
+test("the lobby leaves for the table only once a seat is dealt", () => {
+  const stub = netStub();
+  const { nav } = loadLobby(stub);
+
+  stub.lastState = { ...STATE_BASE, seat: 1, role: "seat", status: "playing", view: { seq: 0 } };
+  stub.handlers.onState(stub.lastState);
+
+  assert.equal(nav.length, 1, "a dealt seat opens the table exactly once");
+  assert.match(nav[0], /^play\.html\?match=m_0123456789ab&code=K7M2QF$/);
+
+  // A repeated STATE must not navigate a second time.
+  stub.handlers.onState(stub.lastState);
+  assert.equal(nav.length, 1, "the hand-off fired twice");
+});
+
+test("the table sends a player back to the lobby, it does not host one", () => {
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+
+  // An open table is the lobby's business; the board must not pretend otherwise.
+  stub.lastState = { ...STATE_BASE, seat: 0, role: "seat", status: "open", downgraded: false, claimable: true };
+  stub.handlers.onState(stub.lastState);
+  assert.equal(byId("table").hidden, true, "an undealt table must not show a board");
+  assert.equal(byId("setup").hidden, false);
+  assert.match(byId("netNotice").textContent, /lobby/i, "the player was not told where the table opens");
 });
 
 test("a finished match can be published from a STATE alone — no live OVER needed", () => {
