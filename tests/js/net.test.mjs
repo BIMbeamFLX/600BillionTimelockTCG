@@ -2130,7 +2130,11 @@ test("every match a connection sits at issues its own seat credential", async (t
   t.after(() => back.close());
   back.send({ t: "RESUME", matchId: second.matchId, token: second.token });
   const resumed = await back.type("STATE");
-  assert.equal(resumed.seat, 0);
+  /* WHICHEVER SEAT THE REMATCH DEALT. Both sockets queue at once, so which one
+   * the referee reaches first — and therefore who gets seat 0 — is a genuine
+   * race and never was this test's subject. Pinning it to 0 failed about one run
+   * in eight for a reason that says nothing about credentials. */
+  assert.equal(resumed.seat, second.seat, "the credential must restore the seat it was issued for");
   assert.equal(resumed.matchId, second.matchId);
 });
 

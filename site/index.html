@@ -148,7 +148,7 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 /* One deliberate row of five on desktop — minmax(0,1fr) lets the tracks shrink
    to fit rather than overflow. It steps down to two, then one, at the narrow
    breakpoints below. */
-.doors { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.doors { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .doors > li { display: grid; }
 .door {
   display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px;
@@ -223,7 +223,7 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
   /* One column: the hand drops under the copy and takes the whole width. */
   .hero__grid { grid-template-columns: 1fr; }
   .flipcard { --fw: clamp(180px, 62vw, 300px); order: 2; margin-bottom: 40px; }
-  /* Five thin columns are cramped on a tablet — step the doors to two. */
+  /* Three columns are cramped on a tablet — step the doors to two. */
   .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
@@ -328,6 +328,7 @@ body { container-type: inline-size; container-name: page; }
   <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit" aria-current="page">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
   <div class="nav__links">
     <a class="link" href="play.html">Play</a>
+    <a class="link" href="matchmaking.html">Play online</a>
     <a class="link" href="shop.html">Shop</a>
     <a class="link" href="cards.html">Cards</a>
     <a class="link" href="deck.html">Stacks</a>
@@ -400,7 +401,7 @@ body { container-type: inline-size; container-name: page; }
 <!-- ---------------------------------------------------------- the doors -->
 <section class="section">
   <h2>Start <span class="accent">here.</span></h2>
-  <p class="lead">Five doors, in the order they are worth taking. The first one needs nothing at all —
+  <p class="lead">Six doors, in the order they are worth taking. The first one needs nothing at all —
   no account, no extension, no download. Everything below runs in this browser.</p>
 
   <!-- role="list" is not redundant: Safari drops list semantics when the
@@ -430,17 +431,19 @@ body { container-type: inline-size; container-name: page; }
         <span class="chip-num"><b>3</b><span>Step</span></span>
         <b>Build</b>
         <p>Eleven preconstructed Stacks — five mono-affinity Starters and six rebuilt Classics — or
-        build your own 40 from the full pool. Saved Stacks show up in both seat menus at the table.</p>
+        build your own 40 from the full pool, alongside the collection you have pulled. Saved Stacks
+        play at the table, hotseat and online alike.</p>
         <span class="go">Open the Stack Builder →</span>
       </a>
     </li>
     <li>
-      <a class="door" href="cards.html">
+      <a class="door" href="matchmaking.html">
         <span class="chip-num"><b>4</b><span>Step</span></span>
-        <b>Browse</b>
-        <p>All 295 Edition One cards. Search by name, ID, rules text or affinity, and read the complete
-        text with its rules notes and a protocol note that cites a real source.</p>
-        <span class="go">Open the gallery →</span>
+        <b>Play online</b>
+        <p>One referee deals both seats and runs the rules; every play travels over a socket and only
+        the signed result touches a relay. Bring a Stack you built, or let the table deal you one —
+        the two are matched separately. Sign in with nostr, play for sats or for nothing.</p>
+        <span class="go">Find an opponent →</span>
       </a>
     </li>
     <li>
@@ -452,12 +455,21 @@ body { container-type: inline-size; container-name: page; }
         <span class="go">Open a pack →</span>
       </a>
     </li>
+    <li>
+      <a class="door" href="cards.html">
+        <span class="chip-num"><b>6</b><span>Step</span></span>
+        <b>Browse</b>
+        <p>All 295 Edition One cards. Search by name, ID, rules text or affinity, and read the complete
+        text with its rules notes and a protocol note that cites a real source.</p>
+        <span class="go">Open the gallery →</span>
+      </a>
+    </li>
   </ol>
 
   <p class="alsorow">
     <span>Also</span>
     <a href="rules.html">The full rulebook</a>
-    <a href="play.html#online">Play online over nostr</a>
+    <a href="matchmaking.html">Play online over nostr</a>
     <a href="lore.html">Lore of the world</a>
     <a href="leaderboard.html">Sats leaderboard</a>
   </p>
