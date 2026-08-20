@@ -2,7 +2,7 @@
   "use strict";
 
   const STORE = "600b:nutft-wallet";
-  const CASHU_URL = "https://esm.sh/@cashu/cashu-ts@4.7.2?bundle";
+  const CASHU_URL = root.NUTFT_CASHU_URL || "https://esm.sh/@cashu/cashu-ts@4.7.2?bundle";
   let cashuPromise;
   let memory = null;
 
@@ -123,6 +123,7 @@
 
   async function snapshot(mintUrl) {
     const c = await cashu();
+    const keyset = await getKeyset(mintUrl, c);
     const catalog = await (await fetch(`${mintUrl}/nutft/catalog`)).json();
     await verifyCatalog(mintUrl, catalog, c);
     const owned = [];

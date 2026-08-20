@@ -91,3 +91,43 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   assert.equal((await fetch(`${base}/v1/swap`, { method: "POST" })).status, 404);
   assert.equal((await fetch(`${base}/nutft/booster`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pack_id: quote.pack_id, state: quote.state, outputs: [] }) })).status, 400);
 });
+
+test("the browser wallet reloads a bought booster from its own storage", async (t) => {
+  // Regression: snapshot() read `keyset` without ever binding it, so wallet.html
+  // threw ReferenceError on every load and could never show a card. The mint-side
+  // test above stayed green throughout, because it never loads the wallet module.
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
+  t.after(() => table.close());
+
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
+  };
+  globalThis.NUTFT_CASHU_URL = "@cashu/cashu-ts";
+  t.after(() => { delete globalThis.localStorage; delete globalThis.NUTFT_CASHU_URL; delete globalThis.NutFTWallet; });
+
+  require("../../site/nutft-wallet.js");
+  const wallet = globalThis.NutFTWallet;
+
+  const bought = await wallet.buyBooster(table.url);
+  assert.equal(bought.proofs.length, 7);
+  assert.ok(store.get("600b:nutft-wallet"), "the booster is persisted to browser storage");
+
+  // The reload path: exactly what wallet.html:56 calls on every page load.
+  const { catalog, owned } = await wallet.snapshot(table.url);
+  assert.equal(owned.length, 7, "every bought card comes back on reload");
+  assert.equal(catalog.collection_id, "600B-E1");
+  for (const card of owned) {
+    assert.equal(card.state, "UNSPENT");
+    assert.equal(card.proof.amount.toString(), "1");
+    assert.equal(card.asset.asset_binding, card.tag[4], "CardBinding survives the round trip");
+    assert.ok(card.asset.face && card.asset.face.sha256, "the Blossom face hash is present");
+  }
+  assert.deepEqual(
+    owned.map((card) => card.tag[2]).sort(),
+    bought.cards.map((card) => card.asset_id).sort(),
+    "reload returns the same seven assets the mint issued",
+  );
+});
