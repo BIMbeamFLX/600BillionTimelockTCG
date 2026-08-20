@@ -42,6 +42,14 @@ def test_rulebook_chapter_search_includes_the_chapter_copy() -> None:
     assert "link.dataset.terms.includes(needle)" in rulebook
 
 
+def test_rulebook_article_does_not_repeat_the_hero_title() -> None:
+    """The generated article starts at the rule copy; the hero already owns the page heading."""
+    rulebook = (REPO_ROOT / "site" / "rules.html").read_text(encoding="utf-8")
+
+    assert "<article><h1>600B Timelock TCG</h1>" not in rulebook
+    assert rulebook.count("<h1>") == 1
+
+
 def test_stack_builder_persists_nutft_markers_through_the_storage_adapter() -> None:
     """Shell and website storage must keep a Stack and its ownership marker together."""
     builder = (REPO_ROOT / "site" / "deck.html").read_text(encoding="utf-8")
