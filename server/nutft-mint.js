@@ -279,7 +279,14 @@ function createNutftMint(options = {}) {
      already names the canonical host, so there is one place to change hosts. */
   const publicBase = (options.publicBase || process.env.NUTFT_PUBLIC_BASE || "" ||
     (process.env.PUBLIC_URL || "").replace(/^ws/, "http").replace(/\/ws$/, "")).replace(/\/$/, "");
-  const payMetadata = lnurl.metadataFor("600B Timelock TCG — one booster, 7 cards");
+  /* DERIVED, not typed. This string is what a wallet SHOWS the buyer when it
+     scans the QR -- it is the description of the goods inside the payment
+     request, and LUD-06 commits its hash into the invoice. It said "7 cards"
+     while the census had been printing 15 for some time, so every LNURL payer
+     was shown a smaller pack than the one they were buying. Reading the number
+     from the census is the only version of this that cannot drift again. */
+  const payMetadata = lnurl.metadataFor(
+    `600B Timelock TCG — one booster, ${census.mint.cards_per_pack} cards`);
 
   const beaconLive = String(options.beaconSource ?? process.env.NUTFT_BEACON_SOURCE ?? "") === "lnd";
   /* The beacon reads the chain; the funding source takes the money. They are
