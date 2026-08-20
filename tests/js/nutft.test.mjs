@@ -1544,3 +1544,45 @@ test("sending a card never quietly finishes a different transfer", async (t) => 
   assert.equal((await (await browserWallet(storage, fetchImpl)).outgoing()).length, 1,
     "and it is written down like any other outgoing transfer");
 });
+
+test("a second tab cannot overwrite the pending the first one is waiting on", async (t) => {
+  // read() returned a process-local cache and never looked at storage again, so
+  // a wallet opened before another tab created a pending could not see it. The
+  // send guard passed, and the trade's write() then replaced the booster pending
+  // with its own. For a PAID booster that destroys the outputs: the sats are
+  // gone and there is nothing left to claim with. Two open tabs is the normal
+  // case here -- the site moves players between shop.html and wallet.html.
+  const catalogUri = "http://127.0.0.1/nutft/catalog";
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });
+  t.after(() => table.close());
+  const fetchImpl = (url, options) => fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
+
+  // One storage, two wallet instances: that IS two tabs.
+  const storage = new Map();
+  await (await browserWallet(storage, fetchImpl)).buyBooster(table.url);
+  const recipientPubkey = await (await browserWallet(new Map(), fetchImpl)).destination();
+
+  const tabB = await browserWallet(storage, fetchImpl);
+  const owned = (await tabB.snapshot(table.url)).owned;      // tabB caches state here
+
+  // Tab A leaves a pending behind, the way a dropped response does.
+  const tabA = await browserWallet(storage, fetchImpl);
+  let drop = true;
+  const flaky = async (url, options) => {
+    if (drop && String(url).endsWith("/nutft/trade")) { drop = false; throw new Error("simulated lost response"); }
+    return fetchImpl(url, options);
+  };
+  const tabAFlaky = await browserWallet(storage, flaky);
+  await assert.rejects(() => tabAFlaky.tradeProof(table.url, owned[0].proof.secret, recipientPubkey), /lost response/);
+  const parked = JSON.parse(storage.get("600b:nutft-wallet")).pending;
+  assert.ok(parked, "tab A parked a pending in shared storage");
+
+  // Tab B, which cached its state BEFORE that, must still see it.
+  await assert.rejects(
+    () => tabB.tradeProof(table.url, owned[1].proof.secret, recipientPubkey),
+    /finish the transfer already in progress/i,
+    "the other tab's pending is visible, so the send is refused instead of overwriting it",
+  );
+  assert.deepEqual(JSON.parse(storage.get("600b:nutft-wallet")).pending, parked,
+    "and the parked pending is untouched");
+});

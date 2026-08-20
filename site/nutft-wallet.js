@@ -20,9 +20,27 @@
   const binding = async (tag) => digest(`Cashu_NutFT_v1${canonical(reference(tag))}`);
   const validState = (state) => state && typeof state === "object" && typeof state.privateKey === "string" && typeof state.pubkey === "string" && Array.isArray(state.tokens) && state.tokens.every((token) => typeof token === "string") && (state.pending == null || typeof state.pending === "object");
 
+  /* ALWAYS re-read storage. The cache used to be returned outright, so this
+   * function could not see a write made by another TAB — and every decision
+   * about `pending` is made from what it returns.
+   *
+   * The loss that made this urgent: the shop opens a booster pending in one
+   * tab; the wallet, opened earlier, still holds a cached state with no pending;
+   * a send there passes the "is a transfer already running" guard, and its
+   * write() then overwrites the booster pending with the trade's. For a PAID
+   * booster that destroys the outputs, so the sats are gone with nothing left to
+   * claim — precisely the loss the comment in submitPending warns about, reached
+   * by a route it never considered. The site actively moves players between
+   * shop.html and wallet.html, so two open tabs is the normal case, not an edge.
+   *
+   * `memory` stays as the parse target and as the fallback for a shell with no
+   * storage at all, where it is the only place a wallet can live. Re-parsing a
+   * few kilobytes per call is not a cost worth a correctness hole. */
   async function read() {
-    if (memory) return memory;
-    const saved = root.localStorage.getItem(STORE);
+    let saved = null;
+    try { saved = root.localStorage.getItem(STORE); }
+    catch { return memory || (memory = { privateKey: "", pubkey: "", tokens: [], outgoing: [] }); }
+    if (saved === null && memory) return memory;
     if (!saved) return (memory = { privateKey: "", pubkey: "", tokens: [], outgoing: [] });
     try { memory = JSON.parse(saved); }
     catch { throw new Error("Wallet storage is corrupted. Preserve 600b:nutft-wallet before making changes."); }
