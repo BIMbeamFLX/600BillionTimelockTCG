@@ -17,11 +17,18 @@
  *   `u`, so a proof for one endpoint cannot be replayed at another.
  *   `method`, so a GET proof cannot be replayed as a POST.
  *
- * And because a header is capturable inside its window, event ids are
- * remembered for as long as that window lasts: one proof, one request. The set
- * is pruned by time and hard-capped, so a flood cannot grow it without bound —
- * and when it is full the answer is to refuse, not to forget. Forgetting under
- * pressure is exactly when replay becomes possible.
+ * REPLAY IS NOT CHECKED HERE, ON PURPOSE. A header is capturable inside its
+ * window, so one proof must mean one request — but the check has to happen
+ * AFTER the caller has decided the key is authorised, never before. The first
+ * version had verify() consume a replay slot itself, and that was a hole: a
+ * signature costs an attacker nothing (anyone can generate a key and sign), so
+ * a stranger could burn every slot in the store and, because a full store
+ * refuses, lock out every listed buyer. Fail-closed had become the weapon.
+ *
+ * So the shape is: verify() proves the signature and the binding; the caller
+ * checks its own list; and only a caller that has decided "yes, this key may
+ * act" calls seen.admit(). Strangers then cost nothing but a signature check.
+ * See requireMayBuy() in server/nutft-mint.js for the ordering.
  *
  * Spec: https://github.com/nostr-protocol/nips/blob/master/98.md
  */
@@ -49,16 +56,29 @@ function singleTag(event, name) {
   return found.length === 1 ? found[0][1] : null;
 }
 
-function createSeenStore(maxAgeSeconds) {
+function createSeenStore(maxAgeSeconds = DEFAULT_MAX_AGE) {
+  const maxAge = Number(maxAgeSeconds) || DEFAULT_MAX_AGE;
   const seen = new Map();            // id -> created_at
   return {
+    /* The window this store retains for. verify() is handed this value rather
+       than its own default, so the two can never drift apart: a store that
+       forgets sooner than proofs stay valid would silently reopen replay. */
+    maxAgeSeconds: maxAge,
+
     /* Returns false when this id has been used already, or when the store is
        full. Full means refuse: dropping entries to make room is the one
-       behaviour that would reopen replay under load. */
+       behaviour that would reopen replay under load. Only call this once the
+       caller has decided the key is allowed to act — see the header note. */
     admit(id, createdAt, now) {
+      /* A FULL sweep, not "delete until the first live entry". created_at comes
+         from the client and the acceptance window tolerates a little clock
+         skew in both directions, so a single future-dated proof inserted early
+         would sit at the head of insertion order looking permanently fresh and
+         strand every expired entry behind it. The store is capped at MAX_SEEN,
+         so the scan is bounded — and it is trivial next to the signature check
+         that already happened before we got here. */
       for (const [key, at] of seen) {
-        if (now - at > maxAgeSeconds) seen.delete(key);
-        else break;                  // insertion order is roughly time order
+        if (now - at > maxAge) seen.delete(key);
       }
       if (seen.has(id)) return false;
       if (seen.size >= MAX_SEEN) return false;
@@ -73,7 +93,10 @@ function createSeenStore(maxAgeSeconds) {
  * caller knows its own public host — behind a proxy the request's own Host
  * header is not trustworthy enough to gate money on, and a wrong guess here
  * would lock out every legitimate buyer. Where it is unknown the proof is
- * still bound to the path, the method and the clock. */
+ * still bound to the path, the method and the clock.
+ *
+ * On success the caller gets back the pubkey, the id and created_at, which are
+ * exactly what it needs to authorise and then to call seen.admit(). */
 function verify(header, options = {}) {
   const maxAge = Number(options.maxAgeSeconds || DEFAULT_MAX_AGE);
   const now = Math.floor((options.now || Date.now()) / 1000);
@@ -120,12 +143,13 @@ function verify(header, options = {}) {
   try { signed = schnorr.verify(event.sig, event.id, event.pubkey); } catch { signed = false; }
   if (!signed) return { ok: false, reason: "authorization signature is invalid" };
 
-  /* Last, so a replay check is never spent on an event that was never valid. */
-  if (options.seen && !options.seen.admit(event.id.toLowerCase(), event.created_at, now)) {
-    return { ok: false, reason: "authorization event has already been used" };
-  }
-
-  return { ok: true, pubkey: event.pubkey.toLowerCase(), id: event.id.toLowerCase() };
+  return {
+    ok: true,
+    pubkey: event.pubkey.toLowerCase(),
+    id: event.id.toLowerCase(),
+    createdAt: event.created_at,
+    now,
+  };
 }
 
 module.exports = { verify, createSeenStore, eventId, KIND_HTTP_AUTH, DEFAULT_MAX_AGE, MAX_SEEN };

@@ -377,11 +377,26 @@ function createNutftMint(options = {}) {
       method: proof.method,
       path: proof.path,
       host: proof.host,
-      seen: seenAuth,
+      /* The store's own window, so the two can never drift apart. */
+      maxAgeSeconds: seenAuth.maxAgeSeconds,
     });
     if (!checked.ok) throw new Error(`early access: ${checked.reason}`);
+
+    /* ORDER MATTERS, and this is the whole reason the replay check is not
+       inside verify(). A signature costs an attacker nothing — anyone can
+       generate a key and sign — so if a stranger's proof consumed a replay slot
+       before we looked at the list, ~4096 requests would fill a store that
+       refuses when full, and every listed buyer would be locked out of their
+       own early access. Fail-closed would have become the weapon.
+
+       Checking the list first means a stranger costs us one signature check and
+       nothing that persists. Only a key we have already decided may act is
+       allowed to spend a slot. */
     if (!allowlist.has(checked.pubkey)) {
       throw new Error("early access: this key is not on the list yet");
+    }
+    if (!seenAuth.admit(checked.id, checked.createdAt, checked.now)) {
+      throw new Error("early access: this authorization event has already been used");
     }
     return checked.pubkey;
   }

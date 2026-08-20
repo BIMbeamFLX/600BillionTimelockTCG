@@ -889,9 +889,25 @@ test("an allowlisted box sells only to the keys on the list", async (t) => {
   await assert.rejects(() => mint.payableQuote({ buyer: npubHex }), /sign the request/i,
     "and claiming to be a listed key buys nothing");
 
-  /* The list itself still accepts both spellings — checked by construction
-     above, since an unparsed entry would have thrown at startup. */
-  assert.ok(npubHex.length === 64 && hexKey.length === 64);
+  /* Both spellings, tested for real. An earlier version of this asserted
+     `npubHex.length === 64` and called it coverage; it was a tautology, and the
+     justification with it was wrong — a key that fails to parse is LOGGED AND
+     IGNORED, not thrown on (see the parse loop in nutft-mint.js). So npub
+     support could have broken silently. Two assertions close that:
+
+     one, the parser directly. */
+  const lnurl = require("../../server/lnurl.js");
+  assert.equal(lnurl.toPubkeyHex(npub), npubHex, "an npub resolves to its hex key");
+  assert.equal(lnurl.toPubkeyHex(hexKey.toUpperCase()), hexKey, "and hex is accepted case-insensitively");
+
+  /* Two, that the mint really put it on the list. A mint listing ONLY the npub
+     refuses to start if the list comes out empty — so construction succeeding
+     IS the proof that the npub parsed into an entry. */
+  const npubOnly = createNutftMint({
+    db: new DatabaseSync(":memory:"), catalogUri: "https://z/nutft/catalog",
+    funding: createMockFunding({}), allowVirtual: "1", sales: "allowlist", allowlist: npub,
+  });
+  assert.ok(npubOnly, "a list of one npub is a list of one key, not an empty one");
 
   // An empty list under allowlist mode would sell to nobody while looking open.
   assert.throws(
@@ -1002,13 +1018,35 @@ test("a paid booster stays claimable even if the list changes underneath it", as
   const db = new DatabaseSync(":memory:");
   t.after(() => db.close());
 
+  /* ALLOWLIST, not open. This test is named for the paid-claim decision and
+     used to run with sales:"open" — where requireMayBuy returns on its first
+     line, so the whole thing passed against a full revert of the security fix.
+     It proved nothing it claimed to prove. */
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { randomBytes } = await import("node:crypto");
+  const buyerSec = randomBytes(32);
+  const buyerPub = Buffer.from(schnorr.getPublicKey(buyerSec)).toString("hex");
+
   const funding = createMockFunding({});
   const mint = createNutftMint({
-    db, catalogUri: "https://x.example/nutft/catalog",
-    funding, allowVirtual: "1", priceMsat: 21000, sales: "open",
+    db, catalogUri: "https://x.example/nutft/catalog", publicBase: "https://x.example",
+    funding, allowVirtual: "1", priceMsat: 21000,
+    sales: "allowlist", allowlist: buyerPub,
   });
 
-  const quote = await mint.payableQuote();
+  /* Bought properly: a real signature, from a listed key, at quote time. */
+  const nip98 = require("../../server/nip98.js");
+  const authEvent = {
+    pubkey: buyerPub, created_at: Math.floor(Date.now() / 1000), kind: 27235, content: "",
+    tags: [["u", "https://x.example/nutft/quote"], ["method", "GET"]],
+  };
+  authEvent.id = nip98.eventId(authEvent);
+  authEvent.sig = Buffer.from(schnorr.sign(authEvent.id, buyerSec)).toString("hex");
+  const quote = await mint.payableQuote({ proof: {
+    header: "Nostr " + Buffer.from(JSON.stringify(authEvent)).toString("base64"),
+    method: "GET", path: "/nutft/quote", host: "x.example",
+  } });
+  assert.ok(quote.payment_request, "the gate let a listed buyer through at quote time");
   const keysRes = { writeHead() { return keysRes; }, end(b) { keysRes.parsed = JSON.parse(b); } };
   await mint.handle({ method: "GET" }, keysRes, new URL("https://x.example/v1/keys"));
   const keyset = keysRes.parsed.keysets[0];
@@ -1021,7 +1059,9 @@ test("a paid booster stays claimable even if the list changes underneath it", as
   // Paid, but never claimed yet.
   funding.settle(quote.payment_hash);
 
-  // The claim carries no credential at all, and must still succeed.
+  /* And now the point: the claim carries NO credential whatsoever. The mint is
+     still in allowlist mode, so a gate on this path would refuse — and would be
+     refusing a pack this buyer has already paid for. */
   const result = await mint.signBooster({
     idempotency_key: "late-claim", pack_id: quote.pack_id, state: quote.state,
     payment_hash: quote.payment_hash,
@@ -1080,7 +1120,10 @@ test("the shop proves a key only when the mint asks for one", async (t) => {
 
   const listed = await browserWallet(new Map(), fetch, signer);
   const bought = await listed.buyBooster(gated.url);
-  assert.equal(bought.length ?? bought.owned?.length ?? 7, 7, "a listed key gets its pack");
+  /* Asserted on the real shape. This was once `bought.length ?? bought.owned?.length ?? 7`
+     compared against 7 — a chain that reaches the literal whenever the shape is
+     unexpected, so it read as coverage while asserting 7 === 7. */
+  assert.equal(bought.cards.length, 7, "a listed key gets its seven cards");
   /* Twice, and both are load-bearing: this mint is free, so requirePaidFor
      waves the claim through and the claim is its own door. A PAID mint signs
      only the quote — the settled invoice is the receipt, and re-checking there
@@ -1113,4 +1156,103 @@ test("the shop proves a key only when the mint asks for one", async (t) => {
     /install a nostr extension/i,
     "and someone without a signer is told why, not just refused",
   );
+});
+
+test("verifying a signature costs an attacker nothing that persists", async (t) => {
+  // The first version consumed a replay slot inside verify(), before anyone had
+  // decided the key was allowed. A signature is free to produce, so a stranger
+  // could fill a store that refuses when full and lock every listed buyer out
+  // of their own early access. Fail-closed had become the weapon.
+  const nip98 = require("../../server/nip98.js");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { randomBytes } = await import("node:crypto");
+  const hex = (b) => Buffer.from(b).toString("hex");
+
+  const sec = randomBytes(32);
+  const event = {
+    pubkey: hex(schnorr.getPublicKey(sec)), created_at: Math.floor(Date.now() / 1000),
+    kind: 27235, content: "", tags: [["u", "https://m.example/nutft/quote"], ["method", "GET"]],
+  };
+  event.id = nip98.eventId(event);
+  event.sig = hex(schnorr.sign(event.id, sec));
+  const header = "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64");
+  const opts = { method: "GET", path: "/nutft/quote", host: "m.example" };
+
+  const first = nip98.verify(header, opts);
+  const second = nip98.verify(header, opts);
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true, "verify() is pure — it does not spend a replay slot");
+  assert.equal(first.id, second.id);
+  assert.ok(first.createdAt && first.now, "and it hands back what the caller needs to admit");
+});
+
+test("the replay store refuses rather than forgets, and cannot be stranded", async (t) => {
+  const { createSeenStore, MAX_SEEN } = require("../../server/nip98.js");
+  const now = 1_700_000_000;
+
+  const store = createSeenStore(60);
+  assert.equal(store.maxAgeSeconds, 60, "the store publishes its own window so verify cannot drift from it");
+
+  assert.equal(store.admit("a".repeat(64), now, now), true, "a fresh id is admitted");
+  assert.equal(store.admit("a".repeat(64), now, now), false, "the same id never twice");
+
+  // Full means refuse. Evicting to make room is the one behaviour that would
+  // reopen replay under exactly the load an attacker creates.
+  const full = createSeenStore(60);
+  for (let i = 0; i < MAX_SEEN; i += 1) full.admit(i.toString(16).padStart(64, "0"), now, now);
+  assert.equal(full.size, MAX_SEEN);
+  assert.equal(full.admit("f".repeat(64), now, now), false, "a full store refuses");
+  assert.equal(full.admit("0".repeat(64), now, now), false, "and has forgotten nothing it held");
+
+  // Time passing must actually free it.
+  assert.equal(full.admit("f".repeat(64), now + 61, now + 61), true, "once the window passes it fills again");
+
+  /* A future-dated head must not strand the entries behind it. created_at comes
+     from the client and the acceptance window tolerates skew in both
+     directions, so the prune loop cannot stop at the first live-looking entry:
+     one such proof would double how long the store stays full. */
+  const stranded = createSeenStore(60);
+  stranded.admit("1".repeat(64), now + 55, now);     // future-dated, looks fresh forever
+  for (let i = 0; i < 10; i += 1) stranded.admit(`2${i}`.padStart(64, "0"), now, now);
+  assert.equal(stranded.size, 11);
+  stranded.admit("3".repeat(64), now + 200, now + 200);
+  assert.equal(stranded.size, 1, "the sweep reached past the future-dated entry and cleared the rest");
+});
+
+test("a mint that cannot be reached keeps the booster you paid for", async (t) => {
+  // The regression this exists for: reading the mint's error was rewritten to
+  // swallow a non-JSON body, and submitPending discards the pending on any
+  // refusal it does not recognise. A 502 from a proxy — an HTML page, not JSON —
+  // therefore destroyed the outputs of a buyer who had already paid. Before the
+  // rewrite the raw .json() threw and the pending survived by accident.
+  const catalogUri = "http://127.0.0.1/nutft/catalog";
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });
+  t.after(() => table.close());
+
+  const storage = new Map();
+  let breakClaim = false;
+  const fetchImpl = async (url, options) => {
+    if (breakClaim && String(url).endsWith("/nutft/booster")) {
+      return new Response("<html><body>502 Bad Gateway</body></html>", {
+        status: 502, headers: { "content-type": "text/html" },
+      });
+    }
+    return fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
+  };
+
+  breakClaim = true;
+  await assert.rejects(
+    () => browserWallet(storage, fetchImpl).then((w) => w.buyBooster(table.url)),
+    /could not be reached cleanly/i,
+    "the buyer is told the truth: a gateway failed, not that the mint refused",
+  );
+
+  const saved = JSON.parse(storage.get("600b:nutft-wallet"));
+  assert.ok(saved.pending, "and the pending SURVIVES — those outputs are the booster");
+
+  // And it really is recoverable once the gateway is back.
+  breakClaim = false;
+  const recovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
+  assert.equal(recovered.cards.length, 7, "the same outputs claim the same pack");
+  assert.equal(JSON.parse(storage.get("600b:nutft-wallet")).pending, null, "and the pending is then cleared");
 });

@@ -216,12 +216,9 @@
 
     if (/early access/i.test(attempt.reason)) {
       let header = null;
-      try {
-        header = await nip98Header(target, "GET");
-      } catch {
-        throw new Error("early access: your nostr extension did not sign the request");
-      }
-      if (!header) throw new Error(earlyAccessAdvice(attempt.reason));
+      let declined = false;
+      try { header = await nip98Header(target, "GET"); } catch { declined = true; }
+      if (!header) throw new Error(earlyAccessAdvice(attempt.reason, declined));
       attempt = await read(await fetch(target, { headers: { Authorization: header } }));
       if (attempt.quote) return attempt.quote;
     }
@@ -243,27 +240,58 @@
 
     const first = await send(null);
     if (first.ok) return first;
-    let detail = "";
-    try { detail = (await first.json()).error || ""; } catch { /* not JSON */ }
+    const detail = await refusal(first);
     if (!/early access/i.test(detail)) return { ok: false, status: first.status, detail };
 
     let header = null;
-    try { header = await nip98Header(url, "POST"); } catch { header = null; }
+    let declined = false;
+    try { header = await nip98Header(url, "POST"); } catch { declined = true; }
     if (!header) {
-      return { ok: false, status: first.status, detail: earlyAccessAdvice(detail) };
+      return { ok: false, status: first.status, detail: earlyAccessAdvice(detail, declined) };
     }
     const second = await send(header);
     if (second.ok) return second;
-    let retried = "";
-    try { retried = (await second.json()).error || ""; } catch { /* not JSON */ }
-    return { ok: false, status: second.status, detail: retried || detail };
+    return { ok: false, status: second.status, detail: (await refusal(second)) || detail };
   }
 
-  const earlyAccessAdvice = (detail) =>
-    /sign the request/i.test(detail)
+  /* Read the mint's own refusal out of a failed response -- or THROW, if this
+     was not the mint refusing.
+   *
+   * The distinction is worth money. submitPending discards the pending on a
+   * refusal, because a refusal means those outputs will never be signed. But a
+   * 502 from a proxy, a captive-portal login page, or a truncated body is not a
+   * refusal: the mint may well have accepted, and the outputs must survive so
+   * the buyer can resubmit under the same idempotency key. Before this existed,
+   * the raw `(await response.json()).error` threw on such a body and the pending
+   * survived by accident; routing it through a catch turned that accident into
+   * a data-loss bug. Now it is deliberate. */
+  async function refusal(response) {
+    let detail = "";
+    try {
+      const body = await response.json();
+      detail = (body && body.error) || "";
+    } catch { detail = ""; }
+    if (detail) return detail;
+    const error = new Error(
+      `the mint could not be reached cleanly (HTTP ${response.status}) -- `
+      + "nothing was lost, your booster is still waiting; try again in a moment",
+    );
+    error.transport = true;
+    throw error;
+  }
+
+  /* Telling someone to install what they already have is worse than saying
+     nothing, so a declined prompt gets its own sentence. */
+  const earlyAccessAdvice = (detail, declined) => {
+    if (declined) {
+      return "early access: your nostr extension did not sign the request — the signature is "
+        + "what proves your key is on the list, so the sale cannot go ahead without it";
+    }
+    return /sign the request/i.test(detail)
       ? "early access: this sale is open to a few keys first — install a nostr extension "
         + "and sign in with a key that is on the list"
       : detail;
+  };
 
   async function buyBoosterUnlocked(mintUrl, opts = {}) {
     const c = await cashu();
