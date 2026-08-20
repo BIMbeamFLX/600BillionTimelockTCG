@@ -65,12 +65,36 @@ function createLndFunding(config) {
 
 /* Returns null when the mint has no funding source, which is the free-demo
  * case and must stay the default: an unconfigured mint charges nobody. */
+/* A node of our own. The Cashu source needs none, which is why it exists, but
+ * between a sale and the sweep those sats sit with somebody else's mint. With
+ * phoenixd that trade simply stops being one -- and paying money OUT becomes
+ * possible, which neither of the other two backends could do and which a
+ * marketplace cannot work without. */
+function createPhoenixdFunding(config) {
+  const phoenixd = require("./phoenixd.js");
+  return {
+    name: "phoenixd",
+    virtual: false,
+    custodial: false,
+    createInvoice: (args) => phoenixd.createInvoice(config, args),
+    isSettled: (paymentHash) => phoenixd.isSettled(config, paymentHash),
+    balanceSat: () => phoenixd.balanceSat(config),
+  };
+}
+
 function createFunding(options = {}) {
   const explicit = options.funding;
   if (explicit) return explicit;
 
   const backend = String(options.backend || process.env.NUTFT_FUNDING || "").toLowerCase();
   if (backend === "mock") return createMockFunding(options);
+  if (backend === "phoenixd" || (!backend && process.env.PHOENIXD_URL)) {
+    const config = require("./phoenixd.js").readConfig(options.phoenixd || {});
+    if (!config && backend === "phoenixd") {
+      throw new Error("NUTFT_FUNDING=phoenixd needs PHOENIXD_URL (e.g. http://127.0.0.1:9740)");
+    }
+    if (config) return createPhoenixdFunding(config);
+  }
   if (backend === "cashu") {
     const { createCashuFunding } = require("./funding-cashu.js");
     return createCashuFunding(options);
@@ -83,4 +107,4 @@ function createFunding(options = {}) {
   return null;
 }
 
-module.exports = { createFunding, createMockFunding, createLndFunding };
+module.exports = { createFunding, createMockFunding, createLndFunding, createPhoenixdFunding };

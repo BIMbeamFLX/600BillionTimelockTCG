@@ -1716,3 +1716,41 @@ test("a second tab cannot overwrite the pending the first one is waiting on", as
   assert.deepEqual(JSON.parse(storage.get("600b:nutft-wallet")).pending, parked,
     "and the parked pending is untouched");
 });
+
+test("the phoenixd funding source refuses to leak its own password", async (t) => {
+  // That password is a bearer credential for a funded node. Plain HTTP across a
+  // network hands it to anyone on the path, so a non-loopback host has to be a
+  // deliberate choice rather than a default nobody noticed.
+  const phoenixd = require("../../server/phoenixd.js");
+
+  assert.equal(phoenixd.readConfig({ url: "" }), null, "no URL, no backend");
+
+  assert.throws(() => phoenixd.readConfig({ url: "http://127.0.0.1:9740" }),
+    /no password/i, "a URL without a password is a misconfiguration, not a default");
+
+  assert.throws(() => phoenixd.readConfig({ url: "http://10.0.0.5:9740", password: "x" }),
+    /in clear over the network/i, "and a remote host over plain http is refused by default");
+
+  assert.ok(phoenixd.readConfig({ url: "http://127.0.0.1:9740", password: "x" }),
+    "loopback is the ordinary case and needs no flag");
+  assert.ok(phoenixd.readConfig({ url: "https://phoenix.example", password: "x" }),
+    "so is a remote host behind TLS");
+  assert.ok(phoenixd.readConfig({ url: "http://10.0.0.5:9740", password: "x", allowRemote: true }),
+    "and a private hop can be declared deliberately");
+});
+
+test("a phoenixd mint prices in whole sats or says why not", async (t) => {
+  // phoenixd invoices in sats. Rounding a fractional price would quietly charge
+  // something other than the number on the page, so it is a configuration error
+  // rather than something to paper over.
+  const phoenixd = require("../../server/phoenixd.js");
+  const config = phoenixd.readConfig({ url: "http://127.0.0.1:1", password: "x", timeoutMs: 200 });
+
+  await assert.rejects(() => phoenixd.createInvoice(config, { amountMsat: 21_500 }),
+    /whole number of sats/i, "a price that is not whole sats is refused before any connection");
+
+  /* And a node that is not there must look like a failure, never like a sale. */
+  await assert.rejects(() => phoenixd.createInvoice(config, { amountMsat: 21_000 }),
+    /phoenixd request failed|did not answer in time/i,
+    "an unreachable node is an error, not a silent success");
+});
