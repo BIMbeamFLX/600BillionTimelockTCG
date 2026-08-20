@@ -505,6 +505,42 @@ test("the host's share link offers a Join, not the host panel", () => {
   assert.equal(join[1].code, "K7M2QF");
 });
 
+test("a NutFT-marked Stack proves current wallet possession before play", async () => {
+  const saved = { Owned: Array(40).fill("E1-002") };
+  const storage = new Map([
+    ["600b:decks", JSON.stringify(saved)],
+    ["600b:nutft-decks", JSON.stringify({ Owned: true })],
+  ]);
+  globalThis.localStorage = {
+    getItem: (key) => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, String(value)),
+  };
+  globalThis.location = { origin: "http://table.test" };
+  let count = 39;
+  globalThis.NutFTWallet = { snapshot: async () => ({ owned: Array.from({ length: count }, () => ({ tag: ["1", "600B-E1", "E1-002"] })) }) };
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "custom:Owned";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(game.state, null);
+  assert.match(byId("prompt").textContent, /needs 40, wallet controls 39/);
+  count = 40;
+  byId("start").click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(game.state, "the verified Stack should start after all 40 proofs pass");
+});
+
+test("a listed table whose host is away is not joinable", async () => {
+  const stub = netStub({ tables: async () => [{ code: "ABC123", name: "Host", affinity: "Power", stake: 0, hostOnline: false }] });
+  const { byId } = loadPlay(stub);
+  byId("refreshTables").click();
+  await new Promise((resolve) => setImmediate(resolve));
+  const row = byId("tableList").children[0];
+  assert.equal(row.children[1].disabled, true);
+  assert.equal(row.children[1].textContent, "Host away");
+});
+
 test("a finished match can be published from a STATE alone — no live OVER needed", () => {
   const stub = netStub();
   const { byId, game } = loadPlay(stub);

@@ -3278,6 +3278,7 @@
     agreement: null,   // pending | confirmed | disputed, from the referee
     invite: null,      // the invite we joined from, if any (for the accept event)
     unsubscribe: null,
+    inviteTimer: null,
     catalogOk: true,
     /* Match ids we have already announced on nostr. A match is announced ONCE,
      * not once per reload — the signer popup is the player's attention, and
@@ -3661,7 +3662,7 @@
    * what a start announcement is, so no new storage role is invented for it. */
   async function announceStart(state) {
     if (!state || state.status !== "playing" || session.seat === null) return;
-    if (readAnnounced().indexOf(state.matchId) >= 0) return;
+    if (wasAnnounced(state.matchId)) return;
     if (!nostr().hasNip07()) return;
     markAnnounced(state.matchId); // before the await: one popup, even if STATE repeats
     const role = session.seat === 0 ? "invite" : "accept";
@@ -3979,6 +3980,8 @@
         if (row.hostOnline === false) bits.push("host away");
         item.append(el("span", null, bits.join(" · ")));
         const button = el("button", "btn ghost", row.stake ? `Join for ${row.stake} sats` : "Join");
+        button.disabled = row.hostOnline === false;
+        if (button.disabled) button.textContent = "Host away";
         button.addEventListener("click", () => joinTable(row.code, null, row.stake || 0));
         item.append(button);
         list.append(item);
@@ -3997,9 +4000,19 @@
     }
     list.append(el("div", "netline", "Listening for invites on the relays…"));
     if (remote.unsubscribe) remote.unsubscribe();
+    if (remote.inviteTimer) clearTimeout(remote.inviteTimer);
     let first = true;
+    const timeout = remote.inviteTimer = setTimeout(() => {
+      if (!first) return;
+      list.innerHTML = "";
+      list.append(el("div", "netline", "No invitations found. Check again to retry the relays."));
+      if (remote.unsubscribe) remote.unsubscribe();
+      remote.unsubscribe = null;
+      remote.inviteTimer = null;
+    }, 6000);
+    timeout.unref?.();
     remote.unsubscribe = nostr().subscribeInvites(nostr().savedPubkey(), (invite) => {
-      if (first) { list.innerHTML = ""; first = false; }
+      if (first) { clearTimeout(timeout); remote.inviteTimer = null; list.innerHTML = ""; first = false; }
       const item = el("div", "netrow");
       item.append(el("span", null,
         `${invite.code} · ${invite.host.name || "?"} (${invite.host.affinity || "?"}) · ${nostr().shortNpub(invite.pubkey)}`));
@@ -4021,7 +4034,7 @@
         ? `Published to ${res.accepted.length}/${res.tried} relays.`
         : `No relay accepted the ${role}. The match is unaffected — nostr is the announcement, never the gate.`,
         res.ok ? "good" : "");
-      return true;
+      return res.ok;
     } catch (error) {
       netNotice(`Signing was declined — ${role} not published. The match is unaffected.`, "");
       return false;
@@ -4208,7 +4221,38 @@
 
   // -------------------------------------------------------------- setup
 
+  const nutftDecks = () => {
+    try { return JSON.parse(localStorage.getItem("600b:nutft-decks")) || {}; }
+    catch (error) { return {}; }
+  };
+
+  function verifyNutftSetup() {
+    const marked = nutftDecks();
+    const names = ["deckA", "deckB"].map((id) => document.getElementById(id).value).filter((value) => value.startsWith("custom:")).map((value) => value.slice(7));
+    if (!names.some((name) => marked[name])) return true;
+    return (async () => {
+      try {
+        const view = await globalThis.NutFTWallet.snapshot(location.origin);
+        const available = new Map();
+        for (const item of view.owned) available.set(item.tag[2], (available.get(item.tag[2]) || 0) + 1);
+        const required = new Map();
+        for (const name of names) if (marked[name]) for (const id of stackLibrary[name] || []) required.set(id, (required.get(id) || 0) + 1);
+        for (const [id, count] of required) if ((available.get(id) || 0) < count) throw new Error(`${id}: needs ${count}, wallet controls ${available.get(id) || 0}`);
+        return true;
+      } catch (error) {
+        document.getElementById("prompt").textContent = `NutFT possession check failed: ${error.message}`;
+        return false;
+      }
+    })();
+  }
+
   function startGame() {
+    const verified = verifyNutftSetup();
+    if (verified !== true) { verified.then((ok) => { if (ok) startVerifiedGame(); }); return; }
+    startVerifiedGame();
+  }
+
+  function startVerifiedGame() {
     const seedInput = document.getElementById("seed").value.trim();
     // The engine generates no randomness of its own: every seed is an input.
     // A blank field is turned into one here, in the UI, where that is allowed.
@@ -4329,7 +4373,7 @@
         const group = document.createElement("optgroup");
         group.label = "Saved Stacks";
         for (const name of names) {
-          const option = el("option", null, `${name} (${savedStacks[name].length})`);
+          const option = el("option", null, `${name} (${savedStacks[name].length})${nutftDecks()[name] ? " · NutFT" : ""}`);
           option.value = `custom:${name}`;
           group.append(option);
         }
@@ -4364,8 +4408,10 @@
      * answers late: inside a shell the storage NAP is asynchronous, so a menu
      * assembled at boot would list the presets and silently omit every Stack
      * the player had built. */
-    loadStackLibrary(buildSeatMenus);
-    document.getElementById("start").addEventListener("click", startGame);    document.getElementById("continue").addEventListener("click", advance);
+    const start = document.getElementById("start");
+    start.disabled = true;
+    loadStackLibrary(() => { buildSeatMenus(); start.disabled = false; });
+    start.addEventListener("click", startGame);    document.getElementById("continue").addEventListener("click", advance);
 
     document.getElementById("coachNext").addEventListener("click", () => {
       coachIndex += 1;

@@ -459,7 +459,11 @@ const LADDER_LIMIT = 150;
    surface either way, so this page has one path rather than two. If the adapter
    itself did not load there is no store at all, and the board says so instead
    of pretending it saved something. */
-const store = globalThis.E1Napplet ? E1Napplet.storage : null;
+const store = globalThis.E1Napplet ? E1Napplet.storage : {
+  async json(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
+  async setJson(key, value) { localStorage.setItem(key, JSON.stringify(value)); return true; },
+  async remove(key) { localStorage.removeItem(key); },
+};
 
 let sortMode = "won";
 let results = [];

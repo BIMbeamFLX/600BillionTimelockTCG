@@ -31,6 +31,7 @@ const zlib = require("node:zlib");
 const { DatabaseSync } = require("node:sqlite");
 const { WebSocketServer } = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
+const { createNutftMint } = require("./nutft-mint.js");
 
 const REPO = path.resolve(__dirname, "..");
 const E = require(path.join(REPO, "site", "engine.js"));
@@ -195,7 +196,8 @@ CREATE TABLE IF NOT EXISTS nostr_events (
  * Boot a referee. Returns once the socket is listening.
  * @param {{port?:number, dbPath?:string, siteDir?:string, host?:string,
  *   pinSeed?:number, maxPayload?:number, controlMax?:number,
- *   publicHost?:string, trustedHosts?:string[], allowedOrigins?:string[]}} opts
+ *   publicHost?:string, trustedHosts?:string[], allowedOrigins?:string[],
+ *   nutftCatalogUri?:string}} opts
  */
 async function createTable(opts) {
   const options = opts || {};
@@ -296,11 +298,24 @@ async function createTable(opts) {
   })();
   if (publicUrl) addTrustedHost(new URL(publicUrl).host);
 
-  const startedAt = Date.now();
-
   if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
   db.exec(DDL);
+
+  const startedAt = Date.now();
+  let nutft;
+  try {
+    nutft = createNutftMint({
+      censusPath: options.nutftCensusPath,
+      collectionId: options.nutftCollectionId,
+      catalogUri: options.nutftCatalogUri,
+      beacon: options.nutftBeacon,
+      db,
+    });
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 
   /* CREATE TABLE IF NOT EXISTS does nothing to a database that predates a
    * column, and SQLite has no ADD COLUMN IF NOT EXISTS. A demo laptop carrying
@@ -1483,7 +1498,12 @@ async function createTable(opts) {
     conn.rec = null;
   }
 
-  const server = http.createServer((req, res) => serveHttp(req, res));
+  const server = http.createServer((req, res) => {
+    Promise.resolve(serveHttp(req, res)).catch((error) => {
+      if (!res.headersSent) res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "internal server error", detail: error.message }));
+    });
+  });
   const wss = new WebSocketServer({
     server,
     path: "/ws",
@@ -1648,7 +1668,7 @@ async function createTable(opts) {
     res.end(body);
   }
 
-  function serveHttp(req, res) {
+  async function serveHttp(req, res) {
     /* Every JSON answer carries this request's CORS verdict, so no call site can
      * forget it and quietly break a cross-origin lobby. */
     const reply = (code, value) => json(res, code, value, req);
@@ -1671,6 +1691,11 @@ async function createTable(opts) {
      * process and every live match with it. Rejected here, before any path is
      * built from it. */
     if (pathname.indexOf("\0") >= 0) return reply(400, { error: "bad url" });
+    if (pathname === "/favicon.ico") { res.writeHead(204).end(); return; }
+
+    if (pathname.startsWith("/v1/") || pathname.startsWith("/nutft/")) {
+      return nutft.handle(req, res, url);
+    }
 
     if (pathname === "/api/health") {
       return reply(200, {
@@ -1897,6 +1922,7 @@ if (require.main === module) {
      * or Tailscale table on the bound port. */
     publicUrl: process.env.PUBLIC_URL,
     publicScheme: process.env.PUBLIC_SCHEME,
+    nutftCatalogUri: process.env.NUTFT_CATALOG_URI,
   })
     .then((table) => {
       console.log(`[table] 600B referee on ${table.url}  (ws ${table.wsUrl})`);

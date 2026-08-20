@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<title>600B Timelock TCG — NutFT Wallet</title>
+<link rel="stylesheet" href="600b.css">
+<style>
+[hidden] { display: none !important; }
+.wallet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.wallet-card { border: 1px solid var(--line); background: var(--soot); }
+.wallet-card img { width: 100%; aspect-ratio: 5 / 7; object-fit: cover; display: block; }
+.wallet-card__body { padding: 10px; }
+.wallet-card__body p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.wallet-card--bad { border-color: var(--danger); }
+.wallet-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+.wallet-transfer { display: grid; gap: 8px; max-width: 760px; margin: 18px 0 24px; }
+.wallet-transfer textarea, .wallet-transfer input { width: 100%; box-sizing: border-box; background: var(--soot); color: var(--paper); border: 1px solid var(--line); padding: 10px; }
+.wallet-transfer__row { display: flex; gap: 8px; }
+.wallet-transfer__row > :first-child { flex: 1; }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
+  <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
+  <div class="nav__links">
+    <a class="link" href="play.html">Play</a>
+    <a class="link" href="shop.html">Shop</a>
+    <a class="link" href="wallet.html" aria-current="page">Wallet</a>
+    <a class="link" href="cards.html">Cards</a>
+    <a class="link" href="deck.html">Stacks</a>
+  </div>
+</nav>
+
+<main id="main">
+  <section class="section">
+    <p class="eyebrow">Cashu · NutFT · collection wallet</p>
+    <h1>Your <span class="accent">cards</span></h1>
+    <p class="lead">Each tile is one Cashu proof: amount 1, unit 600B-E1. The wallet checks the NutFT secret, CardBinding, DLEQ, P2BK destination, proof state, and the Blossom face hash before displaying it.</p>
+    <div class="wallet-meta" id="walletMeta"><span class="chip">Loading wallet…</span></div>
+    <p class="note mode-off" id="walletError" hidden></p>
+    <section class="wallet-transfer" aria-labelledby="transferTitle">
+      <h2 id="transferTitle">Receive or transfer</h2>
+      <label>Your P2BK destination</label>
+      <div class="wallet-transfer__row"><input id="destination" readonly><button class="btn btn--ghost" id="copyDestination" type="button">Copy</button></div>
+      <label for="importToken">Import a received Cashu token</label>
+      <textarea id="importToken" rows="3" placeholder="cashuB…"></textarea>
+      <button class="btn btn--ghost" id="importButton" type="button">Verify and import</button>
+      <label for="outgoingToken">Token to deliver after a transfer</label>
+      <textarea id="outgoingToken" rows="3" readonly placeholder="Transfer a card to create a token"></textarea>
+      <button class="btn btn--ghost" id="copyOutgoing" type="button">Copy transfer token</button>
+      <h3>Wallet backup</h3>
+      <p class="muted">The backup contains the private key and bearer tokens. Keep it secret. Restore is allowed only when this wallet has no tokens.</p>
+      <div class="wallet-transfer__row"><button class="btn btn--ghost" id="downloadBackup" type="button">Download backup</button><input id="restoreBackup" type="file" accept="application/json"></div>
+    </section>
+    <div class="wallet-grid" id="walletCards"></div>
+    <p class="muted" id="empty" hidden>No NutFT proofs yet. <a href="shop.html?shop=mint">Buy a demo booster</a>.</p>
+  </section>
+</main>
+
+<script src="nutft-wallet.js"></script>
+<script>
+(async function () {
+  const root = globalThis;
+  const mint = root.location.origin;
+  const meta = document.getElementById("walletMeta");
+  const grid = document.getElementById("walletCards");
+  const error = document.getElementById("walletError");
+  const empty = document.getElementById("empty");
+  const destination = document.getElementById("destination");
+  const importToken = document.getElementById("importToken");
+  const outgoingToken = document.getElementById("outgoingToken");
+  const digest = async (bytes) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
+  const chip = (text) => { const node = document.createElement("span"); node.className = "chip"; node.textContent = text; return node; };
+  async function verifiedFace(asset) {
+    let lastError = new Error(`No Blossom mirror for ${asset.asset_id}`);
+    for (const url of asset.face.urls || []) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const bytes = await response.arrayBuffer();
+        if (bytes.byteLength > 3 * 1024 * 1024 || (asset.face.bytes && bytes.byteLength !== asset.face.bytes) || await digest(bytes) !== asset.face.sha256) throw new Error("content hash mismatch");
+        return URL.createObjectURL(new Blob([bytes], { type: asset.face.mime || "image/webp" }));
+      } catch (reason) { lastError = reason; }
+    }
+    throw lastError;
+  }
+  try {
+    destination.value = await root.NutFTWallet.destination();
+    const { catalog, owned, spent, invalid } = await root.NutFTWallet.snapshot(mint);
+    meta.replaceChildren(chip(`${owned.length} UNSPENT`), chip("UNIT 600B-E1"));
+    if (spent.length) meta.append(chip(`${spent.length} SPENT`));
+    if (invalid.length) meta.append(chip(`${invalid.length} INVALID`));
+    if (catalog) meta.append(chip(`CATALOG ${catalog.census_sha256.slice(0, 12)}…`));
+    empty.hidden = owned.length !== 0;
+    for (const item of owned) {
+      const card = document.createElement("article");
+      card.className = "wallet-card";
+      const image = document.createElement("img");
+      image.alt = item.asset.name;
+      const body = document.createElement("div");
+      body.className = "wallet-card__body";
+      const name = document.createElement("strong"); name.textContent = item.asset.name;
+      const detail = document.createElement("p"); detail.textContent = `${item.asset.tier} · amount 1 · ${item.state}`;
+      const checks = document.createElement("p"); checks.textContent = "DLEQ ✓ · P2BK ✓ · Blossom checking…";
+      body.append(name, detail, checks);
+      const transfer = document.createElement("button"); transfer.className = "btn btn--ghost"; transfer.type = "button"; transfer.textContent = "Transfer";
+      transfer.addEventListener("click", async () => {
+        const recipient = prompt("Recipient P2BK public key");
+        if (!recipient) return;
+        transfer.disabled = true;
+        try {
+          outgoingToken.value = (await root.NutFTWallet.tradeProof(mint, item.proof.secret, recipient.trim())).token;
+          card.remove();
+          meta.firstElementChild.textContent = `${grid.querySelectorAll(".wallet-card").length} UNSPENT`;
+        }
+        catch (reason) { error.hidden = false; error.textContent = reason.message; transfer.disabled = false; }
+      });
+      body.append(transfer);
+      card.append(image, body);
+      grid.append(card);
+      try {
+        image.src = await verifiedFace(item.asset);
+        checks.textContent = "DLEQ ✓ · P2BK ✓ · Blossom ✓";
+      } catch (reason) {
+        card.classList.add("wallet-card--bad");
+        checks.textContent = `DLEQ ✓ · P2BK ✓ · Blossom failed: ${reason.message}`;
+      }
+    }
+    if (invalid.length) { error.hidden = false; error.textContent = `${invalid.length} proof(s) were isolated because validation failed.`; }
+  } catch (reason) {
+    error.hidden = false;
+    error.textContent = String(reason && reason.message || reason);
+  }
+  const copy = async (value) => { if (!value) return; if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value); };
+  document.getElementById("copyDestination").addEventListener("click", () => copy(destination.value));
+  document.getElementById("copyOutgoing").addEventListener("click", () => copy(outgoingToken.value));
+  document.getElementById("downloadBackup").addEventListener("click", async () => {
+    const blob = new Blob([await root.NutFTWallet.exportBackup()], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob); link.download = "600b-nutft-wallet-backup.json";
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  });
+  document.getElementById("restoreBackup").addEventListener("change", async (event) => {
+    const file = event.currentTarget.files[0];
+    if (!file) return;
+    try { await root.NutFTWallet.restoreBackup(await file.text()); location.reload(); }
+    catch (reason) { error.hidden = false; error.textContent = reason.message; event.currentTarget.value = ""; }
+  });
+  document.getElementById("importButton").addEventListener("click", async (event) => {
+    event.currentTarget.disabled = true;
+    try { await root.NutFTWallet.importToken(mint, importToken.value.trim()); location.reload(); }
+    catch (reason) { error.hidden = false; error.textContent = reason.message; event.currentTarget.disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>

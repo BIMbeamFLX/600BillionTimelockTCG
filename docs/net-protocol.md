@@ -1204,7 +1204,7 @@ part of the login proof — another reason to state it explicitly rather than le
 `npm run test:js` — which is `node --test tests/js/*.test.mjs`. Use the **file/glob form**; the
 directory form `node --test tests/js/` fails on Windows.
 
-**284 tests, 284 passing, 0 failing** (2026-08-15, Node v24, ~7 s).
+**314 tests, 314 passing, 0 failing** (2026-08-20, Node v24, ~17 s).
 
 | File | Tests | Covers |
 |---|---:|---|

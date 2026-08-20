@@ -85,7 +85,7 @@
 
   /* The live mint's base URL. Null until the operator has one — the shop then
    * explains itself instead of pretending to sell. */
-  const MINT_URL = null;
+  const MINT_URL = root.location && /^https?:$/.test(root.location.protocol) ? root.location.origin : null;
   const PAID_LIVE = Boolean(MINT_URL);
 
   const params = new URLSearchParams(root.location.search);
@@ -95,8 +95,10 @@
    * never a control that no-ops or dies at a wall. */
   const PULL_MODE = MODE === "mint" && PAID_LIVE && ONLINE ? "mint" : "demo";
 
-  const RANK = { promo: 3, rare: 3, uncommon: 2, common: 1 };
-  const SATS = Math.round(((BOX.priceMsat || 0) * (BOX.packSize || 0)) / 1000);
+  const RANK = { genesis: 5, vault: 4, promo: 3, rare: 3, uncommon: 2, common: 1 };
+  const NUTFT_PACK_SIZE = 7;
+  const NUTFT_TOTAL_CARDS = 146475;
+  let nutftState = { sold: 0, packs: 20925, tier_odds: {} };
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => {
@@ -190,7 +192,7 @@
   /* Everything a pack needs to be checked later: which cards, which slice of
    * the box they came off, and which of them were new. Written once, on the
    * pull, so the log can never drift from the collection. */
-  async function record(cards, from) {
+  async function record(cards, from, token) {
     const seen = {};
     const isNew = cards.map((id) => {
       const had = (state.pulls[id] || 0) + (seen[id] || 0);
@@ -199,7 +201,7 @@
     });
     for (const id of cards) state.pulls[id] = (state.pulls[id] || 0) + 1;
     state.packs = (state.packs || 0) + 1;
-    const entry = { n: state.packs, at: Date.now(), from, ids: cards.slice(), fresh: isNew };
+    const entry = { n: state.packs, at: Date.now(), from, ids: cards.slice(), fresh: isNew, token: token || null };
     state.history.unshift(entry);
     if (state.history.length > HISTORY_MAX) state.history.length = HISTORY_MAX;
     /* Awaited, not fired: the pack is not recorded until the bytes have landed
@@ -218,10 +220,10 @@
        * their credentials. Unreachable unless ONLINE — kept as a belt so a
        * future edit cannot quietly reintroduce a fetch into a sandbox. */
       if (!ONLINE) throw new Error("This shell blocks outbound requests, so no mint can be reached from here.");
-      const res = await fetch(`${MINT_URL}/pack?count=${n}`, { method: "POST" });
-      if (!res.ok) throw new Error(`the mint refused the request (${res.status})`);
-      const cards = (await res.json()).cards || [];
-      return record(cards, null);
+      if (!root.NutFTWallet) throw new Error("the NutFT wallet is not available");
+      const issued = await root.NutFTWallet.buyBooster(MINT_URL);
+      nutftState.sold += 1;
+      return record(issued.cards.map((card) => card.asset_id), null, issued.token);
     }
     const remaining = BOX.box.length - state.cursor;
     if (remaining <= 0) throw new Error("This box is empty. Reset it to open the next one.");
@@ -260,7 +262,7 @@
    * the bug being fixed. A phone gets the same page in this tab instead; back
    * returns to the shop, and the collection is in storage, not in the DOM. */
   function openGallery(cardId, sameTab) {
-    const url = `cards.html#${cardId}`;
+    const url = `cards.html?card=${encodeURIComponent(cardId)}`;
     if (sameTab) {
       root.location.href = url;
       return;
@@ -567,6 +569,7 @@
       res.problem ||
         `Sent — "${DRAFT_NAME}" now holds ${res.n} cards. Open the Stack Builder and press Load.`
     );
+    return res;
   }
 
   // ---------------------------------------------------------- collection
@@ -697,17 +700,18 @@
   // --------------------------------------------------------------- boot
 
   function renderBoxFacts() {
-    $("boxCommit").textContent = BOX.commitment || "—";
-    $("boxSeed").textContent = BOX.seed;
-    $("boxSize").textContent = BOX.box.length;
-    $("boxTotal").textContent = BOX.box.length;
-    $("packSize").textContent = BOX.packSize;
-    $("packSizeFact").textContent = BOX.packSize;
-    $("packPrice").textContent = PAID_LIVE ? `${SATS} sats` : "free";
+    const mint = PULL_MODE === "mint";
+    $("boxCommit").textContent = mint ? "census " + (nutftState.census_sha256 || "loading…") : (BOX.commitment || "—");
+    $("boxSeed").textContent = mint ? "mint beacon" : BOX.seed;
+    $("boxSize").textContent = mint ? NUTFT_TOTAL_CARDS : BOX.box.length;
+    $("boxTotal").textContent = mint ? NUTFT_TOTAL_CARDS : BOX.box.length;
+    $("packSize").textContent = mint ? NUTFT_PACK_SIZE : BOX.packSize;
+    $("packSizeFact").textContent = mint ? NUTFT_PACK_SIZE : BOX.packSize;
+    $("packPrice").textContent = PULL_MODE === "mint" ? "NutFT demo" : "free";
 
     const odds = $("odds");
     odds.innerHTML = "";
-    Object.entries(BOX.odds || {})
+    Object.entries((mint ? nutftState.tier_odds : BOX.odds) || {})
       .sort((a, b) => (RANK[b[0]] || 1) - (RANK[a[0]] || 1))
       .forEach(([rarity, percent]) => {
         const row = el("div", `odd rarity-${rarity}`);
@@ -717,15 +721,19 @@
   }
 
   function renderModeCopy() {
+    const mint = PULL_MODE === "mint";
+    $("verifyBox").hidden = mint;
+    $("copyCommit").hidden = mint;
+    if (mint) $("verifyResult").textContent = "NutFT mode verifies the signed catalog and each Blossom face in the wallet.";
     const paidState = $("paidState");
-    paidState.className = `state ${PAID_LIVE ? "state--live" : "state--off"}`;
-    paidState.textContent = PAID_LIVE ? "PAID · LIVE" : "PAID · NOT LIVE YET";
+    paidState.className = `state ${PULL_MODE === "mint" ? "state--live" : "state--off"}`;
+    paidState.textContent = PULL_MODE === "mint" ? "NUTFT · DEMO" : "NUTFT · OPEN ?SHOP=MINT";
 
     const modeBox = $("modeNote");
     modeBox.className = `note mode-${PULL_MODE}`;
     modeBox.innerHTML =
       PULL_MODE === "mint"
-        ? "<strong>Mint mode.</strong> Packs are paid in sats with your own Lightning wallet; the mint issues each card as a signed event. This page never sees your wallet or your keys."
+        ? "<strong>NutFT mint mode.</strong> This demo issues one Cashu proof per card into the browser wallet. The mint validates the disclosed output opening and CardBinding; the wallet verifies P2BK, DLEQ, proof state, and catalog data."
         : "<strong>Alpha — free demo packs.</strong> The box, the order, the odds and the fingerprint below are the real ones; only the payment is skipped. Your collection lives in this browser. When the mint goes live the same packs cost sats and the cards become yours on Nostr.";
 
     /* Two different truths, and the page must not tell the wrong one: there is
@@ -755,14 +763,17 @@
     }
 
     const button = $("openPack");
-    button.textContent = PAID_LIVE ? `Buy a pack · ${SATS} sats` : "Open a free pack";
+    button.textContent = PULL_MODE === "mint" ? "Buy a booster · demo mint" : "Open a free pack";
   }
 
   function syncControls() {
-    const left = Math.max(0, BOX.box.length - state.cursor);
-    const empty = PULL_MODE === "demo" && left <= 0;
+    const left = PULL_MODE === "mint"
+      ? Math.max(0, nutftState.packs - nutftState.sold)
+      : Math.max(0, BOX.box.length - state.cursor);
+    const empty = left <= 0;
     $("boxLeft").textContent = left;
-    $("boxFill").style.width = `${BOX.box.length ? (left / BOX.box.length) * 100 : 0}%`;
+    const total = PULL_MODE === "mint" ? nutftState.packs : BOX.box.length;
+    $("boxFill").style.width = `${total ? (left / total) * 100 : 0}%`;
     $("resetBox").hidden = !(PULL_MODE === "demo" && state.cursor > 0);
     const button = $("openPack");
     button.disabled = booting || busy || empty;
@@ -783,7 +794,7 @@
     } else if (busy) {
       button.textContent = "Opening…";
     } else {
-      button.textContent = PAID_LIVE ? `Buy a pack · ${SATS} sats` : "Open a free pack";
+      button.textContent = PULL_MODE === "mint" ? "Buy a booster · demo mint" : "Open a free pack";
     }
   }
 
@@ -794,6 +805,13 @@
   async function boot() {
     try { state = normalize(await store.json(STORE, null)); }
     catch (error) { state = fresh(); }
+    if (PULL_MODE === "mint") {
+      try {
+        const response = await fetch(`${MINT_URL}/nutft/state`);
+        if (response.ok) nutftState = await response.json();
+      } catch (error) { /* the purchase call reports the actionable error */ }
+      renderBoxFacts();
+    }
     durable = await probeStorage();
     booting = false;
     renderCollection();
@@ -862,8 +880,9 @@
       const button = $("sendStack");
       button.disabled = true;
       stackNote("Sending…");
-      await sendCollection();
-      button.disabled = false;
+      const result = await sendCollection();
+      if (result.n >= 0) root.location.href = `deck.html?load=${encodeURIComponent(DRAFT_NAME)}`;
+      else button.disabled = false;
     });
 
     $("verifyBox").addEventListener("click", async () => {
