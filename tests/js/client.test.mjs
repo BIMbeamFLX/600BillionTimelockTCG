@@ -736,6 +736,33 @@ test("a catalog mismatch blocks remote actions instead of only showing a banner"
   assert.equal(stub.calls.some((call) => call[0] === "act"), false);
 });
 
+test("a declined start signature stays retryable and a signed wager keeps its stake", async () => {
+  const storage = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, String(value)),
+  };
+  const stub = netStub();
+  let attempts = 0;
+  stub.nostr.startEvent = () => ({ kind: 4600, tags: [], content: "{}" });
+  stub.nostr.sign = async (event) => {
+    attempts += 1;
+    if (attempts === 1) throw new Error("declined");
+    return { ...event, id: "e".repeat(64), sig: "s".repeat(128) };
+  };
+  loadPlay(stub);
+  const playing = { ...STATE_BASE, seat: 0, role: "seat", status: "playing", stake: 750, view: null };
+  stub.lastState = playing;
+  stub.handlers.onState(playing);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(storage.has("600b:announced"), false, "declining the signer permanently consumed the announcement");
+
+  stub.handlers.onState(playing);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(attempts, 2);
+  assert.equal(JSON.parse(storage.get("600b:announced"))[0].stake, 750);
+});
+
 /* The client-side lobby test that stood here was removed with the lobby it
  * exercised: matchmaking is its own napplet now, so play.html no longer has
  * #refreshTables or #tableList and there is nothing here to click. The

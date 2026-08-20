@@ -3409,6 +3409,7 @@
      * not once per reload — the signer popup is the player's attention, and
      * spending it twice for the same event is how a feature becomes a nuisance. */
     announced: null,
+    announcing: null,
     endShown: null,    // the matchId whose closing screen is up
     settling: null,    // an in-flight zap settlement, so it cannot be started twice
   };
@@ -3685,12 +3686,14 @@
     if (!state || state.status !== "playing" || session.seat === null) return;
     if (wasAnnounced(state.matchId)) return;
     if (!nostr().hasNip07()) return;
-    markAnnounced(state.matchId); // before the await: one popup, even if STATE repeats
+    if (remote.announcing === state.matchId) return;
+    remote.announcing = state.matchId;
     const role = session.seat === 0 ? "invite" : "accept";
     try {
       const signed = await nostr().sign(nostr().startEvent(state, state.stake));
       const res = await nostr().publish(signed);
       NET.sendNostr(role, signed);
+      markAnnounced(state.matchId, state.stake);
       netNotice(
         res.ok
           ? `Match announced on nostr${state.stake ? ` — playing for ${satsWord(state.stake)}` : ""}.`
@@ -3706,6 +3709,8 @@
           : "Start not signed. The match plays on.",
         ""
       );
+    } finally {
+      remote.announcing = null;
     }
   }
 
