@@ -84,6 +84,11 @@
     saved.p2pk_e,
   );
   const requestOutput = (saved) => ({ amount: 1, id: saved.id, B_: saved.B_, nutft: { secret: saved.secret, blinding_factor: saved.blinding_factor, p2pk_e: saved.p2pk_e } });
+  const boosterOutputs = (cards, state, c, keyset) => cards.map((card) => c.OutputData.createSingleP2PKData({
+    pubkey: state.pubkey,
+    blindKeys: true,
+    additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+  }, 1, keyset.id));
 
   async function finishPending(state, pending, response, c, keyset) {
     if (pending.type === "booster") {
@@ -120,7 +125,21 @@
   const AWAITING_PAYMENT = /not settled yet|is still sealed|not mined yet/i;
 
   async function submitPending(state, c, keyset) {
-    const pending = state.pending;
+    let pending = state.pending;
+    if (pending.type === "booster" && !pending.outputs.length && pending.body.payment_hash) {
+      const response = await fetch(`${pending.mintUrl}/nutft/reveal?payment_hash=${encodeURIComponent(pending.body.payment_hash)}`);
+      if (!response.ok) throw new Error(`sealed booster unavailable (${response.status})`);
+      const opened = await response.json();
+      if (!Array.isArray(opened.cards)) {
+        const wait = new Error(opened.note || "the booster is still sealed");
+        wait.awaitingPayment = true;
+        throw wait;
+      }
+      const outputs = boosterOutputs(opened.cards, state, c, keyset).map(savedOutput);
+      pending = { ...pending, outputs, body: { ...pending.body, pack_id: opened.pack_id, state: opened.state, outputs: outputs.map(requestOutput) } };
+      state = { ...state, pending };
+      write(state);
+    }
     const path = pending.type === "booster" ? "/nutft/booster" : "/nutft/trade";
     /* Signed only if the mint refuses without one, and retried BEFORE the
        pending is discarded below — an early-access refusal must never cost a
@@ -274,11 +293,7 @@
     }
     const keyset = await getKeyset(mintUrl, c);
     const quote = await requestQuote(mintUrl);
-    const outputs = quote.cards.map((card) => c.OutputData.createSingleP2PKData({
-      pubkey: state.pubkey,
-      blindKeys: true,
-      additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
-    }, 1, keyset.id));
+    const outputs = Array.isArray(quote.cards) ? boosterOutputs(quote.cards, state, c, keyset) : [];
     const saved = outputs.map(savedOutput);
     const pending = { type: "booster", mintUrl, outputs: saved, body: {
       idempotency_key: root.crypto.randomUUID(),

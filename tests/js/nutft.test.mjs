@@ -56,6 +56,7 @@ async function browserWallet(storage, fetchImpl, nostr) {
     TextDecoder,
     Uint8Array,
     URL,
+    setTimeout,
     btoa: (text) => Buffer.from(text, "binary").toString("base64"),
     ...(nostr ? { nostr } : {}),
   };
@@ -107,6 +108,46 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   storage.set("600b:nutft-wallet", "{broken");
   await assert.rejects(() => browserWallet(storage, fetchImpl).then((wallet) => wallet.read()), /corrupted/);
   assert.equal(storage.get("600b:nutft-wallet"), "{broken");
+});
+
+test("browser wallet claims a paid sealed pack after its block arrives", async (t) => {
+  const { createServer } = await import("node:http");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { createMockFunding } = require("../../server/funding.js");
+  let mint;
+  const server = createServer((request, response) => mint.handle(
+    request,
+    response,
+    new URL(request.url, `http://${request.headers.host}`),
+  ));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  let height = 900000;
+  mint = createNutftMint({
+    db,
+    catalogUri: `${base}/nutft/catalog`,
+    funding: createMockFunding({ settleAfterMs: 0 }),
+    priceMsat: 21000,
+    allowVirtual: "1",
+    beaconSource: "lnd",
+    beaconConfirmations: 1,
+    beaconGetInfo: async () => ({ height, hash: String(height).padStart(64, "a") }),
+  });
+  const wallet = await browserWallet(new Map(), fetch);
+  let invoice = null;
+  const issued = await wallet.buyBooster(base, {
+    timeoutMs: 5000,
+    onInvoice(value) {
+      invoice = value;
+      height += 1;
+    },
+  });
+  assert.ok(invoice?.paymentRequest, "the buyer sees the invoice before the reveal");
+  assert.equal(issued.cards.length, 7);
+  assert.equal((await wallet.snapshot(base)).owned.length, 7);
 });
 
 test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", async (t) => {
