@@ -1425,3 +1425,44 @@ test("one unreadable token does not take the whole wallet with it", async (t) =>
      the mint HAS an opinion about, an unreadable token is one it cannot open. */
   assert.equal(after.invalid.length, 0, "an unreadable token is not an invalid proof");
 });
+
+test("a dead token does not block trading the cards around it", async (t) => {
+  // The wallet fix let snapshot() survive an unreadable token. Trading is the
+  // other path through the same decode, and it is the one that costs a card:
+  // tradeProof spends the input proof at the mint, so if it refused to run
+  // while a dead token sat in storage, the only workaround would be clearing
+  // storage -- destroying every good card to move one.
+  const catalogUri = "http://127.0.0.1/nutft/catalog";
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });
+  t.after(() => table.close());
+  const fetchImpl = (url, options) => fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
+
+  const storage = new Map();
+  await (await browserWallet(storage, fetchImpl)).buyBooster(table.url);
+
+  // A token from a mint this one has never heard of, wedged in beside the pack.
+  const saved = JSON.parse(storage.get("600b:nutft-wallet"));
+  saved.tokens.push("cashuBo2FteBtodHRwOi8vMTI3LjAuMC4xOjEvbm90LWEtbWludGF1Y3NhdGF0gaJhaUgBE10Iy15HS2Fwgw==");
+  storage.set("600b:nutft-wallet", JSON.stringify(saved));
+
+  const recipient = await browserWallet(new Map(), fetchImpl);
+  const recipientPubkey = await recipient.destination();
+
+  const sender = await browserWallet(storage, fetchImpl);
+  const before = await sender.snapshot(table.url);
+  assert.equal(before.owned.length, 7);
+  assert.equal(before.unreadable.length, 1, "the dead token is present for the whole test");
+
+  const card = before.owned[0];
+  const transfer = await sender.tradeProof(table.url, card.proof.secret, recipientPubkey);
+  assert.match(transfer.token, /^cashu/, "the trade goes through with the dead token still in storage");
+
+  const after = await (await browserWallet(storage, fetchImpl)).snapshot(table.url);
+  assert.equal(after.owned.length, 6, "the sender is one card lighter");
+  assert.equal(after.unreadable.length, 1, "and the dead token is still just sitting there, harmless");
+
+  assert.equal(await recipient.importToken(table.url, transfer.token), 1, "the recipient takes it");
+  const got = await recipient.snapshot(table.url);
+  assert.equal(got.owned.length, 1);
+  assert.equal(got.owned[0].asset.asset_id, card.asset.asset_id, "and it is the same card that was sent");
+});

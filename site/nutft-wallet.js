@@ -99,7 +99,7 @@
       write({ ...state, tokens: [...state.tokens, token], pending: null });
       return { ...response, token, proofs };
     }
-    const all = state.tokens.flatMap((token) => c.getDecodedToken(token, [keyset.id]).proofs);
+    const all = readableProofs(state, keyset, c);
     const index = all.findIndex((proof) => proof.secret === pending.input_secret);
     if (index < 0) throw new Error("pending transfer input is no longer in this wallet");
     const output = restoreOutput(pending.outputs[0], c);
@@ -108,9 +108,20 @@
     const newTag = c.getTag(proof.secret, "nutft");
     if (!newTag || newTag[4] !== oldTag[4] || !proof.p2pk_e || !c.hasValidDleq(proof, keyset, { require: true })) throw new Error("wallet rejected replacement proof");
     const remaining = all.filter((_, itemIndex) => itemIndex !== index);
-    const tokens = remaining.length ? [c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: remaining })] : [];
+    /* CARRY THE UNREADABLE TOKENS THROUGH. This line rebuilds the whole token
+       list out of the proofs it could read, so anything it could not read would
+       be dropped on the floor by a write it never mentioned. That did not
+       matter while an unreadable token threw; it matters now that one is
+       tolerated, because those tokens are the only record a person has of cards
+       bought from a mint this one cannot open. Losing them silently, during a
+       trade of an unrelated card, would be the worst kind of data loss: quiet,
+       and triggered by something that looked unrelated. */
+    const { opaque } = splitTokens(state, keyset, c);
+    const rebuilt = remaining.length
+      ? [c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: remaining })]
+      : [];
     const token = c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: [proof] });
-    write({ ...state, tokens, pending: null });
+    write({ ...state, tokens: [...rebuilt, ...opaque], pending: null });
     return { ...response, token, proof };
   }
 
@@ -368,6 +379,27 @@
     return (await decodeTokens(mintUrl)).proofs;
   }
 
+  /* The synchronous half of the same rule, for the paths that already hold a
+     state and a keyset.
+   *
+   * Every one of these asks "what does this wallet hold", and every one of them
+   * used its own bare flatMap. Fixing only decodeTokens left the TRADE path
+   * still throwing on a dead token — which is the worst place for it, because a
+   * trade is the operation a person reaches for to move a card OUT of a wallet
+   * they cannot otherwise use. It was found by trying a trade with one dead
+   * token in storage, not by reading the code. */
+  function splitTokens(state, keyset, c) {
+    const proofs = [];
+    const opaque = [];
+    for (const token of state.tokens) {
+      try { proofs.push(...c.getDecodedToken(token, [keyset.id]).proofs); }
+      catch { opaque.push(token); }
+    }
+    return { proofs, opaque };
+  }
+
+  const readableProofs = (state, keyset, c) => splitTokens(state, keyset, c).proofs;
+
   async function verifyCatalog(catalogUri, catalog, c, issuerExpected) {
     const { issuer_pubkey: issuer, signature, ...payload } = catalog || {};
     const digestHex = await digest(canonical(payload));
@@ -427,7 +459,7 @@
     let state = await identity(c);
     if (state.pending) return submitPending(state, c, await getKeyset(state.pending.mintUrl, c));
     const keyset = await getKeyset(mintUrl, c);
-    const all = state.tokens.flatMap((token) => c.getDecodedToken(token, [keyset.id]).proofs);
+    const all = readableProofs(state, keyset, c);
     const index = all.findIndex((proof) => proof.secret === secret);
     if (index < 0) throw new Error("card is not in this wallet");
     const oldProof = all[index];
@@ -466,7 +498,11 @@
     const keyset = await getKeyset(mintUrl, c);
     const decoded = c.getDecodedToken(token, [keyset.id]);
     if (decoded.mint !== mintUrl || decoded.unit !== "600B-E1" || !decoded.proofs.length) throw new Error("token mint, unit, or proofs are invalid");
-    const existing = new Set(state.tokens.flatMap((saved) => c.getDecodedToken(saved, [keyset.id]).proofs).map((proof) => proof.secret));
+    /* The token being imported above may still throw — a caller pasting a
+       broken token deserves to hear so. But the wallet it is landing in must
+       not: a dead token already in storage cannot be allowed to block an
+       import, or a person is stuck with it forever. */
+    const existing = new Set(readableProofs(state, keyset, c).map((proof) => proof.secret));
     const catalogs = new Map();
     for (const proof of decoded.proofs) {
       if (existing.has(proof.secret)) throw new Error("token is already in this wallet");
