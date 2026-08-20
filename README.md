@@ -205,8 +205,9 @@ them with DLEQ. The browser wallet verifies the CardBinding, catalog, Blossom
 face hash, proof state, amount and unit before showing cards at `wallet.html`.
 
 The demo mint intentionally exposes no generic swap or melt endpoint. It keeps
-the booster census in memory and does not move real money; persistent state,
-Lightning payment and the atomic NutFT trade path belong before production use.
+mint keys, booster progress, spent proofs, and idempotency records in SQLite and
+does not move real money. Its atomic trade path preserves the exact card binding.
+See [`docs/nutft-demo.md`](docs/nutft-demo.md) for deployment and demo boundaries.
 
 ## Node Runner frame proof sheet
 
@@ -293,7 +294,7 @@ BIP-340 signature verification.
 ## Tests
 
 ```bash
-npm run test:js     # 314 tests: engine, client, transport, NutFT, ladder, and every card wave
+npm run test:js     # 315 tests: engine, client, transport, NutFT, ladder, and every card wave
 uv run pytest       # the Python generators
 ```
 

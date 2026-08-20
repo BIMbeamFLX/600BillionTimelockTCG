@@ -196,7 +196,8 @@ CREATE TABLE IF NOT EXISTS nostr_events (
  * Boot a referee. Returns once the socket is listening.
  * @param {{port?:number, dbPath?:string, siteDir?:string, host?:string,
  *   pinSeed?:number, maxPayload?:number, controlMax?:number,
- *   publicHost?:string, trustedHosts?:string[], allowedOrigins?:string[]}} opts
+ *   publicHost?:string, trustedHosts?:string[], allowedOrigins?:string[],
+ *   nutftCatalogUri?:string}} opts
  */
 async function createTable(opts) {
   const options = opts || {};
@@ -1915,6 +1916,7 @@ if (require.main === module) {
      * or Tailscale table on the bound port. */
     publicUrl: process.env.PUBLIC_URL,
     publicScheme: process.env.PUBLIC_SCHEME,
+    nutftCatalogUri: process.env.NUTFT_CATALOG_URI,
   })
     .then((table) => {
       console.log(`[table] 600B referee on ${table.url}  (ws ${table.wsUrl})`);

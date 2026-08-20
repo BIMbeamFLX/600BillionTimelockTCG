@@ -68,6 +68,7 @@ function createNutftMint(options = {}) {
     .map(([name, tier]) => [name.toLowerCase(), Number(tier.share_of_mint.toFixed(2))]));
   const collectionId = options.collectionId || process.env.NUTFT_COLLECTION_ID || "600B-E1";
   const catalogUri = options.catalogUri || process.env.NUTFT_CATALOG_URI || "http://localhost:8777/nutft/catalog";
+  if (!/^https?:$/.test(new URL(catalogUri).protocol)) throw new Error("NUTFT_CATALOG_URI must be an absolute HTTP(S) URL");
   const beacon = (options.beacon || process.env.NUTFT_BEACON || "00".repeat(32)).toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(beacon)) throw new Error("NUTFT_BEACON must be 32-byte hex");
 

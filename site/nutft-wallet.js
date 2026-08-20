@@ -18,6 +18,7 @@
   const digest = async (value) => hex(new Uint8Array(await root.crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))));
   const reference = (tag) => ({ collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3] });
   const binding = async (tag) => digest(`Cashu_NutFT_v1${canonical(reference(tag))}`);
+  const validState = (state) => state && typeof state === "object" && typeof state.privateKey === "string" && typeof state.pubkey === "string" && Array.isArray(state.tokens) && state.tokens.every((token) => typeof token === "string") && (state.pending == null || typeof state.pending === "object");
 
   async function read() {
     if (memory) return memory;
@@ -25,7 +26,7 @@
     if (!saved) return (memory = { privateKey: "", pubkey: "", tokens: [] });
     try { memory = JSON.parse(saved); }
     catch { throw new Error("Wallet storage is corrupted. Preserve 600b:nutft-wallet before making changes."); }
-    if (!memory || typeof memory !== "object" || typeof memory.privateKey !== "string" || typeof memory.pubkey !== "string" || !Array.isArray(memory.tokens) || memory.tokens.some((token) => typeof token !== "string") || (memory.pending != null && typeof memory.pending !== "object")) {
+    if (!validState(memory)) {
       memory = null;
       throw new Error("Wallet storage has an invalid shape. Preserve 600b:nutft-wallet before making changes.");
     }
@@ -266,5 +267,23 @@
 
   const importToken = (mintUrl, token) => locked(() => importTokenUnlocked(mintUrl, token));
 
-  root.NutFTWallet = { buyBooster, snapshot, tradeProof, importToken, destination, recoverPending, read, cashu, hex, bytes };
+  async function exportBackup() {
+    const state = await read();
+    return JSON.stringify({ format: "600b-nutft-wallet-v1", wallet: state }, null, 2);
+  }
+
+  async function restoreBackupUnlocked(text) {
+    let backup;
+    try { backup = JSON.parse(text); }
+    catch { throw new Error("wallet backup is not valid JSON"); }
+    if (backup?.format !== "600b-nutft-wallet-v1" || !validState(backup.wallet)) throw new Error("wallet backup has an invalid format");
+    const current = await read();
+    if (current.tokens.length || current.pending) throw new Error("restore requires an empty wallet so existing bearer assets are not overwritten");
+    write(backup.wallet);
+    return backup.wallet.tokens.length;
+  }
+
+  const restoreBackup = (text) => locked(() => restoreBackupUnlocked(text));
+
+  root.NutFTWallet = { buyBooster, snapshot, tradeProof, importToken, destination, recoverPending, exportBackup, restoreBackup, read, cashu, hex, bytes };
 })(globalThis);

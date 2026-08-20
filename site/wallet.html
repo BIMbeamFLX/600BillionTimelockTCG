@@ -51,6 +51,9 @@
       <label for="outgoingToken">Token to deliver after a transfer</label>
       <textarea id="outgoingToken" rows="3" readonly placeholder="Transfer a card to create a token"></textarea>
       <button class="btn btn--ghost" id="copyOutgoing" type="button">Copy transfer token</button>
+      <h3>Wallet backup</h3>
+      <p class="muted">The backup contains the private key and bearer tokens. Keep it secret. Restore is allowed only when this wallet has no tokens.</p>
+      <div class="wallet-transfer__row"><button class="btn btn--ghost" id="downloadBackup" type="button">Download backup</button><input id="restoreBackup" type="file" accept="application/json"></div>
     </section>
     <div class="wallet-grid" id="walletCards"></div>
     <p class="muted" id="empty" hidden>No NutFT proofs yet. <a href="shop.html?shop=mint">Buy a demo booster</a>.</p>
@@ -130,6 +133,18 @@
   const copy = async (value) => { if (!value) return; if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value); };
   document.getElementById("copyDestination").addEventListener("click", () => copy(destination.value));
   document.getElementById("copyOutgoing").addEventListener("click", () => copy(outgoingToken.value));
+  document.getElementById("downloadBackup").addEventListener("click", async () => {
+    const blob = new Blob([await root.NutFTWallet.exportBackup()], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob); link.download = "600b-nutft-wallet-backup.json"; link.click();
+    URL.revokeObjectURL(link.href);
+  });
+  document.getElementById("restoreBackup").addEventListener("change", async (event) => {
+    const file = event.currentTarget.files[0];
+    if (!file) return;
+    try { await root.NutFTWallet.restoreBackup(await file.text()); location.reload(); }
+    catch (reason) { error.hidden = false; error.textContent = reason.message; event.currentTarget.value = ""; }
+  });
   document.getElementById("importButton").addEventListener("click", async (event) => {
     event.currentTarget.disabled = true;
     try { await root.NutFTWallet.importToken(mint, importToken.value.trim()); location.reload(); }

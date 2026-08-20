@@ -10,7 +10,7 @@ import vm from "node:vm";
 
 const require = createRequire(import.meta.url);
 const { createTable } = require("../../server/table.js");
-const { canonical } = require("../../server/nutft-mint.js");
+const { canonical, createNutftMint } = require("../../server/nutft-mint.js");
 const cashu = await import("@cashu/cashu-ts");
 
 const hex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -23,6 +23,11 @@ const opening = (output) => ({
 test("NutFT draw vector stays compatible with the manifest package", () => {
   const { selfTest } = require("../../server/nutft-draw.js");
   assert.equal(selfTest(require("../../cards/nutft-testvector.json")), true);
+});
+
+test("NutFT catalog URI must be an absolute web URL", () => {
+  assert.throws(() => createNutftMint({ catalogUri: "relative/catalog" }), /Invalid URL/);
+  assert.throws(() => createNutftMint({ catalogUri: "file:///tmp/catalog" }), /absolute HTTP\(S\) URL/);
 });
 
 async function browserWallet(storage, fetchImpl) {
@@ -63,6 +68,13 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   assert.equal((await reloaded.snapshot(table.url)).owned.length, 6);
   assert.equal(await recipient.importToken(table.url, transfer.token), 1);
   assert.equal((await recipient.snapshot(table.url)).owned.length, 1);
+  const backup = await recipient.exportBackup();
+  const restoredStorage = new Map();
+  const restored = await browserWallet(restoredStorage, fetchImpl);
+  assert.equal(await restored.restoreBackup(backup), 1);
+  assert.equal((await restored.snapshot(table.url)).owned.length, 1);
+  await assert.rejects(() => restored.restoreBackup(backup), /requires an empty wallet/);
+  await assert.rejects(() => restored.restoreBackup("not json"), /not valid JSON/);
   let dropTradeResponse = true;
   const flakyFetch = async (url, options) => {
     const response = await fetchImpl(url, options);
