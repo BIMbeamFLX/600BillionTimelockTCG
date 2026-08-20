@@ -1,0 +1,7059 @@
+{
+  "set": "600B-E1",
+  "version": "tier-census-r2",
+  "note": "Proposal. Not locked, not minted. See docs/rarity-and-booster-plan.md.",
+  "weights": {
+    "value": 0.4,
+    "play": 0.4,
+    "alpha": 0.2
+  },
+  "mint": {
+    "packs": 20925,
+    "paid_cards_per_pack": 6,
+    "cards_per_pack": 7,
+    "slots": {
+      "common": 4,
+      "uncommon": 1,
+      "prime": 1,
+      "basic": 1
+    },
+    "capped_cards": 125577,
+    "pool_size": {
+      "common": 83700,
+      "uncommon": 20925,
+      "prime": 20952
+    },
+    "retired_tail": {
+      "common": 0,
+      "uncommon": 0,
+      "prime": 27
+    }
+  },
+  "tiers": {
+    "Genesis": {
+      "cards": 9,
+      "copies_each": 21,
+      "total_copies": 189,
+      "pool": "prime",
+      "share_of_mint": 0.1505,
+      "p_tier_per_pack": 0.009021,
+      "score_range": [
+        0.7153,
+        0.82
+      ]
+    },
+    "Vault": {
+      "cards": 21,
+      "copies_each": 63,
+      "total_copies": 1323,
+      "pool": "prime",
+      "share_of_mint": 1.0535,
+      "p_tier_per_pack": 0.063144,
+      "score_range": [
+        0.582,
+        0.7138
+      ]
+    },
+    "Rare": {
+      "cards": 90,
+      "copies_each": 216,
+      "total_copies": 19440,
+      "pool": "prime",
+      "share_of_mint": 15.4805,
+      "p_tier_per_pack": 0.927835,
+      "score_range": [
+        0.4103,
+        0.581
+      ]
+    },
+    "Uncommon": {
+      "cards": 75,
+      "copies_each": 279,
+      "total_copies": 20925,
+      "pool": "uncommon",
+      "share_of_mint": 16.6631,
+      "p_tier_per_pack": 1.0,
+      "score_range": [
+        0.263,
+        0.4055
+      ]
+    },
+    "Common": {
+      "cards": 90,
+      "copies_each": 930,
+      "total_copies": 83700,
+      "pool": "common",
+      "share_of_mint": 66.6523,
+      "p_tier_per_pack": 1.0,
+      "score_range": [
+        0.1166,
+        0.2606
+      ]
+    },
+    "Basic": {
+      "cards": 10,
+      "copies_each": null,
+      "total_copies": null,
+      "pool": "none",
+      "share_of_mint": null,
+      "p_tier_per_pack": 1.0,
+      "score_range": null
+    }
+  },
+  "pools": {
+    "common": [
+      "E1-053",
+      "E1-183",
+      "E1-011",
+      "E1-066",
+      "E1-207",
+      "E1-129",
+      "E1-062",
+      "E1-277",
+      "E1-072",
+      "E1-021",
+      "E1-026",
+      "E1-145",
+      "E1-184",
+      "E1-033",
+      "E1-020",
+      "E1-090",
+      "E1-182",
+      "E1-204",
+      "E1-154",
+      "E1-228",
+      "E1-238",
+      "E1-049",
+      "E1-235",
+      "E1-199",
+      "E1-152",
+      "E1-132",
+      "E1-039",
+      "E1-148",
+      "E1-123",
+      "E1-133",
+      "E1-054",
+      "E1-125",
+      "E1-201",
+      "E1-089",
+      "E1-192",
+      "E1-109",
+      "E1-143",
+      "E1-124",
+      "E1-078",
+      "E1-175",
+      "E1-134",
+      "E1-108",
+      "E1-179",
+      "E1-034",
+      "E1-150",
+      "E1-077",
+      "E1-023",
+      "E1-028",
+      "E1-200",
+      "E1-112",
+      "E1-010",
+      "E1-217",
+      "E1-043",
+      "E1-166",
+      "E1-162",
+      "E1-018",
+      "E1-229",
+      "E1-219",
+      "E1-153",
+      "E1-215",
+      "E1-036",
+      "E1-084",
+      "E1-064",
+      "E1-146",
+      "E1-080",
+      "E1-111",
+      "E1-218",
+      "E1-161",
+      "E1-081",
+      "E1-222",
+      "E1-019",
+      "E1-071",
+      "E1-065",
+      "E1-060",
+      "E1-227",
+      "E1-122",
+      "E1-030",
+      "E1-128",
+      "E1-159",
+      "E1-017",
+      "E1-029",
+      "E1-073",
+      "E1-205",
+      "E1-016",
+      "E1-114",
+      "E1-137",
+      "E1-063",
+      "E1-076",
+      "E1-160",
+      "E1-027"
+    ],
+    "uncommon": [
+      "E1-127",
+      "E1-003",
+      "E1-101",
+      "E1-004",
+      "E1-216",
+      "E1-187",
+      "E1-230",
+      "E1-115",
+      "E1-249",
+      "E1-285",
+      "E1-130",
+      "E1-097",
+      "E1-256",
+      "E1-212",
+      "E1-079",
+      "E1-234",
+      "E1-022",
+      "E1-171",
+      "E1-056",
+      "E1-258",
+      "E1-246",
+      "E1-167",
+      "E1-057",
+      "E1-203",
+      "E1-113",
+      "E1-239",
+      "E1-156",
+      "E1-231",
+      "E1-202",
+      "E1-048",
+      "E1-051",
+      "E1-151",
+      "E1-259",
+      "E1-098",
+      "E1-040",
+      "E1-225",
+      "E1-100",
+      "E1-213",
+      "E1-131",
+      "E1-268",
+      "E1-135",
+      "E1-024",
+      "E1-195",
+      "E1-178",
+      "E1-223",
+      "E1-103",
+      "E1-251",
+      "E1-254",
+      "E1-141",
+      "E1-086",
+      "E1-189",
+      "E1-032",
+      "E1-168",
+      "E1-147",
+      "E1-208",
+      "E1-274",
+      "E1-163",
+      "E1-093",
+      "E1-110",
+      "E1-144",
+      "E1-074",
+      "E1-220",
+      "E1-240",
+      "E1-082",
+      "E1-180",
+      "E1-095",
+      "E1-120",
+      "E1-014",
+      "E1-271",
+      "E1-269",
+      "E1-015",
+      "E1-226",
+      "E1-252",
+      "E1-094",
+      "E1-047"
+    ],
+    "prime": [
+      "E1-001",
+      "E1-263",
+      "E1-264",
+      "E1-088",
+      "E1-262",
+      "E1-185",
+      "E1-286",
+      "E1-052",
+      "E1-266",
+      "E1-260",
+      "E1-005",
+      "E1-284",
+      "E1-270",
+      "E1-188",
+      "E1-265",
+      "E1-279",
+      "E1-283",
+      "E1-282",
+      "E1-236",
+      "E1-278",
+      "E1-281",
+      "E1-280",
+      "E1-275",
+      "E1-009",
+      "E1-118",
+      "E1-107",
+      "E1-126",
+      "E1-050",
+      "E1-099",
+      "E1-194",
+      "E1-105",
+      "E1-248",
+      "E1-149",
+      "E1-102",
+      "E1-091",
+      "E1-176",
+      "E1-140",
+      "E1-224",
+      "E1-261",
+      "E1-267",
+      "E1-045",
+      "E1-157",
+      "E1-044",
+      "E1-058",
+      "E1-165",
+      "E1-059",
+      "E1-155",
+      "E1-276",
+      "E1-117",
+      "E1-055",
+      "E1-085",
+      "E1-255",
+      "E1-008",
+      "E1-245",
+      "E1-196",
+      "E1-121",
+      "E1-067",
+      "E1-244",
+      "E1-174",
+      "E1-232",
+      "E1-006",
+      "E1-139",
+      "E1-069",
+      "E1-164",
+      "E1-241",
+      "E1-138",
+      "E1-106",
+      "E1-170",
+      "E1-214",
+      "E1-012",
+      "E1-169",
+      "E1-116",
+      "E1-042",
+      "E1-177",
+      "E1-070",
+      "E1-173",
+      "E1-119",
+      "E1-250",
+      "E1-075",
+      "E1-193",
+      "E1-191",
+      "E1-046",
+      "E1-031",
+      "E1-035",
+      "E1-221",
+      "E1-083",
+      "E1-172",
+      "E1-037",
+      "E1-273",
+      "E1-209",
+      "E1-242",
+      "E1-104",
+      "E1-096",
+      "E1-041",
+      "E1-211",
+      "E1-061",
+      "E1-068",
+      "E1-136",
+      "E1-198",
+      "E1-233",
+      "E1-237",
+      "E1-206",
+      "E1-197",
+      "E1-190",
+      "E1-253",
+      "E1-158",
+      "E1-272",
+      "E1-186",
+      "E1-007",
+      "E1-142",
+      "E1-247",
+      "E1-181",
+      "E1-025",
+      "E1-092",
+      "E1-210",
+      "E1-013",
+      "E1-243",
+      "E1-257",
+      "E1-038",
+      "E1-087"
+    ]
+  },
+  "census_sha256": "651e12f3f12c655c53b09c265eed82a7c7d46ac14a76e350f32b77efa4e5e482",
+  "cards": [
+    {
+      "rank": 1,
+      "id": "E1-001",
+      "name": "Genesis Lotus",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "0",
+      "current_rarity": "rare",
+      "tier": "Genesis",
+      "pool": "prime",
+      "copies": 21,
+      "score": 0.82,
+      "axes": {
+        "value": 1.0,
+        "play": 0.55,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00100229,
+      "one_in_packs": 998,
+      "source_slot": 232
+    },
+    {
+      "rank": 2,
+      "id": "E1-263",
+      "name": "Keys Shard",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "0",
+      "current_rarity": "rare",
+      "tier": "Genesis",
+      "pool": "prime",
+      "copies": 21,
+      "score": 0.7939,
+      "axes": {
+        "value": 0.9347,
+        "play": 0.55,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00100229,
+      "one_in_packs": 998,
+      "source_slot": 262
+    },
+    {
+      "rank": 3,
+      "id": "E1-264",
+      "name": "Signal Beacon",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "0",
+      "current_rarity": "rare",
+      "tier": "Genesis",
+      "pool": "prime",
+      "copies": 21,
+      "score": 0.7536,
+      "axes": {
+        "value": 0.8521,
+        "play": 0.5318,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00100229,
+      "one_in_packs": 998,
+      "source_slot": 263
+    },
+    {
+      "rank": 4,
+      "id": "E1-088",
+      "name": "State Reset",
+      "type_line": "Operation",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "2T",
+      "current_rarity": "rare",
+      "tier": "Genesis",
+      "pool": "prime",
+      "copies": 21,
+      "score": 0.752,
+      "axes": {
+        "value": 0.9337,
+        "play": 0.4464,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00100229,
+      "one_in_packs": 998,
+      "source_slot": 84
+    },
+    {
+      "rank": 5,
+      "id": "E1-262",
+      "name": "Bitcoin Seed",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "0",
+      "current_rarity": "rare",
+      "tier": "Genesis",
+      "pool": "prime",
+      "copies": 21,
+      "score": 0.7358,
+      "axes": {
+        "value": 0.7895,
+        "play": 0.55,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00100229,
+      "one_in_packs": 998,
+      "source_slot": 261
+    },
+    {
+      "rank": 6,
+      "id": "E1-185",
+      "name": "Freedom Market",
+      "type_line": "Operation",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2P",
+      "current_rarity": "rare",
+      "tier": "Genesis",
+      "pool": "prime",
+      "copies": 21,
+      "score": 0.7273,
+      "axes": {
+        "value": 0.7758,
+        "play": 0.5425,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00100229,
+      "one_in_packs": 998,
+      "source_slot": 183
+    },
+    {
+      "rank": 7,
+      "id": "E1-286",
+      "name": "Timelock–Keys Junction",
+      "type_line": "Resource — Timelock / Keys",
+      "affinity": [
+        "Timelock",
+        "Keys"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Genesis",
+      "pool": "prime",
+      "copies": 21,
+      "score": 0.7248,
+      "axes": {
+        "value": 0.896,
+        "play": 0.4161,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00100229,
+      "one_in_packs": 998,
+      "source_slot": 285
+    },
+    {
+      "rank": 8,
+      "id": "E1-052",
+      "name": "First Memory",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "uncommon",
+      "tier": "Genesis",
+      "pool": "prime",
+      "copies": 21,
+      "score": 0.7242,
+      "axes": {
+        "value": 0.9242,
+        "play": 0.3864,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00100229,
+      "one_in_packs": 998,
+      "source_slot": 47
+    },
+    {
+      "rank": 9,
+      "id": "E1-266",
+      "name": "Timelock Crystal",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "0",
+      "current_rarity": "rare",
+      "tier": "Genesis",
+      "pool": "prime",
+      "copies": 21,
+      "score": 0.7153,
+      "axes": {
+        "value": 0.9383,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00100229,
+      "one_in_packs": 998,
+      "source_slot": 265
+    },
+    {
+      "rank": 10,
+      "id": "E1-260",
+      "name": "Boost Converter",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "rare",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.7138,
+      "axes": {
+        "value": 0.701,
+        "play": 0.5835,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 259
+    },
+    {
+      "rank": 11,
+      "id": "E1-005",
+      "name": "Next Block",
+      "type_line": "Operation",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "1T",
+      "current_rarity": "rare",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.7079,
+      "axes": {
+        "value": 0.9198,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 83
+    },
+    {
+      "rank": 12,
+      "id": "E1-284",
+      "name": "Bitcoin–Timelock Junction",
+      "type_line": "Resource — Bitcoin / Timelock",
+      "affinity": [
+        "Timelock",
+        "Bitcoin"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.69,
+      "axes": {
+        "value": 0.8346,
+        "play": 0.3904,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 283
+    },
+    {
+      "rank": 13,
+      "id": "E1-270",
+      "name": "Genesis Ring",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "rare",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6866,
+      "axes": {
+        "value": 0.6665,
+        "play": 0.8,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 269
+    },
+    {
+      "rank": 14,
+      "id": "E1-188",
+      "name": "Shillie, Multisource Scout",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "uncommon",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6847,
+      "axes": {
+        "value": 0.7742,
+        "play": 0.4375,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 186
+    },
+    {
+      "rank": 15,
+      "id": "E1-265",
+      "name": "Power Cell",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "0",
+      "current_rarity": "rare",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6812,
+      "axes": {
+        "value": 0.8531,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 264
+    },
+    {
+      "rank": 16,
+      "id": "E1-279",
+      "name": "Keys–Bitcoin Junction",
+      "type_line": "Resource — Keys / Bitcoin",
+      "affinity": [
+        "Keys",
+        "Bitcoin"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6708,
+      "axes": {
+        "value": 0.7764,
+        "play": 0.4007,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 278
+    },
+    {
+      "rank": 17,
+      "id": "E1-283",
+      "name": "Power–Bitcoin Junction",
+      "type_line": "Resource — Power / Bitcoin",
+      "affinity": [
+        "Power",
+        "Bitcoin"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6701,
+      "axes": {
+        "value": 0.794,
+        "play": 0.3812,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 282
+    },
+    {
+      "rank": 18,
+      "id": "E1-282",
+      "name": "Signal–Keys Junction",
+      "type_line": "Resource — Signal / Keys",
+      "affinity": [
+        "Signal",
+        "Keys"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6676,
+      "axes": {
+        "value": 0.7646,
+        "play": 0.4045,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 281
+    },
+    {
+      "rank": 19,
+      "id": "E1-236",
+      "name": "Chaos Kernel",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "2",
+      "current_rarity": "uncommon",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6636,
+      "axes": {
+        "value": 0.809,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 235
+    },
+    {
+      "rank": 20,
+      "id": "E1-278",
+      "name": "Power–Keys Junction",
+      "type_line": "Resource — Keys / Power",
+      "affinity": [
+        "Keys",
+        "Power"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6602,
+      "axes": {
+        "value": 0.7456,
+        "play": 0.4049,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 277
+    },
+    {
+      "rank": 21,
+      "id": "E1-281",
+      "name": "Bitcoin–Signal Junction",
+      "type_line": "Resource — Bitcoin / Signal",
+      "affinity": [
+        "Signal",
+        "Bitcoin"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6564,
+      "axes": {
+        "value": 0.7622,
+        "play": 0.3789,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 280
+    },
+    {
+      "rank": 22,
+      "id": "E1-280",
+      "name": "Power–Signal Junction",
+      "type_line": "Resource — Power / Signal",
+      "affinity": [
+        "Signal",
+        "Power"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6458,
+      "axes": {
+        "value": 0.7345,
+        "play": 0.3799,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 279
+    },
+    {
+      "rank": 23,
+      "id": "E1-275",
+      "name": "Timelock Vault",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "2",
+      "current_rarity": "rare",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6453,
+      "axes": {
+        "value": 0.7632,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 274
+    },
+    {
+      "rank": 24,
+      "id": "E1-009",
+      "name": "Fair State",
+      "type_line": "Operation",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1S",
+      "current_rarity": "rare",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6203,
+      "axes": {
+        "value": 0.7008,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 3
+    },
+    {
+      "rank": 25,
+      "id": "E1-118",
+      "name": "Wallet Scramble",
+      "type_line": "Operation",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "XK",
+      "current_rarity": "uncommon",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6177,
+      "axes": {
+        "value": 0.7053,
+        "play": 0.3389,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 115
+    },
+    {
+      "rank": 26,
+      "id": "E1-107",
+      "name": "Deep Search",
+      "type_line": "Operation",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1K",
+      "current_rarity": "uncommon",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6152,
+      "axes": {
+        "value": 0.6126,
+        "play": 0.6753,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 104
+    },
+    {
+      "rank": 27,
+      "id": "E1-126",
+      "name": "Gadaj, Commit Auditor",
+      "type_line": "Avatar — Signer",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1KK",
+      "current_rarity": "uncommon",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6041,
+      "axes": {
+        "value": 0.7546,
+        "play": 0.2557,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 123
+    },
+    {
+      "rank": 28,
+      "id": "E1-050",
+      "name": "Clean Slate",
+      "type_line": "Operation",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "2SS",
+      "current_rarity": "rare",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6008,
+      "axes": {
+        "value": 0.7114,
+        "play": 0.2907,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 45
+    },
+    {
+      "rank": 29,
+      "id": "E1-099",
+      "name": "Stake Contract",
+      "type_line": "Operation",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "uncommon",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.6004,
+      "axes": {
+        "value": 0.651,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 96
+    },
+    {
+      "rank": 30,
+      "id": "E1-194",
+      "name": "Fast Channel",
+      "type_line": "Protocol",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "rare",
+      "tier": "Vault",
+      "pool": "prime",
+      "copies": 63,
+      "score": 0.582,
+      "axes": {
+        "value": 0.6576,
+        "play": 0.2975,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.00300687,
+      "one_in_packs": 333,
+      "source_slot": 192
+    },
+    {
+      "rank": 31,
+      "id": "E1-105",
+      "name": "Stake Arbitration",
+      "type_line": "Operation",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1KK",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.581,
+      "axes": {
+        "value": 0.6024,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 102
+    },
+    {
+      "rank": 32,
+      "id": "E1-248",
+      "name": "Open Feed",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "2",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5779,
+      "axes": {
+        "value": 0.6581,
+        "play": 0.2867,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 247
+    },
+    {
+      "rank": 33,
+      "id": "E1-149",
+      "name": "Hashquake",
+      "type_line": "Operation",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "XP",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5623,
+      "axes": {
+        "value": 0.6783,
+        "play": 0.2274,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 146
+    },
+    {
+      "rank": 34,
+      "id": "E1-102",
+      "name": "Stake Swap",
+      "type_line": "Operation",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "KKK",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5556,
+      "axes": {
+        "value": 0.5391,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 99
+    },
+    {
+      "rank": 35,
+      "id": "E1-091",
+      "name": "Jedai, Adaptive Client",
+      "type_line": "Avatar — Client",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "3TT",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.551,
+      "axes": {
+        "value": 0.8327,
+        "play": 0.0447,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 87
+    },
+    {
+      "rank": 36,
+      "id": "E1-176",
+      "name": "MadMunky, Hashrate Dragon",
+      "type_line": "Avatar — Miner",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "4PP",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5504,
+      "axes": {
+        "value": 0.8305,
+        "play": 0.0455,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 174
+    },
+    {
+      "rank": 37,
+      "id": "E1-140",
+      "name": "Gadaj, Archive Maintainer",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1KK",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5502,
+      "axes": {
+        "value": 0.6107,
+        "play": 0.2647,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 137
+    },
+    {
+      "rank": 38,
+      "id": "E1-224",
+      "name": "Arbadacarba, Protocol Gardener",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "1BB",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5494,
+      "axes": {
+        "value": 0.6187,
+        "play": 0.2549,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 222
+    },
+    {
+      "rank": 39,
+      "id": "E1-261",
+      "name": "Low-Power Mode",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5471,
+      "axes": {
+        "value": 0.6405,
+        "play": 0.2273,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 260
+    },
+    {
+      "rank": 40,
+      "id": "E1-267",
+      "name": "Network Reset Disk",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5434,
+      "axes": {
+        "value": 0.6156,
+        "play": 0.243,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 266
+    },
+    {
+      "rank": 41,
+      "id": "E1-045",
+      "name": "Peaceful Exit",
+      "type_line": "Zap",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.54,
+      "axes": {
+        "value": 0.6317,
+        "play": 0.4683,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 40
+    },
+    {
+      "rank": 42,
+      "id": "E1-157",
+      "name": "MadMunky, Chaos Coordinator",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "1PP",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5332,
+      "axes": {
+        "value": 0.699,
+        "play": 0.1341,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 154
+    },
+    {
+      "rank": 43,
+      "id": "E1-044",
+      "name": "Cuddy, Fast Starter",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.523,
+      "axes": {
+        "value": 0.7239,
+        "play": 0.0835,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 38
+    },
+    {
+      "rank": 44,
+      "id": "E1-058",
+      "name": "Hardware Clone",
+      "type_line": "Protocol",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "1T",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.523,
+      "axes": {
+        "value": 0.7181,
+        "play": 0.0894,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 53
+    },
+    {
+      "rank": 45,
+      "id": "E1-165",
+      "name": "Hot Grid",
+      "type_line": "Protocol",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "3P",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5224,
+      "axes": {
+        "value": 0.5679,
+        "play": 0.2381,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 163
+    },
+    {
+      "rank": 46,
+      "id": "E1-059",
+      "name": "Invalid Signature",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "TT",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.518,
+      "axes": {
+        "value": 0.5928,
+        "play": 0.4521,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 54
+    },
+    {
+      "rank": 47,
+      "id": "E1-155",
+      "name": "Process Fork",
+      "type_line": "Zap",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "PP",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5144,
+      "axes": {
+        "value": 0.7053,
+        "play": 0.0806,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 152
+    },
+    {
+      "rank": 48,
+      "id": "E1-276",
+      "name": "Difficulty Winter",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "2",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5138,
+      "axes": {
+        "value": 0.687,
+        "play": 0.0975,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 275
+    },
+    {
+      "rank": 49,
+      "id": "E1-117",
+      "name": "DNI, Self-Custody Giant",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "4KKK",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5098,
+      "axes": {
+        "value": 0.6995,
+        "play": 0.0751,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 114
+    },
+    {
+      "rank": 50,
+      "id": "E1-055",
+      "name": "Query Burst",
+      "type_line": "Operation",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "XTT",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5071,
+      "axes": {
+        "value": 0.724,
+        "play": 0.0437,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 50
+    },
+    {
+      "rank": 51,
+      "id": "E1-085",
+      "name": "Consensus Pause",
+      "type_line": "Protocol",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "1T",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5048,
+      "axes": {
+        "value": 0.701,
+        "play": 0.0609,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 80
+    },
+    {
+      "rank": 52,
+      "id": "E1-255",
+      "name": "Genesis Archive",
+      "type_line": "Hardware — Archive",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5047,
+      "axes": {
+        "value": 0.7419,
+        "play": 0.0198,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 254
+    },
+    {
+      "rank": 53,
+      "id": "E1-008",
+      "name": "Grid Reset",
+      "type_line": "Operation",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "3S",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.5033,
+      "axes": {
+        "value": 0.6691,
+        "play": 0.0892,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 2
+    },
+    {
+      "rank": 54,
+      "id": "E1-245",
+      "name": "Hashrate Gauntlet",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4986,
+      "axes": {
+        "value": 0.7054,
+        "play": 0.041,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 244
+    },
+    {
+      "rank": 55,
+      "id": "E1-196",
+      "name": "Arbadacarba, Natural Hashrate",
+      "type_line": "Avatar — Miner",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "2BBBB",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4943,
+      "axes": {
+        "value": 0.7117,
+        "play": 0.0241,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 194
+    },
+    {
+      "rank": 56,
+      "id": "E1-121",
+      "name": "Proton, Keyed Nightmare",
+      "type_line": "Avatar — Signer",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "5K",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4938,
+      "axes": {
+        "value": 0.6808,
+        "play": 0.0536,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 118
+    },
+    {
+      "rank": 57,
+      "id": "E1-067",
+      "name": "Tal, Relay Captain",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "TT",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4928,
+      "axes": {
+        "value": 0.6343,
+        "play": 0.0977,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 62
+    },
+    {
+      "rank": 58,
+      "id": "E1-244",
+      "name": "Damage Firewall",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "3",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4884,
+      "axes": {
+        "value": 0.6949,
+        "play": 0.026,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 243
+    },
+    {
+      "rank": 59,
+      "id": "E1-174",
+      "name": "Essex, Grid Rebooter",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2P",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4883,
+      "axes": {
+        "value": 0.7013,
+        "play": 0.0195,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 172
+    },
+    {
+      "rank": 60,
+      "id": "E1-232",
+      "name": "Entry Fee Device",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "2",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4866,
+      "axes": {
+        "value": 0.6357,
+        "play": 0.0808,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 230
+    },
+    {
+      "rank": 61,
+      "id": "E1-006",
+      "name": "Multisig Quorum",
+      "type_line": "Protocol",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1K",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4855,
+      "axes": {
+        "value": 0.6505,
+        "play": 0.0632,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 93
+    },
+    {
+      "rank": 62,
+      "id": "E1-139",
+      "name": "Remote Command",
+      "type_line": "Zap",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "KK",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4851,
+      "axes": {
+        "value": 0.6546,
+        "play": 0.0581,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 136
+    },
+    {
+      "rank": 63,
+      "id": "E1-069",
+      "name": "Jedai, Protocol Architect",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "4TT",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4833,
+      "axes": {
+        "value": 0.6807,
+        "play": 0.0276,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 64
+    },
+    {
+      "rank": 64,
+      "id": "E1-164",
+      "name": "Grid Amplifier",
+      "type_line": "Protocol",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2P",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4798,
+      "axes": {
+        "value": 0.6012,
+        "play": 0.0983,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 162
+    },
+    {
+      "rank": 65,
+      "id": "E1-241",
+      "name": "Resource Tombstone",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4767,
+      "axes": {
+        "value": 0.6879,
+        "play": 0.0039,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 240
+    },
+    {
+      "rank": 66,
+      "id": "E1-138",
+      "name": "Proton, Ephemeral Signer",
+      "type_line": "Avatar — Signer",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.476,
+      "axes": {
+        "value": 0.6267,
+        "play": 0.0633,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 135
+    },
+    {
+      "rank": 67,
+      "id": "E1-106",
+      "name": "NC, Resource Reclaimer",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "3KKK",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4698,
+      "axes": {
+        "value": 0.628,
+        "play": 0.0464,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 103
+    },
+    {
+      "rank": 68,
+      "id": "E1-170",
+      "name": "Split Route",
+      "type_line": "Protocol",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "PP",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4689,
+      "axes": {
+        "value": 0.6533,
+        "play": 0.0189,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 168
+    },
+    {
+      "rank": 69,
+      "id": "E1-214",
+      "name": "Topology Scan",
+      "type_line": "Zap",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4682,
+      "axes": {
+        "value": 0.6656,
+        "play": 0.0049,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 212
+    },
+    {
+      "rank": 70,
+      "id": "E1-012",
+      "name": "Last Broadcast",
+      "type_line": "Zap",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.467,
+      "axes": {
+        "value": 0.6199,
+        "play": 0.0477,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 6
+    },
+    {
+      "rank": 71,
+      "id": "E1-169",
+      "name": "Idle Grid Penalty",
+      "type_line": "Protocol",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "PP",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.467,
+      "axes": {
+        "value": 0.6235,
+        "play": 0.0441,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 167
+    },
+    {
+      "rank": 72,
+      "id": "E1-116",
+      "name": "Sovereign Mode",
+      "type_line": "Protocol",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "KKKK",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4664,
+      "axes": {
+        "value": 0.6458,
+        "play": 0.0203,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 113
+    },
+    {
+      "rank": 73,
+      "id": "E1-042",
+      "name": "Courage Under Load",
+      "type_line": "Zap",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4646,
+      "axes": {
+        "value": 0.5968,
+        "play": 0.0647,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 36
+    },
+    {
+      "rank": 74,
+      "id": "E1-177",
+      "name": "Thermal Throttle",
+      "type_line": "Protocol",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "PP",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.464,
+      "axes": {
+        "value": 0.5911,
+        "play": 0.0688,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 175
+    },
+    {
+      "rank": 75,
+      "id": "E1-070",
+      "name": "Buffer Lock",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "2T",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4634,
+      "axes": {
+        "value": 0.6274,
+        "play": 0.031,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 65
+    },
+    {
+      "rank": 76,
+      "id": "E1-173",
+      "name": "Toni China, Multihead Miner",
+      "type_line": "Avatar — Miner",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "XPP",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4612,
+      "axes": {
+        "value": 0.6471,
+        "play": 0.0059,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 171
+    },
+    {
+      "rank": 77,
+      "id": "E1-119",
+      "name": "Nind, Archive Returner",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "KK",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4586,
+      "axes": {
+        "value": 0.594,
+        "play": 0.0525,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 116
+    },
+    {
+      "rank": 78,
+      "id": "E1-250",
+      "name": "Identity Mask",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "2",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4584,
+      "axes": {
+        "value": 0.6359,
+        "play": 0.01,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 249
+    },
+    {
+      "rank": 79,
+      "id": "E1-075",
+      "name": "Darren, Channel Raider",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "4T",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.458,
+      "axes": {
+        "value": 0.6101,
+        "play": 0.0348,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 70
+    },
+    {
+      "rank": 80,
+      "id": "E1-193",
+      "name": "Tobo, First-Strike Archer",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "1B",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4536,
+      "axes": {
+        "value": 0.6231,
+        "play": 0.011,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 191
+    },
+    {
+      "rank": 81,
+      "id": "E1-191",
+      "name": "Mtoshi, Lethal Courier",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "3BB",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4534,
+      "axes": {
+        "value": 0.5891,
+        "play": 0.0443,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 189
+    },
+    {
+      "rank": 82,
+      "id": "E1-046",
+      "name": "MHB, Community Shield",
+      "type_line": "Avatar — Guardian",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "3SS",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4532,
+      "axes": {
+        "value": 0.5911,
+        "play": 0.0419,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 41
+    },
+    {
+      "rank": 83,
+      "id": "E1-031",
+      "name": "Offline Sanctuary",
+      "type_line": "Protocol",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1S",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4508,
+      "axes": {
+        "value": 0.5792,
+        "play": 0.0478,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 25
+    },
+    {
+      "rank": 84,
+      "id": "E1-035",
+      "name": "MHB, Keys Auditor",
+      "type_line": "Avatar — Signer",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "2SS",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4508,
+      "axes": {
+        "value": 0.5761,
+        "play": 0.051,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 29
+    },
+    {
+      "rank": 85,
+      "id": "E1-221",
+      "name": "BK, Mesh Pack",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4506,
+      "axes": {
+        "value": 0.596,
+        "play": 0.0306,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 219
+    },
+    {
+      "rank": 86,
+      "id": "E1-083",
+      "name": "Affinity Rewrite",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.449,
+      "axes": {
+        "value": 0.5798,
+        "play": 0.0426,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 78
+    },
+    {
+      "rank": 87,
+      "id": "E1-172",
+      "name": "Leon, High Relay Rider",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "3P",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4476,
+      "axes": {
+        "value": 0.6176,
+        "play": 0.0015,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 170
+    },
+    {
+      "rank": 88,
+      "id": "E1-037",
+      "name": "AJ, Uptime Anchor",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "3SSS",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4472,
+      "axes": {
+        "value": 0.58,
+        "play": 0.0381,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 31
+    },
+    {
+      "rank": 89,
+      "id": "E1-273",
+      "name": "Swarm Node",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "5",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.446,
+      "axes": {
+        "value": 0.6056,
+        "play": 0.0093,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 272
+    },
+    {
+      "rank": 90,
+      "id": "E1-209",
+      "name": "Bitcoin Rewrite",
+      "type_line": "Zap",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4451,
+      "axes": {
+        "value": 0.5763,
+        "play": 0.0365,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 207
+    },
+    {
+      "rank": 91,
+      "id": "E1-242",
+      "name": "Resource Exit Sensor",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4448,
+      "axes": {
+        "value": 0.5811,
+        "play": 0.0309,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 241
+    },
+    {
+      "rank": 92,
+      "id": "E1-104",
+      "name": "Keys Rewrite",
+      "type_line": "Zap",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4445,
+      "axes": {
+        "value": 0.5544,
+        "play": 0.0568,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 101
+    },
+    {
+      "rank": 93,
+      "id": "E1-096",
+      "name": "Archive Boot",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1K",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4437,
+      "axes": {
+        "value": 0.5217,
+        "play": 0.3376,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 92
+    },
+    {
+      "rank": 94,
+      "id": "E1-041",
+      "name": "Damage Refund",
+      "type_line": "Zap",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1SS",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4418,
+      "axes": {
+        "value": 0.582,
+        "play": 0.0226,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 35
+    },
+    {
+      "rank": 95,
+      "id": "E1-211",
+      "name": "Resource Awakening",
+      "type_line": "Protocol",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "3B",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4413,
+      "axes": {
+        "value": 0.5763,
+        "play": 0.0269,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 209
+    },
+    {
+      "rank": 96,
+      "id": "E1-061",
+      "name": "Buffer Drain",
+      "type_line": "Operation",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "TT",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4404,
+      "axes": {
+        "value": 0.5725,
+        "play": 0.0285,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 56
+    },
+    {
+      "rank": 97,
+      "id": "E1-068",
+      "name": "Resource Rewrite",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4396,
+      "axes": {
+        "value": 0.5472,
+        "play": 0.0519,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 63
+    },
+    {
+      "rank": 98,
+      "id": "E1-136",
+      "name": "Hardware Leak",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "KK",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4393,
+      "axes": {
+        "value": 0.5945,
+        "play": 0.0038,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 133
+    },
+    {
+      "rank": 99,
+      "id": "E1-198",
+      "name": "Longy, Resource Sovereign",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "3BBB",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4392,
+      "axes": {
+        "value": 0.5716,
+        "play": 0.0265,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 196
+    },
+    {
+      "rank": 100,
+      "id": "E1-233",
+      "name": "Basalt Battery",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "3",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4392,
+      "axes": {
+        "value": 0.5505,
+        "play": 0.2974,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 231
+    },
+    {
+      "rank": 101,
+      "id": "E1-237",
+      "name": "Cuddy, Clockwork Node",
+      "type_line": "Hardware Avatar — Node",
+      "affinity": [],
+      "cost": "6",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4372,
+      "axes": {
+        "value": 0.5152,
+        "play": 0.0777,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 236
+    },
+    {
+      "rank": 102,
+      "id": "E1-206",
+      "name": "Migrating Workload",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "1BB",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4364,
+      "axes": {
+        "value": 0.5817,
+        "play": 0.0093,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 204
+    },
+    {
+      "rank": 103,
+      "id": "E1-197",
+      "name": "BK, Feedback Grower",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "3B",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4363,
+      "axes": {
+        "value": 0.5594,
+        "play": 0.0314,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 195
+    },
+    {
+      "rank": 104,
+      "id": "E1-190",
+      "name": "Human Hashrate",
+      "type_line": "Operation",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "BB",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4358,
+      "axes": {
+        "value": 0.4895,
+        "play": 0.35,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 188
+    },
+    {
+      "rank": 105,
+      "id": "E1-253",
+      "name": "Damage Router",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4358,
+      "axes": {
+        "value": 0.5618,
+        "play": 0.0277,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 252
+    },
+    {
+      "rank": 106,
+      "id": "E1-158",
+      "name": "Rootzoll, Stone Sentinel",
+      "type_line": "Avatar — Guardian",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2P",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4356,
+      "axes": {
+        "value": 0.5505,
+        "play": 0.0386,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 155
+    },
+    {
+      "rank": 107,
+      "id": "E1-272",
+      "name": "Resource Converter",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "3",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4351,
+      "axes": {
+        "value": 0.5787,
+        "play": 0.009,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 271
+    },
+    {
+      "rank": 108,
+      "id": "E1-186",
+      "name": "Hashrate Aura",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "1B",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4334,
+      "axes": {
+        "value": 0.5697,
+        "play": 0.0137,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 184
+    },
+    {
+      "rank": 109,
+      "id": "E1-007",
+      "name": "Firmware for Firewalls",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4316,
+      "axes": {
+        "value": 0.5628,
+        "play": 0.0162,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 1
+    },
+    {
+      "rank": 110,
+      "id": "E1-142",
+      "name": "Power Rewrite",
+      "type_line": "Zap",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4313,
+      "axes": {
+        "value": 0.5397,
+        "play": 0.0385,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 139
+    },
+    {
+      "rank": 111,
+      "id": "E1-247",
+      "name": "Mesh Router",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4301,
+      "axes": {
+        "value": 0.5535,
+        "play": 0.0218,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 246
+    },
+    {
+      "rank": 112,
+      "id": "E1-181",
+      "name": "Rootzoll & Leon, Dual Operator",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "4P",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4277,
+      "axes": {
+        "value": 0.5505,
+        "play": 0.0188,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 179
+    },
+    {
+      "rank": 113,
+      "id": "E1-025",
+      "name": "Home Miner",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "SSS",
+      "current_rarity": "common",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4276,
+      "axes": {
+        "value": 0.5655,
+        "play": 0.0035,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 19
+    },
+    {
+      "rank": 114,
+      "id": "E1-092",
+      "name": "Grid Eruption",
+      "type_line": "Operation",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "XTTT",
+      "current_rarity": "rare",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4181,
+      "axes": {
+        "value": 0.5406,
+        "play": 0.0046,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 88
+    },
+    {
+      "rank": 115,
+      "id": "E1-210",
+      "name": "Living Hardware",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4178,
+      "axes": {
+        "value": 0.5406,
+        "play": 0.0039,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 208
+    },
+    {
+      "rank": 116,
+      "id": "E1-013",
+      "name": "Shared Uptime",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "SS",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4176,
+      "axes": {
+        "value": 0.5302,
+        "play": 0.0138,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 7
+    },
+    {
+      "rank": 117,
+      "id": "E1-243",
+      "name": "Wallet Scrubber",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "3",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4168,
+      "axes": {
+        "value": 0.536,
+        "play": 0.006,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 242
+    },
+    {
+      "rank": 118,
+      "id": "E1-257",
+      "name": "Keyed Resource Bell",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4145,
+      "axes": {
+        "value": 0.4977,
+        "play": 0.0385,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 256
+    },
+    {
+      "rank": 119,
+      "id": "E1-038",
+      "name": "Signal Rewrite",
+      "type_line": "Zap",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4113,
+      "axes": {
+        "value": 0.509,
+        "play": 0.0193,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 32
+    },
+    {
+      "rank": 120,
+      "id": "E1-087",
+      "name": "Timelock Rewrite",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "uncommon",
+      "tier": "Rare",
+      "pool": "prime",
+      "copies": 216,
+      "score": 0.4103,
+      "axes": {
+        "value": 0.4979,
+        "play": 0.0279,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01030928,
+      "one_in_packs": 97,
+      "source_slot": 82
+    },
+    {
+      "rank": 121,
+      "id": "E1-127",
+      "name": "Convert Uptime",
+      "type_line": "Zap",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.4055,
+      "axes": {
+        "value": 0.4826,
+        "play": 0.2811,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 124
+    },
+    {
+      "rank": 122,
+      "id": "E1-003",
+      "name": "FLX, Culture Curator",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "3SS",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3999,
+      "axes": {
+        "value": 0.6609,
+        "play": 0.0889,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 39
+    },
+    {
+      "rank": 123,
+      "id": "E1-101",
+      "name": "Proof of Work",
+      "type_line": "Zap",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3972,
+      "axes": {
+        "value": 0.5179,
+        "play": 0.4752,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 98
+    },
+    {
+      "rank": 124,
+      "id": "E1-004",
+      "name": "Zap",
+      "type_line": "Zap",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.397,
+      "axes": {
+        "value": 0.6042,
+        "play": 0.3884,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 161
+    },
+    {
+      "rank": 125,
+      "id": "E1-216",
+      "name": "Recovery Phrase",
+      "type_line": "Operation",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "1B",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3955,
+      "axes": {
+        "value": 0.4798,
+        "play": 0.259,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 214
+    },
+    {
+      "rank": 126,
+      "id": "E1-187",
+      "name": "Committed Growth",
+      "type_line": "Zap",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3894,
+      "axes": {
+        "value": 0.593,
+        "play": 0.1306,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 185
+    },
+    {
+      "rank": 127,
+      "id": "E1-230",
+      "name": "Mesh Upgrade",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3755,
+      "axes": {
+        "value": 0.4328,
+        "play": 0.006,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 228
+    },
+    {
+      "rank": 128,
+      "id": "E1-115",
+      "name": "Gadaj, Wallet Whisperer",
+      "type_line": "Avatar — Signer",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1KK",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.37,
+      "axes": {
+        "value": 0.5825,
+        "play": 0.0924,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 112
+    },
+    {
+      "rank": 129,
+      "id": "E1-249",
+      "name": "Cold Storage Controller",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3652,
+      "axes": {
+        "value": 0.6154,
+        "play": 0.0476,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 248
+    },
+    {
+      "rank": 130,
+      "id": "E1-285",
+      "name": "Signal–Timelock Junction",
+      "type_line": "Resource — Signal / Timelock",
+      "affinity": [
+        "Signal",
+        "Timelock"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3561,
+      "axes": {
+        "value": 0.0,
+        "play": 0.3902,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 284
+    },
+    {
+      "rank": 131,
+      "id": "E1-130",
+      "name": "DNI, Sovereign Accumulator",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "3KK",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3492,
+      "axes": {
+        "value": 0.5628,
+        "play": 0.0602,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 127
+    },
+    {
+      "rank": 132,
+      "id": "E1-097",
+      "name": "DNI, Sovereign Knight",
+      "type_line": "Avatar — Guardian",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "KK",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3487,
+      "axes": {
+        "value": 0.5576,
+        "play": 0.0641,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 94
+    },
+    {
+      "rank": 133,
+      "id": "E1-256",
+      "name": "FLX, Unstoppable Rig",
+      "type_line": "Hardware Avatar — Node",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3484,
+      "axes": {
+        "value": 0.488,
+        "play": 0.1331,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 255
+    },
+    {
+      "rank": 134,
+      "id": "E1-212",
+      "name": "Arbadacarba, Grid Steward",
+      "type_line": "Avatar — Builder",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3462,
+      "axes": {
+        "value": 0.4511,
+        "play": 0.4143,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 210
+    },
+    {
+      "rank": 135,
+      "id": "E1-079",
+      "name": "Cognitive Surge",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "2T",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3434,
+      "axes": {
+        "value": 0.5928,
+        "play": 0.0157,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 74
+    },
+    {
+      "rank": 136,
+      "id": "E1-234",
+      "name": "Wallet Pressure",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3428,
+      "axes": {
+        "value": 0.5604,
+        "play": 0.0466,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 233
+    },
+    {
+      "rank": 137,
+      "id": "E1-022",
+      "name": "Public Goods Drive",
+      "type_line": "Protocol",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "SS",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.34,
+      "axes": {
+        "value": 0.0,
+        "play": 0.35,
+        "alpha": 1.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 16
+    },
+    {
+      "rank": 138,
+      "id": "E1-171",
+      "name": "Timelock Invalidation",
+      "type_line": "Zap",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3333,
+      "axes": {
+        "value": 0.4879,
+        "play": 0.3453,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 169
+    },
+    {
+      "rank": 139,
+      "id": "E1-056",
+      "name": "Benarc, Mirror Client",
+      "type_line": "Avatar — Client",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "3T",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3326,
+      "axes": {
+        "value": 0.4709,
+        "play": 0.1106,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 51
+    },
+    {
+      "rank": 140,
+      "id": "E1-258",
+      "name": "Memory Palace",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3316,
+      "axes": {
+        "value": 0.4773,
+        "play": 0.1018,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 257
+    },
+    {
+      "rank": 141,
+      "id": "E1-246",
+      "name": "Public Wallet Viewer",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3315,
+      "axes": {
+        "value": 0.5259,
+        "play": 0.0528,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 245
+    },
+    {
+      "rank": 142,
+      "id": "E1-167",
+      "name": "Bam, Power Artillery",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "1PP",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3277,
+      "axes": {
+        "value": 0.5475,
+        "play": 0.0218,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 165
+    },
+    {
+      "rank": 143,
+      "id": "E1-057",
+      "name": "Remote Control",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "2TT",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3254,
+      "axes": {
+        "value": 0.4979,
+        "play": 0.0657,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 52
+    },
+    {
+      "rank": 144,
+      "id": "E1-203",
+      "name": "Resource Freeze",
+      "type_line": "Operation",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "2B",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3223,
+      "axes": {
+        "value": 0.5188,
+        "play": 0.0369,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 201
+    },
+    {
+      "rank": 145,
+      "id": "E1-113",
+      "name": "Signal Tax",
+      "type_line": "Protocol",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "2K",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3201,
+      "axes": {
+        "value": 0.54,
+        "play": 0.0102,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 110
+    },
+    {
+      "rank": 146,
+      "id": "E1-239",
+      "name": "Uptime Clock",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "2",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3185,
+      "axes": {
+        "value": 0.515,
+        "play": 0.0313,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 238
+    },
+    {
+      "rank": 147,
+      "id": "E1-156",
+      "name": "Toni China, Hot-Air Relay",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3145,
+      "axes": {
+        "value": 0.4742,
+        "play": 0.0621,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 153
+    },
+    {
+      "rank": 148,
+      "id": "E1-231",
+      "name": "Yield Router",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3044,
+      "axes": {
+        "value": 0.4211,
+        "play": 0.3398,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 229
+    },
+    {
+      "rank": 149,
+      "id": "E1-202",
+      "name": "Network Storm",
+      "type_line": "Operation",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "XB",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.3034,
+      "axes": {
+        "value": 0.453,
+        "play": 0.0554,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 200
+    },
+    {
+      "rank": 150,
+      "id": "E1-048",
+      "name": "Morgs, Signal Knight",
+      "type_line": "Avatar — Guardian",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "SS",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2973,
+      "axes": {
+        "value": 0.4328,
+        "play": 0.0604,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 43
+    },
+    {
+      "rank": 151,
+      "id": "E1-051",
+      "name": "Michael1011, Packet Shaper",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "3TT",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2943,
+      "axes": {
+        "value": 0.4382,
+        "play": 0.0475,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 46
+    },
+    {
+      "rank": 152,
+      "id": "E1-151",
+      "name": "Essex, Thermal Operator",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "3PP",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2929,
+      "axes": {
+        "value": 0.4334,
+        "play": 0.0488,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 148
+    },
+    {
+      "rank": 153,
+      "id": "E1-259",
+      "name": "MHB, Living Firewall",
+      "type_line": "Hardware Avatar — Firewall",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2916,
+      "axes": {
+        "value": 0.3676,
+        "play": 0.1115,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 258
+    },
+    {
+      "rank": 154,
+      "id": "E1-098",
+      "name": "Nind, Backchannel Walker",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "3K",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2913,
+      "axes": {
+        "value": 0.4421,
+        "play": 0.0361,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 95
+    },
+    {
+      "rank": 155,
+      "id": "E1-040",
+      "name": "Archive Restore",
+      "type_line": "Operation",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "2SS",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2888,
+      "axes": {
+        "value": 0.4309,
+        "play": 0.0412,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 34
+    },
+    {
+      "rank": 156,
+      "id": "E1-225",
+      "name": "Longy, Thorn Firewall",
+      "type_line": "Avatar — Firewall",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "2B",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2875,
+      "axes": {
+        "value": 0.4417,
+        "play": 0.027,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 223
+    },
+    {
+      "rank": 157,
+      "id": "E1-100",
+      "name": "Leaking Key Vault",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "2KK",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2869,
+      "axes": {
+        "value": 0.4574,
+        "play": 0.0099,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 97
+    },
+    {
+      "rank": 158,
+      "id": "E1-213",
+      "name": "Attention Market",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "1BB",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2867,
+      "axes": {
+        "value": 0.3993,
+        "play": 0.0674,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 211
+    },
+    {
+      "rank": 159,
+      "id": "E1-131",
+      "name": "State Mirror",
+      "type_line": "Zap",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1K",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2862,
+      "axes": {
+        "value": 0.4057,
+        "play": 0.0597,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 128
+    },
+    {
+      "rank": 160,
+      "id": "E1-268",
+      "name": "Michael1011, Obsidian Node",
+      "type_line": "Hardware Avatar — Node",
+      "affinity": [],
+      "cost": "6",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2861,
+      "axes": {
+        "value": 0.3893,
+        "play": 0.0759,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 267
+    },
+    {
+      "rank": 161,
+      "id": "E1-135",
+      "name": "BlackCoffee, Backup Firewall",
+      "type_line": "Avatar — Firewall",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "2K",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.286,
+      "axes": {
+        "value": 0.4084,
+        "play": 0.0565,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 132
+    },
+    {
+      "rank": 162,
+      "id": "E1-024",
+      "name": "Protocol Cleanup",
+      "type_line": "Zap",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1S",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2847,
+      "axes": {
+        "value": 0.4431,
+        "play": 0.2686,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 18
+    },
+    {
+      "rank": 163,
+      "id": "E1-195",
+      "name": "Quiet Block",
+      "type_line": "Zap",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2841,
+      "axes": {
+        "value": 0.3847,
+        "play": 0.3256,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 193
+    },
+    {
+      "rank": 164,
+      "id": "E1-178",
+      "name": "Bam, Launch Engineer",
+      "type_line": "Avatar — Builder",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2PP",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2838,
+      "axes": {
+        "value": 0.4562,
+        "play": 0.0032,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 176
+    },
+    {
+      "rank": 165,
+      "id": "E1-223",
+      "name": "Timelock Outage",
+      "type_line": "Operation",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "3B",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2838,
+      "axes": {
+        "value": 0.4372,
+        "play": 0.0222,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 221
+    },
+    {
+      "rank": 166,
+      "id": "E1-103",
+      "name": "Bitcoin Gatekeeper",
+      "type_line": "Protocol",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "KK",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2831,
+      "axes": {
+        "value": 0.4327,
+        "play": 0.0251,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 100
+    },
+    {
+      "rank": 167,
+      "id": "E1-251",
+      "name": "Power Receiver",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2825,
+      "axes": {
+        "value": 0.4499,
+        "play": 0.0064,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 250
+    },
+    {
+      "rank": 168,
+      "id": "E1-254",
+      "name": "Hot Wallet Statue",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2822,
+      "axes": {
+        "value": 0.4537,
+        "play": 0.0017,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 253
+    },
+    {
+      "rank": 169,
+      "id": "E1-141",
+      "name": "Tunneling Patch",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2821,
+      "axes": {
+        "value": 0.44,
+        "play": 0.0152,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 138
+    },
+    {
+      "rank": 170,
+      "id": "E1-086",
+      "name": "Remote Hardware Control",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "2TT",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2806,
+      "axes": {
+        "value": 0.4282,
+        "play": 0.0234,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 81
+    },
+    {
+      "rank": 171,
+      "id": "E1-189",
+      "name": "Obfuscated Formation",
+      "type_line": "Zap",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2802,
+      "axes": {
+        "value": 0.4057,
+        "play": 0.0448,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 187
+    },
+    {
+      "rank": 172,
+      "id": "E1-032",
+      "name": "Consequence Ledger",
+      "type_line": "Protocol",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "2SS",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.28,
+      "axes": {
+        "value": 0.4279,
+        "play": 0.0222,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 26
+    },
+    {
+      "rank": 173,
+      "id": "E1-168",
+      "name": "Miner Rally",
+      "type_line": "Protocol",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "3P",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2796,
+      "axes": {
+        "value": 0.4332,
+        "play": 0.0158,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 166
+    },
+    {
+      "rank": 174,
+      "id": "E1-147",
+      "name": "Leon, Grid Stabilizer",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "3PP",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2794,
+      "axes": {
+        "value": 0.4279,
+        "play": 0.0207,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 144
+    },
+    {
+      "rank": 175,
+      "id": "E1-208",
+      "name": "Keys Invalidation",
+      "type_line": "Protocol",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "BB",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2762,
+      "axes": {
+        "value": 0.4165,
+        "play": 0.0239,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 206
+    },
+    {
+      "rank": 176,
+      "id": "E1-274",
+      "name": "Keys Receiver",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2754,
+      "axes": {
+        "value": 0.4273,
+        "play": 0.0113,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 273
+    },
+    {
+      "rank": 177,
+      "id": "E1-163",
+      "name": "Rootzoll, Crew Multiplier",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2PP",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2737,
+      "axes": {
+        "value": 0.4229,
+        "play": 0.0114,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 160
+    },
+    {
+      "rank": 178,
+      "id": "E1-093",
+      "name": "Snick, Airgap Firewall",
+      "type_line": "Avatar — Firewall",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "1TT",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.273,
+      "axes": {
+        "value": 0.371,
+        "play": 0.0614,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 89
+    },
+    {
+      "rank": 179,
+      "id": "E1-110",
+      "name": "Resource Corruption",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2714,
+      "axes": {
+        "value": 0.4118,
+        "play": 0.0166,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 107
+    },
+    {
+      "rank": 180,
+      "id": "E1-144",
+      "name": "MadMunky, Young Overclocker",
+      "type_line": "Avatar — Miner",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2PP",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.271,
+      "axes": {
+        "value": 0.4057,
+        "play": 0.0217,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 141
+    },
+    {
+      "rank": 181,
+      "id": "E1-074",
+      "name": "Tal, Ghost Router",
+      "type_line": "Avatar — Client",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "3T",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2708,
+      "axes": {
+        "value": 0.4051,
+        "play": 0.022,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 69
+    },
+    {
+      "rank": 182,
+      "id": "E1-220",
+      "name": "Mtoshi, Finality Keeper",
+      "type_line": "Avatar — Guardian",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "3BB",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2706,
+      "axes": {
+        "value": 0.3855,
+        "play": 0.0411,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 218
+    },
+    {
+      "rank": 183,
+      "id": "E1-240",
+      "name": "Timelock Receiver",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2699,
+      "axes": {
+        "value": 0.4175,
+        "play": 0.0072,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 239
+    },
+    {
+      "rank": 184,
+      "id": "E1-082",
+      "name": "Call to Relay",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "rare",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2688,
+      "axes": {
+        "value": 0.3695,
+        "play": 0.0525,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 77
+    },
+    {
+      "rank": 185,
+      "id": "E1-180",
+      "name": "Firewall Tunnel",
+      "type_line": "Zap",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2685,
+      "axes": {
+        "value": 0.3848,
+        "play": 0.0365,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 178
+    },
+    {
+      "rank": 186,
+      "id": "E1-095",
+      "name": "Darren, Flow Controller",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "3TT",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.268,
+      "axes": {
+        "value": 0.4003,
+        "play": 0.0196,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 91
+    },
+    {
+      "rank": 187,
+      "id": "E1-120",
+      "name": "NC, Forced Signal",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "2K",
+      "current_rarity": "uncommon",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2676,
+      "axes": {
+        "value": 0.3896,
+        "play": 0.0294,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 117
+    },
+    {
+      "rank": 188,
+      "id": "E1-014",
+      "name": "Timelock Shield",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.267,
+      "axes": {
+        "value": 0.4045,
+        "play": 0.013,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 8
+    },
+    {
+      "rank": 189,
+      "id": "E1-271",
+      "name": "Archive Listener",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2662,
+      "axes": {
+        "value": 0.4057,
+        "play": 0.0099,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 270
+    },
+    {
+      "rank": 190,
+      "id": "E1-269",
+      "name": "Fault Injector",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2654,
+      "axes": {
+        "value": 0.4057,
+        "play": 0.0079,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 268
+    },
+    {
+      "rank": 191,
+      "id": "E1-015",
+      "name": "Local Citadel",
+      "type_line": "Protocol",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "3S",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2646,
+      "axes": {
+        "value": 0.3872,
+        "play": 0.0244,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 9
+    },
+    {
+      "rank": 192,
+      "id": "E1-226",
+      "name": "Shillie, Cold Firewall",
+      "type_line": "Avatar — Firewall",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "2B",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2646,
+      "axes": {
+        "value": 0.3659,
+        "play": 0.0455,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 224
+    },
+    {
+      "rank": 193,
+      "id": "E1-252",
+      "name": "Signal Receiver",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2638,
+      "axes": {
+        "value": 0.3992,
+        "play": 0.0103,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 251
+    },
+    {
+      "rank": 194,
+      "id": "E1-094",
+      "name": "Tal, Liquid Firewall",
+      "type_line": "Avatar — Firewall",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "1TT",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.2634,
+      "axes": {
+        "value": 0.3657,
+        "play": 0.0427,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 90
+    },
+    {
+      "rank": 195,
+      "id": "E1-047",
+      "name": "Sat, Blade Firewall",
+      "type_line": "Avatar — Firewall",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "3S",
+      "current_rarity": "common",
+      "tier": "Uncommon",
+      "pool": "uncommon",
+      "copies": 279,
+      "score": 0.263,
+      "axes": {
+        "value": 0.352,
+        "play": 0.0554,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.01333333,
+      "one_in_packs": 75,
+      "source_slot": 42
+    },
+    {
+      "rank": 196,
+      "id": "E1-053",
+      "name": "Boot Hardware",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "3T",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2606,
+      "axes": {
+        "value": 0.3928,
+        "play": 0.0086,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 48
+    },
+    {
+      "rank": 197,
+      "id": "E1-183",
+      "name": "Toni China, Thermal Firewall",
+      "type_line": "Avatar — Firewall",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "1PP",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2603,
+      "axes": {
+        "value": 0.3878,
+        "play": 0.013,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 181
+    },
+    {
+      "rank": 198,
+      "id": "E1-011",
+      "name": "Keys Shield",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2593,
+      "axes": {
+        "value": 0.3848,
+        "play": 0.0135,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 5
+    },
+    {
+      "rank": 199,
+      "id": "E1-066",
+      "name": "Resource Tap",
+      "type_line": "Protocol",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "TT",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2589,
+      "axes": {
+        "value": 0.3792,
+        "play": 0.018,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 61
+    },
+    {
+      "rank": 200,
+      "id": "E1-207",
+      "name": "Tobo, Resource Unlocker",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "2B",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2587,
+      "axes": {
+        "value": 0.3634,
+        "play": 0.0333,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 205
+    },
+    {
+      "rank": 201,
+      "id": "E1-129",
+      "name": "Nind, Archive Collector",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "3K",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2555,
+      "axes": {
+        "value": 0.3873,
+        "play": 0.0014,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 126
+    },
+    {
+      "rank": 202,
+      "id": "E1-062",
+      "name": "Relay Feedback",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "2T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2552,
+      "axes": {
+        "value": 0.3829,
+        "play": 0.0051,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 57
+    },
+    {
+      "rank": 203,
+      "id": "E1-277",
+      "name": "Bitcoin Receiver",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "1",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2552,
+      "axes": {
+        "value": 0.3811,
+        "play": 0.0069,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 276
+    },
+    {
+      "rank": 204,
+      "id": "E1-072",
+      "name": "Snick, Phantom Process",
+      "type_line": "Avatar — Client",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "3T",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2551,
+      "axes": {
+        "value": 0.3689,
+        "play": 0.0188,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 67
+    },
+    {
+      "rank": 205,
+      "id": "E1-021",
+      "name": "Grid Conversion",
+      "type_line": "Protocol",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "2SS",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.255,
+      "axes": {
+        "value": 0.3799,
+        "play": 0.0076,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 15
+    },
+    {
+      "rank": 206,
+      "id": "E1-026",
+      "name": "Bitcoin Shield",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2548,
+      "axes": {
+        "value": 0.3766,
+        "play": 0.0104,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 20
+    },
+    {
+      "rank": 207,
+      "id": "E1-145",
+      "name": "Rootzoll, Hardware Breaker",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2502,
+      "axes": {
+        "value": 0.3539,
+        "play": 0.0217,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 142
+    },
+    {
+      "rank": 208,
+      "id": "E1-184",
+      "name": "Rootzoll, Stone Firewall",
+      "type_line": "Avatar — Firewall",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "1PP",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2499,
+      "axes": {
+        "value": 0.3577,
+        "play": 0.0171,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 182
+    },
+    {
+      "rank": 209,
+      "id": "E1-033",
+      "name": "Fast Path",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2479,
+      "axes": {
+        "value": 0.3654,
+        "play": 0.0043,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 27
+    },
+    {
+      "rank": 210,
+      "id": "E1-020",
+      "name": "Hardened Resource",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2478,
+      "axes": {
+        "value": 0.3598,
+        "play": 0.0098,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 14
+    },
+    {
+      "rank": 211,
+      "id": "E1-090",
+      "name": "Return to Wallet",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2455,
+      "axes": {
+        "value": 0.3702,
+        "play": 0.2435,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 86
+    },
+    {
+      "rank": 212,
+      "id": "E1-182",
+      "name": "Essex, Resilient Operator",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2455,
+      "axes": {
+        "value": 0.3614,
+        "play": 0.0023,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 180
+    },
+    {
+      "rank": 213,
+      "id": "E1-204",
+      "name": "Instant Boot",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2442,
+      "axes": {
+        "value": 0.2815,
+        "play": 0.079,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 202
+    },
+    {
+      "rank": 214,
+      "id": "E1-154",
+      "name": "Signal Outage",
+      "type_line": "Operation",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "3P",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2436,
+      "axes": {
+        "value": 0.3227,
+        "play": 0.0363,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 151
+    },
+    {
+      "rank": 215,
+      "id": "E1-228",
+      "name": "Restless Client",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "2B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2418,
+      "axes": {
+        "value": 0.3512,
+        "play": 0.0032,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 226
+    },
+    {
+      "rank": 216,
+      "id": "E1-238",
+      "name": "Damage Limiter",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "4",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2396,
+      "axes": {
+        "value": 0.3489,
+        "play": 0.0,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 237
+    },
+    {
+      "rank": 217,
+      "id": "E1-049",
+      "name": "Signal Shield",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2346,
+      "axes": {
+        "value": 0.3286,
+        "play": 0.0078,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 44
+    },
+    {
+      "rank": 218,
+      "id": "E1-235",
+      "name": "Resource Prism",
+      "type_line": "Hardware",
+      "affinity": [],
+      "cost": "3",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2251,
+      "axes": {
+        "value": 0.3107,
+        "play": 0.002,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 234
+    },
+    {
+      "rank": 219,
+      "id": "E1-199",
+      "name": "Number Go Up",
+      "type_line": "Zap",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2229,
+      "axes": {
+        "value": 0.4237,
+        "play": 0.1335,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 197
+    },
+    {
+      "rank": 220,
+      "id": "E1-152",
+      "name": "Power Burst",
+      "type_line": "Operation",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "XP",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.221,
+      "axes": {
+        "value": 0.467,
+        "play": 0.0854,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 149
+    },
+    {
+      "rank": 221,
+      "id": "E1-132",
+      "name": "Resource Sink",
+      "type_line": "Operation",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "KK",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2152,
+      "axes": {
+        "value": 0.479,
+        "play": 0.0591,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 129
+    },
+    {
+      "rank": 222,
+      "id": "E1-039",
+      "name": "Power Shield",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2146,
+      "axes": {
+        "value": 0.2756,
+        "play": 0.0109,
+        "alpha": 0.5
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 33
+    },
+    {
+      "rank": 223,
+      "id": "E1-148",
+      "name": "Grounded Signal",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.2068,
+      "axes": {
+        "value": 0.5025,
+        "play": 0.0145,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 145
+    },
+    {
+      "rank": 224,
+      "id": "E1-123",
+      "name": "Broadcast Storm",
+      "type_line": "Protocol",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "2KK",
+      "current_rarity": "rare",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.197,
+      "axes": {
+        "value": 0.4036,
+        "play": 0.0888,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 120
+    },
+    {
+      "rank": 225,
+      "id": "E1-133",
+      "name": "Hard Shutdown",
+      "type_line": "Zap",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1K",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1943,
+      "axes": {
+        "value": 0.3926,
+        "play": 0.0932,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 130
+    },
+    {
+      "rank": 226,
+      "id": "E1-054",
+      "name": "Power Invalidation",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.192,
+      "axes": {
+        "value": 0.397,
+        "play": 0.0829,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 49
+    },
+    {
+      "rank": 227,
+      "id": "E1-125",
+      "name": "Restore Backup",
+      "type_line": "Operation",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1848,
+      "axes": {
+        "value": 0.3536,
+        "play": 0.1085,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 122
+    },
+    {
+      "rank": 228,
+      "id": "E1-201",
+      "name": "BK, Bear Market Builder",
+      "type_line": "Avatar — Builder",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "1B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1761,
+      "axes": {
+        "value": 0.3834,
+        "play": 0.0568,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 199
+    },
+    {
+      "rank": 229,
+      "id": "E1-089",
+      "name": "Toggle State",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.175,
+      "axes": {
+        "value": 0.3584,
+        "play": 0.079,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 85
+    },
+    {
+      "rank": 230,
+      "id": "E1-192",
+      "name": "Longy, Deep Node",
+      "type_line": "Avatar — Node",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "4BB",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1734,
+      "axes": {
+        "value": 0.4002,
+        "play": 0.0333,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 190
+    },
+    {
+      "rank": 231,
+      "id": "E1-109",
+      "name": "BlackCoffee, Reboot Crew",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "1K",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1729,
+      "axes": {
+        "value": 0.3719,
+        "play": 0.0604,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 106
+    },
+    {
+      "rank": 232,
+      "id": "E1-143",
+      "name": "Final Settlement",
+      "type_line": "Operation",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "XP",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1728,
+      "axes": {
+        "value": 0.4021,
+        "play": 0.0298,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 140
+    },
+    {
+      "rank": 233,
+      "id": "E1-124",
+      "name": "BlackCoffee, Shared Secret Swarm",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "2K",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.172,
+      "axes": {
+        "value": 0.4037,
+        "play": 0.0264,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 121
+    },
+    {
+      "rank": 234,
+      "id": "E1-078",
+      "name": "Michael1011, Debugger",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "2T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1717,
+      "axes": {
+        "value": 0.3661,
+        "play": 0.0632,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 73
+    },
+    {
+      "rank": 235,
+      "id": "E1-175",
+      "name": "Hardware Shatter",
+      "type_line": "Zap",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "1P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1686,
+      "axes": {
+        "value": 0.3676,
+        "play": 0.0539,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 173
+    },
+    {
+      "rank": 236,
+      "id": "E1-134",
+      "name": "Sovereign Strength",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1676,
+      "axes": {
+        "value": 0.398,
+        "play": 0.021,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 131
+    },
+    {
+      "rank": 237,
+      "id": "E1-108",
+      "name": "Uptime Channel",
+      "type_line": "Operation",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "X1K",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1665,
+      "axes": {
+        "value": 0.3856,
+        "play": 0.0307,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 105
+    },
+    {
+      "rank": 238,
+      "id": "E1-179",
+      "name": "Resource Cut",
+      "type_line": "Operation",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1662,
+      "axes": {
+        "value": 0.3591,
+        "play": 0.0565,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 177
+    },
+    {
+      "rank": 239,
+      "id": "E1-034",
+      "name": "Sat, Relay Rider",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1629,
+      "axes": {
+        "value": 0.3533,
+        "play": 0.054,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 28
+    },
+    {
+      "rank": 240,
+      "id": "E1-150",
+      "name": "Route Misdirection",
+      "type_line": "Zap",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1628,
+      "axes": {
+        "value": 0.3588,
+        "play": 0.0482,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 147
+    },
+    {
+      "rank": 241,
+      "id": "E1-077",
+      "name": "Fee Spike",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "XT",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.157,
+      "axes": {
+        "value": 0.3421,
+        "play": 0.0504,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 72
+    },
+    {
+      "rank": 242,
+      "id": "E1-023",
+      "name": "Emergency Reboot",
+      "type_line": "Zap",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1556,
+      "axes": {
+        "value": 0.3342,
+        "play": 0.0547,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 17
+    },
+    {
+      "rank": 243,
+      "id": "E1-028",
+      "name": "Repair Packet",
+      "type_line": "Zap",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1541,
+      "axes": {
+        "value": 0.3338,
+        "play": 0.0515,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 22
+    },
+    {
+      "rank": 244,
+      "id": "E1-200",
+      "name": "Shillie, Mesh Sentinel",
+      "type_line": "Avatar — Guardian",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "3B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1536,
+      "axes": {
+        "value": 0.3445,
+        "play": 0.0394,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 198
+    },
+    {
+      "rank": 245,
+      "id": "E1-112",
+      "name": "Proton, Cold Signer",
+      "type_line": "Avatar — Signer",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "2K",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1534,
+      "axes": {
+        "value": 0.3595,
+        "play": 0.0239,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 109
+    },
+    {
+      "rank": 246,
+      "id": "E1-010",
+      "name": "Cuddy, Signal Organizer",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1533,
+      "axes": {
+        "value": 0.3295,
+        "play": 0.0538,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 4
+    },
+    {
+      "rank": 247,
+      "id": "E1-217",
+      "name": "Shillie, Tiny Broadcaster",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1515,
+      "axes": {
+        "value": 0.3414,
+        "play": 0.0374,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 215
+    },
+    {
+      "rank": 248,
+      "id": "E1-043",
+      "name": "AJ, First Responder",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1514,
+      "axes": {
+        "value": 0.3381,
+        "play": 0.0404,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 37
+    },
+    {
+      "rank": 249,
+      "id": "E1-166",
+      "name": "MadMunky, Meme Raider",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1513,
+      "axes": {
+        "value": 0.3307,
+        "play": 0.0476,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 164
+    },
+    {
+      "rank": 250,
+      "id": "E1-162",
+      "name": "Toni China, Rough Miner",
+      "type_line": "Avatar — Miner",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "1P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1506,
+      "axes": {
+        "value": 0.3393,
+        "play": 0.0373,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 159
+    },
+    {
+      "rank": 251,
+      "id": "E1-018",
+      "name": "Power Protection Circuit",
+      "type_line": "Protocol",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1494,
+      "axes": {
+        "value": 0.3546,
+        "play": 0.019,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 12
+    },
+    {
+      "rank": 252,
+      "id": "E1-229",
+      "name": "BK, Heavy Settler",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "3B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.147,
+      "axes": {
+        "value": 0.3467,
+        "play": 0.0208,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 227
+    },
+    {
+      "rank": 253,
+      "id": "E1-219",
+      "name": "Uptime Stream",
+      "type_line": "Operation",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "XB",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1467,
+      "axes": {
+        "value": 0.3418,
+        "play": 0.025,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 217
+    },
+    {
+      "rank": 254,
+      "id": "E1-153",
+      "name": "Overclock",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1457,
+      "axes": {
+        "value": 0.3453,
+        "play": 0.019,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 150
+    },
+    {
+      "rank": 255,
+      "id": "E1-215",
+      "name": "Reboot Protocol",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "1B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1449,
+      "axes": {
+        "value": 0.3322,
+        "play": 0.0301,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 213
+    },
+    {
+      "rank": 256,
+      "id": "E1-036",
+      "name": "Morgs, Friendly Fork",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "2S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1441,
+      "axes": {
+        "value": 0.314,
+        "play": 0.0463,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 30
+    },
+    {
+      "rank": 257,
+      "id": "E1-084",
+      "name": "Queue Filter",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "XT",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1435,
+      "axes": {
+        "value": 0.3389,
+        "play": 0.0199,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 79
+    },
+    {
+      "rank": 258,
+      "id": "E1-064",
+      "name": "Hidden Route",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "TT",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1434,
+      "axes": {
+        "value": 0.3222,
+        "play": 0.0362,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 59
+    },
+    {
+      "rank": 259,
+      "id": "E1-146",
+      "name": "Bam, Tunnel Builder",
+      "type_line": "Avatar — Builder",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1427,
+      "axes": {
+        "value": 0.3113,
+        "play": 0.0455,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 143
+    },
+    {
+      "rank": 260,
+      "id": "E1-080",
+      "name": "Hot Resource",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "1T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.142,
+      "axes": {
+        "value": 0.3436,
+        "play": 0.0114,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 75
+    },
+    {
+      "rank": 261,
+      "id": "E1-111",
+      "name": "Onion Route",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "KK",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1409,
+      "axes": {
+        "value": 0.3227,
+        "play": 0.0295,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 108
+    },
+    {
+      "rank": 262,
+      "id": "E1-218",
+      "name": "Tobo, Bitcoin Backchanneler",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1407,
+      "axes": {
+        "value": 0.3244,
+        "play": 0.0273,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 216
+    },
+    {
+      "rank": 263,
+      "id": "E1-161",
+      "name": "Essex, Bull Runner",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "1PP",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1405,
+      "axes": {
+        "value": 0.3276,
+        "play": 0.0236,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 158
+    },
+    {
+      "rank": 264,
+      "id": "E1-081",
+      "name": "Benarc, Deep Channel",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "5T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1388,
+      "axes": {
+        "value": 0.3247,
+        "play": 0.0222,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 76
+    },
+    {
+      "rank": 265,
+      "id": "E1-222",
+      "name": "Protocol Reset",
+      "type_line": "Operation",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "2B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1388,
+      "axes": {
+        "value": 0.3212,
+        "play": 0.0257,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 220
+    },
+    {
+      "rank": 266,
+      "id": "E1-019",
+      "name": "Signal Protection Circuit",
+      "type_line": "Protocol",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1378,
+      "axes": {
+        "value": 0.3227,
+        "play": 0.0219,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 13
+    },
+    {
+      "rank": 267,
+      "id": "E1-071",
+      "name": "Darren, Channel Operator",
+      "type_line": "Avatar — Broadcaster",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1377,
+      "axes": {
+        "value": 0.3171,
+        "play": 0.0271,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 66
+    },
+    {
+      "rank": 268,
+      "id": "E1-065",
+      "name": "Quick Uplink",
+      "type_line": "Zap",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1361,
+      "axes": {
+        "value": 0.293,
+        "play": 0.0472,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 60
+    },
+    {
+      "rank": 269,
+      "id": "E1-060",
+      "name": "Exit Fee",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "1T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1358,
+      "axes": {
+        "value": 0.3328,
+        "play": 0.0068,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 55
+    },
+    {
+      "rank": 270,
+      "id": "E1-227",
+      "name": "Tobo, Wooden Firewall",
+      "type_line": "Avatar — Firewall",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1358,
+      "axes": {
+        "value": 0.3096,
+        "play": 0.0299,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 225
+    },
+    {
+      "rank": 271,
+      "id": "E1-122",
+      "name": "Locked Process",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1344,
+      "axes": {
+        "value": 0.3171,
+        "play": 0.0188,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 119
+    },
+    {
+      "rank": 272,
+      "id": "E1-030",
+      "name": "Community Strength",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1343,
+      "axes": {
+        "value": 0.3175,
+        "play": 0.0182,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 24
+    },
+    {
+      "rank": 273,
+      "id": "E1-128",
+      "name": "NC, Offline Operator",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "2K",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.134,
+      "axes": {
+        "value": 0.3125,
+        "play": 0.0224,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 125
+    },
+    {
+      "rank": 274,
+      "id": "E1-159",
+      "name": "Leon, Shift Worker",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "2P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1334,
+      "axes": {
+        "value": 0.2958,
+        "play": 0.0376,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 156
+    },
+    {
+      "rank": 275,
+      "id": "E1-017",
+      "name": "Bitcoin Protection Circuit",
+      "type_line": "Protocol",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1332,
+      "axes": {
+        "value": 0.3151,
+        "play": 0.0179,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 11
+    },
+    {
+      "rank": 276,
+      "id": "E1-029",
+      "name": "Hardened Identity",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1332,
+      "axes": {
+        "value": 0.3253,
+        "play": 0.0078,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 23
+    },
+    {
+      "rank": 277,
+      "id": "E1-073",
+      "name": "Resource Reclassification",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "TT",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1308,
+      "axes": {
+        "value": 0.3166,
+        "play": 0.0104,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 68
+    },
+    {
+      "rank": 278,
+      "id": "E1-205",
+      "name": "Mtoshi, Rooted Node",
+      "type_line": "Avatar — Node",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "4B",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1296,
+      "axes": {
+        "value": 0.2823,
+        "play": 0.0417,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 203
+    },
+    {
+      "rank": 279,
+      "id": "E1-016",
+      "name": "Timelock Protection Circuit",
+      "type_line": "Protocol",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "1S",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1295,
+      "axes": {
+        "value": 0.3078,
+        "play": 0.016,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 10
+    },
+    {
+      "rank": 280,
+      "id": "E1-114",
+      "name": "Burst Signature",
+      "type_line": "Zap",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "XK",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.127,
+      "axes": {
+        "value": 0.284,
+        "play": 0.0335,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 111
+    },
+    {
+      "rank": 281,
+      "id": "E1-137",
+      "name": "Reduced Permissions",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "K",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1264,
+      "axes": {
+        "value": 0.3102,
+        "play": 0.0057,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 134
+    },
+    {
+      "rank": 282,
+      "id": "E1-063",
+      "name": "Broadcast Upgrade",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1263,
+      "axes": {
+        "value": 0.2982,
+        "play": 0.0176,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 58
+    },
+    {
+      "rank": 283,
+      "id": "E1-076",
+      "name": "Maintenance Leak",
+      "type_line": "Protocol — Attachment",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "1T",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1261,
+      "axes": {
+        "value": 0.3089,
+        "play": 0.0064,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 71
+    },
+    {
+      "rank": 284,
+      "id": "E1-160",
+      "name": "Bam, Heavy Lifter",
+      "type_line": "Avatar — Operator",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "3P",
+      "current_rarity": "common",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1247,
+      "axes": {
+        "value": 0.3078,
+        "play": 0.004,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 157
+    },
+    {
+      "rank": 285,
+      "id": "E1-027",
+      "name": "Guardian Signal",
+      "type_line": "Zap",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "XS",
+      "current_rarity": "uncommon",
+      "tier": "Common",
+      "pool": "common",
+      "copies": 930,
+      "score": 0.1166,
+      "axes": {
+        "value": 0.2897,
+        "play": 0.0017,
+        "alpha": 0.0
+      },
+      "p_per_pack": 0.04444444,
+      "one_in_packs": 22,
+      "source_slot": 21
+    },
+    {
+      "rank": null,
+      "id": "E1-002",
+      "name": "Satoshi Orchard",
+      "type_line": "Basic Resource — Bitcoin",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 294
+    },
+    {
+      "rank": null,
+      "id": "E1-287",
+      "name": "Signal Commons — Sunrise",
+      "type_line": "Basic Resource — Signal",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 286
+    },
+    {
+      "rank": null,
+      "id": "E1-288",
+      "name": "Signal Commons — Rooftop",
+      "type_line": "Basic Resource — Signal",
+      "affinity": [
+        "Signal"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 287
+    },
+    {
+      "rank": null,
+      "id": "E1-289",
+      "name": "Timelock Channel — Dawn",
+      "type_line": "Basic Resource — Timelock",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 288
+    },
+    {
+      "rank": null,
+      "id": "E1-290",
+      "name": "Timelock Channel — Midnight",
+      "type_line": "Basic Resource — Timelock",
+      "affinity": [
+        "Timelock"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 289
+    },
+    {
+      "rank": null,
+      "id": "E1-291",
+      "name": "Key Vault — Workshop",
+      "type_line": "Basic Resource — Keys",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 290
+    },
+    {
+      "rank": null,
+      "id": "E1-292",
+      "name": "Key Vault — Cold Room",
+      "type_line": "Basic Resource — Keys",
+      "affinity": [
+        "Keys"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 291
+    },
+    {
+      "rank": null,
+      "id": "E1-293",
+      "name": "Power Plant — Solar",
+      "type_line": "Basic Resource — Power",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 292
+    },
+    {
+      "rank": null,
+      "id": "E1-294",
+      "name": "Power Plant — Hydro",
+      "type_line": "Basic Resource — Power",
+      "affinity": [
+        "Power"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 293
+    },
+    {
+      "rank": null,
+      "id": "E1-295",
+      "name": "Satoshi Orchard — Commons",
+      "type_line": "Basic Resource — Bitcoin",
+      "affinity": [
+        "Bitcoin"
+      ],
+      "cost": "",
+      "current_rarity": "common",
+      "tier": "Basic",
+      "pool": "none",
+      "copies": null,
+      "score": null,
+      "axes": null,
+      "p_per_pack": 1.0,
+      "one_in_packs": 1,
+      "source_slot": 295
+    }
+  ]
+}

@@ -1,0 +1,1722 @@
+{
+  "set": "600B-E1",
+  "version": "scores-r1",
+  "note": "Per-card scores on three axes, each normalised to 0..1. Derived once from an external reference-signal set; the reference data itself stays out of this repository (rules/research-sources.md). Regenerate with scripts/build_tier_census.py --reference PATH.",
+  "axes": {
+    "value": "log of the reference slot's market price, min-max normalised across the set",
+    "play": "0.45 x inverted log EDHREC rank (how many real decks run it) + 0.20 x our own precon usage + 0.35 x tournament judgement (restricted/banned/game-changer)",
+    "alpha": "reference rarity band: common 0.0, uncommon 0.5, rare 1.0"
+  },
+  "scores": {
+    "E1-001": {
+      "value": 1.0,
+      "play": 0.55,
+      "alpha": 1.0,
+      "source_slot": 232
+    },
+    "E1-003": {
+      "value": 0.6609,
+      "play": 0.0889,
+      "alpha": 0.5,
+      "source_slot": 39
+    },
+    "E1-004": {
+      "value": 0.6042,
+      "play": 0.3884,
+      "alpha": 0.0,
+      "source_slot": 161
+    },
+    "E1-005": {
+      "value": 0.9198,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 83
+    },
+    "E1-006": {
+      "value": 0.6505,
+      "play": 0.0632,
+      "alpha": 1.0,
+      "source_slot": 93
+    },
+    "E1-007": {
+      "value": 0.5628,
+      "play": 0.0162,
+      "alpha": 1.0,
+      "source_slot": 1
+    },
+    "E1-008": {
+      "value": 0.6691,
+      "play": 0.0892,
+      "alpha": 1.0,
+      "source_slot": 2
+    },
+    "E1-009": {
+      "value": 0.7008,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 3
+    },
+    "E1-010": {
+      "value": 0.3295,
+      "play": 0.0538,
+      "alpha": 0.0,
+      "source_slot": 4
+    },
+    "E1-011": {
+      "value": 0.3848,
+      "play": 0.0135,
+      "alpha": 0.5,
+      "source_slot": 5
+    },
+    "E1-012": {
+      "value": 0.6199,
+      "play": 0.0477,
+      "alpha": 1.0,
+      "source_slot": 6
+    },
+    "E1-013": {
+      "value": 0.5302,
+      "play": 0.0138,
+      "alpha": 1.0,
+      "source_slot": 7
+    },
+    "E1-014": {
+      "value": 0.4045,
+      "play": 0.013,
+      "alpha": 0.5,
+      "source_slot": 8
+    },
+    "E1-015": {
+      "value": 0.3872,
+      "play": 0.0244,
+      "alpha": 0.5,
+      "source_slot": 9
+    },
+    "E1-016": {
+      "value": 0.3078,
+      "play": 0.016,
+      "alpha": 0.0,
+      "source_slot": 10
+    },
+    "E1-017": {
+      "value": 0.3151,
+      "play": 0.0179,
+      "alpha": 0.0,
+      "source_slot": 11
+    },
+    "E1-018": {
+      "value": 0.3546,
+      "play": 0.019,
+      "alpha": 0.0,
+      "source_slot": 12
+    },
+    "E1-019": {
+      "value": 0.3227,
+      "play": 0.0219,
+      "alpha": 0.0,
+      "source_slot": 13
+    },
+    "E1-020": {
+      "value": 0.3598,
+      "play": 0.0098,
+      "alpha": 0.5,
+      "source_slot": 14
+    },
+    "E1-021": {
+      "value": 0.3799,
+      "play": 0.0076,
+      "alpha": 0.5,
+      "source_slot": 15
+    },
+    "E1-022": {
+      "value": 0.0,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 16
+    },
+    "E1-023": {
+      "value": 0.3342,
+      "play": 0.0547,
+      "alpha": 0.0,
+      "source_slot": 17
+    },
+    "E1-024": {
+      "value": 0.4431,
+      "play": 0.2686,
+      "alpha": 0.0,
+      "source_slot": 18
+    },
+    "E1-025": {
+      "value": 0.5655,
+      "play": 0.0035,
+      "alpha": 1.0,
+      "source_slot": 19
+    },
+    "E1-026": {
+      "value": 0.3766,
+      "play": 0.0104,
+      "alpha": 0.5,
+      "source_slot": 20
+    },
+    "E1-027": {
+      "value": 0.2897,
+      "play": 0.0017,
+      "alpha": 0.0,
+      "source_slot": 21
+    },
+    "E1-028": {
+      "value": 0.3338,
+      "play": 0.0515,
+      "alpha": 0.0,
+      "source_slot": 22
+    },
+    "E1-029": {
+      "value": 0.3253,
+      "play": 0.0078,
+      "alpha": 0.0,
+      "source_slot": 23
+    },
+    "E1-030": {
+      "value": 0.3175,
+      "play": 0.0182,
+      "alpha": 0.0,
+      "source_slot": 24
+    },
+    "E1-031": {
+      "value": 0.5792,
+      "play": 0.0478,
+      "alpha": 1.0,
+      "source_slot": 25
+    },
+    "E1-032": {
+      "value": 0.4279,
+      "play": 0.0222,
+      "alpha": 0.5,
+      "source_slot": 26
+    },
+    "E1-033": {
+      "value": 0.3654,
+      "play": 0.0043,
+      "alpha": 0.5,
+      "source_slot": 27
+    },
+    "E1-034": {
+      "value": 0.3533,
+      "play": 0.054,
+      "alpha": 0.0,
+      "source_slot": 28
+    },
+    "E1-035": {
+      "value": 0.5761,
+      "play": 0.051,
+      "alpha": 1.0,
+      "source_slot": 29
+    },
+    "E1-036": {
+      "value": 0.314,
+      "play": 0.0463,
+      "alpha": 0.0,
+      "source_slot": 30
+    },
+    "E1-037": {
+      "value": 0.58,
+      "play": 0.0381,
+      "alpha": 1.0,
+      "source_slot": 31
+    },
+    "E1-038": {
+      "value": 0.509,
+      "play": 0.0193,
+      "alpha": 1.0,
+      "source_slot": 32
+    },
+    "E1-039": {
+      "value": 0.2756,
+      "play": 0.0109,
+      "alpha": 0.5,
+      "source_slot": 33
+    },
+    "E1-040": {
+      "value": 0.4309,
+      "play": 0.0412,
+      "alpha": 0.5,
+      "source_slot": 34
+    },
+    "E1-041": {
+      "value": 0.582,
+      "play": 0.0226,
+      "alpha": 1.0,
+      "source_slot": 35
+    },
+    "E1-042": {
+      "value": 0.5968,
+      "play": 0.0647,
+      "alpha": 1.0,
+      "source_slot": 36
+    },
+    "E1-043": {
+      "value": 0.3381,
+      "play": 0.0404,
+      "alpha": 0.0,
+      "source_slot": 37
+    },
+    "E1-044": {
+      "value": 0.7239,
+      "play": 0.0835,
+      "alpha": 1.0,
+      "source_slot": 38
+    },
+    "E1-045": {
+      "value": 0.6317,
+      "play": 0.4683,
+      "alpha": 0.5,
+      "source_slot": 40
+    },
+    "E1-046": {
+      "value": 0.5911,
+      "play": 0.0419,
+      "alpha": 1.0,
+      "source_slot": 41
+    },
+    "E1-047": {
+      "value": 0.352,
+      "play": 0.0554,
+      "alpha": 0.5,
+      "source_slot": 42
+    },
+    "E1-048": {
+      "value": 0.4328,
+      "play": 0.0604,
+      "alpha": 0.5,
+      "source_slot": 43
+    },
+    "E1-049": {
+      "value": 0.3286,
+      "play": 0.0078,
+      "alpha": 0.5,
+      "source_slot": 44
+    },
+    "E1-050": {
+      "value": 0.7114,
+      "play": 0.2907,
+      "alpha": 1.0,
+      "source_slot": 45
+    },
+    "E1-051": {
+      "value": 0.4382,
+      "play": 0.0475,
+      "alpha": 0.5,
+      "source_slot": 46
+    },
+    "E1-052": {
+      "value": 0.9242,
+      "play": 0.3864,
+      "alpha": 1.0,
+      "source_slot": 47
+    },
+    "E1-053": {
+      "value": 0.3928,
+      "play": 0.0086,
+      "alpha": 0.5,
+      "source_slot": 48
+    },
+    "E1-054": {
+      "value": 0.397,
+      "play": 0.0829,
+      "alpha": 0.0,
+      "source_slot": 49
+    },
+    "E1-055": {
+      "value": 0.724,
+      "play": 0.0437,
+      "alpha": 1.0,
+      "source_slot": 50
+    },
+    "E1-056": {
+      "value": 0.4709,
+      "play": 0.1106,
+      "alpha": 0.5,
+      "source_slot": 51
+    },
+    "E1-057": {
+      "value": 0.4979,
+      "play": 0.0657,
+      "alpha": 0.5,
+      "source_slot": 52
+    },
+    "E1-058": {
+      "value": 0.7181,
+      "play": 0.0894,
+      "alpha": 1.0,
+      "source_slot": 53
+    },
+    "E1-059": {
+      "value": 0.5928,
+      "play": 0.4521,
+      "alpha": 0.5,
+      "source_slot": 54
+    },
+    "E1-060": {
+      "value": 0.3328,
+      "play": 0.0068,
+      "alpha": 0.0,
+      "source_slot": 55
+    },
+    "E1-061": {
+      "value": 0.5725,
+      "play": 0.0285,
+      "alpha": 1.0,
+      "source_slot": 56
+    },
+    "E1-062": {
+      "value": 0.3829,
+      "play": 0.0051,
+      "alpha": 0.5,
+      "source_slot": 57
+    },
+    "E1-063": {
+      "value": 0.2982,
+      "play": 0.0176,
+      "alpha": 0.0,
+      "source_slot": 58
+    },
+    "E1-064": {
+      "value": 0.3222,
+      "play": 0.0362,
+      "alpha": 0.0,
+      "source_slot": 59
+    },
+    "E1-065": {
+      "value": 0.293,
+      "play": 0.0472,
+      "alpha": 0.0,
+      "source_slot": 60
+    },
+    "E1-066": {
+      "value": 0.3792,
+      "play": 0.018,
+      "alpha": 0.5,
+      "source_slot": 61
+    },
+    "E1-067": {
+      "value": 0.6343,
+      "play": 0.0977,
+      "alpha": 1.0,
+      "source_slot": 62
+    },
+    "E1-068": {
+      "value": 0.5472,
+      "play": 0.0519,
+      "alpha": 1.0,
+      "source_slot": 63
+    },
+    "E1-069": {
+      "value": 0.6807,
+      "play": 0.0276,
+      "alpha": 1.0,
+      "source_slot": 64
+    },
+    "E1-070": {
+      "value": 0.6274,
+      "play": 0.031,
+      "alpha": 1.0,
+      "source_slot": 65
+    },
+    "E1-071": {
+      "value": 0.3171,
+      "play": 0.0271,
+      "alpha": 0.0,
+      "source_slot": 66
+    },
+    "E1-072": {
+      "value": 0.3689,
+      "play": 0.0188,
+      "alpha": 0.5,
+      "source_slot": 67
+    },
+    "E1-073": {
+      "value": 0.3166,
+      "play": 0.0104,
+      "alpha": 0.0,
+      "source_slot": 68
+    },
+    "E1-074": {
+      "value": 0.4051,
+      "play": 0.022,
+      "alpha": 0.5,
+      "source_slot": 69
+    },
+    "E1-075": {
+      "value": 0.6101,
+      "play": 0.0348,
+      "alpha": 1.0,
+      "source_slot": 70
+    },
+    "E1-076": {
+      "value": 0.3089,
+      "play": 0.0064,
+      "alpha": 0.0,
+      "source_slot": 71
+    },
+    "E1-077": {
+      "value": 0.3421,
+      "play": 0.0504,
+      "alpha": 0.0,
+      "source_slot": 72
+    },
+    "E1-078": {
+      "value": 0.3661,
+      "play": 0.0632,
+      "alpha": 0.0,
+      "source_slot": 73
+    },
+    "E1-079": {
+      "value": 0.5928,
+      "play": 0.0157,
+      "alpha": 0.5,
+      "source_slot": 74
+    },
+    "E1-080": {
+      "value": 0.3436,
+      "play": 0.0114,
+      "alpha": 0.0,
+      "source_slot": 75
+    },
+    "E1-081": {
+      "value": 0.3247,
+      "play": 0.0222,
+      "alpha": 0.0,
+      "source_slot": 76
+    },
+    "E1-082": {
+      "value": 0.3695,
+      "play": 0.0525,
+      "alpha": 0.5,
+      "source_slot": 77
+    },
+    "E1-083": {
+      "value": 0.5798,
+      "play": 0.0426,
+      "alpha": 1.0,
+      "source_slot": 78
+    },
+    "E1-084": {
+      "value": 0.3389,
+      "play": 0.0199,
+      "alpha": 0.0,
+      "source_slot": 79
+    },
+    "E1-085": {
+      "value": 0.701,
+      "play": 0.0609,
+      "alpha": 1.0,
+      "source_slot": 80
+    },
+    "E1-086": {
+      "value": 0.4282,
+      "play": 0.0234,
+      "alpha": 0.5,
+      "source_slot": 81
+    },
+    "E1-087": {
+      "value": 0.4979,
+      "play": 0.0279,
+      "alpha": 1.0,
+      "source_slot": 82
+    },
+    "E1-088": {
+      "value": 0.9337,
+      "play": 0.4464,
+      "alpha": 1.0,
+      "source_slot": 84
+    },
+    "E1-089": {
+      "value": 0.3584,
+      "play": 0.079,
+      "alpha": 0.0,
+      "source_slot": 85
+    },
+    "E1-090": {
+      "value": 0.3702,
+      "play": 0.2435,
+      "alpha": 0.0,
+      "source_slot": 86
+    },
+    "E1-091": {
+      "value": 0.8327,
+      "play": 0.0447,
+      "alpha": 1.0,
+      "source_slot": 87
+    },
+    "E1-092": {
+      "value": 0.5406,
+      "play": 0.0046,
+      "alpha": 1.0,
+      "source_slot": 88
+    },
+    "E1-093": {
+      "value": 0.371,
+      "play": 0.0614,
+      "alpha": 0.5,
+      "source_slot": 89
+    },
+    "E1-094": {
+      "value": 0.3657,
+      "play": 0.0427,
+      "alpha": 0.5,
+      "source_slot": 90
+    },
+    "E1-095": {
+      "value": 0.4003,
+      "play": 0.0196,
+      "alpha": 0.5,
+      "source_slot": 91
+    },
+    "E1-096": {
+      "value": 0.5217,
+      "play": 0.3376,
+      "alpha": 0.5,
+      "source_slot": 92
+    },
+    "E1-097": {
+      "value": 0.5576,
+      "play": 0.0641,
+      "alpha": 0.5,
+      "source_slot": 94
+    },
+    "E1-098": {
+      "value": 0.4421,
+      "play": 0.0361,
+      "alpha": 0.5,
+      "source_slot": 95
+    },
+    "E1-099": {
+      "value": 0.651,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 96
+    },
+    "E1-100": {
+      "value": 0.4574,
+      "play": 0.0099,
+      "alpha": 0.5,
+      "source_slot": 97
+    },
+    "E1-101": {
+      "value": 0.5179,
+      "play": 0.4752,
+      "alpha": 0.0,
+      "source_slot": 98
+    },
+    "E1-102": {
+      "value": 0.5391,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 99
+    },
+    "E1-103": {
+      "value": 0.4327,
+      "play": 0.0251,
+      "alpha": 0.5,
+      "source_slot": 100
+    },
+    "E1-104": {
+      "value": 0.5544,
+      "play": 0.0568,
+      "alpha": 1.0,
+      "source_slot": 101
+    },
+    "E1-105": {
+      "value": 0.6024,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 102
+    },
+    "E1-106": {
+      "value": 0.628,
+      "play": 0.0464,
+      "alpha": 1.0,
+      "source_slot": 103
+    },
+    "E1-107": {
+      "value": 0.6126,
+      "play": 0.6753,
+      "alpha": 0.5,
+      "source_slot": 104
+    },
+    "E1-108": {
+      "value": 0.3856,
+      "play": 0.0307,
+      "alpha": 0.0,
+      "source_slot": 105
+    },
+    "E1-109": {
+      "value": 0.3719,
+      "play": 0.0604,
+      "alpha": 0.0,
+      "source_slot": 106
+    },
+    "E1-110": {
+      "value": 0.4118,
+      "play": 0.0166,
+      "alpha": 0.5,
+      "source_slot": 107
+    },
+    "E1-111": {
+      "value": 0.3227,
+      "play": 0.0295,
+      "alpha": 0.0,
+      "source_slot": 108
+    },
+    "E1-112": {
+      "value": 0.3595,
+      "play": 0.0239,
+      "alpha": 0.0,
+      "source_slot": 109
+    },
+    "E1-113": {
+      "value": 0.54,
+      "play": 0.0102,
+      "alpha": 0.5,
+      "source_slot": 110
+    },
+    "E1-114": {
+      "value": 0.284,
+      "play": 0.0335,
+      "alpha": 0.0,
+      "source_slot": 111
+    },
+    "E1-115": {
+      "value": 0.5825,
+      "play": 0.0924,
+      "alpha": 0.5,
+      "source_slot": 112
+    },
+    "E1-116": {
+      "value": 0.6458,
+      "play": 0.0203,
+      "alpha": 1.0,
+      "source_slot": 113
+    },
+    "E1-117": {
+      "value": 0.6995,
+      "play": 0.0751,
+      "alpha": 1.0,
+      "source_slot": 114
+    },
+    "E1-118": {
+      "value": 0.7053,
+      "play": 0.3389,
+      "alpha": 1.0,
+      "source_slot": 115
+    },
+    "E1-119": {
+      "value": 0.594,
+      "play": 0.0525,
+      "alpha": 1.0,
+      "source_slot": 116
+    },
+    "E1-120": {
+      "value": 0.3896,
+      "play": 0.0294,
+      "alpha": 0.5,
+      "source_slot": 117
+    },
+    "E1-121": {
+      "value": 0.6808,
+      "play": 0.0536,
+      "alpha": 1.0,
+      "source_slot": 118
+    },
+    "E1-122": {
+      "value": 0.3171,
+      "play": 0.0188,
+      "alpha": 0.0,
+      "source_slot": 119
+    },
+    "E1-123": {
+      "value": 0.4036,
+      "play": 0.0888,
+      "alpha": 0.0,
+      "source_slot": 120
+    },
+    "E1-124": {
+      "value": 0.4037,
+      "play": 0.0264,
+      "alpha": 0.0,
+      "source_slot": 121
+    },
+    "E1-125": {
+      "value": 0.3536,
+      "play": 0.1085,
+      "alpha": 0.0,
+      "source_slot": 122
+    },
+    "E1-126": {
+      "value": 0.7546,
+      "play": 0.2557,
+      "alpha": 1.0,
+      "source_slot": 123
+    },
+    "E1-127": {
+      "value": 0.4826,
+      "play": 0.2811,
+      "alpha": 0.5,
+      "source_slot": 124
+    },
+    "E1-128": {
+      "value": 0.3125,
+      "play": 0.0224,
+      "alpha": 0.0,
+      "source_slot": 125
+    },
+    "E1-129": {
+      "value": 0.3873,
+      "play": 0.0014,
+      "alpha": 0.5,
+      "source_slot": 126
+    },
+    "E1-130": {
+      "value": 0.5628,
+      "play": 0.0602,
+      "alpha": 0.5,
+      "source_slot": 127
+    },
+    "E1-131": {
+      "value": 0.4057,
+      "play": 0.0597,
+      "alpha": 0.5,
+      "source_slot": 128
+    },
+    "E1-132": {
+      "value": 0.479,
+      "play": 0.0591,
+      "alpha": 0.0,
+      "source_slot": 129
+    },
+    "E1-133": {
+      "value": 0.3926,
+      "play": 0.0932,
+      "alpha": 0.0,
+      "source_slot": 130
+    },
+    "E1-134": {
+      "value": 0.398,
+      "play": 0.021,
+      "alpha": 0.0,
+      "source_slot": 131
+    },
+    "E1-135": {
+      "value": 0.4084,
+      "play": 0.0565,
+      "alpha": 0.5,
+      "source_slot": 132
+    },
+    "E1-136": {
+      "value": 0.5945,
+      "play": 0.0038,
+      "alpha": 1.0,
+      "source_slot": 133
+    },
+    "E1-137": {
+      "value": 0.3102,
+      "play": 0.0057,
+      "alpha": 0.0,
+      "source_slot": 134
+    },
+    "E1-138": {
+      "value": 0.6267,
+      "play": 0.0633,
+      "alpha": 1.0,
+      "source_slot": 135
+    },
+    "E1-139": {
+      "value": 0.6546,
+      "play": 0.0581,
+      "alpha": 1.0,
+      "source_slot": 136
+    },
+    "E1-140": {
+      "value": 0.6107,
+      "play": 0.2647,
+      "alpha": 1.0,
+      "source_slot": 137
+    },
+    "E1-141": {
+      "value": 0.44,
+      "play": 0.0152,
+      "alpha": 0.5,
+      "source_slot": 138
+    },
+    "E1-142": {
+      "value": 0.5397,
+      "play": 0.0385,
+      "alpha": 1.0,
+      "source_slot": 139
+    },
+    "E1-143": {
+      "value": 0.4021,
+      "play": 0.0298,
+      "alpha": 0.0,
+      "source_slot": 140
+    },
+    "E1-144": {
+      "value": 0.4057,
+      "play": 0.0217,
+      "alpha": 0.5,
+      "source_slot": 141
+    },
+    "E1-145": {
+      "value": 0.3539,
+      "play": 0.0217,
+      "alpha": 0.5,
+      "source_slot": 142
+    },
+    "E1-146": {
+      "value": 0.3113,
+      "play": 0.0455,
+      "alpha": 0.0,
+      "source_slot": 143
+    },
+    "E1-147": {
+      "value": 0.4279,
+      "play": 0.0207,
+      "alpha": 0.5,
+      "source_slot": 144
+    },
+    "E1-148": {
+      "value": 0.5025,
+      "play": 0.0145,
+      "alpha": 0.0,
+      "source_slot": 145
+    },
+    "E1-149": {
+      "value": 0.6783,
+      "play": 0.2274,
+      "alpha": 1.0,
+      "source_slot": 146
+    },
+    "E1-150": {
+      "value": 0.3588,
+      "play": 0.0482,
+      "alpha": 0.0,
+      "source_slot": 147
+    },
+    "E1-151": {
+      "value": 0.4334,
+      "play": 0.0488,
+      "alpha": 0.5,
+      "source_slot": 148
+    },
+    "E1-152": {
+      "value": 0.467,
+      "play": 0.0854,
+      "alpha": 0.0,
+      "source_slot": 149
+    },
+    "E1-153": {
+      "value": 0.3453,
+      "play": 0.019,
+      "alpha": 0.0,
+      "source_slot": 150
+    },
+    "E1-154": {
+      "value": 0.3227,
+      "play": 0.0363,
+      "alpha": 0.5,
+      "source_slot": 151
+    },
+    "E1-155": {
+      "value": 0.7053,
+      "play": 0.0806,
+      "alpha": 1.0,
+      "source_slot": 152
+    },
+    "E1-156": {
+      "value": 0.4742,
+      "play": 0.0621,
+      "alpha": 0.5,
+      "source_slot": 153
+    },
+    "E1-157": {
+      "value": 0.699,
+      "play": 0.1341,
+      "alpha": 1.0,
+      "source_slot": 154
+    },
+    "E1-158": {
+      "value": 0.5505,
+      "play": 0.0386,
+      "alpha": 1.0,
+      "source_slot": 155
+    },
+    "E1-159": {
+      "value": 0.2958,
+      "play": 0.0376,
+      "alpha": 0.0,
+      "source_slot": 156
+    },
+    "E1-160": {
+      "value": 0.3078,
+      "play": 0.004,
+      "alpha": 0.0,
+      "source_slot": 157
+    },
+    "E1-161": {
+      "value": 0.3276,
+      "play": 0.0236,
+      "alpha": 0.0,
+      "source_slot": 158
+    },
+    "E1-162": {
+      "value": 0.3393,
+      "play": 0.0373,
+      "alpha": 0.0,
+      "source_slot": 159
+    },
+    "E1-163": {
+      "value": 0.4229,
+      "play": 0.0114,
+      "alpha": 0.5,
+      "source_slot": 160
+    },
+    "E1-164": {
+      "value": 0.6012,
+      "play": 0.0983,
+      "alpha": 1.0,
+      "source_slot": 162
+    },
+    "E1-165": {
+      "value": 0.5679,
+      "play": 0.2381,
+      "alpha": 1.0,
+      "source_slot": 163
+    },
+    "E1-166": {
+      "value": 0.3307,
+      "play": 0.0476,
+      "alpha": 0.0,
+      "source_slot": 164
+    },
+    "E1-167": {
+      "value": 0.5475,
+      "play": 0.0218,
+      "alpha": 0.5,
+      "source_slot": 165
+    },
+    "E1-168": {
+      "value": 0.4332,
+      "play": 0.0158,
+      "alpha": 0.5,
+      "source_slot": 166
+    },
+    "E1-169": {
+      "value": 0.6235,
+      "play": 0.0441,
+      "alpha": 1.0,
+      "source_slot": 167
+    },
+    "E1-170": {
+      "value": 0.6533,
+      "play": 0.0189,
+      "alpha": 1.0,
+      "source_slot": 168
+    },
+    "E1-171": {
+      "value": 0.4879,
+      "play": 0.3453,
+      "alpha": 0.0,
+      "source_slot": 169
+    },
+    "E1-172": {
+      "value": 0.6176,
+      "play": 0.0015,
+      "alpha": 1.0,
+      "source_slot": 170
+    },
+    "E1-173": {
+      "value": 0.6471,
+      "play": 0.0059,
+      "alpha": 1.0,
+      "source_slot": 171
+    },
+    "E1-174": {
+      "value": 0.7013,
+      "play": 0.0195,
+      "alpha": 1.0,
+      "source_slot": 172
+    },
+    "E1-175": {
+      "value": 0.3676,
+      "play": 0.0539,
+      "alpha": 0.0,
+      "source_slot": 173
+    },
+    "E1-176": {
+      "value": 0.8305,
+      "play": 0.0455,
+      "alpha": 1.0,
+      "source_slot": 174
+    },
+    "E1-177": {
+      "value": 0.5911,
+      "play": 0.0688,
+      "alpha": 1.0,
+      "source_slot": 175
+    },
+    "E1-178": {
+      "value": 0.4562,
+      "play": 0.0032,
+      "alpha": 0.5,
+      "source_slot": 176
+    },
+    "E1-179": {
+      "value": 0.3591,
+      "play": 0.0565,
+      "alpha": 0.0,
+      "source_slot": 177
+    },
+    "E1-180": {
+      "value": 0.3848,
+      "play": 0.0365,
+      "alpha": 0.5,
+      "source_slot": 178
+    },
+    "E1-181": {
+      "value": 0.5505,
+      "play": 0.0188,
+      "alpha": 1.0,
+      "source_slot": 179
+    },
+    "E1-182": {
+      "value": 0.3614,
+      "play": 0.0023,
+      "alpha": 0.5,
+      "source_slot": 180
+    },
+    "E1-183": {
+      "value": 0.3878,
+      "play": 0.013,
+      "alpha": 0.5,
+      "source_slot": 181
+    },
+    "E1-184": {
+      "value": 0.3577,
+      "play": 0.0171,
+      "alpha": 0.5,
+      "source_slot": 182
+    },
+    "E1-185": {
+      "value": 0.7758,
+      "play": 0.5425,
+      "alpha": 1.0,
+      "source_slot": 183
+    },
+    "E1-186": {
+      "value": 0.5697,
+      "play": 0.0137,
+      "alpha": 1.0,
+      "source_slot": 184
+    },
+    "E1-187": {
+      "value": 0.593,
+      "play": 0.1306,
+      "alpha": 0.5,
+      "source_slot": 185
+    },
+    "E1-188": {
+      "value": 0.7742,
+      "play": 0.4375,
+      "alpha": 1.0,
+      "source_slot": 186
+    },
+    "E1-189": {
+      "value": 0.4057,
+      "play": 0.0448,
+      "alpha": 0.5,
+      "source_slot": 187
+    },
+    "E1-190": {
+      "value": 0.4895,
+      "play": 0.35,
+      "alpha": 0.5,
+      "source_slot": 188
+    },
+    "E1-191": {
+      "value": 0.5891,
+      "play": 0.0443,
+      "alpha": 1.0,
+      "source_slot": 189
+    },
+    "E1-192": {
+      "value": 0.4002,
+      "play": 0.0333,
+      "alpha": 0.0,
+      "source_slot": 190
+    },
+    "E1-193": {
+      "value": 0.6231,
+      "play": 0.011,
+      "alpha": 1.0,
+      "source_slot": 191
+    },
+    "E1-194": {
+      "value": 0.6576,
+      "play": 0.2975,
+      "alpha": 1.0,
+      "source_slot": 192
+    },
+    "E1-195": {
+      "value": 0.3847,
+      "play": 0.3256,
+      "alpha": 0.0,
+      "source_slot": 193
+    },
+    "E1-196": {
+      "value": 0.7117,
+      "play": 0.0241,
+      "alpha": 1.0,
+      "source_slot": 194
+    },
+    "E1-197": {
+      "value": 0.5594,
+      "play": 0.0314,
+      "alpha": 1.0,
+      "source_slot": 195
+    },
+    "E1-198": {
+      "value": 0.5716,
+      "play": 0.0265,
+      "alpha": 1.0,
+      "source_slot": 196
+    },
+    "E1-199": {
+      "value": 0.4237,
+      "play": 0.1335,
+      "alpha": 0.0,
+      "source_slot": 197
+    },
+    "E1-200": {
+      "value": 0.3445,
+      "play": 0.0394,
+      "alpha": 0.0,
+      "source_slot": 198
+    },
+    "E1-201": {
+      "value": 0.3834,
+      "play": 0.0568,
+      "alpha": 0.0,
+      "source_slot": 199
+    },
+    "E1-202": {
+      "value": 0.453,
+      "play": 0.0554,
+      "alpha": 0.5,
+      "source_slot": 200
+    },
+    "E1-203": {
+      "value": 0.5188,
+      "play": 0.0369,
+      "alpha": 0.5,
+      "source_slot": 201
+    },
+    "E1-204": {
+      "value": 0.2815,
+      "play": 0.079,
+      "alpha": 0.5,
+      "source_slot": 202
+    },
+    "E1-205": {
+      "value": 0.2823,
+      "play": 0.0417,
+      "alpha": 0.0,
+      "source_slot": 203
+    },
+    "E1-206": {
+      "value": 0.5817,
+      "play": 0.0093,
+      "alpha": 1.0,
+      "source_slot": 204
+    },
+    "E1-207": {
+      "value": 0.3634,
+      "play": 0.0333,
+      "alpha": 0.5,
+      "source_slot": 205
+    },
+    "E1-208": {
+      "value": 0.4165,
+      "play": 0.0239,
+      "alpha": 0.5,
+      "source_slot": 206
+    },
+    "E1-209": {
+      "value": 0.5763,
+      "play": 0.0365,
+      "alpha": 1.0,
+      "source_slot": 207
+    },
+    "E1-210": {
+      "value": 0.5406,
+      "play": 0.0039,
+      "alpha": 1.0,
+      "source_slot": 208
+    },
+    "E1-211": {
+      "value": 0.5763,
+      "play": 0.0269,
+      "alpha": 1.0,
+      "source_slot": 209
+    },
+    "E1-212": {
+      "value": 0.4511,
+      "play": 0.4143,
+      "alpha": 0.0,
+      "source_slot": 210
+    },
+    "E1-213": {
+      "value": 0.3993,
+      "play": 0.0674,
+      "alpha": 0.5,
+      "source_slot": 211
+    },
+    "E1-214": {
+      "value": 0.6656,
+      "play": 0.0049,
+      "alpha": 1.0,
+      "source_slot": 212
+    },
+    "E1-215": {
+      "value": 0.3322,
+      "play": 0.0301,
+      "alpha": 0.0,
+      "source_slot": 213
+    },
+    "E1-216": {
+      "value": 0.4798,
+      "play": 0.259,
+      "alpha": 0.5,
+      "source_slot": 214
+    },
+    "E1-217": {
+      "value": 0.3414,
+      "play": 0.0374,
+      "alpha": 0.0,
+      "source_slot": 215
+    },
+    "E1-218": {
+      "value": 0.3244,
+      "play": 0.0273,
+      "alpha": 0.0,
+      "source_slot": 216
+    },
+    "E1-219": {
+      "value": 0.3418,
+      "play": 0.025,
+      "alpha": 0.0,
+      "source_slot": 217
+    },
+    "E1-220": {
+      "value": 0.3855,
+      "play": 0.0411,
+      "alpha": 0.5,
+      "source_slot": 218
+    },
+    "E1-221": {
+      "value": 0.596,
+      "play": 0.0306,
+      "alpha": 1.0,
+      "source_slot": 219
+    },
+    "E1-222": {
+      "value": 0.3212,
+      "play": 0.0257,
+      "alpha": 0.0,
+      "source_slot": 220
+    },
+    "E1-223": {
+      "value": 0.4372,
+      "play": 0.0222,
+      "alpha": 0.5,
+      "source_slot": 221
+    },
+    "E1-224": {
+      "value": 0.6187,
+      "play": 0.2549,
+      "alpha": 1.0,
+      "source_slot": 222
+    },
+    "E1-225": {
+      "value": 0.4417,
+      "play": 0.027,
+      "alpha": 0.5,
+      "source_slot": 223
+    },
+    "E1-226": {
+      "value": 0.3659,
+      "play": 0.0455,
+      "alpha": 0.5,
+      "source_slot": 224
+    },
+    "E1-227": {
+      "value": 0.3096,
+      "play": 0.0299,
+      "alpha": 0.0,
+      "source_slot": 225
+    },
+    "E1-228": {
+      "value": 0.3512,
+      "play": 0.0032,
+      "alpha": 0.5,
+      "source_slot": 226
+    },
+    "E1-229": {
+      "value": 0.3467,
+      "play": 0.0208,
+      "alpha": 0.0,
+      "source_slot": 227
+    },
+    "E1-230": {
+      "value": 0.4328,
+      "play": 0.006,
+      "alpha": 1.0,
+      "source_slot": 228
+    },
+    "E1-231": {
+      "value": 0.4211,
+      "play": 0.3398,
+      "alpha": 0.0,
+      "source_slot": 229
+    },
+    "E1-232": {
+      "value": 0.6357,
+      "play": 0.0808,
+      "alpha": 1.0,
+      "source_slot": 230
+    },
+    "E1-233": {
+      "value": 0.5505,
+      "play": 0.2974,
+      "alpha": 0.5,
+      "source_slot": 231
+    },
+    "E1-234": {
+      "value": 0.5604,
+      "play": 0.0466,
+      "alpha": 0.5,
+      "source_slot": 233
+    },
+    "E1-235": {
+      "value": 0.3107,
+      "play": 0.002,
+      "alpha": 0.5,
+      "source_slot": 234
+    },
+    "E1-236": {
+      "value": 0.809,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 235
+    },
+    "E1-237": {
+      "value": 0.5152,
+      "play": 0.0777,
+      "alpha": 1.0,
+      "source_slot": 236
+    },
+    "E1-238": {
+      "value": 0.3489,
+      "play": 0.0,
+      "alpha": 0.5,
+      "source_slot": 237
+    },
+    "E1-239": {
+      "value": 0.515,
+      "play": 0.0313,
+      "alpha": 0.5,
+      "source_slot": 238
+    },
+    "E1-240": {
+      "value": 0.4175,
+      "play": 0.0072,
+      "alpha": 0.5,
+      "source_slot": 239
+    },
+    "E1-241": {
+      "value": 0.6879,
+      "play": 0.0039,
+      "alpha": 1.0,
+      "source_slot": 240
+    },
+    "E1-242": {
+      "value": 0.5811,
+      "play": 0.0309,
+      "alpha": 1.0,
+      "source_slot": 241
+    },
+    "E1-243": {
+      "value": 0.536,
+      "play": 0.006,
+      "alpha": 1.0,
+      "source_slot": 242
+    },
+    "E1-244": {
+      "value": 0.6949,
+      "play": 0.026,
+      "alpha": 1.0,
+      "source_slot": 243
+    },
+    "E1-245": {
+      "value": 0.7054,
+      "play": 0.041,
+      "alpha": 1.0,
+      "source_slot": 244
+    },
+    "E1-246": {
+      "value": 0.5259,
+      "play": 0.0528,
+      "alpha": 0.5,
+      "source_slot": 245
+    },
+    "E1-247": {
+      "value": 0.5535,
+      "play": 0.0218,
+      "alpha": 1.0,
+      "source_slot": 246
+    },
+    "E1-248": {
+      "value": 0.6581,
+      "play": 0.2867,
+      "alpha": 1.0,
+      "source_slot": 247
+    },
+    "E1-249": {
+      "value": 0.6154,
+      "play": 0.0476,
+      "alpha": 0.5,
+      "source_slot": 248
+    },
+    "E1-250": {
+      "value": 0.6359,
+      "play": 0.01,
+      "alpha": 1.0,
+      "source_slot": 249
+    },
+    "E1-251": {
+      "value": 0.4499,
+      "play": 0.0064,
+      "alpha": 0.5,
+      "source_slot": 250
+    },
+    "E1-252": {
+      "value": 0.3992,
+      "play": 0.0103,
+      "alpha": 0.5,
+      "source_slot": 251
+    },
+    "E1-253": {
+      "value": 0.5618,
+      "play": 0.0277,
+      "alpha": 1.0,
+      "source_slot": 252
+    },
+    "E1-254": {
+      "value": 0.4537,
+      "play": 0.0017,
+      "alpha": 0.5,
+      "source_slot": 253
+    },
+    "E1-255": {
+      "value": 0.7419,
+      "play": 0.0198,
+      "alpha": 1.0,
+      "source_slot": 254
+    },
+    "E1-256": {
+      "value": 0.488,
+      "play": 0.1331,
+      "alpha": 0.5,
+      "source_slot": 255
+    },
+    "E1-257": {
+      "value": 0.4977,
+      "play": 0.0385,
+      "alpha": 1.0,
+      "source_slot": 256
+    },
+    "E1-258": {
+      "value": 0.4773,
+      "play": 0.1018,
+      "alpha": 0.5,
+      "source_slot": 257
+    },
+    "E1-259": {
+      "value": 0.3676,
+      "play": 0.1115,
+      "alpha": 0.5,
+      "source_slot": 258
+    },
+    "E1-260": {
+      "value": 0.701,
+      "play": 0.5835,
+      "alpha": 1.0,
+      "source_slot": 259
+    },
+    "E1-261": {
+      "value": 0.6405,
+      "play": 0.2273,
+      "alpha": 1.0,
+      "source_slot": 260
+    },
+    "E1-262": {
+      "value": 0.7895,
+      "play": 0.55,
+      "alpha": 1.0,
+      "source_slot": 261
+    },
+    "E1-263": {
+      "value": 0.9347,
+      "play": 0.55,
+      "alpha": 1.0,
+      "source_slot": 262
+    },
+    "E1-264": {
+      "value": 0.8521,
+      "play": 0.5318,
+      "alpha": 1.0,
+      "source_slot": 263
+    },
+    "E1-265": {
+      "value": 0.8531,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 264
+    },
+    "E1-266": {
+      "value": 0.9383,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 265
+    },
+    "E1-267": {
+      "value": 0.6156,
+      "play": 0.243,
+      "alpha": 1.0,
+      "source_slot": 266
+    },
+    "E1-268": {
+      "value": 0.3893,
+      "play": 0.0759,
+      "alpha": 0.5,
+      "source_slot": 267
+    },
+    "E1-269": {
+      "value": 0.4057,
+      "play": 0.0079,
+      "alpha": 0.5,
+      "source_slot": 268
+    },
+    "E1-270": {
+      "value": 0.6665,
+      "play": 0.8,
+      "alpha": 0.5,
+      "source_slot": 269
+    },
+    "E1-271": {
+      "value": 0.4057,
+      "play": 0.0099,
+      "alpha": 0.5,
+      "source_slot": 270
+    },
+    "E1-272": {
+      "value": 0.5787,
+      "play": 0.009,
+      "alpha": 1.0,
+      "source_slot": 271
+    },
+    "E1-273": {
+      "value": 0.6056,
+      "play": 0.0093,
+      "alpha": 1.0,
+      "source_slot": 272
+    },
+    "E1-274": {
+      "value": 0.4273,
+      "play": 0.0113,
+      "alpha": 0.5,
+      "source_slot": 273
+    },
+    "E1-275": {
+      "value": 0.7632,
+      "play": 0.35,
+      "alpha": 1.0,
+      "source_slot": 274
+    },
+    "E1-276": {
+      "value": 0.687,
+      "play": 0.0975,
+      "alpha": 1.0,
+      "source_slot": 275
+    },
+    "E1-277": {
+      "value": 0.3811,
+      "play": 0.0069,
+      "alpha": 0.5,
+      "source_slot": 276
+    },
+    "E1-278": {
+      "value": 0.7456,
+      "play": 0.4049,
+      "alpha": 1.0,
+      "source_slot": 277
+    },
+    "E1-279": {
+      "value": 0.7764,
+      "play": 0.4007,
+      "alpha": 1.0,
+      "source_slot": 278
+    },
+    "E1-280": {
+      "value": 0.7345,
+      "play": 0.3799,
+      "alpha": 1.0,
+      "source_slot": 279
+    },
+    "E1-281": {
+      "value": 0.7622,
+      "play": 0.3789,
+      "alpha": 1.0,
+      "source_slot": 280
+    },
+    "E1-282": {
+      "value": 0.7646,
+      "play": 0.4045,
+      "alpha": 1.0,
+      "source_slot": 281
+    },
+    "E1-283": {
+      "value": 0.794,
+      "play": 0.3812,
+      "alpha": 1.0,
+      "source_slot": 282
+    },
+    "E1-284": {
+      "value": 0.8346,
+      "play": 0.3904,
+      "alpha": 1.0,
+      "source_slot": 283
+    },
+    "E1-285": {
+      "value": 0.0,
+      "play": 0.3902,
+      "alpha": 1.0,
+      "source_slot": 284
+    },
+    "E1-286": {
+      "value": 0.896,
+      "play": 0.4161,
+      "alpha": 1.0,
+      "source_slot": 285
+    }
+  }
+}
