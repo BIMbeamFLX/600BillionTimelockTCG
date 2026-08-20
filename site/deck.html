@@ -63,6 +63,18 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 @media (max-width: 620px) { .hint { display: none; } }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Two ways to build, and the player picks — buying a pack must never take the
+ * full catalog away. Same chip language as the affinity filters. */
+.modes { display: flex; gap: 6px; margin: 14px 0 6px; }
+.mode {
+  flex: 1; padding: 7px 10px; color: var(--muted); background: transparent;
+  border: 1px solid var(--line); cursor: pointer;
+  font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase;
+}
+.mode:hover:not([disabled]) { color: var(--cream); border-color: var(--orange); }
+.mode.is-on { color: var(--black); background: var(--orange); border-color: var(--orange); }
+.mode[disabled] { opacity: .4; cursor: not-allowed; }
+
 .chiprow { margin-top: 9px; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
@@ -291,6 +303,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       <h3>Starter library</h3>
       <div id="preconList"></div>
     </div>
+    <div class="modes" role="group" aria-label="Stack building mode">
+      <button type="button" class="mode is-on" id="modeFreestyle" aria-pressed="true">Freestyle</button>
+      <button type="button" class="mode" id="modeOg" aria-pressed="false">OG</button>
+    </div>
     <div class="note" id="ownershipNote">Checking whether this Stack uses verified NutFT ownership…</div>
     <div class="saved">
       <h3>Saved stacks</h3>
@@ -420,7 +436,17 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     inStack: false, sort: "id",
   };
   let deck = {}; // cardId -> copies
-  let owned = null; // null = unrestricted prototype mode; Map = verified NutFT counts
+  /* `owned` is what the deck rules read: null means the whole catalog is legal,
+   * a Map means only these verified NutFT copies are. It is now DERIVED from a
+   * mode the player chooses, not from whether a wallet happens to hold proofs.
+   * Buying a booster used to silently restrict the builder, which punished the
+   * only people who bought anything — Freestyle stays available forever, and OG
+   * is the opt-in "play what you actually pulled" mode. */
+  let owned = null;
+  let verified = null;            // verified NutFT counts, once the wallet is read
+  const MODE_KEY = "600b:deck-mode";
+  let mode = "freestyle";
+  try { if (localStorage.getItem(MODE_KEY) === "og") mode = "og"; } catch { /* storage is optional */ }
   let walletReady = false;
   const total = () => Object.values(deck).reduce((a, n) => a + n, 0);
 
@@ -1209,24 +1235,62 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * exactly the spec's fallback: "preconstructed decks only". */
   renderPrecons();
   renderSaved();
+  const modeButtons = { freestyle: document.getElementById("modeFreestyle"), og: document.getElementById("modeOg") };
+  const ownershipNote = document.getElementById("ownershipNote");
+
+  /* One place decides what is legal, so the buttons, the note and the deck rules
+   * can never disagree. OG with no verified proofs would be an empty builder, so
+   * it stays disabled until the wallet actually holds something. */
+  function applyMode(next, { save = true } = {}) {
+    const proofs = verified ? [...verified.values()].reduce((sum, n) => sum + n, 0) : 0;
+    if (next === "og" && !proofs) next = "freestyle";
+    mode = next;
+    owned = mode === "og" ? verified : null;
+    if (save) { try { localStorage.setItem(MODE_KEY, mode); } catch { /* storage is optional */ } }
+
+    for (const [name, button] of Object.entries(modeButtons)) {
+      if (!button) continue;
+      button.classList.toggle("is-on", mode === name);
+      button.setAttribute("aria-pressed", String(mode === name));
+    }
+    if (modeButtons.og) modeButtons.og.disabled = !proofs;
+
+    ownershipNote.textContent = mode === "og"
+      ? `OG: ${proofs} verified unspent proof(s). Only cards you actually pulled can enter this Stack.`
+      : verified === null
+        ? "Freestyle: the whole catalog is legal. Checking your wallet for an OG option…"
+        : proofs
+          ? `Freestyle: the whole catalog is legal. You hold ${proofs} verified proof(s) — switch to OG to build from those only.`
+          : "Freestyle: the whole catalog is legal. Buy a booster to unlock OG, which builds only from cards you own.";
+
+    if (typeof renderGrid === "function") renderGrid();
+    if (typeof renderDeck === "function") renderDeck();
+  }
+
+  for (const [name, button] of Object.entries(modeButtons)) {
+    if (button) button.addEventListener("click", () => applyMode(name));
+  }
+  applyMode(mode, { save: false });
+
   globalThis.NutFTWallet.read().then(async (wallet) => {
-    const note = document.getElementById("ownershipNote");
     if (!wallet.tokens.length) {
+      verified = new Map();
       walletReady = true;
-      note.textContent = "Prototype mode: no NutFT proofs found, so the full catalog is available.";
+      applyMode("freestyle", { save: false });
       return;
     }
     const view = await globalThis.NutFTWallet.snapshot(location.origin);
-    owned = new Map();
-    for (const item of view.owned) owned.set(item.tag[2], (owned.get(item.tag[2]) || 0) + 1);
+    verified = new Map();
+    for (const item of view.owned) verified.set(item.tag[2], (verified.get(item.tag[2]) || 0) + 1);
     walletReady = true;
-    note.textContent = `NutFT mode: ${view.owned.length} verified unspent proof(s). Only owned copies can enter this Stack.`;
-    renderGrid();
-    renderDeck();
+    applyMode(mode, { save: false });
   }).catch((error) => {
-    owned = new Map();
+    /* A wallet that cannot be verified must not silently become an empty OG
+     * pool — fall back to Freestyle and say why. */
+    verified = new Map();
     walletReady = true;
-    document.getElementById("ownershipNote").textContent = `Wallet verification failed: ${error.message}`;
+    applyMode("freestyle", { save: false });
+    ownershipNote.textContent = `Wallet verification failed, so Freestyle is active: ${error.message}`;
   });
   /* The doors open only once the library is in hand, and they open either way:
    * a handoff still has to be consumed and cleared even if the library failed
