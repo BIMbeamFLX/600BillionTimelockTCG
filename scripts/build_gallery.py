@@ -269,6 +269,7 @@ TEMPLATE = """<!doctype html>
     content="Every 600B Timelock TCG Edition One and promo card, with artwork and text.">
   <title>600B Timelock TCG — All Cards</title>
   <link rel="icon" href="../art/brand/600B-logo-primary.png">
+  <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="600b.css">
   <!-- The napplet adapter, loaded before anything paints. It maps a shell's
        palette onto the very custom properties 600b.css already uses (and never

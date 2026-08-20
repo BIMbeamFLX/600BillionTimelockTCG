@@ -116,6 +116,7 @@ function renderWebsite() {
   <meta name="description" content="Edition One rules for 600B Timelock TCG, a positive cypherpunk card game about Bitcoin, Nostr and open systems.">
   <title>600B Timelock TCG — Edition One Rules</title>
   <link rel="icon" href="../art/brand/600B-logo-primary.png">
+  <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="600b.css">
   <!-- The napplet seam. Loaded before the stylesheet's tokens are used so a
        shell-themed panel never flashes the fallback palette first; absent a

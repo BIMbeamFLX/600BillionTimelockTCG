@@ -1,4 +1,4 @@
----
+﻿---
 title: "600B Timelock TCG — Edition One Rules"
 edition: "E1 / Classic Profile"
 status: "Prototype rules lock"
@@ -19,8 +19,8 @@ grid sang — lives on the [lore page](../site/lore.html).
 
 The first rules profile deliberately preserves the strategic shape of first-generation
 dueling card games: 20 starting Uptime, seven cards in the opening Wallet, forty-card
-minimum Stacks, one Resource play each turn, classic resource burn and unrestricted card
-counts. Timing is expressed through one deterministic last-in-first-out Queue so the same
+minimum Stacks, one Resource play each turn, classic resource burn and a three-copy limit
+except for Basic Resources. Timing is expressed through one deterministic last-in-first-out Queue so the same
 rules can be enforced by a web app.
 
 > **Edition One principle:** cards can bend these rules. When a card and this rulebook
@@ -265,7 +265,7 @@ The E1 Classic Profile uses the original open deck-building shape.
 
 - Minimum Stack size: **40 cards**.
 - Maximum Stack size: none, but the player must be able to randomize it.
-- Copy limit: **3 copies of any one card**, Resources included.
+- Copy limit: **3 copies of any one card**, except Basic Resources.
 - Sideboard: none.
 - Resource cards count toward the minimum.
 - Cards marked for Stake or Toss modules are legal only when that module is enabled.
