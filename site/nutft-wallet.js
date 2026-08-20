@@ -225,6 +225,31 @@
     throw new Error(attempt.reason);
   }
 
+  /* Read the mint's own refusal out of a failed response -- or THROW, because
+     anything that is not the mint refusing must not be treated as one.
+   *
+   * submitPending discards the pending on a refusal, since a refusal means
+   * those outputs will never be signed. A proxy's HTML 502, a captive-portal
+   * page or a truncated body is NOT a refusal: the mint may well have accepted,
+   * and on a trade the input proof is already spent, so the outputs have to
+   * survive for a retry under the same idempotency key.
+   *
+   * Found twice independently -- once here, once in review -- which is the best
+   * evidence a bug of this shape gets. */
+  async function refusal(response) {
+    let body;
+    try { body = await response.json(); }
+    catch {
+      /* A proxy's HTML 502 is not the mint refusing the request. Keep the
+         pending bearer outputs so the same idempotent request can be retried. */
+      throw new Error(`mint gateway returned a non-JSON error (${response.status}); request preserved for retry`);
+    }
+    if (!body || typeof body.error !== "string" || !body.error) {
+      throw new Error(`mint returned an invalid error response (${response.status}); request preserved for retry`);
+    }
+    return body.error;
+  }
+
   /* POST a body, and if the mint answers "early access", sign a NIP-98 proof
      and send it once more. The mint's own words are carried through: they tell a
      buyer whether to install an extension, switch keys, or simply wait. */
@@ -251,33 +276,7 @@
     }
     const second = await send(header);
     if (second.ok) return second;
-    return { ok: false, status: second.status, detail: (await refusal(second)) || detail };
-  }
-
-  /* Read the mint's own refusal out of a failed response -- or THROW, if this
-     was not the mint refusing.
-   *
-   * The distinction is worth money. submitPending discards the pending on a
-   * refusal, because a refusal means those outputs will never be signed. But a
-   * 502 from a proxy, a captive-portal login page, or a truncated body is not a
-   * refusal: the mint may well have accepted, and the outputs must survive so
-   * the buyer can resubmit under the same idempotency key. Before this existed,
-   * the raw `(await response.json()).error` threw on such a body and the pending
-   * survived by accident; routing it through a catch turned that accident into
-   * a data-loss bug. Now it is deliberate. */
-  async function refusal(response) {
-    let detail = "";
-    try {
-      const body = await response.json();
-      detail = (body && body.error) || "";
-    } catch { detail = ""; }
-    if (detail) return detail;
-    const error = new Error(
-      `the mint could not be reached cleanly (HTTP ${response.status}) -- `
-      + "nothing was lost, your booster is still waiting; try again in a moment",
-    );
-    error.transport = true;
-    throw error;
+    return { ok: false, status: second.status, detail: await refusal(second) };
   }
 
   /* Telling someone to install what they already have is worse than saying

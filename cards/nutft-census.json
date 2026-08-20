@@ -1,7 +1,7 @@
 {
   "set": "600B-E1",
   "version": "tier-census-r2",
-  "note": "Proposal. Not locked, not minted. See dist/mint-package/docs/rarity-and-booster-plan.md.",
+  "note": "Scored Edition One scarcity census. See docs/adr/0004-mint-tier-authority.md.",
   "weights": {
     "value": 0.4,
     "play": 0.4,

@@ -120,6 +120,28 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   const recovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
   assert.match(recovered.token, /^cashu/);
   assert.equal((await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned.length, 5);
+
+  // A reverse proxy serves HTML for a 502. That is transport failure, not a
+  // mint refusal: the trade may already have spent its input and the pending
+  // replacement is the only way to recover the card.
+  let gatewayTradeResponse = true;
+  const gatewayFetch = async (url, options) => {
+    const response = await fetchImpl(url, options);
+    if (gatewayTradeResponse && String(url).endsWith("/nutft/trade")) {
+      gatewayTradeResponse = false;
+      return new Response("<html>bad gateway</html>", { status: 502, headers: { "content-type": "text/html" } });
+    }
+    return response;
+  };
+  const thirdCard = (await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned[0].proof.secret;
+  await assert.rejects(
+    () => browserWallet(storage, gatewayFetch).then((wallet) => wallet.tradeProof(table.url, thirdCard, recipientPubkey)),
+    /non-JSON error.*preserved/i,
+  );
+  const gatewayRecovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
+  assert.match(gatewayRecovered.token, /^cashu/);
+  assert.equal((await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned.length, 4);
+
   storage.set("600b:nutft-wallet", "{broken");
   await assert.rejects(() => browserWallet(storage, fetchImpl).then((wallet) => wallet.read()), /corrupted/);
   assert.equal(storage.get("600b:nutft-wallet"), "{broken");
@@ -137,6 +159,13 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   assert.equal(info.nuts[31].catalog_issuer, catalog.issuer_pubkey);
   assert.equal(typeof catalog.assets[0].type_line, "string");
   assert.equal(typeof catalog.assets[0].face.sha256, "string");
+  const census = require("../../cards/nutft-census.json");
+  const censusById = new Map(census.cards.map((card) => [card.id, card]));
+  assert.equal(catalog.assets.length, census.cards.length);
+  for (const asset of catalog.assets) {
+    assert.equal(asset.tier, censusById.get(asset.asset_id).tier, `${asset.asset_id} uses the scored mint tier`);
+    assert.equal("rarity" in asset, false, `${asset.asset_id} does not leak the legacy rarity ladder into the mint catalog`);
+  }
   const { signature, issuer_pubkey: issuer, ...catalogPayload } = catalog;
   const catalogDigest = createHash("sha256").update(canonical(catalogPayload)).digest("hex");
   assert.equal(cashu.schnorrVerifyDigest(signature, catalogDigest, issuer), true);
@@ -248,6 +277,11 @@ test("a paid mint sells nothing until the invoice actually settles", async (t) =
 
   const db = new DatabaseSync(":memory:");
   t.after(() => db.close());
+  assert.throws(
+    () => createNutftMint({ catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000 }),
+    /paid mint requires a database/i,
+    "a payable invoice is never issued without durable claim state",
+  );
   const mint = createNutftMint({ db, catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000 });
 
   const hit = async (method, path, body) => {
@@ -330,6 +364,13 @@ test("one settled invoice buys exactly one pack, and never a second", async (t) 
   // The buyer pays.
   settled.add(quote.payment_hash);
   const outs = outputsFor(quote);
+
+  // Invalid output data must not consume the one-way invoice claim. The buyer
+  // can fix the request and claim the pack they already paid for.
+  const malformed = bodyFor(quote, outs, "bad-output", quote.payment_hash);
+  malformed.outputs[0].nutft.blinding_factor = "0".repeat(64);
+  await assert.rejects(() => mint.signBooster(malformed), /blinding factor is invalid/i);
+
   const result = await mint.signBooster(bodyFor(quote, outs, "buy-1", quote.payment_hash));
   assert.equal(result.signatures.length, 7, "a settled invoice mints the whole pack");
   assert.equal(result.unit, "600B-E1");
@@ -435,6 +476,27 @@ test("a sealed pack cannot be known at purchase, and resolves to its own block",
     otherOpened.cards.map((c) => c.asset_id),
     opened.cards.map((c) => c.asset_id),
     "yields a different pack from the same pack_id — the beacon really drives the draw",
+  );
+
+  // Issuance must advance the same cards that the committed block revealed.
+  // Using the static demo beacon here silently corrupts the remaining census.
+  const keysRes = { writeHead() { return keysRes; }, end(b) { keysRes.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET" }, keysRes, new URL("http://x/v1/keys"));
+  const keyset = keysRes.parsed.keysets[0];
+  const pubkey = hex(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey()));
+  const outputs = opened.cards.map((card) => cashu.OutputData.createSingleP2PKData({
+    pubkey, blindKeys: true,
+    additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+  }, 1, keyset.id));
+  const issuedPack = await mint.signBooster({
+    idempotency_key: "sealed-1", pack_id: quote.pack_id, state: quote.state,
+    payment_hash: quote.payment_hash,
+    outputs: outputs.map((output) => ({ amount: 1, id: output.blindedMessage.id, B_: output.blindedMessage.B_, nutft: opening(output) })),
+  });
+  assert.deepEqual(
+    issuedPack.resolved,
+    opened.cards.slice(0, -1).map((card) => card.asset_id),
+    "the committed beacon advances exactly the six capped cards it revealed",
   );
 });
 
@@ -875,7 +937,7 @@ test("a closed box sells to nobody, through any door", async (t) => {
   assert.match((await hit("/nutft/lnurlp")).reason, /not open to wallet payments/i, "the QR path is shut too");
 
   /* And the case that makes the claim gate necessary at all: with no price
-     there is no invoice, so requirePaidFor waves everything through and the
+     there is no invoice, so requireSettled waves everything through and the
      claim IS the sale. Removing the gate from every claim path would have left
      a free mint completely open — which is precisely the premine it guards. */
   const free = createNutftMint({
@@ -1155,7 +1217,7 @@ test("the shop proves a key only when the mint asks for one", async (t) => {
      compared against 7 — a chain that reaches the literal whenever the shape is
      unexpected, so it read as coverage while asserting 7 === 7. */
   assert.equal(bought.cards.length, 7, "a listed key gets its seven cards");
-  /* Twice, and both are load-bearing: this mint is free, so requirePaidFor
+  /* Twice, and both are load-bearing: this mint is free, so requireSettled
      waves the claim through and the claim is its own door. A PAID mint signs
      only the quote — the settled invoice is the receipt, and re-checking there
      would confiscate a pack the buyer had already paid for. */
@@ -1274,7 +1336,7 @@ test("a mint that cannot be reached keeps the booster you paid for", async (t) =
   breakClaim = true;
   await assert.rejects(
     () => browserWallet(storage, fetchImpl).then((w) => w.buyBooster(table.url)),
-    /could not be reached cleanly/i,
+    /non-JSON error|preserved for retry/i,
     "the buyer is told the truth: a gateway failed, not that the mint refused",
   );
 
@@ -1289,11 +1351,16 @@ test("a mint that cannot be reached keeps the booster you paid for", async (t) =
 });
 
 test("a malformed output must not burn the invoice behind it", async (t) => {
-  // requirePaidFor marks the invoice claimed, and that is a one-way door. It
-  // used to run BEFORE the outputs were validated, so a single bad output left
-  // a paying buyer with a spent invoice, no cards, and no retry that could
-  // recover either. Nothing in the output check reveals anything the buyer does
-  // not already hold, so there was never a reason for it to sit behind payment.
+  // The invoice is claimed inside the issuance transaction, not when settlement
+  // is checked. It used to be consumed in requirePaidFor, before the outputs
+  // were even validated, so a single bad output left a paying buyer with a
+  // spent invoice, no cards, and no retry that could recover either.
+  //
+  // This test outlived two different fixes for that. The first reordered the
+  // checks; the second — the one that stands — moved the claim into the same
+  // atomic() as issuance, which covers every failure after settlement rather
+  // than only a malformed output. The test did not need to change for either,
+  // which is the point of asserting the PROPERTY and not the mechanism.
   const { createNutftMint } = require("../../server/nutft-mint.js");
   const { createMockFunding } = require("../../server/funding.js");
   const { DatabaseSync } = await import("node:sqlite");
