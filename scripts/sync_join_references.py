@@ -1,7 +1,14 @@
-"""Download immutable join.600.wtf Detailed-front character references.
+"""Download immutable join.600.wtf character references, in either published variant.
+
+join.600.wtf publishes each character twice: a *Detailed ·front* study, which is what card
+artwork is drawn from, and a *homepage* image, which is the face the character wears on the
+site. They are different pictures of the same person and neither substitutes for the other,
+so each variant is mirrored into its own directory with its own manifest.
 
 The remote source remains read-only. Every intended download is recorded in the local
 SQLite audit trail before any bytes are written. Existing verified files are reused.
+
+    uv run python scripts/sync_join_references.py --variant homepage
 """
 
 from __future__ import annotations
@@ -26,6 +33,21 @@ CONTENT_EXTENSIONS = {
     "image/webp": ".webp",
 }
 
+# The two published variants. `label` is what goes in the audit trail and the manifest, so
+# a reader of either can tell which picture they are holding without opening it.
+VARIANTS = {
+    "detailed-front": {
+        "url_field": "detailed_front_url",
+        "label": "Detailed ·front",
+        "directory": "join-detailed-front",
+    },
+    "homepage": {
+        "url_field": "homepage_url",
+        "label": "homepage",
+        "directory": "join-homepage",
+    },
+}
+
 
 def slugify(value: str) -> str:
     """Create a stable lowercase file stem."""
@@ -41,7 +63,7 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_registry(path: Path) -> list[dict[str, Any]]:
+def load_registry(path: Path, url_field: str) -> list[dict[str, Any]]:
     """Load and validate the read-only website reference registry."""
     payload = json.loads(path.read_text(encoding="utf-8"))
     if payload.get("source_policy") != "read-only":
@@ -49,8 +71,8 @@ def load_registry(path: Path) -> list[dict[str, Any]]:
     characters = payload["characters"]
     if len(characters) != 31:
         raise ValueError(f"expected 31 join.600.wtf characters, found {len(characters)}")
-    if not all(item["detailed_front_url"].startswith("https://") for item in characters):
-        raise ValueError("every character needs an HTTPS Detailed-front reference")
+    if not all(str(item.get(url_field, "")).startswith("https://") for item in characters):
+        raise ValueError(f"every character needs an HTTPS {url_field}")
     return characters
 
 
@@ -58,24 +80,41 @@ def record_decisions(
     db_path: Path,
     characters: list[dict[str, Any]],
     output_dir: Path,
+    variant: dict[str, str],
 ) -> None:
     """Record the immutable reference batch before downloading it."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as connection:
-        connection.executescript(
+        # Both variants live in this table, so the variant belongs in the key. A
+        # table keyed on the name alone predates the second variant and is dropped
+        # rather than migrated: every row in it is a "planned" marker whose durable
+        # record is the manifest lying beside the files.
+        legacy = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            ("character_reference_decisions",),
+        ).fetchone()
+        if legacy and "public_name TEXT PRIMARY KEY" in (legacy[0] or ""):
+            connection.execute("DROP TABLE character_reference_decisions")
+        connection.execute(
             """
             CREATE TABLE IF NOT EXISTS character_reference_decisions (
-                public_name TEXT PRIMARY KEY,
+                public_name TEXT NOT NULL,
                 source_url TEXT NOT NULL,
                 visual_variant TEXT NOT NULL,
                 output_directory TEXT NOT NULL,
                 status TEXT NOT NULL,
                 reason TEXT NOT NULL,
                 updated_by TEXT NOT NULL,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            );
-            DELETE FROM character_reference_decisions;
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (public_name, visual_variant)
+            )
             """
+        )
+        # Scoped to this variant: re-syncing the homepage images must not erase the
+        # record of where the Detailed-front ones came from.
+        connection.execute(
+            "DELETE FROM character_reference_decisions WHERE visual_variant = ?",
+            (variant["label"],),
         )
         connection.executemany(
             """
@@ -87,8 +126,8 @@ def record_decisions(
             [
                 (
                     item["name"],
-                    item["detailed_front_url"],
-                    "Detailed ·front",
+                    item[variant["url_field"]],
+                    variant["label"],
                     str(output_dir),
                     "planned",
                     "canonical visual identity reference requested for E1 artwork",
@@ -103,10 +142,11 @@ def record_decisions(
 def download_reference(
     character: dict[str, Any],
     output_dir: Path,
+    url_field: str,
 ) -> dict[str, Any]:
     """Download one source image without changing its bytes."""
     request = urllib.request.Request(
-        character["detailed_front_url"],
+        character[url_field],
         headers={"User-Agent": "600B-Timelock-TCG-reference-sync/1.0"},
     )
     with urllib.request.urlopen(request, timeout=60) as response:
@@ -130,7 +170,7 @@ def download_reference(
     return {
         "name": character["name"],
         "card_aliases": character["card_aliases"],
-        "source_url": character["detailed_front_url"],
+        "source_url": character[url_field],
         "local_file": output.relative_to(output_dir.parents[2]).as_posix(),
         "content_type": content_type,
         "size": size,
@@ -141,10 +181,16 @@ def download_reference(
 
 
 def main() -> None:
-    """Sync all canonical Detailed-front images and write a checksum manifest."""
+    """Sync one variant of the canonical images and write its checksum manifest."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     repo_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--variant",
+        choices=sorted(VARIANTS),
+        default="detailed-front",
+        help="which published picture to mirror (default: detailed-front)",
+    )
     parser.add_argument(
         "--registry",
         type=Path,
@@ -153,7 +199,8 @@ def main() -> None:
     parser.add_argument(
         "--out",
         type=Path,
-        default=repo_root / "art" / "references" / "join-detailed-front",
+        default=None,
+        help="output directory (default: art/references/<variant directory>)",
     )
     parser.add_argument(
         "--audit-db",
@@ -162,27 +209,30 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    characters = load_registry(args.registry)
-    record_decisions(args.audit_db, characters, args.out)
-    args.out.mkdir(parents=True, exist_ok=True)
+    variant = VARIANTS[args.variant]
+    out = args.out or repo_root / "art" / "references" / variant["directory"]
+
+    characters = load_registry(args.registry, variant["url_field"])
+    record_decisions(args.audit_db, characters, out, variant)
+    out.mkdir(parents=True, exist_ok=True)
 
     files = []
     for index, character in enumerate(characters, start=1):
-        files.append(download_reference(character, args.out))
+        files.append(download_reference(character, out, variant["url_field"]))
         log.info("synced %d/%d: %s", index, len(characters), character["name"])
 
     manifest = {
         "source": "https://join.600.wtf/",
         "source_policy": "read-only",
-        "visual_reference": "Detailed ·front",
+        "visual_reference": variant["label"],
         "character_count": len(files),
         "files": files,
     }
-    (args.out / "manifest.json").write_text(
+    (out / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
-    log.info("reference lock passed: %d canonical Detailed-front images", len(files))
+    log.info("reference lock passed: %d canonical %s images", len(files), variant["label"])
 
 
 if __name__ == "__main__":
