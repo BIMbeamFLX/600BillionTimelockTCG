@@ -26,30 +26,35 @@ OUT = ROOT / "site" / "shop-data.js"
 #
 # These track the MINT's own shape rather than a flat curve, so the free box
 # teaches the economy people will meet when they buy rather than contradicting
-# it. Resulting share against the mint (cards/nutft-census.json):
+# it. Share of the whole box, this box against the mint's — over the WHOLE box
+# in both columns, Basics counted in, because a percentage that quietly drops a
+# fifteenth of the box flatters every remaining row:
 #
-#   common 67.3% / 66.65   uncommon 16.3% / 16.66   rare 15.2% / 15.48
-#   vault    1.0% /  1.05  genesis    0.22% / 0.15
+#   common 66.67% / 66.67   uncommon 19.44% / 20.00   rare 6.67% / 6.19
+#   vault   0.39% /  0.42   genesis   0.17% /  0.06   basic 6.67% / 6.67
 #
-# Genesis sits 0.07 points high and cannot be lowered: one copy per card is the
-# floor in a box this size. Said here rather than rounded away on the page.
+# Genesis sits three times high and cannot be lowered: one copy per card is the
+# floor, and matching the mint's 0.06% would need a box of ~14,000 cards this
+# page has to download. Said here rather than rounded away on the page.
 #
 # NOTE the previous comment claimed this was "the same run as the mint's set".
-# It was not — the mint runs 930/279/216/63/21 — and that was one half of the
+# It was not — the mint runs 2,325/837/216/63/21 — and that was one half of the
 # two-different-boxes problem a review found on the shop page.
 #
 # .get()'s default is deliberately absent below: an unknown tier must be a loud
 # KeyError at build time, not a card that quietly prints one copy.
 PRINT_RUN = {
-    "common": 31,
-    "uncommon": 9,
-    "rare": 7,
-    "vault": 2,
+    "common": 40,
+    "uncommon": 14,
+    "rare": 4,
+    "vault": 1,
     "genesis": 1,
-    "basic": 31,
+    "basic": 36,
     "promo": 1,
 }
-PACK_SIZE = 5
+# Fifteen, the same pack the mint sells, and 5,400 cards divide into 360 of them
+# with nothing left in the bottom of the box.
+PACK_SIZE = 15
 PRICE_MSAT = 21000  # per card; identical across the box or the pull breaks
 
 HEADER = (

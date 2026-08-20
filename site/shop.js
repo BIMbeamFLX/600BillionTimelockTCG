@@ -113,17 +113,17 @@
 
   /* ------------------------------------------------------------ the mint box
    * The NutFT mint does not sell the box above. It sells a bigger, different
-   * one — 20 925 packs of 7 — committed as a CENSUS of print runs rather than
+   * one — 20 925 packs of 15 — committed as a CENSUS of print runs rather than
    * as a shuffled order. These are the census's own numbers
    * (cards/nutft-census.json), repeated here so the page can state them before
    * it has asked the mint anything; the verify button then re-derives them from
    * the mint's signed catalog and says so if they have moved.
    *
-   * EVERY SHARE IS OVER THE WHOLE BOX, 146 475 cards — not over the 125 577
+   * EVERY SHARE IS OVER THE WHOLE BOX, 313 875 cards — not over the 292 977
    * numbered copies. A buyer counting what came out of their packs counts the
-   * Basic too, so a percentage that quietly drops a seventh of the box is a
-   * percentage that flatters every remaining row by x1.1664: it printed Rare as
-   * 15.48% of a box in which Rare is 13.27%.
+   * Basic too, so a percentage that quietly drops a fifteenth of the box is a
+   * percentage that flatters every remaining row by x1.0713: it printed Rare as
+   * 6.64% of a box in which Rare is 6.19%.
    *
    * `unreachable` is the arithmetic nobody wants to leave out: the prime pool is
    * printed 20 952 deep but only 20 925 packs will ever draw from it, so 27
@@ -133,7 +133,7 @@
    * the tile above and the note below can never disagree about it. Basics carry
    * no print run — that is what uncapped means — so `copies` here is a SLOT
    * count, one per pack, and it is what makes the shares below shares of the
-   * whole box rather than of six sevenths of it.
+   * whole box rather than of fourteen fifteenths of it.
    *
    * AND EVERY ONE OF THOSE SLOTS IS THE SAME CARD. The mint fills the basic slot
    * from catalog.basic[0] (server/nutft-mint.js), so nine of the ten Basics
@@ -144,19 +144,19 @@
 
   const MINT_BOX = {
     packs: 20925,
-    packSize: 7,
-    cards: 146475,          // packs x packSize — every card a buyer can ever receive
+    packSize: 15,
+    cards: 313875,          // packs x packSize — every card a buyer can ever receive
     numberedCards: 285,     // distinct cards that carry a print run
-    printed: 125577,        // copies printed across those 285
-    issued: 125550,         // 6 numbered per pack x 20 925 packs — what is actually reachable
+    printed: 292977,        // copies printed across those 285
+    issued: 292950,         // 14 numbered per pack x 20 925 packs — what is actually reachable
     unreachable: 27,        // printed - issued, all of it in the prime pool
-    commitment: "651e12f3f12c655c53b09c265eed82a7c7d46ac14a76e350f32b77efa4e5e482",
+    commitment: "0e8a94f054a809b586be471c832605457232d56e39e2cf6d1a255ce4dce13715",
     tiers: [
       { name: "Genesis", cards: 9, copies: 189 },
       { name: "Vault", cards: 21, copies: 1323 },
       { name: "Rare", cards: 90, copies: 19440 },
-      { name: "Uncommon", cards: 75, copies: 20925 },
-      { name: "Common", cards: 90, copies: 83700 },
+      { name: "Uncommon", cards: 75, copies: 62775 },
+      { name: "Common", cards: 90, copies: 209250 },
       BASIC_TIER, // a slot count, and always the same card — see above
     ],
   };
@@ -203,7 +203,7 @@
   };
   const nameOf = (id) => (BY_ID[id] && BY_ID[id].name) || id;
   const pad = (n, width) => String(n).padStart(width, "0");
-  /* 146475 is a number you count with a finger; 146 475 is not. Grouped by hand
+  /* 313875 is a number you count with a finger; 313 875 is not. Grouped by hand
    * rather than with toLocaleString, because a shell can be running in any
    * locale and the box's size is not a number that should read differently in
    * one of them. Non-breaking, so a group never wraps onto its own line. */
@@ -1085,7 +1085,8 @@
         `${num(MINT_BOX.cards)} cards, ${num(MINT_BOX.packs)} packs of ${MINT_BOX.packSize} — Basics counted in.`;
       $("tiersNote").innerHTML =
         `<strong>The arithmetic, in full.</strong> Of those ${num(MINT_BOX.cards)} cards, ${num(MINT_BOX.issued)} are ` +
-        `numbered copies — six in every pack, drawn from a print run of ${num(MINT_BOX.printed)} across ` +
+        `numbered copies — ${MINT_BOX.issued / MINT_BOX.packs} in every pack, drawn from a print run of ` +
+        `${num(MINT_BOX.printed)} across ` +
         `${MINT_BOX.numberedCards} cards — and ${num(MINT_BOX.packs)} are Basics, one free in every pack. Basics are the ` +
         `one exception to "copies in the box": they carry no print run at all, so their row is a slot count, and the ` +
         `mint fills that slot from the same Basic every time — the other ${BASIC_TIER.cards - 1} of the ` +

@@ -59,3 +59,15 @@ def test_published_odds_match_the_box_contents():
 
 def test_commitment_is_order_sensitive():
     assert commitment(["E1-001", "E1-002"]) != commitment(["E1-002", "E1-001"])
+
+
+def test_the_shop_box_and_the_asset_set_are_one_box():
+    """Two tables, one box: the odds the shop teaches must be the ones the set mints."""
+    from build_asset_set import DEFAULT_PRINT_RUN
+
+    assert DEFAULT_PRINT_RUN == PRINT_RUN
+
+
+def test_a_pack_divides_the_box_with_nothing_left_over():
+    """A leftover tail is a pack nobody can open, sitting under a published commitment."""
+    assert DATA["boxSize"] % DATA["packSize"] == 0

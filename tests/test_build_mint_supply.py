@@ -2,6 +2,7 @@
 
 import copy
 import json
+import re
 
 from build_mint_supply import CENSUS, PACKS, PRIME_CAPS, SLOTS, census_sha256, resize
 
@@ -55,3 +56,41 @@ def test_the_ladder_is_monotone():
     ladder = ["Common", "Uncommon", "Rare", "Vault", "Genesis"]
     odds = [next(c["p_per_pack"] for c in SHIPPED["cards"] if c["tier"] == tier) for tier in ladder]
     assert odds == sorted(odds, reverse=True), dict(zip(ladder, odds, strict=True))
+
+
+def _mint_box() -> tuple[dict[str, str], dict[str, tuple[int, int]]]:
+    """The numbers site/shop.js prints before it has asked the mint anything."""
+    shop = (CENSUS.parent.parent / "site" / "shop.js").read_text(encoding="utf-8")
+    block = shop[shop.index("const MINT_BOX = {") : shop.index("let nutftState")]
+    fields = dict(re.findall(r"^\s{4}(\w+): \"?([\w\d]+)\"?,", block, re.MULTILINE))
+    rows = {
+        name: (int(cards), int(copies))
+        for name, cards, copies in re.findall(
+            r'\{ name: "(\w+)", cards: (\d+), copies: (\d+) \}', shop
+        )
+    }
+    return fields, rows
+
+
+def test_the_shop_page_quotes_the_census_it_was_published_against():
+    # The shop states the mint's box from its own copy of the figures, so that a
+    # page can describe a mint it has not reached yet. That copy drifting from
+    # the census is the "two different boxes" bug, and it has shipped before.
+    fields, rows = _mint_box()
+    mint, tiers = SHIPPED["mint"], SHIPPED["tiers"]
+    assert fields["commitment"] == SHIPPED["census_sha256"]
+    assert int(fields["packs"]) == mint["packs"]
+    assert int(fields["packSize"]) == mint["cards_per_pack"]
+    assert int(fields["cards"]) == mint["packs"] * mint["cards_per_pack"]
+    assert int(fields["printed"]) == mint["capped_cards"]
+    assert int(fields["issued"]) == mint["packs"] * mint["paid_cards_per_pack"]
+    assert int(fields["printed"]) - int(fields["issued"]) == int(fields["unreachable"])
+    assert int(fields["numberedCards"]) == sum(
+        t["cards"] for t in tiers.values() if t["copies_each"]
+    )
+
+    for name, (cards, copies) in rows.items():
+        assert cards == tiers[name]["cards"], f"{name} card count"
+        want = tiers[name]["total_copies"]
+        # Basics carry no print run: their row is a slot count, one per pack.
+        assert copies == (mint["packs"] * mint["slots"]["basic"] if want is None else want), name
