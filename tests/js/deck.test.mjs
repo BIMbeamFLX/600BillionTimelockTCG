@@ -68,7 +68,7 @@ test("a Stake-module card never constructs in the base ruleset", () => {
   assert.throws(() => E.createGame(config(cheat, "Signal")), /Stake module/);
 });
 
-test("§7: no more than three copies of one card", () => {
+test("§7: no more than MAX_COPIES of one card", () => {
   /* This asserted the OPPOSITE until today. Unlimited copies was not a liberal
    * format, it was the format: E1 has almost no card selection, so density is
    * the only way to make a Stack reliable, and a measured 26-copy Zap build won
@@ -79,8 +79,25 @@ test("§7: no more than three copies of one card", () => {
    * arithmetically impossible. The rule exists to stop one SPELL being the
    * whole deck. */
   const spell = CARDS.find((c) => c.type === "Zap" && !(c.text || "").includes("Stake"));
-  const mono = [...Array(4).fill(spell.id), ...forty.slice(4)];
-  assert.throws(() => E.createGame(config(mono, "Power")), /limit 3/);
+  /* Asks the engine for the number rather than pinning one. This test named
+     "limit 3" in a regex and in its own title, so raising the cap to four broke
+     it while proving nothing about whether the cap still WORKS -- which is the
+     only thing it is here to check. One over the limit, whatever the limit is. */
+  /* Built by REMOVING every existing copy first. Splicing N copies onto the
+     front of `forty` silently adds to whatever copies it already held, so the
+     deck under test had one more than intended — which happened to still throw,
+     for the wrong reason, and made the at-the-limit case impossible to write. */
+  const without = forty.filter((id) => id !== spell.id);
+  const withCopies = (n) => [...Array(n).fill(spell.id), ...without].slice(0, 40);
+
+  assert.throws(() => E.createGame(config(withCopies(E.MAX_COPIES + 1), "Power")),
+    new RegExp(`limit ${E.MAX_COPIES}`));
+
+  /* And exactly AT the limit is legal — the half that was never asserted, so
+     nothing would have caught a cap that refused its own maximum. */
+  const ok = E.createGame(config(withCopies(E.MAX_COPIES), "Power"));
+  assert.equal(ok.zones["0:stack"].length + ok.zones["0:wallet"].length, 40,
+    `${E.MAX_COPIES} copies is legal`);
 
   const basics = Array(40).fill(orchard.id);
   const allBasic = E.createGame(config(basics, "Power"));

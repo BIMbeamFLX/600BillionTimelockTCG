@@ -503,7 +503,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * The builder refuses the extra copy at the moment it is asked for. Before
    * this, the only gate was stackProblem() at save time, and a saved Stack with
    * two Genesis Lotus reached the table and took the match down with it. */
-  const MAX_COPIES = 3;
+  const MAX_COPIES = 4;   // §7, raised from three — must match site/engine.js
   const copyLimit = (card) =>
     card && card.type === "Basic Resource" ? Infinity
       : card && card.rarity === "genesis" ? 1
