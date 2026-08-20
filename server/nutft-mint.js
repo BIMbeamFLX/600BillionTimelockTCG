@@ -431,7 +431,7 @@ function createNutftMint(options = {}) {
     if (!paidMint) return { ...base, price_msat: 0, paid: false };
     for (const row of q ? q.activeInvoices.all(base.pack_id) : []) {
       let settled;
-      try { settled = await funding.isSettled(row.payment_hash); }
+      try { settled = await funding.isSettled(row.payment_hash, row.amount_msat); }
       catch (error) { throw new Error("the mint cannot confirm an existing checkout right now — try again shortly"); }
       const created = Date.parse(row.created_at);
       if (settled || !Number.isFinite(created) || created + invoiceTtlSeconds * 1000 > Date.now()) {
@@ -461,9 +461,15 @@ function createNutftMint(options = {}) {
          both fields will often honour the description and silently drop the
          hash — producing a `d` field, no error, and an LNURL payment the
          buyer's wallet refuses for a reason nothing on our side logs. */
+      /* A reconstructible external id, for the case where this database is
+         gone and the node is not: the pack it was for, and the state hash that
+         made it unique. A random nonce would prove nothing to anyone reading
+         the node's own records later. The `acct:` prefix is taken by another
+         service on the same node, so ours is `tcg:`. */
+      const externalId = `tcg:booster:${base.pack_id}:${String(base.state).slice(0, 16)}`;
       invoice = await funding.createInvoice(opts.descriptionHash
-        ? { amountMsat: priceNow, descriptionHash: opts.descriptionHash, expirySeconds: invoiceTtlSeconds }
-        : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}`, expirySeconds: invoiceTtlSeconds });
+        ? { amountMsat: priceNow, descriptionHash: opts.descriptionHash, expirySeconds: invoiceTtlSeconds, externalId }
+        : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}`, expirySeconds: invoiceTtlSeconds, externalId });
     } catch (error) {
       console.error("[nutft] lnd createInvoice failed:", error && error.message);
       throw new Error("the mint cannot reach its funding source right now — try again shortly");
@@ -541,7 +547,9 @@ function createNutftMint(options = {}) {
     if (row.claimed) throw new Error("this invoice has already been claimed");
     let settledNow;
     try {
-      settledNow = await funding.isSettled(paymentHash);
+      /* The amount travels with the question. A backend that can tell whether
+         ENOUGH arrived should not have to guess what was asked for. */
+      settledNow = await funding.isSettled(paymentHash, row.amount_msat);
     } catch (error) {
       console.error("[nutft] lnd isSettled failed:", error && error.message);
       throw new Error("the mint cannot confirm payment right now — your invoice is unaffected, try again shortly");

@@ -1716,3 +1716,110 @@ test("a second tab cannot overwrite the pending the first one is waiting on", as
   assert.deepEqual(JSON.parse(storage.get("600b:nutft-wallet")).pending, parked,
     "and the parked pending is untouched");
 });
+
+test("the phoenixd funding source refuses to leak its own password", async (t) => {
+  // That password is a bearer credential for a funded node. Plain HTTP across a
+  // network hands it to anyone on the path, so a non-loopback host has to be a
+  // deliberate choice rather than a default nobody noticed.
+  const phoenixd = require("../../server/phoenixd.js");
+
+  assert.equal(phoenixd.readConfig({ url: "" }), null, "no URL, no backend");
+
+  assert.throws(() => phoenixd.readConfig({ url: "http://127.0.0.1:9740" }),
+    /no password/i, "a URL without a password is a misconfiguration, not a default");
+
+  assert.throws(() => phoenixd.readConfig({ url: "http://10.0.0.5:9740", password: "x" }),
+    /in clear over the network/i, "and a remote host over plain http is refused by default");
+
+  assert.ok(phoenixd.readConfig({ url: "http://127.0.0.1:9740", password: "x" }),
+    "loopback is the ordinary case and needs no flag");
+  assert.ok(phoenixd.readConfig({ url: "https://phoenix.example", password: "x" }),
+    "so is a remote host behind TLS");
+  assert.ok(phoenixd.readConfig({ url: "http://10.0.0.5:9740", password: "x", allowRemote: true }),
+    "and a private hop can be declared deliberately");
+});
+
+test("a phoenixd mint prices in whole sats or says why not", async (t) => {
+  // phoenixd invoices in sats. Rounding a fractional price would quietly charge
+  // something other than the number on the page, so it is a configuration error
+  // rather than something to paper over.
+  const phoenixd = require("../../server/phoenixd.js");
+  const config = phoenixd.readConfig({ url: "http://127.0.0.1:1", password: "x", timeoutMs: 200 });
+
+  await assert.rejects(() => phoenixd.createInvoice(config, { amountMsat: 21_500 }),
+    /whole number of sats/i, "a price that is not whole sats is refused before any connection");
+
+  /* And a node that is not there must look like a failure, never like a sale. */
+  await assert.rejects(() => phoenixd.createInvoice(config, { amountMsat: 21_000 }),
+    /phoenixd request failed|did not answer in time/i,
+    "an unreachable node is an error, not a silent success");
+});
+
+test("an underpaid invoice is not a sale", async (t) => {
+  // BOLT 4 lets a payer send up to twice what was asked, and phoenixd sets
+  // isPaid without regard to how much actually arrived. So the received figure
+  // is the only one worth reading -- and nothing else in the system compares it
+  // against what was invoiced, because only the caller knows that number.
+  const phoenixd = require("../../server/phoenixd.js");
+  const http = await import("node:http");
+
+  let reply = { receivedSat: 0, isPaid: true };
+  let status = 200;
+  const server = http.createServer((req, res) => {
+    res.writeHead(status, { "content-type": "application/json" });
+    res.end(JSON.stringify(reply));
+  });
+  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  t.after(() => server.close());
+  const config = phoenixd.readConfig({
+    url: `http://127.0.0.1:${server.address().port}`, password: "x", timeoutMs: 2000,
+  });
+
+  reply = { receivedSat: 0, isPaid: true };
+  assert.equal(await phoenixd.isSettled(config, "h", 21_000), false,
+    "isPaid with nothing received is not a payment");
+
+  reply = { receivedSat: 20, isPaid: true, completedAt: 1 };
+  assert.equal(await phoenixd.isSettled(config, "h", 21_000), false,
+    "20 sat against a 21 sat invoice is short, however complete phoenixd calls it");
+
+  reply = { receivedSat: 21, isPaid: true, completedAt: 1 };
+  assert.equal(await phoenixd.isSettled(config, "h", 21_000), true, "exactly the price is a sale");
+
+  reply = { receivedSat: 42, isPaid: true, completedAt: 1 };
+  assert.equal(await phoenixd.isSettled(config, "h", 21_000), true,
+    "and an overpayment is still a sale — BOLT 4 permits it and the buyer gets their pack");
+
+  status = 404;
+  assert.equal(await phoenixd.isSettled(config, "h", 21_000), false,
+    "a payment that does not exist yet is not paid");
+
+  status = 500;
+  await assert.rejects(() => phoenixd.isSettled(config, "h", 21_000), /could not report/i,
+    "and a node that cannot answer is an error, never a silent sale");
+});
+
+test("phoenixd reports what it can spend apart from what it merely owes itself", async (t) => {
+  // With no channel open, an incoming payment lands in the FEE CREDIT rather
+  // than the balance: it counts towards opening a channel later, it cannot be
+  // spent or withdrawn, and ACINQ do not refund it. At maxFeeCredit incoming
+  // payments start being REFUSED, so a shop can sell happily, pay nobody, and
+  // then stop taking money with nothing in our logs to explain it.
+  const phoenixd = require("../../server/phoenixd.js");
+  const http = await import("node:http");
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ balanceSat: 0, feeCreditSat: 25210 }));
+  });
+  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  t.after(() => server.close());
+  const config = phoenixd.readConfig({
+    url: `http://127.0.0.1:${server.address().port}`, password: "x", timeoutMs: 2000,
+  });
+
+  const state = await phoenixd.balance(config);
+  assert.equal(state.balanceSat, 0, "nothing is spendable");
+  assert.equal(state.feeCreditSat, 25210, "and the fee credit is visible rather than hidden behind it");
+  assert.equal(await phoenixd.balanceSat(config), 0,
+    "balanceSat means spendable, so a payout path cannot mistake fee credit for money it can send");
+});
