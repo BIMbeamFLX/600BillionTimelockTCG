@@ -297,29 +297,18 @@ async function createTable(opts) {
   })();
   if (publicUrl) addTrustedHost(new URL(publicUrl).host);
 
-  const startedAt = Date.now();
   if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
   db.exec(DDL);
 
-  /* The mint shares the referee's database, so a sold card and a played match
-   * survive the same restart and DB= already points outside the webroot. */
-  let nutft;
-  try {
-    nutft = createNutftMint({
-      censusPath: options.nutftCensusPath,
-      collectionId: options.nutftCollectionId,
-      catalogUri: options.nutftCatalogUri,
-      beacon: options.nutftBeacon,
-      db,
-    });
-  } catch (error) {
-    /* The mint refuses to start on a census or catalog_uri that disagrees with
-     * what it already sold. Let go of the database before the error leaves, or
-     * the caller is handed a failure and an open file handle. */
-    db.close();
-    throw error;
-  }
+  const startedAt = Date.now();
+  const nutft = createNutftMint({
+    censusPath: options.nutftCensusPath,
+    collectionId: options.nutftCollectionId,
+    catalogUri: options.nutftCatalogUri,
+    beacon: options.nutftBeacon,
+    db,
+  });
 
   /* CREATE TABLE IF NOT EXISTS does nothing to a database that predates a
    * column, and SQLite has no ADD COLUMN IF NOT EXISTS. A demo laptop carrying

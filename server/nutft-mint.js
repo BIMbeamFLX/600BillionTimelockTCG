@@ -10,35 +10,6 @@ const REPO = path.resolve(__dirname, "..");
 const CENSUS_PATH = path.join(REPO, "cards", "nutft-census.json");
 const VERSION = "1";
 
-/* Durable mint state. The demo held counts, spent secrets and trade receipts in
- * memory, so every restart re-issued pack-0001 with the same cards and the supply
- * cap only ever held until the next deploy. A mint handing out bearer proofs that
- * people keep cannot be allowed to forget what it already sold. */
-const MINT_DDL = `
-CREATE TABLE IF NOT EXISTS nutft_mint (
-  id             INTEGER PRIMARY KEY CHECK (id = 1),
-  census_sha256  TEXT NOT NULL,
-  catalog_uri    TEXT NOT NULL,
-  collection_id  TEXT NOT NULL,
-  next_pack      INTEGER NOT NULL,
-  commitment     TEXT NOT NULL,
-  counts_json    TEXT NOT NULL,
-  updated_at     TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS nutft_spent (
-  y         TEXT PRIMARY KEY,
-  asset_id  TEXT NOT NULL,
-  spent_at  TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS nutft_trades (
-  idempotency_key TEXT PRIMARY KEY,
-  result_json     TEXT NOT NULL,
-  traded_at       TEXT NOT NULL
-);
-`;
-
 const text = (value) => new TextEncoder().encode(value);
 const hex = (value) => Buffer.from(value).toString("hex");
 
@@ -70,12 +41,18 @@ function json(res, code, value) {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let tooLarge = false;
     req.setEncoding("utf8");
     req.on("data", (chunk) => {
+      if (tooLarge) return;
       body += chunk;
-      if (body.length > 512 * 1024) reject(new Error("request too large"));
+      if (body.length > 512 * 1024) {
+        tooLarge = true;
+        body = "";
+      }
     });
     req.on("end", () => {
+      if (tooLarge) return reject(new Error("request too large"));
       try { resolve(body ? JSON.parse(body) : {}); }
       catch (error) { reject(new Error(`invalid JSON: ${error.message}`)); }
     });
@@ -94,78 +71,58 @@ function createNutftMint(options = {}) {
   const cards = new Map(census.cards.map((card) => [card.id, card]));
   const basicId = catalog.basic[0];
   const initialCommitment = censusHash(catalog.counts);
-  const state = { counts: { ...catalog.counts }, nextPack: 1, state: initialCommitment };
-  const spent = new Set();
-  const trades = new Map();
-
-  /* No db keeps the original in-memory behaviour, which is what the offline demo
-   * and most tests want. Anything that sells a card for real passes one in. */
-  const db = options.db || null;
-  const now = () => new Date().toISOString();
+  const db = options.db;
+  const memory = { meta: new Map(), spent: new Set(), operations: new Map() };
+  let q;
   if (db) {
-    db.exec(MINT_DDL);
-    const row = db.prepare("SELECT * FROM nutft_mint WHERE id = 1").get();
-    if (!row) {
-      db.prepare(`INSERT INTO nutft_mint
-        (id, census_sha256, catalog_uri, collection_id, next_pack, commitment, counts_json, updated_at)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(census.census_sha256, catalogUri, collectionId, 1, initialCommitment, JSON.stringify(state.counts), now());
-    } else {
-      /* Resuming a sold-into mint under a different census, catalog_uri or
-       * collection would issue cards whose CardBinding disagrees with the ones
-       * already in people's wallets — and catalog_uri is hashed into every
-       * binding, so that split is permanent rather than merely wrong. Refuse to
-       * start instead of minting a second, incompatible run. */
-      const mismatch = row.census_sha256 !== census.census_sha256 ? ["census_sha256", row.census_sha256, census.census_sha256]
-        : row.catalog_uri !== catalogUri ? ["catalog_uri", row.catalog_uri, catalogUri]
-        : row.collection_id !== collectionId ? ["collection_id", row.collection_id, collectionId]
-        : null;
-      if (mismatch) {
-        throw new Error(`this mint has already sold ${row.next_pack - 1} pack(s) under a different ${mismatch[0]}: `
-          + `stored ${mismatch[1]}, configured ${mismatch[2]}. Refusing to start.`);
-      }
-      state.counts = JSON.parse(row.counts_json);
-      state.nextPack = row.next_pack;
-      state.state = row.commitment;
-      for (const spentRow of db.prepare("SELECT y FROM nutft_spent").all()) spent.add(spentRow.y);
-      for (const tradeRow of db.prepare("SELECT idempotency_key, result_json FROM nutft_trades").all()) {
-        trades.set(tradeRow.idempotency_key, JSON.parse(tradeRow.result_json));
-      }
-    }
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS nutft_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS nutft_spent (y TEXT PRIMARY KEY);
+      CREATE TABLE IF NOT EXISTS nutft_operations (
+        type TEXT NOT NULL,
+        operation_key TEXT NOT NULL,
+        request_hash TEXT NOT NULL,
+        response_json TEXT NOT NULL,
+        PRIMARY KEY (type, operation_key)
+      );
+    `);
+    q = {
+      meta: db.prepare("SELECT value FROM nutft_meta WHERE key = ?"),
+      putMeta: db.prepare("INSERT OR REPLACE INTO nutft_meta (key, value) VALUES (?, ?)"),
+      spent: db.prepare("SELECT 1 FROM nutft_spent WHERE y = ?"),
+      putSpent: db.prepare("INSERT INTO nutft_spent (y) VALUES (?)"),
+      operation: db.prepare("SELECT request_hash, response_json FROM nutft_operations WHERE type = ? AND operation_key = ?"),
+      putOperation: db.prepare("INSERT INTO nutft_operations (type, operation_key, request_hash, response_json) VALUES (?, ?, ?, ?)"),
+    };
   }
-  /* Signing keys. The demo derived both the mint key and the catalog issuer key
-   * from fixed public strings, so anyone who read the repository could recompute
-   * the private keys and forge signatures — mint unlimited cards, defeat DLEQ,
-   * break the cap. Acceptable for a throwaway demo, disqualifying for a mint that
-   * sells anything.
-   *
-   * Real deployments pass 32-byte hex secrets via NUTFT_MINT_SEED and
-   * NUTFT_CATALOG_KEY (or the options of the same name), kept outside the repo.
-   * With neither set the mint still boots on the derived demo keys so the offline
-   * demo and the tests are unchanged — but it is then explicitly a demo, and
-   * requireProductionKeys refuses to start without real ones. */
-  const demoMintSeed = () => crypto.createHash("sha256").update("600B NutFT demo mint key").digest();
-  const demoCatalogKey = () => crypto.createHash("sha256").update("600B NutFT catalog issuer").digest();
-  const readSecret = (value, envName, fallback) => {
-    const raw = value || process.env[envName];
-    if (!raw) return { key: fallback(), demo: true };
-    if (!/^[0-9a-f]{64}$/i.test(raw)) throw new Error(`${envName} must be 32-byte hex`);
-    return { key: Buffer.from(raw, "hex"), demo: false };
+  const getMeta = (key) => db ? q.meta.get(key)?.value : memory.meta.get(key);
+  const putMeta = (key, value) => db ? q.putMeta.run(key, value) : memory.meta.set(key, value);
+  const getOrCreate = (key, create) => {
+    const found = getMeta(key);
+    if (found) return found;
+    const value = create();
+    putMeta(key, value);
+    return value;
   };
-  const mintSecret = readSecret(options.mintSeed, "NUTFT_MINT_SEED", demoMintSeed);
-  const catalogSecret = readSecret(options.catalogKey, "NUTFT_CATALOG_KEY", demoCatalogKey);
-  const usingDemoKeys = mintSecret.demo || catalogSecret.demo;
-  const requireProduction = options.requireProductionKeys ?? (process.env.NUTFT_REQUIRE_PRODUCTION_KEYS === "1");
-  if (requireProduction && usingDemoKeys) {
-    throw new Error("NUTFT_REQUIRE_PRODUCTION_KEYS is set but the mint would run on publicly-derivable demo keys; "
-      + "set NUTFT_MINT_SEED and NUTFT_CATALOG_KEY to 32-byte hex secrets");
-  }
-  const catalogPrivateKey = catalogSecret.key;
+  const getOperation = (type, key) => {
+    const row = db ? q.operation.get(type, key) : memory.operations.get(`${type}:${key}`);
+    return row && { requestHash: row.request_hash || row.requestHash, result: JSON.parse(row.response_json || JSON.stringify(row.result)) };
+  };
+  const putOperation = (type, key, requestHash, result) => db
+    ? q.putOperation.run(type, key, requestHash, JSON.stringify(result))
+    : memory.operations.set(`${type}:${key}`, { requestHash, result });
+  const isSpent = (y) => db ? Boolean(q.spent.get(y)) : memory.spent.has(y);
+  const putSpent = (y) => db ? q.putSpent.run(y) : memory.spent.add(y);
+  const storedState = getMeta("state");
+  const state = storedState ? JSON.parse(storedState) : { counts: { ...catalog.counts }, nextPack: 1, state: initialCommitment };
+  if (!storedState) putMeta("state", JSON.stringify(state));
+  const mintSeed = Buffer.from(getOrCreate("mint_seed", () => crypto.randomBytes(32).toString("hex")), "hex");
+  const catalogPrivateKey = Buffer.from(getOrCreate("catalog_private_key", () => crypto.randomBytes(32).toString("hex")), "hex");
   let cashu;
 
   const ready = import("@cashu/cashu-ts").then((module) => {
     cashu = module;
-    const keyset = cashu.createNewMintKeys(1, mintSecret.key, { unit: collectionId });
+    const keyset = cashu.createNewMintKeys(1, mintSeed, { unit: collectionId });
     return keyset;
   });
 
@@ -194,6 +151,18 @@ function createNutftMint(options = {}) {
   };
   const current = () => state.state;
   const packId = () => `pack-${String(state.nextPack).padStart(4, "0")}`;
+  const atomic = (work) => {
+    if (!db) return work();
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const result = work();
+      db.exec("COMMIT");
+      return result;
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  };
 
   function quote() {
     const id = packId();
@@ -261,6 +230,13 @@ function createNutftMint(options = {}) {
 
   async function signBooster(body) {
     const keyset = await ready;
+    if (typeof body.idempotency_key !== "string" || !body.idempotency_key) throw new Error("booster idempotency_key is required");
+    const requestHash = crypto.createHash("sha256").update(canonical(body)).digest("hex");
+    const previous = getOperation("booster", body.idempotency_key);
+    if (previous) {
+      if (previous.requestHash !== requestHash) throw new Error("idempotency_key was already used for a different booster");
+      return previous.result;
+    }
     const expected = quote();
     if (body.pack_id !== expected.pack_id || body.state !== expected.state) throw new Error("stale booster quote");
     if (!Array.isArray(body.outputs) || body.outputs.length !== expected.cards.length) throw new Error("one output is required per card");
@@ -277,27 +253,24 @@ function createNutftMint(options = {}) {
       };
     });
 
-    /* Disk first, memory second. If the write fails the caller gets an error and
-     * never sees these signatures, instead of walking away with cards the mint
-     * has no record of selling. */
     const nextCounts = { ...state.counts };
     const resolved = openPack(nextCounts, catalog.pools, catalog.slots, beacon, expected.pack_id);
-    if (db) {
-      db.prepare("UPDATE nutft_mint SET next_pack = ?, commitment = ?, counts_json = ?, updated_at = ? WHERE id = 1")
-        .run(state.nextPack + 1, expected.next_state, JSON.stringify(nextCounts), now());
-    }
-    state.counts = nextCounts;
-    state.state = expected.next_state;
-    state.nextPack += 1;
-    return { ...expected, cards: expected.cards, signatures, keyset_id: keyset.keysetId, resolved };
+    const nextState = { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
+    const result = { ...expected, cards: expected.cards, signatures, keyset_id: keyset.keysetId, resolved };
+    atomic(() => {
+      putMeta("state", JSON.stringify(nextState));
+      putOperation("booster", body.idempotency_key, requestHash, result);
+    });
+    Object.assign(state, nextState);
+    return result;
   }
 
   async function trade(body) {
     const keyset = await ready;
     if (typeof body.idempotency_key !== "string" || !body.idempotency_key) throw new Error("trade idempotency_key is required");
     const requestHash = crypto.createHash("sha256").update(canonical(body)).digest("hex");
-    if (trades.has(body.idempotency_key)) {
-      const previous = trades.get(body.idempotency_key);
+    const previous = getOperation("trade", body.idempotency_key);
+    if (previous) {
       if (previous.requestHash !== requestHash) throw new Error("idempotency_key was already used for a different trade");
       return previous.result;
     }
@@ -308,7 +281,7 @@ function createNutftMint(options = {}) {
     const inputReference = parsedInput.reference;
     if (input.id !== keyset.keysetId || inputReference.collection_id !== collectionId || input.amount.toString() !== "1" || !cards.has(inputReference.asset_id)) throw new Error("input CardBinding is invalid");
     const y = cashu.hashToCurve(text(input.secret)).toHex(true);
-    if (spent.has(y)) throw new Error("input proof is already spent");
+    if (isSpent(y)) throw new Error("input proof is already spent");
     if (!cashu.verifyUnblindedSignature({ id: input.id, secret: text(input.secret), C: cashu.pointFromHex(input.C) }, keyset.privKeys["1"])) throw new Error("input signature is invalid");
     if (!cashu.isP2PKSpendAuthorised(input)) throw new Error("input owner witness is invalid");
     const outputBinding = validateOutput(body.outputs[0], inputReference, keyset.keysetId);
@@ -323,33 +296,28 @@ function createNutftMint(options = {}) {
       signature: { id: keyset.keysetId, amount: 1, C_: blind.C_.toHex(true), dleq: { s: hex(dleq.s), e: hex(dleq.e) } },
     };
     // Commit only after every input, destination, binding, and signature check passed.
-    if (db) {
-      const at = now();
-      db.exec("BEGIN IMMEDIATE");
-      try {
-        db.prepare("INSERT INTO nutft_spent (y, asset_id, spent_at) VALUES (?, ?, ?)").run(y, inputReference.asset_id, at);
-        db.prepare("INSERT INTO nutft_trades (idempotency_key, result_json, traded_at) VALUES (?, ?, ?)")
-          .run(body.idempotency_key, JSON.stringify(result), at);
-        db.exec("COMMIT");
-      } catch (error) {
-        db.exec("ROLLBACK");
-        throw error;
-      }
-    }
-    spent.add(y);
-    trades.set(body.idempotency_key, { requestHash, result });
+    atomic(() => {
+      putSpent(y);
+      putOperation("trade", body.idempotency_key, requestHash, result);
+    });
     return result;
   }
 
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: usingDemoKeys ? "600B NutFT demo mint" : "600B NutFT mint", version: "0.1.0", demo_keys: usingDemoKeys, nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true }, 7: { supported: true } } });
+        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true }, 7: { supported: true } } });
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && url.pathname === "/v1/checkstate") {
         const body = await readBody(req);
-        return json(res, 200, { states: (body.Ys || []).map((Y) => ({ Y, state: spent.has(Y) ? "SPENT" : "UNSPENT" })) });
+        await ready;
+        if (!Array.isArray(body.Ys) || body.Ys.length > 256) throw new Error("Ys must be an array of at most 256 points");
+        for (const Y of body.Ys) {
+          if (typeof Y !== "string" || !/^(02|03)[0-9a-f]{64}$/.test(Y)) throw new Error("Ys contains an invalid curve point");
+          cashu.pointFromHex(Y);
+        }
+        return json(res, 200, { states: body.Ys.map((Y) => ({ Y, state: isSpent(Y) ? "SPENT" : "UNSPENT" })) });
       }
       if (req.method === "POST" && url.pathname === "/nutft/trade") return json(res, 200, await trade(await readBody(req)));
       if (req.method === "GET" && url.pathname === "/nutft/catalog") {
