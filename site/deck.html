@@ -309,7 +309,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     </div>
     <div class="note"><b>Tap or click</b> a card to add a copy. <b>The − on the card</b> (or the − in this
     list) takes one back. <b>Right click</b> on a desktop, <b>press and hold</b> on a phone, opens the card.
-    Basic Resources are uncapped; other cards allow three copies (§7). NutFT mode also limits copies to verified ownership. Saved Stacks appear as options on the
+    Basic Resources are uncapped; other cards allow three copies (§7). OG additionally limits copies to verified NutFT ownership — except Basic Resources, which stay free there too. Saved Stacks appear as options on the
     <a href="play.html">Play</a> page for both seats — hotseat and vs NPC.</div>
     <div class="saved">
       <h3>Starter library</h3>
@@ -464,6 +464,13 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     inStack: false, sort: "id",
   };
   let deck = {}; // cardId -> copies
+  /* Basic Resources are exempt from ownership, for the same reason §7 exempts
+   * them from the copy limit: there are ten in the set and a Stack needs 16-18
+   * Resources, so counting them against what you pulled makes a legal Stack
+   * cost about sixteen packs before the first game. The collection is about the
+   * cards you actually drew; Basics are the tool you draw them with. */
+  const ownershipExempt = (card) => card && card.type === "Basic Resource";
+
   /* `owned` is what the deck rules read: null means the whole catalog is legal,
    * a Map means only these verified NutFT copies are. It is now DERIVED from a
    * mode the player chooses, not from whether a wallet happens to hold proofs.
@@ -701,7 +708,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 
   function matches(c) {
     const idx = INDEX.get(c.id);
-    if (owned && !owned.has(c.id)) return false;
+    if (owned && !owned.has(c.id) && !ownershipExempt(c)) return false;
     if (state.aff.size && !(c.affinity || []).some((a) => state.aff.has(a))) return false;
     if (state.type.size && !state.type.has(c.type)) return false;
     if (state.cost.size && !state.cost.has(idx.bucket)) return false;
@@ -848,7 +855,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   function addCard(id) {
     const c = byId[id];
     if (!c || isStake(c)) return;
-    if (owned && (deck[id] || 0) >= (owned.get(id) || 0)) { say(`You own ${(owned.get(id) || 0)} verified ${c.name} proof(s).`, "bad"); return; }
+    if (owned && !ownershipExempt(c) && (deck[id] || 0) >= (owned.get(id) || 0)) { say(`You own ${(owned.get(id) || 0)} verified ${c.name} proof(s).`, "bad"); return; }
     deck[id] = (deck[id] || 0) + 1;
     afterDeckChange();
   }
@@ -1113,7 +1120,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     if (n < MIN_STACK) return `of ${MIN_STACK} · ${MIN_STACK - n} to go`;
     for (const [id, copies] of Object.entries(deck)) {
       if (byId[id]?.type !== "Basic Resource" && copies > 3) return `${byId[id].name}: maximum 3 copies`;
-      if (owned && copies > (owned.get(id) || 0)) return `${byId[id].name}: only ${owned.get(id) || 0} verified proof(s)`;
+      if (owned && !ownershipExempt(byId[id]) && copies > (owned.get(id) || 0)) return `${byId[id].name}: only ${owned.get(id) || 0} verified proof(s)`;
     }
     return "";
   }
@@ -1330,7 +1337,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     if (modeButtons.og) modeButtons.og.disabled = !proofs;
 
     ownershipNote.textContent = mode === "og"
-      ? `OG: ${proofs} verified unspent proof(s). Only cards you actually pulled can enter this Stack.`
+      ? `OG: ${proofs} verified unspent proof(s). Only cards you actually pulled can enter this Stack — Basic Resources aside, which stay free so a Stack is buildable.`
       : verified === null
         ? "Freestyle: the whole catalog is legal. Checking your wallet for an OG option…"
         : proofs
