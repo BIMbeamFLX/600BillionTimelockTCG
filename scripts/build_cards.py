@@ -81,15 +81,27 @@ def font(path: Path, size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(str(path), size)
 
 
+def system_font(names: list[str], size: int) -> ImageFont.FreeTypeFont:
+    """Load a named font from the common macOS, Windows, or Linux locations."""
+    roots = (Path("/System/Library/Fonts/Supplemental"), Path("C:/Windows/Fonts"), Path("/usr/share/fonts/truetype/dejavu"))
+    for name in names:
+        for candidate in (Path(name), *(root / name for root in roots)):
+            try:
+                return ImageFont.truetype(str(candidate), size)
+            except OSError:
+                continue
+    raise OSError(f"none of these fonts is available: {', '.join(names)}")
+
+
 def body_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     """Load the Windows body font used for highly readable rules text."""
-    filename = "arialbd.ttf" if bold else "arial.ttf"
-    return ImageFont.truetype(filename, size)
+    return system_font(["Arial Bold.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf"] if bold
+                       else ["Arial.ttf", "arial.ttf", "DejaVuSans.ttf"], size)
 
 
 def flavor_font(size: int) -> ImageFont.FreeTypeFont:
     """Load the italic collectible-copy face."""
-    return ImageFont.truetype("ariali.ttf", size)
+    return system_font(["Arial Italic.ttf", "ariali.ttf", "DejaVuSans-Oblique.ttf"], size)
 
 
 def parse_cost(cost: str) -> list[str]:

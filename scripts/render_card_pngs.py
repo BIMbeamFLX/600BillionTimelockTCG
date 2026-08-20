@@ -139,11 +139,13 @@ def resource_icon(affinity: str, size: int) -> Image.Image:
 
 def font(candidates: list[str], size: int) -> ImageFont.FreeTypeFont:
     """Load the first available font from a fallback chain."""
+    roots = (Path("/System/Library/Fonts/Supplemental"), Path("C:/Windows/Fonts"), Path("/usr/share/fonts/truetype/dejavu"))
     for name in candidates:
-        try:
-            return ImageFont.truetype(name, size)
-        except OSError:
-            continue
+        for candidate in (Path(name), *(root / name for root in roots)):
+            try:
+                return ImageFont.truetype(str(candidate), size)
+            except OSError:
+                continue
     return ImageFont.load_default()
 
 
