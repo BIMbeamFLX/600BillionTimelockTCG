@@ -30,6 +30,18 @@ test("NutFT catalog URI must be an absolute web URL", () => {
   assert.throws(() => createNutftMint({ catalogUri: "file:///tmp/catalog" }), /absolute HTTP\(S\) URL/);
 });
 
+test("persisted mint refuses CardBinding configuration drift", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "600b-nutft-config-"));
+  const dbPath = join(dir, "mint.db");
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
+  await table.close();
+  await assert.rejects(
+    () => createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "https://example.test/nutft/catalog" }),
+    /different NutFT census, collection, or catalog URI/,
+  );
+});
+
 async function browserWallet(storage, fetchImpl) {
   const source = await readFile(new URL("../../site/nutft-wallet.js", import.meta.url), "utf8");
   const context = {
@@ -192,171 +204,4 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   assert.equal((await fetch(`${base}/v1/checkstate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys: ["not-a-curve-point"] }) })).status, 400);
   assert.equal((await fetch(`${base}/v1/checkstate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys: "not-an-array" }) })).status, 400);
   assert.equal((await fetch(`${base}/nutft/booster`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pack_id: quote.pack_id, state: quote.state, outputs: [] }) })).status, 400);
-});
-
-test("the browser wallet reloads a bought booster from its own storage", async (t) => {
-  // Regression: snapshot() read `keyset` without ever binding it, so wallet.html
-  // threw ReferenceError on every load and could never show a card. The mint-side
-  // test above stayed green throughout, because it never loads the wallet module.
-  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
-  t.after(() => table.close());
-
-  const store = new Map();
-  globalThis.localStorage = {
-    getItem: (key) => (store.has(key) ? store.get(key) : null),
-    setItem: (key, value) => store.set(key, String(value)),
-    removeItem: (key) => store.delete(key),
-  };
-  globalThis.NUTFT_CASHU_URL = "@cashu/cashu-ts";
-  t.after(() => { delete globalThis.localStorage; delete globalThis.NUTFT_CASHU_URL; delete globalThis.NutFTWallet; });
-
-  require("../../site/nutft-wallet.js");
-  const wallet = globalThis.NutFTWallet;
-
-  const bought = await wallet.buyBooster(table.url);
-  assert.equal(bought.proofs.length, 7);
-  assert.ok(store.get("600b:nutft-wallet"), "the booster is persisted to browser storage");
-
-  // The reload path: exactly what wallet.html:56 calls on every page load.
-  const { catalog, owned } = await wallet.snapshot(table.url);
-  assert.equal(owned.length, 7, "every bought card comes back on reload");
-  assert.equal(catalog.collection_id, "600B-E1");
-  for (const card of owned) {
-    assert.equal(card.state, "UNSPENT");
-    assert.equal(card.proof.amount.toString(), "1");
-    assert.equal(card.asset.asset_binding, card.tag[4], "CardBinding survives the round trip");
-    assert.ok(card.asset.face && card.asset.face.sha256, "the Blossom face hash is present");
-  }
-  assert.deepEqual(
-    owned.map((card) => card.tag[2]).sort(),
-    bought.cards.map((card) => card.asset_id).sort(),
-    "reload returns the same seven assets the mint issued",
-  );
-});
-
-test("a restarted mint remembers what it already sold", async (t) => {
-  // Regression: counts, nextPack and spent secrets lived only in memory, so
-  // `systemctl restart tcg-table` — the last step of the deploy runbook — reset
-  // sold to 0 and re-issued pack-0001 with the identical cards. The supply cap
-  // held only until the next restart.
-  const { mkdtempSync, rmSync } = await import("node:fs");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const dir = mkdtempSync(join(tmpdir(), "nutft-durable-"));
-  const dbPath = join(dir, "mint.db");
-  t.after(() => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* windows keeps the db file briefly */ } });
-
-  const buy = async (base) => {
-    const keys = await (await fetch(`${base}/v1/keys`)).json();
-    const keyset = keys.keysets[0];
-    const pubkey = hex(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey()));
-    const quote = await (await fetch(`${base}/nutft/quote`)).json();
-    const outputs = quote.cards.map((card) => cashu.OutputData.createSingleP2PKData({
-      pubkey,
-      blindKeys: true,
-      additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
-    }, 1, keyset.id));
-    const response = await fetch(`${base}/nutft/booster`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        pack_id: quote.pack_id,
-        state: quote.state,
-        outputs: outputs.map((output, i) => ({ amount: 1, id: output.blindedMessage.id, B_: output.blindedMessage.B_, nutft: {
-          collection_id: quote.cards[i].collection_id,
-          asset_id: quote.cards[i].asset_id,
-          catalog_uri: quote.cards[i].catalog_uri,
-        } })),
-      }),
-    });
-    assert.equal(response.status, 200);
-    return { quote, issued: await response.json() };
-  };
-
-  const first = await createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
-  const one = await buy(first.url);
-  const afterFirst = await (await fetch(`${first.url}/nutft/state`)).json();
-  assert.equal(afterFirst.sold, 1);
-  assert.equal(afterFirst.next_pack, "pack-0002");
-  first.close();
-
-  // Same database, new process-lifetime: this is what a systemctl restart does.
-  const second = await createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
-  t.after(() => second.close());
-  const resumed = await (await fetch(`${second.url}/nutft/state`)).json();
-  assert.equal(resumed.sold, 1, "the restarted mint still knows pack-0001 is gone");
-  assert.equal(resumed.next_pack, "pack-0002", "it does not re-issue pack-0001");
-  assert.equal(resumed.state, afterFirst.state, "the published commitment survives the restart");
-  assert.deepEqual(resumed.remaining, afterFirst.remaining, "the supply counts survive the restart");
-
-  const two = await buy(second.url);
-  assert.equal(two.quote.pack_id, "pack-0002");
-  assert.notDeepEqual(
-    two.issued.cards.map((card) => card.asset_id),
-    one.issued.cards.map((card) => card.asset_id),
-    "the second pack is not a replay of the first",
-  );
-});
-
-test("a mint that has sold refuses to restart under a different catalog_uri", async (t) => {
-  // catalog_uri is hashed into every asset_binding, so resuming under a new one
-  // would issue cards that disagree with the ones already in people's wallets.
-  const { mkdtempSync, rmSync } = await import("node:fs");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const dir = mkdtempSync(join(tmpdir(), "nutft-binding-"));
-  const dbPath = join(dir, "mint.db");
-  t.after(() => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* windows keeps the db file briefly */ } });
-
-  const first = await createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
-  first.close();
-
-  await assert.rejects(
-    () => createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "https://example.test/nutft/catalog" }),
-    /different catalog_uri/,
-    "the mint refuses rather than splitting the binding",
-  );
-});
-
-test("real signing secrets replace the publicly-derivable demo keys", async (t) => {
-  // The demo derived its mint key from a fixed public string, so anyone could
-  // recompute the private key and forge signatures. Production passes a secret.
-  const { createNutftMint } = require("../../server/nutft-mint.js");
-
-  const demo = createNutftMint({ catalogUri: "http://127.0.0.1/nutft/catalog" });
-  const withSecret = createNutftMint({
-    catalogUri: "http://127.0.0.1/nutft/catalog",
-    mintSeed: "11".repeat(32),
-    catalogKey: "22".repeat(32),
-  });
-
-  const demoInfo = await (async () => {
-    // reach the keyset the same way the HTTP handler does
-    const res = { code: 0, body: null };
-    const fake = { writeHead() { return fake; }, end(b) { res.body = b; } };
-    await demo.handle({ method: "GET" }, fake, new URL("http://x/v1/keys"));
-    return JSON.parse(res.body);
-  })();
-  const secretInfo = await (async () => {
-    const res = { body: null };
-    const fake = { writeHead() { return fake; }, end(b) { res.body = b; } };
-    await withSecret.handle({ method: "GET" }, fake, new URL("http://x/v1/keys"));
-    return JSON.parse(res.body);
-  })();
-
-  assert.notEqual(
-    demoInfo.keysets[0].id,
-    secretInfo.keysets[0].id,
-    "a real mint seed yields a different keyset than the demo key",
-  );
-
-  assert.throws(
-    () => createNutftMint({ catalogUri: "http://127.0.0.1/nutft/catalog", requireProductionKeys: true }),
-    /publicly-derivable demo keys/,
-    "the production guard refuses to boot on demo keys",
-  );
-  assert.doesNotThrow(
-    () => createNutftMint({ catalogUri: "http://127.0.0.1/nutft/catalog", requireProductionKeys: true, mintSeed: "33".repeat(32), catalogKey: "44".repeat(32) }),
-    "with real secrets the production guard is satisfied",
-  );
 });

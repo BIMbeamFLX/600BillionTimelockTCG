@@ -117,6 +117,10 @@ function createNutftMint(options = {}) {
     : memory.operations.set(`${type}:${key}`, { requestHash, result });
   const isSpent = (y) => db ? Boolean(q.spent.get(y)) : memory.spent.has(y);
   const putSpent = (y) => db ? q.putSpent.run(y) : memory.spent.add(y);
+  const configuration = canonical({ census_sha256: census.census_sha256, collection_id: collectionId, catalog_uri: catalogUri });
+  const storedConfiguration = getMeta("configuration");
+  if (storedConfiguration && storedConfiguration !== configuration) throw new Error("mint database belongs to a different NutFT census, collection, or catalog URI");
+  if (!storedConfiguration) putMeta("configuration", configuration);
   const storedState = getMeta("state");
   const state = storedState ? JSON.parse(storedState) : { counts: { ...catalog.counts }, nextPack: 1, state: initialCommitment };
   if (!storedState) putMeta("state", JSON.stringify(state));

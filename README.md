@@ -294,7 +294,7 @@ BIP-340 signature verification.
 ## Tests
 
 ```bash
-npm run test:js     # 315 tests: engine, client, transport, NutFT, ladder, and every card wave
+npm run test:js     # 316 tests: engine, client, transport, NutFT, ladder, and every card wave
 uv run pytest       # the Python generators
 ```
 

@@ -303,13 +303,19 @@ async function createTable(opts) {
   db.exec(DDL);
 
   const startedAt = Date.now();
-  const nutft = createNutftMint({
-    censusPath: options.nutftCensusPath,
-    collectionId: options.nutftCollectionId,
-    catalogUri: options.nutftCatalogUri,
-    beacon: options.nutftBeacon,
-    db,
-  });
+  let nutft;
+  try {
+    nutft = createNutftMint({
+      censusPath: options.nutftCensusPath,
+      collectionId: options.nutftCollectionId,
+      catalogUri: options.nutftCatalogUri,
+      beacon: options.nutftBeacon,
+      db,
+    });
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 
   /* CREATE TABLE IF NOT EXISTS does nothing to a database that predates a
    * column, and SQLite has no ADD COLUMN IF NOT EXISTS. A demo laptop carrying
