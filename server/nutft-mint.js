@@ -7,6 +7,7 @@ const { schnorr } = require("@noble/curves/secp256k1");
 const { censusHash, hashParts, loadCensus, openPack } = require("./nutft-draw.js");
 const lnd = require("./lnd.js");
 const { createBeacon } = require("./beacon.js");
+const lnurl = require("./lnurl.js");
 
 const REPO = path.resolve(__dirname, "..");
 const CENSUS_PATH = path.join(REPO, "cards", "nutft-census.json");
@@ -154,6 +155,13 @@ function createNutftMint(options = {}) {
      for a paid one, because the whole box is then precomputable offline. Turned
      on, a sale commits to a block height above the current tip and the cards are
      unknowable — to the buyer AND to the mint — until that block exists. */
+  /* LNURL-pay needs to hand a wallet an absolute callback URL, so the mint has
+     to know where it is publicly reachable. Derived from PUBLIC_URL, which
+     already names the canonical host, so there is one place to change hosts. */
+  const publicBase = (options.publicBase || process.env.NUTFT_PUBLIC_BASE || "" ||
+    (process.env.PUBLIC_URL || "").replace(/^ws/, "http").replace(/\/ws$/, "")).replace(/\/$/, "");
+  const payMetadata = lnurl.metadataFor("600B Timelock TCG — one booster, 7 cards");
+
   const beaconLive = String(options.beaconSource ?? process.env.NUTFT_BEACON_SOURCE ?? "") === "lnd";
   if (beaconLive && !lndConfig) throw new Error("NUTFT_BEACON_SOURCE=lnd needs a chain source: configure LND_REST_URL");
   const chain = beaconLive
@@ -230,7 +238,7 @@ function createNutftMint(options = {}) {
 
   /* A quote the buyer can actually pay. The invoice is bound to this pack id,
      so a settled payment buys the pack it was quoted for and no other. */
-  async function payableQuote() {
+  async function payableQuote(opts = {}) {
     const base = await quote();
     if (!paidMint) return { ...base, price_msat: 0, paid: false };
     /* A funding-source failure is ours, not the buyer's, and its message names
@@ -250,7 +258,11 @@ function createNutftMint(options = {}) {
     }
     let invoice;
     try {
-      invoice = await lnd.createInvoice(lndConfig, { amountMsat: priceMsat, memo: `600B booster ${base.pack_id}` });
+      invoice = await lnd.createInvoice(lndConfig, {
+        amountMsat: priceMsat,
+        memo: `600B booster ${base.pack_id}`,
+        descriptionHash: opts.descriptionHash,
+      });
     } catch (error) {
       console.error("[nutft] lnd createInvoice failed:", error && error.message);
       throw new Error("the mint cannot reach its funding source right now — try again shortly");
@@ -482,6 +494,41 @@ function createNutftMint(options = {}) {
         return json(res, 200, { unit: collectionId, state: current(), census_sha256: census.census_sha256, next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs, tier_odds: tierOdds, remaining: state.counts });
       }
       if (req.method === "GET" && url.pathname === "/nutft/quote") return json(res, 200, await payableQuote());
+      /* LUD-06 step 1: what a wallet reads when it scans the QR. */
+      if (req.method === "GET" && url.pathname === "/nutft/lnurlp") {
+        if (!paidMint) return json(res, 200, lnurl.error("this mint is free — no payment is needed"));
+        if (!publicBase) return json(res, 200, lnurl.error("mint is not configured with a public URL"));
+        return json(res, 200, lnurl.payRequest({
+          callbackUrl: `${publicBase}/nutft/lnurlp/callback`,
+          amountMsat: priceMsat,
+          metadata: payMetadata,
+        }));
+      }
+      /* LUD-06 step 2: the wallet asks for the invoice. This is where the sale
+         is actually created, so a scan that is never paid costs a quote and
+         nothing else. successAction carries the claim link, because after
+         paying by QR the buyer has no other way to learn their payment_hash. */
+      if (req.method === "GET" && url.pathname === "/nutft/lnurlp/callback") {
+        if (!paidMint) return json(res, 200, lnurl.error("this mint is free — no payment is needed"));
+        const amount = Number(url.searchParams.get("amount"));
+        if (!Number.isFinite(amount) || amount !== priceMsat) {
+          return json(res, 200, lnurl.error(`a booster costs exactly ${priceMsat} msat`));
+        }
+        try {
+          const sale = await payableQuote({ descriptionHash: lnurl.descriptionHash(payMetadata) });
+          return json(res, 200, {
+            pr: sale.payment_request,
+            routes: [],
+            successAction: {
+              tag: "url",
+              description: "Open your booster",
+              url: `${publicBase}/shop.html?shop=mint&claim=${sale.payment_hash}`,
+            },
+          });
+        } catch (error) {
+          return json(res, 200, lnurl.error(error.message));
+        }
+      }
       if (req.method === "GET" && url.pathname === "/nutft/reveal") {
         return json(res, 200, await revealFor(url.searchParams.get("payment_hash") || ""));
       }

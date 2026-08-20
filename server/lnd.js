@@ -101,11 +101,18 @@ function call(config, path, init = {}) {
 
 /* Returns { paymentRequest, paymentHash } — paymentHash hex, which is what
  * LookupInvoice wants and what the buyer sends back to claim the pack. */
-async function createInvoice(config, { amountMsat, memo, expirySeconds = 900 }) {
+async function createInvoice(config, { amountMsat, memo, descriptionHash, expirySeconds = 900 }) {
+  /* LNURL-pay commits sha256(metadata) into the invoice, and wallets verify it.
+     When a description hash is supplied it replaces the memo entirely — lnd
+     rejects an invoice that carries both, and the hash is the one the wallet
+     will check. */
+  const payload = { value_msat: String(amountMsat), expiry: String(expirySeconds) };
+  if (descriptionHash) payload.description_hash = Buffer.from(descriptionHash).toString("base64");
+  else payload.memo = memo;
   const body = await call(config, "/v1/invoices", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ value_msat: String(amountMsat), memo, expiry: String(expirySeconds) }),
+    body: JSON.stringify(payload),
   });
   if (!body.payment_request) throw new Error("lnd did not return a payment_request");
   /* r_hash comes back base64 in the REST gateway; the lookup path wants hex. */

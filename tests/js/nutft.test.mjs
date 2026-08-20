@@ -418,3 +418,66 @@ test("a sealed pack cannot be known at purchase, and resolves to its own block",
     "yields a different pack from the same pack_id — the beacon really drives the draw",
   );
 });
+
+test("LNURL-pay serves a scannable booster and binds the description hash", async (t) => {
+  // Without this a buyer copies a bolt11 out of a page and pastes it into a
+  // wallet. With it they scan one QR. The description hash binding is the part
+  // wallets actually verify, so it has to be the hash of the exact metadata the
+  // wallet was served — not a regenerated equivalent.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const lnurlModule = require("../../server/lnurl.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { createHash } = await import("node:crypto");
+
+  let seenDescriptionHash = null;
+  const lndModule = require("../../server/lnd.js");
+  const realCreate = lndModule.createInvoice;
+  lndModule.createInvoice = async (_c, args) => {
+    seenDescriptionHash = args.descriptionHash;
+    return { paymentRequest: "lnbc210n1pfake", paymentHash: "f".repeat(64) };
+  };
+  t.after(() => { lndModule.createInvoice = realCreate; });
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, catalogUri: "https://tcg.example/nutft/catalog",
+    lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 500 },
+    priceMsat: 21000, publicBase: "https://tcg.example",
+  });
+
+  const hit = async (path) => {
+    const out = {};
+    const res = { writeHead(c) { out.code = c; return res; }, end(b) { out.body = JSON.parse(b); } };
+    await mint.handle({ method: "GET" }, res, new URL(`https://tcg.example${path}`));
+    return out.body;
+  };
+
+  const pay = await hit("/nutft/lnurlp");
+  assert.equal(pay.tag, "payRequest");
+  assert.equal(pay.minSendable, 21000);
+  assert.equal(pay.maxSendable, 21000, "a booster has one price, so no slider");
+  assert.equal(pay.callback, "https://tcg.example/nutft/lnurlp/callback");
+
+  // A wallet refuses an amount outside the range; the mint must too.
+  const wrong = await hit("/nutft/lnurlp/callback?amount=5000");
+  assert.equal(wrong.status, "ERROR");
+  assert.match(wrong.reason, /exactly 21000 msat/);
+
+  const ok = await hit("/nutft/lnurlp/callback?amount=21000");
+  assert.equal(ok.pr, "lnbc210n1pfake", "the wallet is handed an invoice");
+  assert.equal(ok.successAction.tag, "url");
+  assert.match(ok.successAction.url, /claim=f{64}/, "and a way to claim the pack after paying");
+
+  // The binding wallets check: sha256 of the metadata that was served.
+  assert.ok(seenDescriptionHash, "the invoice committed to a description hash");
+  assert.equal(
+    Buffer.from(seenDescriptionHash).toString("hex"),
+    createHash("sha256").update(Buffer.from(pay.metadata, "utf8")).digest("hex"),
+    "and it is the hash of the exact metadata string the wallet was served",
+  );
+
+  // The QR payload itself must be a real LNURL.
+  const encoded = lnurlModule.encodeLnurl("https://tcg.example/nutft/lnurlp");
+  assert.match(encoded, /^LNURL1[0-9A-Z]+$/, "bech32, uppercase for QR alphanumeric mode");
+});
