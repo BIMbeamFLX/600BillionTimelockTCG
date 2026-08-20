@@ -82,6 +82,18 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   const transfer = await reloaded.tradeProof(table.url, snapshot.owned[0].proof.secret, recipientPubkey);
   assert.match(transfer.token, /^cashu/);
   assert.equal((await reloaded.snapshot(table.url)).owned.length, 6);
+  const keysetId = (await (await fetch(`${table.url}/v1/keys`)).json()).keysets[0].id;
+  const decodedTransfer = cashu.getDecodedToken(transfer.token, [keysetId]);
+  const duplicateToken = cashu.getEncodedToken({
+    mint: table.url,
+    unit: decodedTransfer.unit,
+    proofs: [decodedTransfer.proofs[0], decodedTransfer.proofs[0]],
+  });
+  await assert.rejects(
+    () => recipient.importToken(table.url, duplicateToken),
+    /duplicate proof/i,
+    "one incoming token cannot count the same proof twice",
+  );
   assert.equal(await recipient.importToken(table.url, transfer.token), 1);
   assert.equal((await recipient.snapshot(table.url)).owned.length, 1);
   const backup = await recipient.exportBackup();

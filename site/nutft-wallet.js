@@ -421,9 +421,12 @@
     const decoded = c.getDecodedToken(token, [keyset.id]);
     if (decoded.mint !== mintUrl || decoded.unit !== "600B-E1" || !decoded.proofs.length) throw new Error("token mint, unit, or proofs are invalid");
     const existing = new Set(state.tokens.flatMap((saved) => c.getDecodedToken(saved, [keyset.id]).proofs).map((proof) => proof.secret));
+    const incoming = new Set();
     const catalogs = new Map();
     for (const proof of decoded.proofs) {
       if (existing.has(proof.secret)) throw new Error("token is already in this wallet");
+      if (incoming.has(proof.secret)) throw new Error("token contains a duplicate proof");
+      incoming.add(proof.secret);
       const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
       if (item.state !== "UNSPENT" || !c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof).length) throw new Error("token is spent or not addressed to this wallet");
     }
