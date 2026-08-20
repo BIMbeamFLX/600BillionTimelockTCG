@@ -63,6 +63,23 @@ function renderWebsite() {
     gfm: true,
     breaks: false,
   });
+
+  /* Drop the markdown's own leading H1 and the "Edition One Rules" H2 under it.
+   *
+   * The .md is a standalone document and is right to open with its title. This
+   * page is not: its template already carries <h1>Build the Network.</h1>, so
+   * pasting the article in whole put TWO h1 elements on one page and repeated a
+   * heading the reader had just read. It also gave the contents list a first
+   * entry pointing at the page it was already on.
+   *
+   * Fixed HERE rather than in site/rules.html, which is generated: a fix in the
+   * output survives exactly until the next build, and the test guarding this
+   * would then fail on a file nobody had touched. */
+  article = article.replace(
+    /^\s*<h1>[^<]*<\/h1>\s*(<h2 id="edition-one-rules">[^<]*<\/h2>\s*)?/,
+    "",
+  );
+
   article = article.replace(
     /<p><img src="([^"]*banner-[^"]+)" alt="([^"]*)"><\/p>/g,
     '<figure class="rule-banner"><img src="$1" alt="$2" loading="lazy"></figure>',
