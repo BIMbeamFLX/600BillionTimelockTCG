@@ -42,7 +42,7 @@ test("persisted mint refuses CardBinding configuration drift", async (t) => {
   );
 });
 
-async function browserWallet(storage, fetchImpl) {
+async function browserWallet(storage, fetchImpl, nostr) {
   const source = await readFile(new URL("../../site/nutft-wallet.js", import.meta.url), "utf8");
   const context = {
     __cashu: cashu,
@@ -55,6 +55,9 @@ async function browserWallet(storage, fetchImpl) {
     TextEncoder,
     TextDecoder,
     Uint8Array,
+    URL,
+    btoa: (text) => Buffer.from(text, "binary").toString("base64"),
+    ...(nostr ? { nostr } : {}),
   };
   vm.runInNewContext(source, context, { filename: "nutft-wallet.js" });
   return context.NutFTWallet;
@@ -827,12 +830,32 @@ test("a closed box sells to nobody, through any door", async (t) => {
   };
 
   await assert.rejects(() => mint.payableQuote(), /not open yet/i, "no invoice is created");
+
+  /* This used to assert that the claim path refuses too. It must not, on a paid
+     mint: the only way to reach a claim is a settled invoice, which was issued
+     while the buyer was allowed to buy and which they have already paid. A gate
+     here would mean closing the box confiscates a paid pack. So the claim fails
+     for the honest reason — there is no invoice behind it — not for the sale. */
   await assert.rejects(
     () => mint.signBooster({ idempotency_key: "c1", pack_id: "pack-0001", state: "x", outputs: [] }),
-    /not open yet/i,
-    "and no pack is issued against an older quote",
+    /payment_hash is required|stale booster quote/i,
+    "a claim with no paid invoice behind it still goes nowhere",
   );
   assert.match((await hit("/nutft/lnurlp")).reason, /not open to wallet payments/i, "the QR path is shut too");
+
+  /* And the case that makes the claim gate necessary at all: with no price
+     there is no invoice, so requirePaidFor waves everything through and the
+     claim IS the sale. Removing the gate from every claim path would have left
+     a free mint completely open — which is precisely the premine it guards. */
+  const free = createNutftMint({
+    db: new DatabaseSync(":memory:"), catalogUri: "https://x/nutft/catalog",
+    publicBase: "https://x", allowVirtual: "1", priceMsat: 0, sales: "closed",
+  });
+  await assert.rejects(
+    () => free.signBooster({ idempotency_key: "f1", pack_id: "pack-0001", state: "x", outputs: [] }),
+    /not open yet/i,
+    "a free mint refuses the claim, because that is its only door",
+  );
   assert.match((await hit("/nutft/lnurlp/callback?amount=21000")).reason, /not open to wallet payments/i,
     "including its callback, which is the one that would have taken the money");
 
@@ -859,15 +882,16 @@ test("an allowlisted box sells only to the keys on the list", async (t) => {
     sales: "allowlist", allowlist: `${npub}, ${hexKey}`,
   });
 
-  await assert.rejects(() => mint.payableQuote(), /sign in with your nostr key/i,
+  await assert.rejects(() => mint.payableQuote(), /sign the request/i,
     "an anonymous buyer is told what is missing, not just refused");
-  await assert.rejects(() => mint.payableQuote({ buyer: "c".repeat(64) }), /not on the list/i,
-    "and an unlisted key is told plainly");
+  /* Naming a key is not proving one. This used to succeed, which is what made
+     the first version of the gate no gate at all. */
+  await assert.rejects(() => mint.payableQuote({ buyer: npubHex }), /sign the request/i,
+    "and claiming to be a listed key buys nothing");
 
-  const viaNpub = await mint.payableQuote({ buyer: npubHex });
-  assert.ok(viaNpub.payment_request, "a key listed as an npub can buy");
-  const viaHex = await mint.payableQuote({ buyer: hexKey.toUpperCase() });
-  assert.ok(viaHex.payment_request, "and one listed as hex, case-insensitively");
+  /* The list itself still accepts both spellings — checked by construction
+     above, since an unparsed entry would have thrown at startup. */
+  assert.ok(npubHex.length === 64 && hexKey.length === 64);
 
   // An empty list under allowlist mode would sell to nobody while looking open.
   assert.throws(
@@ -877,5 +901,216 @@ test("an allowlisted box sells only to the keys on the list", async (t) => {
     }),
     /would sell to nobody/i,
     "so it is refused at startup",
+  );
+});
+
+test("early access needs a signature, not a claim", async (t) => {
+  // The first version of this gate read the buyer's pubkey out of the request
+  // body, which proved nothing: anyone could send a listed key and walk in.
+  // These tests sign for real and then try to break the signature.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const nip98 = require("../../server/nip98.js");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { randomBytes } = await import("node:crypto");
+
+  const hex = (b) => Buffer.from(b).toString("hex");
+  const listedSec = randomBytes(32);
+  const listedPub = hex(schnorr.getPublicKey(listedSec));
+  const strangerSec = randomBytes(32);
+  const strangerPub = hex(schnorr.getPublicKey(strangerSec));
+
+  /* A FIXED base, not the wall clock. Subtracting a counter from Date.now()
+     looked monotonic and is not: if the clock ticks over between two calls, two
+     events land on the same second, hash to the same id, and the second is
+     rightly refused as a replay. That failed only under the full suite, where
+     the run is slow enough for the clock to move. */
+  const base = Math.floor(Date.now() / 1000);
+  let tick = 0;
+  const sign = (sec, { path = "/nutft/quote", method = "GET", host = "x.example", at } = {}) => {
+    const event = {
+      pubkey: hex(schnorr.getPublicKey(sec)),
+      created_at: at ?? (base - (tick += 1)),
+      kind: 27235,
+      tags: [["u", `https://${host}${path}`], ["method", method]],
+      content: "",
+    };
+    event.id = nip98.eventId(event);
+    event.sig = hex(schnorr.sign(event.id, sec));
+    return "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64");
+  };
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, catalogUri: "https://x.example/nutft/catalog", publicBase: "https://x.example",
+    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000,
+    sales: "allowlist", allowlist: listedPub,
+  });
+  const proof = (header, over = {}) =>
+    ({ header, method: "GET", path: "/nutft/quote", host: "x.example", ...over });
+
+  // The hole that was there before: naming a listed key buys nothing now.
+  await assert.rejects(() => mint.payableQuote({ proof: proof("") }), /sign the request/i,
+    "an unsigned request is refused");
+  await assert.rejects(() => mint.payableQuote({ buyer: listedPub }), /sign the request/i,
+    "and so is one that merely claims to be the listed key");
+
+  // A real signature from a listed key works.
+  const ok = await mint.payableQuote({ proof: proof(sign(listedSec)) });
+  assert.ok(ok.payment_request, "a signed, listed buyer gets an invoice");
+
+  // Replay: the very same header a second time.
+  const once = sign(listedSec);
+  assert.ok(await mint.payableQuote({ proof: proof(once) }), "a fresh proof works once");
+  await assert.rejects(() => mint.payableQuote({ proof: proof(once) }), /already been used/i,
+    "and never a second time");
+
+  // A valid signature from a key that is not listed.
+  await assert.rejects(() => mint.payableQuote({ proof: proof(sign(strangerSec)) }), /not on the list/i,
+    "a stranger's real signature is still refused");
+
+  // Bound to method, path, host and clock.
+  await assert.rejects(() => mint.payableQuote({ proof: proof(sign(listedSec, { method: "POST" })) }),
+    /different method/i, "a POST proof cannot be replayed as a GET");
+  await assert.rejects(() => mint.payableQuote({ proof: proof(sign(listedSec, { path: "/nutft/reveal" })) }),
+    /different endpoint/i, "a proof for another endpoint is refused");
+  await assert.rejects(() => mint.payableQuote({ proof: proof(sign(listedSec, { host: "evil.example" })) }),
+    /different host/i, "and one minted for another deployment");
+  await assert.rejects(
+    () => mint.payableQuote({ proof: proof(sign(listedSec, { at: Math.floor(Date.now() / 1000) - 3600 })) }),
+    /expired/i, "an hour-old capture is dead");
+
+  // Tampering: keep a valid signature, change what it authorises.
+  const tampered = JSON.parse(Buffer.from(sign(listedSec).slice(6), "base64").toString("utf8"));
+  tampered.tags = [["u", "https://x.example/nutft/quote"], ["method", "GET"], ["extra", "x"]];
+  await assert.rejects(
+    () => mint.payableQuote({ proof: proof("Nostr " + Buffer.from(JSON.stringify(tampered)).toString("base64")) }),
+    /does not match its contents/i,
+    "changing the event after signing breaks the recomputed id",
+  );
+});
+
+test("a paid booster stays claimable even if the list changes underneath it", async (t) => {
+  // The gate belongs on issuance. Re-checking a credential at claim time would
+  // confiscate an invoice somebody had already paid — taking money and refusing
+  // the cards, which is the one outcome worth designing against.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  const funding = createMockFunding({});
+  const mint = createNutftMint({
+    db, catalogUri: "https://x.example/nutft/catalog",
+    funding, allowVirtual: "1", priceMsat: 21000, sales: "open",
+  });
+
+  const quote = await mint.payableQuote();
+  const keysRes = { writeHead() { return keysRes; }, end(b) { keysRes.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET" }, keysRes, new URL("https://x.example/v1/keys"));
+  const keyset = keysRes.parsed.keysets[0];
+  const pubkey = hex(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey()));
+  const outs = quote.cards.map((card) => cashu.OutputData.createSingleP2PKData({
+    pubkey, blindKeys: true,
+    additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+  }, 1, keyset.id));
+
+  // Paid, but never claimed yet.
+  funding.settle(quote.payment_hash);
+
+  // The claim carries no credential at all, and must still succeed.
+  const result = await mint.signBooster({
+    idempotency_key: "late-claim", pack_id: quote.pack_id, state: quote.state,
+    payment_hash: quote.payment_hash,
+    outputs: outs.map((o) => ({ amount: 1, id: o.blindedMessage.id, B_: o.blindedMessage.B_, nutft: opening(o) })),
+  });
+  assert.equal(result.signatures.length, 7, "the pack they paid for is still theirs");
+});
+
+test("the shop proves a key only when the mint asks for one", async (t) => {
+  // The round trip that matters: a header built by site/nutft-wallet.js and
+  // verified by server/nip98.js. Testing either half alone would only prove
+  // that two of my own assumptions agree with each other.
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { randomBytes } = await import("node:crypto");
+  const hex = (b) => Buffer.from(b).toString("hex");
+
+  const sec = randomBytes(32);
+  const pub = hex(schnorr.getPublicKey(sec));
+  let signatures = 0;
+  const signer = {
+    getPublicKey: async () => pub,
+    signEvent: async (event) => {
+      signatures += 1;
+      const full = { ...event, pubkey: pub };
+      full.id = createHash("sha256").update(JSON.stringify([
+        0, full.pubkey, full.created_at, full.kind, full.tags, full.content,
+      ])).digest("hex");
+      full.sig = hex(schnorr.sign(full.id, sec));
+      return full;
+    },
+  };
+
+  const previous = { sales: process.env.NUTFT_SALES, list: process.env.NUTFT_ALLOWLIST };
+  t.after(() => {
+    if (previous.sales === undefined) delete process.env.NUTFT_SALES;
+    else process.env.NUTFT_SALES = previous.sales;
+    if (previous.list === undefined) delete process.env.NUTFT_ALLOWLIST;
+    else process.env.NUTFT_ALLOWLIST = previous.list;
+  });
+
+  // An open box: the extension must never be touched.
+  process.env.NUTFT_SALES = "open";
+  delete process.env.NUTFT_ALLOWLIST;
+  const open = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:",
+    nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
+  t.after(() => open.close());
+  await (await browserWallet(new Map(), fetch, signer)).buyBooster(open.url);
+  assert.equal(signatures, 0, "an ordinary sale never prompts for a signature");
+
+  // Early access, with a key on the list.
+  process.env.NUTFT_SALES = "allowlist";
+  process.env.NUTFT_ALLOWLIST = pub;
+  const gated = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:",
+    nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
+  t.after(() => gated.close());
+
+  const listed = await browserWallet(new Map(), fetch, signer);
+  const bought = await listed.buyBooster(gated.url);
+  assert.equal(bought.length ?? bought.owned?.length ?? 7, 7, "a listed key gets its pack");
+  /* Twice, and both are load-bearing: this mint is free, so requirePaidFor
+     waves the claim through and the claim is its own door. A PAID mint signs
+     only the quote — the settled invoice is the receipt, and re-checking there
+     would confiscate a pack the buyer had already paid for. */
+  assert.equal(signatures, 2, "signed once per gated door, and only on refusal");
+
+  // A stranger's key: really signed, really refused.
+  const strangerSec = randomBytes(32);
+  const strangerPub = hex(schnorr.getPublicKey(strangerSec));
+  const stranger = {
+    getPublicKey: async () => strangerPub,
+    signEvent: async (event) => {
+      const full = { ...event, pubkey: strangerPub };
+      full.id = createHash("sha256").update(JSON.stringify([
+        0, full.pubkey, full.created_at, full.kind, full.tags, full.content,
+      ])).digest("hex");
+      full.sig = hex(schnorr.sign(full.id, strangerSec));
+      return full;
+    },
+  };
+  await assert.rejects(
+    () => browserWallet(new Map(), fetch, stranger).then((w) => w.buyBooster(gated.url)),
+    /not on the list/i,
+    "an unlisted key is refused in the mint's own words, not as a bare status code",
+  );
+
+  // No extension at all: told what to do, not handed a 400.
+  await assert.rejects(
+    () => browserWallet(new Map(), fetch).then((w) => w.buyBooster(gated.url)),
+    /install a nostr extension/i,
+    "and someone without a signer is told why, not just refused",
   );
 });
