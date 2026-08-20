@@ -696,15 +696,18 @@
      * first-child-is-the-art rules the client tests enforce apply to card nodes
      * inside a zone, and this is the floating overlay. textContent is unchanged
      * either way, because an img contributes none. */
-    if (event.seat === 0 || event.seat === 1) {
+    /* Only where somebody actually did something. Phase markers and passes
+     * carry a seat too, and a face on every line turns the announcement into
+     * wallpaper instead of a moment. */
+    if ((event.seat === 0 || event.seat === 1) && tone !== "system") {
       const seatMeta = session.full && session.full.seats ? session.full.seats[event.seat] : null;
-      const shout = seatMeta ? portraitFor(seatMeta.pubkey) : null;
-      if (shout && node.prepend) {
+      const card = seatAvatarCard(event.seat);
+      const shout = card ? null : (seatMeta ? portraitFor(seatMeta.pubkey) : null);
+      if ((card || shout) && node.prepend) {
         const face = el("img", "shout");
-        if (face.setAttribute) {
-          face.setAttribute("src", shout);
-          face.setAttribute("alt", "");
-        }
+        if (face.setAttribute) face.setAttribute("alt", "");
+        if (card) setFace(face, card);
+        else if (face.setAttribute) face.setAttribute("src", shout);
         node.prepend(face);
       }
     }
@@ -846,11 +849,45 @@
     return null;
   }
 
+  /* A hotseat seat has no pubkey and therefore no profile to resolve, which left
+   * local play faceless. It does not need one: the set already contains 88
+   * Avatars, every one of them a finished, hash-verified, Blossom-mirrored face.
+   * So you pick the Avatar you play as, and that card IS your portrait — no new
+   * art, and "everyone plays their avatar" in the most literal sense the game
+   * can mean it.
+   *
+   * Kept entirely client-side and OUT of the engine config: seats feed newSeat,
+   * which feeds the hashed transcript, and a cosmetic choice must never move a
+   * hashed byte or make two clients disagree about a match. */
+  const SEAT_AVATARS = [null, null];   // seat -> cardId chosen at the setup screen
+
+  const avatarChoices = () => CARDS
+    .filter((card) => card.type && card.type.indexOf("Avatar") >= 0)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  function seatAvatarCard(seatIndex) {
+    const id = SEAT_AVATARS[seatIndex];
+    return id && CARD_BY_ID[id] ? CARD_BY_ID[id] : null;
+  }
+
   /* The portrait is a square chip, not a circle: the frame on every card face is
    * square and the board speaks the card's language. */
-  function mountPortrait(bar, pubkey, name) {
+  function mountPortrait(bar, pubkey, name, seatIndex) {
     if (!bar || !bar.children) return;
-    const url = portraitFor(pubkey);
+    const card = seatAvatarCard(seatIndex);
+    const url = card ? null : portraitFor(pubkey);
+    if (card) {
+      let node = Array.prototype.find
+        ? Array.prototype.find.call(bar.children, (c) => c && c.className === "portrait")
+        : null;
+      if (!node) {
+        node = el("img", "portrait");
+        if (bar.prepend) bar.prepend(node); else bar.append(node);
+      }
+      setFace(node, card);
+      if (node.setAttribute) node.setAttribute("alt", `${name || "Player"} plays ${card.name}`);
+      return;
+    }
     let img = Array.prototype.find
       ? Array.prototype.find.call(bar.children, (c) => c && c.className === "portrait")
       : null;
@@ -2371,7 +2408,7 @@
       document.getElementById(`${side}Bar`).classList.toggle("seat-target", wantsSeatTarget());
       document.getElementById(`${side}Name`).textContent = v.seats[who].name;
       /* The playerbar IS the player — so give it the player's face. */
-      mountPortrait(document.getElementById(`${side}Bar`), v.seats[who].pubkey, v.seats[who].name);
+      mountPortrait(document.getElementById(`${side}Bar`), v.seats[who].pubkey, v.seats[who].name, who);
       const uptime = v.seats[who].uptime;
       document.getElementById(`${side}Uptime`).textContent = uptime;
       const uptimeMeter = document.getElementById(`${side}UptimeMeter`);
@@ -4407,7 +4444,44 @@
   /* The seat menus: affinity presets, the precon library, then whatever the
    * player has saved. Separated out so it can be called again once the
    * asynchronous Stack library arrives. */
+  /* One menu per seat, listing every Avatar in the set. The preview is the real
+   * card face through the same resolver the table uses, so what you pick is
+   * exactly what you will see on the bar. */
+  function buildAvatarMenus() {
+    const choices = avatarChoices();
+    if (!choices.length) return;
+    for (const [id, seatIndex] of [["avatarA", 0], ["avatarB", 1]]) {
+      const select = document.getElementById(id);
+      if (!select) continue;
+      select.innerHTML = "";
+      const none = el("option", null, "No Avatar - just my name");
+      none.value = "";
+      select.append(none);
+      for (const card of choices) {
+        const option = el("option", null, card.name);
+        option.value = card.id;
+        select.append(option);
+      }
+      const preview = document.getElementById(seatIndex === 0 ? "avatarPreviewA" : "avatarPreviewB");
+      const sync = () => {
+        SEAT_AVATARS[seatIndex] = select.value || null;
+        const card = seatAvatarCard(seatIndex);
+        if (!preview) return;
+        if (card) { setFace(preview, card); preview.hidden = false; }
+        else { preview.hidden = true; }
+      };
+      select.addEventListener("change", sync);
+      /* Default to the Avatar that carries the seat's own name where the set has
+       * one - a player called FLX starts as FLX - otherwise stay on name-only. */
+      const seatName = (document.getElementById(seatIndex === 0 ? "nameA" : "nameB") || {}).value || "";
+      const match = seatName && choices.find((c) => c.name.toLowerCase().indexOf(seatName.toLowerCase() + ",") === 0);
+      if (match) select.value = match.id;
+      sync();
+    }
+  }
+
   function buildSeatMenus() {
+    buildAvatarMenus();
     for (const id of ["deckA", "deckB"]) {
       const select = document.getElementById(id);
       if (!select) return;
