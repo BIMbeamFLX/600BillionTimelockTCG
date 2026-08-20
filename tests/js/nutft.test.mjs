@@ -92,6 +92,8 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   assert.equal(info.nuts[31].output_openings, true);
   const catalog = await (await fetch(`${base}/nutft/catalog`)).json();
   assert.equal(info.nuts[31].catalog_issuer, catalog.issuer_pubkey);
+  assert.equal(typeof catalog.assets[0].type_line, "string");
+  assert.equal(typeof catalog.assets[0].face.sha256, "string");
   const { signature, issuer_pubkey: issuer, ...catalogPayload } = catalog;
   const catalogDigest = createHash("sha256").update(canonical(catalogPayload)).digest("hex");
   assert.equal(cashu.schnorrVerifyDigest(signature, catalogDigest, issuer), true);
@@ -170,7 +172,9 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   const spentAfterRestart = await (await fetch(`${base}/v1/checkstate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys: [cashu.hashToCurve(new TextEncoder().encode(proofs[0].secret)).toHex(true)] }) })).json();
   assert.equal(spentAfterRestart.states[0].state, "SPENT");
   assert.deepEqual(await (await fetch(`${base}/nutft/trade`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(tradeBody) })).json(), tradeResult);
-  assert.equal((await (await fetch(`${base}/nutft/state`)).json()).next_pack, "pack-0002");
+  const mintState = await (await fetch(`${base}/nutft/state`)).json();
+  assert.equal(mintState.next_pack, "pack-0002");
+  assert.deepEqual(mintState.tier_odds, { genesis: 0.15, vault: 1.05, rare: 15.48, uncommon: 16.66, common: 66.65 });
   assert.equal((await fetch(`${base}/v1/swap`, { method: "POST" })).status, 404);
   assert.equal((await fetch(`${base}/v1/melt`, { method: "POST" })).status, 404);
   assert.equal((await fetch(`${base}/v1/checkstate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys: ["not-a-curve-point"] }) })).status, 400);

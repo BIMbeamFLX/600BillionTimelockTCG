@@ -63,6 +63,9 @@ function readBody(req) {
 function createNutftMint(options = {}) {
   const census = JSON.parse(fs.readFileSync(options.censusPath || CENSUS_PATH, "utf8"));
   const catalog = loadCensus(census);
+  const tierOdds = Object.fromEntries(Object.entries(census.tiers)
+    .filter(([, tier]) => tier.share_of_mint != null)
+    .map(([name, tier]) => [name.toLowerCase(), Number(tier.share_of_mint.toFixed(2))]));
   const collectionId = options.collectionId || process.env.NUTFT_COLLECTION_ID || "600B-E1";
   const catalogUri = options.catalogUri || process.env.NUTFT_CATALOG_URI || "http://localhost:8777/nutft/catalog";
   const beacon = (options.beacon || process.env.NUTFT_BEACON || "00".repeat(32)).toLowerCase();
@@ -131,7 +134,7 @@ function createNutftMint(options = {}) {
   const cardInfo = (assetId) => {
     const card = cards.get(assetId);
     if (!card) throw new Error(`unknown asset_id: ${assetId}`);
-    return { asset_id: assetId, ...declaration(assetId), name: card.name, tier: card.tier, face: card.face };
+    return { ...card, asset_id: assetId, ...declaration(assetId) };
   };
   const catalogPayload = () => ({
     collection_id: collectionId,
@@ -325,7 +328,7 @@ function createNutftMint(options = {}) {
         return json(res, 200, signedCatalog());
       }
       if (req.method === "GET" && url.pathname === "/nutft/state") {
-        return json(res, 200, { unit: collectionId, state: current(), census_sha256: census.census_sha256, next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs, remaining: state.counts });
+        return json(res, 200, { unit: collectionId, state: current(), census_sha256: census.census_sha256, next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs, tier_odds: tierOdds, remaining: state.counts });
       }
       if (req.method === "GET" && url.pathname === "/nutft/quote") return json(res, 200, quote());
       if (req.method === "POST" && url.pathname === "/nutft/booster") return json(res, 200, await signBooster(await readBody(req)));
