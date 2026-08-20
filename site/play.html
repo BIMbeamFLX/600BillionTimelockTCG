@@ -300,7 +300,7 @@ a { color: var(--orange-soft); }
 /* The battlefield carries the Node Runner frame: double line, corner pads,
    faint circuit traces running up both margins — the card, blown up to a table. */
 .board {
-  position: relative; display: flex; flex-direction: column; gap: 2px;
+  position: relative; display: flex; flex-direction: column; gap: 6px;
   padding: 14px 16px 10px; background: rgba(9,8,11,.58);
   border: 1px solid rgba(185,145,228,.4); outline: 1px solid rgba(255,106,0,.22); outline-offset: 5px;
 }
@@ -312,6 +312,60 @@ a { color: var(--orange-soft); }
 .board::before { left: 3px; }
 .board::after { right: 3px; transform: scaleX(-1); }
 .board > * { position: relative; z-index: 1; }
+
+/* ---------------------------------------------------------------- the arena
+   The board was five equally wide bands stacked at even intervals: correct,
+   readable, and completely flat — a ladder rather than a table. Nothing on the
+   page used a 3D transform at all.
+
+   Depth is added at the ZONE level only. The rows keep their DOM exactly as it
+   is — cards stay direct children of their zone, which the client tests depend
+   on — and no card transform is touched, so the arc/fan rotations, the
+   committed 90deg turn and every hover rule still compose as before. transform
+   does not affect layout, so row geometry and hit testing are unchanged.
+
+   The far side of the table sits further away and tips away from the viewer;
+   your own side is nearly upright and close. Angles are deliberately small:
+   past about 10deg the rules text on a card face stops being readable, which
+   would trade the game away for the picture. */
+@media (min-width: 900px) {
+  .board { perspective: 1500px; perspective-origin: 50% 44%; }
+
+  /* rotateX and scale ONLY — deliberately no translateZ. Each zone sits inside
+     a .side wrapper, and pushing a child back along Z drops it behind its own
+     parent's plane: the far hand stopped being the top hit at its own centre
+     and the wrapper answered instead. Rotation leaves the element's centre on
+     the Z origin, so sibling order and hit testing are exactly as before —
+     verified by probing elementFromPoint with the transforms on and off.
+
+     Scale carries the distance instead: the far side reads smaller and tips
+     away, your side is upright and full size. Angles stay under 10deg because
+     past that the rules text on a face stops being readable. */
+  /* Both networks bow toward the centre line, so each needs air on the side it
+     curves into: yours crowns upward toward its label, the opponent's crowns
+     downward toward the Queue. The zone label sits inside .side with the zone,
+     so .board's gap cannot buy this room — it has to be margin on the row. */
+  #youNetwork { margin-top: 18px; }
+  #foeNetwork { margin-bottom: 18px; }
+
+  .zone.foehand { transform: rotateX(8deg)   scale(.94); transform-origin: 50% 100%; }
+  #foeNetwork   { transform: rotateX(6deg)   scale(.97); transform-origin: 50% 100%; }
+  .zone.queue   { transform: rotateX(3deg)   scale(.99); transform-origin: 50% 100%; }
+  #youNetwork   { transform: rotateX(1.5deg); transform-origin: 50% 0%; }
+  /* Your hand is the thing you actually hold: upright, nearest, untouched. */
+}
+
+/* The table itself: a soft pool of light at the centre line, brightest where
+   the two networks meet, falling off toward both players. */
+/* A lit table rather than one flat fill: a light well over the clash lane in
+   the middle, falling off to a cold far edge and a warmer near edge, with the
+   inset shadows pulling both horizons down. This is what the depth falls on. */
+.board {
+  background-image:
+    radial-gradient(120% 60% at 50% 50%, rgba(247,147,26,.11) 0%, rgba(9,8,11,0) 58%),
+    linear-gradient(180deg, rgba(23,20,30,.86) 0%, rgba(9,8,11,.42) 46%, rgba(9,8,11,.42) 54%, rgba(14,11,18,.74) 100%);
+  box-shadow: inset 0 40px 70px -50px rgba(0,0,0,.95), inset 0 -40px 70px -50px rgba(0,0,0,.95);
+}
 /* PCB corner pads, like the frame corners of every card face. */
 .bcorner { position: absolute; width: 12px; height: 12px; border: 1px solid var(--purple); background: rgba(9,8,11,.9); z-index: 2; pointer-events: none; }
 .bcorner::after { content: ""; position: absolute; inset: 3px; background: var(--orange); opacity: .8; }
@@ -366,6 +420,32 @@ a { color: var(--orange-soft); }
   12%,70% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-12px) scale(.98); }
 }
+/* The chosen Avatar, shown while picking a seat. Same square cut as the bar. */
+.avatar-preview {
+  width: 100%; max-width: 132px; aspect-ratio: 744/1039; object-fit: cover;
+  object-position: 50% 22%; margin-top: 8px;
+  border: 1px solid var(--line-strong); background: var(--soot);
+  box-shadow: 0 3px 0 rgba(9,8,11,.85), 0 12px 22px -12px rgba(0,0,0,.9);
+}
+
+/* The seat's own face, from its signature-verified kind-0. Square, with a PCB
+   pad at the corner — the frame on every card is square, and a round avatar
+   would be the one circle on a board built out of straight cuts. Absent when a
+   seat has no pubkey (hotseat) or no profile, and the bar keeps its name. */
+.playerbar .portrait {
+  flex: 0 0 auto; width: 42px; height: 42px; object-fit: cover;
+  border: 1px solid var(--line-strong); background: var(--soot);
+  box-shadow: 0 3px 0 rgba(9,8,11,.85), 0 10px 18px -10px rgba(0,0,0,.9);
+}
+.playerbar.seat-target .portrait { border-color: var(--orange); }
+
+/* Kampfansage: the announcement wears the face of whoever made the move. */
+.action-burst { display: inline-flex; align-items: center; gap: 8px; }
+.action-burst .shout {
+  flex: 0 0 auto; width: 26px; height: 26px; object-fit: cover;
+  border: 1px solid currentColor; background: var(--soot);
+}
+
 .counts { color: var(--muted); font-size: 11px; font-family: ui-monospace, Consolas, monospace; letter-spacing: .04em; }
 .buffer { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
 .pip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; background: var(--soot); border: 1px solid var(--line); }
@@ -394,9 +474,20 @@ a { color: var(--orange-soft); }
 /* A press and hold is the touch right click (see cardNode). iOS answers a long
    press on an image with its own callout and a selection magnifier, both of
    which would eat the gesture before the card window ever opened. */
+/* The face carries the ground shadow, not .gcard: every state ring
+   (canplay/canact/canattack/meshed) owns .gcard's box-shadow, and a drop-shadow
+   filter would be replaced by .gcard.committed's brightness filter. A hard 3px
+   edge plus a soft falloff is what reads as "object on a table" instead of
+   "picture printed on the board". */
+.gcard img, .gcard .gart, .gcard.facedown {
+  box-shadow: 0 3px 0 rgba(9,8,11,.85), 0 14px 22px -10px rgba(0,0,0,.95), 0 3px 6px rgba(0,0,0,.5);
+}
+.gcard:hover img, .gcard:hover .gart {
+  box-shadow: 0 3px 0 rgba(9,8,11,.85), 0 28px 40px -14px rgba(0,0,0,1), 0 6px 10px rgba(0,0,0,.6);
+}
 .gcard { position: relative; width: var(--card-w); cursor: pointer; border: 2px solid transparent; transition: transform .14s ease, border-color .12s ease; transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)); -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 .gcard img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
-.gcard:hover { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 14px)) scale(1.05); border-color: var(--orange-soft); z-index: 5; }
+.gcard:hover { transform: rotate(calc(var(--rot, 0deg) * .35)) translateY(calc(var(--lift, 0px) - 14px)) scale(1.05); border-color: var(--orange-soft); z-index: 5; }
 .gcard.committed { transform: rotate(calc(var(--rot, 0deg) + 90deg)) translateY(var(--lift, 0px)) scale(.94); filter: brightness(.72); }
 .gcard.committed:hover { transform: rotate(90deg) translateY(calc(var(--lift, 0px) - 8px)) scale(.98); }
 .zone.arc { flex-wrap: nowrap; justify-content: center; overflow: visible; }
@@ -404,7 +495,7 @@ a { color: var(--orange-soft); }
 .zone.arc .gcard.committed { margin: 0 calc(var(--card-w) * .12); }
 /* Your hand is a real fan: overlap, pivot low, pop on hover. */
 .zone.fan .gcard { width: calc(var(--card-w) * 1.16); margin: 0 calc(var(--card-w) * -0.13); transform-origin: 50% 118%; }
-.zone.fan .gcard:hover { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 26px)) scale(1.18); }
+.zone.fan .gcard:hover { transform: rotate(calc(var(--rot, 0deg) * .3)) translateY(calc(var(--lift, 0px) - 26px)) scale(1.18); }
 .zone.fan { padding-bottom: 14px; }
 /* The opponent's hand is information, not furniture: small, face down, inverted. */
 .zone.foehand { min-height: calc(var(--card-w) * .9); }
@@ -443,7 +534,7 @@ a { color: var(--orange-soft); }
 /* The back rail is support, not bodies: smaller, so two rows cost far less
    than two card heights. It opens up properly on hover. */
 .zone.netsplit .gcard.netres { width: calc(var(--card-w) * .62); }
-.zone.netsplit .gcard.netres:hover { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 10px)) scale(1.5); }
+.zone.netsplit .gcard.netres:hover { transform: rotate(calc(var(--rot, 0deg) * .35)) translateY(calc(var(--lift, 0px) - 10px)) scale(1.5); }
 .zone.netsplit .gcard.netres.committed:hover { transform: rotate(90deg) translateY(calc(var(--lift, 0px) - 6px)) scale(1.4); }
 /* What this one pays in, read live from the engine: the card's terminal
    footer, table-sized. */
@@ -682,12 +773,18 @@ a { color: var(--orange-soft); }
       <div class="seat">
         <label for="nameA">Seat one</label>
         <input id="nameA" value="Player 1" autocomplete="off">
+        <label for="avatarA">Your Avatar</label>
+        <select id="avatarA"></select>
+        <img class="avatar-preview" id="avatarPreviewA" alt="" hidden>
         <label for="deckA">Stack affinity</label>
         <select id="deckA"></select>
       </div>
       <div class="seat">
         <label for="nameB">Seat two</label>
         <input id="nameB" value="Player 2" autocomplete="off">
+        <label for="avatarB">Your Avatar</label>
+        <select id="avatarB"></select>
+        <img class="avatar-preview" id="avatarPreviewB" alt="" hidden>
         <label for="deckB">Stack affinity</label>
         <select id="deckB"></select>
         <label for="npcB" style="display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--muted);font-size:12px;cursor:pointer">
