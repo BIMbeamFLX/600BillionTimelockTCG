@@ -784,6 +784,12 @@ function createNutftMint(options = {}) {
           next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs,
           cards_per_pack: census.mint.cards_per_pack,
           paid_cards_per_pack: census.mint.paid_cards_per_pack,
+          /* Whether the till is open. This was only in /v1/info, which the shop
+             does not read, so a CLOSED mint still drew a live "Buy a booster"
+             button -- the refusal arrived after the click, from the server. The
+             shop asks this endpoint for everything else about the box; it should
+             not have to learn from a failure that the box is shut. */
+          sales: salesMode,
           tier_odds: tierOdds, remaining: state.counts,
         });
       }

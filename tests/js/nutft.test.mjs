@@ -1831,3 +1831,35 @@ test("phoenixd reports what it can spend apart from what it merely owes itself",
   assert.equal(await phoenixd.balanceSat(config), 0,
     "balanceSat means spendable, so a payout path cannot mistake fee credit for money it can send");
 });
+
+test("the state endpoint says whether the till is open", async (t) => {
+  /* The shop reads /nutft/state and nothing else. `sales` used to live only in
+     /v1/info, so a CLOSED mint still drew a live "Buy a booster" button and the
+     refusal arrived after the click, from the server. That is the cutover state
+     production starts in, so the shop has to be able to see it BEFORE the
+     click -- a control that looks live and does nothing is exactly what that
+     page says it exists not to be. */
+  const { DatabaseSync } = await import("node:sqlite");
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+
+  const hitOn = (mint) => async (path) => {
+    const out = { code: 0, body: null };
+    const res = { writeHead(c) { out.code = c; return res; }, end(b) { out.body = b ? JSON.parse(b) : null; } };
+    await mint.handle({ method: "GET", on: () => {}, setEncoding: () => {} }, res, new URL(`http://x${path}`));
+    return out;
+  };
+
+  for (const sales of ["open", "closed"]) {
+    const db = new DatabaseSync(":memory:");
+    t.after(() => db.close());
+    const mint = createNutftMint({ db, catalogUri: "http://127.0.0.1/nutft/catalog", sales });
+    const hit = hitOn(mint);
+
+    const state = await hit("/nutft/state");
+    assert.equal(state.code, 200);
+    assert.equal(state.body.sales, sales, `/nutft/state must publish sales=${sales}`);
+
+    const info = await hit("/v1/info");
+    assert.equal(info.body.nuts["31"].sales, sales, "the two endpoints must not disagree");
+  }
+});
