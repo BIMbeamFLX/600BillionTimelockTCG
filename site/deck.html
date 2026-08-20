@@ -484,6 +484,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   const MODE_KEY = "600b:deck-mode";
   let mode = "freestyle";
   try { if (localStorage.getItem(MODE_KEY) === "og") mode = "og"; } catch { /* storage is optional */ }
+  let requestedMode = mode;
   let walletReady = false;
   const total = () => Object.values(deck).reduce((a, n) => a + n, 0);
 
@@ -1350,7 +1351,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   }
 
   for (const [name, button] of Object.entries(modeButtons)) {
-    if (button) button.addEventListener("click", () => applyMode(name));
+    if (button) button.addEventListener("click", () => { requestedMode = name; applyMode(name); });
   }
   applyMode(mode, { save: false });
 
@@ -1365,7 +1366,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     verified = new Map();
     for (const item of view.owned) verified.set(item.tag[2], (verified.get(item.tag[2]) || 0) + 1);
     walletReady = true;
-    applyMode(mode, { save: false });
+    applyMode(requestedMode, { save: false });
   }).catch((error) => {
     /* A wallet that cannot be verified must not silently become an empty OG
      * pool — fall back to Freestyle and say why. */

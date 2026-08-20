@@ -50,6 +50,15 @@ def test_stack_builder_persists_nutft_markers_through_the_storage_adapter() -> N
     assert 'localStorage.setItem("600b:nutft-decks"' not in builder
 
 
+def test_stack_builder_restores_the_requested_og_mode_after_wallet_verification() -> None:
+    """The loading fallback must not overwrite the mode that was persisted or just selected."""
+    builder = (REPO_ROOT / "site" / "deck.html").read_text(encoding="utf-8")
+
+    assert "let requestedMode = mode" in builder
+    assert "requestedMode = name" in builder
+    assert "applyMode(requestedMode, { save: false })" in builder
+
+
 def test_landing_page_links_to_rules_and_final_cards() -> None:
     """The site entry point must use the dedicated rulebook and final card faces."""
     landing = (REPO_ROOT / "site" / "index.html").read_text(encoding="utf-8")
