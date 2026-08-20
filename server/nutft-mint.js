@@ -291,11 +291,15 @@ function createNutftMint(options = {}) {
     }
     let invoice;
     try {
-      invoice = await funding.createInvoice({
-        amountMsat: priceMsat,
-        memo: `600B booster ${base.pack_id}`,
-        descriptionHash: opts.descriptionHash,
-      });
+      /* memo and descriptionHash are mutually exclusive, and the choice is made
+         HERE rather than left to each driver. LNURL-pay requires the invoice to
+         commit sha256(metadata) in the bolt11 `h` field, and a backend handed
+         both fields will often honour the description and silently drop the
+         hash — producing a `d` field, no error, and an LNURL payment the
+         buyer's wallet refuses for a reason nothing on our side logs. */
+      invoice = await funding.createInvoice(opts.descriptionHash
+        ? { amountMsat: priceMsat, descriptionHash: opts.descriptionHash }
+        : { amountMsat: priceMsat, memo: `600B booster ${base.pack_id}` });
     } catch (error) {
       console.error("[nutft] lnd createInvoice failed:", error && error.message);
       throw new Error("the mint cannot reach its funding source right now — try again shortly");
