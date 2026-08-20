@@ -16,9 +16,20 @@
  * It also unblocks paying money OUT, which the marketplace needs and neither of
  * the other two could do.
  *
- * CREDENTIALS. phoenixd authenticates with HTTP Basic: empty username, the
- * http-password from ~/.phoenix/phoenix.conf. It is read from the environment
- * or from a file at startup, never logged, and never written anywhere.
+ * CREDENTIALS. phoenixd authenticates with HTTP Basic: empty username, and a
+ * password from ~/.phoenix/phoenix.conf. There are TWO, and the difference
+ * matters more than the name suggests:
+ *
+ *   http-password-limited-access   createinvoice, payments/incoming, getbalance
+ *   http-password                  all of the above, plus payinvoice,
+ *                                  sendtoaddress and closechannel
+ *
+ * USE THE LIMITED ONE. Everything this file does is covered by it, and a mint
+ * process that is compromised then cannot empty the wallet. Handing a shop the
+ * full password buys nothing and risks everything in the node.
+ *
+ * It is read from the environment or from a file at startup, never logged, and
+ * never written anywhere.
  *
  * The URL must be a loopback address unless PHOENIXD_ALLOW_REMOTE is set. That
  * password is a bearer credential for a funded node, and plain HTTP across a
@@ -123,9 +134,14 @@ const sats = (amountMsat) => {
   return amountMsat / 1000;
 };
 
-async function createInvoice(config, { amountMsat, memo, descriptionHash, expirySeconds }) {
+async function createInvoice(config, { amountMsat, memo, descriptionHash, expirySeconds, externalId }) {
   const form = new URLSearchParams();
   form.set("amountSat", String(sats(amountMsat)));
+  /* externalId is not optional and must be RECONSTRUCTIBLE. If the mint's
+     database is lost and the node is not, this field is the only record of who
+     the sats belong to — a random value would be no record at all. The `acct:`
+     prefix belongs to the agent-api on the same node; ours is `tcg:`. */
+  if (externalId) form.set("externalId", externalId);
   /* LUD-06 commits the metadata's hash into the invoice, so when a
      descriptionHash is supplied it MUST be used -- a memo instead would produce
      an invoice a LNURL-pay wallet is right to reject. */
@@ -145,30 +161,58 @@ async function createInvoice(config, { amountMsat, memo, descriptionHash, expiry
   return { paymentRequest, paymentHash };
 }
 
-async function isSettled(config, paymentHash) {
+/* Settled means THE MONEY ARRIVED, and enough of it.
+ *
+ * Never `isPaid` alone, and never the invoice amount: BOLT 4 lets a payer send
+ * up to twice what was asked, and phoenixd sets isPaid without regard to how
+ * much actually turned up. So the received figure is the only one worth
+ * reading, and `expectMsat` is compared against it rather than assumed.
+ *
+ * Everything else is false: a 404 means the payment does not exist yet, an
+ * error means we do not know. Both leave the invoice open, which is the safe
+ * direction -- the buyer keeps their claim and can try again. The opposite
+ * default hands out a pack on a network blip. */
+async function isSettled(config, paymentHash, expectMsat) {
   const res = await request(config, {
     method: "GET",
     path: `/payments/incoming/${encodeURIComponent(paymentHash)}`,
   });
-  /* Not there yet is not the same as not paid, and neither is an error. Only a
-     200 that actually reports money received counts as settled -- anything else
-     leaves the invoice open, which is the safe direction: the buyer keeps their
-     claim and can try again. */
   if (res.status === 404) return false;
   if (res.status !== 200 || !res.body) {
     throw new Error(`phoenixd could not report on this invoice (${res.status})`);
   }
-  const received = Number(res.body.receivedSat || 0);
-  const completed = res.body.completedAt || res.body.completed_at || null;
-  return Boolean(completed) || received > 0;
+  const receivedSat = Number(res.body.receivedSat || 0);
+  if (!(receivedSat > 0)) return false;
+  if (Number.isFinite(expectMsat) && expectMsat > 0 && receivedSat * 1000 < expectMsat) {
+    /* Paid, but short. Not an error and not a sale: saying so out loud is the
+       only way anyone finds out, because nothing else in the system compares
+       these two numbers. */
+    console.error(`[phoenixd] ${paymentHash} received ${receivedSat} sat, invoice asked ${expectMsat / 1000}`);
+    return false;
+  }
+  return true;
 }
 
-/* What the node holds. Reported so a balance can be watched rather than
-   discovered, and so the marketplace knows what it can pay out. */
-async function balanceSat(config) {
+/* What the node holds, and what it merely owes itself.
+ *
+ * These are NOT the same and the difference decides whether a payout is
+ * possible at all. With no channel open, an incoming payment is added to the
+ * FEE CREDIT rather than the balance: it counts towards the cost of opening a
+ * channel later and it cannot be spent or withdrawn. ACINQ do not refund it.
+ *
+ * So a shop in this state can sell perfectly well and pay nobody, and at
+ * maxFeeCredit (50,000 sat by default) incoming payments start being REFUSED
+ * outright -- the shop simply stops taking money, with nothing in our logs to
+ * explain it. Both numbers are returned so that wall can be seen coming. */
+async function balance(config) {
   const res = await request(config, { method: "GET", path: "/getbalance" });
   if (res.status !== 200 || !res.body) throw new Error(`phoenixd balance unavailable (${res.status})`);
-  return Number(res.body.balanceSat || 0);
+  return {
+    balanceSat: Number(res.body.balanceSat || 0),
+    feeCreditSat: Number(res.body.feeCreditSat || 0),
+  };
 }
 
-module.exports = { readConfig, createInvoice, isSettled, balanceSat };
+const balanceSat = async (config) => (await balance(config)).balanceSat;
+
+module.exports = { readConfig, createInvoice, isSettled, balance, balanceSat };

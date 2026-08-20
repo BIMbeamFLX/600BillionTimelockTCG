@@ -77,7 +77,11 @@ function createPhoenixdFunding(config) {
     virtual: false,
     custodial: false,
     createInvoice: (args) => phoenixd.createInvoice(config, args),
-    isSettled: (paymentHash) => phoenixd.isSettled(config, paymentHash),
+    /* expectMsat travels with the question. phoenixd reports what actually
+       arrived, and only the caller knows what was asked for -- without both
+       numbers in one place nothing in the system ever compares them. */
+    isSettled: (paymentHash, expectMsat) => phoenixd.isSettled(config, paymentHash, expectMsat),
+    balance: () => phoenixd.balance(config),
     balanceSat: () => phoenixd.balanceSat(config),
   };
 }
