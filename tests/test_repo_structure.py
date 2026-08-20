@@ -59,6 +59,13 @@ def test_stack_builder_restores_the_requested_og_mode_after_wallet_verification(
     assert "applyMode(requestedMode, { save: false })" in builder
 
 
+def test_stack_builder_rejects_imported_stake_module_cards_before_save() -> None:
+    """A handoff can bypass the card picker, so Save must enforce the base ruleset too."""
+    builder = (REPO_ROOT / "site" / "deck.html").read_text(encoding="utf-8")
+
+    assert 'if (isStake(byId[id])) return `${byId[id].name}: Stake module is not enabled`' in builder
+
+
 def test_landing_page_links_to_rules_and_final_cards() -> None:
     """The site entry point must use the dedicated rulebook and final card faces."""
     landing = (REPO_ROOT / "site" / "index.html").read_text(encoding="utf-8")

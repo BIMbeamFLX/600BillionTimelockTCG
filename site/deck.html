@@ -1122,6 +1122,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     const n = total();
     if (n < MIN_STACK) return `of ${MIN_STACK} · ${MIN_STACK - n} to go`;
     for (const [id, copies] of Object.entries(deck)) {
+      if (isStake(byId[id])) return `${byId[id].name}: Stake module is not enabled`;
       if (byId[id]?.type !== "Basic Resource" && copies > 3) return `${byId[id].name}: maximum 3 copies`;
       if (owned && !ownershipExempt(byId[id]) && copies > (owned.get(id) || 0)) return `${byId[id].name}: only ${owned.get(id) || 0} verified proof(s)`;
     }
