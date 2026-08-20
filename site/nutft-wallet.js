@@ -114,12 +114,24 @@
     return { ...response, token, proof };
   }
 
+  /* "not settled yet" is not a rejection, it is a wait. Treating it as one was
+     dangerous: the pending outputs were discarded, and a buyer who then paid had
+     nothing left to claim with — their sats gone and no way to ask again. */
+  const AWAITING_PAYMENT = /not settled yet|is still sealed|not mined yet/i;
+
   async function submitPending(state, c, keyset) {
     const pending = state.pending;
     const path = pending.type === "booster" ? "/nutft/booster" : "/nutft/trade";
     const response = await fetch(`${pending.mintUrl}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pending.body) });
     if (!response.ok) {
       const detail = (await response.json()).error || `mint refused ${pending.type} (${response.status})`;
+      if (AWAITING_PAYMENT.test(detail)) {
+        /* Keep the pending exactly as it is. The same outputs must be resubmitted
+           once the invoice settles, and the idempotency key makes that safe. */
+        const wait = new Error(detail);
+        wait.awaitingPayment = true;
+        throw wait;
+      }
       write({ ...state, pending: null });
       throw new Error(detail);
     }
@@ -133,10 +145,35 @@
     return submitPending(state, c, await getKeyset(state.pending.mintUrl, c));
   }
 
-  async function buyBoosterUnlocked(mintUrl) {
+  /* Resubmit until the mint stops saying "not yet". The mint is the authority on
+     settlement, so there is nothing else to ask and no state to guess at. */
+  async function awaitSettlement(state, c, keyset, opts) {
+    const deadline = Date.now() + Number(opts.timeoutMs || 900_000);
+    let delay = 1500;
+    for (;;) {
+      try {
+        return await submitPending(state, c, keyset);
+      } catch (error) {
+        if (!error.awaitingPayment) throw error;
+        if (Date.now() > deadline) {
+          /* The pending survives on purpose: the invoice may still settle, and
+             recoverPending() can finish the sale later. */
+          throw new Error("the invoice was not paid in time — reopen the shop to finish this booster");
+        }
+        if (typeof opts.onWaiting === "function") opts.onWaiting();
+        await new Promise((done) => setTimeout(done, delay));
+        delay = Math.min(delay * 1.4, 8000);
+      }
+    }
+  }
+
+  async function buyBoosterUnlocked(mintUrl, opts = {}) {
     const c = await cashu();
     let state = await identity(c);
-    if (state.pending) return submitPending(state, c, await getKeyset(state.pending.mintUrl, c));
+    if (state.pending) {
+      const keysetForPending = await getKeyset(state.pending.mintUrl, c);
+      return awaitSettlement(state, c, keysetForPending, opts);
+    }
     const keyset = await getKeyset(mintUrl, c);
     const quoteResponse = await fetch(`${mintUrl}/nutft/quote`);
     if (!quoteResponse.ok) throw new Error(`booster quote unavailable (${quoteResponse.status})`);
@@ -147,13 +184,30 @@
       additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
     }, 1, keyset.id));
     const saved = outputs.map(savedOutput);
-    const pending = { type: "booster", mintUrl, outputs: saved, body: { idempotency_key: root.crypto.randomUUID(), pack_id: quote.pack_id, state: quote.state, outputs: saved.map(requestOutput) } };
+    const pending = { type: "booster", mintUrl, outputs: saved, body: {
+      idempotency_key: root.crypto.randomUUID(),
+      pack_id: quote.pack_id,
+      state: quote.state,
+      /* Absent on a free mint, required on a paid one. Carried inside the
+         pending so a resumed sale claims the invoice it was quoted against. */
+      payment_hash: quote.payment_hash,
+      outputs: saved.map(requestOutput),
+    } };
     state = { ...state, pending };
     write(state);
-    return submitPending(state, c, keyset);
+    /* A paid mint hands back an invoice the buyer settles in their own wallet.
+       Show it, then wait — nothing here ever touches their credentials. */
+    if (quote.paid && quote.payment_request && typeof opts.onInvoice === "function") {
+      opts.onInvoice({
+        paymentRequest: quote.payment_request,
+        paymentHash: quote.payment_hash,
+        priceMsat: quote.price_msat,
+      });
+    }
+    return awaitSettlement(state, c, keyset, opts);
   }
 
-  const buyBooster = (mintUrl) => locked(() => buyBoosterUnlocked(mintUrl));
+  const buyBooster = (mintUrl, opts) => locked(() => buyBoosterUnlocked(mintUrl, opts || {}));
 
   async function proofs(mintUrl) {
     const c = await cashu();

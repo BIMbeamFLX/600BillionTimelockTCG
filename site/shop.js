@@ -224,7 +224,14 @@
        * future edit cannot quietly reintroduce a fetch into a sandbox. */
       if (!ONLINE) throw new Error("This shell blocks outbound requests, so no mint can be reached from here.");
       if (!root.NutFTWallet) throw new Error("the NutFT wallet is not available");
-      const issued = await root.NutFTWallet.buyBooster(MINT_URL);
+      /* A paid mint answers the quote with an invoice. Show it and let the
+         buyer settle it in their own wallet — the page never sees a credential,
+         and the mint is the only thing that decides when it is paid. */
+      const issued = await root.NutFTWallet.buyBooster(MINT_URL, {
+        onInvoice: showInvoice,
+        onWaiting: () => { const note = $("packNote"); if (note && note.dataset) note.dataset.waiting = "1"; },
+      });
+      clearInvoice();
       nutftState.sold += 1;
       return record(issued.cards.map((card) => card.asset_id), null, issued.token);
     }
@@ -673,6 +680,47 @@
     return Array.from(new Uint8Array(digest))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
+  }
+
+  /* The invoice, shown while the mint waits to be paid. Deliberately plain: the
+     bolt11 as selectable text, a copy button, and a lightning: link a phone can
+     open. No QR library is pulled in for this — the string is long enough that a
+     scannable code needs real care, and a wrong QR is worse than none. */
+  function showInvoice(invoice) {
+    const note = $("packNote");
+    if (!note) return;
+    note.className = "pack-note";
+    note.innerHTML = "";
+    const sats = Math.round(Number(invoice.priceMsat || 0) / 1000);
+    const head = document.createElement("strong");
+    head.textContent = `Pay ${sats} sat to open this booster.`;
+    const body = document.createElement("div");
+    body.style.cssText = "margin-top:6px;word-break:break-all;font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--muted)";
+    body.textContent = invoice.paymentRequest;
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:8px";
+    const copy = document.createElement("button");
+    copy.className = "btn btn--small";
+    copy.type = "button";
+    copy.textContent = "Copy invoice";
+    copy.addEventListener("click", async () => {
+      copy.textContent = (await copyText(invoice.paymentRequest)) ? "Copied" : "Select it above";
+      if (!copy.textContent.startsWith("Copied")) selectNode(body);
+    });
+    const open = document.createElement("a");
+    open.className = "btn btn--small btn--ghost";
+    open.href = `lightning:${invoice.paymentRequest}`;
+    open.textContent = "Open in wallet";
+    row.append(copy, open);
+    const wait = document.createElement("div");
+    wait.style.cssText = "margin-top:8px;color:var(--muted);font-size:12px";
+    wait.textContent = "Waiting for payment… the cards appear as soon as the mint confirms it.";
+    note.append(head, body, row, wait);
+  }
+
+  function clearInvoice() {
+    const note = $("packNote");
+    if (note) { note.innerHTML = ""; note.textContent = ""; }
   }
 
   async function copyText(text) {
