@@ -1070,7 +1070,7 @@ test("early access needs a signature, not a claim", async (t) => {
   t.after(() => db.close());
   const mint = createNutftMint({
     db, catalogUri: "https://x.example/nutft/catalog", publicBase: "https://x.example",
-    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000,
+    funding: createMockFunding({ settleAfterMs: 60_000 }), allowVirtual: "1", priceMsat: 21000,
     sales: "allowlist", allowlist: listedPub,
   });
   const proof = (header, over = {}) =>
@@ -1085,6 +1085,8 @@ test("early access needs a signature, not a claim", async (t) => {
   // A real signature from a listed key works.
   const ok = await mint.payableQuote({ proof: proof(sign(listedSec)) });
   assert.ok(ok.payment_request, "a signed, listed buyer gets an invoice");
+  db.prepare("UPDATE nutft_invoices SET created_at = ? WHERE payment_hash = ?")
+    .run("2000-01-01T00:00:00.000Z", ok.payment_hash);
 
   // Replay: the very same header a second time.
   const once = sign(listedSec);
