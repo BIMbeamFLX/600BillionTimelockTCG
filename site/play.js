@@ -4092,6 +4092,11 @@
     if (!names.some((name) => marked[name])) return true;
     return (async () => {
       try {
+        for (const name of names) {
+          if (marked[name] && (!Array.isArray(stackLibrary[name]) || !stackLibrary[name].length)) {
+            throw new Error(`${name} is marked NutFT but has no saved card list`);
+          }
+        }
         const view = await globalThis.NutFTWallet.snapshot(location.origin);
         const available = new Map();
         for (const item of view.owned) available.set(item.tag[2], (available.get(item.tag[2]) || 0) + 1);

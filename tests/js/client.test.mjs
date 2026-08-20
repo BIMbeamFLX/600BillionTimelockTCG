@@ -614,6 +614,23 @@ test("a shell-stored NutFT marker still gates its shell-stored Stack", async (t)
   assert.match(byId("prompt").textContent, /needs 40, wallet controls 0/);
 });
 
+test("a stale NutFT marker cannot turn a missing Stack into an empty ownership check", async () => {
+  const storage = new Map([
+    ["600b:decks", "{}"],
+    ["600b:nutft-decks", JSON.stringify({ Ghost: true })],
+  ]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.NutFTWallet = { snapshot: async () => ({ owned: [] }) };
+  globalThis.location = { origin: "http://table.test" };
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "custom:Ghost";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(game.state, null);
+  assert.match(byId("prompt").textContent, /Ghost.*no saved card list/i);
+});
+
 /* The client-side lobby test that stood here was removed with the lobby it
  * exercised: matchmaking is its own napplet now, so play.html no longer has
  * #refreshTables or #tableList and there is nothing here to click. The
