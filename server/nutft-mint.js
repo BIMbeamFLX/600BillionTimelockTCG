@@ -133,13 +133,39 @@ function createNutftMint(options = {}) {
       }
     }
   }
-  const catalogPrivateKey = crypto.createHash("sha256").update("600B NutFT catalog issuer").digest();
+  /* Signing keys. The demo derived both the mint key and the catalog issuer key
+   * from fixed public strings, so anyone who read the repository could recompute
+   * the private keys and forge signatures — mint unlimited cards, defeat DLEQ,
+   * break the cap. Acceptable for a throwaway demo, disqualifying for a mint that
+   * sells anything.
+   *
+   * Real deployments pass 32-byte hex secrets via NUTFT_MINT_SEED and
+   * NUTFT_CATALOG_KEY (or the options of the same name), kept outside the repo.
+   * With neither set the mint still boots on the derived demo keys so the offline
+   * demo and the tests are unchanged — but it is then explicitly a demo, and
+   * requireProductionKeys refuses to start without real ones. */
+  const demoMintSeed = () => crypto.createHash("sha256").update("600B NutFT demo mint key").digest();
+  const demoCatalogKey = () => crypto.createHash("sha256").update("600B NutFT catalog issuer").digest();
+  const readSecret = (value, envName, fallback) => {
+    const raw = value || process.env[envName];
+    if (!raw) return { key: fallback(), demo: true };
+    if (!/^[0-9a-f]{64}$/i.test(raw)) throw new Error(`${envName} must be 32-byte hex`);
+    return { key: Buffer.from(raw, "hex"), demo: false };
+  };
+  const mintSecret = readSecret(options.mintSeed, "NUTFT_MINT_SEED", demoMintSeed);
+  const catalogSecret = readSecret(options.catalogKey, "NUTFT_CATALOG_KEY", demoCatalogKey);
+  const usingDemoKeys = mintSecret.demo || catalogSecret.demo;
+  const requireProduction = options.requireProductionKeys ?? (process.env.NUTFT_REQUIRE_PRODUCTION_KEYS === "1");
+  if (requireProduction && usingDemoKeys) {
+    throw new Error("NUTFT_REQUIRE_PRODUCTION_KEYS is set but the mint would run on publicly-derivable demo keys; "
+      + "set NUTFT_MINT_SEED and NUTFT_CATALOG_KEY to 32-byte hex secrets");
+  }
+  const catalogPrivateKey = catalogSecret.key;
   let cashu;
 
   const ready = import("@cashu/cashu-ts").then((module) => {
     cashu = module;
-    const seed = crypto.createHash("sha256").update("600B NutFT demo mint key").digest();
-    const keyset = cashu.createNewMintKeys(1, seed, { unit: collectionId });
+    const keyset = cashu.createNewMintKeys(1, mintSecret.key, { unit: collectionId });
     return keyset;
   });
 
@@ -285,7 +311,7 @@ function createNutftMint(options = {}) {
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], p2bk: true, dleq: true }, 7: { supported: true } } });
+        return json(res, 200, { name: usingDemoKeys ? "600B NutFT demo mint" : "600B NutFT mint", version: "0.1.0", demo_keys: usingDemoKeys, nuts: { 31: { supported: true, versions: [1], p2bk: true, dleq: true }, 7: { supported: true } } });
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && url.pathname === "/v1/checkstate") {

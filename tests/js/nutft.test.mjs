@@ -215,3 +215,46 @@ test("a mint that has sold refuses to restart under a different catalog_uri", as
     "the mint refuses rather than splitting the binding",
   );
 });
+
+test("real signing secrets replace the publicly-derivable demo keys", async (t) => {
+  // The demo derived its mint key from a fixed public string, so anyone could
+  // recompute the private key and forge signatures. Production passes a secret.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+
+  const demo = createNutftMint({ catalogUri: "http://127.0.0.1/nutft/catalog" });
+  const withSecret = createNutftMint({
+    catalogUri: "http://127.0.0.1/nutft/catalog",
+    mintSeed: "11".repeat(32),
+    catalogKey: "22".repeat(32),
+  });
+
+  const demoInfo = await (async () => {
+    // reach the keyset the same way the HTTP handler does
+    const res = { code: 0, body: null };
+    const fake = { writeHead() { return fake; }, end(b) { res.body = b; } };
+    await demo.handle({ method: "GET" }, fake, new URL("http://x/v1/keys"));
+    return JSON.parse(res.body);
+  })();
+  const secretInfo = await (async () => {
+    const res = { body: null };
+    const fake = { writeHead() { return fake; }, end(b) { res.body = b; } };
+    await withSecret.handle({ method: "GET" }, fake, new URL("http://x/v1/keys"));
+    return JSON.parse(res.body);
+  })();
+
+  assert.notEqual(
+    demoInfo.keysets[0].id,
+    secretInfo.keysets[0].id,
+    "a real mint seed yields a different keyset than the demo key",
+  );
+
+  assert.throws(
+    () => createNutftMint({ catalogUri: "http://127.0.0.1/nutft/catalog", requireProductionKeys: true }),
+    /publicly-derivable demo keys/,
+    "the production guard refuses to boot on demo keys",
+  );
+  assert.doesNotThrow(
+    () => createNutftMint({ catalogUri: "http://127.0.0.1/nutft/catalog", requireProductionKeys: true, mintSeed: "33".repeat(32), catalogKey: "44".repeat(32) }),
+    "with real secrets the production guard is satisfied",
+  );
+});
