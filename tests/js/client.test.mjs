@@ -631,6 +631,32 @@ test("a stale NutFT marker cannot turn a missing Stack into an empty ownership c
   assert.match(byId("prompt").textContent, /Ghost.*no saved card list/i);
 });
 
+test("NutFT verification locks Start against duplicate submissions", async () => {
+  const saved = { Owned: Array(40).fill("E1-002") };
+  const storage = new Map([
+    ["600b:decks", JSON.stringify(saved)],
+    ["600b:nutft-decks", JSON.stringify({ Owned: true })],
+  ]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.location = { origin: "http://table.test" };
+  let release;
+  let checks = 0;
+  globalThis.NutFTWallet = { snapshot: () => {
+    checks += 1;
+    return new Promise((resolve) => { release = resolve; });
+  } };
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "custom:Owned";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  byId("start").click();
+  assert.equal(checks, 1);
+  assert.equal(byId("start").disabled, true);
+  release({ owned: Array.from({ length: 40 }, () => ({ tag: ["1", "600B-E1", "E1-002"] })) });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(game.state);
+});
+
 /* The client-side lobby test that stood here was removed with the lobby it
  * exercised: matchmaking is its own napplet now, so play.html no longer has
  * #refreshTables or #tableList and there is nothing here to click. The

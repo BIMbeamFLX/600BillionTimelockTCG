@@ -4084,6 +4084,7 @@
 
   // -------------------------------------------------------------- setup
 
+  let starting = false;
   const nutftDecks = () => nutftLibrary;
 
   function verifyNutftSetup() {
@@ -4112,8 +4113,17 @@
   }
 
   function startGame() {
+    if (starting) return;
     const verified = verifyNutftSetup();
-    if (verified !== true) { verified.then((ok) => { if (ok) startVerifiedGame(); }); return; }
+    if (verified !== true) {
+      starting = true;
+      document.getElementById("start").disabled = true;
+      verified.then((ok) => { if (ok) startVerifiedGame(); }).finally(() => {
+        starting = false;
+        if (!session.full) document.getElementById("start").disabled = false;
+      });
+      return;
+    }
     startVerifiedGame();
   }
 
