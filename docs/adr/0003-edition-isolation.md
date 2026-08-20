@@ -1,27 +1,21 @@
-# ADR 0003: Give every edition independent identity and supply
+# ADR 0003: Launch Edition One only
 
 - Status: Accepted
 - Date: 2026-08-20
 
 ## Context
 
-A starter or premine allocation taken from Edition One would consume most of its scarce supply and force every E1 supply claim to carry a footnote.
-
-NutFT identity already includes the census commitment, collection id and catalog URI. Those values can isolate editions without another protocol feature.
+The proposed `600B-G` starter or premine edition is not part of the launch. Creating it would add another catalog, census, database and supply story before Edition One has been tested publicly.
 
 ## Decision
 
-Mint each edition independently:
+Launch one edition: `600B-E1`. There is no G edition or separate premine mint. Edition One includes exactly 21 copies of each Genesis card.
 
-- `600B-G`: starter and premine cards with their own census and catalog.
-- `600B-E1`: Edition One, including exactly 21 copies of each Genesis card.
-- `600B-E2`: a later independent edition.
-
-Each deployed edition uses its own census file, `NUTFT_COLLECTION_ID`, `NUTFT_CATALOG_URI` and database. `NUTFT_CENSUS_PATH` selects the census at deployment. A G card never consumes E1 supply.
+If a later edition is approved, it must use its own census file, `NUTFT_COLLECTION_ID`, `NUTFT_CATALOG_URI` and database. `NUTFT_CENSUS_PATH` selects that census at deployment.
 
 ## Consequences
 
-- Staging, G and E1 cards cannot be confused or written into one another's databases.
+- The launch has one catalog and one supply story.
+- Staging and production E1 cards remain distinct because they use separate catalog URIs and databases.
 - Edition One supply statements remain literal.
-- Cross-edition products require an explicit higher-level bundle; the mint will not silently mix them.
-
+- Any future edition requires an explicit decision instead of being implied by launch configuration.

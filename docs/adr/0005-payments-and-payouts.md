@@ -1,4 +1,4 @@
-# ADR 0005: Keep v1 payouts single-destination and zaps wallet-to-wallet
+# ADR 0005: Receive mint sales directly and keep zaps wallet-to-wallet
 
 - Status: Accepted
 - Date: 2026-08-20
@@ -11,13 +11,19 @@ Match stakes are different. The game already creates a NIP-57 invoice for the wi
 
 ## Decision
 
-Version 1 sends mint revenue to one operator-controlled Lightning backend and performs no automatic revenue split.
+Version 1 has one revenue destination and no automatic split. The preferred funding adapter uses a dedicated Nostr Wallet Connect connection to the operator's actual wallet:
 
-Match zaps remain wallet-to-wallet through NIP-57. Nostr Wallet Connect may be added later as another way for the payer to approve and pay the same invoice; it does not replace the winner's Lightning address, NIP-57 or the mint funding backend.
+- `make_invoice` creates the buyer's invoice in that wallet.
+- `lookup_invoice` proves that exact invoice settled before NutFT issuance.
+- The connection grants no outgoing-payment permission.
+
+The sats therefore arrive directly in the operator's wallet, like a zap recipient receiving payment. An operator-controlled LND or Core Lightning node is the fallback if the chosen wallet does not reliably support both NWC methods.
+
+Match zaps remain wallet-to-wallet through NIP-57.
 
 ## Consequences
 
-- No payout destination or split rule is needed for launch beyond the operator's own settlement backend.
+- There is no forwarding transaction, sweep or third-party Cashu custody in production.
+- The operator must provide a restricted NWC connection whose wallet service supports `make_invoice` and `lookup_invoice`.
 - Revenue sharing, if agreed later, is accounting or a separate sweep job with explicit recipients and percentages.
-- NWC is justified when WebLN and wallet deep-links measurably fail users, or when a persistent permission/budget flow is desired.
-
+- Buyer wallets still pay an ordinary BOLT11 invoice; they do not need NWC.
