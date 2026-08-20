@@ -278,6 +278,7 @@ TEMPLATE = """<!doctype html>
        On the plain website every optional domain is simply absent, which is
        the fallback path — not a special mode. -->
   <script src="napplet.js"></script>
+<script src="bugreport.js" defer></script>
   <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
   <style>
     /* Page-local only: the catalog grid, the filter console and the detail

@@ -114,6 +114,7 @@ function renderWebsite() {
        shell-themed panel never flashes the fallback palette first; absent a
        shell it paints exactly what 600b.css already says. -->
   <script src="napplet.js"></script>
+<script src="bugreport.js" defer></script>
   <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
   <style>
     /* This page links 600b.css and must not repaint it. It used to redefine the

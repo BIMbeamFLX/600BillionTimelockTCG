@@ -13,6 +13,7 @@
      the five affinity Plate colours stay brand-fixed, because they are how a
      player reads the board and must match the printed cards. -->
 <script src="napplet.js"></script>
+<script src="bugreport.js" defer></script>
 <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
 <style>
 @font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
@@ -403,7 +404,24 @@ a { color: var(--orange-soft); }
 /* Every structured engine event leaves one short readable beat. The existing
    target-bound FX supplies particles and damage numbers; this ribbon guarantees
    that even rules-only actions have a visible animation and plain-language name. */
-.action-fx { position: absolute !important; z-index: 30 !important; inset: 42% 10% auto; display: grid; place-items: center; gap: 5px; pointer-events: none; }
+/* The announcements used to stack in the middle of the board, at 42% from the
+   top — which is exactly where a clash resolves, so the one moment worth
+   watching was the one moment covered up. They belong beside whoever caused
+   them: the layer now spans the board and lets nothing through, and each burst
+   is parked against the acting player's own bar. The centre stays empty. */
+.action-fx { position: absolute !important; z-index: 30 !important; inset: 0; pointer-events: none; }
+.action-fx .action-burst { position: absolute; left: 14px; max-width: min(46ch, 42%); }
+/* Anchored to the two player bars: the far one at the top, yours at the bottom.
+   Later bursts stack away from the bar so the newest is always nearest to it. */
+.action-fx .action-burst.seat-foe { top: 6px; }
+.action-fx .action-burst.seat-foe:nth-child(2) { top: 42px; }
+.action-fx .action-burst.seat-foe:nth-child(3) { top: 78px; }
+.action-fx .action-burst.seat-you { bottom: 6px; }
+.action-fx .action-burst.seat-you:nth-child(2) { bottom: 42px; }
+.action-fx .action-burst.seat-you:nth-child(3) { bottom: 78px; }
+/* Anything with no seat — phase markers, system lines — sits quietly bottom
+   right, out of both the board and the two player lanes. */
+.action-fx .action-burst.seat-none { right: 14px; bottom: 6px; left: auto; }
 .action-burst {
   max-width: min(680px, 90vw); padding: 7px 14px; color: var(--cream); background: rgba(9,8,11,.93);
   border: 1px solid var(--purple); box-shadow: 0 0 18px rgba(116,71,184,.32);
@@ -433,7 +451,9 @@ a { color: var(--orange-soft); }
    would be the one circle on a board built out of straight cuts. Absent when a
    seat has no pubkey (hotseat) or no profile, and the bar keeps its name. */
 .playerbar .portrait {
-  flex: 0 0 auto; width: 42px; height: 42px; object-fit: cover;
+  /* Bigger than a chip: the portrait is the anchor the announcements hang off,
+     so it has to read as the player rather than decorate the bar. */
+  flex: 0 0 auto; width: 64px; height: 64px; object-fit: cover;
   border: 1px solid var(--line-strong); background: var(--soot);
   box-shadow: 0 3px 0 rgba(9,8,11,.85), 0 10px 18px -10px rgba(0,0,0,.9);
 }
