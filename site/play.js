@@ -2364,10 +2364,10 @@
       // which broke the one rule the rest of the table teaches.
       onClick: (uid) => toggleBlock(v, uid),
       onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
-      arc: { mode: "ring", spread: -4, depth: 14 },
+      arc: { mode: "ring", spread: -8, depth: 30 },
       // The back rail is a short row: the same bow at the same depth would
       // read as a wobble across two or three cards, so it is flatter.
-      resourceArc: { mode: "ring", spread: -3, depth: 7 },
+      resourceArc: { mode: "ring", spread: -6, depth: 15 },
       cutLabel: "Avatars",
       mark: (uid) => {
         // An attacker still looking for a blocker is the thing to click next.
@@ -2392,8 +2392,8 @@
       onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
       canAct: (uid) => actGlow(v, seat, uid),
       canAttack: (uid) => attackGlow(v, seat, uid),
-      arc: { mode: "ring", spread: 4, depth: -14 },
-      resourceArc: { mode: "ring", spread: 3, depth: -7 },
+      arc: { mode: "ring", spread: 8, depth: -30 },
+      resourceArc: { mode: "ring", spread: 6, depth: -15 },
       cutLabel: "Resources",
       mark: (uid) => {
         const marks = [];
