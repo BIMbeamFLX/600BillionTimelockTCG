@@ -6,18 +6,10 @@ const ROOT = path.resolve(__dirname, "..");
 const SOURCE_MD = path.join(ROOT, "rules", "600B-Timelock-TCG-Rulebook-E1.md");
 const OUTPUT_HTML = path.join(ROOT, "site", "rules.html");
 
-const colors = {
-  orange: "#F7931A",
-  bright: "#FFA733",
-  ember: "#FF6A00",
-  purple: "#B991E4",
-  purpleDeep: "#7447B8",
-  violet: "#5E5ACB",
-  black: "#000000",
-  soot: "#111111",
-  charcoal: "#222222",
-  white: "#FFF7EC",
-};
+/* The second palette that used to live here is gone: the page links 600b.css
+   and now inherits its tokens, so nothing reads these any more. Left as a note
+   rather than a table, because a spare copy of the brand colours in a generator
+   is exactly how the two drifted apart in the first place. */
 
 function escapeXml(value) {
   return String(value)
@@ -124,29 +116,20 @@ function renderWebsite() {
   <script src="napplet.js"></script>
   <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
   <style>
-    @font-face {
-      font-family: "Anton600";
-      src: url("../art/fonts/Anton-Regular.ttf") format("truetype");
-      font-display: swap;
-    }
-    @font-face {
-      font-family: "Alfa600";
-      src: url("../art/fonts/AlfaSlabOne-Regular.ttf") format("truetype");
-      font-display: swap;
-    }
+    /* This page links 600b.css and must not repaint it. It used to redefine the
+       whole palette here, and the two had drifted apart: --orange was #F7931A
+       against the site's #ff6a00, --violet was #5E5ACB against #17bebb, --black
+       was pure #000 against #09080b. The rulebook was, visually, a different
+       website. What is left below are ALIASES and local layout, never a second
+       palette: --white is this file's old name for the shared --cream, and
+       --bright/--charcoal exist only here.
+
+       The duplicate @font-face pair went with it — 600b.css already declares
+       Anton600, and Alfa600 was declared but never used by a single rule. */
     :root {
-      --orange: ${colors.orange};
-      --bright: ${colors.bright};
-      --ember: ${colors.ember};
-      --purple: ${colors.purple};
-      --purple-deep: ${colors.purpleDeep};
-      --violet: ${colors.violet};
-      --black: ${colors.black};
-      --soot: ${colors.soot};
-      --charcoal: ${colors.charcoal};
-      --white: ${colors.white};
-      --muted: #c9bdcf;
-      --line: rgba(185,145,228,.28);
+      --white: var(--cream);
+      --bright: #ffa733;
+      --charcoal: #222222;
       --content: 850px;
     }
     * { box-sizing: border-box; }
@@ -157,7 +140,9 @@ function renderWebsite() {
       background:
         radial-gradient(circle at 86% 10%, rgba(116,71,184,.16), transparent 30rem),
         linear-gradient(180deg, #050506 0, #0d0b10 55%, #050506 100%);
-      font: 17px/1.68 "Trebuchet MS", Arial, sans-serif;
+      /* Was Trebuchet MS, which no other page uses. Inherit the site's body
+         face and keep only the rulebook's longer measure and line height. */
+      font: 17px/1.68 var(--body);
     }
     a { color: var(--bright); text-underline-offset: .2em; }
     img { max-width: 100%; }
@@ -314,14 +299,18 @@ function renderWebsite() {
     }
     p, li { color: #ded6e1; }
     strong { color: var(--white); }
+    /* Was a solid lavender block with black text — a highlighter slab on a
+       near-black page, and the loudest reason this file read as somebody
+       else's documentation site. The card's own type banner is steel with
+       cream on it; a pulled-out rule should wear the same thing. */
     blockquote {
       margin: 34px 0;
       padding: 22px 26px;
-      color: var(--black);
-      background: var(--purple);
-      border-left: 8px solid var(--orange);
+      color: var(--cream);
+      background: var(--steel);
+      border-left: 8px solid var(--ember);
     }
-    blockquote p { margin: 0; color: var(--black); font-weight: 700; }
+    blockquote p { margin: 0; color: var(--cream); font-weight: 700; }
     table {
       width: 100%;
       margin: 24px 0 34px;
@@ -335,14 +324,14 @@ function renderWebsite() {
       vertical-align: top;
       border: 1px solid var(--line);
     }
-    th { color: var(--black); background: var(--purple); }
+    th { color: var(--cream); background: var(--steel); }
     tr:nth-child(even) td { background: rgba(185,145,228,.04); }
     ol, ul { padding-left: 1.4em; }
     li + li { margin-top: .35em; }
     code {
       padding: .14em .34em;
-      color: var(--black);
-      background: var(--purple);
+      color: var(--cream);
+      background: var(--steel);
       font: .9em "JetBrains Mono", Consolas, monospace;
     }
     hr {
