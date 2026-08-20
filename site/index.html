@@ -75,7 +75,11 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
   animation: bootBg 1.1s ease-out both;
 }
 .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,8,11,.86), rgba(9,8,11,.38) 42%, var(--black) 97%); }
-.hero > * { position: relative; z-index: 1; }
+/* The background bleeds edge to edge; the content does not. Every direct child
+ * sits in the same 1280px column as .section, so the hero's stat and resource
+ * rows line up with the rest of the page instead of hugging the left edge on a
+ * wide monitor. .hero__grid already carries this and is unaffected. */
+.hero > * { position: relative; z-index: 1; width: 100%; max-width: 1280px; margin-inline: auto; }
 
 .hero__grid {
   display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);

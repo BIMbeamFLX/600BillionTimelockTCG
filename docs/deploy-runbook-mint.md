@@ -1,0 +1,180 @@
+# Mint deploy runbook — Path A (free demo on tcg.zapburg.com)
+
+`written: 2026-08-20` `verified against: origin/main @ 7372206 (PR #4 merged)` `tests: 316 green`
+
+Companion to [`mint-security-and-deploy.md`](mint-security-and-deploy.md), which has the
+full audit and the Path B checklist for a paid mint. This file is only the steps for
+tomorrow.
+
+**Everything below was verified by running the merged code, not read.** I bought a pack,
+opened the wallet, restarted the server, and re-verified — results in §4.
+
+---
+
+## 0. What changed since the audit
+
+The audit was written against my branch. Breno then pushed two more commits and the PR
+merged, and he reimplemented all three of my fixes his own way — **verified working, and
+in two places better than mine**:
+
+| Concern | How it landed on main |
+|---|---|
+| Forgeable signing keys | `crypto.randomBytes(32)` generated once and persisted in the DB (`getOrCreate`). Random per deployment, no env vars to manage. |
+| Mint forgot sales on restart | Durable in SQLite; `sold` and keys both survive. Verified across a real restart. |
+| Wallet page dead | Fixed; plus he added transfer, import, and wallet backup. |
+| **Odds panel contradicted the mint** | **Fixed** — `/nutft/state` now serves real `tier_odds` and the shop shows all five tiers: Genesis 0.15 / Vault 1.05 / Rare 15.48 / Uncommon 16.66 / Common 66.65. |
+
+One tradeoff to know: because the mint key now lives **in the database**, `matches.db`
+backups contain forging material. Treat DB backups as secrets — same care as a wallet file.
+
+---
+
+## 1. The one setting that decides whether the demo works
+
+**`NUTFT_CATALOG_URI` is not optional.** It defaults to `http://localhost:8777/nutft/catalog`,
+and it is hashed into every card's CardBinding. The wallet then fetches that literal URL to
+verify.
+
+Deploy without setting it and **every buyer's wallet tries to fetch `localhost:8777` from
+their own machine, fails, and shows every card as invalid.**
+
+This is not theoretical — I reproduced it exactly:
+
+- Wrong URI → wallet showed `0 UNSPENT / 7 INVALID`, "7 proof(s) were isolated because
+  validation failed", seven `ERR_CONNECTION_REFUSED` to `localhost:8777`.
+- Correct URI → `7 UNSPENT`, every card `DLEQ ✓ · P2BK ✓ · Blossom ✓`.
+
+Same code, same cards. One environment variable.
+
+It is also **permanent**: the mint refuses to restart if a sold-into database was created
+under a different `catalog_uri`, precisely so the binding can never silently split. Set it
+right the first time.
+
+---
+
+## 2. Steps
+
+### 2.1 Local, before touching the box
+
+```bash
+git checkout main && git pull
+```
+
+```bash
+npm run build && npm run test:js
+```
+
+Expect **316 passing**. Red means stop.
+
+Smoke it locally — this is also your demo rehearsal:
+
+```bash
+node server/table.js
+```
+
+Open `http://localhost:8777/shop.html?shop=mint`, buy a pack, then
+`http://localhost:8777/wallet.html`. You should see seven tiles, each
+`DLEQ ✓ · P2BK ✓ · Blossom ✓`. (Locally the default 8777 URI is correct, which is why this
+works without extra config — on the box it will not be.) Ctrl-C.
+
+### 2.2 Set the catalog URI on the box
+
+Edit `/etc/systemd/system/tcg-table.service` and add one line beside the existing
+`Environment=` entries:
+
+```
+Environment=NUTFT_CATALOG_URI=https://tcg.zapburg.com/nutft/catalog
+```
+
+Do this **before** the first pack is ever sold from the box.
+
+### 2.3 Ship
+
+```bash
+powershell -File G:\projekte\HetzerDeploy\deploy-tcg.ps1 -SshTarget deploy@178.105.93.78
+```
+
+The deploy script was fixed today: it previously copied only `server\table.js`, which would
+have crashed the box with `MODULE_NOT_FOUND` on start — and since the referee and the site
+are one process, that takes the live game down too. It now ships `server\*.js` and the
+preflight fails loudly if `nutft-mint.js` or `nutft-draw.js` is missing.
+
+### 2.4 Restart and verify (your YubiKey)
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl restart tcg-table
+```
+
+Then, from anywhere:
+
+```bash
+curl.exe https://tcg.zapburg.com/api/health
+```
+
+```bash
+curl.exe https://tcg.zapburg.com/nutft/catalog
+```
+
+Check `catalog_uri` in that response reads `https://tcg.zapburg.com/nutft/catalog` — **not**
+localhost. If it says localhost, stop and fix §2.2 before anyone buys.
+
+### 2.5 The real test — do this yourself in a browser
+
+1. `https://tcg.zapburg.com/shop.html?shop=mint` → buy a pack.
+2. `https://tcg.zapburg.com/wallet.html` → seven tiles, each `DLEQ ✓ · P2BK ✓ · Blossom ✓`.
+3. Restart the service once more, reload the wallet: still seven, still valid, and
+   `/nutft/state` still shows your `sold` count.
+
+If step 2 shows "INVALID", it is §2.2. Nothing else produces that symptom.
+
+### 2.6 Rollback
+
+There is no `systemctl rollback`. To revert: `git checkout` the previous commit, rerun
+§2.3 and §2.4. The matches DB lives outside the webroot, so a redeploy never touches games
+in flight — and the mint DB now persists sales, so a rollback does **not** reset the box.
+
+---
+
+## 3. What this demo is, and is not
+
+Say this plainly wherever the demo is shown:
+
+- **Packs are free.** The 21-sat price is the intended model; Lightning settlement is not
+  built yet, so nothing takes payment.
+- **The beacon is static**, so pack order is precomputable by anyone with the census. The
+  "resolve against an unmined Bitcoin block" design is the fix and is not built. Do not
+  present this as a fair random draw yet.
+- The cards are **real Cashu bearer proofs** with DLEQ, P2BK and CardBinding, verified
+  client-side against a signed catalog and the Blossom face hash. That part is genuine.
+
+Free + labelled keeps it clear of the loot-box and MiCA questions in the audit. Those start
+the moment money does.
+
+---
+
+## 4. Verification log (merged main, 2026-08-20)
+
+| Check | Result |
+|---|---|
+| `npm run test:js` on merged main | 316 / 316 |
+| `/api/health`, `/v1/info`, `/v1/keys`, `/nutft/catalog`, `/nutft/state` | all 200 |
+| Shop odds vs mint | match — all five tiers |
+| Buy a pack | `sold: 0 → 1`, `pack-0001 → pack-0002` |
+| Wallet, wrong `catalog_uri` | `0 UNSPENT / 7 INVALID` ← the trap |
+| Wallet, correct `catalog_uri` | `7 UNSPENT`, 7× `DLEQ ✓ · P2BK ✓ · Blossom ✓` |
+| After a real restart | `sold: 1` retained, wallet still 7 valid |
+
+---
+
+## 5. Next, in order
+
+1. **Onboarding grant** — FIPS-P01 + a promo Lotus + a Starter Stack on registration.
+   Promos are uncapped and outside the census, so this costs the mint nothing.
+   *Blocked on:* `build_play_data.py` excludes promos, so promo cards are not in the
+   playable catalog yet; and the promo Lotus does not exist as art. FIPS art does exist.
+   **Do not grant the real Genesis Lotus** — it is 21 copies lifetime, so that caps you at
+   21 users, ever.
+2. **Lightning settlement** for the 21-sat pack (from `lnurl-mint`).
+3. **Block-commitment beacon** — the fairness core.
+4. Mint-endpoint rate limiting (`/v1/*` and `/nutft/*` dispatch before the table's limiter).
+5. Legal review before any money changes hands.
