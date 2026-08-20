@@ -413,6 +413,11 @@ TEMPLATE = """<!doctype html>
       cursor: zoom-in;
     }
     .art-button--text { background: var(--soot); cursor: pointer; }
+    /* This chip used to be painted on every tile permanently: 296 ember labels
+       stamped across the bottom-right corner of 296 finished card faces, on the
+       one page whose whole job is to show the artwork. It is an affordance, so
+       it appears when the card is actually being pointed at — and on
+       focus-visible too, so it is never hidden from the keyboard. */
     .art-button::after {
       position: absolute;
       right: 10px;
@@ -423,8 +428,17 @@ TEMPLATE = """<!doctype html>
       background: var(--ember);
       font: 11px/1 var(--display);
       letter-spacing: .08em;
+      opacity: 0;
+      transition: opacity .14s ease;
     }
-    .art-button img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .art-button:hover::after,
+    .art-button:focus-visible::after { opacity: 1; }
+    @media (hover: none) { .art-button::after { opacity: 1; } }
+    .art-button img {
+      display: block; width: 100%; height: 100%; object-fit: contain;
+      /* The same weight a card carries everywhere else on the site. */
+      filter: drop-shadow(0 3px 0 rgba(9,8,11,.85)) drop-shadow(0 16px 30px rgba(0,0,0,.55));
+    }
 
     /* ----------------------------------------------- the text-card fallback */
     /* Card faces are NOT bundled (napplet spec, "cards"): they come from the
