@@ -625,8 +625,8 @@ test("the table sends a player back to the lobby, it does not host one", () => {
   assert.match(byId("netNotice").textContent, /lobby/i, "the player was not told where the table opens");
 });
 
-test("a NutFT-marked Stack proves current wallet possession before play", async () => {
-  const saved = { Owned: Array(40).fill("E1-002") };
+test("a NutFT-marked Stack proves non-basic possession while Basics stay free", async () => {
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-001")] };
   const storage = new Map([
     ["600b:decks", JSON.stringify(saved)],
     ["600b:nutft-decks", JSON.stringify({ Owned: true })],
@@ -636,23 +636,23 @@ test("a NutFT-marked Stack proves current wallet possession before play", async 
     setItem: (key, value) => storage.set(key, String(value)),
   };
   globalThis.location = { origin: "http://table.test" };
-  let count = 39;
-  globalThis.NutFTWallet = { snapshot: async () => ({ owned: Array.from({ length: count }, () => ({ tag: ["1", "600B-E1", "E1-002"] })) }) };
+  let count = 2;
+  globalThis.NutFTWallet = { snapshot: async () => ({ owned: Array.from({ length: count }, () => ({ tag: ["1", "600B-E1", "E1-001"] })) }) };
   const { byId, game } = loadPlay(netStub());
   byId("deckA").value = "custom:Owned";
   byId("deckB").value = "Signal";
   byId("start").click();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(game.state, null);
-  assert.match(byId("prompt").textContent, /needs 40, wallet controls 39/);
-  count = 40;
+  assert.match(byId("prompt").textContent, /needs 3, wallet controls 2/);
+  count = 3;
   byId("start").click();
   await new Promise((resolve) => setImmediate(resolve));
   assert.ok(game.state, "the verified Stack should start after all 40 proofs pass");
 });
 
 test("a shell-stored NutFT marker still gates its shell-stored Stack", async (t) => {
-  const saved = { Owned: Array(40).fill("E1-002") };
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-001")] };
   globalThis.localStorage = { getItem: () => null, setItem() {} };
   globalThis.E1Napplet = { storage: { json: async (key) => key === "600b:decks" ? saved : { Owned: true } } };
   globalThis.NutFTWallet = { snapshot: async () => ({ owned: [] }) };
@@ -665,7 +665,7 @@ test("a shell-stored NutFT marker still gates its shell-stored Stack", async (t)
   byId("start").click();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(game.state, null);
-  assert.match(byId("prompt").textContent, /needs 40, wallet controls 0/);
+  assert.match(byId("prompt").textContent, /needs 3, wallet controls 0/);
 });
 
 test("a stale NutFT marker cannot turn a missing Stack into an empty ownership check", async () => {
@@ -686,7 +686,7 @@ test("a stale NutFT marker cannot turn a missing Stack into an empty ownership c
 });
 
 test("NutFT verification locks Start against duplicate submissions", async () => {
-  const saved = { Owned: Array(40).fill("E1-002") };
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-001")] };
   const storage = new Map([
     ["600b:decks", JSON.stringify(saved)],
     ["600b:nutft-decks", JSON.stringify({ Owned: true })],
@@ -706,7 +706,7 @@ test("NutFT verification locks Start against duplicate submissions", async () =>
   byId("start").click();
   assert.equal(checks, 1);
   assert.equal(byId("start").disabled, true);
-  release({ owned: Array.from({ length: 40 }, () => ({ tag: ["1", "600B-E1", "E1-002"] })) });
+  release({ owned: Array.from({ length: 3 }, () => ({ tag: ["1", "600B-E1", "E1-001"] })) });
   await new Promise((resolve) => setImmediate(resolve));
   assert.ok(game.state);
 });

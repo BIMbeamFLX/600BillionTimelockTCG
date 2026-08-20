@@ -4107,7 +4107,9 @@
         const available = new Map();
         for (const item of view.owned) available.set(item.tag[2], (available.get(item.tag[2]) || 0) + 1);
         const required = new Map();
-        for (const name of names) if (marked[name]) for (const id of stackLibrary[name] || []) required.set(id, (required.get(id) || 0) + 1);
+        for (const name of names) if (marked[name]) for (const id of stackLibrary[name] || []) {
+          if (CARD_BY_ID[id]?.type !== "Basic Resource") required.set(id, (required.get(id) || 0) + 1);
+        }
         for (const [id, count] of required) if ((available.get(id) || 0) < count) throw new Error(`${id}: needs ${count}, wallet controls ${available.get(id) || 0}`);
         return true;
       } catch (error) {
