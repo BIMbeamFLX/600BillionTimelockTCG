@@ -40,12 +40,21 @@
 [CmdletBinding()]
 param(
   [string]$Server = "https://blossom.bimcvp.com",
-  [string]$FaceDir = "$PSScriptRoot\..\art\cards\node-runner-web",
-  [string]$Census = "$PSScriptRoot\..\cards\nutft-census.json",
+  [string]$FaceDir,
+  [string]$Census,
   [switch]$VerifyOnly
 )
 
 $ErrorActionPreference = "Stop"
+
+# $PSScriptRoot is not populated while the param block is evaluated, so a
+# default of "$PSScriptRoot\..\art" there resolves against the drive ROOT and
+# goes looking for G:\art. Resolved here instead, where it is set.
+$repo = Split-Path -Parent $PSScriptRoot
+if (-not $FaceDir) { $FaceDir = Join-Path $repo "art\cards\node-runner-web" }
+if (-not $Census)  { $Census  = Join-Path $repo "cards\nutft-census.json" }
+if (-not (Test-Path $FaceDir)) { throw "Face directory not found: $FaceDir" }
+if (-not (Test-Path $Census))  { throw "Census not found: $Census" }
 
 $faces = Get-ChildItem -Path (Join-Path $FaceDir "*.webp") -File
 if (-not $faces) { throw "No .webp faces found in $FaceDir" }
@@ -86,8 +95,20 @@ if (-not $VerifyOnly) {
 # the more important thing to find out.
 
 Write-Host "`nVerifying the hashes the census names..." -ForegroundColor Cyan
-$census = Get-Content -Raw -Path $Census | ConvertFrom-Json
-$named = @($census.cards | Where-Object { $_.face } | ForEach-Object { $_.face.sha256 } | Select-Object -Unique)
+# NOT $census. PowerShell variable names are case-insensitive, so $census IS
+# $Census -- which is declared [string] in the param block, and that type
+# constraint survives every later assignment. Parsing into it silently cast the
+# object to its string form, and .cards on a string is $null. The whole check
+# then ran over an empty list and reported success.
+$censusDoc = Get-Content -Raw -Path $Census | ConvertFrom-Json
+$named = @($censusDoc.cards | Where-Object { $_.face } | ForEach-Object { $_.face.sha256 } | Select-Object -Unique)
+
+# Checking nothing is not the same as everything being fine. Without this, the
+# bug above printed "All 0 census faces are on <server>" in green and exited 0 --
+# a verifier that reports success having verified nothing is worse than none.
+if ($named.Count -eq 0) {
+  throw "The census named no face hashes. Expected around 295 - check $Census."
+}
 
 $missing = @()
 $n = 0
@@ -108,7 +129,7 @@ if ($missing.Count -eq 0) {
   Write-Host "All $($named.Count) census faces are on $Server" -ForegroundColor Green
   Write-Host "The wallet's Blossom check will pass for every card."
 } else {
-  Write-Host "$($missing.Count) of $($named.Count) census faces are NOT on $Server:" -ForegroundColor Red
+  Write-Host "$($missing.Count) of $($named.Count) census faces are NOT on ${Server}:" -ForegroundColor Red
   $missing | Select-Object -First 10 | ForEach-Object { Write-Host "  $_" }
   if ($missing.Count -gt 10) { Write-Host "  ... and $($missing.Count - 10) more" }
   Write-Host "`nThose cards will render as 'Blossom failed' until they are served."
