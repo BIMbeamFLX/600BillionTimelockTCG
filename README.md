@@ -191,18 +191,18 @@ signed by both seats.
 
 ## Booster shop
 
-`site/shop.html` opens one box: 4,456 cards, 891 packs of five. Rarity is copies in
+`site/shop.html` opens one box: 5,400 cards, 360 packs of fifteen. Rarity is copies in
 that box, exactly how a printed booster box expresses it, so the published odds are
 a property of the box rather than a promise about a dice roll.
 
 | Tier | Cards | Copies each | Share of the box |
 | --- | --- | --- | --- |
-| common | 90 | 31 | 62.61% |
-| uncommon | 75 | 9 | 15.15% |
-| rare | 90 | 7 | 14.14% |
-| vault | 21 | 2 | 0.94% |
-| genesis | 9 | 1 | 0.20% |
-| basic | 10 | 31 | 6.96% |
+| common | 90 | 40 | 66.67% |
+| uncommon | 75 | 14 | 19.44% |
+| rare | 90 | 4 | 6.67% |
+| vault | 21 | 1 | 0.39% |
+| genesis | 9 | 1 | 0.17% |
+| basic | 10 | 36 | 6.67% |
 
 The six tiers are rank cuts on a per-card score, not a flat ladder, and the print run
 above tracks the mint's own shape (`cards/nutft-census.json`) so the free box teaches

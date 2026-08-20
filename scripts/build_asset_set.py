@@ -34,25 +34,26 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # The run tracks the mint census' shape (cards/nutft-census.json) rather than a flat
 # curve. Resulting share of the paid pool — basics excluded, as the census excludes them:
 #
-#   common 67.3% / 66.65   uncommon 16.3% / 16.66   rare 15.2% / 15.48
-#   vault    1.0% /  1.05  genesis    0.22% / 0.15
+#   common 71.43% / 71.42   uncommon 20.83% / 21.43   rare 7.14% / 6.64
+#   vault   0.42% /  0.45   genesis   0.18% /  0.06
 #
-# Genesis sits 0.07 points high and cannot be lowered: one copy per card is the floor in
-# a box this size.
+# Genesis sits three times high and cannot be lowered: one copy per card is the floor,
+# and matching the mint's 0.06% would take a box of some 14,000 cards.
 #
-# Basic Resources ride at the common count rather than at the tail. The booster plan has
-# them "guaranteed, uncapped and free" and a Stack needs 16-18 of them, so a box where a
-# Basic is scarcer than a Rare is a box nobody can build a Stack from.
+# Basic Resources ride just under the common count rather than at the tail, at one per
+# pack. The booster plan has them "guaranteed, uncapped and free" and a Stack needs 16-18
+# of them, so a box where a Basic is scarcer than a Rare is a box nobody can build a
+# Stack from.
 #
 # Indexed directly at the call site, never .get(): an unknown tier must be a loud
 # KeyError at build time, not a card that quietly mints one single copy of itself.
 DEFAULT_PRINT_RUN = {
-    "common": 31,
-    "uncommon": 9,
-    "rare": 7,
-    "vault": 2,
+    "common": 40,
+    "uncommon": 14,
+    "rare": 4,
+    "vault": 1,
     "genesis": 1,
-    "basic": 31,
+    "basic": 36,
     "promo": 1,
 }
 

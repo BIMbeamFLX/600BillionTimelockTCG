@@ -249,7 +249,7 @@ async function createTable(opts) {
    * TCP peer is an operator-declared trusted proxy, and then only its RIGHTMOST
    * hop — the address the trusted proxy itself observed, which a client cannot
    * forge by pre-injecting the header. Unset (the default) ignores XFF entirely.
-   *   trustProxy: "loopback"  → trust 127.0.0.1/::1 as the proxy (the zapburg case)
+   *   trustProxy: "loopback"  → trust 127.0.0.1/::1 as the proxy (the nappelin case)
    *   trustProxy: ["10.0.0.2"] → trust these exact peer IPs */
   const trustProxy = (() => {
     const raw = options.trustProxy;

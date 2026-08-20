@@ -4,7 +4,7 @@
 - Assets: **10**
 - Tone: **positive cypherpunk — the future already works** (same lock as `600B-E1-art-director-v3`)
 - Visible artwork: **no text, letters, numbers, logos, card frames or interfaces** — every word on the website is set in HTML on top of the image
-- Character identity: **join.600.wtf Detailed ·front** references only; never invent people
+- Character identity: **join.600.wtf homepage** images only (`art/references/join-homepage/`); never invent people. The site shows people as the site shows them — the Detailed ·front studies stay with the cards, which is a different picture of the same person
 
 ## Why these exist
 

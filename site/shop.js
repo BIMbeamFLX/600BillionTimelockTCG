@@ -112,54 +112,96 @@
   const rungOf = (rarity) => { const i = LADDER.indexOf(rarity); return i < 0 ? LADDER.length : i; };
 
   /* ------------------------------------------------------------ the mint box
-   * The NutFT mint does not sell the box above. It sells a bigger, different
-   * one — 20 925 packs of 7 — committed as a CENSUS of print runs rather than
-   * as a shuffled order. These are the census's own numbers
-   * (cards/nutft-census.json), repeated here so the page can state them before
-   * it has asked the mint anything; the verify button then re-derives them from
-   * the mint's signed catalog and says so if they have moved.
+   * The NutFT mint does not sell the box above. It sells a bigger, different one
+   * — packs of 15, committed as a CENSUS of print runs rather than as a shuffled
+   * order. Not one of its figures is written down in this file any more; see
+   * boxFromMint below for where they come from and why.
    *
-   * EVERY SHARE IS OVER THE WHOLE BOX, 146 475 cards — not over the 125 577
-   * numbered copies. A buyer counting what came out of their packs counts the
-   * Basic too, so a percentage that quietly drops a seventh of the box is a
-   * percentage that flatters every remaining row by x1.1664: it printed Rare as
-   * 15.48% of a box in which Rare is 13.27%.
+   * EVERY SHARE IS OVER THE WHOLE BOX — every card a buyer can receive, not just
+   * the numbered ones. A buyer counting what came out of their packs counts the
+   * Basic too, so a percentage that quietly drops a fifteenth of the box is a
+   * percentage that flatters every remaining row by x1.0713: it would print Rare
+   * as 6.64% of a box in which Rare is 6.19%.
    *
-   * `unreachable` is the arithmetic nobody wants to leave out: the prime pool is
-   * printed 20 952 deep but only 20 925 packs will ever draw from it, so 27
-   * printed copies can never be reached. Genesis, Vault and Rare are therefore
-   * ceilings, while the prime SLOT is exactly one card in every pack. */
-  /* The one row "copies in the box" cannot describe, kept as its own binding so
-   * the tile above and the note below can never disagree about it. Basics carry
-   * no print run — that is what uncapped means — so `copies` here is a SLOT
-   * count, one per pack, and it is what makes the shares below shares of the
-   * whole box rather than of six sevenths of it.
+   * `issued` is the arithmetic nobody wants to leave out: the prime pool is
+   * printed deeper than there are prime slots to draw it, so a tail of copies
+   * exists that no pack can ever reach, which is why the page reports `printed`
+   * and `issued` separately. Genesis, Vault and Rare are therefore ceilings,
+   * while the prime SLOT is exactly one card in every pack. */
+  /* The one row the mint's per-card figures cannot describe. Basics carry no
+   * print run — that is what uncapped means — so their "copies" is a SLOT count,
+   * one per pack, filled in from the mint's own pack count in boxFromMint.
    *
    * AND EVERY ONE OF THOSE SLOTS IS THE SAME CARD. The mint fills the basic slot
    * from catalog.basic[0] (server/nutft-mint.js), so nine of the ten Basics
-   * never leave the catalog. Printed as "20 925 copies · 10 cards" the row read
-   * as roughly two thousand of each — a number no buyer will ever see — so the
-   * tile states the slot and the single card that fills it instead. */
-  const BASIC_TIER = { name: "Basic", cards: 10, copies: 20925, oneCard: true };
+   * never leave the catalog. Printed as "N copies · 10 cards" the row read as
+   * roughly a tenth of N each — a number no buyer will ever see — so the tile
+   * states the slot and the single card that fills it instead. */
+  const BASIC_TIER = { name: "Basic", cards: 10, oneCard: true };
 
-  const MINT_BOX = {
-    packs: 20925,
-    packSize: 7,
-    cards: 146475,          // packs x packSize — every card a buyer can ever receive
-    numberedCards: 285,     // distinct cards that carry a print run
-    printed: 125577,        // copies printed across those 285
-    issued: 125550,         // 6 numbered per pack x 20 925 packs — what is actually reachable
-    unreachable: 27,        // printed - issued, all of it in the prime pool
-    commitment: "651e12f3f12c655c53b09c265eed82a7c7d46ac14a76e350f32b77efa4e5e482",
-    tiers: [
-      { name: "Genesis", cards: 9, copies: 189 },
-      { name: "Vault", cards: 21, copies: 1323 },
-      { name: "Rare", cards: 90, copies: 19440 },
-      { name: "Uncommon", cards: 75, copies: 20925 },
-      { name: "Common", cards: 90, copies: 83700 },
-      BASIC_TIER, // a slot count, and always the same card — see above
-    ],
-  };
+  /* NOTHING ABOUT THE MINT'S BOX IS WRITTEN DOWN HERE ANY MORE.
+   *
+   * Every number below used to be a literal, and every one of them was wrong
+   * within a day of the mint being resized: the pack count, the print run, the
+   * per-tier copies, and the census fingerprint the verify button re-hashes. A
+   * page that states a supply figure the mint disagrees with is worse than a
+   * page that states none, because the whole argument here is that you can
+   * check it.
+   *
+   * So it is DERIVED, from the two things the mint already serves: /nutft/state
+   * carries the commitment, the pack count and -- the part worth having -- the
+   * exact number of each card still unminted, and /nutft/catalog carries each
+   * card's tier and print run. Everything on the page is computed from those.
+   *
+   * Until the mint answers, `ready` is false and every figure is zero. Call
+   * sites check the flag and say "not read yet" rather than printing a zero
+   * that looks like a fact. Keeping the SHAPE rather than using null means a
+   * dozen call sites do not each need a guard against a crash. */
+  const EMPTY_BOX = { ready: false, packs: 0, packSize: 0, cards: 0, printed: 0,
+    numberedCards: 0, issued: 0, commitment: "", tiers: [] };
+  let MINT_BOX = EMPTY_BOX;
+
+  /* Fold the mint's per-card figures into the rows the page shows. `remaining`
+   * is per asset id and is the honest answer to "how many are left" -- the shop
+   * shows it beside the print run so a buyer can see the box running down
+   * instead of being told a total and asked to trust it. */
+  function boxFromMint(state, catalog) {
+    if (!state || !catalog || !Array.isArray(catalog.assets)) return null;
+    const order = ["Genesis", "Vault", "Rare", "Uncommon", "Common", "Basic"];
+    const rows = new Map(order.map((name) => [name, { name, cards: 0, copies: 0, left: 0 }]));
+    const remaining = state.remaining || {};
+    let printed = 0;
+    for (const asset of catalog.assets) {
+      const row = rows.get(asset.tier);
+      if (!row) continue;                       // a tier this page has never heard of
+      row.cards += 1;
+      const copies = Number(asset.copies || 0);
+      row.copies += copies;
+      printed += copies;
+      /* Absent from `remaining` means the mint has issued every copy, which is
+         zero left -- not "unknown". Only a card that was never capped (a Basic)
+         has no figure to report at all. */
+      if (copies) row.left += Number(remaining[asset.asset_id] ?? remaining[asset.id] ?? 0);
+    }
+    const basic = rows.get("Basic");
+    if (basic) { basic.oneCard = true; basic.copies = Number(state.packs || 0); basic.left = null; }
+    const packSize = Number(state.cards_per_pack || 0);
+    const paid = Number(state.paid_cards_per_pack || 0);
+    const packs = Number(state.packs || 0);
+    if (!packs || !packSize) return null;      // an answer we cannot do arithmetic on
+    return {
+      ready: true,
+      packs, packSize, printed,
+      cards: packs * packSize,
+      /* What a buyer can actually receive, which is not the print run: the
+         prime pool is deeper than the number of prime slots, so a tail of
+         copies exists and is never drawn. */
+      issued: packs * (paid || Math.max(0, packSize - 1)),
+      numberedCards: catalog.assets.filter((a) => Number(a.copies || 0) > 0).length,
+      commitment: state.census_sha256 || "",
+      tiers: order.map((name) => rows.get(name)).filter((row) => row.cards > 0),
+    };
+  }
   let nutftState = { sold: 0, packs: MINT_BOX.packs, tier_odds: {} };
 
   /* ------------------------------------------------------------ the G edition
@@ -203,7 +245,7 @@
   };
   const nameOf = (id) => (BY_ID[id] && BY_ID[id].name) || id;
   const pad = (n, width) => String(n).padStart(width, "0");
-  /* 146475 is a number you count with a finger; 146 475 is not. Grouped by hand
+  /* 941625 is a number you count with a finger; 941 625 is not. Grouped by hand
    * rather than with toLocaleString, because a shell can be running in any
    * locale and the box's size is not a number that should read differently in
    * one of them. Non-breaking, so a group never wraps onto its own line. */
@@ -357,6 +399,15 @@
 
   /* Cards sit on an arc, never a rank — the same --rot/--lift contract the
    * table uses, so hover and flip compose on top instead of fighting it. */
+  /* Chunks the pack into rows and arcs each one on its own. Arcing all 15 as a
+     single sweep bends a GRID, which reads as a mistake rather than a hand --
+     the curve has to belong to the row you are looking at. */
+  function arcRows(nodes, perRow, spread, depth) {
+    for (let i = 0; i < nodes.length; i += perRow) {
+      arcRow(nodes.slice(i, i + perRow), spread, depth);
+    }
+  }
+
   function arcRow(nodes, spread, depth) {
     const n = nodes.length;
     for (let i = 0; i < n; i += 1) {
@@ -611,16 +662,35 @@
     if (bay.classList.contains("bay--stage")) return;
     bay.classList.add("bay--stage");
     document.documentElement.style.overflow = "hidden";
-    const hint = el("div", "bay--stage-note", "Click anywhere to close");
+    const hint = el("div", "bay--stage-note", "Esc or ✕ to close");
     hint.id = "stageHint";
     document.body.append(hint);
+
+    /* The close, spelled out. This used to be `bay.addEventListener("click")`,
+       which closed the stage on ANY click inside it -- including the click on
+       a card that turns it over, because the flip handler is on the card and
+       the card is in the bay. Turning over the first card of a pack you had
+       just paid for therefore threw the pack away. Now: the button, Escape, or
+       a click that landed on the BACKDROP and not on anything in it. */
+    const x = el("button", "stage-x", "✕");
+    x.id = "stageClose";
+    x.type = "button";
+    x.setAttribute("aria-label", "Close the pack");
+    x.addEventListener("click", () => leaveStage(bay));
+    document.body.append(x);
+
     const leave = (event) => {
-      if (event.type === "keydown" && event.key !== "Escape") return;
+      if (event.type === "keydown") {
+        if (event.key !== "Escape") return;
+      } else if (event.target !== bay) {
+        return;                       // it hit a card, not the backdrop
+      }
       leaveStage(bay);
     };
     bay.__leave = leave;
     document.addEventListener("keydown", leave);
     bay.addEventListener("click", leave);
+    x.focus();
   }
 
   function leaveStage(bay) {
@@ -629,6 +699,8 @@
     document.documentElement.style.overflow = "";
     const hint = document.getElementById("stageHint");
     if (hint) hint.remove();
+    const x = document.getElementById("stageClose");
+    if (x) x.remove();
     if (bay.__leave) {
       document.removeEventListener("keydown", bay.__leave);
       bay.removeEventListener("click", bay.__leave);
@@ -665,13 +737,18 @@
 
     tray.innerHTML = "";
     tray.hidden = false;
+    /* --n keeps the off-stage flex row honest; --cols/--rows drive the grid the
+       stage switches to. Five to a row unless the pack is smaller than that. */
+    const perRow = Math.min(5, Math.max(1, entry.ids.length));
     tray.style.setProperty("--n", String(Math.max(1, entry.ids.length)));
+    tray.style.setProperty("--cols", String(perRow));
+    tray.style.setProperty("--rows", String(Math.ceil(entry.ids.length / perRow)));
     dealt = entry.ids.map((id, i) => {
       const node = cardNode(id, i, entry.fresh[i]);
       tray.append(node);
       return node;
     });
-    arcRow(dealt, 8, -18);
+    arcRows(dealt, perRow, 8, -18);
 
     const summary = packSummary(entry);
     $("packSlot").textContent = `PACK #${pad(entry.n, 3)} · ${slotLabel(entry)}`;
@@ -794,48 +871,17 @@
     );
   }
 
+  /* The per-pack rows are no longer DRAWN, but state.history is still written on
+     every pull: pack number, time, and the slice of the box it came off. That
+     record is what makes the fingerprint on this page checkable, so it is kept
+     rather than dropped — the wallet can render it whenever it wants to, and
+     nothing has to be reconstructed to make that possible.
+     The block itself still shows, because it now carries the route to the
+     wallet and a buyer who has just opened a pack needs to be told where the
+     cards went. */
   function renderHistory() {
     const block = $("historyBlock");
-    const list = $("historyList");
-    list.innerHTML = "";
-    block.hidden = !state.history.length;
-    if (!state.history.length) return;
-    for (const entry of state.history) {
-      const when = new Date(entry.at);
-      const row = el("li", "hist");
-      row.append(el("b", "hist__n", `#${pad(entry.n, 3)}`));
-      const time = el("span", "hist__box", `${pad(when.getHours(), 2)}:${pad(when.getMinutes(), 2)}`);
-      time.title = when.toLocaleString();
-      row.append(time, el("span", "hist__box", slotLabel(entry)));
-      const cards = el("span", "hist__cards");
-      entry.ids.forEach((id, i) => {
-        /* A BUTTON, not a span. These chips are the only route left from the
-           shop to "put this card in a Stack" — the collection grid that used to
-           carry #sendStack moved to the wallet. A span with a click handler is
-           unreachable by keyboard and invisible to a screen reader, so removing
-           that grid had quietly removed every non-mouse way to reach a pull.
-           A real button brings focus, Enter and Space with it for nothing. */
-        const chip = el("button", `hist__c rarity-${rarityOf(id)}`, nameOf(id));
-        chip.type = "button";
-        chip.setAttribute("aria-label", `${nameOf(id)} — ${rarityOf(id)}. Add to a Stack.`);
-        chip.title = `${id} — ${rarityOf(id)}. Click or tap to add to a Stack; right-click, or press and hold, for details.`;
-        if (entry.fresh[i]) chip.append(el("i", null, "NEW"));
-        const hold = bindHold(chip, () => openGallery(id, true));
-        chip.addEventListener("click", async () => {
-          if (hold.take()) return;
-          stackNote("Saving…");
-          await addToStack(id);
-        });
-        chip.addEventListener("contextmenu", (event) => {
-          event.preventDefault();
-          if (hold.pending) return;
-          openGallery(id);
-        });
-        cards.append(chip);
-      });
-      row.append(cards);
-      list.append(row);
-    }
+    if (block) block.hidden = !state.history.length;
   }
 
   // ------------------------------------------------------------- the proof
@@ -925,8 +971,21 @@
       const response = await fetch(`${MINT_URL}/nutft/state`);
       if (!response.ok) return `The mint answered ${response.status}; the numbers above are the last ones it gave.`;
       nutftState = await response.json();
+      /* The catalog carries each card's tier and print run; the state carries
+         what is left of each. Neither alone can answer "how many Rares are
+         still in there", so the box facts are rebuilt from both — and only
+         when both arrived, so a half-read never renders as a fact. */
+      try {
+        const catalogResponse = await fetch(`${MINT_URL}/nutft/catalog`);
+        if (catalogResponse.ok) {
+          const derived = boxFromMint(nutftState, await catalogResponse.json());
+          if (derived) MINT_BOX = derived;
+        }
+      } catch { /* the state alone still renders; the tier rows just wait */ }
       renderMintState();
       renderBoxFacts();
+      renderTiers();
+      renderStarter();
       syncControls();
       return "";
     } catch (error) {
@@ -1093,6 +1152,17 @@
     node.append(el("i", null, tier.oneCard
       ? `${num(tier.copies)} slots · one card, the same one in every pack`
       : `${num(tier.copies)} copies · ${tier.cards} cards`));
+    /* HOW MANY ARE STILL IN THERE. The print run is a promise; this is the
+       state of the box right now, straight out of the mint's own remaining
+       count. It is the figure a buyer actually wants and the one nothing on
+       this page could show while the numbers were written down by hand.
+       Null means the row has no print run to run down — the Basic slot. */
+    if (typeof tier.left === "number") {
+      const share = tier.copies ? Math.round((tier.left / tier.copies) * 100) : 0;
+      const left = el("u", "odd__left", `${num(tier.left)} still unminted · ${share}% of the run`);
+      left.title = `${num(tier.copies - tier.left)} of ${num(tier.copies)} already issued`;
+      node.append(left);
+    }
     return node;
   }
 
@@ -1110,13 +1180,22 @@
       /* Added up rather than written down: this figure only means anything as
        * the sum of the rows above it, and a literal would be free to disagree
        * with them one edit later. */
+      if (!MINT_BOX.ready) {
+        /* Not read yet is a different sentence from a number. Printing zeros
+           here would look exactly like a fact, and this page's whole argument
+           is that its figures come from somewhere checkable. */
+        $("tiersLead").textContent = `${claim} The shares below come from the mint itself — waiting for it to answer.`;
+        $("tiersNote").textContent = "";
+        return;
+      }
       const rowSum = MINT_BOX.tiers.reduce((n, tier) => n + tier.copies, 0);
       $("tiersLead").textContent =
         `${claim} Every share below is a share of the whole box the mint advertises — ` +
         `${num(MINT_BOX.cards)} cards, ${num(MINT_BOX.packs)} packs of ${MINT_BOX.packSize} — Basics counted in.`;
       $("tiersNote").innerHTML =
         `<strong>The arithmetic, in full.</strong> Of those ${num(MINT_BOX.cards)} cards, ${num(MINT_BOX.issued)} are ` +
-        `numbered copies — six in every pack, drawn from a print run of ${num(MINT_BOX.printed)} across ` +
+        `numbered copies — ${MINT_BOX.issued / MINT_BOX.packs} in every pack, drawn from a print run of ` +
+        `${num(MINT_BOX.printed)} across ` +
         `${MINT_BOX.numberedCards} cards — and ${num(MINT_BOX.packs)} are Basics, one free in every pack. Basics are the ` +
         `one exception to "copies in the box": they carry no print run at all, so their row is a slot count, and the ` +
         `mint fills that slot from the same Basic every time — the other ${BASIC_TIER.cards - 1} of the ` +
@@ -1155,10 +1234,21 @@
     return tier;
   };
 
+  /* Not the same question as "is the tier missing".
+   *
+   * The box is derived from the mint now, so before it answers there are no
+   * tiers at all -- and a throw there took the whole of init() down with it,
+   * which is how the tier table came to render empty while the mint was
+   * perfectly healthy. A tier that is ABSENT once the box has been read is
+   * still a fault worth raising loudly; a box that has not arrived yet is just
+   * a page that is not ready. */
+  const boxRead = () => MINT_BOX.ready;
+
   /* Every figure the starter section prints, in one place: STARTER's own numbers
    * and the census's Genesis row, multiplied out. The homepage has already shown
    * once what a total typed twice does to a page about scarcity. */
   function starterFacts() {
+    if (!boxRead()) return null;
     const genesis = tierNamed("Genesis");
     const perTitle = genesis.copies / genesis.cards;
     /* "E1 keeps N copies of each Genesis card" is only a sentence while the run
@@ -1188,6 +1278,11 @@
 
   function renderStarter() {
     const f = starterFacts();
+    /* Every figure in this section is multiplied out of the census's Genesis
+       row, so before the mint answers there is nothing honest to print. The
+       section keeps its prose and leaves the numbers blank rather than showing
+       zeros -- and readMintState calls this again once the box has been read. */
+    if (!f) return;
     const promo = STARTER.promo;
 
     $("starterLead").textContent =
@@ -1400,6 +1495,15 @@
         lastStoreProblem = "";
         await revealPack(await pullPack(PULL_MODE === "mint" ? MINT_BOX.packSize : BOX.packSize));
         renderHistory();
+        /* Re-read the mint. The box facts and the per-tier "still unminted"
+           figures came from a snapshot taken at boot, so a buyer watched their
+           own purchase leave every counter untouched -- the worst possible
+           thing for a page whose argument is that these numbers are the
+           mint's and not ours. The pull just changed them; ask again.
+           Not awaited: the pack is already revealed, and the counters catching
+           up a moment later is fine while blocking the reveal on a round trip
+           is not. */
+        if (PULL_MODE === "mint") readMintState().catch(() => {});
         /* Whatever storage said about THIS pack, said now — never swallowed. */
         storeNote(lastStoreProblem || (durable ? "" : NO_STORE));
       } catch (error) {

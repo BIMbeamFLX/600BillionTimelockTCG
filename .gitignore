@@ -23,6 +23,7 @@ art/qa/
 art/cards/placeholders/
 art/cards/node-runner-print/
 art/references/join-detailed-front/
+art/references/join-homepage/
 
 # Recompressed in place by scripts/optimize_art.py; the untouched sources
 # live here and are the script every re-run restores from. Not committed:

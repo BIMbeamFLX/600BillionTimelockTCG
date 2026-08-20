@@ -53,6 +53,12 @@ Characters always come from their canonical `join.600.wtf` **Detailed ·front**
 reference. Their species, face, proportions, wardrobe, materials, palette and signature
 accessories remain consistent. They belong inside the scene; they never look pasted on.
 
+The **homepage** image is the other picture join.600.wtf publishes of the same person,
+and it belongs to the website rather than to a card — square, cropped as an avatar, and
+locked for site artwork in [`prompts/WEBSITE-ART-PROMPTS.md`](prompts/WEBSITE-ART-PROMPTS.md).
+Card artwork does not follow it there: the shipped faces were drawn from the Detailed ·front
+studies and changing the reference under them would mean redrawing 295 cards.
+
 ## Voice
 
 Card rules are short, literal and readable. Flavor is compact, collectible and playful.

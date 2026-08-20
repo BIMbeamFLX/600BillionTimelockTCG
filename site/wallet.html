@@ -39,6 +39,10 @@
    the copy count is spelled out in the tile's own text for a screen reader. */
 .wallet-card__n { position: absolute; right: 4px; top: 4px; padding: 2px 6px; background: var(--ember); color: var(--black); font: 900 12px/1 var(--body); }
 .wallet-card__over { color: var(--power); }
+/* Two actions per card: send it away, or build with it. Wrapping rather than
+   shrinking, because a narrow tile that squeezes both onto one line puts the
+   labels under the 44px tap minimum. */
+.wallet-card__acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
 .wallet-card--bad { border-color: var(--danger); }
 .wallet-card .btn { margin-top: auto; }
 
@@ -130,6 +134,10 @@
     </div>
 
     <div class="wallet-grid" id="walletCards"></div>
+    <!-- Announced, not just shown: adding a card to a Stack changes something on
+         another page, and a sighted user gets the sentence for free while a
+         screen-reader user would otherwise get silence. -->
+    <p class="note" id="collectionNote" role="status" aria-live="polite"></p>
     <p class="muted" id="empty" hidden>No NutFT cards yet. <a href="shop.html?shop=mint">Buy a demo booster</a>.</p>
 
     <!-- Two buckets that are NOT the same thing, and are never merged. See the
@@ -355,6 +363,39 @@
     return [...map.values()].sort((a, b) => a.tier.rung - b.tier.rung || a.asset.name.localeCompare(b.asset.name));
   }
 
+  /* Writes into the same draft the shop used to fill, under the same name, so a
+     Stack half-built before this moved is still the Stack you come back to. The
+     Stack Builder reads that key; nothing here needs to know how it renders it.
+     Deliberately additive: this appends and never rewrites the list, so two tabs
+     cannot silently truncate each other's work. */
+  const DECK_STORE = "600b:decks";
+  const DRAFT_NAME = "Booster pulls";
+
+  async function addToStack(stack) {
+    const note = $("collectionNote");
+    const say = (text) => { if (note) note.textContent = text; };
+    try {
+      const raw = localStorage.getItem(DECK_STORE);
+      const all = raw ? JSON.parse(raw) : {};
+      const list = Array.isArray(all[DRAFT_NAME]) ? all[DRAFT_NAME] : [];
+      /* The engine's own cap, duplicated here because this page cannot load
+         engine.js. It is checked again by the referee at seat setup, so this is
+         a courtesy rather than the enforcement -- but a builder that lets you
+         add a fourth copy and then refuses the Stack is worse than one that
+         says no here. */
+      const held = list.filter((id) => id === stack.id).length;
+      if (held >= stack.tier.copies) {
+        say(`${stack.asset.name}: a Stack may hold ${stack.tier.copies === 1 ? "one copy" : `${stack.tier.copies} copies`} (§7).`);
+        return;
+      }
+      all[DRAFT_NAME] = list.concat(stack.id);
+      localStorage.setItem(DECK_STORE, JSON.stringify(all));
+      say(`${stack.asset.name} added to "${DRAFT_NAME}" — open the Stack Builder to arrange it.`);
+    } catch (error) {
+      say(`Could not save that: ${(error && error.message) || error}`);
+    }
+  }
+
   function tileFor(stack) {
     const count = stack.items.length;
     const card = el("article", "wallet-card");
@@ -381,7 +422,18 @@
       recipientKey.focus();
       recipientKey.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     });
-    body.append(send);
+    /* The route into a Stack lives here now. It used to be the shop's pull
+       chips, and taking the collection out of the shop would have taken the
+       only keyboard-reachable way to reach a card with it. A real <button>
+       rather than a click handler on a tile: focus, Enter and Space come free,
+       and a screen reader is told what it does. */
+    const build = el("button", "btn btn--ghost btn--small", "Add to a Stack");
+    build.type = "button";
+    build.setAttribute("aria-label", `Add ${stack.asset.name} to a Stack`);
+    build.addEventListener("click", () => addToStack(stack));
+    const row = el("div", "wallet-card__acts");
+    row.append(send, build);
+    body.append(row);
     card.append(image, body);
     if (count > 1) {
       const badge = el("span", "wallet-card__n", `×${count}`);

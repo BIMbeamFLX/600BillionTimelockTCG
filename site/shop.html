@@ -87,24 +87,85 @@ main { container-type: inline-size; }
 .bay--stage {
   position: fixed; inset: 0; z-index: 90; margin: 0;
   display: grid; place-items: center;
-  background: radial-gradient(120% 80% at 50% 45%, rgba(255,106,0,.10), rgba(9,8,11,.94) 60%, rgba(9,8,11,.985));
+  /* OPAQUE. This was rgba(...,.94) over the page, and .94 is not opacity, it is
+     a headline and a nav bar showing faintly through the cards you just paid
+     for. A colour underneath the gradient rather than inside it: the ember
+     bloom still sits behind the pack, but nothing of the page survives it. */
+  background: radial-gradient(120% 80% at 50% 42%, rgba(255,106,0,.16), rgba(9,8,11,0) 62%) #09080b;
+  padding: 76px 0 138px;   /* the bars own these; cards never slide under them */
   animation: stageIn .22s ease-out;
 }
 @keyframes stageIn { from { opacity: 0 } to { opacity: 1 } }
 .bay--stage::after { display: none; }              /* the little rail is page furniture */
-.bay--stage .tray { width: min(1500px, 94vw); padding: 0; }
-/* The tray already divides its width by the number of cards, so the only cap
-   the stage needs is the one that stops a tall viewport making them overflow
-   vertically. A vw cap on top of that just re-introduces the small card. */
-.bay--stage .pull { max-width: calc(74vh * 5 / 7); }
+/* ROWS OF FIVE, not one long rank. A 15-card draft booster laid out the way a
+   5-card pack was is fifteen slivers -- the tray divides its width by the
+   number of cards, so tripling the pack thirds the card. Five to a row is also
+   how the pack is actually built (10 commons, 3 uncommons, 1 hit, 1 basic), so
+   the rows are readable rather than merely narrower.
+
+   The width cap is DERIVED, not guessed. A column is W/cols wide and a card is
+   7/5 of that tall, so `rows` of them fit in 70vh exactly when the tray is at
+   most 70vh * 5/7 * cols/rows. At rows=1 that comes out past 250vh and the cap
+   falls back to the 1500px/94vw it always was -- one expression, both layouts,
+   nothing to keep in sync by hand. */
+.bay--stage .tray {
+  --cols: 5;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  justify-items: center; align-items: end;
+  --tray-gap: clamp(8px, 1.4vw, 18px);
+  width: min(1500px, 94vw, calc((100vh - 232px) * 5 / 7 * var(--cols) / var(--rows, 1)));
+  padding: 0;
+}
+/* The grid track owns the width here; the flex-row calc would fight it. */
+.bay--stage .pull { width: 100%; max-width: calc(74vh * 5 / 7); }
+
+/* The close. The stage used to shut on ANY click inside it, which meant
+   turning a card over closed the pack you had just paid for -- the flip
+   handler sits on the card, the card sits in the bay, and nothing stopped it
+   bubbling. A window with controls in it cannot work that way, so closing is
+   now this button, Escape, or the backdrop, and never a click that landed on
+   something. */
+.stage-x {
+  position: fixed; top: 18px; right: 18px; z-index: 93;
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid var(--line); background: rgba(9,8,11,.72); color: var(--ink);
+  font-size: 22px; line-height: 1; cursor: pointer;
+  display: grid; place-items: center;
+}
+.stage-x:hover, .stage-x:focus-visible { border-color: var(--ember); color: var(--ember); }
+/* Beside the close, not under the buttons -- at the bottom it was a third line
+   of text competing with the two that can actually be acted on. */
 .bay--stage-note {
-  position: fixed; left: 0; right: 0; bottom: 26px; z-index: 91;
-  text-align: center; color: var(--muted); font-size: 12px; letter-spacing: .08em;
+  position: fixed; top: 32px; right: 76px; z-index: 91;
+  color: var(--ink-dim); font-size: 11px; letter-spacing: .1em;
   text-transform: uppercase; pointer-events: none;
 }
-html:has(.bay--stage) #revealAll:not([hidden]) {
-  position: fixed; left: 50%; bottom: 62px; z-index: 92;
-  transform: translateX(-50%);
+@media (max-width: 560px) { .bay--stage-note { display: none; } }
+/* The controls come WITH the window. Only "Turn them all over" used to follow
+   the pack onto the stage, so buying the next one meant closing the one you
+   had just opened first. These are the SAME buttons the page uses -- moved,
+   not duplicated -- so "open next" keeps every rule about price, allowlist and
+   sold-out that the page button already answers to. */
+html:has(.bay--stage) .pack-cta {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 92;
+  margin: 0; gap: 14px; justify-content: center;
+  padding: 22px 20px calc(26px + env(safe-area-inset-bottom, 0px));
+  /* Fades into the stage rather than drawing a line across it: a hard edge
+     under the pack reads as a second window. */
+  background: linear-gradient(to top, #09080b 62%, rgba(9,8,11,0));
+}
+/* The pack is the product, so its button is not the same size as a page one. */
+html:has(.bay--stage) .pack-cta .btn { padding: 13px 26px; font-size: 15px; }
+html:has(.bay--stage) .pack-cta .btn--small { padding: 10px 18px; font-size: 13px; }
+html:has(.bay--stage) #packNote {
+  position: fixed; left: 0; right: 0; bottom: 92px; z-index: 92;
+  margin: 0; padding: 0 16px; font-size: 15px;
+}
+/* The pack number belongs to the pack, so it comes onto the stage with it. */
+html:has(.bay--stage) #packSlot {
+  position: fixed; top: 30px; left: 28px; z-index: 92;
+  margin: 0; text-align: left;
 }
 
 /* The die. A pack is a settled question you have not read yet, so it arrives as
@@ -249,6 +310,11 @@ html:has(.bay--stage) #revealAll:not([hidden]) {
 .odd b { display: block; font: 20px/1 var(--display); color: var(--power); }
 .odd span { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .odd i { display: block; margin-top: 5px; font-style: normal; font-family: var(--mono); font-size: 10px; color: var(--ink-dim); }
+/* The live figure sits under the print run, quieter than it, because the run is
+   the promise and this is only where the box has got to. <u> without the
+   underline: it is a distinct kind of statement, not emphasis. */
+.odd__left { display: block; margin-top: 3px; text-decoration: none;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-dim); }
 .odd.rarity-uncommon { border-color: var(--purple); }
 .odd.rarity-rare { border-color: var(--ember); }
 .odd.rarity-rare b { color: var(--ember); }
@@ -367,7 +433,7 @@ html:has(.bay--stage) #revealAll:not([hidden]) {
   browser, on this page, in about a second.</p>
   <p class="lead" id="heroMint" hidden><b id="mintBoxLine">—</b> Nothing is shuffled here: the print run of
   every numbered card was fingerprinted with SHA-256 before the first pack was sold, and each pack takes
-  six of them out of what is left, plus one free Basic. Supply only ever runs down — and you can re-hash
+  fourteen of them out of what is left, plus one free Basic. Supply only ever runs down — and you can re-hash
   the mint's whole census in your own browser, on this page, in about a second.</p>
 </header>
 
@@ -379,7 +445,7 @@ html:has(.bay--stage) #revealAll:not([hidden]) {
         <span class="pad bl"></span><span class="pad br"></span>
 
         <div class="bay-head">
-          <div class="banner">Booster // <span id="packSize">5</span> cards · <span id="packPrice">free</span></div>
+          <div class="banner">Booster // <span id="packSize">15</span> cards · <span id="packPrice">free</span></div>
           <!-- The no-JS default is the true one: JS only upgrades this if a mint exists. -->
           <span class="state state--off" id="paidState">PAID · NOT LIVE YET</span>
         </div>
@@ -486,7 +552,7 @@ html:has(.bay--stage) #revealAll:not([hidden]) {
         </div>
         <div class="panel">
           <h3>2 · Supply only runs down</h3>
-          <p>Each pack takes six numbered cards out of whatever is left, by a rule that is the same
+          <p>Each pack takes fourteen numbered cards out of whatever is left, by a rule that is the same
           rule for everybody, plus one free Basic. Nothing is ever put back. The mint publishes what
           remains, card by card, with a rolling hash over every pack it has sold.</p>
         </div>
@@ -591,11 +657,20 @@ html:has(.bay--stage) #revealAll:not([hidden]) {
     instead.</p>
   </section>
 
+  <!-- YOUR CARDS ARE NOT SHOWN HERE ANY MORE. This page sells packs; the wallet
+       is where a collection lives, and two places showing the same cards meant
+       two places that could disagree about what you own.
+
+       The per-pack record is still WRITTEN — every pull keeps its pack number,
+       its time and the slice of the box it came off, which is what makes the
+       fingerprint above checkable. It is only no longer drawn here, so putting
+       it in the wallet later is a display change and not a recovery job. -->
   <section class="section section--tight" id="historyBlock" hidden>
-    <h2>What you <span class="accent">pulled</span></h2>
-    <p class="lead">Every pack, with the slice of the box it came off. These positions are the ones the
-    fingerprint above covers — you can point at any row and check it against the revealed order.</p>
-    <ol class="hists" id="historyList"></ol>
+    <h2>Where your <span class="accent">cards are</span></h2>
+    <p class="lead">Everything you pull goes straight to your <a href="wallet.html">wallet</a> — that is
+    where your collection lives, with a count on each card and the checks that prove it is yours. From
+    there, <a href="deck.html">the Stack Builder</a> in OG mode builds a Stack out of exactly what you own.</p>
+    <ol class="hists" id="historyList" hidden></ol>
   </section>
 
   <!-- A SECOND EDITION, AND THE REASON FOR IT. Starter sets are the only place
