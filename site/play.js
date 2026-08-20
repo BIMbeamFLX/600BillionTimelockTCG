@@ -690,6 +690,24 @@
     const FX = globalThis.E1FX;
     const reducedMotion = FX && typeof FX.get === "function" && FX.get().motionActive === "reduced";
     const node = el("div", `action-burst ${tone}${reducedMotion ? " reduced" : ""}`, `${icon} ${label}`);
+    /* Kampfansage: the announcement carries the face of whoever made the move,
+     * so a hit reads as a person doing something rather than a line of log. The
+     * portrait is PREPENDED, which is safe here — the direct-children and
+     * first-child-is-the-art rules the client tests enforce apply to card nodes
+     * inside a zone, and this is the floating overlay. textContent is unchanged
+     * either way, because an img contributes none. */
+    if (event.seat === 0 || event.seat === 1) {
+      const seatMeta = session.full && session.full.seats ? session.full.seats[event.seat] : null;
+      const shout = seatMeta ? portraitFor(seatMeta.pubkey) : null;
+      if (shout && node.prepend) {
+        const face = el("img", "shout");
+        if (face.setAttribute) {
+          face.setAttribute("src", shout);
+          face.setAttribute("alt", "");
+        }
+        node.prepend(face);
+      }
+    }
     host.append(node);
     if (host.children.length > 5) {
       // Phase/pass chatter can arrive immediately after resolution. Keep the
@@ -794,6 +812,57 @@
     if (text != null) node.textContent = text;
     return node;
   };
+
+  /* ------------------------------------------------------------- portraits
+   * A seat is a person, not a number. The view already carries each seat's
+   * pubkey (engine seatView), and net.js already resolves a signature-verified
+   * kind-0 into {name, picture, lud16} — so a face costs one lookup and no new
+   * art, no engine change and no hashed byte.
+   *
+   * Everything here degrades to nothing: hotseat seats have no pubkey, a
+   * sandboxed napplet may have no relay, and the test DOM has no Image and no
+   * network at all. In every one of those cases the bar simply keeps the name
+   * it has always had. */
+  const PORTRAITS = new Map();   // pubkey -> url | null (null = looked up, none)
+
+  function portraitFor(pubkey) {
+    if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) return null;
+    if (PORTRAITS.has(pubkey)) return PORTRAITS.get(pubkey);
+    PORTRAITS.set(pubkey, null);            // claim it, so one miss is one lookup
+    const NETW = globalThis.E1Net;
+    if (!NETW || !NETW.nostr || typeof NETW.nostr.profile !== "function") return null;
+    Promise.resolve()
+      .then(() => NETW.nostr.profile(pubkey))
+      .then((meta) => {
+        const url = meta && typeof meta.picture === "string" ? meta.picture : "";
+        /* Only http(s). A data: or javascript: picture field is attacker-supplied
+         * text from a relay, and this one goes straight into an img src. */
+        if (/^https?:\/\//i.test(url)) {
+          PORTRAITS.set(pubkey, url);
+          if (session.full) render();
+        }
+      })
+      .catch(() => { /* no relay, no profile, no portrait — the name still stands */ });
+    return null;
+  }
+
+  /* The portrait is a square chip, not a circle: the frame on every card face is
+   * square and the board speaks the card's language. */
+  function mountPortrait(bar, pubkey, name) {
+    if (!bar || !bar.children) return;
+    const url = portraitFor(pubkey);
+    let img = Array.prototype.find
+      ? Array.prototype.find.call(bar.children, (c) => c && c.className === "portrait")
+      : null;
+    if (!url) { if (img && img.remove) img.remove(); return; }
+    if (!img) {
+      img = el("img", "portrait");
+      if (img.setAttribute) img.setAttribute("loading", "lazy");
+      if (bar.prepend) bar.prepend(img); else bar.append(img);
+    }
+    if (img.getAttribute && img.getAttribute("src") !== url) img.setAttribute("src", url);
+    if (img.setAttribute) img.setAttribute("alt", `${name || "Player"} avatar`);
+  }
 
   const faceUrl = (card) => "../art/cards/node-runner-web/" + encodeURIComponent(card.face);
   /* Blossom resolver with local cache (faces.js). Absent — the stub DOM of
@@ -2301,6 +2370,8 @@
     for (const [side, who] of [["you", seat], ["foe", foe]]) {
       document.getElementById(`${side}Bar`).classList.toggle("seat-target", wantsSeatTarget());
       document.getElementById(`${side}Name`).textContent = v.seats[who].name;
+      /* The playerbar IS the player — so give it the player's face. */
+      mountPortrait(document.getElementById(`${side}Bar`), v.seats[who].pubkey, v.seats[who].name);
       const uptime = v.seats[who].uptime;
       document.getElementById(`${side}Uptime`).textContent = uptime;
       const uptimeMeter = document.getElementById(`${side}UptimeMeter`);
