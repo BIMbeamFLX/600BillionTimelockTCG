@@ -474,7 +474,7 @@ function createNutftMint(options = {}) {
   /* Settlement is checked against lnd, never trusted from the request, and the
      row is claimed with a conditional UPDATE so two racing requests cannot both
      see claimed = 0 and both get a pack for one payment. */
-  async function requirePaidFor(expected, paymentHash) {
+  async function requirePaidFor(expected, paymentHash, claim = true) {
     if (!paidMint) return;
     if (typeof paymentHash !== "string") throw new Error("payment_hash is required to buy a booster");
     if (!isPaymentRef(paymentHash)) throw new Error("payment_hash is not a valid payment reference");
@@ -490,8 +490,9 @@ function createNutftMint(options = {}) {
       throw new Error("the mint cannot confirm payment right now — your invoice is unaffected, try again shortly");
     }
     if (!settledNow) throw new Error("invoice is not settled yet");
-    const claim = q.claimInvoice.run(paymentHash);
-    if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
+    if (!claim) return;
+    const claimed = q.claimInvoice.run(paymentHash);
+    if (!claimed || claimed.changes !== 1) throw new Error("this invoice has already been claimed");
   }
 
   function parseNutftSecret(secret, p2pkE) {
@@ -594,13 +595,15 @@ function createNutftMint(options = {}) {
     }
     const expected = await quote(saleBeacon);
     if (body.pack_id !== expected.pack_id || body.state !== expected.state) throw new Error("stale booster quote");
-    /* Money before signatures. Checked here rather than at the top so a caller
-       cannot learn whether a pack is still available without paying, and so a
-       stale quote is rejected before an invoice is ever consumed. */
-    await requirePaidFor(expected, body.payment_hash);
-
+    /* Confirm entitlement before disclosing output-validation details, without
+       consuming the invoice until the request itself has passed validation. */
+    await requirePaidFor(expected, body.payment_hash, false);
     if (!Array.isArray(body.outputs) || body.outputs.length !== expected.cards.length) throw new Error("one output is required per card");
     for (let i = 0; i < expected.cards.length; i += 1) validateOutput(body.outputs[i], reference(expected.cards[i].asset_id), keyset.keysetId);
+
+    /* Validate the full request before claiming its payment. A malformed output
+       must not burn a settled invoice and strand the buyer without a pack. */
+    await requirePaidFor(expected, body.payment_hash);
 
     const signatures = body.outputs.map((output) => {
       const blind = cashu.createBlindSignature(cashu.pointFromHex(output.B_), keyset.privKeys["1"], keyset.keysetId);

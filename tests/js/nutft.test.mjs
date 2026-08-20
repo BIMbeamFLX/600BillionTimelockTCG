@@ -314,7 +314,13 @@ test("one settled invoice buys exactly one pack, and never a second", async (t) 
   // The buyer pays.
   settled.add(quote.payment_hash);
   const outs = outputsFor(quote);
-  const result = await mint.signBooster(bodyFor(quote, outs, "buy-1", quote.payment_hash));
+  const paidBody = bodyFor(quote, outs, "buy-1", quote.payment_hash);
+  await assert.rejects(
+    () => mint.signBooster({ ...paidBody, outputs: [] }),
+    /one output is required per card/i,
+    "bad outputs do not consume a settled invoice",
+  );
+  const result = await mint.signBooster(paidBody);
   assert.equal(result.signatures.length, 7, "a settled invoice mints the whole pack");
   assert.equal(result.unit, "600B-E1");
 
