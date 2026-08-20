@@ -1,5 +1,6 @@
 """Repository layout contracts for generated website entry points."""
 
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -50,11 +51,48 @@ def test_rulebook_article_does_not_repeat_the_hero_title() -> None:
     assert rulebook.count("<h1>") == 1
 
 
-def test_pack_skip_control_sits_above_the_full_screen_reveal_stage() -> None:
-    """The stage overlay must not intercept the button that skips its animation."""
+def _declared_z_index(css: str, selector: str) -> int:
+    """The z-index in the first rule block for `selector`."""
+    start = css.index(selector + " {")
+    block = css[start : css.index("}", start)]
+    match = re.search(r"z-index:\s*(\d+)", block)
+    assert match, f"{selector} declares no z-index"
+    return int(match.group(1))
+
+
+def test_pack_controls_sit_above_the_full_screen_reveal_stage() -> None:
+    """The stage overlay must not intercept the controls drawn on top of it.
+
+    Checks the property that actually matters -- the control row outranks the
+    overlay -- instead of one literal selector. The old assertion named the rule
+    that lifted #revealAll on its own, so it failed the moment the whole row
+    moved onto the stage, while saying nothing about whether the row was still
+    reachable.
+    """
     shop = (REPO_ROOT / "site" / "shop.html").read_text(encoding="utf-8")
 
-    assert ":has(.bay--stage) #revealAll:not([hidden])" in shop
+    opening = shop.index('<div class="pack-cta" id="packCta">')
+    row = shop[opening : shop.index("</div>", opening)]
+    assert 'id="revealAll"' in row, "the skip control must live in the row that is lifted"
+    assert 'id="openPack"' in row
+
+    assert _declared_z_index(shop, ".bay--stage") < _declared_z_index(
+        shop, "html:has(.bay--stage) #packCta"
+    )
+
+
+def test_the_stage_lifts_only_the_booster_controls() -> None:
+    """`.pack-cta` is used twice; the starter row must not follow the pack.
+
+    Scoping the stage rules to the class fixed BOTH rows to the bottom of the
+    overlay, stacking a disabled "Starter sets are not on sale yet" on top of
+    the button that buys the booster.
+    """
+    shop = (REPO_ROOT / "site" / "shop.html").read_text(encoding="utf-8")
+
+    assert shop.count('class="pack-cta"') >= 1, "the starter row still uses the bare class"
+    for rule in re.findall(r"html:has\(\.bay--stage\)[^{]*\{", shop):
+        assert ".pack-cta" not in rule, f"stage rule matches both rows: {rule.strip()}"
 
 
 def test_stack_builder_persists_nutft_markers_through_the_storage_adapter() -> None:
