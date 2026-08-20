@@ -67,7 +67,7 @@ function readBody(req) {
 }
 
 function createNutftMint(options = {}) {
-  const census = JSON.parse(fs.readFileSync(options.censusPath || CENSUS_PATH, "utf8"));
+  const census = JSON.parse(fs.readFileSync(options.censusPath || process.env.NUTFT_CENSUS_PATH || CENSUS_PATH, "utf8"));
   const catalog = loadCensus(census);
   const tierOdds = Object.fromEntries(Object.entries(census.tiers)
     .filter(([, tier]) => tier.share_of_mint != null)
@@ -218,6 +218,7 @@ function createNutftMint(options = {}) {
 
   const priceMsat = priceFor(0);
   const paidMint = Boolean(funding);
+  if (paidMint && !db) throw new Error("a paid mint requires a database so invoices and issuance survive restart");
   if (paidMint && !(priceMsat > 0)) throw new Error("the booster price must be a positive number of msat");
 
   /* The payment reference is whatever the funding source calls a payment: lnd
@@ -471,10 +472,10 @@ function createNutftMint(options = {}) {
       cards: resolved.cards, unit: resolved.unit, amount: resolved.amount, catalog_uri: resolved.catalog_uri };
   }
 
-  /* Settlement is checked against lnd, never trusted from the request, and the
-     row is claimed with a conditional UPDATE so two racing requests cannot both
-     see claimed = 0 and both get a pack for one payment. */
-  async function requirePaidFor(expected, paymentHash) {
+  /* Settlement is checked against the funding source, never trusted from the
+     request. The row is claimed later, in the issuance transaction, so two
+     racing requests cannot both get a pack and a failed issuance burns nothing. */
+  async function requireSettled(expected, paymentHash) {
     if (!paidMint) return;
     if (typeof paymentHash !== "string") throw new Error("payment_hash is required to buy a booster");
     if (!isPaymentRef(paymentHash)) throw new Error("payment_hash is not a valid payment reference");
@@ -490,8 +491,6 @@ function createNutftMint(options = {}) {
       throw new Error("the mint cannot confirm payment right now — your invoice is unaffected, try again shortly");
     }
     if (!settledNow) throw new Error("invoice is not settled yet");
-    const claim = q.claimInvoice.run(paymentHash);
-    if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
   }
 
   function parseNutftSecret(secret, p2pkE) {
@@ -571,7 +570,7 @@ function createNutftMint(options = {}) {
        refusing the cards is the one outcome worth designing against, and it is
        exactly what the earlier version of this check did.
 
-       A FREE mint has no such receipt: requirePaidFor returns immediately when
+       A FREE mint has no such receipt: requireSettled returns immediately when
        paidMint is false, so there the claim IS the sale and this is the only
        place a gate can stand. It runs before any other work, so a closed free
        mint gives nothing away — not even whether a pack is still available.
@@ -597,7 +596,7 @@ function createNutftMint(options = {}) {
     /* Money before signatures. Checked here rather than at the top so a caller
        cannot learn whether a pack is still available without paying, and so a
        stale quote is rejected before an invoice is ever consumed. */
-    await requirePaidFor(expected, body.payment_hash);
+    await requireSettled(expected, body.payment_hash);
 
     if (!Array.isArray(body.outputs) || body.outputs.length !== expected.cards.length) throw new Error("one output is required per card");
     for (let i = 0; i < expected.cards.length; i += 1) validateOutput(body.outputs[i], reference(expected.cards[i].asset_id), keyset.keysetId);
@@ -614,10 +613,16 @@ function createNutftMint(options = {}) {
     });
 
     const nextCounts = { ...state.counts };
-    const resolved = openPack(nextCounts, catalog.pools, catalog.slots, beacon, expected.pack_id);
+    const resolved = openPack(nextCounts, catalog.pools, catalog.slots, saleBeacon || beacon, expected.pack_id);
     const nextState = { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
     const result = { ...expected, cards: expected.cards, signatures, keyset_id: keyset.keysetId, resolved };
     atomic(() => {
+      /* Claim in the same transaction as issuance. A malformed output, signing
+         failure, or database error must leave a settled invoice retryable. */
+      if (paidMint) {
+        const claim = q.claimInvoice.run(body.payment_hash);
+        if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
+      }
       putMeta("state", JSON.stringify(nextState));
       putOperation("booster", body.idempotency_key, requestHash, result);
     });

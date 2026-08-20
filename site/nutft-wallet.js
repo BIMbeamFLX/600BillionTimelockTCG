@@ -228,6 +228,20 @@
     throw new Error(attempt.reason);
   }
 
+  async function refusal(response) {
+    let body;
+    try { body = await response.json(); }
+    catch {
+      /* A proxy's HTML 502 is not the mint refusing the request. Keep the
+         pending bearer outputs so the same idempotent request can be retried. */
+      throw new Error(`mint gateway returned a non-JSON error (${response.status}); request preserved for retry`);
+    }
+    if (!body || typeof body.error !== "string" || !body.error) {
+      throw new Error(`mint returned an invalid error response (${response.status}); request preserved for retry`);
+    }
+    return body.error;
+  }
+
   /* POST a body, and if the mint answers "early access", sign a NIP-98 proof
      and send it once more. The mint's own words are carried through: they tell a
      buyer whether to install an extension, switch keys, or simply wait. */
@@ -243,8 +257,7 @@
 
     const first = await send(null);
     if (first.ok) return first;
-    let detail = "";
-    try { detail = (await first.json()).error || ""; } catch { /* not JSON */ }
+    const detail = await refusal(first);
     if (!/early access/i.test(detail)) return { ok: false, status: first.status, detail };
 
     let header = null;
@@ -254,9 +267,7 @@
     }
     const second = await send(header);
     if (second.ok) return second;
-    let retried = "";
-    try { retried = (await second.json()).error || ""; } catch { /* not JSON */ }
-    return { ok: false, status: second.status, detail: retried || detail };
+    return { ok: false, status: second.status, detail: await refusal(second) };
   }
 
   const earlyAccessAdvice = (detail) =>
