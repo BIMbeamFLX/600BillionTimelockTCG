@@ -100,6 +100,20 @@ function createNutftMint(options = {}) {
         target_height INTEGER,
         created_at   TEXT NOT NULL
       );
+      /* ONE PER KEY. Which npub already took its allocation, and which pack it
+         took. A row here is written in the SAME transaction as the issuance, so
+         a crash cannot leave a key flagged without a pack, or a pack issued
+         without the flag.
+
+         This links a nostr key to a pack, which the E1 mint deliberately does
+         not do. That is the price of "one each", paid knowingly: you cannot
+         enforce one-per-person without knowing who a person is. Written only
+         when NUTFT_ONE_PER_KEY is on. */
+      CREATE TABLE IF NOT EXISTS nutft_buyers (
+        pubkey  TEXT PRIMARY KEY,
+        pack_id TEXT NOT NULL,
+        at      TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS nutft_operations (
         type TEXT NOT NULL,
         operation_key TEXT NOT NULL,
@@ -108,6 +122,13 @@ function createNutftMint(options = {}) {
         PRIMARY KEY (type, operation_key)
       );
     `);
+    /* CREATE TABLE IF NOT EXISTS does nothing to a table that predates a
+       column, and SQLite has no ADD COLUMN IF NOT EXISTS. A mint that has
+       already sold under an older build must still boot, so the column is
+       added when it is missing -- before any statement below prepares against
+       it, which would otherwise fail at startup rather than at use. */
+    const invoiceColumns = new Set(db.prepare("PRAGMA table_info(nutft_invoices)").all().map((r) => r.name));
+    if (!invoiceColumns.has("buyer")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN buyer TEXT");
     q = {
       meta: db.prepare("SELECT value FROM nutft_meta WHERE key = ?"),
       putMeta: db.prepare("INSERT OR REPLACE INTO nutft_meta (key, value) VALUES (?, ?)"),
@@ -119,6 +140,12 @@ function createNutftMint(options = {}) {
       activeInvoices: db.prepare("SELECT * FROM nutft_invoices WHERE pack_id = ? AND claimed = 0 ORDER BY created_at DESC"),
       putInvoice: db.prepare("INSERT OR REPLACE INTO nutft_invoices (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height) VALUES (?, ?, ?, ?, 0, ?, ?)"),
       claimInvoice: db.prepare("UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0"),
+      buyerOf: db.prepare("SELECT pubkey FROM nutft_buyers WHERE pubkey = ?"),
+      /* Plain INSERT, not INSERT OR IGNORE: a second row for the same key is
+         not a duplicate to smooth over, it is a second allocation, and it has
+         to raise inside the issuance transaction rather than pass quietly. */
+      addBuyer: db.prepare("INSERT INTO nutft_buyers (pubkey, pack_id, at) VALUES (?, ?, ?)"),
+      setInvoiceBuyer: db.prepare("UPDATE nutft_invoices SET buyer = ? WHERE payment_hash = ?"),
     };
   }
   const getMeta = (key) => db ? q.meta.get(key)?.value : memory.meta.get(key);
@@ -223,6 +250,20 @@ function createNutftMint(options = {}) {
        but it must not silently become "nobody", which is why it is logged. */
     if (hex) allowlist.add(hex);
     else console.error(`[nutft] NUTFT_ALLOWLIST entry is not an npub or 32-byte hex, ignored: ${trimmed}`);
+  }
+  /* ONE DECK EACH. Off by default: E1 sells as many boosters as somebody wants
+     to buy, and this is for the G starter sets, where the rule is one per
+     person.
+
+     It REQUIRES allowlist mode, and refuses to start otherwise. In `open` mode
+     no signature is demanded, so there is no key to count against -- a
+     one-per-key limit that cannot identify anybody is not a weaker limit, it is
+     the absence of one wearing its name. Better to refuse at boot than to
+     advertise a rule the mint cannot keep. */
+  const onePerKeyRaw = options.onePerKey ?? process.env.NUTFT_ONE_PER_KEY ?? "";
+  const onePerKey = onePerKeyRaw === true || onePerKeyRaw === "1" || onePerKeyRaw === "true";
+  if (onePerKey && salesMode !== "allowlist") {
+    throw new Error("NUTFT_ONE_PER_KEY needs NUTFT_SALES=allowlist — without a signed request there is no key to count against");
   }
   if (salesMode === "allowlist" && !allowlist.size) {
     throw new Error("NUTFT_SALES=allowlist with an empty NUTFT_ALLOWLIST would sell to nobody; set the list or use closed");
@@ -441,7 +482,15 @@ function createNutftMint(options = {}) {
   }
 
   async function payableQuoteOnce(opts = {}) {
-    requireMayBuy(opts.proof);
+    const buyer = requireMayBuy(opts.proof);
+    /* Checked HERE, at the quote, and never at the claim. The repository rule
+       is that a paid claim is not re-identified: whoever holds the settled
+       invoice may collect it, and asking them who they are again would make a
+       bearer asset answer to a name. So the key is read once, while it is
+       already being read for the allowlist, and the pack is bound to it. */
+    if (onePerKey && q && buyer && q.buyerOf.get(buyer)) {
+      throw new Error("one starter set per key — this one already has its set");
+    }
     const base = await quote();
     /* Read once, here, and used for the invoice, the record and the reply — so
        the three can never disagree about what this booster costs. */
@@ -508,6 +557,10 @@ function createNutftMint(options = {}) {
     }
     const { paymentRequest, paymentHash } = invoice;
     if (q) q.putInvoice.run(paymentHash, base.pack_id, base.state, priceNow, new Date().toISOString(), commitment ? commitment.targetHeight : null);
+    /* The invoice carries the buyer, so the claim can flag the key without
+       asking the claimant anything. Written after the row exists, and only
+       when the rule is on -- E1's invoices stay anonymous. */
+    if (q && onePerKey && buyer) q.setInvoiceBuyer.run(buyer, paymentHash);
     const head = {
       paid: true, price_msat: priceNow,
       payment_request: paymentRequest, payment_hash: paymentHash,
@@ -723,6 +776,17 @@ function createNutftMint(options = {}) {
       /* Claim in the same transaction as issuance. A malformed output, signing
          failure, or database error must leave a settled invoice retryable. */
       if (paidMint) {
+        /* The flag goes down in the SAME transaction as the issuance. A row
+           here without a pack would silently spend somebody's one allocation;
+           a pack without a row would hand out a second. The PRIMARY KEY makes
+           the second attempt raise rather than pass, and the raise rolls the
+           whole issuance back. */
+        if (onePerKey) {
+          const invoiceRow = q.invoice.get(body.payment_hash);
+          if (invoiceRow && invoiceRow.buyer) {
+            q.addBuyer.run(invoiceRow.buyer, expected.pack_id, new Date().toISOString());
+          }
+        }
         const claim = q.claimInvoice.run(body.payment_hash);
         if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
       }

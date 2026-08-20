@@ -1944,3 +1944,86 @@ test("a paid booster may not be held for less time than an unpaid one", async (t
     /at least NUTFT_INVOICE_TTL_SECONDS/,
   );
 });
+
+test("one starter set per key: the second attempt is refused, and only for that key", async (t) => {
+  /* The G rule: sign in with nostr, take exactly one set, and be flagged. The
+     flag is written in the SAME transaction as the issuance, so this walks the
+     whole path -- quote, settle, claim -- rather than asserting on the quote
+     alone. A limit that only holds until somebody actually pays is not a
+     limit. */
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { randomBytes } = await import("node:crypto");
+  const nip98 = require("../../server/nip98.js");
+  const cashu = require("@cashu/cashu-ts");
+  const hexOf = (b) => Buffer.from(b).toString("hex");
+
+  const key = () => { const sec = randomBytes(32); return { sec, pub: hexOf(schnorr.getPublicKey(sec)) }; };
+  const alice = key(), bob = key();
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const funding = createMockFunding({});
+  const mint = createNutftMint({
+    db, catalogUri: "https://g.example/nutft/catalog", publicBase: "https://g.example",
+    funding, allowVirtual: "1", priceMsat: 210_000,
+    sales: "allowlist", allowlist: `${alice.pub},${bob.pub}`, onePerKey: true,
+  });
+
+  const proofFor = (who, path) => {
+    const url = `https://g.example${path}`;
+    const event = {
+      pubkey: who.pub, created_at: Math.floor(Date.now() / 1000), kind: 27235, content: "",
+      tags: [["u", url], ["method", "GET"]],
+    };
+    event.id = nip98.eventId(event);
+    event.sig = hexOf(schnorr.sign(event.id, who.sec));
+    return { header: "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64"),
+             method: "GET", path, host: "g.example" };
+  };
+
+  const keysRes = { writeHead() { return keysRes; }, end(b) { keysRes.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET" }, keysRes, new URL("https://g.example/v1/keys"));
+  const keyset = keysRes.parsed.keysets[0];
+
+  const buyOne = async (who, tag) => {
+    const quote = await mint.payableQuote({ proof: proofFor(who, "/nutft/quote") });
+    const pubkey = hexOf(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey()));
+    const outs = quote.cards.map((card) => cashu.OutputData.createSingleP2PKData({
+      pubkey, blindKeys: true,
+      additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+    }, 1, keyset.id));
+    funding.settle(quote.payment_hash);
+    return mint.signBooster({
+      idempotency_key: tag, pack_id: quote.pack_id, state: quote.state,
+      payment_hash: quote.payment_hash,
+      outputs: outs.map((o) => ({ amount: 1, id: o.blindedMessage.id, B_: o.blindedMessage.B_, nutft: opening(o) })),
+    });
+  };
+
+  const first = await buyOne(alice, "alice-1");
+  assert.equal(first.signatures.length, PACK, "a listed key gets its one set");
+
+  await assert.rejects(() => mint.payableQuote({ proof: proofFor(alice, "/nutft/quote") }),
+    /one starter set per key/i, "and cannot come back for a second");
+
+  /* Per KEY, not per mint: the flag must not close the shop for everyone else. */
+  const second = await buyOne(bob, "bob-1");
+  assert.equal(second.signatures.length, PACK, "a different listed key is unaffected");
+});
+
+test("a one-per-key mint refuses to start where it cannot tell keys apart", async (t) => {
+  /* In `open` mode no signature is asked for, so there is no key to count
+     against. A limit that cannot identify anybody is not a weaker limit -- it
+     is the absence of one wearing its name, which is worse than saying no. */
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  assert.throws(
+    () => createNutftMint({ db, catalogUri: "https://g.example/nutft/catalog", sales: "open", onePerKey: true }),
+    /needs NUTFT_SALES=allowlist/,
+  );
+});
