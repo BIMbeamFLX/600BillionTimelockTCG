@@ -99,9 +99,19 @@ function createCashuFunding(options = {}) {
     return amountMsat / 1000;
   };
 
+  /* A test mint issues invoices nobody can pay and settles them itself. That is
+     exactly what we want for a rehearsal — and it is dangerous to leave unsaid,
+     because the best-known test mint hands out invoices with the MAINNET prefix
+     lnbc. A real wallet will try to pay one. Nothing is lost (there is no route
+     to a node that does not exist) but a buyer deserves to be told before they
+     scan, not after. Flagged explicitly rather than sniffed from the URL: a
+     guess here fails open, and failing open means lying about money. */
+  const testMint = String(options.testMint ?? process.env.NUTFT_TEST_MINT ?? "") === "1";
+
   return {
     name: "cashu",
     virtual: false,
+    testMint,
     custodial: true,
     mintUrl,
 

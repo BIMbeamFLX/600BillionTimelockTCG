@@ -693,7 +693,20 @@
     note.innerHTML = "";
     const sats = Math.round(Number(invoice.priceMsat || 0) / 1000);
     const head = document.createElement("strong");
-    head.textContent = `Pay ${sats} sat to open this booster.`;
+    head.textContent = invoice.testMint
+      ? `Test invoice — ${sats} sat, not real money.`
+      : `Pay ${sats} sat to open this booster.`;
+    /* Built here, appended below with everything else: .after() on a node that
+       is not in the document yet does nothing, so the warning would silently
+       never appear — the one message that must not go missing. */
+    let warn = null;
+    if (invoice.testMint) {
+      /* This mint's invoices carry the mainnet lnbc prefix, so a real wallet
+         will happily try to pay one. Say so above the string, not below it. */
+      warn = document.createElement("div");
+      warn.style.cssText = "margin-top:4px;color:var(--gold);font-size:12px";
+      warn.textContent = "It pays itself in a few seconds — do not scan it with a real wallet.";
+    }
     const body = document.createElement("div");
     body.style.cssText = "margin-top:6px;word-break:break-all;font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--muted)";
     body.textContent = invoice.paymentRequest;
@@ -715,7 +728,9 @@
     const wait = document.createElement("div");
     wait.style.cssText = "margin-top:8px;color:var(--muted);font-size:12px";
     wait.textContent = "Waiting for payment… the cards appear as soon as the mint confirms it.";
-    note.append(head, body, row, wait);
+    note.append(head);
+    if (warn) note.append(warn);
+    note.append(body, row, wait);
   }
 
   function clearInvoice() {

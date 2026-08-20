@@ -202,6 +202,7 @@
         paymentRequest: quote.payment_request,
         paymentHash: quote.payment_hash,
         priceMsat: quote.price_msat,
+        testMint: Boolean(quote.test_mint),
       });
     }
     return awaitSettlement(state, c, keyset, opts);

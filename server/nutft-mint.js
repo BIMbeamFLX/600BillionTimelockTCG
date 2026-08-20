@@ -324,7 +324,12 @@ function createNutftMint(options = {}) {
     }
     const { paymentRequest, paymentHash } = invoice;
     if (q) q.putInvoice.run(paymentHash, base.pack_id, base.state, priceMsat, new Date().toISOString(), commitment ? commitment.targetHeight : null);
-    const head = { paid: true, price_msat: priceMsat, payment_request: paymentRequest, payment_hash: paymentHash };
+    const head = {
+      paid: true, price_msat: priceMsat,
+      payment_request: paymentRequest, payment_hash: paymentHash,
+      /* Travels with the invoice so the page can label it before it is scanned. */
+      test_mint: Boolean(funding && funding.testMint),
+    };
     if (!commitment) return { ...base, ...head };
     return {
       pack_id: base.pack_id, state: base.state, unit: base.unit, amount: base.amount,
@@ -526,7 +531,7 @@ function createNutftMint(options = {}) {
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceMsat : 0, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
+        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceMsat : 0, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), test_mint: Boolean(funding && funding.testMint), catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && url.pathname === "/v1/checkstate") {
