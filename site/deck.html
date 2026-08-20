@@ -402,6 +402,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * storage budget — which is exactly what reaching into the key got wrong. */
   const HANDOFF = K.DECK_HANDOFF || "600b:deck-handoff";
   const SHOP = K.SHOP || "600b:shop";
+  const MARKED = "600b:nutft-decks";
 
   /* ------------------------------------------------------------ the budget
    * Inside a shell the WHOLE napplet lives in 512 KB (docs/napplet-spec.md,
@@ -1205,6 +1206,11 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     const n = total();
     if (n < MIN_STACK) return `of ${MIN_STACK} · ${MIN_STACK - n} to go`;
     for (const [id, copies] of Object.entries(deck)) {
+      // Both halves of a merge had one of these and not the other. The Stake
+      // guard catches a card this table cannot resolve at all; the copy limit
+      // has to be per-card, because a flat three lets a Stack ask for more
+      // Genesis copies than will ever exist.
+      if (isStake(byId[id])) return `${byId[id].name}: Stake module is not enabled`;
       // addCard() refuses the extra copy, but a Stack can also arrive whole —
       // ?load=, the handoff key, or a library entry saved under the old flat
       // cap — so the limit is checked again before it can be saved or played.
@@ -1288,10 +1294,9 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     });
     saveBtn.disabled = libraryReady && !durable;
     if (!problem) try {
-      let marked = {};
-      try { marked = JSON.parse(localStorage.getItem("600b:nutft-decks")) || {}; } catch (error) { marked = {}; }
+      const marked = await store.json(MARKED, {});
       if (owned) marked[name] = true; else delete marked[name];
-      localStorage.setItem("600b:nutft-decks", JSON.stringify(marked));
+      await store.setJson(MARKED, marked);
     } catch (error) { /* gameplay will treat an unmarked Stack as prototype mode */ }
     say(problem || `Saved "${name}" — ${list.length} cards.`, problem ? "bad" : "good");
   });
@@ -1457,7 +1462,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   }
 
   for (const [name, button] of Object.entries(modeButtons)) {
-    if (button) button.addEventListener("click", () => applyMode(name));
+    if (button) button.addEventListener("click", () => { requestedMode = name; applyMode(name); });
   }
   applyMode(wish, { save: false });
 

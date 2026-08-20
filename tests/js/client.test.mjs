@@ -260,10 +260,12 @@ test("npub encodes, decodes and round trips — the lobby's only identity path",
 test("an invite from a relay is untrusted input", () => {
   const { net } = loadNet(FILE_ENV);
   const hex = "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d";
-  const invite = (body) => ({ id: "e1", pubkey: hex, kind: 4600, created_at: 1, content: JSON.stringify(body) });
+  const invite = (body, tags) => ({ id: "e1", pubkey: hex, kind: 4600, created_at: 1, tags, content: JSON.stringify(body) });
   const ok = { v: 1, kind: "invite", matchId: "m_0123456789ab", code: "K7M2QF", table: "ws://host:8777/ws" };
 
   assert.ok(net.nostr.parseInvite(invite(ok)), "a well-formed invite parses");
+  assert.ok(net.nostr.parseInvite(invite(ok, [["expiration", String(Math.floor(Date.now() / 1000) + 60)]])), "a live NIP-40 invite parses");
+  assert.equal(net.nostr.parseInvite(invite(ok, [["expiration", String(Math.floor(Date.now() / 1000) - 1)]])), null, "an expired NIP-40 invite is not offered");
   assert.equal(net.nostr.parseInvite(invite({ ...ok, table: "javascript:alert(1)" })), null);
   assert.equal(net.nostr.parseInvite(invite({ ...ok, table: "http://host/" })), null, "the scheme must be ws or wss");
   assert.equal(net.nostr.parseInvite(invite({ ...ok, matchId: "../../etc" })), null);
@@ -342,6 +344,7 @@ function stubElement(id) {
     },
     closest: () => null,
     querySelectorAll: () => [],
+    focus() {},
     remove() {
       if (!this._parent) return;
       this._parent.children = this._parent.children.filter((child) => child !== this);
@@ -559,6 +562,57 @@ test("the lobby leaves for the table only once a seat is dealt", () => {
   assert.equal(nav.length, 1, "the hand-off fired twice");
 });
 
+test("a published challenge carries the stake the referee confirmed", () => {
+  const stub = netStub();
+  let options;
+  stub.nostr.inviteEvent = (value) => {
+    options = value;
+    return { kind: 4600, tags: [], content: "{}" };
+  };
+  const { byId } = loadLobby(stub);
+  stub.lastState = { ...STATE_BASE, seat: 0, role: "seat", status: "open", stake: 750 };
+  stub.handlers.onState(stub.lastState);
+  byId("publishInvite").click();
+  assert.equal(options.stake, 750, "the invite omitted the amount the guest would be asked to play for");
+});
+
+test("an invalid challenge npub cannot silently become an open invite", () => {
+  const stub = netStub();
+  let invitations = 0;
+  stub.nostr.toHexPubkey = () => null;
+  stub.nostr.inviteEvent = () => {
+    invitations += 1;
+    return { kind: 4600, tags: [], content: "{}" };
+  };
+  const { byId } = loadLobby(stub);
+  stub.lastState = { ...STATE_BASE, seat: 0, role: "seat", status: "open", stake: 0 };
+  stub.handlers.onState(stub.lastState);
+  byId("challengeNpub").value = "not-an-npub";
+  byId("publishInvite").click();
+  assert.equal(invitations, 0);
+  assert.match(byId("netNotice").textContent, /valid npub/i);
+});
+
+test("a relay invite shows and acknowledges its stake before joining", () => {
+  const stub = netStub();
+  let offer;
+  stub.nostr.subscribeInvites = (_pubkey, onInvite) => {
+    offer = onInvite;
+    return () => {};
+  };
+  const { byId } = loadLobby(stub);
+  byId("checkInvites").click();
+  offer({
+    code: "K7M2QF", table: "ws://bitbeam:8777/ws", pubkey: "b".repeat(64),
+    host: { name: "Anna", affinity: "Signal" }, stake: 750,
+  });
+  const row = byId("inviteList").children.at(-1);
+  assert.match(row.textContent + row.children.map((child) => child.textContent).join(" "), /750.*sats/i);
+  row.children.at(-1).click();
+  const join = stub.calls.find((call) => call[0] === "join");
+  assert.equal(join[1].stake, 750, "the join did not echo the amount the guest accepted");
+});
+
 test("the table sends a player back to the lobby, it does not host one", () => {
   const stub = netStub();
   const { byId } = loadPlay(stub);
@@ -571,8 +625,11 @@ test("the table sends a player back to the lobby, it does not host one", () => {
   assert.match(byId("netNotice").textContent, /lobby/i, "the player was not told where the table opens");
 });
 
-test("a NutFT-marked Stack proves current wallet possession before play", async () => {
-  const saved = { Owned: Array(40).fill("E1-002") };
+test("a NutFT-marked Stack proves non-basic possession while Basics stay free", async () => {
+  /* E1-004, not E1-001. Genesis is capped at ONE copy per Stack, so three
+     Genesis Lotus stopped being a legal Stack and this fixture began failing on
+     itself rather than on the thing under test. */
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-004")] };
   const storage = new Map([
     ["600b:decks", JSON.stringify(saved)],
     ["600b:nutft-decks", JSON.stringify({ Owned: true })],
@@ -582,19 +639,155 @@ test("a NutFT-marked Stack proves current wallet possession before play", async 
     setItem: (key, value) => storage.set(key, String(value)),
   };
   globalThis.location = { origin: "http://table.test" };
-  let count = 39;
-  globalThis.NutFTWallet = { snapshot: async () => ({ owned: Array.from({ length: count }, () => ({ tag: ["1", "600B-E1", "E1-002"] })) }) };
+  let count = 2;
+  globalThis.NutFTWallet = { snapshot: async () => ({ owned: Array.from({ length: count }, () => ({ tag: ["1", "600B-E1", "E1-004"] })) }) };
   const { byId, game } = loadPlay(netStub());
   byId("deckA").value = "custom:Owned";
   byId("deckB").value = "Signal";
   byId("start").click();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(game.state, null);
-  assert.match(byId("prompt").textContent, /needs 40, wallet controls 39/);
-  count = 40;
+  assert.match(byId("prompt").textContent, /needs 3, wallet controls 2/);
+  count = 3;
   byId("start").click();
   await new Promise((resolve) => setImmediate(resolve));
   assert.ok(game.state, "the verified Stack should start after all 40 proofs pass");
+});
+
+test("a shell-stored NutFT marker still gates its shell-stored Stack", async (t) => {
+  /* E1-004, not E1-001. Genesis is capped at ONE copy per Stack, so three
+     Genesis Lotus stopped being a legal Stack and this fixture began failing on
+     itself rather than on the thing under test. */
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-004")] };
+  globalThis.localStorage = { getItem: () => null, setItem() {} };
+  globalThis.E1Napplet = { storage: { json: async (key) => key === "600b:decks" ? saved : { Owned: true } } };
+  globalThis.NutFTWallet = { snapshot: async () => ({ owned: [] }) };
+  globalThis.location = { origin: "http://table.test" };
+  t.after(() => { delete globalThis.E1Napplet; });
+  const { byId, game } = loadPlay(netStub());
+  await new Promise((resolve) => setImmediate(resolve));
+  byId("deckA").value = "custom:Owned";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(game.state, null);
+  assert.match(byId("prompt").textContent, /needs 3, wallet controls 0/);
+});
+
+test("a stale NutFT marker cannot turn a missing Stack into an empty ownership check", async () => {
+  const storage = new Map([
+    ["600b:decks", "{}"],
+    ["600b:nutft-decks", JSON.stringify({ Ghost: true })],
+  ]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.NutFTWallet = { snapshot: async () => ({ owned: [] }) };
+  globalThis.location = { origin: "http://table.test" };
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "custom:Ghost";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(game.state, null);
+  assert.match(byId("prompt").textContent, /Ghost.*no saved card list/i);
+});
+
+test("NutFT verification locks Start against duplicate submissions", async () => {
+  /* E1-004, not E1-001. Genesis is capped at ONE copy per Stack, so three
+     Genesis Lotus stopped being a legal Stack and this fixture began failing on
+     itself rather than on the thing under test. */
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-004")] };
+  const storage = new Map([
+    ["600b:decks", JSON.stringify(saved)],
+    ["600b:nutft-decks", JSON.stringify({ Owned: true })],
+  ]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.location = { origin: "http://table.test" };
+  let release;
+  let checks = 0;
+  globalThis.NutFTWallet = { snapshot: () => {
+    checks += 1;
+    return new Promise((resolve) => { release = resolve; });
+  } };
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "custom:Owned";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  byId("start").click();
+  assert.equal(checks, 1);
+  assert.equal(byId("start").disabled, true);
+  release({ owned: Array.from({ length: 3 }, () => ({ tag: ["1", "600B-E1", "E1-004"] })) });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(game.state);
+});
+
+test("a seed that cannot mean anything stays in setup with a useful error", () => {
+  /* This asserted that "bananas" was refused. It is not: the field is labelled
+     "word or number" and a word is hashed, which is the point of a seed people
+     can share out loud. What IS refused is a number the engine cannot hold --
+     the case the other half of this merge caught, where Number(text) | 0 wrapped
+     silently and dealt the game belonging to a different seed. */
+  globalThis.localStorage = { getItem: () => null, setItem() {} };
+  const { byId, game } = loadPlay(netStub());
+  byId("seed").value = "99999999999999";
+  byId("start").click();
+  assert.equal(game.state, null, "an out-of-range number does not start a game");
+  assert.match(byId("prompt").textContent, /-?2147483647|between/i);
+});
+
+test("a word is a seed, not an error", () => {
+  /* Asserting on the PROMPT, not on game.state: startGame() runs an async NutFT
+     verification before it deals, so the state is not there by the time click()
+     returns. What this is for is that a word is not turned away — the field is
+     labelled "word or number", and hashing it is the point. */
+  globalThis.localStorage = { getItem: () => null, setItem() {} };
+  const { byId } = loadPlay(netStub());
+  byId("seed").value = "bananas";
+  byId("start").click();
+  assert.doesNotMatch(byId("prompt").textContent, /2147483647|between/i,
+    "a word is not refused the way an impossible number is");
+});
+
+test("a catalog mismatch blocks remote actions instead of only showing a banner", () => {
+  globalThis.localStorage = { getItem: () => null, setItem() {} };
+  const stub = netStub();
+  const { game } = loadPlay(stub);
+  stub.handlers.onState({
+    ...STATE_BASE,
+    seat: 0,
+    role: "seat",
+    status: "playing",
+    catalogDigest: "sha256:not-this-build",
+    view: globalThis.E1Engine.view(clientGame(), 0),
+  });
+  assert.equal(game.dispatch("PASS_PRIORITY", 0), false);
+  assert.equal(stub.calls.some((call) => call[0] === "act"), false);
+});
+
+test("a declined start signature stays retryable and a signed wager keeps its stake", async () => {
+  const storage = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, String(value)),
+  };
+  const stub = netStub();
+  let attempts = 0;
+  stub.nostr.startEvent = () => ({ kind: 4600, tags: [], content: "{}" });
+  stub.nostr.sign = async (event) => {
+    attempts += 1;
+    if (attempts === 1) throw new Error("declined");
+    return { ...event, id: "e".repeat(64), sig: "s".repeat(128) };
+  };
+  loadPlay(stub);
+  const playing = { ...STATE_BASE, seat: 0, role: "seat", status: "playing", stake: 750, view: null };
+  stub.lastState = playing;
+  stub.handlers.onState(playing);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(storage.has("600b:announced"), false, "declining the signer permanently consumed the announcement");
+
+  stub.handlers.onState(playing);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(attempts, 2);
+  assert.equal(JSON.parse(storage.get("600b:announced"))[0].stake, 750);
 });
 
 /* The client-side lobby test that stood here was removed with the lobby it

@@ -110,6 +110,11 @@
      * for the referee's FRAME (or REJECT, which arrives with a fresh view). The
      * local path below is untouched and still runs the hotseat game. */
     if (session.seat !== null) {
+      if (!remote.catalogOk) {
+        session.notice = "Card set mismatch — reload with the same build as the referee before playing.";
+        render();
+        return false;
+      }
       if (session.awaitingSeq !== null) return false; // swallow the double-click
       if (!globalThis.E1Net.act(action)) {
         session.notice = "Not connected to the table — the action was not sent.";
@@ -3664,17 +3669,21 @@
    * showed the real one. Held in memory because the two readers below run
    * synchronously inside startGame and a menu build. */
   let stackLibrary = {};
+  let nutftLibrary = {};
   function loadStackLibrary(onReady) {
     const N = globalThis.E1Napplet;
-    const done = (value) => {
-      stackLibrary = value && typeof value === "object" ? value : {};
+    const done = (stacks, marked) => {
+      stackLibrary = stacks && typeof stacks === "object" ? stacks : {};
+      nutftLibrary = marked && typeof marked === "object" ? marked : {};
       if (typeof onReady === "function") onReady();
     };
     if (N && N.storage) {
-      N.storage.json("600b:decks", {}).then(done, () => done({}));
+      Promise.all([N.storage.json("600b:decks", {}), N.storage.json("600b:nutft-decks", {})])
+        .then(([stacks, marked]) => done(stacks, marked), () => done({}, {}));
       return;
     }
-    try { done(JSON.parse(localStorage.getItem("600b:decks"))); } catch (error) { done({}); }
+    try { done(JSON.parse(localStorage.getItem("600b:decks")), JSON.parse(localStorage.getItem("600b:nutft-decks"))); }
+    catch (error) { done({}, {}); }
   }
 
   const NET = globalThis.E1Net;
@@ -3689,6 +3698,7 @@
      * not once per reload — the signer popup is the player's attention, and
      * spending it twice for the same event is how a feature becomes a nuisance. */
     announced: null,
+    announcing: null,
     endShown: null,    // the matchId whose closing screen is up
     /* Whether the match whose closing screen is up was played over a socket.
      * Latched when the screen opens, because the way out is decided there and
@@ -3969,12 +3979,14 @@
     if (!state || state.status !== "playing" || session.seat === null) return;
     if (wasAnnounced(state.matchId)) return;
     if (!nostr().hasNip07()) return;
-    markAnnounced(state.matchId); // before the await: one popup, even if STATE repeats
+    if (remote.announcing === state.matchId) return;
+    remote.announcing = state.matchId;
     const role = session.seat === 0 ? "invite" : "accept";
     try {
       const signed = await nostr().sign(nostr().startEvent(state, state.stake));
       const res = await nostr().publish(signed);
       NET.sendNostr(role, signed);
+      markAnnounced(state.matchId, state.stake);
       netNotice(
         res.ok
           ? `Match announced on nostr${state.stake ? ` — playing for ${satsWord(state.stake)}` : ""}.`
@@ -3990,6 +4002,8 @@
           : "Start not signed. The match plays on.",
         ""
       );
+    } finally {
+      remote.announcing = null;
     }
   }
 
@@ -4498,10 +4512,8 @@
 
   // -------------------------------------------------------------- setup
 
-  const nutftDecks = () => {
-    try { return JSON.parse(localStorage.getItem("600b:nutft-decks")) || {}; }
-    catch (error) { return {}; }
-  };
+  let starting = false;
+  const nutftDecks = () => nutftLibrary;
 
   function verifyNutftSetup() {
     const marked = nutftDecks();
@@ -4509,11 +4521,18 @@
     if (!names.some((name) => marked[name])) return true;
     return (async () => {
       try {
+        for (const name of names) {
+          if (marked[name] && (!Array.isArray(stackLibrary[name]) || !stackLibrary[name].length)) {
+            throw new Error(`${name} is marked NutFT but has no saved card list`);
+          }
+        }
         const view = await globalThis.NutFTWallet.snapshot(location.origin);
         const available = new Map();
         for (const item of view.owned) available.set(item.tag[2], (available.get(item.tag[2]) || 0) + 1);
         const required = new Map();
-        for (const name of names) if (marked[name]) for (const id of stackLibrary[name] || []) required.set(id, (required.get(id) || 0) + 1);
+        for (const name of names) if (marked[name]) for (const id of stackLibrary[name] || []) {
+          if (CARD_BY_ID[id]?.type !== "Basic Resource") required.set(id, (required.get(id) || 0) + 1);
+        }
         for (const [id, count] of required) if ((available.get(id) || 0) < count) throw new Error(`${id}: needs ${count}, wallet controls ${available.get(id) || 0}`);
         return true;
       } catch (error) {
@@ -4540,15 +4559,38 @@
   }
 
   function startGame() {
+    if (starting) return;
     const verified = verifyNutftSetup();
-    if (verified !== true) { verified.then((ok) => { if (ok) startVerifiedGame(); }); return; }
+    if (verified !== true) {
+      starting = true;
+      document.getElementById("start").disabled = true;
+      verified.then((ok) => { if (ok) startVerifiedGame(); }).finally(() => {
+        starting = false;
+        if (!session.full) document.getElementById("start").disabled = false;
+      });
+      return;
+    }
     startVerifiedGame();
   }
 
   function startVerifiedGame() {
-    const seedInput = document.getElementById("seed").value.trim();
+    const seedElement = document.getElementById("seed");
+    const seedInput = seedElement.value.trim();
     // The engine generates no randomness of its own: every seed is an input.
     // A blank field is turned into one here, in the UI, where that is allowed.
+    /* A number OUT OF RANGE is refused; a word is hashed. Two fixes for the
+       same bug met here and each caught what the other missed. Rejecting
+       everything non-numeric loses "play seed: bitcoin", which is the whole
+       reason to have a seed field people can share. Hashing everything let
+       Number(text) | 0 wrap a too-large number in silence, so a player typed
+       one number and got the game belonging to another. */
+    if (seedInput && /^-?\d+$/.test(seedInput)
+        && (Number(seedInput) < -2147483648 || Number(seedInput) > 2147483647)) {
+      document.getElementById("prompt").textContent =
+        "A numeric seed has to be between -2147483648 and 2147483647. Any word works too, or leave it blank for a new game.";
+      seedElement.focus();
+      return;
+    }
     const base = seedInput ? seedFromInput(seedInput) : (crypto.getRandomValues(new Int32Array(1))[0] | 0);
     const npcBox = document.getElementById("npcB");
     const solo = Boolean(npcBox && npcBox.checked);

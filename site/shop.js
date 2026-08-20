@@ -93,6 +93,7 @@
   const PAID_LIVE = Boolean(MINT_URL);
 
   const params = new URLSearchParams(root.location.search);
+  let claim = params.get("claim");
   const MODE = params.get("shop") === "mint" ? "mint" : "demo";
   /* What the button will ACTUALLY do. Asking for mint mode without a mint —
    * or from a sandbox that cannot reach one — gets the free pull and a notice,
@@ -320,10 +321,19 @@
       /* A paid mint answers the quote with an invoice. Show it and let the
          buyer settle it in their own wallet — the page never sees a credential,
          and the mint is the only thing that decides when it is paid. */
-      const issued = await root.NutFTWallet.buyBooster(MINT_URL, {
+      const options = {
         onInvoice: showInvoice,
         onWaiting: () => { const note = $("packNote"); if (note && note.dataset) note.dataset.waiting = "1"; },
-      });
+      };
+      const issued = claim
+        ? await root.NutFTWallet.claimBooster(MINT_URL, claim, options)
+        : await root.NutFTWallet.buyBooster(MINT_URL, options);
+      if (claim) {
+        claim = null;
+        params.delete("claim");
+        const search = params.toString();
+        if (root.history) root.history.replaceState(null, "", `${root.location.pathname}${search ? `?${search}` : ""}`);
+      }
       clearInvoice();
       nutftState.sold += 1;
       return record(issued.cards.map((card) => card.asset_id), null, issued.token);

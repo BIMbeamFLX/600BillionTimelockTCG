@@ -553,15 +553,14 @@ function renderWebsite() {
     }, { rootMargin: "-18% 0px -72% 0px" });
     sections.forEach((section) => observer.observe(section));
 
-    /* Filter the chapter list. Matching is on the visible title, so what you
-       type is what you see — no hidden index to disagree with the page. */
+    /* Filter the chapter list by its title and generated chapter terms. */
     const search = document.getElementById("tocSearch");
     const empty = document.getElementById("tocEmpty");
     search.addEventListener("input", () => {
       const needle = search.value.trim().toLowerCase();
       let shown = 0;
       for (const link of links) {
-        const hit = !needle || link.textContent.toLowerCase().includes(needle);
+        const hit = !needle || link.dataset.terms.includes(needle);
         link.hidden = !hit;
         if (hit) shown += 1;
       }

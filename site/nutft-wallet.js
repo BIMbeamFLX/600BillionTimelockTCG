@@ -120,6 +120,11 @@
     saved.p2pk_e,
   );
   const requestOutput = (saved) => ({ amount: 1, id: saved.id, B_: saved.B_, nutft: { secret: saved.secret, blinding_factor: saved.blinding_factor, p2pk_e: saved.p2pk_e } });
+  const boosterOutputs = (cards, state, c, keyset) => cards.map((card) => c.OutputData.createSingleP2PKData({
+    pubkey: state.pubkey,
+    blindKeys: true,
+    additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+  }, 1, keyset.id));
 
   async function finishPending(state, pending, response, c, keyset) {
     if (pending.type === "booster") {
@@ -180,7 +185,21 @@
   const AWAITING_PAYMENT = /not settled yet|is still sealed|not mined yet/i;
 
   async function submitPending(state, c, keyset) {
-    const pending = state.pending;
+    let pending = state.pending;
+    if (pending.type === "booster" && !pending.outputs.length && pending.body.payment_hash) {
+      const response = await fetch(`${pending.mintUrl}/nutft/reveal?payment_hash=${encodeURIComponent(pending.body.payment_hash)}`);
+      if (!response.ok) throw new Error(`sealed booster unavailable (${response.status})`);
+      const opened = await response.json();
+      if (!Array.isArray(opened.cards)) {
+        const wait = new Error(opened.note || "the booster is still sealed");
+        wait.awaitingPayment = true;
+        throw wait;
+      }
+      const outputs = boosterOutputs(opened.cards, state, c, keyset).map(savedOutput);
+      pending = { ...pending, outputs, body: { ...pending.body, pack_id: opened.pack_id, state: opened.state, outputs: outputs.map(requestOutput) } };
+      state = { ...state, pending };
+      write(state);
+    }
     const path = pending.type === "booster" ? "/nutft/booster" : "/nutft/trade";
     /* Signed only if the mint refuses without one, and retried BEFORE the
        pending is discarded below — an early-access refusal must never cost a
@@ -361,11 +380,7 @@
     }
     const keyset = await getKeyset(mintUrl, c);
     const quote = await requestQuote(mintUrl);
-    const outputs = quote.cards.map((card) => c.OutputData.createSingleP2PKData({
-      pubkey: state.pubkey,
-      blindKeys: true,
-      additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
-    }, 1, keyset.id));
+    const outputs = Array.isArray(quote.cards) ? boosterOutputs(quote.cards, state, c, keyset) : [];
     const saved = outputs.map(savedOutput);
     const pending = { type: "booster", mintUrl, outputs: saved, body: {
       idempotency_key: root.crypto.randomUUID(),
@@ -408,6 +423,25 @@
    * The unreadable ones are counted and handed back so the page can say how
    * many there are and where they probably came from, instead of a wallet full
    * of cards silently reporting nothing at all. */
+  async function claimBoosterUnlocked(mintUrl, paymentHash, opts = {}) {
+    const c = await cashu();
+    let state = await identity(c);
+    if (state.pending) {
+      if (state.pending.body.payment_hash !== paymentHash) throw new Error("finish the pending wallet operation before claiming another booster");
+      return awaitSettlement(state, c, await getKeyset(state.pending.mintUrl, c), opts);
+    }
+    const keyset = await getKeyset(mintUrl, c);
+    const pending = { type: "booster", mintUrl, outputs: [], body: {
+      idempotency_key: root.crypto.randomUUID(), pack_id: null, state: null,
+      payment_hash: paymentHash, outputs: [],
+    } };
+    state = { ...state, pending };
+    write(state);
+    return awaitSettlement(state, c, keyset, opts);
+  }
+
+  const claimBooster = (mintUrl, paymentHash, opts) => locked(() => claimBoosterUnlocked(mintUrl, paymentHash, opts || {}));
+
   async function decodeTokens(mintUrl) {
     const c = await cashu();
     const state = await read();
@@ -486,6 +520,7 @@
        the page has its own route to retry it. */
     try { await locked(recoverPending); } catch { /* reported by recoverPending's own caller */ }
     const c = await cashu();
+    const walletState = await read();
     const keyset = await getKeyset(mintUrl, c);
     const catalogs = new Map();
     const owned = [];
@@ -495,6 +530,7 @@
     for (const proof of readable) {
       try {
         const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
+        if (!c.maybeDeriveP2BKPrivateKeys(walletState.privateKey, proof).length) throw new Error("proof is not addressed to this wallet");
         (item.state === "SPENT" ? spent : owned).push(item);
       } catch (error) {
         invalid.push({ proof, error: error.message });
@@ -564,9 +600,12 @@
        not: a dead token already in storage cannot be allowed to block an
        import, or a person is stuck with it forever. */
     const existing = new Set(readableProofs(state, keyset, c).map((proof) => proof.secret));
+    const incoming = new Set();
     const catalogs = new Map();
     for (const proof of decoded.proofs) {
       if (existing.has(proof.secret)) throw new Error("token is already in this wallet");
+      if (incoming.has(proof.secret)) throw new Error("token contains a duplicate proof");
+      incoming.add(proof.secret);
       const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
       if (item.state !== "UNSPENT" || !c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof).length) throw new Error("token is spent or not addressed to this wallet");
     }
@@ -594,5 +633,5 @@
 
   const restoreBackup = (text) => locked(() => restoreBackupUnlocked(text));
 
-  root.NutFTWallet = { buyBooster, snapshot, tradeProof, importToken, destination, recoverPending, outgoing, forgetOutgoing, exportBackup, restoreBackup, read, cashu, hex, bytes };
+  root.NutFTWallet = { buyBooster, claimBooster, snapshot, tradeProof, importToken, destination, recoverPending, outgoing, forgetOutgoing, exportBackup, restoreBackup, read, cashu, hex, bytes };
 })(globalThis);

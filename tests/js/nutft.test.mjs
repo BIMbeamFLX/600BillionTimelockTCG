@@ -72,6 +72,7 @@ async function browserWallet(storage, fetchImpl, nostr) {
     TextDecoder,
     Uint8Array,
     URL,
+    setTimeout,
     btoa: (text) => Buffer.from(text, "binary").toString("base64"),
     ...(nostr ? { nostr } : {}),
   };
@@ -97,6 +98,24 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   const transfer = await reloaded.tradeProof(table.url, snapshot.owned[0].proof.secret, recipientPubkey);
   assert.match(transfer.token, /^cashu/);
   assert.equal((await reloaded.snapshot(table.url)).owned.length, 6);
+  const poisonedState = JSON.parse(storage.get("600b:nutft-wallet"));
+  poisonedState.tokens.push(transfer.token);
+  storage.set("600b:nutft-wallet", JSON.stringify(poisonedState));
+  const poisonedSnapshot = await (await browserWallet(storage, fetchImpl)).snapshot(table.url);
+  assert.equal(poisonedSnapshot.owned.length, 6, "a proof addressed to another key is not owned");
+  assert.match(poisonedSnapshot.invalid[0].error, /not addressed to this wallet/i);
+  const keysetId = (await (await fetch(`${table.url}/v1/keys`)).json()).keysets[0].id;
+  const decodedTransfer = cashu.getDecodedToken(transfer.token, [keysetId]);
+  const duplicateToken = cashu.getEncodedToken({
+    mint: table.url,
+    unit: decodedTransfer.unit,
+    proofs: [decodedTransfer.proofs[0], decodedTransfer.proofs[0]],
+  });
+  await assert.rejects(
+    () => recipient.importToken(table.url, duplicateToken),
+    /duplicate proof/i,
+    "one incoming token cannot count the same proof twice",
+  );
   assert.equal(await recipient.importToken(table.url, transfer.token), 1);
   assert.equal((await recipient.snapshot(table.url)).owned.length, 1);
   const backup = await recipient.exportBackup();
@@ -145,6 +164,70 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   storage.set("600b:nutft-wallet", "{broken");
   await assert.rejects(() => browserWallet(storage, fetchImpl).then((wallet) => wallet.read()), /corrupted/);
   assert.equal(storage.get("600b:nutft-wallet"), "{broken");
+});
+
+test("browser wallet claims a paid sealed pack after its block arrives", async (t) => {
+  const { createServer } = await import("node:http");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { createMockFunding } = require("../../server/funding.js");
+  let mint;
+  const server = createServer((request, response) => mint.handle(
+    request,
+    response,
+    new URL(request.url, `http://${request.headers.host}`),
+  ));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  let height = 900000;
+  mint = createNutftMint({
+    db,
+    catalogUri: `${base}/nutft/catalog`,
+    funding: createMockFunding({ settleAfterMs: 0 }),
+    priceMsat: 21000,
+    allowVirtual: "1",
+    beaconSource: "lnd",
+    beaconConfirmations: 1,
+    beaconGetInfo: async () => ({ height, hash: String(height).padStart(64, "a") }),
+  });
+  const wallet = await browserWallet(new Map(), fetch);
+  let invoice = null;
+  const issued = await wallet.buyBooster(base, {
+    timeoutMs: 5000,
+    onInvoice(value) {
+      invoice = value;
+      height += 1;
+    },
+  });
+  assert.ok(invoice?.paymentRequest, "the buyer sees the invoice before the reveal");
+  assert.equal(issued.cards.length, 7);
+  assert.equal((await wallet.snapshot(base)).owned.length, 7);
+});
+
+test("browser wallet claims the invoice from an LNURL success link", async (t) => {
+  const { createServer } = await import("node:http");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { createMockFunding } = require("../../server/funding.js");
+  let mint;
+  const server = createServer((request, response) => mint.handle(
+    request, response, new URL(request.url, `http://${request.headers.host}`),
+  ));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  mint = createNutftMint({
+    db, catalogUri: `${base}/nutft/catalog`, funding: createMockFunding({}),
+    priceMsat: 21000, allowVirtual: "1",
+  });
+  const quote = await mint.payableQuote();
+  const wallet = await browserWallet(new Map(), fetch);
+  const issued = await wallet.claimBooster(base, quote.payment_hash, { timeoutMs: 1000 });
+  assert.equal(issued.cards.length, 7);
+  assert.equal((await wallet.snapshot(base)).owned.length, 7);
 });
 
 test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", async (t) => {
@@ -322,6 +405,40 @@ test("a paid mint sells nothing until the invoice actually settles", async (t) =
   );
 });
 
+test("an active invoice reserves the next pack without blocking it forever", async (t) => {
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const settled = new Set();
+  let issued = 0;
+  const funding = {
+    name: "test",
+    async createInvoice() {
+      issued += 1;
+      const paymentHash = String(issued).padStart(64, "a");
+      return { paymentRequest: `invoice-${issued}`, paymentHash };
+    },
+    async isSettled(hash) { return settled.has(hash); },
+  };
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, funding, catalogUri: "http://127.0.0.1/nutft/catalog", priceMsat: 21000,
+  });
+
+  const [first, collision] = await Promise.allSettled([mint.payableQuote(), mint.payableQuote()]);
+  assert.equal(first.status, "fulfilled");
+  assert.equal(collision.status, "rejected");
+  assert.match(collision.reason.message, /active invoice/i);
+
+  settled.add(first.value.payment_hash);
+  await assert.rejects(() => mint.payableQuote(), /active invoice/i, "a paid reservation stays reserved until claim");
+  settled.clear();
+  db.prepare("UPDATE nutft_invoices SET created_at = ? WHERE payment_hash = ?")
+    .run("2000-01-01T00:00:00.000Z", first.value.payment_hash);
+  const replacement = await mint.payableQuote();
+  assert.equal(replacement.pack_id, first.value.pack_id, "an expired unpaid checkout releases the unsold pack");
+});
+
 test("one settled invoice buys exactly one pack, and never a second", async (t) => {
   const { createNutftMint } = require("../../server/nutft-mint.js");
   const { DatabaseSync } = await import("node:sqlite");
@@ -365,13 +482,22 @@ test("one settled invoice buys exactly one pack, and never a second", async (t) 
   settled.add(quote.payment_hash);
   const outs = outputsFor(quote);
 
-  // Invalid output data must not consume the one-way invoice claim. The buyer
-  // can fix the request and claim the pack they already paid for.
+  /* A settled invoice survives a bad request. Two probes, because they stop at
+     different checks: an empty array never reaches output validation at all,
+     while a malformed blinding factor gets past the count and dies inside it.
+     Both must leave the invoice claimable. */
+  const paidBody = bodyFor(quote, outs, "buy-1", quote.payment_hash);
+  await assert.rejects(
+    () => mint.signBooster({ ...paidBody, outputs: [] }),
+    /one output is required per card/i,
+    "the wrong number of outputs does not consume a settled invoice",
+  );
   const malformed = bodyFor(quote, outs, "bad-output", quote.payment_hash);
   malformed.outputs[0].nutft.blinding_factor = "0".repeat(64);
-  await assert.rejects(() => mint.signBooster(malformed), /blinding factor is invalid/i);
+  await assert.rejects(() => mint.signBooster(malformed), /blinding factor is invalid/i,
+    "and neither does an output that is the right shape and the wrong contents");
 
-  const result = await mint.signBooster(bodyFor(quote, outs, "buy-1", quote.payment_hash));
+  const result = await mint.signBooster(paidBody);
   assert.equal(result.signatures.length, 7, "a settled invoice mints the whole pack");
   assert.equal(result.unit, "600B-E1");
 
@@ -432,8 +558,7 @@ test("a sealed pack cannot be known at purchase, and resolves to its own block",
   assert.equal(quote.target_height, height + 1, "it commits to a block above the tip");
   assert.ok(quote.payment_request, "and it is payable");
 
-  // Before the block exists, nobody can open it — not even after paying.
-  settled.add(quote.payment_hash);
+  // Before the block exists, nobody can open it.
   const early = await mint.revealFor(quote.payment_hash);
   assert.equal(early.sealed, true);
   assert.equal(early.cards, null, "an unmined block reveals nothing");
@@ -443,8 +568,11 @@ test("a sealed pack cannot be known at purchase, and resolves to its own block",
     "and the mint will not sign against a block that does not exist",
   );
 
-  // The block arrives.
+  // The block arrives, but an unpaid buyer cannot inspect the pack and choose
+  // whether it is valuable enough to settle the already-reserved invoice.
   height += 1;
+  await assert.rejects(() => mint.revealFor(quote.payment_hash), /not settled/i);
+  settled.add(quote.payment_hash);
   const opened = await mint.revealFor(quote.payment_hash);
   assert.equal(opened.sealed, false);
   assert.equal(opened.cards.length, 7, "the pack opens to seven cards");
@@ -1054,7 +1182,7 @@ test("early access needs a signature, not a claim", async (t) => {
   t.after(() => db.close());
   const mint = createNutftMint({
     db, catalogUri: "https://x.example/nutft/catalog", publicBase: "https://x.example",
-    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000,
+    funding: createMockFunding({ settleAfterMs: 60_000 }), allowVirtual: "1", priceMsat: 21000,
     sales: "allowlist", allowlist: listedPub,
   });
   const proof = (header, over = {}) =>
@@ -1069,6 +1197,8 @@ test("early access needs a signature, not a claim", async (t) => {
   // A real signature from a listed key works.
   const ok = await mint.payableQuote({ proof: proof(sign(listedSec)) });
   assert.ok(ok.payment_request, "a signed, listed buyer gets an invoice");
+  db.prepare("UPDATE nutft_invoices SET created_at = ? WHERE payment_hash = ?")
+    .run("2000-01-01T00:00:00.000Z", ok.payment_hash);
 
   // Replay: the very same header a second time.
   const once = sign(listedSec);
