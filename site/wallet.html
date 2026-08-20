@@ -52,27 +52,49 @@
   const error = document.getElementById("walletError");
   const empty = document.getElementById("empty");
   const digest = async (bytes) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
+  const chip = (text) => { const node = document.createElement("span"); node.className = "chip"; node.textContent = text; return node; };
+  async function verifiedFace(asset) {
+    let lastError = new Error(`No Blossom mirror for ${asset.asset_id}`);
+    for (const url of asset.face.urls || []) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const bytes = await response.arrayBuffer();
+        if (bytes.byteLength > 3 * 1024 * 1024 || (asset.face.bytes && bytes.byteLength !== asset.face.bytes) || await digest(bytes) !== asset.face.sha256) throw new Error("content hash mismatch");
+        return URL.createObjectURL(new Blob([bytes], { type: asset.face.mime || "image/webp" }));
+      } catch (reason) { lastError = reason; }
+    }
+    throw lastError;
+  }
   try {
-    const { catalog, owned } = await root.NutFTWallet.snapshot(mint);
-    meta.innerHTML = `<span class="chip">${owned.length} PROOFS</span><span class="chip">UNIT ${catalog.collection_id}</span><span class="chip">CATALOG ${catalog.census_sha256.slice(0, 12)}…</span>`;
+    const { catalog, owned, spent, invalid } = await root.NutFTWallet.snapshot(mint);
+    meta.replaceChildren(chip(`${owned.length} UNSPENT`), chip("UNIT 600B-E1"));
+    if (spent.length) meta.append(chip(`${spent.length} SPENT`));
+    if (invalid.length) meta.append(chip(`${invalid.length} INVALID`));
+    if (catalog) meta.append(chip(`CATALOG ${catalog.census_sha256.slice(0, 12)}…`));
     empty.hidden = owned.length !== 0;
     for (const item of owned) {
       const card = document.createElement("article");
-      card.className = `wallet-card${item.state === "SPENT" ? " wallet-card--bad" : ""}`;
+      card.className = "wallet-card";
       const image = document.createElement("img");
       image.alt = item.asset.name;
       const body = document.createElement("div");
       body.className = "wallet-card__body";
-      body.innerHTML = `<strong>${item.asset.name}</strong><p>${item.asset.tier} · amount 1 · ${item.state}</p><p>DLEQ ✓ · P2BK ✓ · Blossom checking…</p>`;
+      const name = document.createElement("strong"); name.textContent = item.asset.name;
+      const detail = document.createElement("p"); detail.textContent = `${item.asset.tier} · amount 1 · ${item.state}`;
+      const checks = document.createElement("p"); checks.textContent = "DLEQ ✓ · P2BK ✓ · Blossom checking…";
+      body.append(name, detail, checks);
       card.append(image, body);
       grid.append(card);
-      const url = item.asset.face.urls[0];
-      const response = await fetch(url);
-      const blob = await response.arrayBuffer();
-      if (!response.ok || await digest(blob) !== item.asset.face.sha256) throw new Error(`Blossom hash mismatch for ${item.asset.asset_id}`);
-      image.src = url;
-      body.lastChild.textContent = "DLEQ ✓ · P2BK ✓ · Blossom ✓";
+      try {
+        image.src = await verifiedFace(item.asset);
+        checks.textContent = "DLEQ ✓ · P2BK ✓ · Blossom ✓";
+      } catch (reason) {
+        card.classList.add("wallet-card--bad");
+        checks.textContent = `DLEQ ✓ · P2BK ✓ · Blossom failed: ${reason.message}`;
+      }
     }
+    if (invalid.length) { error.hidden = false; error.textContent = `${invalid.length} proof(s) were isolated because validation failed.`; }
   } catch (reason) {
     error.hidden = false;
     error.textContent = String(reason && reason.message || reason);

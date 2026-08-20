@@ -3,8 +3,10 @@ import test from "node:test";
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import vm from "node:vm";
 
 const require = createRequire(import.meta.url);
 const { createTable } = require("../../server/table.js");
@@ -23,6 +25,41 @@ test("NutFT draw vector stays compatible with the manifest package", () => {
   assert.equal(selfTest(require("../../cards/nutft-testvector.json")), true);
 });
 
+async function browserWallet(storage, fetchImpl) {
+  const source = await readFile(new URL("../../site/nutft-wallet.js", import.meta.url), "utf8");
+  const context = {
+    __cashu: cashu,
+    crypto: globalThis.crypto,
+    fetch: fetchImpl,
+    localStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+    },
+    TextEncoder,
+    TextDecoder,
+    Uint8Array,
+  };
+  vm.runInNewContext(source, context, { filename: "nutft-wallet.js" });
+  return context.NutFTWallet;
+}
+
+test("browser wallet survives reload and preserves corrupted storage", async (t) => {
+  const catalogUri = "http://127.0.0.1/nutft/catalog";
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });
+  t.after(() => table.close());
+  const storage = new Map();
+  const fetchImpl = (url, options) => fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
+  await (await browserWallet(storage, fetchImpl)).buyBooster(table.url);
+  const reloaded = await browserWallet(storage, fetchImpl);
+  const snapshot = await reloaded.snapshot(table.url);
+  assert.equal(snapshot.owned.length, 7);
+  assert.equal(snapshot.spent.length, 0);
+  assert.equal(snapshot.invalid.length, 0);
+  storage.set("600b:nutft-wallet", "{broken");
+  await assert.rejects(() => browserWallet(storage, fetchImpl).then((wallet) => wallet.read()), /corrupted/);
+  assert.equal(storage.get("600b:nutft-wallet"), "{broken");
+});
+
 test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", async (t) => {
   const dir = mkdtempSync(join(tmpdir(), "600b-nutft-"));
   const dbPath = join(dir, "mint.db");
@@ -32,6 +69,7 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   const info = await (await fetch(`${base}/v1/info`)).json();
   assert.equal(info.nuts[31].output_openings, true);
   const catalog = await (await fetch(`${base}/nutft/catalog`)).json();
+  assert.equal(info.nuts[31].catalog_issuer, catalog.issuer_pubkey);
   const { signature, issuer_pubkey: issuer, ...catalogPayload } = catalog;
   const catalogDigest = createHash("sha256").update(canonical(catalogPayload)).digest("hex");
   assert.equal(cashu.schnorrVerifyDigest(signature, catalogDigest, issuer), true);

@@ -149,6 +149,7 @@ function createNutftMint(options = {}) {
       signature: hex(schnorr.sign(digest, catalogPrivateKey)),
     };
   };
+  const catalogIssuer = () => hex(schnorr.getPublicKey(catalogPrivateKey));
   const current = () => state.state;
   const packId = () => `pack-${String(state.nextPack).padStart(4, "0")}`;
   const atomic = (work) => {
@@ -306,7 +307,7 @@ function createNutftMint(options = {}) {
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true }, 7: { supported: true } } });
+        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && url.pathname === "/v1/checkstate") {
