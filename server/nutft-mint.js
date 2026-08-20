@@ -416,7 +416,7 @@ function createNutftMint(options = {}) {
     const b = beaconOverride || beacon;
     const id = packId();
     const counts = { ...state.counts };
-    const paid = openPack(counts, catalog.pools, catalog.slots, b, id);
+    const paid = openPack(counts, catalog.pools, catalog.slots, b, id, catalog.sequential);
     const ids = [...paid, basicId];
     const nextState = hashParts(current(), id, b, ids.join(",")).toString("hex");
     return {
@@ -769,7 +769,7 @@ function createNutftMint(options = {}) {
     });
 
     const nextCounts = { ...state.counts };
-    const resolved = openPack(nextCounts, catalog.pools, catalog.slots, saleBeacon || beacon, expected.pack_id);
+    const resolved = openPack(nextCounts, catalog.pools, catalog.slots, saleBeacon || beacon, expected.pack_id, catalog.sequential);
     const nextState = { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
     const result = { ...expected, cards: expected.cards, signatures, keyset_id: keyset.keysetId, resolved };
     atomic(() => {

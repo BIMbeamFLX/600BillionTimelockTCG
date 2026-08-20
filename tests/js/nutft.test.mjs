@@ -1972,11 +1972,18 @@ test("one starter set per key: the second attempt is refused, and only for that 
     sales: "allowlist", allowlist: `${alice.pub},${bob.pub}`, onePerKey: true,
   });
 
+  /* A FRESH event per request. Two calls inside the same second produce the
+     same created_at, and NIP-98 event ids are a hash of the event -- so reusing
+     the builder handed the mint a replayed authorization, and it correctly
+     refused with "already been used". That is the replay store working, not the
+     one-per-key rule, and asserting on it would have proved the wrong thing. */
+  let nonce = 0;
   const proofFor = (who, path) => {
     const url = `https://g.example${path}`;
+    nonce += 1;
     const event = {
       pubkey: who.pub, created_at: Math.floor(Date.now() / 1000), kind: 27235, content: "",
-      tags: [["u", url], ["method", "GET"]],
+      tags: [["u", url], ["method", "GET"], ["nonce", String(nonce)]],
     };
     event.id = nip98.eventId(event);
     event.sig = hexOf(schnorr.sign(event.id, who.sec));
@@ -2026,4 +2033,65 @@ test("a one-per-key mint refuses to start where it cannot tell keys apart", asyn
     () => createNutftMint({ db, catalogUri: "https://g.example/nutft/catalog", sales: "open", onePerKey: true }),
     /needs NUTFT_SALES=allowlist/,
   );
+});
+
+test("a sequential pool hands out its cards in census order, not by hash", async (t) => {
+  /* "The first twenty-one sets carry a Genesis card" cannot be said with the
+     hashed draw: a hash has no notion of first. A sequential pool takes the
+     earliest card that still has copies, and packs are issued strictly in
+     order, so the census order IS the queue -- and an announced rule can be
+     checked against the published census by counting, with no beacon and no
+     hashing. */
+  const draw = require("../../server/nutft-draw.js");
+
+  const census = {
+    mint: { slots: { common: 1, uncommon: 0, prime: 1 }, sequential: ["prime"] },
+    cards: [
+      // Deliberately NOT alphabetical: sorting would destroy the whole point.
+      { id: "G-zeta-good", copies: 2, pool: "prime" },
+      { id: "G-alpha-good", copies: 1, pool: "prime" },
+      { id: "G-mid-plain", copies: 5, pool: "prime" },
+      { id: "C-1", copies: 40, pool: "common" },
+    ],
+  };
+  const catalog = draw.loadCensus(census);
+  assert.deepEqual([...catalog.sequential], ["prime"], "the pool is marked sequential");
+  assert.deepEqual(catalog.pools.prime, ["G-zeta-good", "G-alpha-good", "G-mid-plain"],
+    "and keeps census order rather than being sorted");
+
+  const counts = { ...catalog.counts };
+  const beacon = "00".repeat(32);
+  const primeOf = (n) => draw.openPack(counts, catalog.pools, catalog.slots, beacon,
+    `pack-${String(n).padStart(4, "0")}`, catalog.sequential)
+    .find((id) => id.startsWith("G-"));
+
+  assert.equal(primeOf(1), "G-zeta-good", "pack 1 takes the first card the census lists");
+  assert.equal(primeOf(2), "G-zeta-good", "a card with two copies fills two consecutive packs");
+  assert.equal(primeOf(3), "G-alpha-good", "then the next one, in census order");
+  assert.equal(primeOf(4), "G-mid-plain", "and the good ones are gone once they are gone");
+  assert.equal(primeOf(5), "G-mid-plain");
+});
+
+test("the hashed draw is untouched by the sequential option", async (t) => {
+  /* E1 must keep drawing exactly as it did. A census with no `sequential` key
+     produces an empty set, the pools are still sorted, and openPack takes the
+     hashed path — so this is the regression guard for the edition that is
+     already sold. */
+  const draw = require("../../server/nutft-draw.js");
+  const census = {
+    mint: { slots: { common: 1, uncommon: 0, prime: 1 } },
+    cards: [
+      { id: "P-z", copies: 3, pool: "prime" },
+      { id: "P-a", copies: 3, pool: "prime" },
+      { id: "C-1", copies: 40, pool: "common" },
+    ],
+  };
+  const catalog = draw.loadCensus(census);
+  assert.equal(catalog.sequential.size, 0, "no sequential pools were declared");
+  assert.deepEqual(catalog.pools.prime, ["P-a", "P-z"], "hashed pools are still sorted");
+
+  /* Same inputs, same cards, whether or not an empty set is passed. */
+  const a = draw.openPack({ ...catalog.counts }, catalog.pools, catalog.slots, "11".repeat(32), "pack-0001");
+  const b = draw.openPack({ ...catalog.counts }, catalog.pools, catalog.slots, "11".repeat(32), "pack-0001", catalog.sequential);
+  assert.deepEqual(a, b, "passing an empty sequential set changes nothing");
 });

@@ -30,13 +30,42 @@ function draw(counts, order, rho, slot) {
   throw new Error("draw failed");
 }
 
-function openPack(counts, pools, slots, beacon, packId) {
+/* SEQUENTIAL DRAW: the census order IS the queue.
+ *
+ * draw() above picks by hash, which is a shuffle -- right for boosters, where
+ * nobody should be able to work out which pack holds what. It cannot express
+ * "the first twenty-one get the good ones", because a hash has no notion of
+ * first.
+ *
+ * This does: it takes the earliest card in the pool that still has copies. Packs
+ * are issued strictly in order (state.nextPack only moves on a claim), so pack 1
+ * takes the first card the census lists, pack 2 the next, and so on. A card with
+ * several copies simply fills several consecutive packs.
+ *
+ * It is MORE checkable than the hashed draw, not less: an announced rule like
+ * "the first twenty-one sets carry a Genesis card" can be verified against the
+ * published census by counting, with no beacon and no hashing. The pool for a
+ * sequential slot therefore keeps its census order rather than being sorted.
+ */
+function drawSequential(counts, order) {
+  for (const id of order) {
+    if (counts[id] > 0) {
+      counts[id] -= 1;
+      return id;
+    }
+  }
+  throw new Error("pool exhausted");
+}
+
+function openPack(counts, pools, slots, beacon, packId, sequential) {
   const rho = hashParts(Buffer.from(beacon, "hex"), packId);
   const cards = [];
   let slot = 0;
   for (const [pool, amount] of slots) {
     for (let i = 0; i < amount; i += 1) {
-      cards.push(draw(counts, pools[pool], rho, slot));
+      cards.push(sequential && sequential.has(pool)
+        ? drawSequential(counts, pools[pool])
+        : draw(counts, pools[pool], rho, slot));
       slot += 1;
     }
   }
@@ -55,11 +84,18 @@ function loadCensus(census) {
       basic.push(card.id);
     }
   }
-  for (const ids of Object.values(pools)) ids.sort();
+  /* Sorting a sequential pool would throw its meaning away: its ORDER is the
+     rule. Hashed pools are still sorted, so the draw does not depend on the
+     order cards happen to appear in the file. */
+  const sequential = new Set(Array.isArray(census.mint.sequential) ? census.mint.sequential : []);
+  for (const [pool, ids] of Object.entries(pools)) {
+    if (!sequential.has(pool)) ids.sort();
+  }
   return {
     counts,
     pools,
     basic,
+    sequential,
     slots: ["common", "uncommon", "prime"].map((pool) => [pool, census.mint.slots[pool]]),
   };
 }
