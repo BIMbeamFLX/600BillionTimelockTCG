@@ -342,6 +342,7 @@ function stubElement(id) {
     },
     closest: () => null,
     querySelectorAll: () => [],
+    focus() {},
     remove() {
       if (!this._parent) return;
       this._parent.children = this._parent.children.filter((child) => child !== this);
@@ -655,6 +656,15 @@ test("NutFT verification locks Start against duplicate submissions", async () =>
   release({ owned: Array.from({ length: 40 }, () => ({ tag: ["1", "600B-E1", "E1-002"] })) });
   await new Promise((resolve) => setImmediate(resolve));
   assert.ok(game.state);
+});
+
+test("an invalid deterministic seed stays in setup with a useful error", () => {
+  globalThis.localStorage = { getItem: () => null, setItem() {} };
+  const { byId, game } = loadPlay(netStub());
+  byId("seed").value = "bananas";
+  byId("start").click();
+  assert.equal(game.state, null);
+  assert.match(byId("prompt").textContent, /seed.*whole number/i);
 });
 
 /* The client-side lobby test that stood here was removed with the lobby it

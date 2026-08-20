@@ -4128,10 +4128,16 @@
   }
 
   function startVerifiedGame() {
-    const seedInput = document.getElementById("seed").value.trim();
+    const seedElement = document.getElementById("seed");
+    const seedInput = seedElement.value.trim();
     // The engine generates no randomness of its own: every seed is an input.
     // A blank field is turned into one here, in the UI, where that is allowed.
-    const base = seedInput ? (Number(seedInput) | 0) : (crypto.getRandomValues(new Int32Array(1))[0] | 0);
+    if (seedInput && (!/^-?\d+$/.test(seedInput) || Number(seedInput) < -2147483648 || Number(seedInput) > 2147483647)) {
+      document.getElementById("prompt").textContent = "Seed must be a whole number from -2147483648 to 2147483647, or blank for random.";
+      seedElement.focus();
+      return;
+    }
+    const base = seedInput ? Number(seedInput) : (crypto.getRandomValues(new Int32Array(1))[0] | 0);
     const npcBox = document.getElementById("npcB");
     const solo = Boolean(npcBox && npcBox.checked);
     const nameB = document.getElementById("nameB").value || (solo ? "NPC" : "Player 2");
