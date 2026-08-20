@@ -216,7 +216,7 @@ down, referee and site included: they are one process.
 ### 6.1 First, is the box really unsold?
 
 ```bash
-curl.exe https://tcg.zapburg.com/nutft/state
+curl.exe https://tcg.nappelin.com/nutft/state
 ```
 
 `sold` must read `0`. **If it does not, stop here.** Every proof already issued is bound to
@@ -268,7 +268,7 @@ sudo systemctl start tcg-table
 ```
 
 ```bash
-curl.exe https://tcg.zapburg.com/nutft/state
+curl.exe https://tcg.nappelin.com/nutft/state
 ```
 
 Four things have to read right: `census_sha256` is `0e8a94f0…`, `packs` is `20925`, `sold`
