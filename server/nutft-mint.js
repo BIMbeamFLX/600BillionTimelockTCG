@@ -6,6 +6,7 @@ const crypto = require("node:crypto");
 const { schnorr } = require("@noble/curves/secp256k1");
 const { censusHash, hashParts, loadCensus, openPack } = require("./nutft-draw.js");
 const lnd = require("./lnd.js");
+const { createBeacon } = require("./beacon.js");
 
 const REPO = path.resolve(__dirname, "..");
 const CENSUS_PATH = path.join(REPO, "cards", "nutft-census.json");
@@ -92,6 +93,7 @@ function createNutftMint(options = {}) {
         state        TEXT NOT NULL,
         amount_msat  INTEGER NOT NULL,
         claimed      INTEGER NOT NULL DEFAULT 0,
+        target_height INTEGER,
         created_at   TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS nutft_operations (
@@ -110,7 +112,7 @@ function createNutftMint(options = {}) {
       operation: db.prepare("SELECT request_hash, response_json FROM nutft_operations WHERE type = ? AND operation_key = ?"),
       putOperation: db.prepare("INSERT INTO nutft_operations (type, operation_key, request_hash, response_json) VALUES (?, ?, ?, ?)"),
       invoice: db.prepare("SELECT * FROM nutft_invoices WHERE payment_hash = ?"),
-      putInvoice: db.prepare("INSERT OR REPLACE INTO nutft_invoices (payment_hash, pack_id, state, amount_msat, claimed, created_at) VALUES (?, ?, ?, ?, 0, ?)"),
+      putInvoice: db.prepare("INSERT OR REPLACE INTO nutft_invoices (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height) VALUES (?, ?, ?, ?, 0, ?, ?)"),
       claimInvoice: db.prepare("UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0"),
     };
   }
@@ -146,6 +148,17 @@ function createNutftMint(options = {}) {
   const priceMsat = Number(options.priceMsat || process.env.NUTFT_PRICE_MSAT || 21000);
   if (lndConfig && !(priceMsat > 0)) throw new Error("NUTFT_PRICE_MSAT must be a positive number of msat");
   const paidMint = Boolean(lndConfig);
+
+  /* The block-commitment beacon. Off by default: without it the mint keeps the
+     fixed beacon it has today, which is fine for a free demo and disqualifying
+     for a paid one, because the whole box is then precomputable offline. Turned
+     on, a sale commits to a block height above the current tip and the cards are
+     unknowable — to the buyer AND to the mint — until that block exists. */
+  const beaconLive = String(options.beaconSource ?? process.env.NUTFT_BEACON_SOURCE ?? "") === "lnd";
+  if (beaconLive && !lndConfig) throw new Error("NUTFT_BEACON_SOURCE=lnd needs a chain source: configure LND_REST_URL");
+  const chain = beaconLive
+    ? createBeacon({ db, lnd: lndConfig, confirmations: options.beaconConfirmations, getInfo: options.beaconGetInfo })
+    : null;
 
   const mintSeed = Buffer.from(getOrCreate("mint_seed", () => crypto.randomBytes(32).toString("hex")), "hex");
   const catalogPrivateKey = Buffer.from(getOrCreate("catalog_private_key", () => crypto.randomBytes(32).toString("hex")), "hex");
@@ -196,12 +209,13 @@ function createNutftMint(options = {}) {
     }
   };
 
-  async function quote() {
+  async function quote(beaconOverride) {
+    const b = beaconOverride || beacon;
     const id = packId();
     const counts = { ...state.counts };
-    const paid = openPack(counts, catalog.pools, catalog.slots, beacon, id);
+    const paid = openPack(counts, catalog.pools, catalog.slots, b, id);
     const ids = [...paid, basicId];
-    const nextState = hashParts(current(), id, beacon, ids.join(",")).toString("hex");
+    const nextState = hashParts(current(), id, b, ids.join(",")).toString("hex");
     return {
       pack_id: id,
       state: current(),
@@ -210,7 +224,7 @@ function createNutftMint(options = {}) {
       unit: collectionId,
       amount: 1,
       catalog_uri: catalogUri,
-      beacon,
+      beacon: b,
     };
   }
 
@@ -222,6 +236,18 @@ function createNutftMint(options = {}) {
     /* A funding-source failure is ours, not the buyer's, and its message names
        the node's address and port. Log the detail, hand back a plain sentence:
        an operational fault must not double as a map of the deployment. */
+    /* With the beacon live the sale commits to a block that does not exist yet,
+       so the cards cannot be computed here and are deliberately withheld: this
+       IS the sealed pack. They are revealed once that block is mined. */
+    let commitment = null;
+    if (chain) {
+      try {
+        commitment = await chain.commitHeight();
+      } catch (error) {
+        console.error("[nutft] beacon commitHeight failed:", error && error.message);
+        throw new Error("the mint cannot read the chain right now — try again shortly");
+      }
+    }
     let invoice;
     try {
       invoice = await lnd.createInvoice(lndConfig, { amountMsat: priceMsat, memo: `600B booster ${base.pack_id}` });
@@ -230,8 +256,48 @@ function createNutftMint(options = {}) {
       throw new Error("the mint cannot reach its funding source right now — try again shortly");
     }
     const { paymentRequest, paymentHash } = invoice;
-    if (q) q.putInvoice.run(paymentHash, base.pack_id, base.state, priceMsat, new Date().toISOString());
-    return { ...base, paid: true, price_msat: priceMsat, payment_request: paymentRequest, payment_hash: paymentHash };
+    if (q) q.putInvoice.run(paymentHash, base.pack_id, base.state, priceMsat, new Date().toISOString(), commitment ? commitment.targetHeight : null);
+    const head = { paid: true, price_msat: priceMsat, payment_request: paymentRequest, payment_hash: paymentHash };
+    if (!commitment) return { ...base, ...head };
+    return {
+      pack_id: base.pack_id, state: base.state, unit: base.unit, amount: base.amount,
+      catalog_uri: base.catalog_uri, ...head,
+      sealed: true,
+      cards: null,
+      target_height: commitment.targetHeight,
+      tip_height: commitment.tipHeight,
+      note: "sealed pack: the cards resolve against Bitcoin block "
+        + commitment.targetHeight + ", which is not mined yet. Pay, then reveal.",
+    };
+  }
+
+  /* Opening a sealed pack. The beacon is the hash of the block the sale
+     committed to — not the tip, not a later block — so the buyer receives the
+     pack that block determines and nothing else. Until it is mined the honest
+     answer is "not yet", with the height so they can watch it themselves. */
+  async function revealFor(paymentHash) {
+    if (!chain) throw new Error("this mint does not seal packs");
+    if (typeof paymentHash !== "string" || !/^[0-9a-f]{64}$/i.test(paymentHash)) {
+      throw new Error("payment_hash must be 32-byte hex");
+    }
+    const row = q ? q.invoice.get(paymentHash) : null;
+    if (!row) throw new Error("unknown payment_hash: quote the booster first");
+    if (!row.target_height) throw new Error("this sale was not sealed against a block");
+    let hash;
+    try {
+      hash = await chain.beaconFor(row.target_height);
+    } catch (error) {
+      console.error("[nutft] beacon lookup failed:", error && error.message);
+      throw new Error("the mint cannot read the chain right now — your sale is unaffected, try again shortly");
+    }
+    if (!hash) {
+      return { sealed: true, target_height: row.target_height, cards: null,
+        note: `block ${row.target_height} is not mined yet` };
+    }
+    const resolved = await quote(hash);
+    return { sealed: false, target_height: row.target_height, beacon: hash,
+      pack_id: resolved.pack_id, state: resolved.state, next_state: resolved.next_state,
+      cards: resolved.cards, unit: resolved.unit, amount: resolved.amount, catalog_uri: resolved.catalog_uri };
   }
 
   /* Settlement is checked against lnd, never trusted from the request, and the
@@ -312,7 +378,17 @@ function createNutftMint(options = {}) {
       if (previous.requestHash !== requestHash) throw new Error("idempotency_key was already used for a different booster");
       return previous.result;
     }
-    const expected = await quote();
+    /* A sealed sale is signed against the block it committed to. Resolving
+       against anything else would hand over a different pack than the one the
+       chain determined, which is the whole property being sold. */
+    let saleBeacon;
+    if (chain) {
+      const row = q ? q.invoice.get(String(body.payment_hash || "")) : null;
+      if (!row || !row.target_height) throw new Error("unknown payment_hash: quote the booster first");
+      saleBeacon = await chain.beaconFor(row.target_height);
+      if (!saleBeacon) throw new Error(`block ${row.target_height} is not mined yet — the pack is still sealed`);
+    }
+    const expected = await quote(saleBeacon);
     if (body.pack_id !== expected.pack_id || body.state !== expected.state) throw new Error("stale booster quote");
     /* Money before signatures. Checked here rather than at the top so a caller
        cannot learn whether a pack is still available without paying, and so a
@@ -406,6 +482,9 @@ function createNutftMint(options = {}) {
         return json(res, 200, { unit: collectionId, state: current(), census_sha256: census.census_sha256, next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs, tier_odds: tierOdds, remaining: state.counts });
       }
       if (req.method === "GET" && url.pathname === "/nutft/quote") return json(res, 200, await payableQuote());
+      if (req.method === "GET" && url.pathname === "/nutft/reveal") {
+        return json(res, 200, await revealFor(url.searchParams.get("payment_hash") || ""));
+      }
       if (req.method === "POST" && url.pathname === "/nutft/booster") return json(res, 200, await signBooster(await readBody(req)));
       return json(res, 404, { error: "not found" });
     } catch (error) {
@@ -415,7 +494,7 @@ function createNutftMint(options = {}) {
 
   /* signBooster and payableQuote are exported so the payment gate can be
      tested directly, without standing up an HTTP server and an lnd. */
-  return { handle, catalogUri, collectionId, initialCommitment, state, signBooster, payableQuote, paidMint };
+  return { handle, catalogUri, collectionId, initialCommitment, state, signBooster, payableQuote, revealFor, paidMint, sealed: Boolean(chain) };
 }
 
 module.exports = { assetBinding, canonical, createNutftMint };

@@ -332,3 +332,89 @@ test("one settled invoice buys exactly one pack, and never a second", async (t) 
     "an invoice cannot be aimed at a pack it was not quoted for",
   );
 });
+
+test("a sealed pack cannot be known at purchase, and resolves to its own block", async (t) => {
+  // The fairness core. With a fixed beacon the whole box is a pure function of
+  // public data, so a buyer can precompute which pack holds a Genesis card and
+  // simply wait for it. Committing to a block above the tip makes the contents
+  // unknowable at the moment money changes hands — to the buyer and the mint.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+
+  let height = 900000;
+  const hashAt = (n) => (n % 2 ? "b" : "e").repeat(64).slice(0, 64 - String(n).length) + String(n);
+  const lndModule = require("../../server/lnd.js");
+
+  const realCreate = lndModule.createInvoice;
+  const realSettled = lndModule.isSettled;
+  let issued = 0;
+  const settled = new Set();
+  lndModule.createInvoice = async () => {
+    issued += 1;
+    return { paymentRequest: `lnbc-${issued}`, paymentHash: String(issued).padStart(64, "d") };
+  };
+  lndModule.isSettled = async (_c, h) => settled.has(h);
+  t.after(() => { lndModule.createInvoice = realCreate; lndModule.isSettled = realSettled; });
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, catalogUri: "http://127.0.0.1/nutft/catalog",
+    lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 500 },
+    priceMsat: 21000, beaconSource: "lnd", beaconConfirmations: 1,
+    beaconGetInfo: async () => ({ height, hash: hashAt(height) }),
+  });
+  assert.equal(mint.sealed, true, "the mint seals packs");
+
+  const quote = await mint.payableQuote();
+  assert.equal(quote.sealed, true);
+  assert.equal(quote.cards, null, "the pack is sealed: no cards are disclosed at purchase");
+  assert.equal(quote.target_height, height + 1, "it commits to a block above the tip");
+  assert.ok(quote.payment_request, "and it is payable");
+
+  // Before the block exists, nobody can open it — not even after paying.
+  settled.add(quote.payment_hash);
+  const early = await mint.revealFor(quote.payment_hash);
+  assert.equal(early.sealed, true);
+  assert.equal(early.cards, null, "an unmined block reveals nothing");
+  await assert.rejects(
+    () => mint.signBooster({ idempotency_key: "s1", pack_id: quote.pack_id, state: quote.state, payment_hash: quote.payment_hash, outputs: [] }),
+    /not mined yet|still sealed/i,
+    "and the mint will not sign against a block that does not exist",
+  );
+
+  // The block arrives.
+  height += 1;
+  const opened = await mint.revealFor(quote.payment_hash);
+  assert.equal(opened.sealed, false);
+  assert.equal(opened.cards.length, 7, "the pack opens to seven cards");
+  assert.equal(opened.beacon, hashAt(quote.target_height), "against the hash of the committed block");
+
+  // The same sale always opens the same way, even once the chain moves on.
+  height += 4;
+  const again = await mint.revealFor(quote.payment_hash);
+  assert.equal(again.beacon, opened.beacon, "a later tip does not change a sealed sale");
+  assert.deepEqual(again.cards.map((c) => c.asset_id), opened.cards.map((c) => c.asset_id));
+
+  // And a different block would have produced a different pack — which is the
+  // whole point: the contents are a function of a value nobody controlled.
+  const otherDb = new DatabaseSync(":memory:");
+  t.after(() => otherDb.close());
+  let otherHeight = 900500;
+  const otherMint = createNutftMint({
+    db: otherDb, catalogUri: "http://127.0.0.1/nutft/catalog",
+    lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 500 },
+    priceMsat: 21000, beaconSource: "lnd", beaconConfirmations: 1,
+    beaconGetInfo: async () => ({ height: otherHeight, hash: hashAt(otherHeight) }),
+  });
+  const otherQuote = await otherMint.payableQuote();
+  settled.add(otherQuote.payment_hash);
+  otherHeight += 1;
+  const otherOpened = await otherMint.revealFor(otherQuote.payment_hash);
+  assert.notEqual(otherOpened.beacon, opened.beacon, "a different block");
+  assert.notDeepEqual(
+    otherOpened.cards.map((c) => c.asset_id),
+    opened.cards.map((c) => c.asset_id),
+    "yields a different pack from the same pack_id — the beacon really drives the draw",
+  );
+});
