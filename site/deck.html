@@ -320,7 +320,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       <button type="button" class="mode is-on" id="modeFreestyle" aria-pressed="true">Freestyle</button>
       <button type="button" class="mode" id="modeOg" aria-pressed="false">OG</button>
     </div>
-    <div class="note" id="ownershipNote">Checking whether this Stack uses verified NutFT ownership…</div>
+    <!-- Live, because the wallet answers long after the page has settled: this
+         line rewrites itself when the proofs land, and a screen reader was never
+         told. It is the only announcement of what OG can and cannot see. -->
+    <div class="note" id="ownershipNote" role="status" aria-live="polite">Checking whether this Stack uses verified NutFT ownership…</div>
     <div class="saved">
       <h3>Saved stacks</h3>
       <div id="savedList"></div>
@@ -523,11 +526,30 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * is the opt-in "play what you actually pulled" mode. */
   let owned = null;
   let verified = null;            // verified NutFT counts, once the wallet is read
+  let unreadable = 0;             // tokens this mint cannot open at all — see the wallet read below
   const MODE_KEY = "600b:deck-mode";
+  /* `wish` is what the player asked for and `mode` is what is legal right now,
+   * and they have to be two variables. They used to be one, and the single
+   * variable was overwritten by the very first applyMode() call — which runs
+   * before the wallet has answered, so proofs are still 0 and OG is always
+   * coerced to Freestyle. That coercion wrote itself back over the stored
+   * preference, so an OG player was silently dropped into Freestyle on every
+   * single load and had to press OG again. The wish survives the coercion now,
+   * and the wallet callback re-applies it once the proofs are actually known. */
+  let wish = "freestyle";
+  try { if (localStorage.getItem(MODE_KEY) === "og") wish = "og"; } catch { /* storage is optional */ }
   let mode = "freestyle";
-  try { if (localStorage.getItem(MODE_KEY) === "og") mode = "og"; } catch { /* storage is optional */ }
   let walletReady = false;
   const total = () => Object.values(deck).reduce((a, n) => a + n, 0);
+
+  /* What a single card is capped at right here, right now: §7's limit and — in
+   * OG — what you actually hold, whichever bites first. Two copies of a Genesis
+   * card in the wallet still make one copy in the Stack. Anything that only has
+   * room to say "full" rather than say why reads this; the two rules stay split
+   * where there is room to name the one that refused, because "maximum 1 copy"
+   * and "you own 1 proof" send the player to different places. */
+  const effectiveLimit = (card) =>
+    Math.min(copyLimit(card), owned && card && !ownershipExempt(card) ? (owned.get(card.id) || 0) : Infinity);
 
   /* ----------------------------------------------------------- persistence
    * Every read and write goes through the napplet adapter: the shell's storage
@@ -1046,8 +1068,12 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     const copies = deck[id] || 0;
     /* The reader's Add button carries the copy limit too — addCard() would
      * refuse anyway, but its refusal is said in the deck pane, which is behind
-     * the dialog. A disabled button is the answer where the click happens. */
-    const limit = copyLimit(byId[id]);
+     * the dialog. A disabled button is the answer where the click happens.
+     *
+     * In OG that limit is also what you hold, and it used to be only §7's: the
+     * one card you pulled read "1 in Stack" with Add still lit, and pressing it
+     * did nothing a player could see. */
+    const limit = effectiveLimit(byId[id]);
     const full = copies >= limit;
     dlgCopies.textContent = !copies ? "not in Stack"
       : full ? `${copies} in Stack — the maximum`
@@ -1380,11 +1406,11 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * can never disagree. OG with no verified proofs would be an empty builder, so
    * it stays disabled until the wallet actually holds something. */
   function applyMode(next, { save = true } = {}) {
+    wish = next;
     const proofs = verified ? [...verified.values()].reduce((sum, n) => sum + n, 0) : 0;
-    if (next === "og" && !proofs) next = "freestyle";
-    mode = next;
+    mode = next === "og" && proofs ? "og" : "freestyle";
     owned = mode === "og" ? verified : null;
-    if (save) { try { localStorage.setItem(MODE_KEY, mode); } catch { /* storage is optional */ } }
+    if (save) { try { localStorage.setItem(MODE_KEY, wish); } catch { /* storage is optional */ } }
 
     for (const [name, button] of Object.entries(modeButtons)) {
       if (!button) continue;
@@ -1393,13 +1419,29 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     }
     if (modeButtons.og) modeButtons.og.disabled = !proofs;
 
-    ownershipNote.textContent = mode === "og"
+    /* A token this mint cannot open is NOT a card the mint rejected. It is a
+     * card the mint never got as far as having an opinion about — minted before
+     * this mint rotated its keyset, or bought from a different mint entirely.
+     * Saying "invalid" there would tell a buyer their card is bad when the truth
+     * is that they are standing at the wrong counter, so the sentence names the
+     * two real causes and stops. It is appended rather than substituted because
+     * the pool is still whatever the readable proofs say. */
+    const aside = unreadable
+      ? ` ${unreadable} token${unreadable === 1 ? "" : "s"} here cannot be opened by this mint — bought from a different mint, or minted before this one rotated its keyset — so whatever ${unreadable === 1 ? "it holds is" : "they hold are"} not in the OG pool.`
+      : "";
+
+    ownershipNote.textContent = (mode === "og"
       ? `OG: ${proofs} verified unspent proof(s). Only cards you actually pulled can enter this Stack — Basic Resources aside, which stay free so a Stack is buildable.`
       : verified === null
         ? "Freestyle: the whole catalog is legal. Checking your wallet for an OG option…"
         : proofs
           ? `Freestyle: the whole catalog is legal. You hold ${proofs} verified proof(s) — switch to OG to build from those only.`
-          : "Freestyle: the whole catalog is legal. Buy a booster to unlock OG, which builds only from cards you own.";
+          /* Unreadable tokens and an empty wallet look identical from here, and
+             telling someone who has bought packs to go buy a pack is the worst
+             thing this line could say. */
+          : unreadable
+            ? "Freestyle: the whole catalog is legal. OG stays closed because not one card in this wallet could be read here."
+            : "Freestyle: the whole catalog is legal. Buy a booster to unlock OG, which builds only from cards you own.") + aside;
 
     if (typeof renderGrid === "function") renderGrid();
     if (typeof renderDeck === "function") renderDeck();
@@ -1408,23 +1450,30 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   for (const [name, button] of Object.entries(modeButtons)) {
     if (button) button.addEventListener("click", () => applyMode(name));
   }
-  applyMode(mode, { save: false });
+  applyMode(wish, { save: false });
 
   globalThis.NutFTWallet.read().then(async (wallet) => {
     if (!wallet.tokens.length) {
       verified = new Map();
       walletReady = true;
-      applyMode("freestyle", { save: false });
+      applyMode(wish, { save: false });
       return;
     }
     const view = await globalThis.NutFTWallet.snapshot(location.origin);
     verified = new Map();
     for (const item of view.owned) verified.set(item.tag[2], (verified.get(item.tag[2]) || 0) + 1);
+    /* snapshot() no longer throws on a token this mint cannot read, so a wallet
+     * full of them now arrives here as zero owned cards instead of as an error.
+     * That is a new way to reach OG with an empty pool: the mode guard above
+     * still catches it — no proofs, no OG — but the note has to say which of the
+     * two silences this is. */
+    unreadable = view.unreadable.length;
     walletReady = true;
-    applyMode(mode, { save: false });
+    applyMode(wish, { save: false });
   }).catch((error) => {
     /* A wallet that cannot be verified must not silently become an empty OG
-     * pool — fall back to Freestyle and say why. */
+     * pool — fall back to Freestyle and say why. This is now a real failure
+     * only: the mint being unreachable, or its catalog not verifying. */
     verified = new Map();
     walletReady = true;
     applyMode("freestyle", { save: false });

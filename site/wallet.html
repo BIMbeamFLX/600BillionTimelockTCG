@@ -8,21 +8,88 @@
 <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="600b.css">
 <style>
+/* Page-local only. Palette, type, nav, .framed / .chip-num / .note / .banner and
+   the buttons all come from 600b.css; what lives here is the collection grid and
+   the trade desk, which exist on no other page. */
 [hidden] { display: none !important; }
-.wallet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-.wallet-card { border: 1px solid var(--line); background: var(--soot); }
-.wallet-card img { width: 100%; aspect-ratio: 5 / 7; object-fit: cover; display: block; }
-.wallet-card__body { padding: 10px; }
-.wallet-card__body p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-.wallet-card--bad { border-color: var(--danger); }
+
+/* `.mode-off` is the dashed note turned solid and red. shop.html defines its own
+   copy; this page used the class for a year without ever defining it, so the
+   error line rendered as an ordinary muted note. */
+.mode-off { border-color: var(--danger); border-style: solid; }
+.mode-off strong { color: var(--danger); }
+/* Not an error and not fine: a bucket the mint has no opinion about. It wears
+   the power gold rather than the danger red, because red is the colour this page
+   uses for "the mint rejected this" and that is a different sentence. */
+.mode-wait { border-color: var(--power); border-style: solid; }
+.mode-wait strong { color: var(--power); }
+
+/* -------------------------------------------------------------- collection */
+
 .wallet-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
-.wallet-transfer { display: grid; gap: 8px; max-width: 760px; margin: 18px 0 24px; }
-.wallet-transfer textarea, .wallet-transfer input { width: 100%; box-sizing: border-box; background: var(--soot); color: var(--paper); border: 1px solid var(--line); padding: 10px; }
-.wallet-transfer__row { display: flex; gap: 8px; }
-.wallet-transfer__row > :first-child { flex: 1; }
+.counters { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+.wallet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.wallet-card { position: relative; display: flex; flex-direction: column; border: 1px solid var(--line); background: var(--soot); }
+.wallet-card img { display: block; width: 100%; aspect-ratio: 5 / 7; object-fit: cover; background: var(--panel); }
+.wallet-card__body { display: flex; flex-direction: column; gap: 5px; flex: 1; padding: 10px; }
+.wallet-card__body strong { font-size: 14px; line-height: 1.25; }
+.wallet-card__body p { margin: 0; font-size: 12px; color: var(--muted); }
+/* The same ember square the shop stamped on a duplicate, so a stack of three
+   reads identically on the two pages a player moves between. Decorative only —
+   the copy count is spelled out in the tile's own text for a screen reader. */
+.wallet-card__n { position: absolute; right: 4px; top: 4px; padding: 2px 6px; background: var(--ember); color: var(--black); font: 900 12px/1 var(--body); }
+.wallet-card__over { color: var(--power); }
+.wallet-card--bad { border-color: var(--danger); }
+.wallet-card .btn { margin-top: auto; }
+
+/* ------------------------------------------------------------- the trade desk
+   Left acts, right explains — the same hand the table uses. Below 900px the
+   explanation follows the controls instead of crowding them. */
+.desk { display: grid; gap: 22px; align-items: start; }
+@media (min-width: 900px) { .desk { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); } }
+.desk h3 { margin-bottom: 8px; }
+.desk .framed p { color: var(--muted); font-size: 13px; line-height: 1.65; }
+.desk .framed p + p { margin-top: 12px; }
+
+.field { display: grid; gap: 6px; margin-top: 12px; }
+.field > label { font: 900 10px/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-dim); }
+.field input, .field select, .field textarea {
+  width: 100%; box-sizing: border-box; padding: 10px;
+  background: var(--soot); color: var(--cream); border: 1px solid var(--line);
+  font: 13px/1.5 var(--body);
+}
+.field textarea { font-family: var(--mono); font-size: 12px; resize: vertical; }
+/* The ring stays: the border only ever gains an accent on top of it. */
+.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { border-color: var(--ember); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row > :first-child { flex: 1; min-width: 0; }
+.hint { margin: 6px 0 0; color: var(--ink-dim); font-size: 12px; line-height: 1.6; }
+.tool-note { margin: 10px 0 0; min-height: 20px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.keyline { font-family: var(--mono); font-size: 12px; color: var(--cream); word-break: break-all; }
+
+/* The last thing between a person and an irreversible spend, so it wears the
+   one action colour and names the card in full. */
+.confirm { display: grid; gap: 10px; margin-top: 12px; padding: 14px; border: 1px solid var(--ember); background: rgba(255, 106, 0, .07); }
+.confirm p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.confirm p b { color: var(--cream); }
+
+.preview { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--line); background: rgba(9, 8, 11, .55); }
+.preview ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.preview li { display: flex; gap: 10px; align-items: center; }
+.preview li img { width: 40px; aspect-ratio: 5 / 7; object-fit: cover; border: 1px solid var(--line); flex-shrink: 0; }
+.preview li div { min-width: 0; }
+.preview li strong { display: block; font-size: 13px; }
+.preview li span { font-size: 12px; color: var(--muted); }
+.preview__verdict { margin: 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.preview__verdict.bad { color: var(--danger); }
+
+.cannot ul { margin: 8px 0 0; padding-left: 18px; }
+.cannot li { font-size: 12px; line-height: 1.7; color: var(--ink-dim); }
+.cannot code { font-family: var(--mono); color: var(--muted); }
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <nav class="nav">
   <img class="nav__mark" src="../art/brand/600B-logo-primary.png" alt="">
   <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
@@ -38,26 +105,132 @@
 <main id="main">
   <section class="section">
     <p class="eyebrow">Cashu · NutFT · collection wallet</p>
-    <h1>Your <span class="accent">cards</span></h1>
-    <p class="lead">Each tile is one Cashu proof: amount 1, unit 600B-E1. The wallet checks the NutFT secret, CardBinding, DLEQ, P2BK destination, proof state, and the Blossom face hash before displaying it.</p>
+    <h1>Your <span class="accent">collection</span></h1>
+    <p class="lead">Every card here is one Cashu proof: amount 1, unit 600B-E1. Before a tile appears the wallet has
+      checked the NutFT secret, the CardBinding, the mint's DLEQ proof, the P2BK destination, the proof state and the
+      Blossom face hash. Copies of the same card stack into one tile.</p>
+
     <div class="wallet-meta" id="walletMeta"><span class="chip">Loading wallet…</span></div>
-    <p class="note mode-off" id="walletError" hidden></p>
-    <section class="wallet-transfer" aria-labelledby="transferTitle">
-      <h2 id="transferTitle">Receive or transfer</h2>
-      <label>Your P2BK destination</label>
-      <div class="wallet-transfer__row"><input id="destination" readonly><button class="btn btn--ghost" id="copyDestination" type="button">Copy</button></div>
-      <label for="importToken">Import a received Cashu token</label>
-      <textarea id="importToken" rows="3" placeholder="cashuB…"></textarea>
-      <button class="btn btn--ghost" id="importButton" type="button">Verify and import</button>
-      <label for="outgoingToken">Token to deliver after a transfer</label>
-      <textarea id="outgoingToken" rows="3" readonly placeholder="Transfer a card to create a token"></textarea>
-      <button class="btn btn--ghost" id="copyOutgoing" type="button">Copy transfer token</button>
-      <h3>Wallet backup</h3>
-      <p class="muted">The backup contains the private key and bearer tokens. Keep it secret. Restore is allowed only when this wallet has no tokens.</p>
-      <div class="wallet-transfer__row"><button class="btn btn--ghost" id="downloadBackup" type="button">Download backup</button><input id="restoreBackup" type="file" accept="application/json"></div>
-    </section>
+    <p class="note mode-off" id="walletError" role="status" aria-live="polite" hidden></p>
+
+    <div class="counters" id="counters" hidden>
+      <div><b class="chip-num"><b id="ownedCount">0</b><span>CARDS</span></b></div>
+      <div><b class="chip-num"><b id="uniqueCount">0</b><span>DISTINCT</span></b></div>
+      <div><b class="chip-num"><b id="dupeCount">0</b><span>DUPES</span></b></div>
+    </div>
+
     <div class="wallet-grid" id="walletCards"></div>
-    <p class="muted" id="empty" hidden>No NutFT proofs yet. <a href="shop.html?shop=mint">Buy a demo booster</a>.</p>
+    <p class="muted" id="empty" hidden>No NutFT cards yet. <a href="shop.html?shop=mint">Buy a demo booster</a>.</p>
+
+    <!-- Two buckets that are NOT the same thing, and are never merged. See the
+         copy inside: one is the mint rejecting a proof, the other is the mint
+         being unable to open a token at all. -->
+    <div id="cannotRead" hidden>
+      <h2 style="margin-top:36px">Not <span class="accent">shown above</span></h2>
+      <div class="note mode-wait cannot" id="unreadableNote" hidden></div>
+      <div class="note mode-off cannot" id="invalidNote" hidden style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <section class="section section--tight" aria-labelledby="tradeTitle">
+    <h2 id="tradeTitle">Hand a card <span class="accent">to someone</span></h2>
+    <div class="desk">
+      <div class="stack">
+
+        <!-- Only ever visible when the wallet is holding an unfinished exchange.
+             It is the difference between "your card is gone" and "your card is
+             one button away", so it sits above everything it explains. -->
+        <div class="note mode-wait" id="recover" role="status" aria-live="polite" hidden>
+          <p id="recoverText" style="margin:0"></p>
+          <button class="btn" id="recoverGo" type="button" style="margin-top:10px">Finish it now</button>
+        </div>
+
+        <section class="panel panel--act" aria-labelledby="sendTitle">
+          <h3 id="sendTitle">Send a card</h3>
+          <p>The mint spends your proof and signs a replacement locked to the key you name. It happens once and it
+            cannot be reversed, so the card is named back to you before anything is sent.</p>
+          <form id="sendForm">
+            <div class="field">
+              <label for="sendCard">Card to send</label>
+              <select id="sendCard"><option value="">No cards in this wallet</option></select>
+            </div>
+            <div class="field">
+              <label for="recipientKey">Their destination key</label>
+              <input id="recipientKey" type="text" inputmode="latin" autocomplete="off" spellcheck="false"
+                     placeholder="02… or 03…">
+            </div>
+            <p class="hint">This is the <b>P2BK destination</b> from their own wallet page — not an npub, not a
+              Lightning address. The mint locks the new proof to it, so a typo sends the card to a key nobody holds.</p>
+            <div class="row" style="margin-top:12px"><button class="btn" id="sendReview" type="submit">Review this transfer</button></div>
+          </form>
+          <div class="confirm" id="sendConfirm" hidden>
+            <p id="sendConfirmWhat"></p>
+            <p class="keyline" id="sendConfirmKey"></p>
+            <p>Sending spends the card at the mint. There is no take-back and no undo.</p>
+            <div class="row"><button class="btn" id="sendGo" type="button">Send it</button><button class="btn btn--ghost" id="sendCancel" type="button">Cancel</button></div>
+          </div>
+          <p class="tool-note" id="sendNote" role="status" aria-live="polite"></p>
+          <div id="outgoing" hidden>
+            <div class="field">
+              <label for="outgoingToken">Token to hand over</label>
+              <textarea id="outgoingToken" rows="3" readonly></textarea>
+            </div>
+            <div class="row" style="margin-top:8px"><button class="btn btn--ghost" id="copyOutgoing" type="button">Copy transfer token</button></div>
+            <p class="hint">Only the key you named can claim it, so any channel will do. But this is the only copy:
+              keep the page open until they confirm the import, because nothing here can produce it a second time.</p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="receiveTitle">
+          <h3 id="receiveTitle">Receive a card</h3>
+          <p>Give this key to whoever is sending. It is a public destination — it spends nothing and holds nothing.</p>
+          <div class="field">
+            <label for="destination">Your P2BK destination</label>
+            <div class="row"><input id="destination" readonly><button class="btn btn--ghost" id="copyDestination" type="button">Copy</button></div>
+          </div>
+          <div class="field">
+            <label for="importToken">A token you were handed</label>
+            <textarea id="importToken" rows="3" placeholder="cashuB…"></textarea>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button class="btn btn--ghost" id="checkButton" type="button">Check this token</button>
+            <button class="btn" id="importButton" type="button" disabled>Accept into my wallet</button>
+          </div>
+          <div class="preview" id="importPreview" hidden></div>
+          <p class="tool-note" id="importNote" role="status" aria-live="polite"></p>
+        </section>
+      </div>
+
+      <div class="framed">
+        <i class="pad tl"></i><i class="pad tr"></i><i class="pad bl"></i><i class="pad br"></i>
+        <span class="banner">How a transfer works</span>
+        <p>A card is a card and not a copy because the mint will only ever spend a proof once. A transfer asks it to do
+          exactly that: burn the proof this wallet holds and sign a new one locked to the key you named.</p>
+        <p>Which is why sending is final. The moment the mint answers, the card belongs to them — there is no recall, no
+          expiry and nobody to appeal to. Read the name and the key on the confirmation, not on the form.</p>
+        <p>If the answer never arrives — the tab closes, the network drops — the card is <b>not</b> lost. The outputs
+          that claim the replacement stay in this wallet as a pending transfer, and <b>Finish it now</b> asks the mint
+          for the same answer again under the same idempotency key. Do that before assuming anything is gone.</p>
+        <p>A token handed to you is locked to your destination key: nobody else can claim it, and importing is what
+          moves it in. Check it first — the mint has the last word on whether it is real, but you should know what you
+          are accepting before you accept it.</p>
+        <div class="terminal-line"><span>TIMELOCK_TCG</span><span>600B</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--tight" aria-labelledby="backupTitle">
+    <h2 id="backupTitle">Wallet <span class="accent">backup</span></h2>
+    <p class="muted" style="max-width:var(--measure)">The backup contains the private key and the tokens themselves.
+      Keep it secret. Restore is allowed only into a wallet that holds nothing, so a restore can never overwrite cards
+      you already have.</p>
+    <div class="row" style="margin-top:14px;max-width:760px">
+      <button class="btn btn--ghost" id="downloadBackup" type="button" style="flex:0 0 auto">Download backup</button>
+      <label class="field" style="margin:0;flex:1;min-width:220px">
+        <span style="font:900 10px/1 var(--body);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)">Restore from a backup file</span>
+        <input id="restoreBackup" type="file" accept="application/json">
+      </label>
+    </div>
   </section>
 </main>
 
@@ -65,17 +238,74 @@
 <script src="bugreport.js" defer></script>
 <script>
 (async function () {
+  "use strict";
   const root = globalThis;
   const mint = root.location.origin;
-  const meta = document.getElementById("walletMeta");
-  const grid = document.getElementById("walletCards");
-  const error = document.getElementById("walletError");
-  const empty = document.getElementById("empty");
-  const destination = document.getElementById("destination");
-  const importToken = document.getElementById("importToken");
-  const outgoingToken = document.getElementById("outgoingToken");
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const chip = (text) => el("span", "chip", text);
+
+  /* Every rung of the ladder, rarest first, with the copy limit that rung
+   * carries into a Stack beside it (engine.js MAX_COPIES, rulebook §7: three,
+   * one for a Genesis, and no ceiling at all on a Basic Resource — a Stack
+   * needs 16-18 of them).
+   *
+   * Indexed directly, and it RAISES. A tier this table has never heard of means
+   * a re-tiering reached the catalog without reaching this file, and quietly
+   * scoring it as a common is how the rarest card in the game ends up sorted
+   * beneath a Basic Resource. Twice burned; fail where it is loud. */
+  const TIERS = {
+    genesis:  { rung: 0, copies: 1 },
+    vault:    { rung: 1, copies: 3 },
+    promo:    { rung: 2, copies: 3 },
+    rare:     { rung: 3, copies: 3 },
+    uncommon: { rung: 4, copies: 3 },
+    common:   { rung: 5, copies: 3 },
+    basic:    { rung: 6, copies: Infinity },
+  };
+  const tierOf = (asset) => {
+    const key = String(asset.tier).toLowerCase();
+    if (!(key in TIERS)) throw new Error(`wallet: no rung for tier "${asset.tier}"`);
+    return TIERS[key];
+  };
+
+  const meta = $("walletMeta");
+  const grid = $("walletCards");
+  const error = $("walletError");
+  const empty = $("empty");
+  const counters = $("counters");
+  const destination = $("destination");
+  const sendCard = $("sendCard");
+  const recipientKey = $("recipientKey");
+  const sendConfirm = $("sendConfirm");
+  const sendNote = $("sendNote");
+  const outgoing = $("outgoing");
+  const outgoingToken = $("outgoingToken");
+  const importToken = $("importToken");
+  const importButton = $("importButton");
+  const importPreview = $("importPreview");
+  const importNote = $("importNote");
+  const recover = $("recover");
+  const recoverText = $("recoverText");
+
+  /* What the last snapshot found, kept so the trade desk can answer questions
+   * about the collection without asking the mint a second time. */
+  let stacks = [];                       // one entry per distinct card, rarest first
+  const byAsset = new Map();             // asset_id -> stack
+  const verifiedAssets = new Map();      // "catalog_uri\nasset_id" -> catalog entry
+  let keysetIds = [];                    // every 600B-E1 keyset this mint will name
+  let pendingSend = null;                // the transfer sitting on the confirmation
+
   const digest = async (bytes) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
-  const chip = (text) => { const node = document.createElement("span"); node.className = "chip"; node.textContent = text; return node; };
+
+  /* A face is only ever shown after its bytes hash to what the signed catalog
+   * says they must. Grouping duplicates means this now runs once per distinct
+   * card rather than once per proof. */
   async function verifiedFace(asset) {
     let lastError = new Error(`No Blossom mirror for ${asset.asset_id}`);
     for (const url of asset.face.urls || []) {
@@ -89,74 +319,470 @@
     }
     throw lastError;
   }
-  try {
-    destination.value = await root.NutFTWallet.destination();
-    const { catalog, owned, spent, invalid } = await root.NutFTWallet.snapshot(mint);
-    meta.replaceChildren(chip(`${owned.length} UNSPENT`), chip("UNIT 600B-E1"));
-    if (spent.length) meta.append(chip(`${spent.length} SPENT`));
-    if (invalid.length) meta.append(chip(`${invalid.length} INVALID`));
-    if (catalog) meta.append(chip(`CATALOG ${catalog.census_sha256.slice(0, 12)}…`));
-    empty.hidden = owned.length !== 0;
+
+  const say = (node, text, bad) => {
+    node.textContent = text;
+    node.classList.toggle("bad", Boolean(bad));
+  };
+  const fail = (text) => { error.hidden = false; error.textContent = text; };
+  const reason = (thrown) => String((thrown && thrown.message) || thrown);
+
+  // ------------------------------------------------------------- collection
+
+  function groupOwned(owned) {
+    const map = new Map();
     for (const item of owned) {
-      const card = document.createElement("article");
-      card.className = "wallet-card";
-      const image = document.createElement("img");
-      image.alt = item.asset.name;
-      const body = document.createElement("div");
-      body.className = "wallet-card__body";
-      const name = document.createElement("strong"); name.textContent = item.asset.name;
-      const detail = document.createElement("p"); detail.textContent = `${item.asset.tier} · amount 1 · ${item.state}`;
-      const checks = document.createElement("p"); checks.textContent = "DLEQ ✓ · P2BK ✓ · Blossom checking…";
-      body.append(name, detail, checks);
-      const transfer = document.createElement("button"); transfer.className = "btn btn--ghost"; transfer.type = "button"; transfer.textContent = "Transfer";
-      transfer.addEventListener("click", async () => {
-        const recipient = prompt("Recipient P2BK public key");
-        if (!recipient) return;
-        transfer.disabled = true;
-        try {
-          outgoingToken.value = (await root.NutFTWallet.tradeProof(mint, item.proof.secret, recipient.trim())).token;
-          card.remove();
-          meta.firstElementChild.textContent = `${grid.querySelectorAll(".wallet-card").length} UNSPENT`;
-        }
-        catch (reason) { error.hidden = false; error.textContent = reason.message; transfer.disabled = false; }
-      });
-      body.append(transfer);
-      card.append(image, body);
-      grid.append(card);
+      const id = item.tag[2];
+      let stack = map.get(id);
+      if (!stack) map.set(id, (stack = { id, asset: item.asset, tier: tierOf(item.asset), items: [] }));
+      stack.items.push(item);
+    }
+    /* Rarest first so the cards worth finding are where a person looks first,
+     * then by name so two cards on the same rung never swap places between
+     * two loads of the same wallet. */
+    return [...map.values()].sort((a, b) => a.tier.rung - b.tier.rung || a.asset.name.localeCompare(b.asset.name));
+  }
+
+  function tileFor(stack) {
+    const count = stack.items.length;
+    const card = el("article", "wallet-card");
+    const image = el("img");
+    image.alt = stack.asset.name;
+    image.loading = "lazy";
+    const body = el("div", "wallet-card__body");
+    body.append(el("strong", null, stack.asset.name));
+    /* The ×N square is decorative; the copies are spelled out here so the tile
+     * reads the same aloud as it does on screen. */
+    body.append(el("p", null, `${stack.asset.tier} · ${stack.id} · ${count === 1 ? "1 copy" : `${count} copies`}`));
+    if (count > stack.tier.copies) {
+      body.append(el("p", "wallet-card__over", stack.tier.copies === 1
+        ? "A Stack may hold one — the rest are spares to trade."
+        : `A Stack may hold ${stack.tier.copies} — the rest are spares to trade.`));
+    }
+    const checks = el("p", null, "DLEQ ✓ · P2BK ✓ · Blossom checking…");
+    body.append(checks);
+    const send = el("button", "btn btn--ghost btn--small", "Send a copy");
+    send.type = "button";
+    send.addEventListener("click", () => {
+      sendCard.value = stack.id;
+      resetConfirm();
+      recipientKey.focus();
+      recipientKey.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    });
+    body.append(send);
+    card.append(image, body);
+    if (count > 1) {
+      const badge = el("span", "wallet-card__n", `×${count}`);
+      badge.setAttribute("aria-hidden", "true");
+      card.append(badge);
+    }
+    return { card, image, checks };
+  }
+
+  async function renderCollection(owned) {
+    stacks = groupOwned(owned);
+    byAsset.clear();
+    for (const stack of stacks) byAsset.set(stack.id, stack);
+
+    $("ownedCount").textContent = String(owned.length);
+    $("uniqueCount").textContent = String(stacks.length);
+    $("dupeCount").textContent = String(owned.length - stacks.length);
+    counters.hidden = owned.length === 0;
+    empty.hidden = owned.length !== 0;
+
+    grid.replaceChildren();
+    const painted = [];
+    for (const stack of stacks) {
+      const tile = tileFor(stack);
+      grid.append(tile.card);
+      painted.push({ stack, tile });
+    }
+    /* Before the faces, not after. Verifying a face is a network round trip per
+     * distinct card against a Blossom mirror that may be slow or missing, and
+     * leaving the send picker reading "No cards in this wallet" for that whole
+     * time is a lie about the wallet's contents. */
+    fillPicker();
+    for (const { stack, tile } of painted) {
       try {
-        image.src = await verifiedFace(item.asset);
-        checks.textContent = "DLEQ ✓ · P2BK ✓ · Blossom ✓";
-      } catch (reason) {
-        card.classList.add("wallet-card--bad");
-        checks.textContent = `DLEQ ✓ · P2BK ✓ · Blossom failed: ${reason.message}`;
+        tile.image.src = await verifiedFace(stack.asset);
+        tile.checks.textContent = "DLEQ ✓ · P2BK ✓ · Blossom ✓";
+      } catch (thrown) {
+        tile.card.classList.add("wallet-card--bad");
+        tile.checks.textContent = `DLEQ ✓ · P2BK ✓ · Blossom failed: ${reason(thrown)}`;
       }
     }
-    if (invalid.length) { error.hidden = false; error.textContent = `${invalid.length} proof(s) were isolated because validation failed.`; }
-  } catch (reason) {
-    error.hidden = false;
-    error.textContent = String(reason && reason.message || reason);
   }
+
+  function fillPicker() {
+    const previous = sendCard.value;
+    sendCard.replaceChildren();
+    if (!stacks.length) {
+      sendCard.append(new Option("No cards in this wallet", ""));
+      sendCard.disabled = true;
+      $("sendReview").disabled = true;
+      return;
+    }
+    sendCard.disabled = false;
+    $("sendReview").disabled = false;
+    for (const stack of stacks) {
+      const copies = stack.items.length === 1 ? "1 copy" : `${stack.items.length} copies`;
+      sendCard.append(new Option(`${stack.asset.name} — ${stack.asset.tier} · ${copies}`, stack.id));
+    }
+    if (byAsset.has(previous)) sendCard.value = previous;
+  }
+
+  // -------------------------------------------------- what is NOT shown above
+
+  /* Two buckets, two sentences, and they are not interchangeable. `invalid` is
+   * the mint having looked at a proof and rejected it. `unreadable` is the mint
+   * being unable to open the token at all — a keyset it never had, or a token
+   * from another mint entirely. Calling the second one invalid tells a person
+   * their card is bad when the truth is they are on the wrong mint. */
+  function renderCannotRead(unreadable, invalid) {
+    const box = $("unreadableNote");
+    box.hidden = !unreadable.length;
+    if (unreadable.length) {
+      box.replaceChildren();
+      box.append(el("p", null, unreadable.length === 1
+        ? "1 token in this wallet could not be opened by this mint."
+        : `${unreadable.length} tokens in this wallet could not be opened by this mint.`));
+      const why = el("p");
+      why.style.marginTop = "8px";
+      why.append(el("strong", null, "This does not mean the cards are invalid."), document.createTextNode(
+        " An invalid proof is one the mint has looked at and rejected. These it cannot even open — usually because they"
+        + " were signed before this mint rotated its keyset, or because they were bought from a different mint, such as"
+        + " a staging one. Nothing has been thrown away: the tokens are still in this wallet's storage and in any backup"
+        + " you download, and a mint that recognises the keyset that signed them can still open them. They simply cannot"
+        + " be read, shown or traded here."));
+      box.append(why);
+      const list = el("ul");
+      for (const entry of unreadable) {
+        const row = el("li");
+        row.append(el("code", null, `${entry.token.slice(0, 16)}…`), document.createTextNode(` — ${entry.error}`));
+        list.append(row);
+      }
+      box.append(list);
+    }
+
+    const bad = $("invalidNote");
+    bad.hidden = !invalid.length;
+    if (invalid.length) {
+      bad.replaceChildren();
+      bad.append(el("p", null, invalid.length === 1
+        ? "1 proof was isolated because this mint rejected it."
+        : `${invalid.length} proofs were isolated because this mint rejected it.`));
+      const why = el("p");
+      why.style.marginTop = "8px";
+      why.append(el("strong", null, "The mint has an opinion about these, and the opinion is no."),
+        document.createTextNode(" They stay in storage and are never shown as cards. The reason the check gave is below."));
+      bad.append(why);
+      const list = el("ul");
+      for (const entry of invalid) list.append(el("li", null, entry.error));
+      bad.append(list);
+    }
+
+    $("cannotRead").hidden = !unreadable.length && !invalid.length;
+  }
+
+  // ------------------------------------------------------------------ pending
+
+  /* An unfinished exchange is the one wallet state that looks like a loss and
+   * is not one, so it is stated in full and given its own button. It also
+   * BLOCKS a new transfer on purpose: tradeProof() finishes whatever is pending
+   * before it looks at the card you asked for, so pressing Send with one in
+   * flight would quietly complete a different trade than the one on screen. */
+  async function showPending() {
+    let state;
+    try { state = await root.NutFTWallet.read(); }
+    catch { recover.hidden = true; return null; }
+    const pending = state.pending || null;
+    recover.hidden = !pending;
+    if (pending) {
+      recoverText.textContent = pending.type === "trade"
+        ? "A transfer is unfinished: the mint has already spent the card, and the replacement token for the recipient"
+          + " has not been collected yet. It is not lost — press the button and the mint is asked for the same answer"
+          + " again under the same key."
+        : "A booster is unfinished: the mint owes this wallet cards that were paid for but never collected. Press the"
+          + " button and it is asked again under the same key.";
+    }
+    return pending;
+  }
+
+  $("recoverGo").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const pending = await showPending();
+    if (!pending) return;
+    button.disabled = true;
+    say(sendNote, "Asking the mint to finish it…");
+    try {
+      const result = await root.NutFTWallet.recoverPending();
+      if (pending.type === "trade" && result && result.token) {
+        outgoing.hidden = false;
+        outgoingToken.value = result.token;
+        say(sendNote, "Recovered. The token below is the one the recipient needs — it was never lost, only uncollected.");
+      } else {
+        say(sendNote, "Recovered. The cards are in the collection above.");
+      }
+      await refresh();
+    } catch (thrown) {
+      say(sendNote, `The mint could not finish it: ${reason(thrown)} — the transfer stays pending, so this can be tried again.`, true);
+    }
+    button.disabled = false;
+  });
+
+  // ------------------------------------------------------------------ sending
+
+  function resetConfirm() {
+    pendingSend = null;
+    sendConfirm.hidden = true;
+  }
+
+  $("sendForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    resetConfirm();
+    const stack = byAsset.get(sendCard.value);
+    const recipient = recipientKey.value.trim();
+    if (!stack) return say(sendNote, "Pick a card to send.", true);
+    if (!recipient) return say(sendNote, "A destination key is needed, or the mint has nobody to lock the card to.", true);
+    pendingSend = { stack, recipient };
+    /* Named, in full, before anything is spent. A key alone is not a name and
+     * "Transfer" alone is not a question. */
+    $("sendConfirmWhat").replaceChildren(
+      document.createTextNode("Send "),
+      el("b", null, stack.asset.name),
+      document.createTextNode(` (${stack.asset.tier}, ${stack.id}) to this key:`),
+    );
+    $("sendConfirmKey").textContent = recipient;
+    $("sendGo").textContent = `Send ${stack.asset.name}`;
+    sendConfirm.hidden = false;
+    say(sendNote, "");
+    $("sendGo").focus();
+  });
+
+  $("sendCancel").addEventListener("click", () => {
+    resetConfirm();
+    say(sendNote, "Nothing was sent.");
+    sendCard.focus();
+  });
+
+  $("sendGo").addEventListener("click", async (event) => {
+    if (!pendingSend) return;
+    const { stack, recipient } = pendingSend;
+    const button = event.currentTarget;
+    if (await showPending()) {
+      resetConfirm();
+      return say(sendNote, "There is already an unfinished transfer. Finish that one first — starting a second would complete the first instead.", true);
+    }
+    button.disabled = true;
+    say(sendNote, `Asking the mint to move ${stack.asset.name}…`);
+    try {
+      const result = await root.NutFTWallet.tradeProof(mint, stack.items[0].proof.secret, recipient);
+      resetConfirm();
+      outgoing.hidden = false;
+      outgoingToken.value = result.token;
+      say(sendNote, `${stack.asset.name} is on its way. Hand the token below to the person holding that key — it is the only copy.`);
+      recipientKey.value = "";
+      await refresh();
+      outgoingToken.focus();
+    } catch (thrown) {
+      resetConfirm();
+      /* The difference that matters after a failure: a pending left behind means
+       * the mint has already taken the card and owes a replacement, which is a
+       * recovery and not a loss. No pending means nothing moved at all. */
+      const pending = await showPending();
+      say(sendNote, pending
+        ? `The mint did not answer: ${reason(thrown)}. ${stack.asset.name} is NOT lost — the replacement is waiting as a pending transfer. Use "Finish it now" above.`
+        : `The transfer did not start: ${reason(thrown)}. Nothing was spent and ${stack.asset.name} is still in this wallet.`,
+        true);
+    }
+    button.disabled = false;
+  });
+
+  // ---------------------------------------------------------------- receiving
+
+  /* getDecodedToken() needs the keyset ids to open a token, and the wallet
+   * library keeps its own lookup private — so the page asks the mint for the
+   * same list. Inactive keysets are kept on purpose: a token signed before a
+   * rotation still deserves to be read out loud before it is imported. */
+  async function readKeysetIds() {
+    const response = await fetch(`${mint}/v1/keys`);
+    if (!response.ok) throw new Error(`mint keys unavailable (${response.status})`);
+    const data = await response.json();
+    return (data.keysets || []).filter((keyset) => keyset.unit === "600B-E1").map((keyset) => keyset.id);
+  }
+
+  const previewKey = (uri, assetId) => `${uri}\n${assetId}`;
+
+  /* What is inside the token, said BEFORE the accept button does anything. The
+   * mint is still the authority — importToken() re-checks the CardBinding, the
+   * catalog signature, the DLEQ and the proof state, and refuses on its own —
+   * but a person should not have to accept something to find out what it was.
+   *
+   * Names come only from a catalog this wallet has already verified this
+   * session. A catalog named by a pasted token is not fetched to put a friendly
+   * name on it: that would be a stranger's URL, requested by your browser,
+   * because they asked. */
+  async function describeToken(text) {
+    const c = await root.NutFTWallet.cashu();
+    const decoded = c.getDecodedToken(text, keysetIds);
+    let privateKey = "";
+    try { privateKey = (await root.NutFTWallet.read()).privateKey || ""; } catch { /* identity comes back below */ }
+    const cards = decoded.proofs.map((proof) => {
+      /* A secret that is not a NutFT secret at all is a thing a stranger can
+       * paste, so reading the tag is allowed to fail without taking the
+       * preview with it — the row simply has nothing to name. */
+      let tag = null;
+      try { tag = c.getTag(proof.secret, "nutft"); } catch { tag = null; }
+      const assetId = tag ? tag[2] : null;
+      let mine = false;
+      try { mine = privateKey ? c.maybeDeriveP2BKPrivateKeys(privateKey, proof).length > 0 : false; } catch { mine = false; }
+      return { assetId, asset: tag ? verifiedAssets.get(previewKey(tag[3], tag[2])) || null : null, mine };
+    });
+    return { mint: decoded.mint, unit: decoded.unit, cards };
+  }
+
+  async function renderPreview(text) {
+    importPreview.replaceChildren();
+    const detail = await describeToken(text);
+    const problems = [];
+    if (detail.mint !== mint) problems.push(`the token names a different mint (${detail.mint})`);
+    if (detail.unit !== "600B-E1") problems.push(`the unit is ${detail.unit}, not 600B-E1`);
+    if (!detail.cards.length) problems.push("it carries no proofs");
+    if (detail.cards.some((card) => !card.mine)) problems.push("at least one card is locked to a different key than yours");
+
+    const list = el("ul");
+    for (const card of detail.cards) {
+      const row = el("li");
+      const label = el("div");
+      if (card.asset) {
+        label.append(el("strong", null, card.asset.name));
+        label.append(el("span", null, `${card.asset.tier} · ${card.assetId}${card.mine ? " · locked to your key" : " · NOT locked to your key"}`));
+      } else {
+        label.append(el("strong", null, card.assetId || "unreadable card tag"));
+        label.append(el("span", null, card.mine
+          ? "locked to your key · name appears once the signed catalog is checked on import"
+          : "NOT locked to your key"));
+      }
+      row.append(label);
+      list.append(row);
+      if (card.asset) {
+        verifiedFace(card.asset).then((src) => {
+          const image = el("img");
+          image.src = src;
+          image.alt = card.asset.name;
+          row.prepend(image);
+        }).catch(() => { /* the face is a courtesy here; the words already say it */ });
+      }
+    }
+
+    const verdict = el("p", "preview__verdict");
+    if (problems.length) {
+      verdict.classList.add("bad");
+      verdict.textContent = `This wallet cannot accept it: ${problems.join("; ")}.`;
+    } else {
+      verdict.textContent = detail.cards.length === 1
+        ? "One card, from this mint, locked to your key. Accepting runs the full check and files it above."
+        : `${detail.cards.length} cards, from this mint, locked to your key. Accepting runs the full check and files them above.`;
+    }
+    importPreview.append(list, verdict);
+    importPreview.hidden = false;
+    return problems.length === 0;
+  }
+
+  $("checkButton").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const text = importToken.value.trim();
+    importButton.disabled = true;
+    importPreview.hidden = true;
+    if (!text) return say(importNote, "Paste the token you were given first.", true);
+    button.disabled = true;
+    say(importNote, "Reading the token…");
+    try {
+      const acceptable = await renderPreview(text);
+      importButton.disabled = !acceptable;
+      say(importNote, acceptable ? "" : "Nothing was imported.", !acceptable);
+    } catch (thrown) {
+      /* The same distinction the collection makes: this mint could not open it.
+       * That is not a verdict on the card. */
+      say(importNote, `This mint cannot open that token (${reason(thrown)}). It may be from another mint, or signed by a keyset this one never had — it is not proof that the card is bad.`, true);
+    }
+    button.disabled = false;
+  });
+
+  /* A token edited after the check is a different token, and the accept button
+   * must not still be armed from the last one. */
+  importToken.addEventListener("input", () => {
+    importButton.disabled = true;
+    importPreview.hidden = true;
+  });
+
+  importButton.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    say(importNote, "Verifying with the mint…");
+    try {
+      const count = await root.NutFTWallet.importToken(mint, importToken.value.trim());
+      importToken.value = "";
+      importPreview.hidden = true;
+      say(importNote, count === 1 ? "Accepted. The card is in the collection above." : `Accepted. ${count} cards are in the collection above.`);
+      await refresh();
+    } catch (thrown) {
+      say(importNote, `The mint refused it: ${reason(thrown)}`, true);
+      button.disabled = false;
+    }
+  });
+
+  // --------------------------------------------------------------- the whole
+
+  async function refresh() {
+    error.hidden = true;
+    try {
+      const snapshot = await root.NutFTWallet.snapshot(mint);
+      meta.replaceChildren(chip(`${snapshot.owned.length} UNSPENT`), chip("UNIT 600B-E1"));
+      if (snapshot.spent.length) meta.append(chip(`${snapshot.spent.length} SPENT`));
+      if (snapshot.invalid.length) meta.append(chip(`${snapshot.invalid.length} REJECTED`));
+      if (snapshot.unreadable.length) meta.append(chip(`${snapshot.unreadable.length} UNREADABLE`));
+      if (snapshot.catalog) {
+        meta.append(chip(`CATALOG ${snapshot.catalog.census_sha256.slice(0, 12)}…`));
+        /* Every asset of a catalog whose signature has already been checked —
+         * which is what lets a pasted token be named without fetching anything
+         * a stranger pointed at. */
+        for (const asset of snapshot.catalog.assets || []) verifiedAssets.set(previewKey(snapshot.catalog.catalog_uri, asset.asset_id), asset);
+      }
+      renderCannotRead(snapshot.unreadable, snapshot.invalid);
+      await renderCollection(snapshot.owned);
+    } catch (thrown) {
+      meta.replaceChildren(chip("WALLET UNAVAILABLE"));
+      fail(reason(thrown));
+      fillPicker();
+    }
+    await showPending();
+  }
+
   const copy = async (value) => { if (!value) return; if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value); };
-  document.getElementById("copyDestination").addEventListener("click", () => copy(destination.value));
-  document.getElementById("copyOutgoing").addEventListener("click", () => copy(outgoingToken.value));
-  document.getElementById("downloadBackup").addEventListener("click", async () => {
+  $("copyDestination").addEventListener("click", () => copy(destination.value));
+  $("copyOutgoing").addEventListener("click", () => copy(outgoingToken.value));
+
+  $("downloadBackup").addEventListener("click", async () => {
     const blob = new Blob([await root.NutFTWallet.exportBackup()], { type: "application/json" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob); link.download = "600b-nutft-wallet-backup.json";
     document.body.append(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(link.href), 0);
   });
-  document.getElementById("restoreBackup").addEventListener("change", async (event) => {
+
+  $("restoreBackup").addEventListener("change", async (event) => {
     const file = event.currentTarget.files[0];
     if (!file) return;
     try { await root.NutFTWallet.restoreBackup(await file.text()); location.reload(); }
-    catch (reason) { error.hidden = false; error.textContent = reason.message; event.currentTarget.value = ""; }
+    catch (thrown) { fail(reason(thrown)); event.currentTarget.value = ""; }
   });
-  document.getElementById("importButton").addEventListener("click", async (event) => {
-    event.currentTarget.disabled = true;
-    try { await root.NutFTWallet.importToken(mint, importToken.value.trim()); location.reload(); }
-    catch (reason) { error.hidden = false; error.textContent = reason.message; event.currentTarget.disabled = false; }
-  });
+
+  try { destination.value = await root.NutFTWallet.destination(); }
+  catch (thrown) { fail(reason(thrown)); }
+  try { keysetIds = await readKeysetIds(); }
+  catch { /* the collection does not need them; the import preview will say so */ }
+  await refresh();
 })();
 </script>
 </body>

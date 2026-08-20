@@ -53,13 +53,14 @@
    * 4), so this page takes a share and lives inside it rather than discovering
    * the ceiling as a silent loss. The log is a ring buffer; if the record is
    * still over budget the OLDEST packs are dropped until it fits, because the
-   * cursor, the counters and the collection are what a player would actually
-   * miss. DECK_* now come from site/storage-keys.js, shared with deck.html which
-   * owns the other side of this key. */
-  const HISTORY_MAX = 60; // packs kept in the log; the counters keep counting
+   * cursor and the pull tally are what a player would actually miss — the log
+   * is a nicety, the tally is what tells a pack which of its cards are new.
+   * DECK_* now come from site/storage-keys.js, shared with deck.html which owns
+   * the other side of this key. */
+  const HISTORY_MAX = 60; // packs kept in the log; the tally keeps counting
   const SHOP_BUDGET = 96 * 1024;
   const DECK_BUDGET = K.DECKS_BUDGET || 160 * 1024;
-  const MAX_DRAFT = K.MAX_CARDS || 4600; // one whole box, so "send everything" never truncates
+  const MAX_DRAFT = K.MAX_CARDS || 4600; // one whole box, so a full box of pulls never truncates
   const MAX_STACKS = K.MAX_STACKS || 32;
   const kb = (n) => `${Math.max(1, Math.round(n / 1024))} KB`;
 
@@ -159,6 +160,28 @@
     ],
   };
   let nutftState = { sold: 0, packs: MINT_BOX.packs, tier_odds: {} };
+
+  /* ------------------------------------------------------------ the G edition
+   * Starter sets are a printing of their own, and the reason is arithmetic, not
+   * marketing. A starter set has to hold a Genesis card to be worth starting
+   * with; taking those copies out of E1 would have made "E1 prints N of each
+   * Genesis card" quietly false, and that number is committed in the census the
+   * verify button re-hashes. So these are G cards — their own collection id,
+   * their own catalog, their own published cap — and E1's census does not move.
+   *
+   * There is no G mint yet, so nothing this drives may offer to sell one. The
+   * shape is published ahead of the till: numbers here, sentences built from
+   * them below, and not one figure typed into the copy twice. */
+  const STARTER = {
+    collectionId: "600B-G",
+    sets: 210,
+    decksPerSet: 2,
+    deckSize: 40,
+    genesisSets: 21,       // sets in which ONE of the two decks carries a Genesis card
+    genesisPerSet: 1,
+    perGenesisCard: 3,     // the most any single Genesis card may appear across those sets
+    promo: { id: "FIPS-P01", name: "Global FIPS Balloon Network", face: "Global FIPS Balloon Network.webp" },
+  };
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => {
@@ -264,7 +287,7 @@
 
   /* Everything a pack needs to be checked later: which cards, which slice of
    * the box they came off, and which of them were new. Written once, on the
-   * pull, so the log can never drift from the collection. */
+   * pull, so the log can never drift from the tally. */
   async function record(cards, from, token) {
     const seen = {};
     const isNew = cards.map((id) => {
@@ -340,7 +363,7 @@
    * does not count a timer as the user gesture a new tab needs, so the popup
    * blocker would eat it and the touch path would do nothing at all — which is
    * the bug being fixed. A phone gets the same page in this tab instead; back
-   * returns to the shop, and the collection is in storage, not in the DOM. */
+   * returns to the shop, and every pull is in storage, not in the DOM. */
   function openGallery(cardId, sameTab) {
     const url = `cards.html?card=${encodeURIComponent(cardId)}`;
     if (sameTab) {
@@ -357,8 +380,8 @@
    * and hold is the touch right click, at the same 420 ms play.js and the Stack
    * Builder use, so every page in the game answers to one gesture.
    *
-   * ONE watcher for the whole page rather than a listener per node: the tray,
-   * the collection and the log are all rebuilt from scratch on every pull.
+   * ONE watcher for the whole page rather than a listener per node: the tray
+   * and the log are both rebuilt from scratch on every pull.
    * Capture phase, so the hold is given up before any click handler gets a say. */
   let cardHold = null;
 
@@ -413,18 +436,20 @@
   }
 
   /* LEFT = act, RIGHT = explain. On a face-down card the fast action is
-   * "turn it over now"; once it is up, the fast action is "put it in a Stack". */
-  function bindCardHands(node, cardId, isFaceDown) {
+   * "turn it over now"; once it is up, the fast action is "put it in a Stack".
+   * Every card that gets hands is dealt face down — the collection grid, which
+   * was the one caller that started face up, is on the wallet now. */
+  function bindCardHands(node, cardId) {
     node.tabIndex = 0;
     node.setAttribute("role", "button");
     const act = async () => {
-      if (isFaceDown && !node.classList.contains("flipped")) {
+      if (!node.classList.contains("flipped")) {
         node.classList.remove("charging");
         node.classList.add("flipped");
         return;
       }
-      /* The write is awaited so the note under the collection is the ANSWER,
-       * not an optimistic guess made before the bytes landed. */
+      /* The write is awaited so the note under the pack bay is the ANSWER, not
+       * an optimistic guess made before the bytes landed. */
       stackNote("Saving…");
       await addToStack(cardId);
     };
@@ -472,7 +497,7 @@
       "aria-label",
       `${nameOf(cardId)}, ${rarity}. Click or tap to add to a Stack; right-click, or press and hold, for details.`
     );
-    bindCardHands(node, cardId, true);
+    bindCardHands(node, cardId);
     return node;
   }
 
@@ -757,59 +782,6 @@
       res.problem ||
         `${nameOf(cardId)} added — "${DRAFT_NAME}" holds ${res.n} cards. Load it in the Stack Builder.`
     );
-  }
-
-  async function sendCollection() {
-    const ids = [];
-    for (const id of Object.keys(state.pulls)) {
-      for (let i = 0; i < state.pulls[id]; i += 1) ids.push(id);
-    }
-    const res = await writeDraft(() => ids);
-    stackNote(
-      res.problem ||
-        `Sent — "${DRAFT_NAME}" now holds ${res.n} cards. Open the Stack Builder and press Load.`
-    );
-    return res;
-  }
-
-  // ---------------------------------------------------------- collection
-
-  function ownedTile(id) {
-    const card = BY_ID[id];
-    const rarity = rarityOf(id);
-    const tile = el("div", `owned rarity-${rarity}`);
-    const img = el("img");
-    img.alt = nameOf(id);
-    img.loading = "lazy";
-    if (FACES && card) FACES.setFace(img, card.face);
-    else if (card) img.src = `../art/cards/node-runner-web/${encodeURIComponent(card.face)}`;
-    tile.append(img);
-    if (state.pulls[id] > 1) tile.append(el("span", "owned__n", `×${state.pulls[id]}`));
-    tile.title = `${nameOf(id)} — ${rarity} ×${state.pulls[id]}`;
-    tile.setAttribute(
-      "aria-label",
-      `${nameOf(id)}, ${rarity}, ${state.pulls[id]} copies. Click or tap to add to a Stack; right-click, or press and hold, for details.`
-    );
-    bindCardHands(tile, id, false);
-    return tile;
-  }
-
-  function renderCollection() {
-    const box = $("collection");
-    const ids = Object.keys(state.pulls).filter((id) => BY_ID[id]);
-    const total = ids.reduce((n, id) => n + state.pulls[id], 0);
-    $("ownedCount").textContent = total;
-    $("uniqueCount").textContent = ids.length;
-    $("dupeCount").textContent = Math.max(0, total - ids.length);
-    $("collectionTools").hidden = !ids.length;
-    box.innerHTML = "";
-    if (!ids.length) {
-      box.append(el("p", "muted", "Nothing opened yet. The first pack is free."));
-      return;
-    }
-    ids
-      .sort((a, b) => rankOf(b) - rankOf(a) || nameOf(a).localeCompare(nameOf(b)))
-      .forEach((id) => box.append(ownedTile(id)));
   }
 
   function renderHistory() {
@@ -1154,6 +1126,110 @@
       `<a href="shop.html?shop=mint">in mint mode</a>.`;
   }
 
+  /* --------------------------------------------------------- starter sets */
+
+  /* Found by NAME, and it raises. MINT_BOX.tiers is ordered for the table above,
+   * so a row that moves must not silently become a different tier down here —
+   * the same reasoning as rankOf, and the same answer: fail where it is loud. */
+  const tierNamed = (name) => {
+    const tier = MINT_BOX.tiers.find((row) => row.name === name);
+    if (!tier) throw new Error(`shop: no "${name}" tier in the mint census`);
+    return tier;
+  };
+
+  /* Every figure the starter section prints, in one place: STARTER's own numbers
+   * and the census's Genesis row, multiplied out. The homepage has already shown
+   * once what a total typed twice does to a page about scarcity. */
+  function starterFacts() {
+    const genesis = tierNamed("Genesis");
+    const perTitle = genesis.copies / genesis.cards;
+    /* "E1 keeps N copies of each Genesis card" is only a sentence while the run
+     * divides evenly across the titles. If it stops dividing, say so here rather
+     * than print 21.000000001 under a claim about supply. */
+    if (!Number.isInteger(perTitle)) {
+      throw new Error("shop: the E1 Genesis print run does not divide evenly across its cards");
+    }
+    const decks = STARTER.sets * STARTER.decksPerSet;
+    return {
+      decks,
+      cards: decks * STARTER.deckSize,
+      setCards: STARTER.decksPerSet * STARTER.deckSize,
+      plainSets: STARTER.sets - STARTER.genesisSets,
+      genesisCopies: STARTER.genesisSets * STARTER.genesisPerSet,
+      titles: genesis.cards,
+      e1Copies: genesis.copies,
+      perTitle,
+      /* The floor the spread rule puts under variety, and it is arithmetic
+       * rather than a promise: capping any one card at `perGenesisCard` copies
+       * means the run cannot be squeezed onto fewer titles than this. Saying
+       * "all nine appear" would be the over-claim — the cap forbids piling up,
+       * it does not oblige every card to show. */
+      minTitles: Math.ceil((STARTER.genesisSets * STARTER.genesisPerSet) / STARTER.perGenesisCard),
+    };
+  }
+
+  function renderStarter() {
+    const f = starterFacts();
+    const promo = STARTER.promo;
+
+    $("starterLead").textContent =
+      `${num(STARTER.sets)} sets, each a box with ${STARTER.decksPerSet} decks of ${STARTER.deckSize} in it — ` +
+      `${f.setCards} cards, and enough for two people to sit down and play without owning anything else. ` +
+      `There is no pack to open: a set is a fixed pair of decks, and you know which kind you are buying.`;
+
+    $("starterSetLine").textContent = `${STARTER.decksPerSet} decks · ${f.setCards} cards`;
+    $("starterSets").textContent = num(STARTER.sets);
+    $("starterDecks").textContent = num(f.decks);
+    $("starterCards").textContent = num(f.cards);
+    $("starterStrong").textContent = num(STARTER.genesisSets);
+    $("starterPlain").textContent = num(f.plainSets);
+    $("starterCollection").textContent = STARTER.collectionId;
+
+    $("starterPanel1").textContent =
+      `${STARTER.decksPerSet} decks of ${STARTER.deckSize}, built to be played against each other straight out ` +
+      `of the box. Across the whole run that is ${num(f.decks)} decks and ${num(f.cards)} cards.`;
+
+    $("starterPanel2").textContent =
+      `${STARTER.genesisSets} of the ${num(STARTER.sets)} sets are the strong ones: one of their two decks carries ` +
+      `a single Genesis card, and one ${promo.name} promo comes in the box with it. No Genesis card appears in ` +
+      `more than ${STARTER.perGenesisCard} of those ${STARTER.genesisSets} sets, so the ${f.genesisCopies} copies ` +
+      `land on at least ${f.minTitles} of the game's ${f.titles} Genesis cards rather than piling onto one. ` +
+      `The other ${num(f.plainSets)} sets hold ${STARTER.decksPerSet} decks with no Genesis card in either.`;
+
+    $("starterPanel3").textContent =
+      `These are a separate edition, marked G: their own collection id (${STARTER.collectionId}), their own ` +
+      `catalog, their own cap of ${num(STARTER.sets)} sets, published the way the mint publishes its census. ` +
+      `Not one card here comes out of the E1 box. Edition One still prints ${f.perTitle} copies of each of its ` +
+      `${f.titles} Genesis cards, and that stays true whether or not a single starter set is ever sold.`;
+
+    $("starterPromoLine").textContent =
+      `${promo.name} (${promo.id}) — one in each of the ${STARTER.genesisSets} strong sets, and nowhere else in ` +
+      `this edition.`;
+    const face = $("starterPromoFace");
+    face.alt = promo.name;
+    face.loading = "lazy";
+    if (FACES) FACES.setFace(face, promo.face);
+    else face.src = `../art/cards/node-runner-web/${encodeURIComponent(promo.face)}`;
+
+    /* Said in the register the rest of the page uses: what cannot happen here,
+     * and what would have to exist before it could. No waiting list is implied,
+     * because none is being kept. */
+    $("starterState").innerHTML =
+      "<strong>Not on sale yet.</strong> There is no G mint. Nothing on this page can quote a price, request an " +
+      "invoice or take an order for a starter set, and no list is being kept. When a G mint exists it will publish " +
+      "this edition's catalog and its cap the same way the E1 mint publishes its census, and this button will do " +
+      "something.";
+
+    $("starterNote").innerHTML =
+      `<strong>Why a second edition rather than a slice of the first.</strong> E1's Genesis run is ` +
+      `${num(f.e1Copies)} copies — ${f.perTitle} of each of ${f.titles} cards — and that number is inside the ` +
+      `census fingerprint above. Reserving ${f.genesisCopies} of them for starter sets would have left the ` +
+      `fingerprint intact and the sentence underneath it wrong: buyers would have been counting a print run that ` +
+      `${f.genesisCopies} cards had already been taken out of. The ${f.genesisCopies} Genesis cards in these sets ` +
+      `are G cards instead, counted against G's own cap of ${num(STARTER.sets)} sets, and E1 keeps every one of ` +
+      `its ${num(f.e1Copies)}.`;
+  }
+
   function renderModeCopy() {
     const mint = PULL_MODE === "mint";
     /* THE CHECK IS THE PRODUCT, so it is never the thing that gets hidden. Mint
@@ -1261,7 +1337,7 @@
   }
 
   /* Storage is async, so the page paints its bundled facts first, binds every
-   * control, and only then reads the cursor and the collection. The button
+   * control, and only then reads the cursor and the pull tally. The button
    * stays disabled until that read lands — a pull against an unknown cursor
    * would open the top of the box twice. */
   async function boot() {
@@ -1276,7 +1352,6 @@
     }
     durable = await probeStorage();
     booting = false;
-    renderCollection();
     renderHistory();
     syncControls();
     if (!durable) storeNote(NO_STORE);
@@ -1289,7 +1364,7 @@
     renderModeCopy();
     renderTiers();
     renderMintState();
-    renderCollection();
+    renderStarter();
     renderHistory();
     syncControls();
     bindControls();
@@ -1306,7 +1381,6 @@
       try {
         lastStoreProblem = "";
         await revealPack(await pullPack(PULL_MODE === "mint" ? MINT_BOX.packSize : BOX.packSize));
-        renderCollection();
         renderHistory();
         /* Whatever storage said about THIS pack, said now — never swallowed. */
         storeNote(lastStoreProblem || (durable ? "" : NO_STORE));
@@ -1330,23 +1404,13 @@
     });
 
     $("resetBox").addEventListener("click", async () => {
-      if (!root.confirm("Reset the demo box and your local collection?")) return;
+      if (!root.confirm("Reset the demo box and your local pulls?")) return;
       state = fresh();
       clearTray();
       stackNote("");
-      renderCollection();
       renderHistory();
       syncControls();
       storeNote(await persist());
-    });
-
-    $("sendStack").addEventListener("click", async () => {
-      const button = $("sendStack");
-      button.disabled = true;
-      stackNote("Sending…");
-      const result = await sendCollection();
-      if (result.n >= 0) root.location.href = `deck.html?load=${encodeURIComponent(DRAFT_NAME)}`;
-      else button.disabled = false;
     });
 
     /* Three answers, and they are three different questions. `recomputed` is

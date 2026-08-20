@@ -262,20 +262,20 @@ main { container-type: inline-size; }
 .verdict.ok { color: var(--good); }
 .verdict.bad { color: var(--danger); }
 
-/* --------------------------------------------------------- the collection */
-
-.counters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-.owned-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
-.owned { position: relative; border: 1px solid var(--line); cursor: pointer; transition: border-color .12s ease, transform .12s ease;
-  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
-.owned:hover, .owned:focus-visible { border-color: var(--ember); transform: translateY(-3px); }
-.owned img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
-.owned.rarity-uncommon { border-color: var(--purple); }
-.owned.rarity-rare, .owned.rarity-vault, .owned.rarity-genesis { border-color: var(--ember); }
-.owned__n { position: absolute; right: 3px; top: 3px; padding: 2px 5px; background: var(--ember); color: var(--black); font: 900 11px/1 var(--body); }
 .muted { color: var(--muted); font-size: 14px; }
 .tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 4px; }
 .tool-note { color: var(--muted); font-size: 13px; min-height: 20px; }
+/* The two answer lines moved into the pack panel with the pulls they describe.
+   They hold their line while empty, so a sentence arriving never shunts the
+   panel it is attached to. */
+.framed .tool-note { margin: 8px 0 0; }
+
+/* ------------------------------------------------------------ starter sets */
+
+/* The promo is the only card face in this section, and it is an illustration
+   rather than a control — no hover lift, no hands, nothing to press. It is
+   capped so a wide panel does not print a card taller than the copy beside it. */
+.starter-promo { max-width: 220px; margin: 12px auto 0; }
 
 /* ------------------------------------------------------------ pull history */
 
@@ -302,28 +302,22 @@ main { container-type: inline-size; }
 }
 
 @media (max-width: 420px) {
-  .owned-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
   .pack-cta .btn { flex: 1 1 100%; text-align: center; }
 }
 @container (max-width: 420px) {
-  .owned-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
   .pack-cta .btn { flex: 1 1 100%; text-align: center; }
 }
 
-/* Below ~360px the shop collapses: the arc keeps its shape on smaller cards,
-   the tiles shrink and the secondary slot line goes. Nothing scrolls sideways
-   at any width, in a phone or in a shell panel. */
+/* Below ~360px the shop collapses: the arc keeps its shape on smaller cards
+   and the secondary slot line goes. Nothing scrolls sideways at any width, in
+   a phone or in a shell panel. */
 @media (max-width: 360px) {
   .tray { --tray-gap: 3px; padding: 20px 0 26px; }
-  .owned-grid { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px; }
-  .counters { gap: 8px; }
   .slot { display: none; }
   .fact { flex-wrap: wrap; }
 }
 @container (max-width: 360px) {
   .tray { --tray-gap: 3px; padding: 20px 0 26px; }
-  .owned-grid { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px; }
-  .counters { gap: 8px; }
   .slot { display: none; }
   .fact { flex-wrap: wrap; }
 }
@@ -414,6 +408,14 @@ main { container-type: inline-size; }
              20 925 cards left when they had 20 925 packs. -->
         <div class="terminal-line" style="margin-top:8px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span><span id="boxLeft">—</span>&nbsp;<span id="boxLeftLabel">LEFT&nbsp;IN&nbsp;BOX</span></span></div>
         <p class="slot" id="packSlot"></p>
+        <!-- Two answers that used to sit under the collection grid and had to
+             move when it did. Both are still RAISED from here — a card on the
+             tray and a chip in the log both write to them — so they belong
+             beside the packs rather than following the grid to the wallet.
+             storeNote is what storage said about the last write; stackNote is
+             what the Stack Builder said about the last card sent over. -->
+        <p class="tool-note" id="storeNote" role="status" aria-live="polite"></p>
+        <p class="tool-note" id="stackNote" role="status" aria-live="polite"></p>
       </div>
 
       <!-- The pull-odds panel used to live here. It was a table of percentages
@@ -539,30 +541,39 @@ main { container-type: inline-size; }
     <p class="note" id="tiersNote" style="margin-top:16px">—</p>
   </section>
 
+  <!-- THE GRID IS GONE, THE ROUTE IS NOT. "Your collection" used to be a second
+       list of cards at the foot of a page whose job is opening packs, counted
+       here and nowhere else. It lives on the wallet now, next to the proofs and
+       the counts. What must not go with it is the answer to the only question a
+       person has straight after a pack: where did those cards just go. -->
   <section class="section section--tight">
-    <h2>Your <span class="accent">collection</span></h2>
-    <div class="counters">
-      <div><b class="chip-num"><b id="ownedCount">0</b><span>CARDS</span></b></div>
-      <div><b class="chip-num"><b id="uniqueCount">0</b><span>UNIQUE</span></b></div>
-      <div><b class="chip-num"><b id="dupeCount">0</b><span>DUPES</span></b></div>
+    <h2>Where your <span class="accent">cards go</span></h2>
+    <p class="lead">Two places, and they are two different things.</p>
+    <div class="grid grid--3">
+      <a class="panel panel--act" href="wallet.html">
+        <h3>The wallet →</h3>
+        <p>What you own, counted: how many cards, how many of them different, how many spare. Packs bought
+        from the mint arrive there as proofs the moment the mint issues them.</p>
+      </a>
+      <a class="panel" href="deck.html">
+        <h3>The Stack Builder →</h3>
+        <p>Where cards become a Stack. A left click — or a tap — on any card above adds it to the
+        <b>Booster pulls</b> Stack; open the builder and press Load.</p>
+      </a>
+      <!-- There IS a copy limit, and it is the load-bearing rule of the format
+           (engine.js copyLimit, rulebook §7): three per card, one for a Genesis
+           card, uncapped for Basic Resources. Telling collectors otherwise sold
+           them a fourth copy the Stack Builder will refuse. -->
+      <div class="panel">
+        <h3>What a spare is worth</h3>
+        <p>A Stack may hold three copies of a card — one of a Genesis card, and as many Basic Resources as
+        it needs (§7). Duplicates up to that line are playable rather than dead weight.</p>
+      </div>
     </div>
-    <!-- What storage had to say about the last write. Empty when all is well. -->
-    <p class="tool-note" id="storeNote" role="status" aria-live="polite"></p>
-    <div class="owned-grid" id="collection"></div>
-    <div class="tools" id="collectionTools" hidden>
-      <button class="btn btn--small" id="sendStack" type="button">Send everything to the Stack Builder</button>
-      <a class="btn btn--ghost btn--small" href="deck.html">Open the Stack Builder</a>
-    </div>
-    <p class="tool-note" id="stackNote" role="status" aria-live="polite"></p>
-    <p class="muted" style="margin-top:6px">A left click — or a tap — adds a card to the <b>Booster pulls</b> Stack;
-    <b>right click</b> on a desktop, <b>press and hold</b> on a phone, opens its gallery entry. Duplicates stack up as ×N.
-    <!-- There IS a copy limit, and it is the load-bearing rule of the format
-         (engine.js copyLimit, rulebook §7): three per card, one for a Genesis
-         card, uncapped for Basic Resources. Telling collectors otherwise sold
-         them a fourth copy the Stack Builder will refuse. -->
-    A Stack may hold three copies of a card — one of a Genesis card, and as many Basic Resources as it needs (§7) —
-    so extras up to that line are playable rather than dead weight.
-    During alpha your collection lives in this browser only: it is a playground, not a ledger.</p>
+    <p class="note" style="margin-top:16px"><strong>Free alpha packs stay in this browser.</strong> Nothing is
+    minted for them and nothing is published — it is a playground, not a ledger. Packs bought from the NutFT
+    mint are proofs, and proofs are what the wallet holds. <b>Right click</b> on a desktop, <b>press and
+    hold</b> on a phone, opens any card's gallery entry.</p>
   </section>
 
   <section class="section section--tight" id="historyBlock" hidden>
@@ -570,6 +581,75 @@ main { container-type: inline-size; }
     <p class="lead">Every pack, with the slice of the box it came off. These positions are the ones the
     fingerprint above covers — you can point at any row and check it against the revealed order.</p>
     <ol class="hists" id="historyList"></ol>
+  </section>
+
+  <!-- A SECOND EDITION, AND THE REASON FOR IT. Starter sets are the only place
+       a Genesis card comes without a box to open, so they had to contain one —
+       and cutting twenty-one out of E1 would have made "E1 prints N of each
+       Genesis card" quietly false. They are their own printing instead, marked
+       G, with their own collection id and their own cap. That is the whole
+       argument, and it is on the page rather than in a footnote, because a
+       reader who has just been shown a census and a fingerprint will ask.
+
+       There is no G mint. Every number below is written by JS out of one
+       constant (STARTER in shop.js) plus the census's own Genesis row, so this
+       section cannot drift the way a hand-typed total does. -->
+  <section class="section section--tight">
+    <h2>Starter <span class="accent">sets</span></h2>
+    <p class="lead" id="starterLead">—</p>
+
+    <div class="shop-head">
+      <div class="framed">
+        <span class="pad tl"></span><span class="pad tr"></span>
+        <span class="pad bl"></span><span class="pad br"></span>
+
+        <div class="bay-head">
+          <div class="banner">Starter set // <span id="starterSetLine">—</span></div>
+          <span class="state state--off">EDITION G · NOT LIVE YET</span>
+        </div>
+
+        <div class="facts" style="margin-top:14px">
+          <div class="fact"><span>Sets in the run</span><b id="starterSets">—</b></div>
+          <div class="fact"><span>Decks in the run</span><b id="starterDecks">—</b></div>
+          <div class="fact"><span>Cards in the run</span><b id="starterCards">—</b></div>
+          <div class="fact"><span>Sets with a Genesis card</span><b id="starterStrong">—</b></div>
+          <div class="fact"><span>Sets without one</span><b id="starterPlain">—</b></div>
+          <div class="fact"><span>Collection id</span><b id="starterCollection">—</b></div>
+        </div>
+
+        <!-- Disabled, and the LABEL carries the reason — the same rule the pack
+             button follows when the box runs out. A control that looks live and
+             does nothing is the thing this page exists not to be. -->
+        <div class="pack-cta">
+          <button class="btn" id="buyStarter" type="button" disabled>Starter sets are not on sale yet</button>
+        </div>
+
+        <div class="note mode-off" id="starterState" style="margin-top:12px">—</div>
+      </div>
+
+      <aside class="panel">
+        <h3>The promo</h3>
+        <p id="starterPromoLine">—</p>
+        <div class="starter-promo"><img class="face" id="starterPromoFace" alt=""></div>
+      </aside>
+    </div>
+
+    <div class="grid grid--3" style="margin-top:24px">
+      <div class="panel">
+        <h3>1 · What a set is</h3>
+        <p id="starterPanel1">—</p>
+      </div>
+      <div class="panel">
+        <h3>2 · The strong ones</h3>
+        <p id="starterPanel2">—</p>
+      </div>
+      <div class="panel">
+        <h3>3 · Edition One does not move</h3>
+        <p id="starterPanel3">—</p>
+      </div>
+    </div>
+
+    <p class="note" id="starterNote" style="margin-top:16px">—</p>
   </section>
 
   <section class="section section--tight">
