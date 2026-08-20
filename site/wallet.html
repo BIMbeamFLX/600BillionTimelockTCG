@@ -111,7 +111,11 @@
         const recipient = prompt("Recipient P2BK public key");
         if (!recipient) return;
         transfer.disabled = true;
-        try { outgoingToken.value = (await root.NutFTWallet.tradeProof(mint, item.proof.secret, recipient.trim())).token; card.remove(); }
+        try {
+          outgoingToken.value = (await root.NutFTWallet.tradeProof(mint, item.proof.secret, recipient.trim())).token;
+          card.remove();
+          meta.firstElementChild.textContent = `${grid.querySelectorAll(".wallet-card").length} UNSPENT`;
+        }
         catch (reason) { error.hidden = false; error.textContent = reason.message; transfer.disabled = false; }
       });
       body.append(transfer);
@@ -136,8 +140,9 @@
   document.getElementById("downloadBackup").addEventListener("click", async () => {
     const blob = new Blob([await root.NutFTWallet.exportBackup()], { type: "application/json" });
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob); link.download = "600b-nutft-wallet-backup.json"; link.click();
-    URL.revokeObjectURL(link.href);
+    link.href = URL.createObjectURL(blob); link.download = "600b-nutft-wallet-backup.json";
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
   });
   document.getElementById("restoreBackup").addEventListener("change", async (event) => {
     const file = event.currentTarget.files[0];
