@@ -22,8 +22,33 @@ ROOT = Path(__file__).resolve().parent.parent
 PLAY_DATA = ROOT / "site" / "play-data.js"
 OUT = ROOT / "site" / "shop-data.js"
 
-# Copies of each card in one box, by rarity — the same run as the mint's set.
-PRINT_RUN = {"common": 24, "uncommon": 8, "rare": 3, "promo": 1}
+# Copies of each card in one demo box, by tier.
+#
+# These track the MINT's own shape rather than a flat curve, so the free box
+# teaches the economy people will meet when they buy rather than contradicting
+# it. Resulting share against the mint (cards/nutft-census.json):
+#
+#   common 67.3% / 66.65   uncommon 16.3% / 16.66   rare 15.2% / 15.48
+#   vault    1.0% /  1.05  genesis    0.22% / 0.15
+#
+# Genesis sits 0.07 points high and cannot be lowered: one copy per card is the
+# floor in a box this size. Said here rather than rounded away on the page.
+#
+# NOTE the previous comment claimed this was "the same run as the mint's set".
+# It was not — the mint runs 930/279/216/63/21 — and that was one half of the
+# two-different-boxes problem a review found on the shop page.
+#
+# .get()'s default is deliberately absent below: an unknown tier must be a loud
+# KeyError at build time, not a card that quietly prints one copy.
+PRINT_RUN = {
+    "common": 31,
+    "uncommon": 9,
+    "rare": 7,
+    "vault": 2,
+    "genesis": 1,
+    "basic": 31,
+    "promo": 1,
+}
 PACK_SIZE = 5
 PRICE_MSAT = 21000  # per card; identical across the box or the pull breaks
 
@@ -80,7 +105,7 @@ def build_box(cards: list[dict], seed: int) -> list[str]:
     """Expand to one entry per physical card in catalog order, then shuffle."""
     flat: list[str] = []
     for card in cards:
-        flat.extend([card["id"]] * PRINT_RUN.get(card.get("rarity", "common"), 1))
+        flat.extend([card["id"]] * PRINT_RUN[card["rarity"]])
     return shuffle(flat, seed)
 
 
@@ -89,8 +114,8 @@ def build_shop_data(cards: list[dict], seed: int) -> dict:
     box = build_box(cards, seed)
     tally: dict[str, int] = {}
     for card in cards:
-        rarity = card.get("rarity", "common")
-        tally[rarity] = tally.get(rarity, 0) + PRINT_RUN.get(rarity, 1)
+        rarity = card["rarity"]
+        tally[rarity] = tally.get(rarity, 0) + PRINT_RUN[rarity]
     return {
         "set": "E1",
         "seed": seed,

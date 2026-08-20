@@ -21,6 +21,7 @@ from build_card_set import (
     CARD_H,
     CARD_W,
     COST_AFFINITY,
+    GENESIS_CORE,
     RARITY_DOT,
     TRIM_H,
     TRIM_INSET,
@@ -42,6 +43,8 @@ WELL_BG = (10, 7, 5)
 
 CREAM = (255, 247, 236)
 BONE = (232, 223, 207)
+
+
 ORANGE = (247, 147, 26)
 INK = (17, 17, 17)
 
@@ -523,9 +526,26 @@ def render_card(
     set_id = card["id"].replace("-", " · ")
     id_w = tracked_width(draw, set_id, mono22, 4.4)
     tracked_text(draw, (CARD_W - 72 - id_w - 26, 1040), set_id, mono22, (*BONE, 153), 4.4)
-    dot_fill, _ = RARITY_DOT.get(card["rarity"], RARITY_DOT["common"])
+    # The rarity dot, and the one place on a card where its tier is stated at all.
+    #
+    # A DIRECT INDEX, not .get(rarity, common). The fallback used to be silent, so
+    # when the set moved onto the six-tier ladder every Genesis, Vault and Basic
+    # card printed the bone-white of a common and nothing said so. 143 shipped
+    # faces carry that mistake. An unknown tier must stop the render.
+    dot_fill, _ = RARITY_DOT[card["rarity"]]
     cx, cy = CARD_W - 72 - 7, 1051
     draw.ellipse((cx - 7, cy - 7, cx + 7, cy + 7), fill=hex_rgb(dot_fill))
+
+    # Genesis, and only Genesis, gets a bright core.
+    #
+    # Nine cards in the set are Genesis and twenty-one copies of each will ever
+    # exist, so they have to be findable across a table rather than by squinting
+    # at a swatch. A second hue would not do that: roughly one man in twelve has
+    # a red-green deficiency, and any hue ladder collapses in greyscale or under
+    # a phone photo. A core is STRUCTURAL - it survives both, and it survives the
+    # card being printed by somebody else's printer.
+    if card["rarity"] == "genesis":
+        draw.ellipse((cx - 3, cy - 3, cx + 3, cy + 3), fill=hex_rgb(GENESIS_CORE))
 
     return canvas
 

@@ -270,7 +270,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
           <option value="id">Sort: set number</option>
           <option value="cost">Sort: cost, cheapest first</option>
           <option value="name">Sort: name A–Z</option>
-          <option value="rarity">Sort: rarity, rare first</option>
+          <option value="rarity">Sort: rarity, rarest first</option>
           <option value="type">Sort: card type</option>
         </select>
         <button class="chip" id="inStackChip" type="button" aria-pressed="false" hidden>In Stack</button>
@@ -310,7 +310,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     </div>
     <div class="note"><b>Tap or click</b> a card to add a copy. <b>The − on the card</b> (or the − in this
     list) takes one back. <b>Right click</b> on a desktop, <b>press and hold</b> on a phone, opens the card.
-    Basic Resources are uncapped; other cards allow three copies (§7). OG additionally limits copies to verified NutFT ownership — except Basic Resources, which stay free there too. Saved Stacks appear as options on the
+    Basic Resources are uncapped, Genesis cards allow one copy, everything else three (§7). OG additionally limits copies to verified NutFT ownership — except Basic Resources, which stay free there too. Saved Stacks appear as options on the
     <a href="play.html">Play</a> page for both seats — hotseat and vs NPC.</div>
     <div class="saved">
       <h3>Starter library</h3>
@@ -320,7 +320,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       <button type="button" class="mode is-on" id="modeFreestyle" aria-pressed="true">Freestyle</button>
       <button type="button" class="mode" id="modeOg" aria-pressed="false">OG</button>
     </div>
-    <div class="note" id="ownershipNote">Checking whether this Stack uses verified NutFT ownership…</div>
+    <!-- Live, because the wallet answers long after the page has settled: this
+         line rewrites itself when the proofs land, and a screen reader was never
+         told. It is the only announcement of what OG can and cannot see. -->
+    <div class="note" id="ownershipNote" role="status" aria-live="polite">Checking whether this Stack uses verified NutFT ownership…</div>
     <div class="saved">
       <h3>Saved stacks</h3>
       <div id="savedList"></div>
@@ -426,7 +429,25 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   const AFFINITIES = ["Power", "Bitcoin", "Keys", "Signal", "Timelock", "Neutral"];
   const AFF_ICON = { Power: "power", Bitcoin: "bitcoin", Keys: "keys", Signal: "signal", Timelock: "timelock" };
   const AFF_ACCENT = { Power: "#F3C244", Bitcoin: "#F7931A", Keys: "#FFF7EC", Signal: "#7447B8", Timelock: "#17BEBB", Neutral: "#8A8F98" };
-  const RARITY_RANK = { common: 0, uncommon: 1, rare: 2 };
+  /* THE WHOLE RARITY LADDER, rarest last. It used to list three tiers, from
+   * back when the set had three; the scored re-tier added basic, vault and
+   * genesis, and every one of them fell through the old `?? 9` fallback to the
+   * bottom of a sort named for rarity — so "rarest first" put Genesis and Vault
+   * below every common. `promo` shares rare's rank, as it does in shop.js; it
+   * is not printed in E1 but the shop ladder knows it.
+   *
+   * rarityRank() is a DIRECT index that throws, because a tier this page has
+   * not been told about is a disagreement with the catalog, and quietly
+   * defaulting it is exactly the bug above. It is called once per card while
+   * INDEX is built, so an unknown tier surfaces at boot with a name attached
+   * rather than as a mis-ordered bench nobody notices. */
+  const RARITY_RANK = { basic: 0, common: 1, uncommon: 2, rare: 3, promo: 3, vault: 4, genesis: 5 };
+  const rarityRank = (rarity) => {
+    if (!(rarity in RARITY_RANK)) {
+      throw new Error(`unknown rarity "${rarity}" — add it to RARITY_RANK in deck.html`);
+    }
+    return RARITY_RANK[rarity];
+  };
   const PIPS = ["P", "B", "K", "S", "T"];
   const BUCKET_ORDER = ["—", "0", "1", "2", "3", "4", "5", "6+"];
 
@@ -444,6 +465,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     const keywords = (c.keywords || []).map((k) => (typeof k === "string" ? k : k && k.name) || "").join(" ");
     INDEX.set(c.id, {
       cv,
+      rank: rarityRank(c.rarity),
       bucket: cv === null ? "—" : cv >= 6 ? "6+" : String(cv),
       typeLine: c.subtype ? `${c.type} — ${c.subtype}` : c.type,
       stake: isStake(c),
@@ -456,7 +478,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 
   // The real facet values, derived from the data — never hard-coded.
   const TYPES = [...new Set(CARDS.map((c) => c.type))].sort();
-  const RARITIES = [...new Set(CARDS.map((c) => c.rarity))].sort((a, b) => (RARITY_RANK[a] ?? 9) - (RARITY_RANK[b] ?? 9));
+  const RARITIES = [...new Set(CARDS.map((c) => c.rarity))].sort((a, b) => rarityRank(a) - rarityRank(b));
   const BUCKETS = BUCKET_ORDER.filter((b) => CARDS.some((c) => INDEX.get(c.id).bucket === b));
 
   const state = {
@@ -465,6 +487,30 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     inStack: false, sort: "id",
   };
   let deck = {}; // cardId -> copies
+
+  /* THIS DUPLICATES site/engine.js copyLimit() (§7) AND MUST CHANGE IN STEP
+   * WITH IT. The engine is the authority: it re-checks every decklist at seat
+   * setup and kills the match with a SCHEMA failure, because a decklist is
+   * untrusted input on every topology. This page cannot call it — it ships
+   * play-data, not the rules — so the rule lives here, in one place, and
+   * nowhere else in this file.
+   *
+   *   Basic Resource   uncapped  — ten in the set, a legal Stack needs 16-18
+   *   genesis          one       — only 21 of each will ever be minted
+   *   everything else  three     — §7, so density is a choice not arithmetic
+   *
+   * The builder refuses the extra copy at the moment it is asked for. Before
+   * this, the only gate was stackProblem() at save time, and a saved Stack with
+   * two Genesis Lotus reached the table and took the match down with it. */
+  const MAX_COPIES = 3;
+  const copyLimit = (card) =>
+    card && card.type === "Basic Resource" ? Infinity
+      : card && card.rarity === "genesis" ? 1
+        : MAX_COPIES;
+  // "maximum 1 copy" / "maximum 3 copies" — the limit is now per-card, so the
+  // sentence has to count.
+  const copiesWord = (limit) => `${limit} cop${limit === 1 ? "y" : "ies"}`;
+
   /* Basic Resources are exempt from ownership, for the same reason §7 exempts
    * them from the copy limit: there are ten in the set and a Stack needs 16-18
    * Resources, so counting them against what you pulled makes a legal Stack
@@ -480,11 +526,31 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * is the opt-in "play what you actually pulled" mode. */
   let owned = null;
   let verified = null;            // verified NutFT counts, once the wallet is read
+  let unreadable = 0;             // tokens this mint cannot open at all — see the wallet read below
+  let opened = 0;                 // proofs it DID open, however it then judged them
   const MODE_KEY = "600b:deck-mode";
+  /* `wish` is what the player asked for and `mode` is what is legal right now,
+   * and they have to be two variables. They used to be one, and the single
+   * variable was overwritten by the very first applyMode() call — which runs
+   * before the wallet has answered, so proofs are still 0 and OG is always
+   * coerced to Freestyle. That coercion wrote itself back over the stored
+   * preference, so an OG player was silently dropped into Freestyle on every
+   * single load and had to press OG again. The wish survives the coercion now,
+   * and the wallet callback re-applies it once the proofs are actually known. */
+  let wish = "freestyle";
+  try { if (localStorage.getItem(MODE_KEY) === "og") wish = "og"; } catch { /* storage is optional */ }
   let mode = "freestyle";
-  try { if (localStorage.getItem(MODE_KEY) === "og") mode = "og"; } catch { /* storage is optional */ }
   let walletReady = false;
   const total = () => Object.values(deck).reduce((a, n) => a + n, 0);
+
+  /* What a single card is capped at right here, right now: §7's limit and — in
+   * OG — what you actually hold, whichever bites first. Two copies of a Genesis
+   * card in the wallet still make one copy in the Stack. Anything that only has
+   * room to say "full" rather than say why reads this; the two rules stay split
+   * where there is room to name the one that refused, because "maximum 1 copy"
+   * and "you own 1 proof" send the player to different places. */
+  const effectiveLimit = (card) =>
+    Math.min(copyLimit(card), owned && card && !ownershipExempt(card) ? (owned.get(card.id) || 0) : Infinity);
 
   /* ----------------------------------------------------------- persistence
    * Every read and write goes through the napplet adapter: the shell's storage
@@ -729,7 +795,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       return (x === null ? -1 : x) - (y === null ? -1 : y) || byName(a, b);
     },
     name: byName,
-    rarity: (a, b) => (RARITY_RANK[b.rarity] ?? -1) - (RARITY_RANK[a.rarity] ?? -1) || byName(a, b),
+    rarity: (a, b) => INDEX.get(b.id).rank - INDEX.get(a.id).rank || byName(a, b),
     type: (a, b) => a.type.localeCompare(b.type) || byName(a, b),
   };
 
@@ -856,6 +922,8 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   function addCard(id) {
     const c = byId[id];
     if (!c || isStake(c)) return;
+    const limit = copyLimit(c);
+    if ((deck[id] || 0) >= limit) { say(`${c.name}: maximum ${copiesWord(limit)} per Stack (§7).`, "bad"); return; }
     if (owned && !ownershipExempt(c) && (deck[id] || 0) >= (owned.get(id) || 0)) { say(`You own ${(owned.get(id) || 0)} verified ${c.name} proof(s).`, "bad"); return; }
     deck[id] = (deck[id] || 0) + 1;
     afterDeckChange();
@@ -999,8 +1067,26 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 
   function paintDialogCopies(id) {
     const copies = deck[id] || 0;
-    dlgCopies.textContent = copies ? `${copies} in Stack` : "not in Stack";
+    /* The reader's Add button carries the copy limit too — addCard() would
+     * refuse anyway, but its refusal is said in the deck pane, which is behind
+     * the dialog. A disabled button is the answer where the click happens.
+     *
+     * In OG that limit is also what you hold, and it used to be only §7's: the
+     * one card you pulled read "1 in Stack" with Add still lit, and pressing it
+     * did nothing a player could see. */
+    const limit = effectiveLimit(byId[id]);
+    /* Two different questions, and they were being answered by one comparison.
+       Add is disabled at or above the limit; the words "the maximum" are only
+       true AT it. In OG the limit is what you own, so a Stack carried over from
+       Freestyle can sit ABOVE it — and that Stack was being told it was exactly
+       at the cap while the deck pane on the same screen refused to add more. */
+    const full = copies >= limit;
+    dlgCopies.textContent = !copies ? "not in Stack"
+      : copies === limit ? `${copies} in Stack — the maximum`
+        : copies > limit ? `${copies} in Stack — over the ${limit} you own`
+          : `${copies} in Stack`;
     dlgRemove.disabled = copies === 0;
+    dlgAdd.disabled = INDEX.get(id).stake || full;
   }
 
   function openCard(id) {
@@ -1050,7 +1136,6 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     flavorEl.textContent = c.flavor || "";
     flavorEl.hidden = !c.flavor;
     document.getElementById("dlgRarity").textContent = idx.stake ? "Stake module — not in E1" : c.rarity;
-    dlgAdd.disabled = idx.stake;
     paintDialogCopies(id);
     if (typeof dlg.showModal === "function") dlg.showModal();
     else dlg.setAttribute("open", "");
@@ -1120,7 +1205,11 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     const n = total();
     if (n < MIN_STACK) return `of ${MIN_STACK} · ${MIN_STACK - n} to go`;
     for (const [id, copies] of Object.entries(deck)) {
-      if (byId[id]?.type !== "Basic Resource" && copies > 3) return `${byId[id].name}: maximum 3 copies`;
+      // addCard() refuses the extra copy, but a Stack can also arrive whole —
+      // ?load=, the handoff key, or a library entry saved under the old flat
+      // cap — so the limit is checked again before it can be saved or played.
+      const limit = copyLimit(byId[id]);
+      if (copies > limit) return `${byId[id].name}: maximum ${copiesWord(limit)}`;
       if (owned && !ownershipExempt(byId[id]) && copies > (owned.get(id) || 0)) return `${byId[id].name}: only ${owned.get(id) || 0} verified proof(s)`;
     }
     return "";
@@ -1324,11 +1413,11 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * can never disagree. OG with no verified proofs would be an empty builder, so
    * it stays disabled until the wallet actually holds something. */
   function applyMode(next, { save = true } = {}) {
+    wish = next;
     const proofs = verified ? [...verified.values()].reduce((sum, n) => sum + n, 0) : 0;
-    if (next === "og" && !proofs) next = "freestyle";
-    mode = next;
+    mode = next === "og" && proofs ? "og" : "freestyle";
     owned = mode === "og" ? verified : null;
-    if (save) { try { localStorage.setItem(MODE_KEY, mode); } catch { /* storage is optional */ } }
+    if (save) { try { localStorage.setItem(MODE_KEY, wish); } catch { /* storage is optional */ } }
 
     for (const [name, button] of Object.entries(modeButtons)) {
       if (!button) continue;
@@ -1337,13 +1426,31 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     }
     if (modeButtons.og) modeButtons.og.disabled = !proofs;
 
-    ownershipNote.textContent = mode === "og"
+    /* A token this mint cannot open is NOT a card the mint rejected. It is a
+     * card the mint never got as far as having an opinion about — minted before
+     * this mint rotated its keyset, or bought from a different mint entirely.
+     * Saying "invalid" there would tell a buyer their card is bad when the truth
+     * is that they are standing at the wrong counter, so the sentence names the
+     * two real causes and stops. It is appended rather than substituted because
+     * the pool is still whatever the readable proofs say. */
+    const aside = unreadable
+      ? ` ${unreadable} token${unreadable === 1 ? "" : "s"} here cannot be opened by this mint — bought from a different mint, or minted before this one rotated its keyset — so ${unreadable === 1 ? "the card it holds is" : "the cards they hold are"} not in the OG pool.`
+      : "";
+
+    ownershipNote.textContent = (mode === "og"
       ? `OG: ${proofs} verified unspent proof(s). Only cards you actually pulled can enter this Stack — Basic Resources aside, which stay free so a Stack is buildable.`
       : verified === null
         ? "Freestyle: the whole catalog is legal. Checking your wallet for an OG option…"
         : proofs
           ? `Freestyle: the whole catalog is legal. You hold ${proofs} verified proof(s) — switch to OG to build from those only.`
-          : "Freestyle: the whole catalog is legal. Buy a booster to unlock OG, which builds only from cards you own.";
+          /* Unreadable tokens and an empty wallet look identical from here, and
+             telling someone who has bought packs to go buy a pack is the worst
+             thing this line could say. */
+          : unreadable && !opened
+            ? "Freestyle: the whole catalog is legal. OG stays closed because not one card in this wallet could be read here."
+          : unreadable
+            ? "Freestyle: the whole catalog is legal. OG stays closed because none of the cards this mint could read are still yours to play."
+            : "Freestyle: the whole catalog is legal. Buy a booster to unlock OG, which builds only from cards you own.") + aside;
 
     if (typeof renderGrid === "function") renderGrid();
     if (typeof renderDeck === "function") renderDeck();
@@ -1352,23 +1459,36 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   for (const [name, button] of Object.entries(modeButtons)) {
     if (button) button.addEventListener("click", () => applyMode(name));
   }
-  applyMode(mode, { save: false });
+  applyMode(wish, { save: false });
 
   globalThis.NutFTWallet.read().then(async (wallet) => {
     if (!wallet.tokens.length) {
       verified = new Map();
       walletReady = true;
-      applyMode("freestyle", { save: false });
+      applyMode(wish, { save: false });
       return;
     }
     const view = await globalThis.NutFTWallet.snapshot(location.origin);
     verified = new Map();
     for (const item of view.owned) verified.set(item.tag[2], (verified.get(item.tag[2]) || 0) + 1);
+    /* snapshot() no longer throws on a token this mint cannot read, so a wallet
+     * full of them now arrives here as zero owned cards instead of as an error.
+     * That is a new way to reach OG with an empty pool: the mode guard above
+     * still catches it — no proofs, no OG — but the note has to say which of the
+     * two silences this is. */
+    unreadable = view.unreadable.length;
+    /* Proofs this mint DID open, whatever it then thought of them. "Nothing
+       could be read" must not be said over a wallet holding spent or rejected
+       proofs: those were read, and the mint has an opinion about them. That is
+       the exact distinction the unreadable bucket exists to preserve, and
+       counting only view.owned would have inverted it. */
+    opened = view.owned.length + view.spent.length + view.invalid.length;
     walletReady = true;
-    applyMode(mode, { save: false });
+    applyMode(wish, { save: false });
   }).catch((error) => {
     /* A wallet that cannot be verified must not silently become an empty OG
-     * pool — fall back to Freestyle and say why. */
+     * pool — fall back to Freestyle and say why. This is now a real failure
+     * only: the mint being unreachable, or its catalog not verifying. */
     verified = new Map();
     walletReady = true;
     applyMode("freestyle", { save: false });

@@ -3,6 +3,39 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* THE RETURN-VISIT GATE, and deliberately the first thing on the page.
+ *
+ * server/table.js serves this file for "/", so without a memory every visit
+ * pays the gate again — forever, including for the people who skipped it the
+ * first time. One flag fixes that: a visitor who has already answered this
+ * door is sent straight through, before the stylesheet or the poster is even
+ * requested. `replace` rather than `href` so Back from the site does not land
+ * on a page that immediately bounces again.
+ *
+ * "600b:intro-seen" is a napplet storage key of the same family as the ones in
+ * storage-keys.js, but it is spelled out here instead of read from E1Keys
+ * because this has to run before any other script loads — and because owning
+ * the name in one place is what keeps the guard below and the marker at the
+ * bottom of the page from ever disagreeing. ?replay watches the film again. */
+(function () {
+  "use strict";
+  window.introSeen = {
+    key: "600b:intro-seen",
+    /* Storage can throw outright (private mode, a bare file://). A visitor we
+       cannot remember simply sees the gate, which is the old behaviour. */
+    mark: function () {
+      try { localStorage.setItem(this.key, "1"); } catch (err) { /* unremembered */ }
+    },
+    was: function () {
+      try { return !!localStorage.getItem(this.key); } catch (err) { return false; }
+    },
+  };
+  if (!new URLSearchParams(location.search).has("replay") && window.introSeen.was()) {
+    location.replace("index.html");
+  }
+})();
+</script>
 <meta name="theme-color" content="#09080b">
 <meta name="color-scheme" content="dark">
 <meta name="description" content="Free browser trading card game about Bitcoin, Nostr and open systems. 295 Edition One cards, hotseat or NPC opponent, online duels over nostr. No account, no download.">
@@ -22,7 +55,7 @@
 <link rel="stylesheet" href="600b.css">
 <style>
 /* A full-screen cinematic gate. The video never autoplays with sound — a
-   Start click is the gesture that unlocks audio everywhere — and a Skip is
+   Play click is the gesture that unlocks audio everywhere — and a Skip is
    always one press away. When the film ends (or errors), the site opens. */
 html, body { height: 100%; }
 body.intro {
@@ -34,7 +67,9 @@ body.intro {
   object-fit: contain; background: #000;
 }
 
-/* The gate: logo, title, Play and Skip, over a dimmed poster. */
+/* The gate: logo, title, Enter and Play, over a dimmed poster. The poster is
+   also the film's own poster frame, so hiding the gate does not flash black
+   while a cold, unbuffered video spins up. */
 .intro__gate {
   position: fixed; inset: 0; z-index: 2;
   display: grid; place-content: center; justify-items: center; gap: 20px;
@@ -52,68 +87,139 @@ body.intro {
 }
 .intro__tagline { margin: -8px 0 6px; color: var(--muted, #b7b0bd); font-size: clamp(13px, 2vw, 16px); letter-spacing: .06em; }
 .intro__buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-.intro__buttons .btn { font-size: 16px; }
+/* The shared .btn measures 42px at this size — the two choices on the front
+   door are the targets that matter most on a phone, so they clear 44 like the
+   HUD pills do. Flex only to keep the label centred once a min-height applies. */
+.intro__buttons .btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; font-size: 16px;
+}
 
-/* Persistent skip, once the film is rolling. */
-.intro__skip {
+/* The HUD that rides over the running film: mute, then skip.
+   Both are real targets — 44px is the floor, and the old skip pill was 12px of
+   type in about 32px of chrome, a control you had to aim at on a phone. */
+.intro__hud {
   position: fixed; top: 18px; right: 18px; z-index: 3;
-  padding: 9px 16px; cursor: pointer;
+  display: flex; gap: 10px; align-items: center;
+}
+.intro__ctl {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; padding: 0 18px; cursor: pointer;
   background: rgba(9,8,11,.62); color: var(--cream, #fff7ec);
   border: 1px solid rgba(255,255,255,.28); border-radius: 999px;
-  font: 12px/1 var(--display, "Anton", system-ui); letter-spacing: .14em; text-transform: uppercase;
-  backdrop-filter: blur(6px); transition: background .2s, border-color .2s, opacity .3s;
+  font: 13px/1 var(--display, "Anton", system-ui); letter-spacing: .14em; text-transform: uppercase;
+  backdrop-filter: blur(6px); transition: background .2s, border-color .2s;
 }
-.intro__skip:hover, .intro__skip:focus-visible { background: rgba(31,26,39,.85); border-color: var(--ember, #ff6a00); }
+.intro__ctl:hover, .intro__ctl:focus-visible { background: rgba(31,26,39,.85); border-color: var(--ember, #ff6a00); }
 [hidden] { display: none !important; }
 
 @media (prefers-reduced-motion: reduce) { .intro__gate { animation: none; } }
 </style>
 </head>
 <body class="intro">
-  <video class="intro__film" id="film" poster="../art/site/intro-poster.webp" preload="auto" playsinline>
+  <!-- preload="none" is the whole point: 28 MB of film behind a page whose
+       content is two buttons. The browser used to pull ~5 MB before anyone had
+       clicked anything, and everyone paid it, skippers included. The poster
+       still loads (44 KB), so the gate looks exactly the same.
+
+       `controls` is not decoration either — this is 72 seconds of unmuted
+       narration that used to offer no pause, no volume and no scrub.
+
+       NO <track>: the repo holds real caption text (art/video-intro/cinematic/
+       story/captions.srt and _work2/captions.ass), but both were timed against
+       shorter cuts — 56.6 s and 64.8 s against this file's 72.64 s — and the
+       shots do not line up. Wrong captions are worse than none, and inventing
+       timings is not ours to do. The gap is real and still open.
+
+       Behind the gate the film is `tabindex="-1"`: its control bar is real and
+       focusable, but it sits under a full-screen overlay until it is playing,
+       and a keyboard user must not tab into a control they cannot see. The
+       script drops the attribute the moment the film has the screen. -->
+  <video class="intro__film" id="film" poster="../art/site/intro-poster.webp"
+         preload="none" playsinline controls tabindex="-1"
+         aria-label="600B Timelock TCG intro film">
     <source src="../art/site/intro.mp4" type="video/mp4">
   </video>
 
   <section class="intro__gate" id="gate">
     <img class="intro__mark" src="../art/brand/600B-logo-primary.png" alt="600B Timelock TCG">
     <h1 class="intro__title">Build the Network</h1>
-    <p class="intro__tagline">A one-minute intro — then the game.</p>
+    <p class="intro__tagline">A 73-second film — or go straight to the game.</p>
+    <!-- Left is the act: the front door's loudest button opens the game. The
+         film is the offer beside it, priced honestly at its real runtime — it
+         is 72.64 s, and the old copy called it "a one-minute intro". -->
     <div class="intro__buttons">
-      <button class="btn" id="start" type="button">▶ Play intro</button>
-      <a class="btn btn--ghost" href="index.html" id="enter">Skip to the site</a>
+      <a class="btn" href="index.html" id="enter">Enter the site</a>
+      <button class="btn btn--ghost" id="start" type="button">▶ Play intro (1:13)</button>
     </div>
   </section>
 
-  <button class="intro__skip" id="skip" type="button" hidden aria-label="Skip the intro and open the site">Skip ↦</button>
+  <div class="intro__hud" id="hud" hidden>
+    <button class="intro__ctl" id="mute" type="button">Mute</button>
+    <button class="intro__ctl" id="skip" type="button" aria-label="Skip the intro and open the site">Skip ↦</button>
+  </div>
 
 <script>
 /* No autoplay-with-sound: the Play click is the user gesture that unlocks
    audio in every browser. Skip and the film ending both open the site; a
-   video error never strands the visitor on a black screen. */
+   video error never strands the visitor on a black screen. Every one of those
+   exits marks the gate answered, so nobody is asked a second time. */
 (function () {
   "use strict";
   const film = document.getElementById("film");
   const gate = document.getElementById("gate");
-  const skip = document.getElementById("skip");
-  const toSite = () => { window.location.href = "index.html"; };
+  const hud = document.getElementById("hud");
+  const start = document.getElementById("start");
+  const mute = document.getElementById("mute");
+  const toSite = () => {
+    window.introSeen.mark();
+    window.location.href = "index.html";
+  };
 
-  document.getElementById("start").addEventListener("click", async () => {
-    gate.hidden = true;
-    skip.hidden = false;
+  // A real navigation stays a real link — middle-click and "open in new tab"
+  // keep working; the handler only records the answer on the way out.
+  document.getElementById("enter").addEventListener("click", () => window.introSeen.mark());
+
+  start.addEventListener("click", async () => {
+    // With preload="none" the film starts cold, so the gate holds until
+    // play() resolves — that promise settles when playback has actually
+    // begun, which is the only honest moment to hand over the screen.
+    start.disabled = true;
+    start.textContent = "Loading film…";
     try {
       await film.play();
     } catch (err) {
-      // Autoplay policy or a decode hiccup — expose native controls so the
-      // visitor can start it themselves rather than face a dead frame.
-      film.controls = true;
+      // Two different failures land here. A broken or missing file must never
+      // strand anyone on a poster with nothing to press, so it opens the site.
+      // An autoplay-policy refusal is recoverable: the film carries native
+      // controls, so hand the visitor the element itself.
+      if (film.error) { toSite(); return; }
+      film.focus();
     }
+    gate.hidden = true;
+    hud.hidden = false;
+    film.removeAttribute("tabindex"); // the film has the screen; it takes the tab stop back
   });
 
-  skip.addEventListener("click", toSite);
+  // Label over aria-pressed: the button says what pressing it will do, and
+  // never has to be reconciled with a separate state announcement.
+  mute.addEventListener("click", () => {
+    film.muted = !film.muted;
+    mute.textContent = film.muted ? "Unmute" : "Mute";
+  });
+  // The native control bar can mute the film too — the pill follows it.
+  film.addEventListener("volumechange", () => {
+    mute.textContent = film.muted ? "Unmute" : "Mute";
+  });
+
+  document.getElementById("skip").addEventListener("click", toSite);
   film.addEventListener("ended", toSite);
   film.addEventListener("error", toSite);
-  // Escape always skips.
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") toSite(); });
+  // Escape always skips — except in fullscreen, where the browser has already
+  // claimed that key to come back out, and leaving would be a second surprise.
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !document.fullscreenElement) toSite();
+  });
 })();
 </script>
 </body>

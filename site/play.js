@@ -128,6 +128,13 @@
       // silently did nothing. Now it is a code with a message.
       session.notice = result.error.message;
       session.lastErrorCode = result.error.code;
+      /* THE RUN IS OVER — this rejection is where the walk stopped. Nothing
+       * here is what stops the timer re-arming: the `return false` two lines
+       * down is, because it never reaches the scheduleAutoWalk() at the foot of
+       * this function. Zeroing the budget is the opposite gesture, a REFUND, so
+       * that the next run the board earns starts with a full one instead of
+       * inheriting the steps this one had already spent. */
+      autoWalked = 0;
       render();
       return false;
     }
@@ -146,7 +153,15 @@
     }
     if (session.events.length > 240) session.events.length = 240;
     renderWithFx();
+    /* THE LOCAL GAME NEVER SHOWED ITS OWN ENDING. showEndgame() was wired to
+     * the referee's OVER message and nothing else, so a hotseat or solo loss
+     * left the board frozen behind one line of prose with no control on screen
+     * that restarted anything — reload was the only way out. This table IS its
+     * own referee, so it announces its own result, from the transcript it has
+     * been chaining all along. */
+    if (session.full.result) announceLocalResult();
     scheduleNpc();
+    scheduleAutoWalk();
     return true;
   }
 
@@ -213,6 +228,152 @@
      * bot's rejected attempts are its own problem, not a message. */
     session.notice = notice;
     render();
+  }
+
+  /* WHOSE MOVE IS IT REALLY. npcTurnPending() asks whether a bot move is
+   * waiting; this asks the same question on behalf of the two buttons, and it
+   * covers the window between the bot's proposal and the automatic consent as
+   * well — the human must not be able to click through that either. */
+  const npcHoldsMove = () => npcTurnPending() || npcAutoConsent();
+
+  // -------------------------------------------------------- walking the turn
+
+  /* CONTINUE WALKS THE TURN AND STOPS WHERE YOU MATTER. quickstart.html has
+   * promised exactly that in writing for as long as it has existed; the table
+   * did not keep it, and a reviewer measured seven presses to walk one turn and
+   * 206 across a nine-turn match — most of them in steps where nothing the
+   * player could have done was legal in the first place.
+   *
+   * THE SAFETY RULE, and it is the whole of the design: a step is walked only
+   * when the ENGINE ITSELF would refuse everything except PASS_PRIORITY.
+   * Sorcery speed is your own Build phase with an empty Queue (§5.6 / §9.2, and
+   * literally the gate in engine PLAY_CARD), so that condition is reproduced
+   * here and a step matching it is NEVER walked — Build I and Build II are
+   * where a card gets held back on purpose. Everywhere else the only things
+   * still available are a Zap, a non-Resource activated ability, and the
+   * Uptime→Resource trade; all three are checked, and any one of them present
+   * stops the walk dead. Affordability is judged against the Buffer PLUS every
+   * Resource still untapped (reachableBuffer below), because tapping Resources
+   * to pay for it is part of holding a Zap and a walk that missed that would
+   * cost the player the answer they were saving.
+   * And anything the engine models as `awaiting` — an attack to declare,
+   * blockers, a discard, an unlock — stops the walk without being reasoned
+   * about at all: those are decisions by definition, and a declaration this
+   * table skipped for you is a declaration you cannot take back. */
+  let autoTimer = null;
+  let autoWalked = 0;
+  const AUTO_STEP_MS = 190;
+  const AUTO_WALK_LIMIT = 24; // a whole turn's dead steps twice over: a runaway is a bug
+
+  const reducedMotion = () =>
+    typeof globalThis.matchMedia === "function" &&
+    globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* actGlow() asks whether an ability is worth OFFERING and answers no on the
+   * opponent's turn — right for a glow, wrong for this question: an activated
+   * ability is legal at any priority unless the ability's own timing says
+   * otherwise (engine ACTIVATE_ABILITY). Resource abilities are excluded on
+   * purpose: generating Buffer in a step where nothing can be paid for only
+   * burns it, and if there WERE something to pay for, that something is already
+   * stopping the walk on the line above. The pool it is paid from is the one
+   * reachableBuffer() computes, for the same reason a Zap's cost is. */
+  function couldActivate(full, pool, uid) {
+    const object = full.objects[uid];
+    if (!object || !object.cardId || object.committed) return false;
+    const card = compiled(object.cardId);
+    return card.abilities.some(
+      (ability) =>
+        ability.kind === "activated" &&
+        !ability.manual &&
+        !ability.resourceAbility &&
+        ability.ops &&
+        (!ability.costParsed || E.canPay(pool, ability.costParsed))
+    );
+  }
+
+  // The engine's own AFFINITY_SYMBOL, read back off the table's SYMBOL_NAME so
+  // the two cannot drift apart.
+  const SYMBOL_FOR = {};
+  for (const symbol of SYMBOLS) SYMBOL_FOR[SYMBOL_NAME[symbol]] = symbol;
+
+  /* THE BUFFER PLUS WHAT IS STILL IN THE GROUND. Asked against the Buffer
+   * alone, canPay() calls every Zap unaffordable on a turn where the Resources
+   * are all still untapped — which is most turns, and tapping them is exactly
+   * how you cast the Zap you were holding. So the walk asks what this seat
+   * could reach, not what it happens to be carrying. Over-counting is the safe
+   * direction: a symbol credited that could not really be generated only makes
+   * the walk stop somewhere it did not have to. */
+  function reachableBuffer(full, seat) {
+    const total = Object.assign({}, full.seats[seat].buffer);
+    for (const uid of full.zones[`${seat}:network`] || []) {
+      const object = full.objects[uid];
+      if (!object || !object.cardId || object.committed) continue;
+      for (const ability of compiled(object.cardId).abilities) {
+        if (!ability.resourceAbility || !Array.isArray(ability.ops)) continue;
+        for (const op of ability.ops) {
+          if (op.op !== "generate") continue;
+          const amount = op.amount || 1;
+          const symbol = op.affinity === "neutral" ? "N" : SYMBOL_FOR[op.affinity];
+          // A "choose an affinity" Resource could produce any of them, and the
+          // walk cannot know which: credit all, and err towards stopping.
+          if (symbol) total[symbol] += amount;
+          else for (const each of SYMBOLS) total[each] += amount;
+        }
+      }
+    }
+    return total;
+  }
+
+  function canWalkStep() {
+    // Local tables only: a remote pass is a round trip through the referee, and
+    // a spectator has no priority to pass in the first place.
+    if (session.seat !== null || session.role === "spectator") return false;
+    const full = session.full;
+    if (!full || full.result) return false;
+    if (picking || npcHoldsMove()) return false;
+    if (full.pendingManual || full.pendingChoice || full.awaiting) return false;
+    const seat = uiSeat(full);
+    if ((full.manualOpen || []).some((entry) => entry.seat === seat)) return false;
+    if (full.priority.seat !== seat) return false;
+    if (
+      full.turn.active === seat &&
+      ["build1", "build2"].indexOf(full.turn.phase) >= 0 &&
+      !full.queue.length
+    ) return false;
+    if ((full.effects || []).some(
+      (effect) => effect.kind === "uptimeResourceAbility" && effect.controller === seat
+    )) return false;
+    const pool = reachableBuffer(full, seat);
+    for (const uid of full.zones[`${seat}:wallet`] || []) {
+      const object = full.objects[uid];
+      const card = object && object.cardId ? CARD_BY_ID[object.cardId] : null;
+      if (card && card.type === "Zap" && E.canPay(pool, compiled(card.id).costParsed)) return false;
+    }
+    for (const uid of full.zones[`${seat}:network`] || []) {
+      if (couldActivate(full, pool, uid)) return false;
+    }
+    return true;
+  }
+
+  function scheduleAutoWalk() {
+    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+    if (!canWalkStep()) { autoWalked = 0; return; }
+    if (autoWalked >= AUTO_WALK_LIMIT) return;
+    /* A player who asked for less motion gets the whole run before the next
+     * paint rather than a paced march past their eyes: same stops, but the
+     * board simply arrives at the next decision instead of stepping there. */
+    if (reducedMotion()) return void autoWalkStep();
+    autoTimer = setTimeout(autoWalkStep, AUTO_STEP_MS);
+  }
+
+  /* The budget is spent here and refunded in scheduleAutoWalk(), the moment the
+   * board reaches somewhere the walk will not go — so a run that hits the limit
+   * stays stopped rather than resuming a step later. */
+  function autoWalkStep() {
+    autoTimer = null;
+    if (!canWalkStep()) { autoWalked = 0; return; }
+    autoWalked += 1;
+    dispatch("PASS_PRIORITY", session.full.priority.seat); // dispatch reschedules
   }
 
   // -------------------------------------------------------------- effects
@@ -1737,17 +1898,63 @@
     return node;
   }
 
+  /* THE FIVE CARDS IN THE SET THAT NAME THEIR OWN WINDOW, mirrored off engine
+   * validatePlayRestrictions. Indexed directly and never defaulted: a window
+   * this table does not know is the engine having grown one and this file not
+   * having followed, and that has to fail where the two meet rather than quietly
+   * light a card in a step that will refuse it. */
+  const PLAY_WINDOW = {
+    "clash-before-blockers": (turn) =>
+      turn.phase === "clash" && ["start", "attackers"].indexOf(turn.step) >= 0,
+    "opponent-before-attackers": (turn, seat) =>
+      turn.active !== seat && (
+        ["open", "build1"].indexOf(turn.phase) >= 0 ||
+        (turn.phase === "clash" && turn.step === "start")
+      ),
+    blockers: (turn) => turn.phase === "clash" && turn.step === "blockers",
+    "before-clash-damage": (turn) =>
+      turn.phase === "clash" &&
+      ["start", "attackers", "blockers", "order"].indexOf(turn.step) >= 0,
+  };
+
   /* Hearthstone's oldest lesson: show the player what they CAN do. A hand
    * card glows when it could be played right now; a Network card glows when
-   * an ability of it is worth a click. */
+   * an ability of it is worth a click.
+   *
+   * THE TURN WAS THE WRONG GATE, AND IT WAS WRONG IN BOTH DIRECTIONS. `full.turn
+   * .active !== seat` lit every affordable non-Zap through your own Clash and
+   * Close phases, where engine PLAY_CARD refuses them outright — and it darkened
+   * a Zap on the OPPONENT's turn, which is the only window a Zap is ever held
+   * for. The auto-walk already stopped the board there (canWalkStep: an
+   * affordable Zap in the Wallet ends the run) and then had nothing to point at,
+   * so the player was halted mid-walk and told "nothing to play".
+   *
+   * So this asks the three questions engine PLAY_CARD / PLAY_RESOURCE ask, in
+   * their order. Affordability stays the Buffer AS IT STANDS on purpose:
+   * settleCost() spends the Buffer and never taps a Resource for you, so a cost
+   * that is only reachable after tapping is not playable now and must not
+   * glow. */
   function playGlow(v, seat, uid) {
     const full = session.full;
-    if (!full || full.result || full.turn.active !== seat) return false;
+    if (!full || full.result) return false;
+    // requirePriority(). It also covers every awaiting declaration, pending
+    // choice and pending proposal in one line, because the engine parks
+    // priority.seat at null for the whole of each of them.
+    if (full.priority.seat !== seat) return false;
     const object = v.objects[uid];
     if (!object || !object.cardId) return false;
     const card = compiled(object.cardId);
+    // §5.6 / §9.2 sorcery speed: your own Build phase, Queue empty.
+    const sorcerySpeed =
+      full.turn.active === seat &&
+      ["build1", "build2"].indexOf(full.turn.phase) >= 0 &&
+      !full.queue.length;
     if (card.isResource) {
-      return full.turn.resourcePlays.used < full.turn.resourcePlays.allowed;
+      return sorcerySpeed && full.turn.resourcePlays.used < full.turn.resourcePlays.allowed;
+    }
+    if (card.type !== "Zap" && !sorcerySpeed) return false;
+    for (const restriction of card.playRestrictions || []) {
+      if (!PLAY_WINDOW[restriction.window](full.turn, seat)) return false;
     }
     return E.canPay(v.seats[seat].buffer, card.costParsed);
   }
@@ -1786,6 +1993,13 @@
     if (!button) return;
     const full = session.full;
     button.classList.remove("ready", "foeturn");
+    /* CLEARED ON EVERY PATH, INCLUDING THE ONES WITH NOTHING TO SAY. This
+     * attribute is shared: renderTurnLock() borrows it to explain the NPC lock
+     * and hands it straight back. Written only in the branch that has a burn
+     * warning, the two branches that return early — game over, and not your
+     * turn — left "The NPC is taking its turn." hovering over a button whose
+     * lock had already cleared. */
+    button.title = "";
     if (!full || full.result) return void (button.textContent = "End turn");
     const myTurn = full.turn.active === seat;
     if (!myTurn) {
@@ -1814,6 +2028,35 @@
     button.textContent = "End turn";
     button.title = "";
     if (!anythingLeft) button.classList.add("ready");
+  }
+
+  /* THE BUTTONS WERE LIVE WHILE THE BOT WAS THINKING, AND IT READ AS A BROKEN
+   * AI. scheduleNpc() re-arms its 550 ms timer on every accepted dispatch, so a
+   * human pressing Continue faster than that starved the bot indefinitely: the
+   * turn walked on without it, and three separate reviewers came away certain
+   * the NPC never attacks. It does — 13 to 25 attackers a game headless. It was
+   * simply never given the move back.
+   *
+   * aria-disabled rather than the `disabled` property, ON PURPOSE. This lock
+   * flips several times a turn, and a control that goes properly disabled under
+   * a player's own focus drops that focus to the body every time. The button
+   * stays reachable and stays announced; it says why it will not fire, the
+   * click path refuses it at advance(), and because it is not exempt from 1.4.3
+   * its quiet state is a colour rather than an opacity. */
+  function renderTurnLock() {
+    const locked = npcHoldsMove();
+    for (const id of ["continue", "endturn"]) {
+      const button = document.getElementById(id);
+      if (!button) continue;
+      // aria-disabled is the whole state: play.html styles the quiet look off
+      // that attribute, so there is no second class to keep in step with it.
+      if (button.setAttribute) button.setAttribute("aria-disabled", locked ? "true" : "false");
+      if (locked) button.title = "The NPC is taking its turn.";
+      // renderTurnButton() runs before this and rewrites #endturn's title on
+      // every path it can take, so unlocking has nothing to undo there.
+      // #continue's title is written nowhere else, so it is cleared here.
+      else if (id === "continue") button.title = "";
+    }
   }
 
   /* Stats are computed by the engine so the badge can never disagree with the
@@ -2557,6 +2800,7 @@
     resourceChip.textContent = resourceSpent ? "Resource play used" : "Resource play free";
     resourceChip.classList.toggle("quiet", resourceSpent);
     document.getElementById("continue").textContent = continueLabel(v, seat);
+    renderTurnLock();
 
     /* The simplest UI is the one that is not there: escape hatches appear
      * only while there is something to escape from. */
@@ -2564,6 +2808,17 @@
       !picking && !attackers.length && !Object.keys(blocks).length && blockTarget === null;
     document.getElementById("clearManual").hidden =
       !(v.manualOpen || []).some((entry) => entry.seat === seat);
+    /* …and the one control that appears only once there IS nothing left to
+     * escape from. Every other button in this row acts on a game still being
+     * played; this one is the board's own way on, alive for as long as the
+     * result stands rather than only while the closing dialog is up. */
+    const again = document.getElementById("playAgain");
+    if (again) {
+      again.hidden = !v.result;
+      // The SAME expression leaveFinishedMatch() decides on, so the promise on
+      // the button and the journey behind it cannot come apart.
+      if (v.result) again.textContent = leaveFinishedLabel(remote.endWasNetworked || atNetworkTable());
+    }
 
     renderHud(v, seat);
     renderClashStrip(v, seat, plan);
@@ -3058,6 +3313,32 @@
     return slot ? slot.label : v.turn.phase;
   }
 
+  /* WHAT YOU CAN ACTUALLY DO HERE. The bar closed every fallback line with
+   * "Play from your Wallet, then Continue" — in Unlock, in Draw, in Cleanup,
+   * in every step where playing a card is not a legal action at all. One
+   * reviewer counted 27 consecutive presses of Continue all reading that same
+   * invitation while the HUD beside it said "nothing to play". Keyed on the
+   * same (phase, step) pair the ribbon is keyed on, with the phase alone as the
+   * fallback, because Clash is one visible slot over seven engine steps. */
+  const STEP_ADVICE = {
+    "open/unlock": "Your capped cards unlock. Continue.",
+    "open/maintenance": "Maintenance triggers resolve. Continue.",
+    "open/draw": "You draw for the turn. Continue.",
+    "build1/main": "Play from your Wallet, then Continue.",
+    clash: "Attacks are declared this phase. Continue.",
+    "build2/main": "Play what you held back, then Continue.",
+    "close/endStep": "End-of-turn triggers resolve. Continue.",
+    "close/cleanup": "The turn is being tidied away. Continue.",
+  };
+  const stepAdvice = (v) =>
+    STEP_ADVICE[`${v.turn.phase}/${v.turn.step}`] || STEP_ADVICE[v.turn.phase] || "Continue.";
+
+  /* The table speaks for exactly ONE seat in remote play (the referee seated
+   * us) and in solo (uiSeat pins the view to the human for the whole game).
+   * Hotseat speaks for whoever holds priority, which is precisely why it must
+   * never take the "waiting for someone else" branches below. */
+  const tableSpeaksForOneSeat = () => session.seat !== null || session.npc !== null;
+
   function renderPrompt(v, seat) {
     const prompt = document.getElementById("prompt");
     let text;
@@ -3106,15 +3387,18 @@
       const open = v.manualOpen[0];
       text = `Assisted — ${v.seats[open.seat].name}: ${open.cardText}`;
       tone = "prompt manual";
-    } else if (session.seat !== null && v.priority.seat !== seat) {
-      /* Remote only. Hotseat passes the keyboard between seats, so "act" is
-       * always addressed to whoever is holding it; a networked seat that cannot
-       * act must be told so, or it clicks Continue into a rejection. */
+    } else if (tableSpeaksForOneSeat() && v.priority.seat !== seat) {
+      /* Remote AND solo. Hotseat passes the keyboard between seats, so "act" is
+       * always addressed to whoever is holding it; a seat that cannot act must
+       * be told so, or it clicks Continue into a rejection. This guard used to
+       * name the network alone — but solo is the same picture from the other
+       * side of the table, and there the bar told the human to play from their
+       * Wallet through every step the bot was actually holding. */
       text = v.priority.seat === null
         ? `Waiting on the other seat — ${stepLabel(v)}.`
         : `Waiting for ${v.seats[v.priority.seat].name} — ${stepLabel(v)}.`;
     } else {
-      text = `${v.seats[seat].name} — ${stepLabel(v)}. Play from your Wallet, then Continue.`;
+      text = `${v.seats[seat].name} — ${stepLabel(v)}. ${stepAdvice(v)}`;
     }
     prompt.textContent = text;
     prompt.className = tone;
@@ -3275,6 +3559,11 @@
   function advance() {
     const full = session.full;
     if (!full || full.result) return;
+    /* The space bar and the Queue click are Continue too, and neither of them
+     * goes anywhere near the button that is showing itself as locked. The
+     * prompt bar is already saying whose move it is, so this refuses quietly
+     * rather than stacking a second message on top of that one. */
+    if (npcHoldsMove()) return;
     const seat = uiSeat(full);
     const pickSpec = currentPickSpec();
     if (pickSpec && pickSpec.variable) {
@@ -3401,6 +3690,10 @@
      * spending it twice for the same event is how a feature becomes a nuisance. */
     announced: null,
     endShown: null,    // the matchId whose closing screen is up
+    /* Whether the match whose closing screen is up was played over a socket.
+     * Latched when the screen opens, because the way out is decided there and
+     * the rematch handler runs after session.seat has already been let go. */
+    endWasNetworked: false,
     settling: null,    // an in-flight zap settlement, so it cannot be started twice
   };
 
@@ -3709,10 +4002,59 @@
     draw: "Both players went down together.",
   };
 
+  /* WHOSE RESULT IS THIS. Networked: the seat the referee gave us. Solo: the
+   * human, who is the one being told they won or lost. Hotseat: nobody — both
+   * players are sitting here, so the screen names the winner rather than
+   * addressing one of them. `session.seat` alone made solo read as a spectator
+   * watching a stranger lose. */
+  const endSeat = () =>
+    session.seat !== null ? session.seat : session.npc !== null ? 1 - session.npc : null;
+
+  /* The local table's own OVER message, shaped like the referee's so exactly
+   * one closing screen exists. `verify` is absent on purpose: there is no
+   * referee database to appeal to here, and renderEndVerify says so rather than
+   * claiming one replayed cleanly. The independent replay below it is real. */
+  function announceLocalResult() {
+    const full = session.full;
+    if (!full || !full.result || remote.endShown === full.gameId) return;
+    let publicHash = null;
+    try { publicHash = E.publicHash(full); } catch (error) { publicHash = null; }
+    showEndgame({
+      local: true,
+      matchId: full.gameId,
+      result: full.result,
+      config: session.config,
+      transcript: session.log,
+      publicHash,
+      stats: { turns: full.turn.number, actions: session.log.length },
+    });
+  }
+
+  /* JOINED TO A REFEREE'S TABLE — seated OR watching. `session.seat !== null`
+   * was standing in for this and got the spectator exactly backwards: role
+   * "spectator" carries seat null, so a viewer was read as a local hotseat and
+   * handed a "New game" that dropped the setup card in front of a socket still
+   * joined to the table. Both roles have a socket to release; only a hotseat
+   * has neither that nor a lobby to go back to. */
+  const atNetworkTable = () => session.role !== "hotseat";
+
+  /* Two controls, one journey, so one set of words — the board's restart and the
+   * dialog's must not promise the player different destinations. */
+  const leaveFinishedLabel = (networked) =>
+    !networked
+      ? "New game"
+      : session.role === "spectator" ? "Find another table" : "Find another opponent";
+
   function showEndgame(over) {
     if (!over || !over.result) return;
     remote.endShown = over.matchId;
-    const seat = session.seat;
+    /* Which way OUT this screen offers is decided here, while the mode is still
+     * known: the rematch button walks a networked player back to the lobby and
+     * a local one back to the setup card. It used to be hidden outright unless
+     * a referee had seated you, which is how losing a solo game became a dead
+     * end with reload as the only exit. */
+    remote.endWasNetworked = atNetworkTable();
+    const seat = endSeat();
     const winners = over.result.winners || [];
     const won = seat !== null && winners.indexOf(seat) >= 0;
     const drew = winners.length === 0;
@@ -3728,7 +4070,8 @@
     $("endVerdict").textContent = verdict;
     $("endVerdict").className =
       "endverdict " + (drew ? "drew" : seat === null ? "" : won ? "won" : "lost");
-    $("endEyebrow").textContent = seat === null ? "Match over — you were watching" : "Match over";
+    $("endEyebrow").textContent =
+      session.role === "spectator" ? "Match over — you were watching" : "Match over";
 
     const reason = over.result.reason;
     const loser = drew ? null : 1 - winners[0];
@@ -3745,18 +4088,29 @@
       box.append(el("b", null, String(value)), el("span", null, label));
       stats.append(box);
     };
-    if (payload) {
-      stat(payload.turns || 0, "turns");
-      stat(payload.actions || 0, "actions");
+    const counts = payload || over.stats;
+    if (counts) {
+      stat(counts.turns || 0, "turns");
+      stat(counts.actions || 0, "actions");
     }
-    const stake = (payload && payload.stake) || (NET.lastState && NET.lastState.stake) || 0;
+    /* net.js is OPTIONAL — play.html opened from file:// runs the whole hotseat
+     * without it, and the closing screen is now something a hotseat reaches.
+     * Everything the transport would offer is asked for, never assumed. */
+    const stake = (payload && payload.stake) || (NET && NET.lastState && NET.lastState.stake) || 0;
     if (stake) stat(stake.toLocaleString("en-US"), "sats staked");
 
     renderEndVerify(over);
     renderSettlement(over, { won, drew, stake, winnerSeat: drew ? null : winners[0] });
 
-    $("endPublish").hidden = !(nostr().hasNip07() && seat !== null && over.resultContent);
-    $("endRematch").hidden = seat === null;
+    // Publishing is still a networked act: it signs the referee's own bytes.
+    $("endPublish").hidden =
+      !(NET && nostr().hasNip07() && session.seat !== null && over.resultContent);
+    /* A game ended, so there is always a way on. Which way depends on where it
+     * was played, not on whether a seat happened to be networked. */
+    $("endRematch").hidden = false;
+    // A spectator was never looking for an opponent — they were watching a
+    // table, and what they are being offered is another one.
+    $("endRematch").textContent = leaveFinishedLabel(remote.endWasNetworked);
     $("endNote").textContent = remote.agreement ? agreementWords(remote.agreement) : "";
     openEndgame();
   }
@@ -3789,7 +4143,13 @@
    * asking the scorekeeper whether the score is right. */
   function renderEndVerify(over) {
     const box = $("endVerify");
-    const referee = over.verify && over.verify.ok;
+    /* A LOCAL MATCH HAS NO REFEREE TO ASK — it is its own, and every action on
+     * it went through the same apply() a server would run. Saying "the referee
+     * replayed its database" there would be a comfortable sentence about a
+     * thing that does not exist. The line underneath, this browser replaying
+     * its own transcript, is the check that actually proves something, and it
+     * is the same check in both modes. */
+    const referee = over.local ? true : Boolean(over.verify && over.verify.ok);
     let mine = null;
     if (over.config && Array.isArray(over.transcript)) {
       try {
@@ -3805,9 +4165,11 @@
     const ok = referee && mine && mine.ok;
     box.className = "endverify" + (ok ? "" : " bad");
     box.innerHTML = "";
-    box.append(el("div", null, referee
-      ? "The referee replayed the match from its own database: it checks out."
-      : "The referee could not replay this match cleanly."));
+    box.append(el("div", null, over.local
+      ? "This table was its own referee: every action was validated by the engine as it applied."
+      : referee
+        ? "The referee replayed the match from its own database: it checks out."
+        : "The referee could not replay this match cleanly."));
     if (mine) {
       box.append(el("div", null, mine.ok
         ? "This browser replayed the referee's transcript independently: it agrees."
@@ -4015,10 +4377,81 @@
     location.href = "matchmaking.html";
   }
 
+  /* THE WAY BACK FROM A FINISHED LOCAL GAME. There was none: the closing screen
+   * only ever opened for a networked match and its one live button walked to
+   * the lobby, so a hotseat or solo player who lost had the browser's reload
+   * button and nothing else. This clears exactly what startGame() would
+   * otherwise inherit — a finished state, a spent transcript, a bot timer still
+   * armed — and puts the setup card back with focus on Start. */
+  function backToSetup() {
+    closeEndgame();
+    if (npcTimer) { clearTimeout(npcTimer); npcTimer = null; }
+    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+    autoWalked = 0;
+    session.full = null;
+    session.log = [];
+    session.events = [];
+    session.notice = null;
+    session.npc = null;
+    remote.over = null;
+    remote.endShown = null;
+    picking = null;
+    attackers = [];
+    meshGroupActive = false;
+    blocks = {};
+    $("table").hidden = true;
+    $("setup").hidden = false;
+    const start = $("start");
+    if (start && typeof start.focus === "function") start.focus();
+  }
+
+  /* THE ONE WAY ON FROM A FINISHED MATCH, and it is wired to two controls
+   * rather than one. #endRematch offers it from inside the closing dialog, and
+   * #playAgain offers it from the board underneath for as long as the result
+   * stands — because that dialog closes on Escape and on a button that invites
+   * the player to go and look at the final board, and a board with no restart on
+   * it is the reload-only dead end the closing screen exists to remove. */
+  function leaveFinishedMatch() {
+    /* EITHER WITNESS IS ENOUGH AND NEITHER ALONE IS. The latch is what "Leave
+     * table", pressed while this screen was up, has already erased from the live
+     * role; the live role is what the board-side control has when a result
+     * arrived on a FRAME before the referee's OVER ever set the latch. Taking
+     * the local branch with a socket still open is the whole defect, so a table
+     * either of them can still see is a table to leave.
+     *
+     * Local and solo matches go back to the setup card; a joined table has a
+     * seat or a viewing to give up and a lobby to be sent back to. */
+    if (!(remote.endWasNetworked || atNetworkTable())) return void backToSetup();
+    closeEndgame();
+    if (NET) NET.leave();
+    session.seat = null;
+    session.role = "hotseat";
+    session.full = null;
+    remote.over = null;
+    remote.agreement = null;
+    remote.endShown = null;
+    $("table").hidden = true;
+    $("setup").hidden = false;
+    renderNetChip();
+    renderIdentity();
+    toLobby();
+  }
+
+  /* THE CLOSING SCREEN IS NOT PART OF THE NETWORK ANY MORE, so its two ways out
+   * cannot be wired from initNet() — that runs only when net.js loaded, and a
+   * hotseat opened from file:// now reaches this dialog. Wired without it, a
+   * local player who lost would be handed a modal with no working button at
+   * all, which is a worse dead end than the one this set out to fix. */
+  function initEndgame() {
+    $("endClose").addEventListener("click", closeEndgame);
+    $("endRematch").addEventListener("click", leaveFinishedMatch);
+    const again = document.getElementById("playAgain");
+    if (again) again.addEventListener("click", leaveFinishedMatch);
+  }
+
   function initNet() {
     $("nostrLogin").addEventListener("click", login);
     $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); });
-    $("endClose").addEventListener("click", closeEndgame);
     /* Disabled only while the signer is open, and re-enabled if it was refused:
      * declining a popup by accident must not permanently cost a player their
      * place on the ladder. */
@@ -4026,21 +4459,6 @@
       $("endPublish").disabled = true;
       const sent = await publishResult();
       $("endPublish").disabled = Boolean(sent);
-    });
-    $("endRematch").addEventListener("click", () => {
-      closeEndgame();
-      NET.leave();
-      session.seat = null;
-      session.role = "hotseat";
-      session.full = null;
-      remote.over = null;
-      remote.agreement = null;
-      remote.endShown = null;
-      $("table").hidden = true;
-      $("setup").hidden = false;
-      renderNetChip();
-      renderIdentity();
-      toLobby();
     });
     $("publishAccept").addEventListener("click", publishAccept);
     $("publishResult").addEventListener("click", publishResult);
@@ -4105,6 +4523,22 @@
     })();
   }
 
+  /* ANY WORD IS A SEED. The field used to compute `Number(text) | 0`, and
+   * NaN | 0 is 0 — so "cynic1", "ZZZ-999" and a stray keystroke all silently
+   * dealt the same game as seed 0, which is the one thing a seed must never do
+   * quietly. A decimal integer is still taken at its word so a shared number
+   * still deals the game it dealt before; anything else is hashed, which is
+   * what lets the label honestly say the field takes a word or a number. */
+  function seedFromInput(text) {
+    if (/^-?\d+$/.test(text)) return Number(text) | 0;
+    let hash = 0x811c9dc5; // FNV-1a, 32-bit: small, stable, and not a rabbit hole
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    return hash | 0;
+  }
+
   function startGame() {
     const verified = verifyNutftSetup();
     if (verified !== true) { verified.then((ok) => { if (ok) startVerifiedGame(); }); return; }
@@ -4115,7 +4549,7 @@
     const seedInput = document.getElementById("seed").value.trim();
     // The engine generates no randomness of its own: every seed is an input.
     // A blank field is turned into one here, in the UI, where that is allowed.
-    const base = seedInput ? (Number(seedInput) | 0) : (crypto.getRandomValues(new Int32Array(1))[0] | 0);
+    const base = seedInput ? seedFromInput(seedInput) : (crypto.getRandomValues(new Int32Array(1))[0] | 0);
     const npcBox = document.getElementById("npcB");
     const solo = Boolean(npcBox && npcBox.checked);
     const nameB = document.getElementById("nameB").value || (solo ? "NPC" : "Player 2");
@@ -4176,6 +4610,12 @@
     session.seat = null;        // hotseat: this table applies its own actions
     session.role = "hotseat";
     session.awaitingSeq = null;
+    /* The previous match's closing screen is over, and so is what it latched.
+     * Left standing, a table this browser once played over would still be
+     * claiming a socket to release when THIS local game ends — and the board's
+     * restart is drawn one frame before showEndgame() would have refreshed it. */
+    remote.endShown = null;
+    remote.endWasNetworked = false;
     attackers = [];
     meshGroupActive = false;
     blocks = {};
@@ -4190,6 +4630,7 @@
     if (globalThis.E1FX) globalThis.E1FX.emit("game:start", {});
     render();
     scheduleNpc();
+    scheduleAutoWalk();
   }
 
   /* The seat menus: affinity presets, the precon library, then whatever the
@@ -4433,6 +4874,8 @@
     });
 
     document.getElementById("cardCount").textContent = CARDS.length;
+
+    initEndgame(); // before initNet, and unconditionally: see the note there.
 
     // Last, and guarded: a missing net.js must not take the hotseat down with it.
     if (globalThis.E1Net) {

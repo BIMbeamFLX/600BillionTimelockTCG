@@ -191,9 +191,25 @@ signed by both seats.
 
 ## Booster shop
 
-`site/shop.html` opens one box. Rarity is copies in that box — commons 24,
-uncommons 8, rares 3 — exactly how a printed booster box expresses it, so the
-published odds are a property of the box rather than a promise about a dice roll.
+`site/shop.html` opens one box: 4,456 cards, 891 packs of five. Rarity is copies in
+that box, exactly how a printed booster box expresses it, so the published odds are
+a property of the box rather than a promise about a dice roll.
+
+| Tier | Cards | Copies each | Share of the box |
+| --- | --- | --- | --- |
+| common | 90 | 31 | 62.61% |
+| uncommon | 75 | 9 | 15.15% |
+| rare | 90 | 7 | 14.14% |
+| vault | 21 | 2 | 0.94% |
+| genesis | 9 | 1 | 0.20% |
+| basic | 10 | 31 | 6.96% |
+
+The six tiers are rank cuts on a per-card score, not a flat ladder, and the print run
+above tracks the mint's own shape (`cards/nutft-census.json`) so the free box teaches
+the economy a buyer will meet rather than contradicting it. The counts live in
+`PRINT_RUN` (`scripts/build_shop_data.py`) and `DEFAULT_PRINT_RUN`
+(`scripts/build_asset_set.py`), which must stay the same table: the box the shop
+opens and the box the mint imports have to be one box.
 The box is shuffled once from a seed and committed by SHA-256 before the first
 pack; pulls come off the top.
 
@@ -294,7 +310,7 @@ BIP-340 signature verification.
 ## Tests
 
 ```bash
-npm run test:js     # 316 tests: engine, client, transport, NutFT, ladder, and every card wave
+npm run test:js     # 343 tests: engine, client, transport, NutFT, ladder, and every card wave
 uv run pytest       # the Python generators
 ```
 

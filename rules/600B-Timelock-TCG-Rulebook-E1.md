@@ -20,8 +20,8 @@ grid sang — lives on the [lore page](../site/lore.html).
 The first rules profile deliberately preserves the strategic shape of first-generation
 dueling card games: 20 starting Uptime, seven cards in the opening Wallet, forty-card
 minimum Stacks, one Resource play each turn, classic resource burn and a three-copy limit
-except for Basic Resources. Timing is expressed through one deterministic last-in-first-out Queue so the same
-rules can be enforced by a web app.
+that Basic Resources ignore and Genesis cards tighten to one. Timing is expressed through
+one deterministic last-in-first-out Queue so the same rules can be enforced by a web app.
 
 > **Edition One principle:** cards can bend these rules. When a card and this rulebook
 > disagree, the card wins for the specific thing it changes.
@@ -265,7 +265,8 @@ The E1 Classic Profile uses the original open deck-building shape.
 
 - Minimum Stack size: **40 cards**.
 - Maximum Stack size: none, but the player must be able to randomize it.
-- Copy limit: **3 copies of any one card**, except Basic Resources.
+- Copy limit: **3 copies of any one card**, with two exceptions: Basic Resources are
+  unlimited, and Genesis cards are limited to **1 copy**.
 - Sideboard: none.
 - Resource cards count toward the minimum.
 - Cards marked for Stake or Toss modules are legal only when that module is enabled.
@@ -278,9 +279,23 @@ with a mean kill on turn 3.8. Three copies keeps a card findable without letting
 the whole Stack, and it is what turns deckbuilding into a set of choices rather than an
 arithmetic problem.
 
-The referee enforces this itself (`MAX_COPIES` in the engine), because a decklist is
-untrusted input on every topology: the Stack Builder can refuse a bad list politely, but the
-referee is the only place a hand-rolled client cannot talk past.
+Basic Resources are exempt for the same reason every deck-building game exempts its basic
+lands. A 40-card Stack wants 16–18 Resources and Edition One prints only ten Basic
+Resources, so a cap of three would make a legal Stack arithmetically impossible. The cap
+exists to stop one *spell* being the whole Stack, and a Resource cannot be that, because it
+does nothing on its own.
+
+Genesis cards run the other way: **one copy per Stack**. Twenty-one copies of any single
+Genesis card will ever be minted, so at a cap of three a legal Stack could ask for more of a
+card than the world contains. The one-copy limit is what stops that — and what keeps
+scarcity out of the match. The 21 minted copies are the collectible: capped, owned and
+tradeable. The copy in your Stack is a play copy, issued free by the precons and the Stack
+Builder and not tradeable at all. A Genesis card is worth owning because it is scarce, never
+because it is the only way to play the game.
+
+The referee enforces all three limits itself (`copyLimit()` in the engine), because a
+decklist is untrusted input on every topology: the Stack Builder can refuse a bad list
+politely, but the referee is the only place a hand-rolled client cannot talk past.
 
 ### Recommended first decks
 

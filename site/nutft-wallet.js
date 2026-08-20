@@ -20,10 +20,28 @@
   const binding = async (tag) => digest(`Cashu_NutFT_v1${canonical(reference(tag))}`);
   const validState = (state) => state && typeof state === "object" && typeof state.privateKey === "string" && typeof state.pubkey === "string" && Array.isArray(state.tokens) && state.tokens.every((token) => typeof token === "string") && (state.pending == null || typeof state.pending === "object");
 
+  /* ALWAYS re-read storage. The cache used to be returned outright, so this
+   * function could not see a write made by another TAB — and every decision
+   * about `pending` is made from what it returns.
+   *
+   * The loss that made this urgent: the shop opens a booster pending in one
+   * tab; the wallet, opened earlier, still holds a cached state with no pending;
+   * a send there passes the "is a transfer already running" guard, and its
+   * write() then overwrites the booster pending with the trade's. For a PAID
+   * booster that destroys the outputs, so the sats are gone with nothing left to
+   * claim — precisely the loss the comment in submitPending warns about, reached
+   * by a route it never considered. The site actively moves players between
+   * shop.html and wallet.html, so two open tabs is the normal case, not an edge.
+   *
+   * `memory` stays as the parse target and as the fallback for a shell with no
+   * storage at all, where it is the only place a wallet can live. Re-parsing a
+   * few kilobytes per call is not a cost worth a correctness hole. */
   async function read() {
-    if (memory) return memory;
-    const saved = root.localStorage.getItem(STORE);
-    if (!saved) return (memory = { privateKey: "", pubkey: "", tokens: [] });
+    let saved = null;
+    try { saved = root.localStorage.getItem(STORE); }
+    catch { return memory || (memory = { privateKey: "", pubkey: "", tokens: [], outgoing: [] }); }
+    if (saved === null && memory) return memory;
+    if (!saved) return (memory = { privateKey: "", pubkey: "", tokens: [], outgoing: [] });
     try { memory = JSON.parse(saved); }
     catch { throw new Error("Wallet storage is corrupted. Preserve 600b:nutft-wallet before making changes."); }
     if (!validState(memory)) {
@@ -36,6 +54,24 @@
   function write(state) {
     root.localStorage.setItem(STORE, JSON.stringify(state));
     memory = state;
+  }
+
+  /* Transfers this wallet has sent and not yet marked delivered. Newest first.
+     Read-only copies: a caller mutating the array must not be able to drop a
+     token that is still the only claim on a card. */
+  async function outgoing() {
+    const state = await read();
+    return (Array.isArray(state.outgoing) ? state.outgoing : []).map((entry) => ({ ...entry }));
+  }
+
+  /* Forget one, once it is known to be in the recipient's hands. Deliberately
+     explicit and deliberately not automatic: this wallet cannot observe whether
+     the other side claimed it, so only a person can say so. */
+  async function forgetOutgoing(token) {
+    const state = await read();
+    const kept = (Array.isArray(state.outgoing) ? state.outgoing : []).filter((entry) => entry.token !== token);
+    write({ ...state, outgoing: kept });
+    return kept.length;
   }
 
   function locked(work) {
@@ -99,7 +135,7 @@
       write({ ...state, tokens: [...state.tokens, token], pending: null });
       return { ...response, token, proofs };
     }
-    const all = state.tokens.flatMap((token) => c.getDecodedToken(token, [keyset.id]).proofs);
+    const all = readableProofs(state, keyset, c);
     const index = all.findIndex((proof) => proof.secret === pending.input_secret);
     if (index < 0) throw new Error("pending transfer input is no longer in this wallet");
     const output = restoreOutput(pending.outputs[0], c);
@@ -108,9 +144,33 @@
     const newTag = c.getTag(proof.secret, "nutft");
     if (!newTag || newTag[4] !== oldTag[4] || !proof.p2pk_e || !c.hasValidDleq(proof, keyset, { require: true })) throw new Error("wallet rejected replacement proof");
     const remaining = all.filter((_, itemIndex) => itemIndex !== index);
-    const tokens = remaining.length ? [c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: remaining })] : [];
+    /* CARRY THE UNREADABLE TOKENS THROUGH. This line rebuilds the whole token
+       list out of the proofs it could read, so anything it could not read would
+       be dropped on the floor by a write it never mentioned. That did not
+       matter while an unreadable token threw; it matters now that one is
+       tolerated, because those tokens are the only record a person has of cards
+       bought from a mint this one cannot open. Losing them silently, during a
+       trade of an unrelated card, would be the worst kind of data loss: quiet,
+       and triggered by something that looked unrelated. */
+    const { opaque } = splitTokens(state, keyset, c);
+    const rebuilt = remaining.length
+      ? [c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: remaining })]
+      : [];
     const token = c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: [proof] });
-    write({ ...state, tokens, pending: null });
+    /* PERSIST THE OUTGOING TOKEN. It is the only thing that can ever claim this
+       card: the sender no longer holds it, the recipient does not have it yet,
+       and it is locked to a key only the recipient has. Returning it and writing
+       nothing meant the single copy lived in whatever variable the caller kept —
+       so a reload, a closed tab or a crash between the trade and the hand-off
+       destroyed the card outright. Nobody could claim it, ever. That is not a
+       hypothetical: it happened to a card during development.
+       Kept until the sender says it was delivered. They are a few hundred bytes
+       each, and an undelivered transfer nobody can find is the worse trade. */
+    const outgoing = [
+      { token, asset_id: response.asset_id || null, at: new Date().toISOString() },
+      ...(Array.isArray(state.outgoing) ? state.outgoing : []),
+    ];
+    write({ ...state, tokens: [...rebuilt, ...opaque], outgoing, pending: null });
     return { ...response, token, proof };
   }
 
@@ -216,16 +276,38 @@
 
     if (/early access/i.test(attempt.reason)) {
       let header = null;
-      try {
-        header = await nip98Header(target, "GET");
-      } catch {
-        throw new Error("early access: your nostr extension did not sign the request");
-      }
-      if (!header) throw new Error(earlyAccessAdvice(attempt.reason));
+      let declined = false;
+      try { header = await nip98Header(target, "GET"); } catch { declined = true; }
+      if (!header) throw new Error(earlyAccessAdvice(attempt.reason, declined));
       attempt = await read(await fetch(target, { headers: { Authorization: header } }));
       if (attempt.quote) return attempt.quote;
     }
     throw new Error(attempt.reason);
+  }
+
+  /* Read the mint's own refusal out of a failed response -- or THROW, because
+     anything that is not the mint refusing must not be treated as one.
+   *
+   * submitPending discards the pending on a refusal, since a refusal means
+   * those outputs will never be signed. A proxy's HTML 502, a captive-portal
+   * page or a truncated body is NOT a refusal: the mint may well have accepted,
+   * and on a trade the input proof is already spent, so the outputs have to
+   * survive for a retry under the same idempotency key.
+   *
+   * Found twice independently -- once here, once in review -- which is the best
+   * evidence a bug of this shape gets. */
+  async function refusal(response) {
+    let body;
+    try { body = await response.json(); }
+    catch {
+      /* A proxy's HTML 502 is not the mint refusing the request. Keep the
+         pending bearer outputs so the same idempotent request can be retried. */
+      throw new Error(`mint gateway returned a non-JSON error (${response.status}); request preserved for retry`);
+    }
+    if (!body || typeof body.error !== "string" || !body.error) {
+      throw new Error(`mint returned an invalid error response (${response.status}); request preserved for retry`);
+    }
+    return body.error;
   }
 
   /* POST a body, and if the mint answers "early access", sign a NIP-98 proof
@@ -243,27 +325,32 @@
 
     const first = await send(null);
     if (first.ok) return first;
-    let detail = "";
-    try { detail = (await first.json()).error || ""; } catch { /* not JSON */ }
+    const detail = await refusal(first);
     if (!/early access/i.test(detail)) return { ok: false, status: first.status, detail };
 
     let header = null;
-    try { header = await nip98Header(url, "POST"); } catch { header = null; }
+    let declined = false;
+    try { header = await nip98Header(url, "POST"); } catch { declined = true; }
     if (!header) {
-      return { ok: false, status: first.status, detail: earlyAccessAdvice(detail) };
+      return { ok: false, status: first.status, detail: earlyAccessAdvice(detail, declined) };
     }
     const second = await send(header);
     if (second.ok) return second;
-    let retried = "";
-    try { retried = (await second.json()).error || ""; } catch { /* not JSON */ }
-    return { ok: false, status: second.status, detail: retried || detail };
+    return { ok: false, status: second.status, detail: await refusal(second) };
   }
 
-  const earlyAccessAdvice = (detail) =>
-    /sign the request/i.test(detail)
+  /* Telling someone to install what they already have is worse than saying
+     nothing, so a declined prompt gets its own sentence. */
+  const earlyAccessAdvice = (detail, declined) => {
+    if (declined) {
+      return "early access: your nostr extension did not sign the request — the signature is "
+        + "what proves your key is on the list, so the sale cannot go ahead without it";
+    }
+    return /sign the request/i.test(detail)
       ? "early access: this sale is open to a few keys first — install a nostr extension "
         + "and sign in with a key that is on the list"
       : detail;
+  };
 
   async function buyBoosterUnlocked(mintUrl, opts = {}) {
     const c = await cashu();
@@ -306,12 +393,61 @@
 
   const buyBooster = (mintUrl, opts) => locked(() => buyBoosterUnlocked(mintUrl, opts || {}));
 
-  async function proofs(mintUrl) {
+  /* Decode PER TOKEN, and survive one that cannot be decoded.
+   *
+   * This used to be a bare flatMap over getDecodedToken, so a single token this
+   * mint cannot read threw and took the WHOLE wallet with it. That is not a
+   * rare state: a token minted before a mint's keyset rotated, or one bought
+   * from a different mint entirely — staging, say — can never decode against
+   * this keyset, ever. One of those made snapshot() throw, which blanked the
+   * wallet page, permanently dropped the Stack Builder out of OG mode, and made
+   * every trade impossible. The only escape was clearing storage, which throws
+   * away every good card along with the bad one.
+   *
+   * A card this mint cannot read is not the same as a card that does not exist.
+   * The unreadable ones are counted and handed back so the page can say how
+   * many there are and where they probably came from, instead of a wallet full
+   * of cards silently reporting nothing at all. */
+  async function decodeTokens(mintUrl) {
     const c = await cashu();
     const state = await read();
     const keyset = await getKeyset(mintUrl, c);
-    return state.tokens.flatMap((token) => c.getDecodedToken(token, [keyset.id]).proofs);
+    const list = [];
+    const unreadable = [];
+    for (const token of state.tokens) {
+      try {
+        list.push(...c.getDecodedToken(token, [keyset.id]).proofs);
+      } catch (error) {
+        unreadable.push({ token, error: error && error.message ? error.message : String(error) });
+      }
+    }
+    return { proofs: list, unreadable };
   }
+
+  async function proofs(mintUrl) {
+    return (await decodeTokens(mintUrl)).proofs;
+  }
+
+  /* The synchronous half of the same rule, for the paths that already hold a
+     state and a keyset.
+   *
+   * Every one of these asks "what does this wallet hold", and every one of them
+   * used its own bare flatMap. Fixing only decodeTokens left the TRADE path
+   * still throwing on a dead token — which is the worst place for it, because a
+   * trade is the operation a person reaches for to move a card OUT of a wallet
+   * they cannot otherwise use. It was found by trying a trade with one dead
+   * token in storage, not by reading the code. */
+  function splitTokens(state, keyset, c) {
+    const proofs = [];
+    const opaque = [];
+    for (const token of state.tokens) {
+      try { proofs.push(...c.getDecodedToken(token, [keyset.id]).proofs); }
+      catch { opaque.push(token); }
+    }
+    return { proofs, opaque };
+  }
+
+  const readableProofs = (state, keyset, c) => splitTokens(state, keyset, c).proofs;
 
   async function verifyCatalog(catalogUri, catalog, c, issuerExpected) {
     const { issuer_pubkey: issuer, signature, ...payload } = catalog || {};
@@ -343,14 +479,20 @@
   }
 
   async function snapshot(mintUrl) {
-    await locked(recoverPending);
+    /* A pending the mint refuses must not hide the cards that are fine. This ran
+       uncaught, so one stuck transfer threw before a single proof was inspected
+       and the whole collection vanished behind an error — the same shape as the
+       unreadable-token bug, one level up. The recovery is still attempted, and
+       the page has its own route to retry it. */
+    try { await locked(recoverPending); } catch { /* reported by recoverPending's own caller */ }
     const c = await cashu();
     const keyset = await getKeyset(mintUrl, c);
     const catalogs = new Map();
     const owned = [];
     const spent = [];
     const invalid = [];
-    for (const proof of await proofs(mintUrl)) {
+    const { proofs: readable, unreadable } = await decodeTokens(mintUrl);
+    for (const proof of readable) {
       try {
         const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
         (item.state === "SPENT" ? spent : owned).push(item);
@@ -358,15 +500,27 @@
         invalid.push({ proof, error: error.message });
       }
     }
-    return { catalog: catalogs.values().next().value || null, owned, spent, invalid };
+    /* `unreadable` is deliberately its own bucket and not folded into
+       `invalid`: an invalid proof is one this mint HAS an opinion about and
+       rejects, while an unreadable token is one it cannot even open. A page
+       that conflates them tells a buyer their card is bad when the truth is
+       that they are looking at the wrong mint. */
+    return { catalog: catalogs.values().next().value || null, owned, spent, invalid, unreadable };
   }
 
   async function tradeProofUnlocked(mintUrl, secret, recipientPubkey) {
     const c = await cashu();
     let state = await identity(c);
-    if (state.pending) return submitPending(state, c, await getKeyset(state.pending.mintUrl, c));
+    /* REFUSE, do not silently finish something else. This used to call
+       submitPending and hand back THAT token — so asking to send card X while an
+       older transfer was unfinished completed the older trade and returned a
+       token for card Y. The caller had every reason to believe it had just sent
+       X. Finishing a pending is a deliberate act with its own entry point. */
+    if (state.pending) {
+      throw new Error("finish the transfer already in progress before starting another");
+    }
     const keyset = await getKeyset(mintUrl, c);
-    const all = state.tokens.flatMap((token) => c.getDecodedToken(token, [keyset.id]).proofs);
+    const all = readableProofs(state, keyset, c);
     const index = all.findIndex((proof) => proof.secret === secret);
     if (index < 0) throw new Error("card is not in this wallet");
     const oldProof = all[index];
@@ -405,7 +559,11 @@
     const keyset = await getKeyset(mintUrl, c);
     const decoded = c.getDecodedToken(token, [keyset.id]);
     if (decoded.mint !== mintUrl || decoded.unit !== "600B-E1" || !decoded.proofs.length) throw new Error("token mint, unit, or proofs are invalid");
-    const existing = new Set(state.tokens.flatMap((saved) => c.getDecodedToken(saved, [keyset.id]).proofs).map((proof) => proof.secret));
+    /* The token being imported above may still throw — a caller pasting a
+       broken token deserves to hear so. But the wallet it is landing in must
+       not: a dead token already in storage cannot be allowed to block an
+       import, or a person is stuck with it forever. */
+    const existing = new Set(readableProofs(state, keyset, c).map((proof) => proof.secret));
     const catalogs = new Map();
     for (const proof of decoded.proofs) {
       if (existing.has(proof.secret)) throw new Error("token is already in this wallet");
@@ -436,5 +594,5 @@
 
   const restoreBackup = (text) => locked(() => restoreBackupUnlocked(text));
 
-  root.NutFTWallet = { buyBooster, snapshot, tradeProof, importToken, destination, recoverPending, exportBackup, restoreBackup, read, cashu, hex, bytes };
+  root.NutFTWallet = { buyBooster, snapshot, tradeProof, importToken, destination, recoverPending, outgoing, forgetOutgoing, exportBackup, restoreBackup, read, cashu, hex, bytes };
 })(globalThis);

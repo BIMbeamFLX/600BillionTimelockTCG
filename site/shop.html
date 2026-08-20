@@ -180,14 +180,18 @@ main { container-type: inline-size; }
 @keyframes pullBurst { from { opacity: .9; transform: translate(-50%, -50%) scale(.4); } to { opacity: 0; transform: translate(-50%, -50%) scale(2.4); } }
 .pull { animation: pullDeal .3s ease-out backwards; animation-delay: calc(var(--i, 0) * .055s); }
 .pull.charging .pull__back { animation: pullCharge .5s ease-in-out infinite; }
-.pull.rarity-rare.charging .pull__back { animation-duration: .3s; }
+.pull.rarity-rare.charging .pull__back,
+.pull.rarity-vault.charging .pull__back,
+.pull.rarity-genesis.charging .pull__back { animation-duration: .3s; }
 
 .pull__burst {
   position: absolute; left: 50%; top: 50%; width: 100%; aspect-ratio: 1; border-radius: 50%;
   border: 2px solid var(--ember); opacity: 0; pointer-events: none;
   transform: translate(-50%, -50%) scale(.4);
 }
-.pull.flipped.rarity-rare .pull__burst { animation: pullBurst .85s ease-out .2s 1 both; }
+.pull.flipped.rarity-rare .pull__burst,
+.pull.flipped.rarity-vault .pull__burst,
+.pull.flipped.rarity-genesis .pull__burst { animation: pullBurst .85s ease-out .2s 1 both; }
 .pull.flipped.rarity-uncommon .pull__burst { border-color: var(--purple); animation: pullBurst .7s ease-out .2s 1 both; }
 
 .pull__rarity {
@@ -197,8 +201,12 @@ main { container-type: inline-size; }
 }
 .pull.flipped .pull__rarity { opacity: 1; }
 .pull.rarity-uncommon.flipped .pull__front { box-shadow: 0 0 0 2px var(--purple), 0 0 22px rgba(185, 145, 228, .5); }
-.pull.rarity-rare.flipped .pull__front { box-shadow: 0 0 0 2px var(--ember), 0 0 34px rgba(255, 106, 0, .75); }
-.pull.rarity-rare.flipped .pull__rarity { background: var(--ember); color: var(--black); }
+.pull.rarity-rare.flipped .pull__front,
+.pull.rarity-vault.flipped .pull__front,
+.pull.rarity-genesis.flipped .pull__front { box-shadow: 0 0 0 2px var(--ember), 0 0 34px rgba(255, 106, 0, .75); }
+.pull.rarity-rare.flipped .pull__rarity,
+.pull.rarity-vault.flipped .pull__rarity,
+.pull.rarity-genesis.flipped .pull__rarity { background: var(--ember); color: var(--black); }
 .pull__new {
   position: absolute; right: -4px; top: -7px; padding: 2px 5px;
   background: var(--power); color: var(--black); font: 900 9px/1 var(--body); letter-spacing: .1em;
@@ -230,9 +238,13 @@ main { container-type: inline-size; }
 .fact span { color: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-size: 11px; font-weight: 900; }
 .fact b { font-family: var(--mono); font-weight: 400; font-size: 12px; word-break: break-all; text-align: right; }
 .odds { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
-.odd { flex: 1 1 74px; text-align: center; padding: 8px 10px; background: var(--soot); border: 1px solid var(--line); }
+/* Wider than a bare percentage needs, because a tier tile carries the number it
+   was COMPUTED from as well: a share with no copy count behind it is exactly
+   the thing this page exists not to ask you to take on faith. */
+.odd { flex: 1 1 118px; text-align: center; padding: 8px 10px; background: var(--soot); border: 1px solid var(--line); }
 .odd b { display: block; font: 20px/1 var(--display); color: var(--power); }
 .odd span { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.odd i { display: block; margin-top: 5px; font-style: normal; font-family: var(--mono); font-size: 10px; color: var(--ink-dim); }
 .odd.rarity-uncommon { border-color: var(--purple); }
 .odd.rarity-rare { border-color: var(--ember); }
 .odd.rarity-rare b { color: var(--ember); }
@@ -250,20 +262,20 @@ main { container-type: inline-size; }
 .verdict.ok { color: var(--good); }
 .verdict.bad { color: var(--danger); }
 
-/* --------------------------------------------------------- the collection */
-
-.counters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-.owned-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
-.owned { position: relative; border: 1px solid var(--line); cursor: pointer; transition: border-color .12s ease, transform .12s ease;
-  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
-.owned:hover, .owned:focus-visible { border-color: var(--ember); transform: translateY(-3px); }
-.owned img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
-.owned.rarity-uncommon { border-color: var(--purple); }
-.owned.rarity-rare { border-color: var(--ember); }
-.owned__n { position: absolute; right: 3px; top: 3px; padding: 2px 5px; background: var(--ember); color: var(--black); font: 900 11px/1 var(--body); }
 .muted { color: var(--muted); font-size: 14px; }
 .tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 4px; }
 .tool-note { color: var(--muted); font-size: 13px; min-height: 20px; }
+/* The two answer lines moved into the pack panel with the pulls they describe.
+   They hold their line while empty, so a sentence arriving never shunts the
+   panel it is attached to. */
+.framed .tool-note { margin: 8px 0 0; }
+
+/* ------------------------------------------------------------ starter sets */
+
+/* The promo is the only card face in this section, and it is an illustration
+   rather than a control — no hover lift, no hands, nothing to press. It is
+   capped so a wide panel does not print a card taller than the copy beside it. */
+.starter-promo { max-width: 220px; margin: 12px auto 0; }
 
 /* ------------------------------------------------------------ pull history */
 
@@ -272,10 +284,15 @@ main { container-type: inline-size; }
 .hist__n { font: 12px/1 var(--display); letter-spacing: .12em; color: var(--ember); }
 .hist__box { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); letter-spacing: .04em; }
 .hist__cards { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+/* These are <button> elements so a keyboard can reach them; the reset below is
+   what keeps them looking like the chips they replaced. font: inherit matters —
+   a button does not inherit the page font, and without it every chip renders in
+   the UA's default face at the UA's default size. */
 .hist__c { padding: 2px 7px; border: 1px solid var(--line); background: var(--soot); color: var(--muted); font-size: 12px; cursor: pointer;
+  font-family: inherit; line-height: inherit; text-align: left; border-radius: 0; appearance: none;
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 .hist__c.rarity-uncommon { border-color: var(--purple); color: var(--purple); }
-.hist__c.rarity-rare { border-color: var(--ember); color: var(--ember); }
+.hist__c.rarity-rare, .hist__c.rarity-vault, .hist__c.rarity-genesis { border-color: var(--ember); color: var(--ember); }
 .hist__c i { font-style: normal; margin-left: 6px; color: var(--power); font-size: 9px; font-weight: 900; letter-spacing: .1em; }
 @media (min-width: 720px) {
   .hist { grid-template-columns: auto auto auto minmax(0, 1fr); }
@@ -290,28 +307,22 @@ main { container-type: inline-size; }
 }
 
 @media (max-width: 420px) {
-  .owned-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
   .pack-cta .btn { flex: 1 1 100%; text-align: center; }
 }
 @container (max-width: 420px) {
-  .owned-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
   .pack-cta .btn { flex: 1 1 100%; text-align: center; }
 }
 
-/* Below ~360px the shop collapses: the arc keeps its shape on smaller cards,
-   the tiles shrink and the secondary slot line goes. Nothing scrolls sideways
-   at any width, in a phone or in a shell panel. */
+/* Below ~360px the shop collapses: the arc keeps its shape on smaller cards
+   and the secondary slot line goes. Nothing scrolls sideways at any width, in
+   a phone or in a shell panel. */
 @media (max-width: 360px) {
   .tray { --tray-gap: 3px; padding: 20px 0 26px; }
-  .owned-grid { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px; }
-  .counters { gap: 8px; }
   .slot { display: none; }
   .fact { flex-wrap: wrap; }
 }
 @container (max-width: 360px) {
   .tray { --tray-gap: 3px; padding: 20px 0 26px; }
-  .owned-grid { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px; }
-  .counters { gap: 8px; }
   .slot { display: none; }
   .fact { flex-wrap: wrap; }
 }
@@ -337,12 +348,23 @@ main { container-type: inline-size; }
 </nav>
 
 <header class="shop-hero">
-  <p class="eyebrow">Edition One · Booster Box</p>
+  <p class="eyebrow" id="heroEyebrow">Edition One · Booster Box</p>
   <h1>Open a pack. <span class="accent">Check the maths.</span></h1>
-  <p class="lead">One box of <b id="boxSize">—</b> cards was shuffled once, from a published seed, and
+  <!-- TWO BOXES, TWO PROMISES. The free alpha box is a fixed ORDER, and its
+       promise is that nothing is reshuffled. The NutFT mint sells a different
+       and much larger box, committed as a CENSUS of print runs, and its promise
+       is that nothing is reprinted. One hero for each, because a hero that
+       described a shuffled order to a mint buyer was describing a box that does
+       not exist. JS shows exactly one of them; the no-JS default is the free
+       box, which is what the plain website serves. -->
+  <p class="lead" id="heroDemo">One box of <b id="boxSize">—</b> cards was shuffled once, from a published seed, and
   the SHA-256 over that exact order was committed before a single pack was opened. Every pull comes off
   the top. Nobody can reshuffle to keep a rare back — and you can re-hash the whole box in your own
   browser, on this page, in about a second.</p>
+  <p class="lead" id="heroMint" hidden><b id="mintBoxLine">—</b> Nothing is shuffled here: the print run of
+  every numbered card was fingerprinted with SHA-256 before the first pack was sold, and each pack takes
+  six of them out of what is left, plus one free Basic. Supply only ever runs down — and you can re-hash
+  the mint's whole census in your own browser, on this page, in about a second.</p>
 </header>
 
 <main id="main">
@@ -384,15 +406,29 @@ main { container-type: inline-size; }
         </div>
 
         <div class="meter" aria-hidden="true"><i id="boxFill" style="width:100%"></i></div>
-        <div class="terminal-line" style="margin-top:8px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span><span id="boxLeft">—</span>&nbsp;LEFT&nbsp;IN&nbsp;BOX</span></div>
+        <!-- The label is JS's, not the markup's: the free box counts down in
+             CARDS off a fixed order, the mint counts down in PACKS because that
+             is the unit it sells and the unit its own state endpoint
+             decrements. One label over both numbers told mint buyers they had
+             20 925 cards left when they had 20 925 packs. -->
+        <div class="terminal-line" style="margin-top:8px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span><span id="boxLeft">—</span>&nbsp;<span id="boxLeftLabel">LEFT&nbsp;IN&nbsp;BOX</span></span></div>
         <p class="slot" id="packSlot"></p>
+        <!-- Two answers that used to sit under the collection grid and had to
+             move when it did. Both are still RAISED from here — a card on the
+             tray and a chip in the log both write to them — so they belong
+             beside the packs rather than following the grid to the wallet.
+             storeNote is what storage said about the last write; stackNote is
+             what the Stack Builder said about the last card sent over. -->
+        <p class="tool-note" id="storeNote" role="status" aria-live="polite"></p>
+        <p class="tool-note" id="stackNote" role="status" aria-live="polite"></p>
       </div>
 
       <!-- The pull-odds panel used to live here. It was a table of percentages
            beside the thing you were about to open, which is the least
-           interesting moment to read arithmetic. The box's real numbers are
-           still published and still checkable further down the page; what is
-           gone is the running commentary on your luck. -->
+           interesting moment to read arithmetic. The box's real numbers now
+           live in "What is in the box" further down, next to the fingerprint
+           that covers them; what is gone is the running commentary on your
+           luck, not the numbers. -->
       <aside class="panel panel--act">
         <h3>Opening a pack</h3>
         <p class="muted"><b>Right click</b> on a desktop, <b>press and hold</b> on a
@@ -403,61 +439,152 @@ main { container-type: inline-size; }
   </section>
 
   <section class="section section--tight">
-    <h2>Nobody can <span class="accent">reshuffle this box</span></h2>
-    <p class="lead">Card shops ask you to trust them. This one hands you the receipt instead.</p>
+    <div id="proofDemo">
+      <h2>Nobody can <span class="accent">reshuffle this box</span></h2>
+      <p class="lead">Card shops ask you to trust them. This one hands you the receipt instead.</p>
 
-    <div class="grid grid--3">
-      <div class="panel">
-        <h3>1 · The order was fixed first</h3>
-        <p>The box was shuffled once, from a published seed, and then fingerprinted with SHA-256.
-        That fingerprint went public before the first pack was opened. Move one card and the whole
-        fingerprint changes — there is no quiet edit.</p>
-      </div>
-      <div class="panel">
-        <h3>2 · Packs come off the top</h3>
-        <p>Every pack takes the next cards in that fixed order. No re-roll when you are lucky, no
-        top-up when you are not, no card held back for someone else. The counter above is your place
-        in the box.</p>
-      </div>
-      <div class="panel">
-        <h3>3 · You check it, not us</h3>
-        <p>Press the button below. Your browser hashes the entire card order itself and compares the
-        result with the published fingerprint. If they match, this box is the box that was promised.</p>
+      <div class="grid grid--3">
+        <div class="panel">
+          <h3>1 · The order was fixed first</h3>
+          <p>The box was shuffled once, from a published seed, and then fingerprinted with SHA-256.
+          That fingerprint went public before the first pack was opened. Move one card and the whole
+          fingerprint changes — there is no quiet edit.</p>
+        </div>
+        <div class="panel">
+          <h3>2 · Packs come off the top</h3>
+          <p>Every pack takes the next cards in that fixed order. No re-roll when you are lucky, no
+          top-up when you are not, no card held back for someone else. The counter above is your place
+          in the box.</p>
+        </div>
+        <div class="panel">
+          <h3>3 · You check it, not us</h3>
+          <p>Press the button below. Your browser hashes the entire card order itself and compares the
+          result with the published fingerprint. If they match, this box is the box that was promised.</p>
+        </div>
       </div>
     </div>
 
-    <div class="proof-hash"><small>Published box fingerprint · SHA-256</small><span id="boxCommit">—</span></div>
+    <!-- The mint's promise is a different promise, so it gets its own three
+         panels rather than the free box's with the nouns swapped. Panel 3 says
+         what the button under it actually does, which is the whole reason this
+         page is worth reading: it used to promise a check the mint mode then
+         hid. -->
+    <div id="proofMint" hidden>
+      <h2>Nobody can <span class="accent">reprint this box</span></h2>
+      <p class="lead">Card shops ask you to trust them. This one hands you the receipt instead.</p>
+
+      <div class="grid grid--3">
+        <div class="panel">
+          <h3>1 · The print run was fixed first</h3>
+          <p>Every numbered card's print run went into a census, and the census was fingerprinted with
+          SHA-256 before the first pack was sold. Change one copy count and the whole fingerprint
+          changes — there is no quiet reprint.</p>
+        </div>
+        <div class="panel">
+          <h3>2 · Supply only runs down</h3>
+          <p>Each pack takes six numbered cards out of whatever is left, by a rule that is the same
+          rule for everybody, plus one free Basic. Nothing is ever put back. The mint publishes what
+          remains, card by card, with a rolling hash over every pack it has sold.</p>
+        </div>
+        <div class="panel">
+          <h3>3 · You check it, not us</h3>
+          <p>Press the button below. Your browser fetches the mint's signed catalog, adds up the print
+          runs it is actually selling from, and re-hashes them. If that matches the published
+          fingerprint, this mint is selling the box that was promised.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="proof-hash"><small id="commitLabel">Published box fingerprint · SHA-256</small><span id="boxCommit">—</span></div>
 
     <div class="btn-row">
       <button class="btn" id="verifyBox" type="button">Verify this box in my browser</button>
       <button class="btn btn--ghost btn--small" id="copyCommit" type="button">Copy the fingerprint</button>
     </div>
-    <p class="verdict" id="verifyResult">Not checked yet.</p>
+    <!-- The page's central verdict, and the only status node here that was
+         never announced. Its three siblings — packNote, storeNote, stackNote —
+         all carry the same pair. -->
+    <p class="verdict" id="verifyResult" role="status" aria-live="polite">Not checked yet.</p>
 
-    <p class="note" style="margin-top:20px"><strong>The honest footnote:</strong> during alpha the full card
+    <!-- The mint's live state. /nutft/state has always answered with the
+         decrementing per-card supply and the rolling hash; until now the page
+         linked it from nowhere, so "supply only runs down" was a sentence
+         rather than something a reader could watch. -->
+    <div id="mintState" hidden>
+      <div class="facts" style="margin-top:18px">
+        <div class="fact"><span>Packs sold</span><b id="mintSold">—</b></div>
+        <div class="fact"><span>Packs left</span><b id="mintLeft">—</b></div>
+        <div class="fact"><span>Next pack</span><b id="mintNext">—</b></div>
+        <div class="fact"><span>Numbered copies left</span><b id="mintRemaining">—</b></div>
+        <div class="fact"><span>Rolling state hash</span><b id="mintRoll">—</b></div>
+      </div>
+      <div class="tools">
+        <button class="btn btn--ghost btn--small" id="refreshState" type="button">Read the mint's state again</button>
+        <a class="btn btn--ghost btn--small" id="stateLink" href="#" rel="noopener">Open /nutft/state raw</a>
+      </div>
+      <p class="tool-note" id="mintStateNote" role="status" aria-live="polite"></p>
+    </div>
+
+    <p class="note" id="footnoteDemo" style="margin-top:20px"><strong>The honest footnote:</strong> during alpha the full card
     order ships inside this page, which is exactly why you can verify it right now. When the mint is live
     the order stays sealed until the box is empty; the reveal is published then and this same check runs
     against it. The recipe is plain: SHA-256 over every card id in box order, each followed by a zero byte.</p>
+
+    <p class="note" id="footnoteMint" style="margin-top:20px" hidden><strong>The honest footnote:</strong> the mint's
+    fingerprint covers a census, not an order, and its recipe is just as plain: take every numbered card as
+    <b>id → copies printed</b>, sort those pairs by id, write them as JSON with no spaces, add one zero byte,
+    and SHA-256 the result. That zero byte is the same terminator the free box's order uses. The ten Basic
+    cards are not in it, because they have no print run to commit to. The button above does exactly that
+    against the catalog the mint signs, so any sha256 tool you trust more than this page will give you the
+    same answer.</p>
   </section>
 
   <section class="section section--tight">
-    <h2>Your <span class="accent">collection</span></h2>
-    <div class="counters">
-      <div><b class="chip-num"><b id="ownedCount">0</b><span>CARDS</span></b></div>
-      <div><b class="chip-num"><b id="uniqueCount">0</b><span>UNIQUE</span></b></div>
-      <div><b class="chip-num"><b id="dupeCount">0</b><span>DUPES</span></b></div>
+    <h2>What is <span class="accent">in the box</span></h2>
+    <p class="lead" id="tiersLead">—</p>
+    <div class="odds" id="boxTiers"></div>
+    <p class="note" id="tiersNote" style="margin-top:16px">—</p>
+  </section>
+
+  <!-- THE GRID IS GONE, THE ROUTE IS NOT. "Your collection" used to be a second
+       list of cards at the foot of a page whose job is opening packs, counted
+       here and nowhere else. It lives on the wallet now, next to the proofs and
+       the counts. What must not go with it is the answer to the only question a
+       person has straight after a pack: where did those cards just go. -->
+  <section class="section section--tight">
+    <h2>Where your <span class="accent">cards go</span></h2>
+    <p class="lead">Two places, and they are two different things.</p>
+    <div class="grid grid--3">
+      <!-- The wallet counts PROOFS, so this panel says proofs. A free alpha pull
+           is not minted and never reaches it; promising otherwise would send a
+           demo player to an empty page looking for the pack they just opened.
+           The note below is where that player is answered. -->
+      <a class="panel panel--act" href="wallet.html">
+        <h3>The wallet →</h3>
+        <p>Cards the mint has issued you, counted: how many, how many of them different, how many spare.
+        A pack bought from the mint lands there the moment the mint issues it.</p>
+      </a>
+      <a class="panel" href="deck.html">
+        <h3>The Stack Builder →</h3>
+        <p>Where cards become a Stack. A left click — or a tap — on any card above adds it to the
+        <b>Booster pulls</b> Stack; open the builder and press Load.</p>
+      </a>
+      <!-- There IS a copy limit, and it is the load-bearing rule of the format
+           (engine.js copyLimit, rulebook §7): three per card, one for a Genesis
+           card, uncapped for Basic Resources. Telling collectors otherwise sold
+           them a fourth copy the Stack Builder will refuse. -->
+      <div class="panel">
+        <h3>What a spare is worth</h3>
+        <p>A Stack may hold three copies of a card — one of a Genesis card, and as many Basic Resources as
+        it needs (§7). Duplicates up to that line are playable rather than dead weight.</p>
+      </div>
     </div>
-    <!-- What storage had to say about the last write. Empty when all is well. -->
-    <p class="tool-note" id="storeNote" role="status" aria-live="polite"></p>
-    <div class="owned-grid" id="collection"></div>
-    <div class="tools" id="collectionTools" hidden>
-      <button class="btn btn--small" id="sendStack" type="button">Send everything to the Stack Builder</button>
-      <a class="btn btn--ghost btn--small" href="deck.html">Open the Stack Builder</a>
-    </div>
-    <p class="tool-note" id="stackNote" role="status" aria-live="polite"></p>
-    <p class="muted" style="margin-top:6px">A left click — or a tap — adds a card to the <b>Booster pulls</b> Stack;
-    <b>right click</b> on a desktop, <b>press and hold</b> on a phone, opens its gallery entry. Duplicates stack up as ×N — a Stack has no copy limit in Edition One, so extras are
-    playable, not dead weight. During alpha your collection lives in this browser only: it is a playground, not a ledger.</p>
+    <p class="note" style="margin-top:16px"><strong>Free alpha packs stay in this browser.</strong> Nothing is
+    minted for them and nothing is published — it is a playground, not a ledger. They live in this browser and
+    nowhere else. A click on any card above sends it to the Stack Builder, which is where a pull becomes part
+    of a deck — though the draft lives in the same browser storage, so that is a step towards playing with it,
+    not a safer place to put it. <b>Right click</b> on a desktop, <b>press and hold</b> on a phone, opens a card's gallery entry
+    instead.</p>
   </section>
 
   <section class="section section--tight" id="historyBlock" hidden>
@@ -465,6 +592,75 @@ main { container-type: inline-size; }
     <p class="lead">Every pack, with the slice of the box it came off. These positions are the ones the
     fingerprint above covers — you can point at any row and check it against the revealed order.</p>
     <ol class="hists" id="historyList"></ol>
+  </section>
+
+  <!-- A SECOND EDITION, AND THE REASON FOR IT. Starter sets are the only place
+       a Genesis card comes without a box to open, so they had to contain one —
+       and cutting twenty-one out of E1 would have made "E1 prints N of each
+       Genesis card" quietly false. They are their own printing instead, marked
+       G, with their own collection id and their own cap. That is the whole
+       argument, and it is on the page rather than in a footnote, because a
+       reader who has just been shown a census and a fingerprint will ask.
+
+       There is no G mint. Every number below is written by JS out of one
+       constant (STARTER in shop.js) plus the census's own Genesis row, so this
+       section cannot drift the way a hand-typed total does. -->
+  <section class="section section--tight">
+    <h2>Starter <span class="accent">sets</span></h2>
+    <p class="lead" id="starterLead">—</p>
+
+    <div class="shop-head">
+      <div class="framed">
+        <span class="pad tl"></span><span class="pad tr"></span>
+        <span class="pad bl"></span><span class="pad br"></span>
+
+        <div class="bay-head">
+          <div class="banner">Starter set // <span id="starterSetLine">—</span></div>
+          <span class="state state--off">EDITION G · NOT LIVE YET</span>
+        </div>
+
+        <div class="facts" style="margin-top:14px">
+          <div class="fact"><span>Sets in the run</span><b id="starterSets">—</b></div>
+          <div class="fact"><span>Decks in the run</span><b id="starterDecks">—</b></div>
+          <div class="fact"><span>Cards in the run</span><b id="starterCards">—</b></div>
+          <div class="fact"><span>Sets with a Genesis card</span><b id="starterStrong">—</b></div>
+          <div class="fact"><span>Sets without one</span><b id="starterPlain">—</b></div>
+          <div class="fact"><span>Collection id</span><b id="starterCollection">—</b></div>
+        </div>
+
+        <!-- Disabled, and the LABEL carries the reason — the same rule the pack
+             button follows when the box runs out. A control that looks live and
+             does nothing is the thing this page exists not to be. -->
+        <div class="pack-cta">
+          <button class="btn" id="buyStarter" type="button" disabled>Starter sets are not on sale yet</button>
+        </div>
+
+        <div class="note mode-off" id="starterState" style="margin-top:12px">—</div>
+      </div>
+
+      <aside class="panel">
+        <h3>The promo</h3>
+        <p id="starterPromoLine">—</p>
+        <div class="starter-promo"><img class="face" id="starterPromoFace" alt=""></div>
+      </aside>
+    </div>
+
+    <div class="grid grid--3" style="margin-top:24px">
+      <div class="panel">
+        <h3>1 · What a set is</h3>
+        <p id="starterPanel1">—</p>
+      </div>
+      <div class="panel">
+        <h3>2 · The strong ones</h3>
+        <p id="starterPanel2">—</p>
+      </div>
+      <div class="panel">
+        <h3>3 · Edition One does not move</h3>
+        <p id="starterPanel3">—</p>
+      </div>
+    </div>
+
+    <p class="note" id="starterNote" style="margin-top:16px">—</p>
   </section>
 
   <section class="section section--tight">

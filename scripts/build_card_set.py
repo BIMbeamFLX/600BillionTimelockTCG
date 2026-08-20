@@ -56,12 +56,50 @@ AFFINITY_BADGE_FG = {
     "Keys": "#050403",
     "Timelock": "#050403",
 }
-# Per the Node Runner handoff: common bone, uncommon orange, rare gold.
+# Per the Node Runner handoff: common bone, uncommon orange, rare gold. That handoff
+# predates the scored six-tier ladder, so Vault and Genesis are added here and the ladder
+# is read twice over, because one channel alone cannot carry six steps on a 9 px dot:
+#
+#   HUE — bone, then the warm ramp bronze -> gold, then off the warm ramp entirely. The
+#   plate leaves exactly one cold hue open (Timelock's teal) and one cool one (Signal's
+#   violet), so Vault takes teal and Genesis takes that violet lifted to #C77DFF, which
+#   survives on the #050403 base where the badge violet #7447B8 would sink into it.
+#   GLOW — the alpha of the ring climbs .25 / .3 / .3 / .35 / .4 up the ladder, so the
+#   dot also grows brighter the rarer the card, for anyone the hue step does not reach.
+#
+# Basic steps OFF the ladder, into the project's own neutral grey: a Basic Resource is
+# uncapped and free, the substrate a Stack sits on rather than a rung below common. Grey
+# is the one swatch that says "not a rarity" instead of "least rare".
+#
+# Promo keeps the bone it has always been printed with — it used to reach bone through
+# the silent fallback below, and the shipped promo face has that dot baked in, so
+# spelling it out changes nothing on paper while making the fallback removable.
 RARITY_DOT = {
+    "basic": ("#8a8f98", "rgba(138,143,152,.22)"),
     "common": ("#e8dfcf", "rgba(232,223,207,.25)"),
     "uncommon": ("#f7931a", "rgba(247,147,26,.3)"),
     "rare": ("#F3C244", "rgba(243,194,68,.3)"),
+    "vault": ("#17BEBB", "rgba(23,190,187,.35)"),
+    "genesis": ("#C77DFF", "rgba(199,125,255,.4)"),
+    "promo": ("#e8dfcf", "rgba(232,223,207,.25)"),
 }
+
+# Genesis, and only Genesis, also gets a bright CORE inside its dot.
+#
+# The hue ladder above is sound, but it is still a hue ladder: roughly one man in
+# twelve has a red-green deficiency, and every hue step collapses in greyscale,
+# under a phone photo, or on somebody else's printer. Nine cards in the set are
+# Genesis and twenty-one copies of each will ever exist, so those nine have to be
+# findable across a table rather than by holding a swatch up to the card.
+#
+# A core is STRUCTURAL - a ring with something lit inside it - so it survives all
+# three of those. Warm rather than pure white, so it reads as lit from within
+# instead of as a hole punched through the ink.
+#
+# render_card_pngs.py imports this and draws the same core on the printed face.
+# It must stay here beside RARITY_DOT: the proof sheet and the face disagreeing
+# about which card is a Genesis is exactly the drift this sheet exists to catch.
+GENESIS_CORE = "#FFF6E8"
 # Affinity already owns the spine, chip, circuit and pips, so card type gets the
 # one channel affinity does not use: the base dark. Four groups a player sorts by,
 # all held at roughly the same luminance so the terminal look survives.
@@ -473,7 +511,19 @@ def render_card(card: dict[str, Any], art_dir: Path) -> str:
     affinity = affinities[0] if affinities else "Neutral"
     accent = AFFINITY_ACCENT.get(affinity, AFFINITY_ACCENT["Neutral"])
     badge_fg = AFFINITY_BADGE_FG.get(affinity, "#050403")
-    dot_fill, dot_glow = RARITY_DOT.get(card["rarity"], RARITY_DOT["common"])
+    # Indexed, not .get(): a tier with no swatch has to stop the build. Falling back to
+    # bone is how Vault, Genesis and Basic Resources all silently wore the common dot.
+    dot_fill, dot_glow = RARITY_DOT[card["rarity"]]
+    # The Genesis core, built by INVERTING the dot rather than nesting an element
+    # inside it: the background becomes the warm core and an inset ring paints the
+    # tier colour back over its edge. A nested child would need its own box model
+    # to stay centred on a 9px dot; an inset ring cannot drift.
+    #
+    # Note the direction. An inset shadow grows inward FROM the edge, so painting
+    # the core with one would have put the bright ring on the outside and the hue
+    # in the middle - the opposite of the thing being built.
+    dot_bg = GENESIS_CORE if card["rarity"] == "genesis" else dot_fill
+    dot_ring = f",inset 0 0 0 3px {dot_fill}" if card["rarity"] == "genesis" else ""
     badge = f"{card['card_type']} // {card['subtype'] or affinity}".upper()
     name = html.escape(card["name"])
 
@@ -528,8 +578,9 @@ def render_card(card: dict[str, Any], art_dir: Path) -> str:
     set_id = html.escape(card["id"].replace("-", " · "))
     parts += [
         f'<div class="footer"><span class="set-id">{set_id}</span>'
-        f'<span class="rarity"><i style="background:{dot_fill};'
-        f'box-shadow:0 0 0 3px {dot_glow}"></i>{html.escape(card["rarity"].upper())}</span></div>',
+        f'<span class="rarity"><i style="background:{dot_bg};'
+        f'box-shadow:0 0 0 3px {dot_glow}{dot_ring}"></i>'
+        f'{html.escape(card["rarity"].upper())}</span></div>',
         "</div></article>",
     ]
     return "".join(parts)

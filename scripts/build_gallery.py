@@ -20,7 +20,10 @@ VARIABLE_COST = "X"
 # Display order only. Every value in a facet is derived from the card files;
 # anything the data adds beyond these lists is appended alphabetically.
 AFFINITY_ORDER = ["Power", "Bitcoin", "Keys", "Signal", "Timelock", "Neutral"]
-RARITY_ORDER = ["common", "uncommon", "rare", "promo"]
+# Rarest first is the wrong order for a filter row; this is the order a player
+# reads a ladder in, and it must list every tier the card data can hold or the
+# facet silently drops cards from the count.
+RARITY_ORDER = ["basic", "common", "uncommon", "rare", "vault", "genesis", "promo"]
 AFFINITY_ICONS = {
     "Power": "power",
     "Bitcoin": "bitcoin",

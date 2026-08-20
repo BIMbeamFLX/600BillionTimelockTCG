@@ -2158,11 +2158,18 @@ test("hosting twice does not leave an advertised table nobody is sitting at", as
 // ------------------------------------------------------- bringing your own Stack
 
 /* A legal 40 built from the real catalog, avoiding the cards this table cannot
- * resolve (the Stake module is off — D-12), and staying inside §7's three
- * copies. Two copies of twenty cards is a Stack a player could actually build. */
+ * resolve (the Stake module is off — D-12), and staying inside §7's copy
+ * limits. Two copies of twenty cards is a Stack a player could actually build.
+ *
+ * The engine's own copyLimit decides what may be doubled, rather than this
+ * knowing the rule. Genesis is capped at one per Stack and E1-001 Genesis Lotus
+ * sits at the HEAD of this pool — so taking the first twenty and doubling them
+ * produced an ILLEGAL Stack, the table refused it, and both tests below died
+ * waiting for a reply that was never coming. */
 function builtStack(count = 40) {
   const playable = CARDS.filter(
     (c) => !/stake/i.test(c.type || "") && !/\bStake\b/.test(c.text || "")
+      && E.copyLimit(c) >= 2
   );
   const unique = playable.slice(0, Math.ceil(count / 2));
   const deck = [];
@@ -2217,6 +2224,14 @@ test("a Stack you built is the Stack you are dealt", async (t) => {
 test("an illegal Stack is refused, never quietly replaced", async (t) => {
   const table = await boot(t, "t-deck-2.db");
   const legal = builtStack();
+  /* A card the cap actually applies to. This test used to reach for legal[0]
+     and quietly depended on it being capped; when the pool changed, legal[0]
+     became Satoshi Orchard — a Basic Resource, which is uncapped on purpose, so
+     forty of them IS a legal Stack. The table accepted it, no ERROR ever came,
+     and the test sat waiting for ten seconds. Ask the engine instead. */
+  const cardsById = Object.fromEntries(CARDS.map((c) => [c.id, c]));
+  const capped = legal.find((id) => E.copyLimit(cardsById[id]) !== Infinity);
+  assert.ok(capped, "the fixture must contain at least one card the cap applies to");
 
   const tooFew = await table.client();
   tooFew.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: tooFew.pubkey, deck: legal.slice(0, 39) });
@@ -2227,9 +2242,9 @@ test("an illegal Stack is refused, never quietly replaced", async (t) => {
   const tooMany = await table.client();
   tooMany.send({
     t: "CREATE", name: "felix", affinity: "Power", pubkey: tooMany.pubkey,
-    deck: Array(40).fill(legal[0]),
+    deck: Array(40).fill(capped),
   });
-  assert.equal((await tooMany.type("ERROR")).code, "BAD_DECK", "40 copies of one card is not a Stack");
+  assert.equal((await tooMany.type("ERROR")).code, "BAD_DECK", "40 copies of one capped card is not a Stack");
 
   const unknown = await table.client();
   unknown.send({
@@ -2241,7 +2256,7 @@ test("an illegal Stack is refused, never quietly replaced", async (t) => {
   const huge = await table.client();
   huge.send({
     t: "CREATE", name: "felix", affinity: "Power", pubkey: huge.pubkey,
-    deck: Array(4000).fill(legal[0]),
+    deck: Array(4000).fill(capped),
   });
   assert.equal((await huge.type("ERROR")).code, "BAD_DECK", "a decklist is not a payload");
 
