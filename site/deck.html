@@ -285,12 +285,13 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     </div>
     <div class="note"><b>Tap or click</b> a card to add a copy. <b>The − on the card</b> (or the − in this
     list) takes one back. <b>Right click</b> on a desktop, <b>press and hold</b> on a phone, opens the card.
-    Copies are unrestricted (§7). Saved Stacks appear as options on the
+    Basic Resources are uncapped; other cards allow three copies (§7). NutFT mode also limits copies to verified ownership. Saved Stacks appear as options on the
     <a href="play.html">Play</a> page for both seats — hotseat and vs NPC.</div>
     <div class="saved">
       <h3>Starter library</h3>
       <div id="preconList"></div>
     </div>
+    <div class="note" id="ownershipNote">Checking whether this Stack uses verified NutFT ownership…</div>
     <div class="saved">
       <h3>Saved stacks</h3>
       <div id="savedList"></div>
@@ -328,6 +329,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 <script src="blob-map.js"></script>
 <script src="faces.js"></script>
 <script src="precons.js"></script>
+<script src="nutft-wallet.js"></script>
 <script>
 (() => {
   "use strict";
@@ -418,6 +420,8 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     inStack: false, sort: "id",
   };
   let deck = {}; // cardId -> copies
+  let owned = null; // null = unrestricted prototype mode; Map = verified NutFT counts
+  let walletReady = false;
   const total = () => Object.values(deck).reduce((a, n) => a + n, 0);
 
   /* ----------------------------------------------------------- persistence
@@ -597,6 +601,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 
   function matches(c) {
     const idx = INDEX.get(c.id);
+    if (owned && !owned.has(c.id)) return false;
     if (state.aff.size && !(c.affinity || []).some((a) => state.aff.has(a))) return false;
     if (state.type.size && !state.type.has(c.type)) return false;
     if (state.cost.size && !state.cost.has(idx.bucket)) return false;
@@ -743,6 +748,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   function addCard(id) {
     const c = byId[id];
     if (!c || isStake(c)) return;
+    if (owned && (deck[id] || 0) >= (owned.get(id) || 0)) { say(`You own ${(owned.get(id) || 0)} verified ${c.name} proof(s).`, "bad"); return; }
     deck[id] = (deck[id] || 0) + 1;
     afterDeckChange();
   }
@@ -869,11 +875,12 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     inStackChip.hidden = n === 0;
     if (n === 0) state.inStack = false;
     countEl.textContent = n;
-    countEl.className = "count " + (n >= MIN_STACK ? "ok" : "low");
-    countHint.textContent = n >= MIN_STACK ? `of ${MIN_STACK} · legal Stack` : `of ${MIN_STACK} · ${MIN_STACK - n} to go`;
+    const problem = stackProblem();
+    countEl.className = "count " + (!problem ? "ok" : "low");
+    countHint.textContent = problem || `of ${MIN_STACK} · legal Stack`;
     const pct = Math.min(100, Math.round((n / MIN_STACK) * 100));
     meterFill.style.width = pct + "%";
-    meter.classList.toggle("ok", n >= MIN_STACK);
+    meter.classList.toggle("ok", !problem);
     renderBreakdown(n);
   }
 
@@ -1001,6 +1008,16 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   const savedNote = document.getElementById("savedNote");
   const saveBtn = document.getElementById("save");
 
+  function stackProblem() {
+    const n = total();
+    if (n < MIN_STACK) return `of ${MIN_STACK} · ${MIN_STACK - n} to go`;
+    for (const [id, copies] of Object.entries(deck)) {
+      if (byId[id]?.type !== "Basic Resource" && copies > 3) return `${byId[id].name}: maximum 3 copies`;
+      if (owned && copies > (owned.get(id) || 0)) return `${byId[id].name}: only ${owned.get(id) || 0} verified proof(s)`;
+    }
+    return "";
+  }
+
   /* One line for everything storage has to say. It replaces the old alert():
    * a save is now asynchronous, so the answer has to arrive where the player is
    * already looking rather than in a modal that interrupts the build. */
@@ -1057,8 +1074,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     const nameEl = document.getElementById("deckName");
     const name = nameEl.value.trim().slice(0, MAX_NAME);
     if (!name) { say("Give the Stack a name first.", "bad"); nameEl.focus(); return; }
+    if (!walletReady) { say("Wallet ownership is still loading. Try Save again in a moment.", "bad"); return; }
     const n = total();
-    if (n < MIN_STACK) { say(`A Stack needs at least ${MIN_STACK} cards (§7) — this one has ${n}.`, "bad"); return; }
+    const invalid = stackProblem();
+    if (invalid) { say(`This Stack is not legal: ${invalid}.`, "bad"); return; }
     if (n > MAX_CARDS) { say(`That is ${n} cards; ${MAX_CARDS} is the most one Stack can hold.`, "bad"); return; }
     const list = [];
     for (const id of Object.keys(deck)) for (let i = 0; i < deck[id]; i += 1) list.push(id);
@@ -1071,6 +1090,12 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       return Object.assign({}, all, { [name]: list });
     });
     saveBtn.disabled = libraryReady && !durable;
+    if (!problem) try {
+      let marked = {};
+      try { marked = JSON.parse(localStorage.getItem("600b:nutft-decks")) || {}; } catch (error) { marked = {}; }
+      if (owned) marked[name] = true; else delete marked[name];
+      localStorage.setItem("600b:nutft-decks", JSON.stringify(marked));
+    } catch (error) { /* gameplay will treat an unmarked Stack as prototype mode */ }
     say(problem || `Saved "${name}" — ${list.length} cards.`, problem ? "bad" : "good");
   });
 
@@ -1184,6 +1209,25 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * exactly the spec's fallback: "preconstructed decks only". */
   renderPrecons();
   renderSaved();
+  globalThis.NutFTWallet.read().then(async (wallet) => {
+    const note = document.getElementById("ownershipNote");
+    if (!wallet.tokens.length) {
+      walletReady = true;
+      note.textContent = "Prototype mode: no NutFT proofs found, so the full catalog is available.";
+      return;
+    }
+    const view = await globalThis.NutFTWallet.snapshot(location.origin);
+    owned = new Map();
+    for (const item of view.owned) owned.set(item.tag[2], (owned.get(item.tag[2]) || 0) + 1);
+    walletReady = true;
+    note.textContent = `NutFT mode: ${view.owned.length} verified unspent proof(s). Only owned copies can enter this Stack.`;
+    renderGrid();
+    renderDeck();
+  }).catch((error) => {
+    owned = new Map();
+    walletReady = true;
+    document.getElementById("ownershipNote").textContent = `Wallet verification failed: ${error.message}`;
+  });
   /* The doors open only once the library is in hand, and they open either way:
    * a handoff still has to be consumed and cleared even if the library failed
    * to read, or it would sit there re-firing on every visit. */
