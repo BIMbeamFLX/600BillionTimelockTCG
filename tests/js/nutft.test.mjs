@@ -331,6 +331,40 @@ test("a paid mint sells nothing until the invoice actually settles", async (t) =
   );
 });
 
+test("an active invoice reserves the next pack without blocking it forever", async (t) => {
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const settled = new Set();
+  let issued = 0;
+  const funding = {
+    name: "test",
+    async createInvoice() {
+      issued += 1;
+      const paymentHash = String(issued).padStart(64, "a");
+      return { paymentRequest: `invoice-${issued}`, paymentHash };
+    },
+    async isSettled(hash) { return settled.has(hash); },
+  };
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, funding, catalogUri: "http://127.0.0.1/nutft/catalog", priceMsat: 21000,
+  });
+
+  const [first, collision] = await Promise.allSettled([mint.payableQuote(), mint.payableQuote()]);
+  assert.equal(first.status, "fulfilled");
+  assert.equal(collision.status, "rejected");
+  assert.match(collision.reason.message, /active invoice/i);
+
+  settled.add(first.value.payment_hash);
+  await assert.rejects(() => mint.payableQuote(), /active invoice/i, "a paid reservation stays reserved until claim");
+  settled.clear();
+  db.prepare("UPDATE nutft_invoices SET created_at = ? WHERE payment_hash = ?")
+    .run("2000-01-01T00:00:00.000Z", first.value.payment_hash);
+  const replacement = await mint.payableQuote();
+  assert.equal(replacement.pack_id, first.value.pack_id, "an expired unpaid checkout releases the unsold pack");
+});
+
 test("one settled invoice buys exactly one pack, and never a second", async (t) => {
   const { createNutftMint } = require("../../server/nutft-mint.js");
   const { DatabaseSync } = await import("node:sqlite");

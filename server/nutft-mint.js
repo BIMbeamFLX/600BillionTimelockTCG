@@ -116,6 +116,7 @@ function createNutftMint(options = {}) {
       operation: db.prepare("SELECT request_hash, response_json FROM nutft_operations WHERE type = ? AND operation_key = ?"),
       putOperation: db.prepare("INSERT INTO nutft_operations (type, operation_key, request_hash, response_json) VALUES (?, ?, ?, ?)"),
       invoice: db.prepare("SELECT * FROM nutft_invoices WHERE payment_hash = ?"),
+      activeInvoices: db.prepare("SELECT * FROM nutft_invoices WHERE pack_id = ? AND claimed = 0 ORDER BY created_at DESC"),
       putInvoice: db.prepare("INSERT OR REPLACE INTO nutft_invoices (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height) VALUES (?, ?, ?, ?, 0, ?, ?)"),
       claimInvoice: db.prepare("UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0"),
     };
@@ -152,6 +153,8 @@ function createNutftMint(options = {}) {
      wallet API takes the money is not the mint's business and can change
      without touching this file. */
   const funding = options.lnd === null && !options.funding ? null : createFunding(options);
+  const invoiceTtlSeconds = Number(options.invoiceTtlSeconds || process.env.NUTFT_INVOICE_TTL_SECONDS || 900);
+  if (!Number.isFinite(invoiceTtlSeconds) || invoiceTtlSeconds < 60) throw new Error("NUTFT_INVOICE_TTL_SECONDS must be at least 60");
   const lndConfig = funding && funding.name === "lnd" ? (options.lnd || lnd.readConfig(options.lndOptions || {})) : null;
   /* The price ladder. Written as "soldBelow:msat" pairs, cheapest first:
    *   NUTFT_PRICE_SCHEDULE="2100:21000,19925:420000,20925:10000000"
@@ -332,6 +335,12 @@ function createNutftMint(options = {}) {
       throw error;
     }
   };
+  let saleChain = Promise.resolve();
+  const serializeSale = (work) => {
+    const run = saleChain.then(work, work);
+    saleChain = run.catch(() => {});
+    return run;
+  };
 
   async function quote(beaconOverride) {
     const b = beaconOverride || beacon;
@@ -386,13 +395,22 @@ function createNutftMint(options = {}) {
     return checked.pubkey;
   }
 
-  async function payableQuote(opts = {}) {
+  async function payableQuoteOnce(opts = {}) {
     requireMayBuy(opts.proof);
     const base = await quote();
     /* Read once, here, and used for the invoice, the record and the reply — so
        the three can never disagree about what this booster costs. */
     const priceNow = priceFor(state.nextPack - 1);
     if (!paidMint) return { ...base, price_msat: 0, paid: false };
+    for (const row of q ? q.activeInvoices.all(base.pack_id) : []) {
+      let settled;
+      try { settled = await funding.isSettled(row.payment_hash); }
+      catch (error) { throw new Error("the mint cannot confirm an existing checkout right now — try again shortly"); }
+      const created = Date.parse(row.created_at);
+      if (settled || !Number.isFinite(created) || created + invoiceTtlSeconds * 1000 > Date.now()) {
+        throw new Error("this booster already has an active invoice — pay or claim it, or try again after it expires");
+      }
+    }
     /* A funding-source failure is ours, not the buyer's, and its message names
        the node's address and port. Log the detail, hand back a plain sentence:
        an operational fault must not double as a map of the deployment. */
@@ -417,8 +435,8 @@ function createNutftMint(options = {}) {
          hash — producing a `d` field, no error, and an LNURL payment the
          buyer's wallet refuses for a reason nothing on our side logs. */
       invoice = await funding.createInvoice(opts.descriptionHash
-        ? { amountMsat: priceNow, descriptionHash: opts.descriptionHash }
-        : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}` });
+        ? { amountMsat: priceNow, descriptionHash: opts.descriptionHash, expirySeconds: invoiceTtlSeconds }
+        : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}`, expirySeconds: invoiceTtlSeconds });
     } catch (error) {
       console.error("[nutft] lnd createInvoice failed:", error && error.message);
       throw new Error("the mint cannot reach its funding source right now — try again shortly");
@@ -443,6 +461,8 @@ function createNutftMint(options = {}) {
         + commitment.targetHeight + ", which is not mined yet. Pay, then reveal.",
     };
   }
+
+  const payableQuote = (opts) => serializeSale(() => payableQuoteOnce(opts));
 
   /* Opening a sealed pack. The beacon is the hash of the block the sale
      committed to — not the tip, not a later block — so the buyer receives the
@@ -549,7 +569,7 @@ function createNutftMint(options = {}) {
      cards, which is the one outcome worth designing against. It also removes a
      membership oracle: the old check ran before anything else, so one
      unauthenticated request could test whether any key was on the list. */
-  async function signBooster(body, proof) {
+  async function signBoosterOnce(body, proof) {
     const keyset = await ready;
     if (typeof body.idempotency_key !== "string" || !body.idempotency_key) throw new Error("booster idempotency_key is required");
     /* Over the body alone. The NIP-98 proof is deliberately a separate argument
@@ -627,6 +647,8 @@ function createNutftMint(options = {}) {
     Object.assign(state, nextState);
     return result;
   }
+
+  const signBooster = (body, proof) => serializeSale(() => signBoosterOnce(body, proof));
 
   async function trade(body) {
     const keyset = await ready;
