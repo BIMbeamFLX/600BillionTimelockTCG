@@ -1391,3 +1391,37 @@ test("a malformed output must not burn the invoice behind it", async (t) => {
   assert.equal(recovered.signatures.length, 7,
     "and the invoice survives it — the buyer gets the pack they paid for");
 });
+
+test("one unreadable token does not take the whole wallet with it", async (t) => {
+  // The bug this exists for: proofs() decoded every token in a bare flatMap, so
+  // a single token this mint cannot open threw and the WHOLE wallet went dark.
+  // Not a rare state -- a token from before a keyset rotation, or one bought
+  // from a different mint entirely, can never decode here. It blanked the
+  // wallet page, dropped the Stack Builder out of OG mode for good, and made
+  // every trade impossible, with no way out but clearing storage and losing
+  // every good card too.
+  const catalogUri = "http://127.0.0.1/nutft/catalog";
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });
+  t.after(() => table.close());
+  const fetchImpl = (url, options) => fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
+
+  const storage = new Map();
+  await (await browserWallet(storage, fetchImpl)).buyBooster(table.url);
+  const good = await (await browserWallet(storage, fetchImpl)).snapshot(table.url);
+  assert.equal(good.owned.length, 7, "the pack is there to begin with");
+
+  /* A token from somewhere this mint cannot read. Its shape is a valid cashu
+     token; its keyset is not one this mint has ever issued. */
+  const saved = JSON.parse(storage.get("600b:nutft-wallet"));
+  saved.tokens.push("cashuBo2FteBtodHRwOi8vMTI3LjAuMC4xOjEvbm90LWEtbWludGF1Y3NhdGF0gaJhaUgBE10Iy15HS2Fwgw==");
+  storage.set("600b:nutft-wallet", JSON.stringify(saved));
+
+  const after = await (await browserWallet(storage, fetchImpl)).snapshot(table.url);
+  assert.equal(after.owned.length, 7, "the seven good cards are still readable");
+  assert.equal(after.unreadable.length, 1, "and the one this mint cannot open is reported, not fatal");
+  assert.match(after.unreadable[0].error, /.+/, "with the reason it could not be read");
+
+  /* The bucket is its own, not folded into `invalid`: an invalid proof is one
+     the mint HAS an opinion about, an unreadable token is one it cannot open. */
+  assert.equal(after.invalid.length, 0, "an unreadable token is not an invalid proof");
+});

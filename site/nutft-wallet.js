@@ -333,11 +333,39 @@
 
   const buyBooster = (mintUrl, opts) => locked(() => buyBoosterUnlocked(mintUrl, opts || {}));
 
-  async function proofs(mintUrl) {
+  /* Decode PER TOKEN, and survive one that cannot be decoded.
+   *
+   * This used to be a bare flatMap over getDecodedToken, so a single token this
+   * mint cannot read threw and took the WHOLE wallet with it. That is not a
+   * rare state: a token minted before a mint's keyset rotated, or one bought
+   * from a different mint entirely — staging, say — can never decode against
+   * this keyset, ever. One of those made snapshot() throw, which blanked the
+   * wallet page, permanently dropped the Stack Builder out of OG mode, and made
+   * every trade impossible. The only escape was clearing storage, which throws
+   * away every good card along with the bad one.
+   *
+   * A card this mint cannot read is not the same as a card that does not exist.
+   * The unreadable ones are counted and handed back so the page can say how
+   * many there are and where they probably came from, instead of a wallet full
+   * of cards silently reporting nothing at all. */
+  async function decodeTokens(mintUrl) {
     const c = await cashu();
     const state = await read();
     const keyset = await getKeyset(mintUrl, c);
-    return state.tokens.flatMap((token) => c.getDecodedToken(token, [keyset.id]).proofs);
+    const list = [];
+    const unreadable = [];
+    for (const token of state.tokens) {
+      try {
+        list.push(...c.getDecodedToken(token, [keyset.id]).proofs);
+      } catch (error) {
+        unreadable.push({ token, error: error && error.message ? error.message : String(error) });
+      }
+    }
+    return { proofs: list, unreadable };
+  }
+
+  async function proofs(mintUrl) {
+    return (await decodeTokens(mintUrl)).proofs;
   }
 
   async function verifyCatalog(catalogUri, catalog, c, issuerExpected) {
@@ -377,7 +405,8 @@
     const owned = [];
     const spent = [];
     const invalid = [];
-    for (const proof of await proofs(mintUrl)) {
+    const { proofs: readable, unreadable } = await decodeTokens(mintUrl);
+    for (const proof of readable) {
       try {
         const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
         (item.state === "SPENT" ? spent : owned).push(item);
@@ -385,7 +414,12 @@
         invalid.push({ proof, error: error.message });
       }
     }
-    return { catalog: catalogs.values().next().value || null, owned, spent, invalid };
+    /* `unreadable` is deliberately its own bucket and not folded into
+       `invalid`: an invalid proof is one this mint HAS an opinion about and
+       rejects, while an unreadable token is one it cannot even open. A page
+       that conflates them tells a buyer their card is bad when the truth is
+       that they are looking at the wrong mint. */
+    return { catalog: catalogs.values().next().value || null, owned, spent, invalid, unreadable };
   }
 
   async function tradeProofUnlocked(mintUrl, secret, recipientPubkey) {
