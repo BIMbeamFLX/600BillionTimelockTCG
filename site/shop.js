@@ -464,12 +464,64 @@
    * moment, a rare charges first and then gets the room to land. The arc keeps
    * box order; only the order of TURNING is dramatic, and the log below always
    * shows the true positions. */
+  /* Take the screen for the length of the opening, then give it back. Dismissal
+     is deliberately generous — click anywhere, or press Escape — because a
+     modal you cannot leave is worse than no modal, and this one has nothing to
+     confirm. */
+  function enterStage(bay) {
+    if (bay.classList.contains("bay--stage")) return;
+    bay.classList.add("bay--stage");
+    document.documentElement.style.overflow = "hidden";
+    const hint = el("div", "bay--stage-note", "Click anywhere to close");
+    hint.id = "stageHint";
+    document.body.append(hint);
+    const leave = (event) => {
+      if (event.type === "keydown" && event.key !== "Escape") return;
+      leaveStage(bay);
+    };
+    bay.__leave = leave;
+    document.addEventListener("keydown", leave);
+    bay.addEventListener("click", leave);
+  }
+
+  function leaveStage(bay) {
+    if (!bay.classList.contains("bay--stage")) return;
+    bay.classList.remove("bay--stage");
+    document.documentElement.style.overflow = "";
+    const hint = document.getElementById("stageHint");
+    if (hint) hint.remove();
+    if (bay.__leave) {
+      document.removeEventListener("keydown", bay.__leave);
+      bay.removeEventListener("click", bay.__leave);
+      bay.__leave = null;
+    }
+  }
+
+  /* The die covers the beat where the cards are dealt face down, which without
+     it reads as the page stuttering. It resolves into them rather than being
+     dismissed: same place, same moment. */
+  function rollDie(bay, faces) {
+    const die = el("div", "pack-die", String(faces));
+    die.setAttribute("aria-hidden", "true");
+    bay.append(die);
+    const remove = () => die.remove();
+    die.addEventListener("animationend", remove, { once: true });
+    /* A stuck animation must not leave a die on the screen forever. */
+    const timer = setTimeout(remove, 1400);
+    if (timer && typeof timer.unref === "function") timer.unref();
+    return die;
+  }
+
   async function revealPack(entry) {
     const tray = $("packTray");
     const bay = $("packBay");
     const skip = $("revealAll");
     const note = $("packNote");
     const token = (revealToken += 1);
+    enterStage(bay);
+    rollDie(bay, entry.ids.length);
+    await beat(560);
+    if (token !== revealToken) return;
     skipping = false;
 
     tray.innerHTML = "";
@@ -534,6 +586,7 @@
     tray.innerHTML = "";
     tray.hidden = true;
     $("packBay").classList.remove("bay--charged");
+    leaveStage($("packBay"));
     $("revealAll").hidden = true;
     $("packSlot").textContent = "";
     $("packNote").className = "pack-note";

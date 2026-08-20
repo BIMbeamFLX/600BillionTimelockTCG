@@ -76,6 +76,60 @@ main { container-type: inline-size; }
 /* The bay carries the frame's circuit traces: one bus under the arc, two
    stubs into it, PCB pads at the ends. Decoration only, never hit-tested. */
 .bay { position: relative; margin: 6px 0 2px; }
+
+/* ---------------------------------------------------------------- the stage
+   Opening a pack used to happen in a strip of the page, with the cards capped
+   at 152px — the one moment the whole shop exists for, rendered smaller than
+   the text beside it. While a pack is opening the bay takes the screen, and
+   the cards are sized by the viewport instead of by a column.
+   Everything here is additive: remove .bay--stage and the inline layout is
+   exactly what it was. */
+.bay--stage {
+  position: fixed; inset: 0; z-index: 90; margin: 0;
+  display: grid; place-items: center;
+  background: radial-gradient(120% 80% at 50% 45%, rgba(255,106,0,.10), rgba(9,8,11,.94) 60%, rgba(9,8,11,.985));
+  animation: stageIn .22s ease-out;
+}
+@keyframes stageIn { from { opacity: 0 } to { opacity: 1 } }
+.bay--stage::after { display: none; }              /* the little rail is page furniture */
+.bay--stage .tray { width: min(1500px, 94vw); padding: 0; }
+/* The tray already divides its width by the number of cards, so the only cap
+   the stage needs is the one that stops a tall viewport making them overflow
+   vertically. A vw cap on top of that just re-introduces the small card. */
+.bay--stage .pull { max-width: calc(74vh * 5 / 7); }
+.bay--stage-note {
+  position: fixed; left: 0; right: 0; bottom: 26px; z-index: 91;
+  text-align: center; color: var(--muted); font-size: 12px; letter-spacing: .08em;
+  text-transform: uppercase; pointer-events: none;
+}
+
+/* The die. A pack is a settled question you have not read yet, so it arrives as
+   something being rolled and then stops being a die. It is decoration with a
+   job: it covers the moment the cards are dealt face down, which otherwise
+   reads as the page stuttering. */
+.pack-die {
+  position: absolute; width: clamp(84px, 12vh, 132px); aspect-ratio: 1;
+  display: grid; place-items: center; z-index: 92;
+  color: var(--ember); background: linear-gradient(150deg, rgba(38,35,48,.98), rgba(13,12,16,.98));
+  border: 2px solid var(--ember);
+  box-shadow: 0 0 0 1px rgba(9,8,11,.9), 0 26px 60px rgba(0,0,0,.6);
+  font: 700 clamp(26px, 4.4vh, 44px)/1 var(--display);
+  animation: dieRoll .82s cubic-bezier(.3,.9,.3,1) forwards;
+}
+@keyframes dieRoll {
+  0%   { transform: translateY(-38vh) rotate(0deg) scale(.55); opacity: 0 }
+  14%  { opacity: 1 }
+  55%  { transform: translateY(0) rotate(560deg) scale(1.12) }
+  72%  { transform: translateY(0) rotate(720deg) scale(1) }
+  100% { transform: translateY(0) rotate(720deg) scale(2.6); opacity: 0 }
+}
+/* A die that keeps spinning while somebody reads the room is a distraction, and
+   a reduced-motion visitor should still be told a pack is opening — so it
+   becomes a still marker rather than disappearing. */
+@media (prefers-reduced-motion: reduce) {
+  .pack-die { animation: none; opacity: 1; transform: none; }
+  .bay--stage { animation: none; }
+}
 .bay::after {
   content: ""; position: absolute; left: 4%; right: 4%; bottom: 12px; height: 9px;
   pointer-events: none;
