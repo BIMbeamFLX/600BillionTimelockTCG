@@ -82,6 +82,12 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   const transfer = await reloaded.tradeProof(table.url, snapshot.owned[0].proof.secret, recipientPubkey);
   assert.match(transfer.token, /^cashu/);
   assert.equal((await reloaded.snapshot(table.url)).owned.length, 6);
+  const poisonedState = JSON.parse(storage.get("600b:nutft-wallet"));
+  poisonedState.tokens.push(transfer.token);
+  storage.set("600b:nutft-wallet", JSON.stringify(poisonedState));
+  const poisonedSnapshot = await (await browserWallet(storage, fetchImpl)).snapshot(table.url);
+  assert.equal(poisonedSnapshot.owned.length, 6, "a proof addressed to another key is not owned");
+  assert.match(poisonedSnapshot.invalid[0].error, /not addressed to this wallet/i);
   const keysetId = (await (await fetch(`${table.url}/v1/keys`)).json()).keysets[0].id;
   const decodedTransfer = cashu.getDecodedToken(transfer.token, [keysetId]);
   const duplicateToken = cashu.getEncodedToken({

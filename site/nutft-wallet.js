@@ -360,6 +360,7 @@
   async function snapshot(mintUrl) {
     await locked(recoverPending);
     const c = await cashu();
+    const walletState = await read();
     const keyset = await getKeyset(mintUrl, c);
     const catalogs = new Map();
     const owned = [];
@@ -368,6 +369,7 @@
     for (const proof of await proofs(mintUrl)) {
       try {
         const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
+        if (!c.maybeDeriveP2BKPrivateKeys(walletState.privateKey, proof).length) throw new Error("proof is not addressed to this wallet");
         (item.state === "SPENT" ? spent : owned).push(item);
       } catch (error) {
         invalid.push({ proof, error: error.message });
