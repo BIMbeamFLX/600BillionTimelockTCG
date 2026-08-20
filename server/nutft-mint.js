@@ -151,9 +151,40 @@ function createNutftMint(options = {}) {
      without touching this file. */
   const funding = options.lnd === null && !options.funding ? null : createFunding(options);
   const lndConfig = funding && funding.name === "lnd" ? (options.lnd || lnd.readConfig(options.lndOptions || {})) : null;
-  const priceMsat = Number(options.priceMsat || process.env.NUTFT_PRICE_MSAT || 21000);
-  if (lndConfig && !(priceMsat > 0)) throw new Error("NUTFT_PRICE_MSAT must be a positive number of msat");
+  /* The price ladder. Written as "soldBelow:msat" pairs, cheapest first:
+   *   NUTFT_PRICE_SCHEDULE="2100:21000,19925:420000,20925:10000000"
+   * reads as "the first 2100 packs cost 21 sat, up to 19925 they cost 420, and
+   * the rest cost 10000". A single NUTFT_PRICE_MSAT still works and behaves as
+   * one flat tier, so nothing that exists today has to change.
+   *
+   * The price is decided when a booster is QUOTED, and the invoice fixes it from
+   * then on. A buyer quoted at 21 sat pays 21 sat even if the tier turns over
+   * while they are reaching for their phone — the alternative is charging
+   * someone a price they were never shown. */
+  const parseSchedule = (raw) => String(raw).split(",").map((part, index) => {
+    const [upTo, msat] = part.split(":").map((piece) => Number(String(piece).trim()));
+    if (!Number.isFinite(upTo) || !Number.isFinite(msat) || upTo <= 0 || msat <= 0) {
+      throw new Error(`NUTFT_PRICE_SCHEDULE entry ${index + 1} is not "packs:msat": ${part}`);
+    }
+    return { upTo, msat };
+  });
+
+  const scheduleRaw = options.priceSchedule || process.env.NUTFT_PRICE_SCHEDULE || "";
+  const priceTiers = scheduleRaw
+    ? parseSchedule(scheduleRaw)
+    : [{ upTo: Infinity, msat: Number(options.priceMsat || process.env.NUTFT_PRICE_MSAT || 21000) }];
+  for (let i = 1; i < priceTiers.length; i += 1) {
+    if (priceTiers[i].upTo <= priceTiers[i - 1].upTo) {
+      throw new Error("NUTFT_PRICE_SCHEDULE thresholds must increase; a later tier that starts earlier can never be reached");
+    }
+  }
+  /* Past the last threshold the last price stands, rather than reverting to the
+     cheapest — a ladder that wraps around would sell the scarcest packs for the
+     introductory price. */
+  const priceFor = (soldCount) => (priceTiers.find((tier) => soldCount < tier.upTo) || priceTiers[priceTiers.length - 1]).msat;
+  const priceMsat = priceFor(0);
   const paidMint = Boolean(funding);
+  if (paidMint && !(priceMsat > 0)) throw new Error("the booster price must be a positive number of msat");
 
   /* The payment reference is whatever the funding source calls a payment: lnd
      gives a 32-byte hash, a Cashu mint gives a quote UUID. The mint stores it
@@ -291,6 +322,9 @@ function createNutftMint(options = {}) {
      so a settled payment buys the pack it was quoted for and no other. */
   async function payableQuote(opts = {}) {
     const base = await quote();
+    /* Read once, here, and used for the invoice, the record and the reply — so
+       the three can never disagree about what this booster costs. */
+    const priceNow = priceFor(state.nextPack - 1);
     if (!paidMint) return { ...base, price_msat: 0, paid: false };
     /* A funding-source failure is ours, not the buyer's, and its message names
        the node's address and port. Log the detail, hand back a plain sentence:
@@ -316,16 +350,16 @@ function createNutftMint(options = {}) {
          hash — producing a `d` field, no error, and an LNURL payment the
          buyer's wallet refuses for a reason nothing on our side logs. */
       invoice = await funding.createInvoice(opts.descriptionHash
-        ? { amountMsat: priceMsat, descriptionHash: opts.descriptionHash }
-        : { amountMsat: priceMsat, memo: `600B booster ${base.pack_id}` });
+        ? { amountMsat: priceNow, descriptionHash: opts.descriptionHash }
+        : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}` });
     } catch (error) {
       console.error("[nutft] lnd createInvoice failed:", error && error.message);
       throw new Error("the mint cannot reach its funding source right now — try again shortly");
     }
     const { paymentRequest, paymentHash } = invoice;
-    if (q) q.putInvoice.run(paymentHash, base.pack_id, base.state, priceMsat, new Date().toISOString(), commitment ? commitment.targetHeight : null);
+    if (q) q.putInvoice.run(paymentHash, base.pack_id, base.state, priceNow, new Date().toISOString(), commitment ? commitment.targetHeight : null);
     const head = {
-      paid: true, price_msat: priceMsat,
+      paid: true, price_msat: priceNow,
       payment_request: paymentRequest, payment_hash: paymentHash,
       /* Travels with the invoice so the page can label it before it is scanned. */
       test_mint: Boolean(funding && funding.testMint),
@@ -531,7 +565,7 @@ function createNutftMint(options = {}) {
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceMsat : 0, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), test_mint: Boolean(funding && funding.testMint), catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
+        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceFor(state.nextPack - 1) : 0, price_tiers: paidMint && priceTiers.length > 1 ? priceTiers.map((t) => ({ up_to_packs: t.upTo === Infinity ? null : t.upTo, price_msat: t.msat })) : undefined, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), test_mint: Boolean(funding && funding.testMint), catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && url.pathname === "/v1/checkstate") {
@@ -558,7 +592,7 @@ function createNutftMint(options = {}) {
         if (!publicBase) return json(res, 200, lnurl.error("mint is not configured with a public URL"));
         return json(res, 200, lnurl.payRequest({
           callbackUrl: `${publicBase}/nutft/lnurlp/callback`,
-          amountMsat: priceMsat,
+          amountMsat: priceFor(state.nextPack - 1),
           metadata: payMetadata,
         }));
       }
@@ -569,8 +603,12 @@ function createNutftMint(options = {}) {
       if (req.method === "GET" && url.pathname === "/nutft/lnurlp/callback") {
         if (!paidMint) return json(res, 200, lnurl.error("this mint is free — no payment is needed"));
         const amount = Number(url.searchParams.get("amount"));
-        if (!Number.isFinite(amount) || amount !== priceMsat) {
-          return json(res, 200, lnurl.error(`a booster costs exactly ${priceMsat} msat`));
+        const wanted = priceFor(state.nextPack - 1);
+        if (!Number.isFinite(amount) || amount !== wanted) {
+          /* A wallet that read the pay request just before a tier turned over
+             would send the old amount. Say the current price rather than a bare
+             refusal, so the wallet can re-read and try again. */
+          return json(res, 200, lnurl.error(`a booster costs exactly ${wanted} msat`));
         }
         try {
           const sale = await payableQuote({ descriptionHash: lnurl.descriptionHash(payMetadata) });

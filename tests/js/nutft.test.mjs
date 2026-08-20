@@ -742,3 +742,62 @@ test("the claim path and the sweep can never both mint one quote", async (t) => 
   assert.equal(minted, 1, "so the quote was minted exactly once");
   assert.equal(funding.balanceSat(), 21, "and counted exactly once");
 });
+
+test("the price ladder charges by how many packs have sold", async (t) => {
+  // Three tiers: the first 2100 packs are cheap, the middle band costs more,
+  // and the last thousand are the expensive ones. The price must follow what
+  // has actually SOLD, and must be fixed at the moment of quoting — charging
+  // someone a price they were never shown is the failure to avoid.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  const mint = createNutftMint({
+    db, catalogUri: "https://x/nutft/catalog",
+    funding: createMockFunding({}), allowVirtual: "1",
+    priceSchedule: "2100:21000,19925:420000,20925:10000000",
+  });
+
+  const infoRes = { writeHead() { return infoRes; }, end(b) { infoRes.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET" }, infoRes, new URL("http://x/v1/info"));
+  const nut = infoRes.parsed.nuts["31"];
+  assert.equal(nut.price_msat, 21000, "nothing sold yet, so the cheapest tier is live");
+  assert.deepEqual(nut.price_tiers, [
+    { up_to_packs: 2100, price_msat: 21000 },
+    { up_to_packs: 19925, price_msat: 420000 },
+    { up_to_packs: 20925, price_msat: 10000000 },
+  ], "and the whole ladder is published, so nobody is surprised by the next step");
+
+  const first = await mint.payableQuote();
+  assert.equal(first.price_msat, 21000);
+
+  // Walk the box forward without buying, and check each boundary.
+  const priceAfter = (sold) => { mint.state.nextPack = sold + 1; return mint.payableQuote(); };
+  assert.equal((await priceAfter(2099)).price_msat, 21000, "pack 2100 is still the cheap tier");
+  assert.equal((await priceAfter(2100)).price_msat, 420000, "pack 2101 is not");
+  assert.equal((await priceAfter(19924)).price_msat, 420000, "the middle band runs to 19925");
+  assert.equal((await priceAfter(19925)).price_msat, 10000000, "and the last thousand are dear");
+  assert.equal((await priceAfter(20924)).price_msat, 10000000, "including the very last pack");
+  assert.equal((await priceAfter(999999)).price_msat, 10000000,
+    "past the end the last price stands — a ladder that wrapped would sell the scarcest packs cheapest");
+
+  // A single flat price still behaves as one tier.
+  const flat = createNutftMint({
+    db: new DatabaseSync(":memory:"), catalogUri: "https://y/nutft/catalog",
+    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000,
+  });
+  assert.equal((await flat.payableQuote()).price_msat, 21000);
+
+  // A ladder that steps backwards can never reach its later tiers.
+  assert.throws(
+    () => createNutftMint({
+      db: new DatabaseSync(":memory:"), catalogUri: "https://z/nutft/catalog",
+      funding: createMockFunding({}), allowVirtual: "1",
+      priceSchedule: "2100:21000,1000:420000",
+    }),
+    /thresholds must increase/,
+    "and is refused rather than quietly ignored",
+  );
+});
