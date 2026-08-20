@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="description" content="Find an opponent for the 600B Timelock TCG. One referee runs the rules, every play travels over a socket, and only the signed result touches a relay. NIP-07 sign-in, play for sats or a friendly.">
+<title>600B Timelock TCG — Play Online</title>
+<!-- The napplet seam, before the palette below, so a shell-themed panel does
+     not flash the fallback colours first. Like play.html this page carries its
+     own :root rather than 600b.css, and the adapter writes the same token
+     names, so a shell owns the chrome exactly as it does everywhere else.
+
+     This is the Matchmaking napplet: the online lobby, split out of play.html
+     so the socket, the queue and the seat live on their own page. The moment a
+     seat is dealt it hands off to play.html — the referee remembers the match
+     by the signed identity, so navigating away and arriving at the table is a
+     resume, not a lost game (net.js RESUME-by-identity). -->
+<script src="napplet.js"></script>
+<script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
+<style>
+@font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+:root {
+  --orange: #ff6a00; --orange-soft: #f7931a; --gold: #f3c244;
+  --purple: #b991e4; --purple-deep: #7447b8; --violet: #17bebb;
+  --black: #09080b; --soot: #111014; --panel: #19151f; --panel-2: #1f1a27;
+  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
+  --danger: #ff4d3d; --good: #6ee7a8;
+}
+* { box-sizing: border-box; margin: 0; }
+html { color-scheme: dark; background: var(--black); }
+body { min-height: 100vh; color: var(--cream); font: 14px/1.45 Arial, sans-serif; }
+button, select, input { font: inherit; }
+a { color: var(--orange-soft); }
+
+/* THIS PAGE DOES NOT LOAD 600b.css, so [hidden] needs the guard the shared
+ * sheet would give it — without it .btn's display wins and a "Sign out" button
+ * is offered to a signed-out player. */
+[hidden] { display: none !important; }
+.skip {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+  padding: 10px 16px; background: var(--orange); color: var(--black);
+  font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase;
+}
+.skip:focus { left: 8px; top: 8px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.stage { position: relative; min-height: 100vh; }
+.stage::before {
+  content: ""; position: fixed; inset: 0; z-index: 0;
+  background: url("../art/site/hero-play.webp") center / cover no-repeat;
+  filter: saturate(.9) brightness(.55);
+}
+.stage::after {
+  content: ""; position: fixed; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse at 50% 42%, rgba(9,8,11,.4) 0%, rgba(9,8,11,.9) 62%, rgba(9,8,11,.98) 100%);
+}
+.wrap { position: relative; z-index: 1; max-width: 1680px; margin: 0 auto; padding: 12px clamp(10px, 2vw, 24px) 24px; }
+
+.masthead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; background: rgba(9,8,11,.85); }
+.masthead img { width: 40px; height: 40px; }
+.brand strong { display: block; font: 16px/1 Anton600, Impact, sans-serif; letter-spacing: .03em; }
+.brand span { color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+.navlinks { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
+.navlink { padding: 8px 11px; color: var(--cream); border: 1px solid var(--purple-deep); text-decoration: none; font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.navlink:hover { border-color: var(--orange); }
+.navlink.here { border-color: var(--orange); background: rgba(255,106,0,.12); }
+.turnchip { padding: 7px 12px; background: rgba(17,16,20,.85); border: 1px solid var(--line); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+.netchip { color: var(--good); border-color: var(--good); }
+.netchip.stale { color: var(--gold); border-color: var(--gold); }
+
+.setup { max-width: 720px; margin: 6vh auto; padding: 28px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
+.setup h1 { font: clamp(34px, 5vw, 58px)/.95 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 10px; }
+.setup h1 span { color: var(--orange); }
+.setup p { color: var(--muted); margin-bottom: 20px; }
+.seats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.seat { padding: 14px; background: var(--panel); border: 1px solid var(--line); }
+.seat label { display: block; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
+.seat input, .seat select { width: 100%; min-height: 40px; margin-bottom: 12px; padding: 8px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
+.startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+.btn { padding: 12px 18px; color: var(--black); background: var(--orange); border: 0; cursor: pointer; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
+.btn:hover { background: var(--gold); }
+.btn.ghost:hover { background: var(--panel-2); }
+.zlabel { font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--purple); margin-bottom: 5px; }
+.chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
+
+/* ---------- the lobby ---------- */
+.online h2 { font: clamp(22px, 3vw, 34px)/1 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 8px; }
+.online h2 span { color: var(--purple); }
+.online p { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+.netid { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.joinrow { display: flex; gap: 6px; margin-bottom: 12px; }
+.joinrow input { flex: 1; min-width: 0; margin-bottom: 0 !important; text-transform: uppercase; letter-spacing: .18em; font-weight: 900; }
+.hostpanel { margin-top: 16px; padding: 14px; background: var(--soot); border: 1px solid var(--orange); }
+.tablecode { font: clamp(30px, 6vw, 54px)/1 Anton600, Impact, sans-serif; letter-spacing: .16em; color: var(--orange); }
+.netlist { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.netrow { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; background: var(--soot); border: 1px solid var(--line); font-size: 12px; }
+.netrow .btn { padding: 6px 10px; font-size: 12px; }
+.netline { color: var(--muted); font-size: 12px; padding: 2px 0; word-break: break-word; }
+.resumecard { margin-top: 14px; padding: 10px 12px; background: var(--soot); border: 1px solid var(--orange); }
+.resumerow { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; padding: 6px 0; font-size: 12px; }
+.resumerow + .resumerow { border-top: 1px solid var(--line); }
+.resumewho { color: var(--cream); }
+.resumewho b { color: var(--orange); }
+.findrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.stakelabel { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.stakelabel input { width: 92px; padding: 6px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
+.stakenote { color: var(--muted); font-size: 11.5px; margin-top: 8px; max-width: 68ch; line-height: 1.5; }
+.deckmode { margin-top: 18px; padding: 12px 14px; background: var(--soot); border: 1px solid var(--line); }
+.moderow { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+.moderow b { color: var(--cream); font-weight: 700; }
+.moderow input { accent-color: var(--orange); }
+.stackpick { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.stackpick label { display: block; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
+.stackpick select { width: 100%; min-height: 40px; padding: 8px 10px; color: var(--cream); background: var(--black); border: 1px solid var(--line); }
+.stacknote { margin-top: 7px; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.stacknote.bad { color: var(--danger); }
+.prompt { padding: 10px 12px; margin: 12px 0 0; background: rgba(17,16,20,.84); border-left: 4px solid var(--purple-deep); font-weight: 700; }
+.prompt.good { border-left-color: var(--good); color: var(--good); }
+.prompt.bad { border-left-color: var(--danger); color: var(--danger); }
+.localnote { margin-top: 18px; color: var(--muted); font-size: 12.5px; }
+.localnote a { color: var(--orange-soft); font-weight: 700; }
+
+@media (max-width: 560px) { .seats { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="stage">
+<div class="wrap">
+
+  <header class="masthead">
+    <img src="../art/brand/600B-logo-primary.png" alt="600 000 000 000">
+    <div class="brand"><strong>TIMELOCK TCG</strong><span>Edition One · Online Table</span></div>
+    <div class="turnchip netchip" id="netchip" role="status" aria-live="polite" hidden></div>
+    <nav class="navlinks" aria-label="Site">
+      <a class="navlink here" href="matchmaking.html" aria-current="page">Play online</a>
+      <a class="navlink" href="play.html">Local</a>
+      <a class="navlink" href="deck.html">Stacks</a>
+      <a class="navlink" href="shop.html">Shop</a>
+      <a class="navlink" href="rules.html">Rulebook</a>
+      <a class="navlink" href="index.html">Home</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="setup online" id="online" aria-labelledby="lobbyHeading">
+      <h1 id="lobbyHeading">Play <span>across the table</span></h1>
+      <p>One referee runs the rules and deals both seats; every play travels over a socket, and only the
+      invite, the accept and the signed result ever touch a relay. NIP-07 sign-in is required for every
+      online seat.</p>
+
+      <div class="netid">
+        <button class="btn ghost" id="nostrLogin">Sign in with nostr</button>
+        <span class="chip" id="nostrWho" hidden></span>
+        <button class="btn ghost" id="nostrLogout" hidden>Sign out</button>
+        <span class="chip" id="netTable"></span>
+      </div>
+
+      <!-- YOUR SEAT FOUND YOU. The referee names every unfinished match this
+           npub is sitting at, so a cleared profile, a private window or a
+           different machine is a click away from the board it left. -->
+      <div class="resumecard" id="resumeCard" hidden>
+        <div class="zlabel">Match in progress</div>
+        <div id="resumeList"></div>
+      </div>
+
+      <!-- WHOSE STACK IS PLAYED. Ready deals a random Stack of the chosen
+           affinity, which is how every online table worked before. My Stack
+           sends one you built in the Stack Builder — the referee checks it
+           against §7 and refuses an illegal one rather than quietly swapping it.
+           The two are matched separately, so a built Stack never faces a pile. -->
+      <div class="deckmode" id="deckMode">
+        <div class="zlabel">Which Stack do you play?</div>
+        <label class="moderow"><input type="radio" name="deckmode" value="ready" checked> <b>Ready</b> — the referee deals you a Stack of your affinity</label>
+        <label class="moderow"><input type="radio" name="deckmode" value="custom"> <b>My Stack</b> — play one you built</label>
+        <div class="stackpick" id="stackPick" hidden>
+          <label for="stackChoice">Your Stacks</label>
+          <select id="stackChoice"></select>
+          <p class="stacknote" id="stackNote"></p>
+        </div>
+      </div>
+
+      <!-- The fast path: no code to read aloud, no invite to publish. -->
+      <div class="findrow" id="findRow">
+        <button class="btn" id="findMatch">Find an opponent</button>
+        <label class="stakelabel" for="stakeSats">Play for
+          <input id="stakeSats" type="number" min="0" step="1" value="0" inputmode="numeric" autocomplete="off">
+          sats
+        </label>
+        <span class="chip" id="queueChip" hidden></span>
+        <button class="btn ghost" id="cancelFind" hidden>Stop looking</button>
+      </div>
+      <p class="stakenote" id="stakeNote">
+        A wager is matched, not merely announced — you are only ever dealt against someone who
+        asked for the same number. Both seats sign it before the first card. Nothing is escrowed:
+        at the end the loser pays the winner from their own wallet, and a refused zap cannot
+        change a signed result. Leave it at 0 for a friendly.
+      </p>
+
+      <div class="seats" style="margin-top:14px">
+        <div class="seat">
+          <label for="netName">Your name</label>
+          <input id="netName" value="Player" autocomplete="off">
+          <label for="netAffinity">Stack affinity</label>
+          <select id="netAffinity"></select>
+        </div>
+        <div class="seat">
+          <label for="joinCode">Join with a table code</label>
+          <div class="joinrow">
+            <input id="joinCode" placeholder="K7M2QF" maxlength="6" autocomplete="off" spellcheck="false">
+            <button class="btn" id="joinTable">Join</button>
+          </div>
+          <label for="challengeNpub">Challenge an npub (optional)</label>
+          <input id="challengeNpub" placeholder="npub1… — blank makes an open invite" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+
+      <div class="startrow">
+        <button class="btn" id="createTable">Create table</button>
+        <button class="btn ghost" id="refreshTables">Open tables</button>
+        <button class="btn ghost" id="checkInvites">Check invites</button>
+      </div>
+
+      <div class="prompt" id="netNotice" hidden></div>
+
+      <div class="hostpanel" id="hostPanel" hidden>
+        <div class="zlabel">Table code — read it aloud</div>
+        <div class="tablecode" id="tableCode">------</div>
+        <div class="startrow" style="margin-top:10px">
+          <button class="btn ghost" id="copyCode">Copy join link</button>
+          <button class="btn ghost" id="publishInvite">Publish invite to nostr</button>
+          <span class="chip">waiting for a second seat</span>
+        </div>
+      </div>
+
+      <div id="tableList" class="netlist"></div>
+      <div id="inviteList" class="netlist"></div>
+
+      <p class="localnote">Prefer hotseat on one machine, or an NPC to learn against? <a href="play.html">Play locally →</a></p>
+    </section>
+  </main>
+
+</div>
+</div>
+
+<!-- The light set: no engine, npc, fx or qr — the lobby holds a socket, a
+     queue and a seat, and hands off to play.html the moment one is dealt. The
+     card-data trio joins in Phase 3, when the Custom-Stack picker needs it. -->
+<script src="schnorr.js"></script>
+<script src="net.js"></script>
+<script src="storage-keys.js"></script>
+<script src="matchmaking.js"></script>
+</body>
+</html>

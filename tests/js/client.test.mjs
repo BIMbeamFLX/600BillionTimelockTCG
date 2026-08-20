@@ -475,9 +475,45 @@ function latestUidNode(byId, zoneId, uid) {
   return null;
 }
 
+/* Loads matchmaking.js against the same stub DOM. `nav` records where the
+ * lobby tried to send the browser, which is the hand-off itself. */
+function loadLobby(netStub) {
+  const nodes = new Map();
+  const byId = (id) => {
+    if (!nodes.has(id)) nodes.set(id, stubElement(id));
+    return nodes.get(id);
+  };
+  const fired = {};
+  const nav = [];
+  globalThis.document = {
+    body: byId("body"),
+    readyState: "complete",
+    getElementById: byId,
+    createElement: (tag) => stubElement(tag),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener() {},
+  };
+  globalThis.window = {
+    addEventListener(type, fn) { (fired[type] = fired[type] || []).push(fn); },
+    E1Net: netStub,
+  };
+  globalThis.location = {
+    protocol: "http:", host: "bitbeam:8777", search: "",
+    href: "http://bitbeam:8777/matchmaking.html",
+    assign(url) { nav.push(url); },
+  };
+  globalThis.E1Net = netStub;
+  new Function(fs.readFileSync(path.join(HERE, "..", "..", "site", "matchmaking.js"), "utf8"))();
+  for (const fn of fired.DOMContentLoaded || []) fn();
+  return { byId, nav };
+}
+
+/* THIS BEHAVIOUR MOVED, IT DID NOT GO AWAY. The host panel and the share-link
+ * Join belong to the lobby napplet now; the assertions follow them there. */
 test("the host's share link offers a Join, not the host panel", () => {
   const stub = netStub();
-  const { byId } = loadPlay(stub);
+  const { byId } = loadLobby(stub);
 
   // The HOST's own view of an open table: the panel with the code to read out.
   stub.lastState = { ...STATE_BASE, seat: 0, role: "seat", status: "open", downgraded: false, claimable: true };
@@ -490,7 +526,7 @@ test("the host's share link offers a Join, not the host panel", () => {
    * referee downgrades them to a spectator — of an empty table. Showing them the
    * host panel left both people staring at the same screen. */
   const guest = netStub();
-  const g = loadPlay(guest);
+  const g = loadLobby(guest);
   guest.lastState = { ...STATE_BASE, seat: null, role: "spectator", status: "open", downgraded: true, downgradeReason: "no seat credential", claimable: true };
   guest.handlers.onState(guest.lastState);
   assert.equal(g.byId("hostPanel").hidden, true, "the joiner was shown the host panel");
@@ -503,6 +539,36 @@ test("the host's share link offers a Join, not the host panel", () => {
   const join = guest.calls.find((c) => c[0] === "join");
   assert.ok(join, "Join sent nothing");
   assert.equal(join[1].code, "K7M2QF");
+
+  // Neither of them was ever sent to the table: nobody has been dealt a seat.
+  assert.deepEqual(g.nav, [], "an undealt table must not open the board");
+});
+
+test("the lobby leaves for the table only once a seat is dealt", () => {
+  const stub = netStub();
+  const { nav } = loadLobby(stub);
+
+  stub.lastState = { ...STATE_BASE, seat: 1, role: "seat", status: "playing", view: { seq: 0 } };
+  stub.handlers.onState(stub.lastState);
+
+  assert.equal(nav.length, 1, "a dealt seat opens the table exactly once");
+  assert.match(nav[0], /^play\.html\?match=m_0123456789ab&code=K7M2QF$/);
+
+  // A repeated STATE must not navigate a second time.
+  stub.handlers.onState(stub.lastState);
+  assert.equal(nav.length, 1, "the hand-off fired twice");
+});
+
+test("the table sends a player back to the lobby, it does not host one", () => {
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+
+  // An open table is the lobby's business; the board must not pretend otherwise.
+  stub.lastState = { ...STATE_BASE, seat: 0, role: "seat", status: "open", downgraded: false, claimable: true };
+  stub.handlers.onState(stub.lastState);
+  assert.equal(byId("table").hidden, true, "an undealt table must not show a board");
+  assert.equal(byId("setup").hidden, false);
+  assert.match(byId("netNotice").textContent, /lobby/i, "the player was not told where the table opens");
 });
 
 test("a NutFT-marked Stack proves current wallet possession before play", async () => {
@@ -531,15 +597,11 @@ test("a NutFT-marked Stack proves current wallet possession before play", async 
   assert.ok(game.state, "the verified Stack should start after all 40 proofs pass");
 });
 
-test("a listed table whose host is away is not joinable", async () => {
-  const stub = netStub({ tables: async () => [{ code: "ABC123", name: "Host", affinity: "Power", stake: 0, hostOnline: false }] });
-  const { byId } = loadPlay(stub);
-  byId("refreshTables").click();
-  await new Promise((resolve) => setImmediate(resolve));
-  const row = byId("tableList").children[0];
-  assert.equal(row.children[1].disabled, true);
-  assert.equal(row.children[1].textContent, "Host away");
-});
+/* The client-side lobby test that stood here was removed with the lobby it
+ * exercised: matchmaking is its own napplet now, so play.html no longer has
+ * #refreshTables or #tableList and there is nothing here to click. The
+ * behaviour it protected did not go untested - net.test.mjs still asserts
+ * hostOnline on the referee, which is where the rule actually lives. */
 
 test("a finished match can be published from a STATE alone — no live OVER needed", () => {
   const stub = netStub();
@@ -1238,4 +1300,81 @@ test("the Network's two rails are drawn, and cards stay direct children", () => 
   assert.ok(plant, "a Resource must be findable as a DIRECT child of the Network");
   assert.equal(plant.dataset.uid, game.state.zones["0:network"][0], "and it is the card the engine put there");
   assert.ok(game.state.zones["0:network"].length >= 1);
+});
+
+/* ------------------------------------------------------- the napplet hand-off
+ *
+ * Matchmaking and the table are two PAGES now, so a dealt seat has to survive a
+ * navigation rather than a screen swap. Nothing new carries it: net.js already
+ * writes the session to sessionStorage on the STATE that seats you, and
+ * sessionStorage is exactly what a same-tab navigation keeps. These two tests
+ * pin that hand-off end to end, because it is the only thing holding the split
+ * together — if it breaks, a found match drops the player at an empty table.
+ */
+const LOBBY_ENV = {
+  location: { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/matchmaking.html", search: "" },
+};
+const TABLE_ENV = {
+  location: { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/play.html", search: "" },
+};
+const SEATING_STATE = {
+  t: "STATE", v: 1, matchId: "m_0123456789ab", seat: 1, token: "b".repeat(32),
+  code: "K7M2QF", status: "playing", view: { seq: 0 }, players: [{ seat: 0, online: true }, { seat: 1, online: true }],
+};
+
+test("a seat dealt in the lobby survives the navigation to the table", () => {
+  /* ONE TAB, TWO PAGES. The same localStorage and the same sessionStorage
+   * travel across a same-tab navigation, which is what these shared maps are. */
+  const store = new Map([["600b:pubkey", NIP07_PUBKEY]]);
+  const session = new Map();
+
+  // ---- matchmaking.html: ask for an opponent, and the referee seats us.
+  const lobby = loadNet({ ...LOBBY_ENV, store, session });
+  lobby.net.start({});
+  assert.deepEqual(lobby.opened, [], "a cold lobby opens no socket until it is asked to");
+
+  lobby.net.queue({ name: "felix", affinity: "Power", pubkey: NIP07_PUBKEY, stake: 0 });
+  assert.deepEqual(lobby.opened, ["ws://bitbeam:8777/ws"], "asking for a match dials the referee");
+  lobby.sockets[0].onmessage({ data: JSON.stringify(SEATING_STATE) });
+
+  assert.equal(lobby.net.session.seat, 1, "the lobby holds the seat the referee dealt");
+  assert.ok(session.has("600b:match"), "and the seat was persisted where a navigation can find it");
+  assert.equal(JSON.parse(session.get("600b:match")).matchId, "m_0123456789ab");
+
+  // ---- play.html: the same tab, a new document. The seat is simply there.
+  const table = loadNet({ ...TABLE_ENV, store, session });
+  const started = table.net.start({});
+  assert.equal(started.resuming, true, "the table resumes the match the lobby handed it");
+  assert.equal(started.seat, 1, "and at the same seat");
+  assert.deepEqual(table.opened, ["ws://bitbeam:8777/ws"], "it reconnects to the table it was seated at");
+});
+
+test("the table claims the handed-off seat with the signed identity", async () => {
+  const store = new Map([["600b:pubkey", NIP07_PUBKEY]]);
+  const session = new Map([["600b:match", JSON.stringify({
+    matchId: "m_0123456789ab", seat: 1, token: null, table: "ws://bitbeam:8777/ws", code: "K7M2QF",
+  })]]);
+  const nostr = {
+    getPublicKey: async () => NIP07_PUBKEY,
+    signEvent: async (event) => ({ ...event, pubkey: NIP07_PUBKEY, id: "e".repeat(64), sig: "f".repeat(128) }),
+  };
+
+  const table = loadNet({ ...TABLE_ENV, store, session, nostr });
+  table.net.start({});
+  const socket = table.sockets[0];
+  socket.readyState = 1;
+  socket.onopen();
+  assert.deepEqual(socket.sent, [], "nothing is claimed before the identity is proven");
+
+  socket.onmessage({ data: JSON.stringify({
+    t: "AUTH", v: 1, challenge: "c".repeat(64), relay: "ws://bitbeam:8777/ws", kind: 22242,
+  }) });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  socket.onmessage({ data: JSON.stringify({ t: "AUTH_OK", v: 1, pubkey: NIP07_PUBKEY }) });
+
+  const resume = socket.sent.at(-1);
+  assert.equal(resume.t, "RESUME", "the table takes its seat back by resuming");
+  assert.equal(resume.matchId, "m_0123456789ab");
+  assert.equal(resume.pubkey, NIP07_PUBKEY, "the signed identity IS the claim");
+  assert.equal(resume.token, undefined, "no token had to cross the page boundary");
 });

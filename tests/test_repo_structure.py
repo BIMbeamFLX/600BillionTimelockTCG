@@ -14,8 +14,10 @@ def test_static_site_pages_live_together() -> None:
         "e1-card-set.html",
         "fx-demo.html",
         "index.html",
+        "intro.html",  # the cinematic gate; Play/Skip, then it opens index
         "leaderboard.html",
         "lore.html",
+        "matchmaking.html",  # the online lobby; hands off to play.html once a seat is dealt
         "play.html",
         "quickstart.html",
         "rules.html",

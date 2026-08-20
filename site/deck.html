@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#09080b">
 <meta name="description" content="600B Timelock TCG — Stack Builder. Search, filter and build your own 40+ card Stacks.">
-<title>600B Timelock TCG — Stack Builder</title>
+<title>600B Timelock TCG — Stacks &amp; Collection</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="600b.css">
@@ -176,6 +176,13 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 .note.good { color: var(--good, #6ee7a8); }
 .saved { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
 .saved h3 { font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+/* The collection: small faces, because this answers "what do I own", not
+   "what does this card do" — the browser on the left already answers that. */
+.ownedgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 5px; margin-top: 8px; }
+.ownedcard { position: relative; border: 1px solid var(--line); background: var(--soot); }
+.ownedcard img { display: block; width: 100%; aspect-ratio: 744/1039; object-fit: cover; }
+.ownedcard b { position: absolute; right: 2px; bottom: 2px; padding: 1px 4px; background: var(--ember); color: var(--black); font: 900 9px/1.2 Arial; }
+.collection .note b { color: var(--cream); }
 .savedrow { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 .savedrow .nm { flex: 1; min-width: 0; font-size: 13px; }
 .savedrow button { padding: 4px 8px; font-size: 11px; cursor: pointer; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
@@ -240,6 +247,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   <a class="nav__brand" href="index.html" style="text-decoration:none;color:inherit">600B TIMELOCK TCG<small>WE STACK · WE BUILD · WE MEME</small></a>
   <div class="nav__links">
     <a class="link" href="play.html">Play</a>
+    <a class="link" href="matchmaking.html">Play online</a>
     <a class="link" href="shop.html">Shop</a>
     <a class="link" href="cards.html">Cards</a>
     <a class="link" href="deck.html" aria-current="page">Stacks</a>
@@ -317,6 +325,17 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       <div id="savedList"></div>
       <p class="note" id="savedNote" role="status" aria-live="polite" hidden></p>
     </div>
+
+    <!-- WHAT YOU OWN. The shop writes every pull into "600b:shop"; this reads
+         it. Ownership is not enforced anywhere yet — the mint that would make a
+         card provably yours is still ahead — so this counts and shows, and does
+         not gate what you may build with. When cards do become owned, this is
+         the panel that already knows how to say so. -->
+    <div class="saved collection">
+      <h3>Your collection</h3>
+      <p class="note" id="ownedNote">Cards you have pulled in the <a href="shop.html">Shop</a>.</p>
+      <div class="ownedgrid" id="ownedList"></div>
+    </div>
   </aside>
 </div>
 </div>
@@ -349,15 +368,19 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 <script src="blob-map.js"></script>
 <script src="faces.js"></script>
 <script src="precons.js"></script>
+<script src="storage-keys.js"></script>
 <script src="nutft-wallet.js"></script>
 <script>
 (() => {
   "use strict";
   const CARDS = globalThis.E1_CARDS || [];
   const byId = Object.fromEntries(CARDS.map((c) => [c.id, c]));
-  const STORE = "600b:decks";
-  const PROBE = "600b:probe";
-  const MIN_STACK = 40;
+  /* The shared storage contract (site/storage-keys.js). Prefer it; fall back to
+   * this page's own literals so a missing include degrades to today's values. */
+  const K = globalThis.E1Keys || {};
+  const STORE = K.DECKS || "600b:decks";
+  const PROBE = K.PROBE || "600b:probe";
+  const MIN_STACK = K.MIN_STACK || 40;
 
   /* ------------------------------------------------------- the way in
    * "600b:decks" is this page's own library and nobody else's business. Two
@@ -373,7 +396,8 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * Both land the cards in the pane UNSAVED. Saving stays this page's job,
    * because this is the page that knows the 40-card floor, the name and the
    * storage budget — which is exactly what reaching into the key got wrong. */
-  const HANDOFF = "600b:deck-handoff";
+  const HANDOFF = K.DECK_HANDOFF || "600b:deck-handoff";
+  const SHOP = K.SHOP || "600b:shop";
 
   /* ------------------------------------------------------------ the budget
    * Inside a shell the WHOLE napplet lives in 512 KB (docs/napplet-spec.md,
@@ -382,12 +406,12 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * the pull log and the match history room inside the same budget. They are
    * checked on the serialised record, not guessed from the card count, and a
    * refusal is a sentence the player can act on: never a silent truncation of
-   * somebody's saved Stacks. Kept in step with the same four constants in
-   * shop.js, which writes this key too. */
-  const LIB_BUDGET = 160 * 1024;
-  const MAX_STACKS = 32;
-  const MAX_CARDS = 4600; // one whole booster box, so the shop's handoff never truncates
-  const MAX_NAME = 60;
+   * somebody's saved Stacks. These four caps now live in
+   * site/storage-keys.js, shared with shop.js which writes this key too. */
+  const LIB_BUDGET = K.DECKS_BUDGET || 160 * 1024;
+  const MAX_STACKS = K.MAX_STACKS || 32;
+  const MAX_CARDS = K.MAX_CARDS || 4600; // one whole booster box, so the shop's handoff never truncates
+  const MAX_NAME = 60; // page-local: the longest Stack name, not part of the shared contract
   const kb = (n) => `${Math.max(1, Math.round(n / 1024))} KB`;
 
   const NO_STORE =
@@ -545,6 +569,52 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     libraryReady = true;
     renderSaved();
     if (!durable) say(NO_STORE, "bad");
+    renderCollection();
+  }
+
+  /* WHAT YOU OWN, read from the shop's own key. Ownership is not enforced: the
+   * mint that makes a card provably yours is still ahead, so this counts and
+   * shows and never restricts what may be built. Reading is one-way — the shop
+   * owns this key, this page only looks at it. */
+  async function renderCollection() {
+    const box = document.getElementById("ownedList");
+    const note = document.getElementById("ownedNote");
+    if (!box || !note) return;
+    let pulls = {};
+    try {
+      const saved = await store.json(SHOP, null);
+      if (saved && saved.pulls && typeof saved.pulls === "object") pulls = saved.pulls;
+    } catch (err) { pulls = {}; }
+
+    const owned = Object.keys(pulls)
+      .filter((id) => byId[id] && pulls[id] > 0)
+      .sort((a, b) => (pulls[b] - pulls[a]) || a.localeCompare(b));
+    box.innerHTML = "";
+    if (!owned.length) {
+      note.innerHTML = 'No cards pulled yet — open a pack in the <a href="shop.html">Shop</a> and they appear here.';
+      return;
+    }
+    const copies = owned.reduce((sum, id) => sum + pulls[id], 0);
+    note.innerHTML = `<b>${copies}</b> cards, <b>${owned.length}</b> of ${CARDS.length} distinct. ` +
+      'Pulled in the <a href="shop.html">Shop</a> — building is not limited to them yet.';
+    for (const id of owned) {
+      const c = byId[id];
+      const tile = document.createElement("div");
+      tile.className = "ownedcard";
+      tile.title = `${c.name} ×${pulls[id]}`;
+      const img = document.createElement("img");
+      img.alt = c.name;
+      img.loading = "lazy";
+      if (globalThis.E1Faces) E1Faces.setFace(img, c.face, tile);
+      else img.src = "../art/cards/node-runner-web/" + encodeURIComponent(c.face);
+      tile.append(img);
+      if (pulls[id] > 1) {
+        const n = document.createElement("b");
+        n.textContent = "×" + pulls[id];
+        tile.append(n);
+      }
+      box.append(tile);
+    }
   }
 
   const grid = document.getElementById("grid");

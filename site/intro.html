@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09080b">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Free browser trading card game about Bitcoin, Nostr and open systems. 295 Edition One cards, hotseat or NPC opponent, online duels over nostr. No account, no download.">
+<meta property="og:site_name" content="600B Timelock TCG">
+<meta property="og:title" content="600B Timelock TCG — Build the Network">
+<meta property="og:description" content="A free trading card game about Bitcoin, Nostr and open systems. 295 cards, plays in your browser — no account, no download, no permission.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="../art/site/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="600B Timelock TCG — Build the Network">
+<meta name="twitter:image" content="../art/site/og-card.png">
+<title>600B Timelock TCG — a free browser card game about Bitcoin and Nostr</title>
+<link rel="icon" href="../art/brand/600B-logo-primary.png">
+<link rel="apple-touch-icon" href="../art/brand/600B-logo-primary.png">
+<link rel="stylesheet" href="600b.css">
+<style>
+/* A full-screen cinematic gate. The video never autoplays with sound — a
+   Start click is the gesture that unlocks audio everywhere — and a Skip is
+   always one press away. When the film ends (or errors), the site opens. */
+html, body { height: 100%; }
+body.intro {
+  margin: 0; background: var(--black, #09080b); overflow: hidden;
+  display: grid; place-items: center;
+}
+.intro__film {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; background: #000;
+}
+
+/* The gate: logo, title, Play and Skip, over a dimmed poster. */
+.intro__gate {
+  position: fixed; inset: 0; z-index: 2;
+  display: grid; place-content: center; justify-items: center; gap: 20px;
+  text-align: center; padding: 24px;
+  background:
+    radial-gradient(60% 60% at 50% 42%, rgba(9,8,11,.55), rgba(9,8,11,.9)),
+    url("../art/site/intro-poster.webp") center / cover no-repeat;
+  animation: introIn .5s ease-out both;
+}
+@keyframes introIn { from { opacity: 0; } to { opacity: 1; } }
+.intro__mark { width: 96px; height: 96px; filter: drop-shadow(0 10px 30px rgba(0,0,0,.7)); }
+.intro__title {
+  margin: 0; font: clamp(28px, 6vw, 56px)/1 var(--display, "Anton", system-ui);
+  letter-spacing: .04em; text-transform: uppercase; color: var(--cream, #fff7ec);
+}
+.intro__tagline { margin: -8px 0 6px; color: var(--muted, #b7b0bd); font-size: clamp(13px, 2vw, 16px); letter-spacing: .06em; }
+.intro__buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.intro__buttons .btn { font-size: 16px; }
+
+/* Persistent skip, once the film is rolling. */
+.intro__skip {
+  position: fixed; top: 18px; right: 18px; z-index: 3;
+  padding: 9px 16px; cursor: pointer;
+  background: rgba(9,8,11,.62); color: var(--cream, #fff7ec);
+  border: 1px solid rgba(255,255,255,.28); border-radius: 999px;
+  font: 12px/1 var(--display, "Anton", system-ui); letter-spacing: .14em; text-transform: uppercase;
+  backdrop-filter: blur(6px); transition: background .2s, border-color .2s, opacity .3s;
+}
+.intro__skip:hover, .intro__skip:focus-visible { background: rgba(31,26,39,.85); border-color: var(--ember, #ff6a00); }
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) { .intro__gate { animation: none; } }
+</style>
+</head>
+<body class="intro">
+  <video class="intro__film" id="film" poster="../art/site/intro-poster.webp" preload="auto" playsinline>
+    <source src="../art/site/intro.mp4" type="video/mp4">
+  </video>
+
+  <section class="intro__gate" id="gate">
+    <img class="intro__mark" src="../art/brand/600B-logo-primary.png" alt="600B Timelock TCG">
+    <h1 class="intro__title">Build the Network</h1>
+    <p class="intro__tagline">A one-minute intro — then the game.</p>
+    <div class="intro__buttons">
+      <button class="btn" id="start" type="button">▶ Play intro</button>
+      <a class="btn btn--ghost" href="index.html" id="enter">Skip to the site</a>
+    </div>
+  </section>
+
+  <button class="intro__skip" id="skip" type="button" hidden aria-label="Skip the intro and open the site">Skip ↦</button>
+
+<script>
+/* No autoplay-with-sound: the Play click is the user gesture that unlocks
+   audio in every browser. Skip and the film ending both open the site; a
+   video error never strands the visitor on a black screen. */
+(function () {
+  "use strict";
+  const film = document.getElementById("film");
+  const gate = document.getElementById("gate");
+  const skip = document.getElementById("skip");
+  const toSite = () => { window.location.href = "index.html"; };
+
+  document.getElementById("start").addEventListener("click", async () => {
+    gate.hidden = true;
+    skip.hidden = false;
+    try {
+      await film.play();
+    } catch (err) {
+      // Autoplay policy or a decode hiccup — expose native controls so the
+      // visitor can start it themselves rather than face a dead frame.
+      film.controls = true;
+    }
+  });
+
+  skip.addEventListener("click", toSite);
+  film.addEventListener("ended", toSite);
+  film.addEventListener("error", toSite);
+  // Escape always skips.
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") toSite(); });
+})();
+</script>
+</body>
+</html>

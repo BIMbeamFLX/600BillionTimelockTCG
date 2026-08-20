@@ -1772,6 +1772,33 @@ test("already-compressed formats are served as they are", async (t) => {
   assert.ok(png.headers.etag, "but it still revalidates");
 });
 
+test("binary assets answer byte-range requests, so a <video> plays and can seek", async (t) => {
+  /* Safari refuses a <video> whose server does not answer 206 Partial Content,
+   * and the intro page serves a real video. A byte range returns exactly that
+   * slice with Content-Range; a full GET advertises range support; an
+   * unsatisfiable range is refused, not served whole. */
+  const table = await boot(t, "h2b.db");
+  const url = `${table.url}/art/brand/600B-logo-primary.png`;
+
+  const full = await rawGet(url);
+  assert.equal(full.status, 200);
+  assert.equal(full.headers["accept-ranges"], "bytes", "range support is advertised");
+  const size = Number(full.headers["content-length"]);
+
+  const part = await rawGet(url, { range: "bytes=0-99" });
+  assert.equal(part.status, 206, "a range request is Partial Content");
+  assert.equal(part.headers["content-length"], "100");
+  assert.equal(part.body.length, 100, "and exactly the requested slice is sent");
+  assert.equal(part.headers["content-range"], `bytes 0-99/${size}`);
+
+  const suffix = await rawGet(url, { range: "bytes=-50" });
+  assert.equal(suffix.status, 206, "a suffix range is honoured");
+  assert.equal(suffix.body.length, 50);
+
+  const bad = await rawGet(url, { range: `bytes=${size + 10}-` });
+  assert.equal(bad.status, 416, "an unsatisfiable range is refused, not served whole");
+});
+
 test("a TLS deployment advertises the URL an invite must actually carry", async (t) => {
   /* The old builder hardcoded ws:// and the bound port, so behind a reverse
    * proxy every published invite was both mixed-content-blocked and aimed at a
@@ -2103,7 +2130,11 @@ test("every match a connection sits at issues its own seat credential", async (t
   t.after(() => back.close());
   back.send({ t: "RESUME", matchId: second.matchId, token: second.token });
   const resumed = await back.type("STATE");
-  assert.equal(resumed.seat, 0);
+  /* WHICHEVER SEAT THE REMATCH DEALT. Both sockets queue at once, so which one
+   * the referee reaches first — and therefore who gets seat 0 — is a genuine
+   * race and never was this test's subject. Pinning it to 0 failed about one run
+   * in eight for a reason that says nothing about credentials. */
+  assert.equal(resumed.seat, second.seat, "the credential must restore the seat it was issued for");
   assert.equal(resumed.matchId, second.matchId);
 });
 
@@ -2122,4 +2153,123 @@ test("hosting twice does not leave an advertised table nobody is sitting at", as
     [second.matchId],
     "the abandoned first table must not still be advertised"
   );
+});
+
+// ------------------------------------------------------- bringing your own Stack
+
+/* A legal 40 built from the real catalog, avoiding the cards this table cannot
+ * resolve (the Stake module is off — D-12), and staying inside §7's three
+ * copies. Two copies of twenty cards is a Stack a player could actually build. */
+function builtStack(count = 40) {
+  const playable = CARDS.filter(
+    (c) => !/stake/i.test(c.type || "") && !/\bStake\b/.test(c.text || "")
+  );
+  const unique = playable.slice(0, Math.ceil(count / 2));
+  const deck = [];
+  while (deck.length < count) deck.push(unique[deck.length % unique.length].id);
+  return deck;
+}
+
+test("a Stack you built is the Stack you are dealt", async (t) => {
+  const table = await boot(t, "t-deck-1.db");
+  const deck = builtStack();
+  const submitted = new Set(deck);
+
+  const a = await table.client();
+  a.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: a.pubkey, deck });
+  const created = await a.type("STATE");
+  const b = await table.client();
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
+  await b.type("STATE");
+  const dealt = await a.type("STATE");
+  assert.equal(dealt.status, "playing", "a brought Stack must still deal a match");
+
+  /* THE CARDS ON THE TABLE ARE THE CARDS THAT WERE SENT. Seat 0's opening hand
+   * is drawn from its own Stack, and this Stack holds 20 distinct cards out of
+   * the whole set — a dealt Stack of seat 0's affinity would spill outside that
+   * list almost immediately, so "every card in hand was submitted" is a real
+   * signal and not a coincidence. */
+  const wallet = dealt.view.zones["0:wallet"] || [];
+  assert.ok(wallet.length > 0, "seat 0 must have been dealt an opening hand");
+  for (const uid of wallet) {
+    const cardId = dealt.view.objects[uid].cardId;
+    assert.ok(submitted.has(cardId), `seat 0 was dealt ${cardId}, which it never submitted`);
+  }
+
+  /* And the referee's own record agrees: the config it handed the engine holds
+   * exactly the submitted multiset, and the Stack is stored so an open table
+   * that outlives a restart still deals the deck its host chose. */
+  const row = table.db
+    .prepare("SELECT config_json, seat0_deck FROM matches WHERE match_id=?")
+    .get(created.matchId);
+  const config = JSON.parse(row.config_json);
+  assert.deepEqual(
+    config.seats[0].deck.slice().sort(),
+    deck.slice().sort(),
+    "the engine was given a different Stack than the one submitted"
+  );
+  assert.deepEqual(JSON.parse(row.seat0_deck).slice().sort(), deck.slice().sort());
+
+  // The opponent asked for nothing, so the referee dealt them one as always.
+  assert.equal(config.seats[1].deck, undefined, "a seat that brought no Stack must still be dealt one");
+});
+
+test("an illegal Stack is refused, never quietly replaced", async (t) => {
+  const table = await boot(t, "t-deck-2.db");
+  const legal = builtStack();
+
+  const tooFew = await table.client();
+  tooFew.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: tooFew.pubkey, deck: legal.slice(0, 39) });
+  const short = await tooFew.type("ERROR");
+  assert.equal(short.code, "BAD_DECK", "39 cards is not a Stack (§7)");
+  assert.match(short.message, /40/);
+
+  const tooMany = await table.client();
+  tooMany.send({
+    t: "CREATE", name: "felix", affinity: "Power", pubkey: tooMany.pubkey,
+    deck: Array(40).fill(legal[0]),
+  });
+  assert.equal((await tooMany.type("ERROR")).code, "BAD_DECK", "40 copies of one card is not a Stack");
+
+  const unknown = await table.client();
+  unknown.send({
+    t: "CREATE", name: "felix", affinity: "Power", pubkey: unknown.pubkey,
+    deck: legal.slice(0, 39).concat(["E1-NOT-A-CARD"]),
+  });
+  assert.equal((await unknown.type("ERROR")).code, "BAD_DECK", "a card that does not exist is not dealt");
+
+  const huge = await table.client();
+  huge.send({
+    t: "CREATE", name: "felix", affinity: "Power", pubkey: huge.pubkey,
+    deck: Array(4000).fill(legal[0]),
+  });
+  assert.equal((await huge.type("ERROR")).code, "BAD_DECK", "a decklist is not a payload");
+
+  const notAList = await table.client();
+  notAList.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: notAList.pubkey, deck: "E1-001" });
+  assert.equal((await notAList.type("ERROR")).code, "BAD_DECK", "a string is not a Stack");
+});
+
+test("a built Stack waits for another built Stack, not for a dealt one", async (t) => {
+  const table = await boot(t, "t-deck-3.db");
+  const deck = builtStack();
+
+  // One player brings a Stack; one asks the referee to deal. They must not pair.
+  const custom = await table.client();
+  custom.send({ t: "QUEUE", name: "felix", affinity: "Power", deck });
+  await custom.type("QUEUED");
+
+  const ready = await table.client();
+  ready.send({ t: "QUEUE", name: "anna", affinity: "Signal" });
+  const stillWaiting = await ready.type("QUEUED");
+  assert.ok(stillWaiting, "a Ready player must not be dealt against a built Stack");
+
+  // A second built Stack pairs with the first immediately.
+  const custom2 = await table.client();
+  custom2.send({ t: "QUEUE", name: "bob", affinity: "Keys", deck });
+  const dealt = await custom2.type("STATE");
+  assert.equal(dealt.status, "playing", "two built Stacks must find each other");
+
+  const partner = await custom.type("STATE");
+  assert.equal(partner.matchId, dealt.matchId, "and they must be at the same table");
 });
