@@ -9,6 +9,7 @@ const lnd = require("./lnd.js");
 const { createBeacon } = require("./beacon.js");
 const lnurl = require("./lnurl.js");
 const { toPubkeyHex } = require("./lnurl.js");
+const nip98 = require("./nip98.js");
 const { createFunding } = require("./funding.js");
 
 const REPO = path.resolve(__dirname, "..");
@@ -212,6 +213,8 @@ function createNutftMint(options = {}) {
   if (salesMode === "allowlist" && !allowlist.size) {
     throw new Error("NUTFT_SALES=allowlist with an empty NUTFT_ALLOWLIST would sell to nobody; set the list or use closed");
   }
+  /* One proof, one request, for as long as a proof stays fresh. */
+  const seenAuth = nip98.createSeenStore(nip98.DEFAULT_MAX_AGE);
 
   const priceMsat = priceFor(0);
   const paidMint = Boolean(funding);
@@ -359,21 +362,32 @@ function createNutftMint(options = {}) {
      wallet-driven LNURL path, which cannot sign a nostr event — so while the
      box is gated that path refuses rather than quietly letting anyone through
      the side door. */
-  function requireMayBuy(buyer) {
+  /* `proof` is a NIP-98 Authorization header, not a name the caller chose. The
+     first version of this read the pubkey out of the request body, which proved
+     nothing whatsoever — anyone could send a listed key and walk through. */
+  function requireMayBuy(proof) {
     if (salesMode === "open") return;
     if (salesMode === "closed") {
       throw new Error("the box is not open yet — boosters are not on sale");
     }
-    if (!buyer) {
-      throw new Error("early access: sign in with your nostr key to buy a booster");
+    if (!proof || !proof.header) {
+      throw new Error("early access: sign the request with your nostr key to buy a booster");
     }
-    if (!allowlist.has(String(buyer).toLowerCase())) {
+    const checked = nip98.verify(proof.header, {
+      method: proof.method,
+      path: proof.path,
+      host: proof.host,
+      seen: seenAuth,
+    });
+    if (!checked.ok) throw new Error(`early access: ${checked.reason}`);
+    if (!allowlist.has(checked.pubkey)) {
       throw new Error("early access: this key is not on the list yet");
     }
+    return checked.pubkey;
   }
 
   async function payableQuote(opts = {}) {
-    requireMayBuy(opts.buyer);
+    requireMayBuy(opts.proof);
     const base = await quote();
     /* Read once, here, and used for the invoice, the record and the reply — so
        the three can never disagree about what this booster costs. */
@@ -526,19 +540,48 @@ function createNutftMint(options = {}) {
     };
   }
 
-  async function signBooster(body) {
-    /* Gated here too. The quote check stops an invoice being created; this stops
-       a pack being issued against one that already exists — a quote handed out
-       before the box was gated must not still be claimable afterwards. */
-    requireMayBuy(body && body.buyer);
+  /* Deliberately NOT gated on a live credential. The gate belongs on issuance:
+     an unlisted buyer never obtains a payable invoice, so an invoice that exists
+     was obtained by a listed one, and the settled payment row carries that fact
+     forward. Re-checking here would confiscate a legitimately issued, already
+     paid invoice the moment a list changed — taking money and refusing the
+     cards, which is the one outcome worth designing against. It also removes a
+     membership oracle: the old check ran before anything else, so one
+     unauthenticated request could test whether any key was on the list. */
+  async function signBooster(body, proof) {
     const keyset = await ready;
     if (typeof body.idempotency_key !== "string" || !body.idempotency_key) throw new Error("booster idempotency_key is required");
+    /* Over the body alone. The NIP-98 proof is deliberately a separate argument
+       and never part of this hash: it carries a fresh signature every time, so
+       folding it in would give a retried request a different fingerprint, and
+       the idempotency check would then reject the buyer's own second attempt
+       after a dropped connection. Authentication is not part of what was asked
+       for — which is also why it must never be read out of the body. */
     const requestHash = crypto.createHash("sha256").update(canonical(body)).digest("hex");
     const previous = getOperation("booster", body.idempotency_key);
     if (previous) {
       if (previous.requestHash !== requestHash) throw new Error("idempotency_key was already used for a different booster");
       return previous.result;
     }
+    /* On a PAID mint the sales gate is deliberately NOT checked in this
+       function. The settled invoice required below IS the entitlement: it was
+       issued while the buyer was allowed to buy, and they paid for it. Checking
+       again here would mean that closing the box — or editing the allowlist —
+       confiscates a pack somebody had already paid for. Taking the money and
+       refusing the cards is the one outcome worth designing against, and it is
+       exactly what the earlier version of this check did.
+
+       A FREE mint has no such receipt: requirePaidFor returns immediately when
+       paidMint is false, so there the claim IS the sale and this is the only
+       place a gate can stand. It runs before any other work, so a closed free
+       mint gives nothing away — not even whether a pack is still available.
+
+       Idempotent replays above are intentionally allowed through: they return a
+       pack that was already issued, and refusing to re-answer for something we
+       already handed over would only lose a buyer their cards to a dropped
+       connection. */
+    if (!paidMint) requireMayBuy(proof);
+
     /* A sealed sale is signed against the block it committed to. Resolving
        against anything else would hand over a different pack than the one the
        chain determined, which is the whole property being sold. */
@@ -555,6 +598,7 @@ function createNutftMint(options = {}) {
        cannot learn whether a pack is still available without paying, and so a
        stale quote is rejected before an invoice is ever consumed. */
     await requirePaidFor(expected, body.payment_hash);
+
     if (!Array.isArray(body.outputs) || body.outputs.length !== expected.cards.length) throw new Error("one output is required per card");
     for (let i = 0; i < expected.cards.length; i += 1) validateOutput(body.outputs[i], reference(expected.cards[i].asset_id), keyset.keysetId);
 
@@ -619,6 +663,18 @@ function createNutftMint(options = {}) {
     return result;
   }
 
+  /* Bind a NIP-98 proof to the method and path of THIS request, so a signature
+     for one endpoint can never be presented at another. The host comes from the
+     mint's own configured public base, not the request's Host header, which is
+     attacker-controlled behind a proxy — and is left unchecked when the mint has
+     no configured base, since guessing it wrong would lock out every buyer. */
+  const proofFrom = (req, url, method) => ({
+    header: (req.headers && (req.headers.authorization || req.headers.Authorization)) || "",
+    method,
+    path: url.pathname,
+    host: publicBase ? new URL(publicBase).host : null,
+  });
+
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
@@ -642,7 +698,9 @@ function createNutftMint(options = {}) {
       if (req.method === "GET" && url.pathname === "/nutft/state") {
         return json(res, 200, { unit: collectionId, state: current(), census_sha256: census.census_sha256, next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs, tier_odds: tierOdds, remaining: state.counts });
       }
-      if (req.method === "GET" && url.pathname === "/nutft/quote") return json(res, 200, await payableQuote());
+      if (req.method === "GET" && url.pathname === "/nutft/quote") {
+        return json(res, 200, await payableQuote({ proof: proofFrom(req, url, "GET") }));
+      }
       /* LUD-06 step 1: what a wallet reads when it scans the QR. */
       if (req.method === "GET" && url.pathname === "/nutft/lnurlp") {
         if (!paidMint) return json(res, 200, lnurl.error("this mint is free — no payment is needed"));
@@ -690,7 +748,13 @@ function createNutftMint(options = {}) {
       if (req.method === "GET" && url.pathname === "/nutft/reveal") {
         return json(res, 200, await revealFor(url.searchParams.get("payment_hash") || ""));
       }
-      if (req.method === "POST" && url.pathname === "/nutft/booster") return json(res, 200, await signBooster(await readBody(req)));
+      if (req.method === "POST" && url.pathname === "/nutft/booster") {
+        /* The proof rides on the header, never in the body. A body field would
+           be the same mistake as before: something the caller writes rather
+           than something they prove. It is only consulted on a free mint —
+           signBooster explains why a paid one must not re-check. */
+        return json(res, 200, await signBooster(await readBody(req), proofFrom(req, url, "POST")));
+      }
       return json(res, 404, { error: "not found" });
     } catch (error) {
       return json(res, 400, { error: error.message });

@@ -122,9 +122,12 @@
   async function submitPending(state, c, keyset) {
     const pending = state.pending;
     const path = pending.type === "booster" ? "/nutft/booster" : "/nutft/trade";
-    const response = await fetch(`${pending.mintUrl}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pending.body) });
+    /* Signed only if the mint refuses without one, and retried BEFORE the
+       pending is discarded below — an early-access refusal must never cost a
+       buyer their outputs, least of all on a mint they have already paid. */
+    const response = await postSigned(`${pending.mintUrl}${path}`, pending.body);
     if (!response.ok) {
-      const detail = (await response.json()).error || `mint refused ${pending.type} (${response.status})`;
+      const detail = response.detail || `mint refused ${pending.type} (${response.status})`;
       if (AWAITING_PAYMENT.test(detail)) {
         /* Keep the pending exactly as it is. The same outputs must be resubmitted
            once the invoice settles, and the idempotency key makes that safe. */
@@ -167,6 +170,101 @@
     }
   }
 
+  /* NIP-98: prove to the mint that we hold a key it will recognise.
+   *
+   * Only used when the mint refuses an anonymous request — see requestQuote.
+   * Signing every purchase would pop the extension on every booster and hand
+   * the mint an identity it does not need for an open sale. Early access is the
+   * one case where the mint genuinely has to know who is asking. */
+  async function nip98Header(url, method) {
+    const signer = root.nostr;
+    if (!signer || typeof signer.signEvent !== "function") return null;
+    const unsigned = {
+      kind: 27235,
+      created_at: Math.floor(Date.now() / 1000),
+      content: "",
+      tags: [["u", url], ["method", method]],
+    };
+    const signed = await signer.signEvent(unsigned);
+    if (!signed || !signed.sig) return null;
+    /* btoa is byte-wise; a non-ASCII byte anywhere in the event would throw.
+       Encode as UTF-8 first so the header survives any content the signer adds. */
+    const bytes = new TextEncoder().encode(JSON.stringify(signed));
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return `Nostr ${root.btoa(binary)}`;
+  }
+
+  /* Ask for a quote anonymously, and only reach for the signer if the mint says
+     this is an early-access sale. The mint's own words are carried through on
+     failure: "this key is not on the list yet" tells a buyer what to do, where
+     a bare 403 tells them nothing. */
+  async function requestQuote(mintUrl) {
+    const target = new URL(`${mintUrl}/nutft/quote`, root.location ? root.location.href : undefined).href;
+    const read = async (response) => {
+      if (response.ok) return { quote: await response.json() };
+      let reason = `booster quote unavailable (${response.status})`;
+      try {
+        const body = await response.json();
+        if (body && body.error) reason = body.error;
+      } catch { /* not JSON: keep the status line */ }
+      return { reason };
+    };
+
+    let attempt = await read(await fetch(target));
+    if (attempt.quote) return attempt.quote;
+
+    if (/early access/i.test(attempt.reason)) {
+      let header = null;
+      try {
+        header = await nip98Header(target, "GET");
+      } catch {
+        throw new Error("early access: your nostr extension did not sign the request");
+      }
+      if (!header) throw new Error(earlyAccessAdvice(attempt.reason));
+      attempt = await read(await fetch(target, { headers: { Authorization: header } }));
+      if (attempt.quote) return attempt.quote;
+    }
+    throw new Error(attempt.reason);
+  }
+
+  /* POST a body, and if the mint answers "early access", sign a NIP-98 proof
+     and send it once more. The mint's own words are carried through: they tell a
+     buyer whether to install an extension, switch keys, or simply wait. */
+  async function postSigned(target, body) {
+    const url = new URL(target, root.location ? root.location.href : undefined).href;
+    const send = (header) => fetch(url, {
+      method: "POST",
+      headers: header
+        ? { "content-type": "application/json", Authorization: header }
+        : { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const first = await send(null);
+    if (first.ok) return first;
+    let detail = "";
+    try { detail = (await first.json()).error || ""; } catch { /* not JSON */ }
+    if (!/early access/i.test(detail)) return { ok: false, status: first.status, detail };
+
+    let header = null;
+    try { header = await nip98Header(url, "POST"); } catch { header = null; }
+    if (!header) {
+      return { ok: false, status: first.status, detail: earlyAccessAdvice(detail) };
+    }
+    const second = await send(header);
+    if (second.ok) return second;
+    let retried = "";
+    try { retried = (await second.json()).error || ""; } catch { /* not JSON */ }
+    return { ok: false, status: second.status, detail: retried || detail };
+  }
+
+  const earlyAccessAdvice = (detail) =>
+    /sign the request/i.test(detail)
+      ? "early access: this sale is open to a few keys first — install a nostr extension "
+        + "and sign in with a key that is on the list"
+      : detail;
+
   async function buyBoosterUnlocked(mintUrl, opts = {}) {
     const c = await cashu();
     let state = await identity(c);
@@ -175,9 +273,7 @@
       return awaitSettlement(state, c, keysetForPending, opts);
     }
     const keyset = await getKeyset(mintUrl, c);
-    const quoteResponse = await fetch(`${mintUrl}/nutft/quote`);
-    if (!quoteResponse.ok) throw new Error(`booster quote unavailable (${quoteResponse.status})`);
-    const quote = await quoteResponse.json();
+    const quote = await requestQuote(mintUrl);
     const outputs = quote.cards.map((card) => c.OutputData.createSingleP2PKData({
       pubkey: state.pubkey,
       blindKeys: true,

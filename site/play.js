@@ -689,7 +689,15 @@
     const icon = tone === "impact" ? "⚡" : tone === "gain" ? "▲" : tone === "action" ? "◆" : "·";
     const FX = globalThis.E1FX;
     const reducedMotion = FX && typeof FX.get === "function" && FX.get().motionActive === "reduced";
-    const node = el("div", `action-burst ${tone}${reducedMotion ? " reduced" : ""}`, `${icon} ${label}`);
+    /* Which lane this belongs in. The announcements sit beside the player who
+       caused them rather than over the board, so the seat has to travel with the
+       burst — and a line nobody caused (a phase marker) gets its own corner
+       instead of being attributed to whoever happened to be acting. */
+    const mySeat = session.seat === null || session.seat === undefined ? 0 : session.seat;
+    const lane = event.seat === 0 || event.seat === 1
+      ? (event.seat === mySeat ? "seat-you" : "seat-foe")
+      : "seat-none";
+    const node = el("div", `action-burst ${tone} ${lane}${reducedMotion ? " reduced" : ""}`, `${icon} ${label}`);
     /* Kampfansage: the announcement carries the face of whoever made the move,
      * so a hit reads as a person doing something rather than a line of log. The
      * portrait is PREPENDED, which is safe here — the direct-children and
