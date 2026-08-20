@@ -205,3 +205,130 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   assert.equal((await fetch(`${base}/v1/checkstate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys: "not-an-array" }) })).status, 400);
   assert.equal((await fetch(`${base}/nutft/booster`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pack_id: quote.pack_id, state: quote.state, outputs: [] }) })).status, 400);
 });
+
+test("a paid mint sells nothing until the invoice actually settles", async (t) => {
+  // The demo minted a full pack for free. With a funding source configured the
+  // signatures must be unreachable until lnd says the invoice settled — and one
+  // settled invoice must buy exactly one pack.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+
+  const settled = new Set();
+  let issued = 0;
+  const fakeLnd = { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 1000 };
+  const lndModule = require("../../server/lnd.js");
+  const realCreate = lndModule.createInvoice;
+  const realSettled = lndModule.isSettled;
+  lndModule.createInvoice = async () => {
+    issued += 1;
+    const hash = "aa".repeat(16) + String(issued).padStart(32, "0");
+    return { paymentRequest: `lnbc-fake-${issued}`, paymentHash: hash };
+  };
+  lndModule.isSettled = async (_config, hash) => settled.has(hash);
+  t.after(() => { lndModule.createInvoice = realCreate; lndModule.isSettled = realSettled; });
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({ db, catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000 });
+
+  const hit = async (method, path, body) => {
+    const out = { code: 0, body: null };
+    const res = { writeHead(c) { out.code = c; return res; }, end(b) { out.body = b ? JSON.parse(b) : null; } };
+    await mint.handle({ method, on: () => {}, setEncoding: () => {} }, res, new URL(`http://x${path}`));
+    return out;
+  };
+
+  const info = await hit("GET", "/v1/info");
+  assert.equal(info.body.nuts["31"].paid, true, "the mint advertises that it charges");
+  assert.equal(info.body.nuts["31"].price_msat, 21000);
+
+  const quote = await hit("GET", "/nutft/quote");
+  assert.equal(quote.code, 200);
+  assert.equal(quote.body.paid, true);
+  assert.equal(quote.body.price_msat, 21000);
+  assert.ok(quote.body.payment_request, "the quote carries an invoice to pay");
+  assert.match(quote.body.payment_hash, /^[0-9a-f]{64}$/);
+  assert.equal(quote.body.cards.length, 7);
+
+  // Unpaid: the mint must refuse before it signs anything.
+  const unpaidBody = { idempotency_key: "k1", pack_id: quote.body.pack_id, state: quote.body.state, payment_hash: quote.body.payment_hash, outputs: [] };
+  await assert.rejects(() => mint.signBooster(unpaidBody), /not settled/i, "an unsettled invoice buys nothing");
+
+  // A payment_hash the mint never issued.
+  await assert.rejects(
+    () => mint.signBooster({ ...unpaidBody, payment_hash: "bb".repeat(32) }),
+    /unknown payment_hash/i,
+    "a made-up payment hash is refused",
+  );
+
+  // Missing entirely.
+  await assert.rejects(
+    () => mint.signBooster({ idempotency_key: "k2", pack_id: quote.body.pack_id, state: quote.body.state, outputs: [] }),
+    /payment_hash is required/i,
+    "no payment hash at all is refused",
+  );
+});
+
+test("one settled invoice buys exactly one pack, and never a second", async (t) => {
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+
+  const settled = new Set();
+  let issued = 0;
+  const lndModule = require("../../server/lnd.js");
+  const realCreate = lndModule.createInvoice;
+  const realSettled = lndModule.isSettled;
+  lndModule.createInvoice = async () => {
+    issued += 1;
+    return { paymentRequest: `lnbc-fake-${issued}`, paymentHash: String(issued).padStart(64, "c") };
+  };
+  lndModule.isSettled = async (_c, hash) => settled.has(hash);
+  t.after(() => { lndModule.createInvoice = realCreate; lndModule.isSettled = realSettled; });
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, catalogUri: "http://127.0.0.1/nutft/catalog",
+    lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 1000 },
+    priceMsat: 21000,
+  });
+
+  const keysRes = { writeHead() { return keysRes; }, end(b) { keysRes.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET" }, keysRes, new URL("http://x/v1/keys"));
+  const keyset = keysRes.parsed.keysets[0];
+  const pubkey = hex(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey()));
+
+  const quote = await mint.payableQuote();
+  const outputsFor = (qq) => qq.cards.map((card) => cashu.OutputData.createSingleP2PKData({
+    pubkey, blindKeys: true,
+    additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+  }, 1, keyset.id));
+  const bodyFor = (qq, outs, key, hash) => ({
+    idempotency_key: key, pack_id: qq.pack_id, state: qq.state, payment_hash: hash,
+    outputs: outs.map((o) => ({ amount: 1, id: o.blindedMessage.id, B_: o.blindedMessage.B_, nutft: opening(o) })),
+  });
+
+  // The buyer pays.
+  settled.add(quote.payment_hash);
+  const outs = outputsFor(quote);
+  const result = await mint.signBooster(bodyFor(quote, outs, "buy-1", quote.payment_hash));
+  assert.equal(result.signatures.length, 7, "a settled invoice mints the whole pack");
+  assert.equal(result.unit, "600B-E1");
+
+  // The same settled invoice must not buy the next pack too.
+  const second = await mint.payableQuote();
+  assert.notEqual(second.pack_id, quote.pack_id, "the box advanced");
+  await assert.rejects(
+    () => mint.signBooster(bodyFor(second, outputsFor(second), "buy-2", quote.payment_hash)),
+    /different pack|already been claimed/i,
+    "a spent invoice cannot be replayed against the next pack",
+  );
+
+  // And an invoice quoted for a pack that has since passed is refused too.
+  settled.add(second.payment_hash);
+  await assert.rejects(
+    () => mint.signBooster(bodyFor(quote, outputsFor(quote), "buy-3", second.payment_hash)),
+    /stale booster quote|different pack/i,
+    "an invoice cannot be aimed at a pack it was not quoted for",
+  );
+});

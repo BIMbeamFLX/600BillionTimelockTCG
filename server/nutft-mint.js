@@ -5,6 +5,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { schnorr } = require("@noble/curves/secp256k1");
 const { censusHash, hashParts, loadCensus, openPack } = require("./nutft-draw.js");
+const lnd = require("./lnd.js");
 
 const REPO = path.resolve(__dirname, "..");
 const CENSUS_PATH = path.join(REPO, "cards", "nutft-census.json");
@@ -82,6 +83,17 @@ function createNutftMint(options = {}) {
     db.exec(`
       CREATE TABLE IF NOT EXISTS nutft_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS nutft_spent (y TEXT PRIMARY KEY);
+      /* An invoice is bound to the pack it was quoted for. Without that binding
+         one settled payment could be replayed against whatever pack happens to
+         be next, which is the same card bought twice for one price. */
+      CREATE TABLE IF NOT EXISTS nutft_invoices (
+        payment_hash TEXT PRIMARY KEY,
+        pack_id      TEXT NOT NULL,
+        state        TEXT NOT NULL,
+        amount_msat  INTEGER NOT NULL,
+        claimed      INTEGER NOT NULL DEFAULT 0,
+        created_at   TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS nutft_operations (
         type TEXT NOT NULL,
         operation_key TEXT NOT NULL,
@@ -97,6 +109,9 @@ function createNutftMint(options = {}) {
       putSpent: db.prepare("INSERT INTO nutft_spent (y) VALUES (?)"),
       operation: db.prepare("SELECT request_hash, response_json FROM nutft_operations WHERE type = ? AND operation_key = ?"),
       putOperation: db.prepare("INSERT INTO nutft_operations (type, operation_key, request_hash, response_json) VALUES (?, ?, ?, ?)"),
+      invoice: db.prepare("SELECT * FROM nutft_invoices WHERE payment_hash = ?"),
+      putInvoice: db.prepare("INSERT OR REPLACE INTO nutft_invoices (payment_hash, pack_id, state, amount_msat, claimed, created_at) VALUES (?, ?, ?, ?, 0, ?)"),
+      claimInvoice: db.prepare("UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0"),
     };
   }
   const getMeta = (key) => db ? q.meta.get(key)?.value : memory.meta.get(key);
@@ -124,6 +139,14 @@ function createNutftMint(options = {}) {
   const storedState = getMeta("state");
   const state = storedState ? JSON.parse(storedState) : { counts: { ...catalog.counts }, nextPack: 1, state: initialCommitment };
   if (!storedState) putMeta("state", JSON.stringify(state));
+  /* Lightning. With no LND_REST_URL there is no funding source and the mint
+     stays exactly as it is today: free, and honest about being a demo. Wiring a
+     node in is what turns it into a shop, and nothing else changes. */
+  const lndConfig = options.lnd === null ? null : (options.lnd || lnd.readConfig(options.lndOptions || {}));
+  const priceMsat = Number(options.priceMsat || process.env.NUTFT_PRICE_MSAT || 21000);
+  if (lndConfig && !(priceMsat > 0)) throw new Error("NUTFT_PRICE_MSAT must be a positive number of msat");
+  const paidMint = Boolean(lndConfig);
+
   const mintSeed = Buffer.from(getOrCreate("mint_seed", () => crypto.randomBytes(32).toString("hex")), "hex");
   const catalogPrivateKey = Buffer.from(getOrCreate("catalog_private_key", () => crypto.randomBytes(32).toString("hex")), "hex");
   let cashu;
@@ -173,7 +196,7 @@ function createNutftMint(options = {}) {
     }
   };
 
-  function quote() {
+  async function quote() {
     const id = packId();
     const counts = { ...state.counts };
     const paid = openPack(counts, catalog.pools, catalog.slots, beacon, id);
@@ -189,6 +212,35 @@ function createNutftMint(options = {}) {
       catalog_uri: catalogUri,
       beacon,
     };
+  }
+
+  /* A quote the buyer can actually pay. The invoice is bound to this pack id,
+     so a settled payment buys the pack it was quoted for and no other. */
+  async function payableQuote() {
+    const base = await quote();
+    if (!paidMint) return { ...base, price_msat: 0, paid: false };
+    const { paymentRequest, paymentHash } = await lnd.createInvoice(lndConfig, {
+      amountMsat: priceMsat,
+      memo: `600B booster ${base.pack_id}`,
+    });
+    if (q) q.putInvoice.run(paymentHash, base.pack_id, base.state, priceMsat, new Date().toISOString());
+    return { ...base, paid: true, price_msat: priceMsat, payment_request: paymentRequest, payment_hash: paymentHash };
+  }
+
+  /* Settlement is checked against lnd, never trusted from the request, and the
+     row is claimed with a conditional UPDATE so two racing requests cannot both
+     see claimed = 0 and both get a pack for one payment. */
+  async function requirePaidFor(expected, paymentHash) {
+    if (!paidMint) return;
+    if (typeof paymentHash !== "string") throw new Error("payment_hash is required to buy a booster");
+    if (!/^[0-9a-f]{64}$/i.test(paymentHash)) throw new Error("payment_hash must be 32-byte hex");
+    const row = q ? q.invoice.get(paymentHash) : null;
+    if (!row) throw new Error("unknown payment_hash: quote the booster first");
+    if (row.pack_id !== expected.pack_id) throw new Error("this invoice was quoted for a different pack");
+    if (row.claimed) throw new Error("this invoice has already been claimed");
+    if (!(await lnd.isSettled(lndConfig, paymentHash))) throw new Error("invoice is not settled yet");
+    const claim = q.claimInvoice.run(paymentHash);
+    if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
   }
 
   function parseNutftSecret(secret, p2pkE) {
@@ -246,8 +298,12 @@ function createNutftMint(options = {}) {
       if (previous.requestHash !== requestHash) throw new Error("idempotency_key was already used for a different booster");
       return previous.result;
     }
-    const expected = quote();
+    const expected = await quote();
     if (body.pack_id !== expected.pack_id || body.state !== expected.state) throw new Error("stale booster quote");
+    /* Money before signatures. Checked here rather than at the top so a caller
+       cannot learn whether a pack is still available without paying, and so a
+       stale quote is rejected before an invoice is ever consumed. */
+    await requirePaidFor(expected, body.payment_hash);
     if (!Array.isArray(body.outputs) || body.outputs.length !== expected.cards.length) throw new Error("one output is required per card");
     for (let i = 0; i < expected.cards.length; i += 1) validateOutput(body.outputs[i], reference(expected.cards[i].asset_id), keyset.keysetId);
 
@@ -315,7 +371,7 @@ function createNutftMint(options = {}) {
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
+        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceMsat : 0, catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && url.pathname === "/v1/checkstate") {
@@ -335,7 +391,7 @@ function createNutftMint(options = {}) {
       if (req.method === "GET" && url.pathname === "/nutft/state") {
         return json(res, 200, { unit: collectionId, state: current(), census_sha256: census.census_sha256, next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs, tier_odds: tierOdds, remaining: state.counts });
       }
-      if (req.method === "GET" && url.pathname === "/nutft/quote") return json(res, 200, quote());
+      if (req.method === "GET" && url.pathname === "/nutft/quote") return json(res, 200, await payableQuote());
       if (req.method === "POST" && url.pathname === "/nutft/booster") return json(res, 200, await signBooster(await readBody(req)));
       return json(res, 404, { error: "not found" });
     } catch (error) {
@@ -343,7 +399,9 @@ function createNutftMint(options = {}) {
     }
   }
 
-  return { handle, catalogUri, collectionId, initialCommitment, state };
+  /* signBooster and payableQuote are exported so the payment gate can be
+     tested directly, without standing up an HTTP server and an lnd. */
+  return { handle, catalogUri, collectionId, initialCommitment, state, signBooster, payableQuote, paidMint };
 }
 
 module.exports = { assetBinding, canonical, createNutftMint };
