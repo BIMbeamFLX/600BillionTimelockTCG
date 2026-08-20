@@ -270,7 +270,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
           <option value="id">Sort: set number</option>
           <option value="cost">Sort: cost, cheapest first</option>
           <option value="name">Sort: name A–Z</option>
-          <option value="rarity">Sort: rarity, rare first</option>
+          <option value="rarity">Sort: rarity, rarest first</option>
           <option value="type">Sort: card type</option>
         </select>
         <button class="chip" id="inStackChip" type="button" aria-pressed="false" hidden>In Stack</button>
@@ -310,7 +310,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     </div>
     <div class="note"><b>Tap or click</b> a card to add a copy. <b>The − on the card</b> (or the − in this
     list) takes one back. <b>Right click</b> on a desktop, <b>press and hold</b> on a phone, opens the card.
-    Basic Resources are uncapped; other cards allow three copies (§7). OG additionally limits copies to verified NutFT ownership — except Basic Resources, which stay free there too. Saved Stacks appear as options on the
+    Basic Resources are uncapped, Genesis cards allow one copy, everything else three (§7). OG additionally limits copies to verified NutFT ownership — except Basic Resources, which stay free there too. Saved Stacks appear as options on the
     <a href="play.html">Play</a> page for both seats — hotseat and vs NPC.</div>
     <div class="saved">
       <h3>Starter library</h3>
@@ -426,7 +426,25 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   const AFFINITIES = ["Power", "Bitcoin", "Keys", "Signal", "Timelock", "Neutral"];
   const AFF_ICON = { Power: "power", Bitcoin: "bitcoin", Keys: "keys", Signal: "signal", Timelock: "timelock" };
   const AFF_ACCENT = { Power: "#F3C244", Bitcoin: "#F7931A", Keys: "#FFF7EC", Signal: "#7447B8", Timelock: "#17BEBB", Neutral: "#8A8F98" };
-  const RARITY_RANK = { common: 0, uncommon: 1, rare: 2 };
+  /* THE WHOLE RARITY LADDER, rarest last. It used to list three tiers, from
+   * back when the set had three; the scored re-tier added basic, vault and
+   * genesis, and every one of them fell through the old `?? 9` fallback to the
+   * bottom of a sort named for rarity — so "rarest first" put Genesis and Vault
+   * below every common. `promo` shares rare's rank, as it does in shop.js; it
+   * is not printed in E1 but the shop ladder knows it.
+   *
+   * rarityRank() is a DIRECT index that throws, because a tier this page has
+   * not been told about is a disagreement with the catalog, and quietly
+   * defaulting it is exactly the bug above. It is called once per card while
+   * INDEX is built, so an unknown tier surfaces at boot with a name attached
+   * rather than as a mis-ordered bench nobody notices. */
+  const RARITY_RANK = { basic: 0, common: 1, uncommon: 2, rare: 3, promo: 3, vault: 4, genesis: 5 };
+  const rarityRank = (rarity) => {
+    if (!(rarity in RARITY_RANK)) {
+      throw new Error(`unknown rarity "${rarity}" — add it to RARITY_RANK in deck.html`);
+    }
+    return RARITY_RANK[rarity];
+  };
   const PIPS = ["P", "B", "K", "S", "T"];
   const BUCKET_ORDER = ["—", "0", "1", "2", "3", "4", "5", "6+"];
 
@@ -444,6 +462,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     const keywords = (c.keywords || []).map((k) => (typeof k === "string" ? k : k && k.name) || "").join(" ");
     INDEX.set(c.id, {
       cv,
+      rank: rarityRank(c.rarity),
       bucket: cv === null ? "—" : cv >= 6 ? "6+" : String(cv),
       typeLine: c.subtype ? `${c.type} — ${c.subtype}` : c.type,
       stake: isStake(c),
@@ -456,7 +475,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 
   // The real facet values, derived from the data — never hard-coded.
   const TYPES = [...new Set(CARDS.map((c) => c.type))].sort();
-  const RARITIES = [...new Set(CARDS.map((c) => c.rarity))].sort((a, b) => (RARITY_RANK[a] ?? 9) - (RARITY_RANK[b] ?? 9));
+  const RARITIES = [...new Set(CARDS.map((c) => c.rarity))].sort((a, b) => rarityRank(a) - rarityRank(b));
   const BUCKETS = BUCKET_ORDER.filter((b) => CARDS.some((c) => INDEX.get(c.id).bucket === b));
 
   const state = {
@@ -465,6 +484,30 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     inStack: false, sort: "id",
   };
   let deck = {}; // cardId -> copies
+
+  /* THIS DUPLICATES site/engine.js copyLimit() (§7) AND MUST CHANGE IN STEP
+   * WITH IT. The engine is the authority: it re-checks every decklist at seat
+   * setup and kills the match with a SCHEMA failure, because a decklist is
+   * untrusted input on every topology. This page cannot call it — it ships
+   * play-data, not the rules — so the rule lives here, in one place, and
+   * nowhere else in this file.
+   *
+   *   Basic Resource   uncapped  — ten in the set, a legal Stack needs 16-18
+   *   genesis          one       — only 21 of each will ever be minted
+   *   everything else  three     — §7, so density is a choice not arithmetic
+   *
+   * The builder refuses the extra copy at the moment it is asked for. Before
+   * this, the only gate was stackProblem() at save time, and a saved Stack with
+   * two Genesis Lotus reached the table and took the match down with it. */
+  const MAX_COPIES = 3;
+  const copyLimit = (card) =>
+    card && card.type === "Basic Resource" ? Infinity
+      : card && card.rarity === "genesis" ? 1
+        : MAX_COPIES;
+  // "maximum 1 copy" / "maximum 3 copies" — the limit is now per-card, so the
+  // sentence has to count.
+  const copiesWord = (limit) => `${limit} cop${limit === 1 ? "y" : "ies"}`;
+
   /* Basic Resources are exempt from ownership, for the same reason §7 exempts
    * them from the copy limit: there are ten in the set and a Stack needs 16-18
    * Resources, so counting them against what you pulled makes a legal Stack
@@ -729,7 +772,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       return (x === null ? -1 : x) - (y === null ? -1 : y) || byName(a, b);
     },
     name: byName,
-    rarity: (a, b) => (RARITY_RANK[b.rarity] ?? -1) - (RARITY_RANK[a.rarity] ?? -1) || byName(a, b),
+    rarity: (a, b) => INDEX.get(b.id).rank - INDEX.get(a.id).rank || byName(a, b),
     type: (a, b) => a.type.localeCompare(b.type) || byName(a, b),
   };
 
@@ -856,6 +899,8 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   function addCard(id) {
     const c = byId[id];
     if (!c || isStake(c)) return;
+    const limit = copyLimit(c);
+    if ((deck[id] || 0) >= limit) { say(`${c.name}: maximum ${copiesWord(limit)} per Stack (§7).`, "bad"); return; }
     if (owned && !ownershipExempt(c) && (deck[id] || 0) >= (owned.get(id) || 0)) { say(`You own ${(owned.get(id) || 0)} verified ${c.name} proof(s).`, "bad"); return; }
     deck[id] = (deck[id] || 0) + 1;
     afterDeckChange();
@@ -999,8 +1044,16 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 
   function paintDialogCopies(id) {
     const copies = deck[id] || 0;
-    dlgCopies.textContent = copies ? `${copies} in Stack` : "not in Stack";
+    /* The reader's Add button carries the copy limit too — addCard() would
+     * refuse anyway, but its refusal is said in the deck pane, which is behind
+     * the dialog. A disabled button is the answer where the click happens. */
+    const limit = copyLimit(byId[id]);
+    const full = copies >= limit;
+    dlgCopies.textContent = !copies ? "not in Stack"
+      : full ? `${copies} in Stack — the maximum`
+        : `${copies} in Stack`;
     dlgRemove.disabled = copies === 0;
+    dlgAdd.disabled = INDEX.get(id).stake || full;
   }
 
   function openCard(id) {
@@ -1050,7 +1103,6 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     flavorEl.textContent = c.flavor || "";
     flavorEl.hidden = !c.flavor;
     document.getElementById("dlgRarity").textContent = idx.stake ? "Stake module — not in E1" : c.rarity;
-    dlgAdd.disabled = idx.stake;
     paintDialogCopies(id);
     if (typeof dlg.showModal === "function") dlg.showModal();
     else dlg.setAttribute("open", "");
@@ -1120,7 +1172,11 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     const n = total();
     if (n < MIN_STACK) return `of ${MIN_STACK} · ${MIN_STACK - n} to go`;
     for (const [id, copies] of Object.entries(deck)) {
-      if (byId[id]?.type !== "Basic Resource" && copies > 3) return `${byId[id].name}: maximum 3 copies`;
+      // addCard() refuses the extra copy, but a Stack can also arrive whole —
+      // ?load=, the handoff key, or a library entry saved under the old flat
+      // cap — so the limit is checked again before it can be saved or played.
+      const limit = copyLimit(byId[id]);
+      if (copies > limit) return `${byId[id].name}: maximum ${copiesWord(limit)}`;
       if (owned && !ownershipExempt(byId[id]) && copies > (owned.get(id) || 0)) return `${byId[id].name}: only ${owned.get(id) || 0} verified proof(s)`;
     }
     return "";

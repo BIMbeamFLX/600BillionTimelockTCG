@@ -26,9 +26,35 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# Copies of each card in one box, by rarity. Commons are the floor of a set; rares are
-# the reason to open another box.
-DEFAULT_PRINT_RUN = {"common": 24, "uncommon": 8, "rare": 3, "promo": 1}
+# Copies of each card in one box, by tier. Deliberately the same table as
+# scripts/build_shop_data.py's PRINT_RUN: the free demo box the shop opens and the box
+# the mint imports have to BE one box, or the odds the shop teaches are not the odds a
+# buyer meets. A review already found that two-different-boxes problem once.
+#
+# The run tracks the mint census' shape (cards/nutft-census.json) rather than a flat
+# curve. Resulting share of the paid pool — basics excluded, as the census excludes them:
+#
+#   common 67.3% / 66.65   uncommon 16.3% / 16.66   rare 15.2% / 15.48
+#   vault    1.0% /  1.05  genesis    0.22% / 0.15
+#
+# Genesis sits 0.07 points high and cannot be lowered: one copy per card is the floor in
+# a box this size.
+#
+# Basic Resources ride at the common count rather than at the tail. The booster plan has
+# them "guaranteed, uncapped and free" and a Stack needs 16-18 of them, so a box where a
+# Basic is scarcer than a Rare is a box nobody can build a Stack from.
+#
+# Indexed directly at the call site, never .get(): an unknown tier must be a loud
+# KeyError at build time, not a card that quietly mints one single copy of itself.
+DEFAULT_PRINT_RUN = {
+    "common": 31,
+    "uncommon": 9,
+    "rare": 7,
+    "vault": 2,
+    "genesis": 1,
+    "basic": 31,
+    "promo": 1,
+}
 
 
 def mulberry32(seed: int):
@@ -90,7 +116,7 @@ def build_box(
         if not face:
             missing.append(card["id"])
             continue
-        copies = print_run.get(card["rarity"], 1)
+        copies = print_run[card["rarity"]]
         entry = {
             "content": genesis_content(card),
             "amount_msat": price_msat,
@@ -137,7 +163,7 @@ def main() -> None:
     parser.add_argument(
         "--print-run",
         default=None,
-        help='override copies per rarity, e.g. \'{"common":24,"uncommon":8,"rare":3}\'',
+        help='override copies per tier, e.g. \'{"common":31,"uncommon":9,"rare":7}\'',
     )
     args = parser.parse_args()
 
@@ -161,12 +187,18 @@ def main() -> None:
     print(f"wrote {args.out}")
     print(f"  {len(cards)} distinct cards -> {len(box)} physical cards in the box")
     for rarity, count in sorted(by_rarity.items()):
-        copies = print_run.get(rarity, 1)
+        copies = print_run[rarity]
         print(f"    {rarity:9} {count:3} cards x {copies:2} copies = {count * copies:5}")
     total_sats = len(box) * args.price_msat // 1000
     print(f"  price {args.price_msat} msat/card -> full box {total_sats:,} sats")
-    rare_copies = by_rarity.get("rare", 0) * print_run.get("rare", 1)
-    print(f"  pull odds: rare {100 * rare_copies / len(box):.1f}%")
+    # Every tier, not just rare: the two tiers people actually chase are Vault and
+    # Genesis, and a single "rare X%" line is what hid them when the ladder grew.
+    # Two decimals because Genesis lands at 0.20% and would round away at one.
+    odds = ", ".join(
+        f"{rarity} {100 * count * print_run[rarity] / len(box):.2f}%"
+        for rarity, count in sorted(by_rarity.items())
+    )
+    print(f"  pull odds: {odds}")
     print()
     print("  PUBLISH THIS BEFORE SELLING — it commits the box order:")
     print(f"    box-commitment sha256 = {commitment(box)}")

@@ -479,6 +479,11 @@ body { container-type: inline-size; container-name: page; }
     <a href="matchmaking.html">Play online over nostr</a>
     <a href="lore.html">Lore of the world</a>
     <a href="leaderboard.html">Sats leaderboard</a>
+    <!-- intro.html remembers that it has been seen and bounces straight here on
+         a second visit, so a plain link would be a dead end for everyone who
+         has already watched it. ?replay is the flag that plays it anyway, and
+         this row is the only inbound link the film has. -->
+    <a href="intro.html?replay">Watch the intro film</a>
   </p>
 
   <!-- The first "sats" on this page is in the row above, and a word that means
@@ -497,10 +502,10 @@ body { container-type: inline-size; container-name: page; }
   card, drawn in one frame language: circuit traces, corner pads, a steel type banner and a chip
   square for every number.</p>
   <div class="teaser">
-    <figure><img src="../art/cards/node-runner-web/Genesis%20Lotus.webp" alt="Genesis Lotus — a rare neutral Hardware card" width="744" height="1039" loading="lazy" decoding="async"><figcaption>Genesis Lotus · Hardware</figcaption></figure>
+    <figure><img src="../art/cards/node-runner-web/Genesis%20Lotus.webp" alt="Genesis Lotus — a neutral Hardware card at Genesis rarity" width="744" height="1039" loading="lazy" decoding="async"><figcaption>Genesis Lotus · Hardware</figcaption></figure>
     <figure><img src="../art/cards/node-runner-web/Satoshi%20Orchard.webp" alt="Satoshi Orchard — a Bitcoin Basic Resource card" width="744" height="1039" loading="lazy" decoding="async"><figcaption>Satoshi Orchard · Bitcoin</figcaption></figure>
     <figure><img src="../art/cards/node-runner-web/Multisig%20Quorum.webp" alt="Multisig Quorum — a Keys Protocol card" width="744" height="1039" loading="lazy" decoding="async"><figcaption>Multisig Quorum · Keys</figcaption></figure>
-    <figure><img src="../art/cards/node-runner-web/Next%20Block.webp" alt="Next Block — a rare Timelock Operation card" width="744" height="1039" loading="lazy" decoding="async"><figcaption>Next Block · Timelock</figcaption></figure>
+    <figure><img src="../art/cards/node-runner-web/Next%20Block.webp" alt="Next Block — a Timelock Operation card at Vault rarity" width="744" height="1039" loading="lazy" decoding="async"><figcaption>Next Block · Timelock</figcaption></figure>
     <figure><img src="../art/cards/node-runner-web/Firewall%20Tunnel.webp" alt="Firewall Tunnel — a Power Zap card" width="744" height="1039" loading="lazy" decoding="async"><figcaption>Firewall Tunnel · Power</figcaption></figure>
     <figure><img src="../art/cards/node-runner-web/FLX%2C%20Unstoppable%20Rig.webp" alt="FLX, Unstoppable Rig — a Hardware Avatar card" width="744" height="1039" loading="lazy" decoding="async"><figcaption>FLX, Unstoppable Rig · Avatar</figcaption></figure>
   </div>
@@ -550,11 +555,21 @@ body { container-type: inline-size; container-name: page; }
   <p class="lead">Rarity here is copies in a box, exactly like a printed booster box — not a hidden dice
   roll. The box was shuffled once from a published seed, and the SHA-256 over that exact order went out
   before the first pack was opened. Pulls come off the top, so nobody can hold a rare back.</p>
-  <div class="boxfacts">
-    <div class="boxfact"><b>4,535</b><span>cards in the box</span></div>
-    <div class="boxfact"><b>2.98%</b><span>rare</span></div>
-    <div class="boxfact"><b>17.64%</b><span>uncommon</span></div>
+  <!-- These tiles are refilled from globalThis.E1_BOX at the bottom of the page,
+       out of the same shop-data.js the shop reads, so the front door cannot
+       quote one box while the shop sells another. The markup below is the
+       no-JS answer and not a placeholder: it is the box as shop-data.js has it
+       today, correct standing on its own, and it is what a visitor keeps if the
+       script never runs. -->
+  <div class="boxfacts" id="boxfacts">
+    <div class="boxfact"><b>4,456</b><span>cards in the box</span></div>
     <div class="boxfact"><b>5</b><span>cards per pack</span></div>
+    <div class="boxfact"><b>0.20%</b><span>genesis</span></div>
+    <div class="boxfact"><b>0.94%</b><span>vault</span></div>
+    <div class="boxfact"><b>14.14%</b><span>rare</span></div>
+    <div class="boxfact"><b>15.15%</b><span>uncommon</span></div>
+    <div class="boxfact"><b>62.61%</b><span>common</span></div>
+    <div class="boxfact"><b>6.96%</b><span>basic</span></div>
   </div>
   <div class="btn-row"><a class="btn" href="shop.html">Open a free pack</a><a class="btn btn--ghost" href="shop.html?shop=mint">Try the NutFT mint demo</a><a class="btn btn--ghost" href="wallet.html">Open wallet</a></div>
   <p class="note" style="margin-top:20px"><strong>Alpha:</strong> packs are free and stored in your browser
@@ -860,6 +875,71 @@ body { container-type: inline-size; container-name: page; }
     showUser(saved, null);
     showUser(saved, await fetchProfile(saved));
   })();
+})();
+</script>
+<script src="shop-data.js"></script>
+<script>
+/* ------------------------------------------------- the committed box panel
+   The tiles in "The box is committed" used to be typed in by hand, and the
+   moment the rarity ladder grew from three tiers to six they were quoting a
+   box that no longer existed — eighty cards too big, with three of its tiers
+   missing. They are read out of globalThis.E1_BOX now, the same shop-data.js
+   file shop.html reads for the same figures, so the front door and the shop
+   can only ever be quoting one box. That is this page's whole use for the
+   file: nothing here opens a pack or talks to a mint.
+
+   The markup up the page is a real answer rather than a skeleton, so anything
+   that goes wrong down here leaves a correct panel standing instead of an
+   empty row: the tiles are built up in full first and swapped in as one, only
+   once every tier in the file has found its rung. */
+(function () {
+  "use strict";
+  const box = globalThis.E1_BOX;
+  const wrap = document.getElementById("boxfacts");
+  if (!wrap || !box || !box.odds || !Array.isArray(box.box)) return;
+
+  /* The same ladder the shop's tier table sorts by, rarest first. A tier this
+     page has never heard of does NOT quietly sort to the end — a lookup that
+     shrugs at an unknown rarity is how the old numbers survived a ladder
+     change in the first place. It throws, the swap below never happens, and
+     the panel the page shipped with is what the visitor keeps. */
+  const LADDER = ["genesis", "vault", "promo", "rare", "uncommon", "common", "basic"];
+  const rungOf = (rarity) => {
+    const rung = LADDER.indexOf(rarity);
+    if (rung < 0) throw new Error("E1_BOX names a rarity this page has no rung for: " + rarity);
+    return rung;
+  };
+
+  const tile = (value, label) => {
+    const node = document.createElement("div");
+    node.className = "boxfact";
+    const b = document.createElement("b");
+    b.textContent = value;
+    const span = document.createElement("span");
+    span.textContent = label;
+    node.append(b, span);
+    return node;
+  };
+
+  const tiles = [
+    /* Counted out of the order the file ships rather than read off its
+       boxSize header, because the order is what the published fingerprint
+       actually covers — the same count the shop puts on screen. en-US is
+       named rather than left to the visitor: the box reads "4,456" in the
+       markup above and in the shop, and a locale must not move that comma. */
+    tile(box.box.length.toLocaleString("en-US"), "cards in the box"),
+    tile(String(box.packSize), "cards per pack"),
+  ];
+  /* Every rung is looked up before anything is sorted, and deliberately not
+     from inside the comparator: sort skips the comparator entirely on a list
+     of one, so a box down to a single tier would have walked an unknown
+     rarity straight onto the page. */
+  const tiers = Object.keys(box.odds).map((rarity) => ({ rarity, rung: rungOf(rarity) }));
+  tiers.sort((a, b) => a.rung - b.rung);
+  for (const tier of tiers) {
+    tiles.push(tile(box.odds[tier.rarity].toFixed(2) + "%", tier.rarity));
+  }
+  wrap.replaceChildren(...tiles);
 })();
 </script>
 </body>

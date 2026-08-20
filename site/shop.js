@@ -98,10 +98,67 @@
    * never a control that no-ops or dies at a wall. */
   const PULL_MODE = MODE === "mint" && PAID_LIVE && ONLINE ? "mint" : "demo";
 
-  const RANK = { genesis: 5, vault: 4, promo: 3, rare: 3, uncommon: 2, common: 1 };
-  const NUTFT_PACK_SIZE = 7;
-  const NUTFT_TOTAL_CARDS = 146475;
-  let nutftState = { sold: 0, packs: 20925, tier_odds: {} };
+  /* Every rung the ladder below names, and Basic shares the floor with Common
+   * on purpose: RANK drives the REVEAL, and a Basic Resource is not a moment —
+   * it turns over first with the commons and never charges. The table has to be
+   * complete anyway, because everything downstream of it indexes it directly. */
+  const RANK = { genesis: 5, vault: 4, promo: 3, rare: 3, uncommon: 2, common: 1, basic: 1 };
+  /* Rarest first, and an unknown rarity sorts to the end rather than to the
+   * front — indexOf returns -1, so anything the ladder does not name would lead
+   * the table it has no claim to lead. */
+  const LADDER = ["genesis", "vault", "promo", "rare", "uncommon", "common", "basic"];
+  const rungOf = (rarity) => { const i = LADDER.indexOf(rarity); return i < 0 ? LADDER.length : i; };
+
+  /* ------------------------------------------------------------ the mint box
+   * The NutFT mint does not sell the box above. It sells a bigger, different
+   * one — 20 925 packs of 7 — committed as a CENSUS of print runs rather than
+   * as a shuffled order. These are the census's own numbers
+   * (cards/nutft-census.json), repeated here so the page can state them before
+   * it has asked the mint anything; the verify button then re-derives them from
+   * the mint's signed catalog and says so if they have moved.
+   *
+   * EVERY SHARE IS OVER THE WHOLE BOX, 146 475 cards — not over the 125 577
+   * numbered copies. A buyer counting what came out of their packs counts the
+   * Basic too, so a percentage that quietly drops a seventh of the box is a
+   * percentage that flatters every remaining row by x1.1664: it printed Rare as
+   * 15.48% of a box in which Rare is 13.27%.
+   *
+   * `unreachable` is the arithmetic nobody wants to leave out: the prime pool is
+   * printed 20 952 deep but only 20 925 packs will ever draw from it, so 27
+   * printed copies can never be reached. Genesis, Vault and Rare are therefore
+   * ceilings, while the prime SLOT is exactly one card in every pack. */
+  /* The one row "copies in the box" cannot describe, kept as its own binding so
+   * the tile above and the note below can never disagree about it. Basics carry
+   * no print run — that is what uncapped means — so `copies` here is a SLOT
+   * count, one per pack, and it is what makes the shares below shares of the
+   * whole box rather than of six sevenths of it.
+   *
+   * AND EVERY ONE OF THOSE SLOTS IS THE SAME CARD. The mint fills the basic slot
+   * from catalog.basic[0] (server/nutft-mint.js), so nine of the ten Basics
+   * never leave the catalog. Printed as "20 925 copies · 10 cards" the row read
+   * as roughly two thousand of each — a number no buyer will ever see — so the
+   * tile states the slot and the single card that fills it instead. */
+  const BASIC_TIER = { name: "Basic", cards: 10, copies: 20925, oneCard: true };
+
+  const MINT_BOX = {
+    packs: 20925,
+    packSize: 7,
+    cards: 146475,          // packs x packSize — every card a buyer can ever receive
+    numberedCards: 285,     // distinct cards that carry a print run
+    printed: 125577,        // copies printed across those 285
+    issued: 125550,         // 6 numbered per pack x 20 925 packs — what is actually reachable
+    unreachable: 27,        // printed - issued, all of it in the prime pool
+    commitment: "651e12f3f12c655c53b09c265eed82a7c7d46ac14a76e350f32b77efa4e5e482",
+    tiers: [
+      { name: "Genesis", cards: 9, copies: 189 },
+      { name: "Vault", cards: 21, copies: 1323 },
+      { name: "Rare", cards: 90, copies: 19440 },
+      { name: "Uncommon", cards: 75, copies: 20925 },
+      { name: "Common", cards: 90, copies: 83700 },
+      BASIC_TIER, // a slot count, and always the same card — see above
+    ],
+  };
+  let nutftState = { sold: 0, packs: MINT_BOX.packs, tier_odds: {} };
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => {
@@ -111,9 +168,22 @@
     return node;
   };
   const rarityOf = (id) => (BY_ID[id] && BY_ID[id].rarity) || "common";
-  const rankOf = (id) => RANK[rarityOf(id)] || 1;
+  /* Indexed directly, and it raises. A rarity RANK has never heard of means a
+   * re-tiering reached the card data without reaching this file, and scoring it
+   * as a common is exactly how the two rarest pulls in the game came to be
+   * announced as a quiet pack. Fail where it is loud, not where it is subtle. */
+  const rankOf = (id) => {
+    const rarity = rarityOf(id);
+    if (!(rarity in RANK)) throw new Error(`shop: no rank for rarity "${rarity}"`);
+    return RANK[rarity];
+  };
   const nameOf = (id) => (BY_ID[id] && BY_ID[id].name) || id;
   const pad = (n, width) => String(n).padStart(width, "0");
+  /* 146475 is a number you count with a finger; 146 475 is not. Grouped by hand
+   * rather than with toLocaleString, because a shell can be running in any
+   * locale and the box's size is not a number that should read differently in
+   * one of them. Non-breaking, so a group never wraps onto its own line. */
+  const num = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   /* Read live, not once at load: the preference can change mid-session. */
   const reduced = () =>
     Boolean(root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -413,8 +483,32 @@
 
      Written in the set's own register: short, dry, and about the world rather
      than about probability. The last line used is never picked twice running,
-     which is the difference between a voice and a stuck record. */
+     which is the difference between a voice and a stuck record.
+
+     ONE POOL PER RANK, and the ranks are RANK's own. When the ladder grew a
+     Vault and a Genesis rung this table did not, so the two rarest pulls in the
+     game fell through to the commons pool and announced themselves as a quiet
+     pack — printed in the ember the reveal correctly gave them. The two are now
+     reconciled at load, below, so a new rung cannot ship without a voice.
+
+     No counts in any of these lines: the free box and the mint's box print
+     different numbers of the same tier, so a sentence that names one of them is
+     a lie in the other mode. */
   const PACK_LINES = {
+    5: [
+      "Genesis. The set starts at this card, and a Stack may hold exactly one of it.",
+      "A genesis card. There is no second copy for your Stack; there was never meant to be.",
+      "Genesis, off the top of the box. Somebody had to be first, and the chain kept the receipt.",
+      "That is genesis. Everything else in the set is downstream of it.",
+      "Genesis. Block zero does not come round again.",
+    ],
+    4: [
+      "Vault. Something was sealed a long time ago, and it just came open.",
+      "A vault card. The lock was never decorative.",
+      "Vault pull. Whatever was being kept in there is on the table now.",
+      "That is a vault card — deep in the box, and it surfaced anyway.",
+      "Vault. The kind of card the rest of the set was arranged around.",
+    ],
     3: [
       "A rare. Somebody in the set is going to remember this one.",
       "That is a rare. The block clock does not do favours — it does arithmetic.",
@@ -438,9 +532,19 @@
       "A quiet pack. The network runs on quiet packs.",
     ],
   };
+  /* A rank the reveal can produce and this table cannot answer is the defect
+   * above. Reconciled once, here, where a missing pool is a page that refuses to
+   * boot — never at the moment somebody opens the rarest pack of their life. */
+  for (const rank of new Set(Object.values(RANK))) {
+    if (!PACK_LINES[rank]) throw new Error(`shop: no pack line for rank ${rank}`);
+  }
+
   let lastLine = "";
   function packLine(best, count) {
-    const pool = PACK_LINES[best] || PACK_LINES[1];
+    /* Indexed, not defaulted: see the check above — this cannot be undefined
+     * unless RANK and PACK_LINES have drifted, and then it must say so. */
+    const pool = PACK_LINES[best];
+    if (!pool) throw new Error(`shop: no pack line for rank ${best}`);
     const fresh = pool.filter((line) => line !== lastLine);
     const pick = fresh[Math.floor(Math.random() * fresh.length)] || pool[0];
     lastLine = pick;
@@ -542,7 +646,7 @@
        * already there and the note is the final one, not a placeholder. */
       for (const node of dealt) node.classList.add("flipped");
       skip.hidden = true;
-      note.className = `pack-note${summary.best === 3 ? " is-rare" : ""}`;
+      note.className = `pack-note${summary.best >= 3 ? " is-rare" : ""}`;
       note.textContent = summary.line;
       return;
     }
@@ -563,18 +667,18 @@
       const rank = rankOf(entry.ids[i]);
       if (rank > 1 && !skipping) {
         node.classList.add("charging");
-        if (rank === 3) bay.classList.add("bay--charged");
-        await beat(rank === 3 ? 760 : 300);
+        if (rank >= 3) bay.classList.add("bay--charged");
+        await beat(rank >= 3 ? 760 : 300);
         if (token !== revealToken) return;
         node.classList.remove("charging");
       }
       node.classList.add("flipped");
-      await beat(rank === 3 ? 880 : rank === 2 ? 480 : 280);
+      await beat(rank >= 3 ? 880 : rank === 2 ? 480 : 280);
     }
     if (token !== revealToken) return;
     bay.classList.remove("bay--charged");
     skip.hidden = true;
-    note.className = `pack-note${summary.best === 3 ? " is-rare" : ""}`;
+    note.className = `pack-note${summary.best >= 3 ? " is-rare" : ""}`;
     note.textContent = summary.line;
   }
 
@@ -746,6 +850,11 @@
 
   // ------------------------------------------------------------- the proof
 
+  const hexOf = (digest) =>
+    Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
   /* The exact recipe the generator committed: SHA-256 over every card id in
    * box order, each followed by a zero byte. Recomputed here, in the reader's
    * own browser, so "trust us" never has to appear on the page. */
@@ -763,9 +872,76 @@
       offset += 1;
     }
     const digest = await subtle.digest("SHA-256", bytes);
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+    return hexOf(digest);
+  }
+
+  /* The mint's box is a census, not an order, so its fingerprint has its own
+   * recipe — and it is replicated here BYTE FOR BYTE from the mint's own
+   * (server/nutft-draw.js, censusHash): the entries of { id: copies } are
+   * sorted, written as JSON with no whitespace, and closed with a single zero
+   * byte. That zero byte is the same terminator the free box's order uses, which
+   * is why one plain sentence can describe both.
+   *
+   * The entries are sorted, not the keys — the mint sorts entries and the ids
+   * are fixed width, so the two orders are the same order; copying the mint's
+   * call exactly is cheaper than reasoning about when they diverge.
+   *
+   * Basics never enter: they have no `copies`, which is precisely what makes
+   * them uncapped, and a card with nothing to commit to has nothing in the
+   * commitment. */
+  async function recomputeCensus(assets) {
+    const subtle = root.crypto && root.crypto.subtle;
+    if (!subtle || typeof TextEncoder === "undefined") return null;
+    const counts = {};
+    for (const asset of assets) {
+      const id = asset && (asset.asset_id || asset.id);
+      if (id && asset.copies) counts[id] = asset.copies;
+    }
+    const canonical = JSON.stringify(Object.fromEntries(Object.entries(counts).sort()));
+    const body = new TextEncoder().encode(canonical);
+    const bytes = new Uint8Array(body.length + 1);
+    bytes.set(body, 0);
+    const digest = await subtle.digest("SHA-256", bytes);
+    return {
+      hex: hexOf(digest),
+      cards: Object.keys(counts).length,
+      copies: Object.values(counts).reduce((sum, n) => sum + n, 0),
+    };
+  }
+
+  /* What the mint says about itself right now. `remaining` is the whole point:
+   * it is the per-card supply, and it only ever goes down, so a reader can come
+   * back tomorrow and check that it did. */
+  function renderMintState() {
+    if (PULL_MODE !== "mint") return;
+    const sold = Number(nutftState.sold) || 0;
+    const packs = Number(nutftState.packs) || MINT_BOX.packs;
+    const remaining = nutftState.remaining && typeof nutftState.remaining === "object"
+      ? Object.values(nutftState.remaining)
+      : [];
+    $("mintSold").textContent = num(sold);
+    $("mintLeft").textContent = num(Math.max(0, packs - sold));
+    $("mintNext").textContent = nutftState.next_pack || "—";
+    $("mintRoll").textContent = nutftState.state || "—";
+    $("mintRemaining").textContent = remaining.length
+      ? `${num(remaining.reduce((sum, n) => sum + (Number(n) || 0), 0))} across ${remaining.length} cards`
+      : "—";
+  }
+
+  /** Reads /nutft/state into `nutftState`. Returns "" or a sentence. */
+  async function readMintState() {
+    if (!MINT_URL) return "There is no mint connected to this page.";
+    try {
+      const response = await fetch(`${MINT_URL}/nutft/state`);
+      if (!response.ok) return `The mint answered ${response.status}; the numbers above are the last ones it gave.`;
+      nutftState = await response.json();
+      renderMintState();
+      renderBoxFacts();
+      syncControls();
+      return "";
+    } catch (error) {
+      return String((error && error.message) || error);
+    }
   }
 
   /* The invoice, shown while the mint waits to be paid. Deliberately plain: the
@@ -853,17 +1029,153 @@
 
   function renderBoxFacts() {
     const mint = PULL_MODE === "mint";
-    $("boxCommit").textContent = mint ? "census " + (nutftState.census_sha256 || "loading…") : (BOX.commitment || "—");
-    $("boxSize").textContent = mint ? NUTFT_TOTAL_CARDS : BOX.box.length;
-    $("packSize").textContent = mint ? NUTFT_PACK_SIZE : BOX.packSize;
-    $("packPrice").textContent = PULL_MODE === "mint" ? "NutFT demo" : "free";
+    /* The census fingerprint is a commitment, so the page shows the one it was
+     * PUBLISHED against until the mint has answered — never the word "loading"
+     * where a fingerprint belongs.
+     *
+     * Once the mint HAS answered, the number on screen is the mint's, because
+     * that is the box a buyer is about to open. What must not happen is the swap
+     * going unannounced: the same forty digits under the same word "published"
+     * would be a different census wearing this page's label. So the label names
+     * whose fingerprint it is, and drift is stated there as well as by the
+     * verify button, which explains it in a full sentence. */
+    const served = mint ? String(nutftState.census_sha256 || "") : "";
+    const drifted = Boolean(served) && served !== MINT_BOX.commitment;
+    $("boxCommit").textContent = mint ? served || MINT_BOX.commitment : BOX.commitment || "—";
+    $("commitLabel").textContent = mint
+      ? drifted
+        ? "Fingerprint this mint serves — NOT the one this page was published against · SHA-256"
+        : "Published census fingerprint · SHA-256"
+      : "Published box fingerprint · SHA-256";
+    $("boxSize").textContent = num(BOX.box.length);
+    $("mintBoxLine").textContent =
+      `The mint's box is ${num(MINT_BOX.cards)} cards — ${num(MINT_BOX.packs)} packs of ${MINT_BOX.packSize}.`;
+    $("packSize").textContent = mint ? MINT_BOX.packSize : BOX.packSize;
+    $("packPrice").textContent = mint ? "NutFT demo" : "free";
+  }
+
+  /* ---------------------------------------------------------- what is inside
+   * The free box's tiers are COUNTED, not quoted: the whole order ships inside
+   * this page, so the honest number is the one taken out of it here, and it
+   * cannot drift from the fingerprint the button re-hashes. */
+  function demoTiers() {
+    const copies = {};
+    const distinct = {};
+    for (const id of BOX.box) {
+      const rarity = rarityOf(id);
+      copies[rarity] = (copies[rarity] || 0) + 1;
+      (distinct[rarity] || (distinct[rarity] = new Set())).add(id);
+    }
+    /* Ordered by the ladder, not by RANK: RANK exists to drive the reveal and
+     * deliberately gives Basic and Common the same weight there, which would
+     * leave two rows tied and their order decided by whichever happened to come
+     * off the box first. A published table must read the same every time. */
+    return Object.keys(copies)
+      .sort((a, b) => rungOf(a) - rungOf(b))
+      .map((rarity) => ({
+        name: rarity.charAt(0).toUpperCase() + rarity.slice(1),
+        cards: distinct[rarity].size,
+        copies: copies[rarity],
+      }));
+  }
+
+  /* The frame only owns two accents, so the seven rungs borrow them rather than
+   * inventing a colour per tier: everything drawn from the prime slot wears the
+   * ember, Uncommon wears the purple, and the floor of the set wears neither.
+   * Same rule for a tile in this table and for a card on the tray. */
+  const bandOf = (rarity) => {
+    const rung = rungOf(rarity);
+    if (rung <= rungOf("rare")) return " rarity-rare";
+    if (rung === rungOf("uncommon")) return " rarity-uncommon";
+    return "";
+  };
+
+  function tierTile(tier, total) {
+    const node = el("div", `odd${bandOf(tier.name.toLowerCase())}`);
+    node.append(el("b", null, `${total ? ((tier.copies / total) * 100).toFixed(2) : "0.00"}%`));
+    node.append(el("span", null, tier.name.toUpperCase()));
+    /* One row does not fit the pattern, and stating it wrong is worse than
+     * leaving the figure out: the mint's basic slot is filled from the same card
+     * every pack, so "copies · cards" would divide a slot count across ten cards
+     * that never receive it. The free box's own Basic row is genuinely spread
+     * across all ten, is counted out of the shipped order, and keeps the plain
+     * wording — the flag is set on the mint's row only. */
+    node.append(el("i", null, tier.oneCard
+      ? `${num(tier.copies)} slots · one card, the same one in every pack`
+      : `${num(tier.copies)} copies · ${tier.cards} cards`));
+    return node;
+  }
+
+  function renderTiers() {
+    const wrap = $("boxTiers");
+    if (!wrap) return;
+    const mint = PULL_MODE === "mint";
+    const total = mint ? MINT_BOX.cards : BOX.box.length;
+    wrap.innerHTML = "";
+    for (const tier of mint ? MINT_BOX.tiers : demoTiers()) wrap.append(tierTile(tier, total));
+
+    const claim =
+      "Rarity here is copies in the box, exactly like a printed booster box — not a hidden dice roll.";
+    if (mint) {
+      /* Added up rather than written down: this figure only means anything as
+       * the sum of the rows above it, and a literal would be free to disagree
+       * with them one edit later. */
+      const rowSum = MINT_BOX.tiers.reduce((n, tier) => n + tier.copies, 0);
+      $("tiersLead").textContent =
+        `${claim} Every share below is a share of the whole box the mint advertises — ` +
+        `${num(MINT_BOX.cards)} cards, ${num(MINT_BOX.packs)} packs of ${MINT_BOX.packSize} — Basics counted in.`;
+      $("tiersNote").innerHTML =
+        `<strong>The arithmetic, in full.</strong> Of those ${num(MINT_BOX.cards)} cards, ${num(MINT_BOX.issued)} are ` +
+        `numbered copies — six in every pack, drawn from a print run of ${num(MINT_BOX.printed)} across ` +
+        `${MINT_BOX.numberedCards} cards — and ${num(MINT_BOX.packs)} are Basics, one free in every pack. Basics are the ` +
+        `one exception to "copies in the box": they carry no print run at all, so their row is a slot count, and the ` +
+        `mint fills that slot from the same Basic every time — the other ${BASIC_TIER.cards - 1} of the ` +
+        `${BASIC_TIER.cards} are in the catalog and in the game, but never in a pack. ` +
+        `The six rows add to ${num(rowSum)} copies, which is ${rowSum - MINT_BOX.cards} more than the box holds: the prime ` +
+        `pool is printed ${MINT_BOX.unreachable} copies deeper than ${num(MINT_BOX.packs)} packs can ever reach, so ` +
+        `Genesis, Vault and Rare are ceilings while the prime slot itself is exactly one card per pack. ` +
+        `The free alpha box in this shop's demo mode is a different, smaller box: ${num(BOX.box.length)} cards, ` +
+        `${BOX.packSize} per pack.`;
+      return;
+    }
+    $("tiersLead").textContent =
+      `${claim} These are the ${num(BOX.box.length)} cards of the free alpha box, counted straight out of the ` +
+      `order this page ships, so the figures add up to the box and to 100%.`;
+    /* This row used to claim the homepage counts this same box. It is not this
+     * page's number to promise: the homepage has its own copy of the figure and
+     * this page cannot see whether the two agree. Say what THIS box is — the one
+     * every pack on this page is dealt from, counted out of the order shipped
+     * here — and let the homepage speak for its own total. */
+    $("tiersNote").innerHTML =
+      `<strong>One box, not the only box.</strong> This is the free alpha box — ${num(BOX.box.length)} cards, ` +
+      `${BOX.packSize} per pack — and every pack on this page comes off it. The NutFT mint sells a separate and much ` +
+      `larger one: ${num(MINT_BOX.packs)} packs of ${MINT_BOX.packSize}, ${num(MINT_BOX.cards)} cards, committed as a ` +
+      `census of print runs rather than as a shuffled order. Its numbers are published ` +
+      `<a href="shop.html?shop=mint">in mint mode</a>.`;
   }
 
   function renderModeCopy() {
     const mint = PULL_MODE === "mint";
-    $("verifyBox").hidden = mint;
-    $("copyCommit").hidden = mint;
-    if (mint) $("verifyResult").textContent = "NutFT mode verifies the signed catalog and each Blossom face in the wallet.";
+    /* THE CHECK IS THE PRODUCT, so it is never the thing that gets hidden. Mint
+     * mode used to hide both buttons under a panel that still read "You check
+     * it, not us" and a hero that promised a re-hash in about a second: the one
+     * mode where a satoshi moves was the one mode you could not check. The
+     * mint's box is a census rather than an order, so the check below is a
+     * different check — it is not an absent one. */
+    $("verifyBox").hidden = false;
+    $("copyCommit").hidden = false;
+    $("verifyBox").textContent = mint
+      ? "Re-hash the mint's census in my browser"
+      : "Verify this box in my browser";
+    $("heroEyebrow").textContent = mint ? "Edition One · NutFT Mint" : "Edition One · Booster Box";
+    $("heroDemo").hidden = mint;
+    $("heroMint").hidden = !mint;
+    $("proofDemo").hidden = mint;
+    $("proofMint").hidden = !mint;
+    $("footnoteDemo").hidden = mint;
+    $("footnoteMint").hidden = !mint;
+    $("mintState").hidden = !mint;
+    if (mint && MINT_URL) $("stateLink").href = `${MINT_URL}/nutft/state`;
     const paidState = $("paidState");
     paidState.className = `state ${PULL_MODE === "mint" ? "state--live" : "state--off"}`;
     paidState.textContent = PULL_MODE === "mint" ? "NUTFT · DEMO" : "NUTFT · OPEN ?SHOP=MINT";
@@ -872,7 +1184,11 @@
     modeBox.className = `note mode-${PULL_MODE}`;
     modeBox.innerHTML =
       PULL_MODE === "mint"
-        ? "<strong>NutFT mint mode.</strong> This demo issues one Cashu proof per card into the browser wallet. The mint validates the disclosed output opening and CardBinding; the wallet verifies P2BK, DLEQ, proof state, and catalog data."
+        /* Said here rather than only in the footnotes, because a reader who
+           arrived from the homepage has just been shown a 4 535-card box and is
+           now looking at a different one. Two boxes are fine; two boxes with
+           nothing saying so is the page contradicting itself. */
+        ? "<strong>NutFT mint mode.</strong> This is the mint's own box — a census of print runs, not the free alpha box the rest of the site counts. The demo issues one Cashu proof per card into the browser wallet. The mint validates the disclosed output opening and CardBinding; the wallet verifies P2BK, DLEQ, proof state, and catalog data."
         : "<strong>Alpha — free demo packs.</strong> The box, the order, the odds and the fingerprint below are the real ones; only the payment is skipped. Your collection lives in this browser. When the mint goes live the same packs cost sats and the cards become yours on Nostr.";
 
     /* Two different truths, and the page must not tell the wrong one: there is
@@ -906,12 +1222,18 @@
   }
 
   function syncControls() {
-    const left = PULL_MODE === "mint"
+    const mint = PULL_MODE === "mint";
+    const left = mint
       ? Math.max(0, nutftState.packs - nutftState.sold)
       : Math.max(0, BOX.box.length - state.cursor);
     const empty = left <= 0;
-    $("boxLeft").textContent = left;
-    const total = PULL_MODE === "mint" ? nutftState.packs : BOX.box.length;
+    $("boxLeft").textContent = num(left);
+    /* Two boxes, two units. The demo box counts down in CARDS off a fixed
+     * order; the mint counts down in PACKS, because packs are what it sells and
+     * what its own state endpoint decrements. The label follows the number
+     * rather than the number following the label. */
+    $("boxLeftLabel").textContent = mint ? "PACKS LEFT" : "LEFT IN BOX";
+    const total = mint ? nutftState.packs : BOX.box.length;
     $("boxFill").style.width = `${total ? (left / total) * 100 : 0}%`;
     $("resetBox").hidden = !(PULL_MODE === "demo" && state.cursor > 0);
     const button = $("openPack");
@@ -923,12 +1245,13 @@
     } else if (empty) {
       /* A disabled button must say why. The note only explains when there is
        * nothing else there — the last pack's own summary outranks it. */
-      button.textContent = "The box is empty";
+      button.textContent = mint ? "Every pack has been sold" : "The box is empty";
       const note = $("packNote");
       if (!note.textContent) {
         note.className = "pack-note";
-        note.textContent =
-          "Every card in this box has been pulled — the order is now fully revealed and checkable. Reset to open the next one.";
+        note.textContent = mint
+          ? "Every pack in this census has been sold. What remains of each card is still published above, and the fingerprint still covers the print run it started from."
+          : "Every card in this box has been pulled — the order is now fully revealed and checkable. Reset to open the next one.";
       }
     } else if (busy) {
       button.textContent = "Opening…";
@@ -945,11 +1268,11 @@
     try { state = normalize(await store.json(STORE, null)); }
     catch (error) { state = fresh(); }
     if (PULL_MODE === "mint") {
-      try {
-        const response = await fetch(`${MINT_URL}/nutft/state`);
-        if (response.ok) nutftState = await response.json();
-      } catch (error) { /* the purchase call reports the actionable error */ }
-      renderBoxFacts();
+      /* The page has already painted the census it was published against, so a
+       * mint that cannot be reached leaves a stale-but-true number rather than
+       * a blank — and the note says which it is. */
+      const problem = await readMintState();
+      $("mintStateNote").textContent = problem || `Read at ${new Date().toLocaleTimeString()}.`;
     }
     durable = await probeStorage();
     booting = false;
@@ -964,6 +1287,8 @@
     if (!BOX.box.length) return;
     renderBoxFacts();
     renderModeCopy();
+    renderTiers();
+    renderMintState();
     renderCollection();
     renderHistory();
     syncControls();
@@ -980,7 +1305,7 @@
       note.textContent = "";
       try {
         lastStoreProblem = "";
-        await revealPack(await pullPack(BOX.packSize));
+        await revealPack(await pullPack(PULL_MODE === "mint" ? MINT_BOX.packSize : BOX.packSize));
         renderCollection();
         renderHistory();
         /* Whatever storage said about THIS pack, said now — never swallowed. */
@@ -1024,13 +1349,57 @@
       else button.disabled = false;
     });
 
+    /* Three answers, and they are three different questions. `recomputed` is
+     * what the catalog the mint is actually selling from adds up to; `served`
+     * is the fingerprint that same mint publishes for it; `published` is the
+     * one this page was built against. recomputed != served is a mint
+     * disagreeing with itself, which is the only accusation worth making.
+     * recomputed == served but != published is a DIFFERENT census — worth
+     * saying plainly, and not the same accusation at all. Collapsing the two
+     * into one MISMATCH would cry wolf every time the box is legitimately
+     * reissued, and a check that cries wolf is a check nobody reads. */
+    async function verifyCensus(out) {
+      out.textContent = "Fetching the catalog the mint signs…";
+      const response = await fetch(`${MINT_URL}/nutft/catalog`);
+      if (!response.ok) throw new Error(`the mint answered ${response.status}`);
+      const catalog = await response.json();
+      const assets = Array.isArray(catalog.assets) ? catalog.assets : [];
+      out.textContent = `Hashing the print runs of ${assets.length} cards…`;
+      const got = await recomputeCensus(assets);
+      if (!got) {
+        out.textContent =
+          "This browser will not hash here — crypto.subtle needs a secure context (https, or localhost). The recipe is in the footnote; any sha256 tool gives the same answer.";
+        return;
+      }
+      const served = String(catalog.census_sha256 || nutftState.census_sha256 || "");
+      const tally = `${num(got.copies)} copies across ${got.cards} numbered cards`;
+      if (served && got.hex !== served) {
+        out.className = "verdict bad";
+        out.textContent =
+          `MISMATCH · the catalog this mint is selling from adds up to ${got.hex} (${tally}), but the mint publishes ${served}. Do not trust this mint.`;
+        return;
+      }
+      if (got.hex === MINT_BOX.commitment) {
+        out.className = "verdict ok";
+        out.textContent = `MATCH · ${got.hex} — ${tally}, the census this page was published against.`;
+        return;
+      }
+      out.textContent =
+        `DIFFERENT CENSUS · this mint is selling ${got.hex} (${tally}). That is internally consistent, but it is not ` +
+        `the ${MINT_BOX.commitment} this page was published against. Check which one you were promised.`;
+    }
+
     $("verifyBox").addEventListener("click", async () => {
       const button = $("verifyBox");
       const out = $("verifyResult");
       button.disabled = true;
       out.className = "verdict";
-      out.textContent = `Hashing all ${BOX.box.length} cards…`;
       try {
+        if (PULL_MODE === "mint") {
+          await verifyCensus(out);
+          return;
+        }
+        out.textContent = `Hashing all ${num(BOX.box.length)} cards…`;
         const hex = await recomputeCommitment();
         if (!hex) {
           out.textContent =
@@ -1050,10 +1419,25 @@
       }
     });
 
+    $("refreshState").addEventListener("click", async () => {
+      const button = $("refreshState");
+      const note = $("mintStateNote");
+      button.disabled = true;
+      note.textContent = "Reading…";
+      const problem = await readMintState();
+      /* Silence would be indistinguishable from a request that never went out,
+       * so a good read says the time it happened rather than nothing at all. */
+      note.textContent = problem || `Read at ${new Date().toLocaleTimeString()}.`;
+      button.disabled = false;
+    });
+
     $("copyCommit").addEventListener("click", async () => {
       const node = $("boxCommit");
       const out = $("verifyResult");
-      if (await copyText(BOX.commitment || "")) {
+      /* Whatever is on the page is what gets copied — in mint mode that is the
+       * census fingerprint, and copying the free box's would hand somebody a
+       * hash of a box they are not looking at. */
+      if (await copyText(node.textContent === "—" ? "" : node.textContent)) {
         out.className = "verdict";
         out.textContent = "Fingerprint copied to the clipboard.";
         return;

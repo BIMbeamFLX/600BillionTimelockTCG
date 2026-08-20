@@ -1,7 +1,15 @@
 # 600B Timelock TCG — a positive cypherpunk card game. MIT licensed.
 # Everything a player would want to read is open; the two disallowed paths are
-# a developer harness and an 18-card playtest slice that predates the released
-# 295-card set, and would misrepresent it if served to someone as the real one.
+# both workshop documents rather than pages written for a reader.
+#
+# fx-demo.html is a developer harness for the table's effects.
+#
+# e1-card-set.html is no longer the 18-card playtest slice this file used to
+# say it was: build_card_set.py now lays out every shipped face — all 296,
+# plus the shared back — with trim guides, for proofing against the press. It
+# stays closed because it is the same catalog cards.html already serves, in a
+# form meant for a printer: 300 kB of markup, no search, no rules notes, and
+# nothing a player is looking for. cards.html is the page that should be found.
 
 User-agent: *
 Allow: /

@@ -1,7 +1,14 @@
 /*!
- * 600B TIMELOCK TCG — FX LAYER v1.0.0 · "WARM TERMINAL"
+ * 600B TIMELOCK TCG — FX LAYER v1.1.0 · "WARM TERMINAL"
  * MIT. Zero binary assets: every sound is synthesised at runtime with the Web Audio API.
  * No fetch, no CDN, no blob URL, no AudioWorklet, no npm, no build step.
+ *
+ * v1.1 is a voicing pass, not an architecture change. Every event is now
+ * TRANSIENT + BODY: a 1-6 ms onset (a click, or noise under a filter that
+ * slams shut) in front of the pitched layer that carries its identity. The
+ * three layers that held an oscillator open — the pressure drone, the
+ * targeting hold tone and the clash bus — are gone, periodic, or resolving.
+ * Nothing in the set sustains a pitch it did not strike first.
  *
  * This module never reads, imports or modifies play.js / play.html.
  * Integration is one line in the host:
@@ -18,7 +25,7 @@
    * 0 · TOKENS                                                           *
    * ==================================================================== */
 
-  var VERSION = '1.0.0';
+  var VERSION = '1.1.0';
 
   /* Duration ladder — use only these. */
   var D = { xs: 70, sm: 120, md: 180, lg: 280, xl: 420, xxl: 900 };
@@ -91,10 +98,14 @@
   function cents(f, c) { return f * Math.pow(2, c / 1200); }
   function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
-  /* Humanisation — applied independently to every voice. */
-  function hPitch(f) { return cents(f, rnd(-4, 4)); }
-  function hOnset() { return rnd(0, 0.012); }
-  function hGain(g) { return g * rnd(0.94, 1.06); }
+  /* Humanisation — applied independently to every voice.
+   * The spread matters more than it looks: two IDENTICAL short voices 40 ms
+   * apart comb-filter into a buzz, which is the same complaint as "it hums"
+   * arriving by a different route. ±9 cents is still inside the note, but it
+   * is enough that a six-pip Buffer run reads as six hits, not one machine gun. */
+  function hPitch(f) { return cents(f, rnd(-9, 9)); }
+  function hOnset() { return rnd(0, 0.010); }
+  function hGain(g) { return g * rnd(0.90, 1.08); }
 
   var AFF_ALIAS = {
     P: 'P', B: 'B', K: 'K', S: 'S', T: 'T', N: 'N',
@@ -125,7 +136,11 @@
    * ==================================================================== */
 
   var STORE_KEY = '600b.fx.v1';
-  var cfg = { muted: false, volume: 0.78, bed: false, pressure: true, motion: 'auto' };
+  /* `hailed` is not a preference, it is a memory: whether this browser has
+     ever been told the sound control exists. Players were never finding either
+     the bar or the M key, so the first time audio actually arms we say so once,
+     out loud to a screen reader and visibly on the control itself. */
+  var cfg = { muted: false, volume: 0.78, bed: false, pressure: true, motion: 'auto', hailed: false };
   var saveTimer = 0;
 
   function loadCfg() {
@@ -138,6 +153,7 @@
       if (typeof o.bed === 'boolean') cfg.bed = o.bed;
       if (typeof o.pressure === 'boolean') cfg.pressure = o.pressure;
       if (o.motion === 'auto' || o.motion === 'full' || o.motion === 'reduced') cfg.motion = o.motion;
+      if (typeof o.hailed === 'boolean') cfg.hailed = o.hailed;
     });
   }
   function saveCfg() {
@@ -161,20 +177,28 @@
   var CRUSH_CAP = 48;
   var BUCKETS = [30, 60, 90, 130, 180, 220, 300, 420, 500, 700, 1000, 1400];
   var PRESET = { soft: [6, 2], std: [6, 3], deep: [5, 4], dead: [4, 7] };
-  var BUS_GAIN = { ui: 0.50, game: 0.75, impact: 1.00, bed: 0.28 };
+  /* Gain staging. Every hit is now a transient PLUS a body PLUS (often) noise,
+   * so a busy frame carries roughly twice the voices v1 did. The busses were
+   * trimmed to buy that headroom back before the soft clipper, not after it:
+   * clipping that reaches tanh() is already a distorted transient. */
+  var BUS_GAIN = { ui: 0.46, game: 0.70, impact: 0.92, bed: 0.26 };
   var BUS_PRIO = { impact: 3, game: 2, ui: 1, bed: 0 };
   var hasPanner = false;
 
   var voices = [];
   var voiceId = 0;
-  var VOICE_CAP = 24;
+  var VOICE_CAP = 30;
 
   function T0() { return ctx.currentTime + 0.012; }
 
+  /* Room, not hall. A 1.1 s tail behind every single event is how a set of
+   * distinct hits turns into one continuous wash — the reverb was doing a fair
+   * share of the "humming" all by itself. 0.62 s still places the sounds in a
+   * space; it stops filling the gaps between them. */
   function buildImpulse() {
     var sr = ctx.sampleRate;
     var pre = Math.round(0.012 * sr);
-    var N = Math.round(1.1 * sr);
+    var N = Math.round(0.62 * sr);
     var buf = ctx.createBuffer(2, pre + N, sr);
     var a = 1 - Math.exp(-2 * Math.PI * 3500 / sr);
     for (var ch = 0; ch < 2; ch++) {
@@ -301,15 +325,24 @@
     masterGain.gain.value = cfg.muted ? 0 : 0.9 * cfg.volume * cfg.volume;
     masterGain.connect(ctx.destination);
 
+    /* Ratio 6:1 with an 18 ms release was flattening exactly the thing that
+       makes a hit a hit. 4:1 off a higher threshold rides the loud moments
+       without eating the first 20 ms of every transient, and the shorter
+       release lets the level come back up between staggered pips instead of
+       smearing them into one held block of sound. */
     comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -14; comp.knee.value = 6; comp.ratio.value = 6;
-    comp.attack.value = 0.003; comp.release.value = 0.18;
+    comp.threshold.value = -12; comp.knee.value = 8; comp.ratio.value = 4;
+    comp.attack.value = 0.0025; comp.release.value = 0.14;
     comp.connect(masterGain);
 
     duckGain = ctx.createGain(); duckGain.gain.value = 1; duckGain.connect(comp);
 
+    /* "Warm terminal" is the house voice and it stays — but a 4.2 kHz shelf at
+       -3.5 dB was shaving the click off every transient, leaving the midrange
+       body alone in the room. Moved up and softened: still warm, still not
+       bright, but the onsets keep their edge. */
     warmShelf = ctx.createBiquadFilter();
-    warmShelf.type = 'highshelf'; warmShelf.frequency.value = 4200; warmShelf.gain.value = -3.5;
+    warmShelf.type = 'highshelf'; warmShelf.frequency.value = 5400; warmShelf.gain.value = -2.2;
     warmShelf.connect(duckGain);
 
     softClip = ctx.createWaveShaper();
@@ -329,14 +362,14 @@
 
     convolver = ctx.createConvolver();
     convolver.buffer = buildImpulse();
-    verbGain = ctx.createGain(); verbGain.gain.value = 0.55;
+    verbGain = ctx.createGain(); verbGain.gain.value = 0.34;
     convolver.connect(verbGain); verbGain.connect(softClip);
     sendJoin = convolver;
 
     slapDelay = ctx.createDelay(1.0); slapDelay.delayTime.value = 0.135;
-    slapFb = ctx.createGain(); slapFb.gain.value = 0.32;
+    slapFb = ctx.createGain(); slapFb.gain.value = 0.24;
     slapLp = ctx.createBiquadFilter(); slapLp.type = 'lowpass'; slapLp.frequency.value = 2200;
-    slapGain = ctx.createGain(); slapGain.gain.value = 0.5;
+    slapGain = ctx.createGain(); slapGain.gain.value = 0.38;
     slapDelay.connect(slapFb); slapFb.connect(slapDelay);
     slapDelay.connect(slapLp); slapLp.connect(slapGain); slapGain.connect(softClip);
 
@@ -464,7 +497,10 @@
       p.pan.value = o.seat === 1 ? 0.16 : -0.16;
       out.connect(p); out = p;
     }
-    out.connect(bus[busName] || bus.game);
+    /* Anything addressed to the bed goes through bedDuck, not straight at the
+       bus — that is the node duckBed()/unduckBed() actually move, and the
+       pressure pulse has to duck under a burn like the rest of the bed does. */
+    out.connect(busName === 'bed' ? bedDuck : (bus[busName] || bus.game));
     if (o.send) {
       var s = ctx.createGain(); s.gain.value = o.send; out.connect(s); s.connect(sendJoin);
     }
@@ -574,7 +610,12 @@
     });
   }
 
-  /** Dry click: a 2-sample impulse through a resonant band. */
+  /** Dry click: a 2-sample impulse through a resonant band.
+   *  The band is detuned per trigger. A fixed band excited by a fixed impulse
+   *  produces a bit-identical decaying sinusoid every time, and two of those
+   *  40 ms apart — priority:pass, damage:avatar, the Hardware double-click —
+   *  sum into a ringing buzz instead of two clicks. ±6 % is inaudible as pitch
+   *  and completely breaks the coherence. */
   function clik(o) {
     if (!ready) return null;
     return guard(function () {
@@ -588,12 +629,12 @@
       }
       var bp = ctx.createBiquadFilter();
       bp.type = o.type || 'bandpass';
-      bp.frequency.value = o.f || 2400;
-      bp.Q.value = o.q != null ? o.q : 10;
+      bp.frequency.value = (o.f || 2400) * rnd(0.94, 1.06);
+      bp.Q.value = (o.q != null ? o.q : 10) * rnd(0.82, 1.18);
       tail.connect(bp);
 
       var g = ctx.createGain();
-      var tEnd = base + 0.05;
+      var tEnd = base + (o.dur != null ? o.dur : rnd(0.034, 0.052));
       g.gain.setValueAtTime(hGain(o.gain != null ? o.gain : 0.08), base);
       g.gain.exponentialRampToValueAtTime(0.0001, tEnd);
       bp.connect(g);
@@ -607,12 +648,49 @@
     });
   }
 
+  /**
+   * Impact transient — filtered white noise under a lowpass that slams shut.
+   *
+   * This is the voice the set was missing. A click (clik) says "an event
+   * happened"; an oscillator body says "and it was THIS kind of event"; but
+   * neither carries weight, because weight in the ear is broadband energy that
+   * disappears in 20 ms. A sine can be loud and still feel like nothing landed.
+   * Every impact in the book now opens with one of these.
+   *
+   * o: { f (Hz the filter opens at), f2 (Hz it closes to), dur, gain, q, src,
+   *      bus, seat, send, slap, t, t0 }
+   * Default 26 ms: short enough that two of them 40 ms apart stay two hits.
+   */
+  function snap(o) {
+    var dur = o.dur != null ? o.dur : 0.026;
+    return nz({
+      src: o.src || 'white',
+      dur: dur,
+      attack: o.attack != null ? o.attack : 0.0008,
+      gain: o.gain != null ? o.gain : 0.10,
+      crush: o.crush,
+      filt: {
+        type: o.type || 'lowpass',
+        f: o.f || 5200, f2: o.f2 || 700,
+        fTime: o.fTime != null ? o.fTime : dur * 0.7,
+        q: o.q != null ? o.q : 0.8
+      },
+      bus: o.bus || 'impact', seat: o.seat, send: o.send, slap: o.slap,
+      t: o.t, t0: o.t0
+    });
+  }
+
   /* ==================================================================== *
    * 4 · AFFINITY FINGERPRINTS                                            *
    * ==================================================================== */
 
   /* Home tones spell C#m11 — consonant in any combination.
-     Identity lives in wave + filter topology + envelope, not pitch alone. */
+     Identity lives in wave + filter topology + envelope, not pitch alone.
+
+     Every fingerprint now opens on a transient and every sustain was pulled in.
+     v1 had K, S and N as a bare oscillator with nothing in front of it, which
+     is the literal definition of a test tone, and T held a 92 Hz sine for
+     570 ms — twice, back to back. Those two facts are most of "das Summen". */
   function fingerprint(aff, mul, tOff, seat, send) {
     var k = mul != null ? mul : 1;
     var t = tOff || 0;
@@ -621,49 +699,56 @@
     var opt = { bus: 'game', seat: seat, send: sd, t: t };
 
     switch (aff) {
-      case 'P': /* orange current, useful heat */
-        osc({ wave: 'square', f: HZ.Cs3 * s, dur: 0.161, attack: 0.001, gain: 0.20 * k,
-              filt: { type: 'lowpass', f: 1400, f2: 400, fTime: 0.14, q: 8 }, bus: opt.bus, seat: seat, send: sd, t: t });
-        osc({ wave: 'square', f: HZ.Cs4 * s, dur: 0.161, attack: 0.001, gain: 0.20 * 0.45 * k,
-              filt: { type: 'lowpass', f: 1400, f2: 400, fTime: 0.14, q: 8 }, seat: seat, send: sd, t: t });
-        nz({ src: 'white', dur: 0.022, attack: 0.001, gain: 0.08 * k,
-             filt: { type: 'highpass', f: 2200 }, seat: seat, send: sd * 0.4, t: t });
+      case 'P': /* orange current, useful heat — a contactor closing */
+        osc({ wave: 'square', f: HZ.Cs3 * s, dur: 0.128, attack: 0.0008, gain: 0.20 * k,
+              filt: { type: 'lowpass', f: 1600, f2: 380, fTime: 0.10, q: 8 }, bus: opt.bus, seat: seat, send: sd, t: t });
+        osc({ wave: 'square', f: HZ.Cs4 * s, dur: 0.128, attack: 0.0008, gain: 0.20 * 0.45 * k,
+              filt: { type: 'lowpass', f: 1600, f2: 380, fTime: 0.10, q: 8 }, seat: seat, send: sd, t: t });
+        snap({ f: 6200, f2: 1500, dur: 0.020, gain: 0.10 * k, bus: 'game',
+               seat: seat, send: sd * 0.4, t: t });
         break;
-      case 'B': /* growth, settlement */
-        osc({ wave: 'pulse25', f: HZ.Gs4 * s, dur: 0.262, attack: 0.002, gain: 0.18 * k,
+      case 'B': /* growth, settlement — a coin set down on the counter */
+        osc({ wave: 'pulse25', f: HZ.Gs4 * s, dur: 0.185, attack: 0.0012, gain: 0.18 * k,
               detune: 0, detuneTo: 6, detuneTime: 0.06,
               filt: { type: 'bandpass', f: 900, q: 3 }, seat: seat, send: sd, t: t });
-        osc({ wave: 'pulse25', f: HZ.Gs5 * s, dur: 0.262, attack: 0.002, gain: 0.18 * 0.40 * k,
+        osc({ wave: 'pulse25', f: HZ.Gs5 * s, dur: 0.185, attack: 0.0012, gain: 0.18 * 0.40 * k,
               detune: 0, detuneTo: 6, detuneTime: 0.06,
               filt: { type: 'bandpass', f: 900, q: 3 }, seat: seat, send: sd, t: t });
-        nz({ src: 'metal', dur: 0.020, attack: 0.001, gain: 0.07 * k,
+        nz({ src: 'metal', dur: 0.026, attack: 0.0008, gain: 0.09 * k,
              filt: { type: 'bandpass', f: 3100, q: 6 }, seat: seat, send: sd * 0.5, t: t });
         break;
-      case 'K': /* a tumbler falling */
-        osc({ wave: 'pulse12', f: HZ.Ds5 * s, dur: 0.0908, attack: 0.0008, gain: 0.18 * k,
+      case 'K': /* a tumbler falling — so it had better start with the tumbler */
+        snap({ src: 'metal', f: 7000, f2: 2400, dur: 0.016, gain: 0.11 * k, q: 0.9,
+               bus: 'game', seat: seat, send: sd * 0.4, t: t });
+        osc({ wave: 'pulse12', f: HZ.Ds5 * s, dur: 0.0908, attack: 0.0006, gain: 0.18 * k,
               filt: [{ type: 'highpass', f: 700 }, { type: 'bandpass', f: 2600, q: 9 }],
               seat: seat, send: sd, t: t });
         break;
-      case 'S': /* rooftop, sunrise */
-        osc({ wave: 'triangle', f: HZ.B4 * s, f2: HZ.Fs5 * s, fTime: 0.09, dur: 0.304, attack: 0.004,
-              gain: 0.19 * k, filt: { type: 'lowpass', f: 5200 }, seat: seat, send: sd, t: t });
-        nz({ src: 'pink', dur: 0.040, attack: 0.004, gain: 0.03 * k,
-             filt: { type: 'bandpass', f: 3000, q: 1 }, seat: seat, send: sd, t: t });
+      case 'S': /* rooftop, sunrise — struck, then it rises */
+        snap({ src: 'pink', f: 5400, f2: 1800, dur: 0.022, gain: 0.055 * k,
+               bus: 'game', seat: seat, send: sd, t: t });
+        osc({ wave: 'triangle', f: HZ.B4 * s, f2: HZ.Fs5 * s, fTime: 0.07, dur: 0.210, attack: 0.0015,
+              gain: 0.19 * k, filt: { type: 'lowpass', f: 5600 }, seat: seat, send: sd, t: t });
         break;
       case 'T': /* teal calm — the only affinity with a two-beat rhythm */
         for (var beat = 0; beat < 2; beat++) {
           var bt = t + beat * 0.180;
           var bg = beat === 0 ? 1 : 0.55;
-          osc({ wave: 'sine', f: HZ.Fs2 * s, dur: 0.57, attack: 0.02, gain: 0.20 * k * bg,
+          /* 0.30 s, not 0.57 s: at 92 Hz the second beat used to start while the
+             first was still sounding, so the "two beats" fused into one held
+             note. They only read as a rhythm if the first one is gone. */
+          osc({ wave: 'sine', f: HZ.Fs2 * s, dur: 0.30, attack: 0.002, gain: 0.20 * k * bg,
                 filt: { type: 'lowpass', f: 800 }, seat: seat, send: sd, t: bt });
-          osc({ wave: 'square', f: HZ.Fs4 * s, dur: 0.57, attack: 0.02, gain: 0.20 * 0.25 * k * bg,
+          osc({ wave: 'square', f: HZ.Fs4 * s, dur: 0.20, attack: 0.002, gain: 0.20 * 0.25 * k * bg,
                 filt: { type: 'lowpass', f: 800 }, seat: seat, send: sd, t: bt });
-          nz({ src: 'white', dur: 0.006, attack: 0.001, gain: 0.11 * k * bg,
+          nz({ src: 'white', dur: 0.006, attack: 0.0008, gain: 0.12 * k * bg,
                filt: { type: 'bandpass', f: beat === 0 ? 2600 : 2200, q: 12 }, seat: seat, send: sd * 0.4, t: bt });
         }
         break;
       default: /* neutral */
-        osc({ wave: 'saw8', f: HZ.E3 * s, dur: 0.142, attack: 0.002, gain: 0.17 * k,
+        snap({ f: 4200, f2: 900, dur: 0.018, gain: 0.06 * k, bus: 'game',
+               seat: seat, send: sd * 0.4, t: t });
+        osc({ wave: 'saw8', f: HZ.E3 * s, dur: 0.110, attack: 0.0012, gain: 0.17 * k,
               filt: { type: 'lowpass', f: 2400 }, seat: seat, send: sd, t: t });
     }
   }
@@ -682,70 +767,126 @@
   }
 
   /* ==================================================================== *
-   * 5 · SUSTAINED LAYERS — pressure drone, ambient bed, clash bus, hold   *
+   * 5 · SUSTAINED LAYERS — pressure pulse, ambient bed, clash bus, hold   *
    * ==================================================================== */
 
-  var drone = null, bedNodes = null, clashBus = null, holdTone = null, holdTimer = 0;
+  /* `live` and `timer` are two different facts and never share a slot: live is
+     "a game is running, so the pulse is allowed to exist", timer is "a beat is
+     pending right now". The state object itself is permanent — its absence used
+     to mean both things at once, which made every silencing call an unrecoverable
+     one (see stopPressure / cancelPressureBeat below). */
+  var pressure = { live: false, timer: 0, dark: false };
+  var bedNodes = null, clashBus = null, holdPing = null, holdTimer = 0;
   var bufferTotal = 0;
   var activeSeat = 0;
 
-  function makeDrone() {
-    if (drone || !ready) return;
-    drone = guard(function () {
-      var o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = HZ.Cs1;
-      var o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = HZ.Cs2;
-      var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520;
-      var trem = ctx.createGain(); trem.gain.value = 0.0001;
-      var lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 2.0;
-      var lfoG = ctx.createGain(); lfoG.gain.value = 0;
-      o1.connect(lp); o2.connect(lp); lp.connect(trem); trem.connect(bedDuck);
-      lfo.connect(lfoG); lfoG.connect(trem.gain);
-      o1.start(); o2.start(); lfo.start();
-      return { o1: o1, o2: o2, lp: lp, trem: trem, lfo: lfo, lfoG: lfoG };
-    }) || null;
-    updateDrone();
+  /* PRESSURE — how full your Buffer is, carried as a pulse RATE.
+   *
+   * v1 held two sine oscillators (34.65 + 69.30 Hz) open for the entire game
+   * and wobbled them with a 2 Hz tremolo whose depth followed the Buffer. That
+   * is the definition of a hum — no onset, no decay, one pitch, forever — and
+   * it was the single loudest answer to "das Summen ist schlecht": every other
+   * sound in the game was landing on top of a continuous tone.
+   *
+   * The information was worth keeping, the carrier was not. A pulse train says
+   * the same thing with no sustained tone anywhere in it: fuller Buffer, faster
+   * heartbeat. Below PRESSURE_MIN it does not schedule at all, so a board with
+   * nothing banked is genuinely silent rather than quietly droning. */
+  var PRESSURE_MIN = 2;
+
+  function pressureInterval() {
+    /* 1450 ms at the first audible level, down to 560 ms when the Buffer is deep. */
+    return Math.max(560, 1450 - 150 * (bufferTotal - PRESSURE_MIN));
   }
 
-  function updateDrone() {
-    if (!drone || !ready) return;
-    guard(function () {
-      var t = ctx.currentTime, k = 0.25;
-      var on = cfg.pressure ? 1 : 0;
-      var g = Math.min(0.055, 0.011 * bufferTotal) * on;
-      drone.trem.gain.cancelScheduledValues(t);
-      drone.trem.gain.setValueAtTime(Math.max(0.0001, drone.trem.gain.value), t);
-      drone.trem.gain.linearRampToValueAtTime(Math.max(0.0001, g), t + k);
-      drone.lp.frequency.linearRampToValueAtTime(520 + 160 * bufferTotal, t + k);
-      drone.lfo.frequency.linearRampToValueAtTime(2.0 + 0.45 * bufferTotal, t + k);
-      drone.lfoG.gain.linearRampToValueAtTime(0.30 * g, t + k);
-    });
+  function pressureBeat() {
+    var dark = pressure.dark ? 0.42 : 1;
+    var g = Math.min(0.085, 0.022 + 0.012 * (bufferTotal - PRESSURE_MIN)) * dark;
+    /* A pitch that FALLS 47 -> 33 Hz in 55 ms is felt as a thump, not heard as
+       a note; nothing of it survives the 150 Hz lowpass except the impact. */
+    osc({ wave: 'sine', f: 47, f2: 33, fTime: 0.055, dur: 0.105, attack: 0.002,
+          gain: g, human: false, filt: { type: 'lowpass', f: 150 }, bus: 'bed' });
+    nz({ src: 'pink', dur: 0.045, attack: 0.001, gain: g * 0.55,
+         filt: { type: 'lowpass', f: 340, f2: 120, fTime: 0.038, q: 0.7 }, bus: 'bed' });
+  }
+
+  /* Self-rescheduling rather than an interval, so the rate can change between
+     any two beats and a hidden tab stops costing anything at all. */
+  function pressureSchedule() {
+    if (pressure.timer) { global.clearTimeout(pressure.timer); pressure.timer = 0; }
+    if (!pressure.live || !ready || !cfg.pressure || cfg.muted) return;
+    if (bufferTotal < PRESSURE_MIN) return;
+    if (doc && doc.hidden) return;
+    pressure.timer = global.setTimeout(function () {
+      pressure.timer = 0;
+      guard(pressureBeat);
+      pressureSchedule();
+    }, pressureInterval() + rnd(-45, 45));
+  }
+
+  /* Silence the beat that is queued, and nothing more. stopAll() means "nothing
+     is sounding as of now", not "this player has finished playing", so the
+     Buffer cue comes back the moment anything asks pressureSchedule() again —
+     an unmute, the pressure toggle, a tab regaining focus, the next Buffer
+     change. Tearing the pulse down here instead is what turned API.pressure(true)
+     into a dead switch for the rest of the session. */
+  function cancelPressureBeat() {
+    if (pressure.timer) { global.clearTimeout(pressure.timer); pressure.timer = 0; }
+  }
+
+  function startPressure() {
+    pressure.live = true;
+    pressure.dark = false;
+    pressureSchedule();
+  }
+
+  /* The game is over. This is the one silencing that must NOT be undone by a
+     later toggle or tab-refocus, which is why it clears live as well. */
+  function stopPressure() {
+    pressure.live = false;
+    pressure.dark = false;
+    cancelPressureBeat();
   }
 
   function setBuffer(total) {
     bufferTotal = Math.max(0, total | 0);
-    updateDrone();
+    pressureSchedule();
   }
 
+  /* The opt-in room tone. It is allowed to be continuous — that is what a bed
+     IS — but it is not allowed to be a NOTE. v1 stacked Cs1 and Cs2 sines, and
+     69.30 Hz sits right where a small speaker reproduces it as an audible pitch:
+     switching the bed on gave you a hum with a fundamental you could sing.
+     Now: one sub you feel, and moving air you don't listen to. */
   function startBed() {
     if (bedNodes || !ready) return;
     bedNodes = guard(function () {
-      var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 140;
-      var g1 = ctx.createGain(); g1.gain.value = 0.030;
-      var g2 = ctx.createGain(); g2.gain.value = 0.018;
-      var o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = HZ.Cs1;
-      var o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = HZ.Cs2;
-      o1.connect(g1); g1.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(bedDuck);
+      var gains = [], nodes = [];
 
-      var room = ctx.createBufferSource(); room.buffer = NOISE.pink; room.loop = true;
-      var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 480; bp.Q.value = 0.5;
-      var rg = ctx.createGain(); rg.gain.value = 0.008;
-      var lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.06;
-      var lfoG = ctx.createGain(); lfoG.gain.value = 120;
-      lfo.connect(lfoG); lfoG.connect(bp.frequency);
-      room.connect(bp); bp.connect(rg); rg.connect(bedDuck);
+      var sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = HZ.Cs1;
+      var subLp = ctx.createBiquadFilter(); subLp.type = 'lowpass'; subLp.frequency.value = 62;
+      var subG = ctx.createGain(); subG.gain.value = 0.026;
+      sub.connect(subLp); subLp.connect(subG); subG.connect(bedDuck);
+      gains.push(subG); nodes.push(sub);
 
-      o1.start(); o2.start(); room.start(); lfo.start();
-      return { o1: o1, o2: o2, lp: lp, room: room, bp: bp, rg: rg, lfo: lfo, lfoG: lfoG, g1: g1, g2: g2 };
+      /* Two decorrelated bands of pink, drifting at incommensurate rates so the
+         pair never settles into a repeating pattern the ear can lock onto. */
+      [[430, 0.6, 0.010, 0.061, 130], [1250, 0.9, 0.005, 0.043, 320]].forEach(function (s) {
+        var room = ctx.createBufferSource(); room.buffer = NOISE.pink; room.loop = true;
+        room.playbackRate.value = rnd(0.92, 1.08);
+        var bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
+        bp.frequency.value = s[0]; bp.Q.value = s[1];
+        var rg = ctx.createGain(); rg.gain.value = s[2];
+        var lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = s[3];
+        var lfoG = ctx.createGain(); lfoG.gain.value = s[4];
+        lfo.connect(lfoG); lfoG.connect(bp.frequency);
+        room.connect(bp); bp.connect(rg); rg.connect(bedDuck);
+        room.start(); lfo.start();
+        gains.push(rg); nodes.push(room, lfo);
+      });
+
+      sub.start();
+      return { gains: gains, nodes: nodes };
     }) || null;
   }
 
@@ -754,12 +895,12 @@
     var b = bedNodes; bedNodes = null;
     guard(function () {
       var t = ctx.currentTime;
-      [b.g1, b.g2, b.rg].forEach(function (g) {
+      b.gains.forEach(function (g) {
         g.gain.cancelScheduledValues(t);
         g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), t);
         g.gain.linearRampToValueAtTime(0.0001, t + 0.4);
       });
-      [b.o1, b.o2, b.room, b.lfo].forEach(function (n) { try { n.stop(t + 0.45); } catch (e) {} });
+      b.nodes.forEach(function (n) { try { n.stop(t + 0.45); } catch (e) {} });
     });
   }
 
@@ -776,18 +917,41 @@
     unduckBed(600);
   }
 
+  /* WAITING FOR YOU — the "we still need a target" nag.
+   *
+   * v1 opened a sine at B4 (493.88 Hz), swelled it in over 150 ms and held it,
+   * modulated at 0.9 Hz, for up to twenty seconds. Targeting happens several
+   * times a turn, so in practice this was the sound the game made most often —
+   * a sustained tone in the most ear-sensitive band. It is exactly the thing
+   * the owner is describing.
+   *
+   * A nag does not need to be continuous, it needs to be PERIODIC. Two quiet
+   * ticks every 2.6 s carry "your move" with a duty cycle under 5 %, they stop
+   * being noticed the moment you act, and they never phase with anything. */
+  var HOLD_PERIOD = 2600;
+
+  function holdPingBeat() {
+    clik({ f: 1250, q: 7, gain: 0.055, bus: 'ui', dur: 0.045 });
+    osc({ wave: 'triangle', f: HZ.Fs5, dur: 0.070, attack: 0.0015, gain: 0.032,
+          filt: { type: 'lowpass', f: 5200 }, bus: 'ui', send: 0.10, t: 0.052 });
+  }
+
+  function holdPingSchedule() {
+    if (!holdPing) return;
+    if (holdPing.timer) { global.clearTimeout(holdPing.timer); holdPing.timer = 0; }
+    if (!ready || cfg.muted || (doc && doc.hidden)) return;
+    holdPing.timer = global.setTimeout(function () {
+      holdPing.timer = 0;
+      guard(holdPingBeat);
+      holdPingSchedule();
+    }, HOLD_PERIOD + rnd(-120, 120));
+  }
+
   function stopHoldTone() {
     if (holdTimer) { global.clearTimeout(holdTimer); holdTimer = 0; }
-    if (!holdTone) return;
-    var h = holdTone; holdTone = null;
-    guard(function () {
-      var t = ctx.currentTime;
-      h.g.gain.cancelScheduledValues(t);
-      h.g.gain.setValueAtTime(Math.max(0.0001, h.g.gain.value), t);
-      h.g.gain.linearRampToValueAtTime(0.0001, t + 0.040);
-      try { h.o.stop(t + 0.08); } catch (e) {}
-      try { h.lfo.stop(t + 0.08); } catch (e) {}
-    });
+    if (!holdPing) return;
+    if (holdPing.timer) global.clearTimeout(holdPing.timer);
+    holdPing = null;
   }
 
   /* ==================================================================== *
@@ -817,7 +981,7 @@
       if (cfg.bed) startBed();
       return true;
     });
-    if (ok) removeArmListeners();
+    if (ok) { removeArmListeners(); hailControls(); }
     return !!ok;
   }
 
@@ -866,7 +1030,8 @@
 
   SFX['game:start'] = function () {
     /* power-on thunk */
-    osc({ wave: 'sine', f: 55, f2: HZ.Cs1, fTime: 0.35, dur: 0.506, attack: 0.006, gain: 0.50,
+    snap({ f: 3600, f2: 260, dur: 0.045, gain: 0.20, send: 0.14 });
+    osc({ wave: 'sine', f: 55, f2: HZ.Cs1, fTime: 0.35, dur: 0.506, attack: 0.002, gain: 0.50,
           filt: { type: 'lowpass', f: 200 }, bus: 'impact', send: 0.20 });
     /* degauss */
     nz({ src: 'pink', dur: 0.60, attack: 0.030, gain: 0.22, crush: 'std', bus: 'game', send: 0.25,
@@ -876,26 +1041,34 @@
     /* boot arpeggio */
     var notes = [HZ.Cs4, HZ.Gs4, HZ.Cs5, HZ.Gs5], off = [0, 0.090, 0.180, 0.300];
     for (var i = 0; i < 4; i++) {
-      osc({ wave: 'pulse25', f: notes[i], dur: 0.18, attack: 0.003, gain: i === 3 ? 0.26 : 0.20,
-            filt: { type: 'lowpass', f: 4000 }, bus: 'game', send: i === 3 ? 0.45 : 0.25, t: off[i] });
+      osc({ wave: 'pulse25', f: notes[i], dur: 0.13, attack: 0.0012, gain: i === 3 ? 0.26 : 0.20,
+            filt: { type: 'lowpass', f: 4400 }, bus: 'game', send: i === 3 ? 0.40 : 0.22, t: off[i] });
     }
-    makeDrone();
+    startPressure();
   };
 
   SFX['turn:begin'] = function (d) {
+    /* Two wood blocks, a fifth apart. v1 played the same two pitches as 160 ms
+       tones with nothing in front of them, which at 70 ms apart overlapped into
+       one wobbling note; struck and 85 ms long they read as two hits. */
     var s = seatMul(d.seat);
-    osc({ wave: 'pulse25', f: HZ.Gs3 * s, dur: 0.16, attack: 0.002, gain: 0.16,
-          filt: { type: 'lowpass', f: 3200 }, send: 0.18 });
-    osc({ wave: 'pulse25', f: HZ.Cs4 * s, dur: 0.16, attack: 0.002, gain: 0.16,
-          filt: { type: 'lowpass', f: 3200 }, send: 0.18, t: 0.070 });
+    [[HZ.Gs3, 0, 2500], [HZ.Cs4, 0.070, 3100]].forEach(function (p) {
+      snap({ f: p[2], f2: 700, dur: 0.014, gain: 0.085, bus: 'game', send: 0.10, t: p[1] });
+      osc({ wave: 'pulse25', f: p[0] * s, dur: 0.085, attack: 0.0010, gain: 0.16,
+            filt: { type: 'lowpass', f: 3200 }, send: 0.18, t: p[1] });
+    });
     clik({ f: 2200, q: 9, gain: 0.05, bus: 'ui' });
   };
 
   SFX['phase:enter'] = function (d) {
     var f = PHASE_PITCH[d.phase] || HZ.Fs4;
     var g = AUTO_PHASES[d.phase] ? 0.11 * 0.70 : 0.11;
-    osc({ wave: 'pulse12', f: f, dur: 0.09, attack: 0.001, gain: g,
-          filt: { type: 'bandpass', f: f * 2, q: 4 }, bus: 'ui', send: 0.10 });
+    /* The highest-frequency, shortest thing in the book — phases fire more
+       often than anything else and must stay out of the way of the events that
+       carry consequence. 55 ms with a click on the front, no tail. */
+    clik({ f: f * 4, q: 6, gain: g * 0.45, bus: 'ui' });
+    osc({ wave: 'pulse12', f: f, dur: 0.055, attack: 0.0008, gain: g,
+          filt: { type: 'bandpass', f: f * 2, q: 4 }, bus: 'ui', send: 0.08 });
   };
 
   var passTimes = [];
@@ -915,10 +1088,10 @@
     for (var i = 0; i < n; i++) {
       var t = i * STAG.draw / 1000;
       var det = i * 14;
-      nz({ src: 'white', dur: 0.13, attack: 0.004, gain: 0.16, crush: 'soft', seat: d.seat, t: t,
-           filt: { type: 'bandpass', f: cents(1200, det), f2: cents(4200, det), fTime: 0.10, q: 2.5 }, send: 0.16 });
-      osc({ wave: 'pulse25', f: cents(HZ.Gs5 * s, det), dur: 0.05, attack: 0.001, gain: 0.06,
-            seat: d.seat, t: t + 0.040, send: 0.16 });
+      nz({ src: 'white', dur: 0.105, attack: 0.0012, gain: 0.16, crush: 'soft', seat: d.seat, t: t,
+           filt: { type: 'bandpass', f: cents(1200, det), f2: cents(4200, det), fTime: 0.085, q: 2.5 }, send: 0.14 });
+      osc({ wave: 'pulse25', f: cents(HZ.Gs5 * s, det), dur: 0.045, attack: 0.0008, gain: 0.06,
+            seat: d.seat, t: t + 0.038, send: 0.14 });
     }
   };
 
@@ -929,27 +1102,33 @@
     var send = (type === 'Zap' || type === 'Operation') ? 0.34 : 0.20;
 
     if (type === 'Zap') {
-      osc({ wave: 'square', f: 1800 * s, f2: 300 * s, fTime: 0.05, dur: 0.14, attack: 0.001, gain: 0.24,
+      snap({ f: 9000, f2: 2600, dur: 0.020, gain: 0.14, seat: d.seat, send: send * 0.5, slap: 0.30 });
+      osc({ wave: 'square', f: 1800 * s, f2: 300 * s, fTime: 0.045, dur: 0.115, attack: 0.0006, gain: 0.24,
             crushBits: 5, seat: d.seat, send: send, slap: 0.40, bus: 'impact' });
     } else {
-      osc({ wave: 'square', f: 110 * s, f2: HZ.E2 * s, fTime: 0.09, dur: 0.142, attack: 0.002, gain: 0.20,
+      /* THE CARD HITTING THE TABLE. Broadband slap first (30 ms, lowpass
+         slamming 3400 -> 520 Hz), then the low thock under it. v1 had only the
+         thock: a 142 ms filtered square at 110 Hz, which is a soft note, not an
+         object arriving. The card touching down is the whole event. */
+      snap({ f: 3400, f2: 520, dur: 0.030, gain: 0.13, seat: d.seat, send: send * 0.4 });
+      osc({ wave: 'square', f: 128 * s, f2: 62 * s, fTime: 0.055, dur: 0.115, attack: 0.0008, gain: 0.20,
             filt: { type: 'lowpass', f: 620, q: 1 }, seat: d.seat, send: send, bus: 'game' });
     }
     playFingerprints(affs, d.seat, send, 0.70);
 
     var root = fingerprintRoot(affs[0], d.seat);
     if (type === 'Avatar') {
-      osc({ wave: 'pulse25', f: root * 3, dur: 0.20, attack: 0.003, gain: 0.09,
+      osc({ wave: 'pulse25', f: root * 3, dur: 0.155, attack: 0.0012, gain: 0.09,
             seat: d.seat, send: send, t: 0.045 });
     } else if (type === 'Hardware') {
       clik({ f: 1800, q: 10, gain: 0.09, seat: d.seat, bus: 'ui' });
       clik({ f: 2600, q: 10, gain: 0.09, seat: d.seat, bus: 'ui', t: 0.038 });
     } else if (type === 'Protocol') {
-      osc({ wave: 'triangle', f: HZ.Fs4 * s, f2: HZ.Cs5 * s, fTime: 0.28, dur: 0.28, attack: 0.004,
+      osc({ wave: 'triangle', f: HZ.Fs4 * s, f2: HZ.Cs5 * s, fTime: 0.20, dur: 0.20, attack: 0.0015,
             gain: 0.08, filt: { type: 'lowpass', f: 3000 }, seat: d.seat, send: send });
     } else if (type === 'Operation') {
       [1, 1.49831, 2].forEach(function (r, i) {
-        osc({ wave: 'pulse25', f: root * r, dur: 0.14, attack: 0.002, gain: 0.10,
+        osc({ wave: 'pulse25', f: root * r, dur: 0.105, attack: 0.0010, gain: 0.10,
               seat: d.seat, send: send, t: i * 0.055 });
       });
     }
@@ -957,10 +1136,10 @@
 
   SFX['card:archive'] = function (d) {
     var s = seatMul(d.seat);
-    nz({ src: 'pink', dur: 0.16, attack: 0.006, gain: 0.13, seat: d.seat, send: 0.24,
-         filt: { type: 'bandpass', f: 4200, f2: 700, fTime: 0.14, q: 2.5 } });
-    osc({ wave: 'square', f: HZ.Cs3 * s, dur: 0.12, attack: 0.003, gain: 0.10,
-          filt: { type: 'lowpass', f: 500 }, seat: d.seat, send: 0.24 });
+    nz({ src: 'pink', dur: 0.145, attack: 0.0015, gain: 0.13, seat: d.seat, send: 0.22,
+         filt: { type: 'bandpass', f: 4200, f2: 700, fTime: 0.12, q: 2.5 } });
+    osc({ wave: 'square', f: HZ.Cs3 * s, dur: 0.095, attack: 0.0010, gain: 0.10,
+          filt: { type: 'lowpass', f: 500 }, seat: d.seat, send: 0.22 });
     clik({ f: 1400, q: 10, gain: 0.05, seat: d.seat, bus: 'ui', t: 0.180 });
   };
 
@@ -968,9 +1147,10 @@
     var s = seatMul(d.seat);
     var affs = affList(d.affinity);
     playFingerprints(affs, d.seat, 0.22, 1.0);
-    osc({ wave: 'square', f: HZ.Fs2 * s, dur: 0.10, attack: 0.003, gain: 0.14,
+    snap({ f: 2800, f2: 420, dur: 0.024, gain: 0.09, bus: 'game', seat: d.seat, send: 0.10 });
+    osc({ wave: 'square', f: HZ.Fs2 * s, dur: 0.085, attack: 0.0010, gain: 0.14,
           filt: { type: 'lowpass', f: 400 }, seat: d.seat, send: 0.22 });
-    osc({ wave: 'triangle', f: HZ.Cs6 * s, dur: 0.04, attack: 0.001, gain: 0.03,
+    osc({ wave: 'triangle', f: HZ.Cs6 * s, dur: 0.035, attack: 0.0008, gain: 0.03,
           seat: d.seat, send: 0.22, t: 0.060 });
   };
 
@@ -981,15 +1161,22 @@
     var root = fingerprintRoot(aff, d.seat);
     var start = (d.index != null ? d.index : bufferTotal) | 0;
     var n = Math.min(6, amount);
+    /* Each pip is a struck bead, not a held note: at STAG.generate (42 ms) a
+       130 ms tone still has five siblings sounding over it, which is how a run
+       of six turns into one buzzing chord. 90 ms plus a tick per pip, and the
+       oscillator's own ±9 cent / ±10 ms humanisation keeps repeats apart. */
+    var colour = AFF_COLOUR_HZ[aff] || 1500;
     for (var i = 0; i < n; i++) {
-      osc({ wave: 'triangle', f: root * dorian(start + i), dur: 0.13, attack: 0.004,
-            gain: 0.085 * (1 - 0.06 * i), seat: d.seat, send: 0.16, t: i * STAG.generate / 1000,
-            filt: { type: 'bandpass', f: AFF_COLOUR_HZ[aff] || 1500, q: 1.8 } });
+      var pt = i * STAG.generate / 1000;
+      clik({ f: colour * 1.7, q: 5, gain: 0.030, bus: 'ui', seat: d.seat, t: pt, dur: 0.020 });
+      osc({ wave: 'triangle', f: root * dorian(start + i), dur: 0.090, attack: 0.0010,
+            gain: 0.085 * (1 - 0.06 * i), seat: d.seat, send: 0.14, t: pt,
+            filt: { type: 'bandpass', f: colour, q: 1.8 } });
     }
     if (amount > 6) {
-      osc({ wave: 'triangle', f: root * 2, dur: 0.13, attack: 0.004, gain: 0.10,
-            seat: d.seat, send: 0.16, t: 6 * STAG.generate / 1000,
-            filt: { type: 'bandpass', f: AFF_COLOUR_HZ[aff] || 1500, q: 1.8 } });
+      osc({ wave: 'triangle', f: root * 2, dur: 0.090, attack: 0.0010, gain: 0.10,
+            seat: d.seat, send: 0.14, t: 6 * STAG.generate / 1000,
+            filt: { type: 'bandpass', f: colour, q: 1.8 } });
     }
   };
 
@@ -1004,30 +1191,27 @@
     while (burnTimes.length && now - burnTimes[0] > 10000) burnTimes.shift();
     var k = Math.min(1, 0.55 + 0.15 * amount) * (burnTimes.length > 2 ? 0.60 : 1);
 
-    /* 1 · drone gulp */
-    if (drone && ready) guard(function () {
-      var t = ctx.currentTime;
-      drone.trem.gain.cancelScheduledValues(t);
-      drone.trem.gain.setValueAtTime(Math.max(0.0001, drone.trem.gain.value), t);
-      drone.trem.gain.linearRampToValueAtTime(0.0001, t + 0.035);
-    });
+    /* 1 · the gulp. No node to silence any more — trackBuffer() has already
+       zeroed the Buffer on the always-run path, so pressureSchedule() has
+       stopped the heartbeat before this handler is reached. The pulse simply
+       does not arrive, which is a louder statement than fading a tone out. */
 
     /* 2 · voltage sag — ramping DETUNE is what makes it read as a machine losing power */
-    osc({ wave: 'square', f: 220 * s, dur: 0.508, attack: 0.008, gain: 0.26 * k,
+    osc({ wave: 'square', f: 220 * s, dur: 0.508, attack: 0.002, gain: 0.26 * k,
           detune: 0, detuneTo: -700, detuneTime: 0.42, crushBits: 4,
           filt: { type: 'lowpass', f: 2400, f2: 300, fTime: 0.42, q: 4 },
           seat: d.seat, send: 0.30, bus: 'impact' });
 
     /* 3 · dumped charge */
-    nz({ src: 'pink', dur: 0.50, attack: 0.020, gain: 0.18 * k, crush: 'deep',
+    nz({ src: 'pink', dur: 0.50, attack: 0.004, gain: 0.18 * k, crush: 'deep',
          filt: { type: 'lowpass', f: 1600, f2: 180, fTime: 0.45, q: 0.7 },
          seat: d.seat, send: 0.30, bus: 'impact' });
 
     /* 4 · the count — you literally hear how much Uptime you wasted */
     var n = Math.min(amount, 8);
     for (var i = 0; i < n; i++) {
-      osc({ wave: 'pulse12', f: BURN_DESC[i] * s, dur: 0.06, attack: 0.001, gain: 0.13 * k,
-            seat: d.seat, send: 0.20, t: i * STAG.burn / 1000 });
+      osc({ wave: 'pulse12', f: BURN_DESC[i] * s, dur: 0.055, attack: 0.0008, gain: 0.13 * k,
+            seat: d.seat, send: 0.18, t: i * STAG.burn / 1000 });
     }
     /* 5 · the shrug — the friendly terminal moving on */
     clik({ f: 2400, q: 8, gain: 0.05, bus: 'ui', t: (STAG.burn * n + 60) / 1000 });
@@ -1037,7 +1221,8 @@
   };
 
   /* Level bookkeeping lives in trackBuffer() on the always-run path, not here:
-     the drone must follow the Buffer even while audio is unarmed or throttled. */
+     the pressure pulse must follow the Buffer even while audio is unarmed or
+     throttled. */
   SFX['buffer:set'] = function () {};
 
   SFX['ability:activate'] = function (d) {
@@ -1049,43 +1234,41 @@
     var s = seatMul(d.seat);
     clik({ f: 1500, q: 10, gain: 0.10, seat: d.seat, bus: 'ui' });
     clik({ f: 2900, q: 10, gain: 0.10, seat: d.seat, bus: 'ui', t: 0.026 });
-    osc({ wave: 'pulse25', f: base * s, detune: det, dur: 0.13, attack: 0.002, gain: 0.15,
+    osc({ wave: 'pulse25', f: base * s, detune: det, dur: 0.100, attack: 0.0010, gain: 0.15,
           filt: { type: 'lowpass', f: 3600 }, seat: d.seat, send: 0.20 });
   };
 
   SFX['target:request'] = function () {
-    osc({ wave: 'triangle', f: HZ.Fs4, f2: HZ.B4, fTime: 0.14, dur: 0.14, attack: 0.004, gain: 0.11,
-          filt: { type: 'lowpass', f: 4000 }, bus: 'ui', send: 0.14 });
+    /* the question — rising, struck, gone in 110 ms */
+    snap({ f: 5000, f2: 1600, dur: 0.018, gain: 0.06, bus: 'ui', send: 0.10 });
+    osc({ wave: 'triangle', f: HZ.Fs4, f2: HZ.B4, fTime: 0.09, dur: 0.11, attack: 0.0015, gain: 0.11,
+          filt: { type: 'lowpass', f: 4400 }, bus: 'ui', send: 0.14 });
     stopHoldTone();
     if (!ready) return;
-    holdTone = guard(function () {
-      var t = ctx.currentTime;
-      var o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = HZ.B4;
-      var g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(0.045, t + 0.15);
-      var lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.9;
-      var lg = ctx.createGain(); lg.gain.value = 0.016;
-      lfo.connect(lg); lg.connect(g.gain);
-      o.connect(g); g.connect(bus.ui);
-      o.start(); lfo.start();
-      return { o: o, g: g, lfo: lfo, lg: lg };
-    }) || null;
+    holdPing = { timer: 0 };
+    holdPingSchedule();
     duckBed(0.55);
     /* never nags forever */
     holdTimer = global.setTimeout(function () { stopHoldTone(); unduckBed(1000); }, 20000);
   };
 
   SFX['target:choose'] = function () {
-    osc({ wave: 'triangle', f: HZ.B4, f2: HZ.Fs4, fTime: 0.08, dur: 0.08, attack: 0.003, gain: 0.13,
+    /* the answer — the same interval, falling. Same shape, opposite direction:
+       the pair is legible as question/answer without being looked at. */
+    clik({ f: 2600, q: 9, gain: 0.09, bus: 'ui' });
+    osc({ wave: 'triangle', f: HZ.B4, f2: HZ.Fs4, fTime: 0.06, dur: 0.075, attack: 0.0012, gain: 0.13,
           bus: 'ui', send: 0.14 });
-    clik({ f: 2600, q: 9, gain: 0.08, bus: 'ui' });
     stopHoldTone();
     unduckBed(400);
   };
 
   SFX['clash:begin'] = function () {
-    /* bus voltage rise — the only sustained tension bed in the game */
+    /* Bus voltage rise. Still the one tension layer in the game, but it now
+       RESOLVES instead of parking: v1 settled at 0.08 on an open 1800 Hz
+       lowpass and sat there for the whole clash, which is a saw drone under
+       every attacker and blocker cue. The swell peaks, falls away, and closes
+       the filter down to 320 Hz, so what is left underneath the clash is felt
+       rather than heard — and stopClashBus() still lands cleanly on top. */
     if (ready && !clashBus) clashBus = guard(function () {
       var t = ctx.currentTime;
       var o = ctx.createOscillator(); o.setPeriodicWave(WAVE.saw8);
@@ -1093,46 +1276,48 @@
       o.frequency.exponentialRampToValueAtTime(HZ.Cs3, t + 0.45);
       var f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 6;
       f.frequency.setValueAtTime(300, t);
-      f.frequency.exponentialRampToValueAtTime(1800, t + 0.45);
+      f.frequency.exponentialRampToValueAtTime(1800, t + 0.42);
+      f.frequency.exponentialRampToValueAtTime(320, t + 1.8);
       var g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(0.22, t + 0.30);
-      g.gain.linearRampToValueAtTime(0.08, t + 0.60);
+      g.gain.linearRampToValueAtTime(0.20, t + 0.28);
+      g.gain.linearRampToValueAtTime(0.035, t + 0.85);
+      g.gain.linearRampToValueAtTime(0.010, t + 1.80);
       o.connect(f); f.connect(g); g.connect(bus.game);
       o.start();
       return { o: o, f: f, g: g };
     }) || null;
 
+    snap({ f: 7000, f2: 900, dur: 0.034, gain: 0.16, send: 0.14, slap: 0.30 });
     [HZ.Cs4, HZ.Gs4, HZ.Cs5].forEach(function (f, i) {
-      osc({ wave: 'pulse25', f: f, dur: 0.12, attack: 0.002, gain: 0.18, bus: 'impact',
+      osc({ wave: 'pulse25', f: f, dur: 0.10, attack: 0.0012, gain: 0.18, bus: 'impact',
             send: 0.20, slap: 0.35, t: i * 0.110 });
     });
-    nz({ src: 'white', dur: 0.18, attack: 0.006, gain: 0.20, bus: 'impact', slap: 0.50, send: 0.18,
+    nz({ src: 'white', dur: 0.18, attack: 0.002, gain: 0.20, bus: 'impact', slap: 0.50, send: 0.18,
          filt: { type: 'bandpass', f: 220, q: 1.4 } });
     duck(0.85, 60, 400);
     duckBed(0.40);
-    if (drone) guard(function () {
-      var t = ctx.currentTime;
-      drone.lp.frequency.linearRampToValueAtTime(110, t + 0.4);
-    });
+    pressure.dark = true;
   };
 
   function endClash() {
     stopClashBus(0.5);
-    if (drone) guard(function () {
-      drone.lp.frequency.linearRampToValueAtTime(520 + 160 * bufferTotal, ctx.currentTime + 0.5);
-    });
+    pressure.dark = false;
   }
 
   SFX['clash:declareAttackers'] = function (d) {
     var count = Math.max(0, d.count | 0);
     var n = Math.min(count, 8);
-    nz({ src: 'white', dur: 0.10, attack: 0.003, gain: 0.10, bus: 'game', send: 0.14,
+    nz({ src: 'white', dur: 0.10, attack: 0.0012, gain: 0.10, bus: 'game', send: 0.14,
          filt: { type: 'highpass', f: 2000 } });
     for (var i = 0; i < n; i++) {
-      osc({ wave: 'square', f: HZ.Cs3, detune: i * 10, dur: 0.07, attack: 0.002,
+      var at = i * STAG.clash / 1000;
+      /* One boot per attacker: a short noise scuff under the pitched stomp so
+         eight of them at 46 ms stay countable instead of fusing into a growl. */
+      snap({ f: 2000, f2: 420, dur: 0.016, gain: 0.055, bus: 'game', t: at });
+      osc({ wave: 'square', f: HZ.Cs3, detune: i * 10, dur: 0.060, attack: 0.0008,
             gain: 0.17 * (1 - 0.05 * i), filt: { type: 'lowpass', f: 900 },
-            bus: 'game', send: 0.14, t: i * STAG.clash / 1000 });
+            bus: 'game', send: 0.12, t: at });
     }
     if (count > 8) {
       osc({ wave: 'square', f: HZ.Cs4, dur: 0.07, attack: 0.002, gain: 0.14,
@@ -1144,14 +1329,14 @@
     var count = Math.max(0, d.count | 0);
     if (count === 0) {
       /* the sound of an open door */
-      osc({ wave: 'sine', f: HZ.Gs2, dur: 0.25, attack: 0.006, gain: 0.10,
+      osc({ wave: 'sine', f: HZ.Gs2, dur: 0.20, attack: 0.0015, gain: 0.10,
             filt: { type: 'lowpass', f: 200 }, bus: 'game', send: 0.20 });
       return;
     }
     var n = Math.min(count, 8);
     for (var i = 0; i < n; i++) {
-      osc({ wave: 'pulse12', f: HZ.Gs4, detune: -i * 10, dur: 0.06, attack: 0.002, gain: 0.14,
-            filt: { type: 'bandpass', f: 1600, q: 6 }, bus: 'game', send: 0.20,
+      osc({ wave: 'pulse12', f: HZ.Gs4, detune: -i * 10, dur: 0.055, attack: 0.0008, gain: 0.14,
+            filt: { type: 'bandpass', f: 1600, q: 6 }, bus: 'game', send: 0.18,
             t: i * STAG.clash / 1000 });
     }
   };
@@ -1160,15 +1345,20 @@
     var a = Math.max(0, d.amount | 0);
     var c8 = Math.min(a, 8), c6 = Math.min(a, 6);
     var send = Math.min(0.36, 0.18 + 0.03 * c6);
-    nz({ src: 'white', dur: 0.22, attack: 0.004, gain: 0.16 + 0.020 * c8, crush: 'deep',
-         filt: { type: 'lowpass', f: 900, f2: 220, fTime: 0.20, q: 1.1 },
+    /* The lowest, widest event in the book — it has to be unmistakable against
+       a card play (128 Hz thock) or a turn change (Gs3 block) with your eyes
+       elsewhere. Crack first at 4.2 kHz, then the body falls to 220 Hz. */
+    snap({ f: 4200, f2: 300, dur: 0.028, gain: 0.13 + 0.010 * c8, seat: d.seat, send: send * 0.4 });
+    nz({ src: 'white', dur: 0.22, attack: 0.0012, gain: 0.16 + 0.020 * c8, crush: 'deep',
+         filt: { type: 'lowpass', f: 2600, f2: 220, fTime: 0.14, q: 1.1 },
          bus: 'impact', seat: d.seat, send: send });
-    osc({ wave: 'square', f: HZ.E2, f2: HZ.B1, fTime: 0.16, dur: 0.16, attack: 0.003,
+    osc({ wave: 'square', f: HZ.E2, f2: HZ.B1, fTime: 0.13, dur: 0.145, attack: 0.0010,
           gain: 0.14 + 0.015 * c8, filt: { type: 'lowpass', f: 400 },
           bus: 'impact', seat: d.seat, send: send });
     clik({ f: 3200, q: 10, gain: 0.06, bus: 'ui', seat: d.seat });
     if (a >= 4) {
-      osc({ wave: 'sine', f: HZ.Cs3, dur: 0.5, attack: 0.004, gain: 0.06,
+      /* The ring-off a big hit leaves behind. Struck, never swelled. */
+      osc({ wave: 'sine', f: HZ.Cs3, dur: 0.42, attack: 0.0010, gain: 0.06,
             filt: { type: 'bandpass', f: HZ.Cs3, q: 9 }, bus: 'game', seat: d.seat, send: send });
     }
     if (a >= 5) duck(0.88, 120, 200);
@@ -1185,38 +1375,46 @@
       var t = i * 0.012;
       clik({ f: 1900, q: 8, gain: 0.11 * k, bus: 'game', t: t });
       clik({ f: 2700, q: 8, gain: 0.11 * k, bus: 'game', t: t + 0.022 });
-      nz({ src: 'metal', dur: 0.09, attack: 0.002, gain: (0.10 + 0.012 * Math.min(a, 6)) * k,
+      nz({ src: 'metal', dur: 0.09, attack: 0.0008, gain: (0.10 + 0.012 * Math.min(a, 6)) * k,
            filt: { type: 'bandpass', f: 1400 + 70 * a, q: 2 }, bus: 'game', send: 0.10, t: t });
-      osc({ wave: 'triangle', f: 220, f2: 174.61, fTime: 0.07, dur: 0.07, attack: 0.002,
+      osc({ wave: 'triangle', f: 220, f2: 174.61, fTime: 0.055, dur: 0.065, attack: 0.0008,
             gain: 0.09 * k, filt: { type: 'lowpass', f: 1200 }, bus: 'game', send: 0.10, t: t });
     }
   };
 
   SFX['avatar:decommission'] = function () {
     /* a graceful shutdown, not a death — it did its job */
-    osc({ wave: 'square', f: 220, dur: 0.385, attack: 0.005, gain: 0.20,
+    snap({ f: 5000, f2: 900, dur: 0.022, gain: 0.10, send: 0.14 });
+    osc({ wave: 'square', f: 220, dur: 0.385, attack: 0.0012, gain: 0.20,
           detune: 0, detuneTo: -1200, detuneTime: 0.30, crushBits: 4,
           filt: { type: 'lowpass', f: 1800, f2: 260, fTime: 0.30 }, bus: 'impact', send: 0.22 });
-    nz({ src: 'pink', dur: 0.30, attack: 0.006, gain: 0.14,
+    nz({ src: 'pink', dur: 0.30, attack: 0.0015, gain: 0.14,
          filt: { type: 'bandpass', f: 900, f2: 200, fTime: 0.28, q: 1.6 }, bus: 'game', send: 0.22 });
     /* the relay opening — the period at the end of the sentence */
     clik({ f: 1200, q: 14, gain: 0.09, bus: 'ui', t: 0.260 });
   };
 
   SFX['uptime:gain'] = function (d) {
-    /* the one clean sound. NO crush anywhere — the absence of crush IS the reward. */
+    /* The one clean sound. NO crush anywhere — the absence of crush IS the
+       reward. It is also the one place a longer tail is earned, so the rule
+       here is STRUCK, not sustained: a bell rings for 300 ms because it was
+       hit, which is the opposite of the 180 ms swell v1 opened the low octave
+       with. A swell has no moment of arrival; that third voice was the reward
+       cue quietly turning into a pad. */
     var a = Math.max(1, d.amount | 0 || 1);
     var s = seatMul(d.seat);
-    osc({ wave: 'triangle', f: HZ.Gs4 * s, dur: 0.30, attack: 0.006, gain: 0.09,
+    /* the mallet — soft, high, gone in 12 ms */
+    snap({ f: 7200, f2: 2400, dur: 0.012, gain: 0.045, bus: 'game', seat: d.seat, send: 0.20 });
+    osc({ wave: 'triangle', f: HZ.Gs4 * s, dur: 0.30, attack: 0.0015, gain: 0.09,
           filt: { type: 'lowpass', f: 5000 }, seat: d.seat, send: 0.30 });
-    osc({ wave: 'sine', f: HZ.Ds5 * s, dur: 0.30, attack: 0.006, gain: 0.06,
+    osc({ wave: 'sine', f: HZ.Ds5 * s, dur: 0.30, attack: 0.0015, gain: 0.06,
           filt: { type: 'lowpass', f: 5000 }, seat: d.seat, send: 0.30 });
-    osc({ wave: 'sine', f: HZ.Cs3 * s, dur: 0.45, attack: 0.18, gain: 0.05,
+    osc({ wave: 'sine', f: HZ.Cs3 * s, dur: 0.40, attack: 0.0020, gain: 0.05,
           filt: { type: 'lowpass', f: 1200 }, seat: d.seat, send: 0.30 });
     var climb = [HZ.Ds5, HZ.Fs5, HZ.Gs5];
     var extra = Math.min(a, 4) - 1;
     for (var i = 0; i < extra; i++) {
-      osc({ wave: 'triangle', f: climb[i] * s, dur: 0.22, attack: 0.006,
+      osc({ wave: 'triangle', f: climb[i] * s, dur: 0.22, attack: 0.0015,
             gain: 0.09 * Math.pow(0.85, i + 1), filt: { type: 'lowpass', f: 5000 },
             seat: d.seat, send: 0.30, t: (i + 1) * STAG.uptime / 1000 });
     }
@@ -1226,9 +1424,9 @@
     /* the most acoustic sound in the set — a human decided, at your table */
     var s = seatMul(d.seat);
     [[HZ.Cs5, 0], [HZ.Gs4, 0.090]].forEach(function (p) {
-      osc({ wave: 'pulse25', f: p[0] * s, dur: 0.14, attack: 0.004, gain: 0.12,
+      osc({ wave: 'pulse25', f: p[0] * s, dur: 0.105, attack: 0.0012, gain: 0.12,
             filt: { type: 'lowpass', f: 2600 }, bus: 'game', send: 0.08, t: p[1] });
-      nz({ src: 'pink', dur: 0.008, attack: 0.001, gain: 0.035,
+      nz({ src: 'pink', dur: 0.008, attack: 0.0006, gain: 0.045,
            filt: { type: 'lowpass', f: 900 }, bus: 'game', send: 0.08, t: p[1] });
     });
   };
@@ -1237,27 +1435,27 @@
     /* Positive, not triumphalist. The same sound plays for both seats. No loss sting. */
     var arp = [HZ.Cs4, HZ.E4, HZ.Gs4, HZ.B4, HZ.Cs5, HZ.Fs5];
     for (var i = 0; i < arp.length; i++) {
-      osc({ wave: 'pulse25', f: arp[i], dur: 0.35, attack: 0.005, gain: 0.18,
+      osc({ wave: 'pulse25', f: arp[i], dur: 0.28, attack: 0.0015, gain: 0.18,
             filt: { type: 'lowpass', f: 5200 }, bus: 'game', send: 0.35, slap: 0.25,
             t: i === 5 ? 0.500 : i * STAG.win / 1000 });
     }
-    osc({ wave: 'triangle', f: HZ.Cs3, dur: 1.9, attack: 0.08, gain: 0.08,
+    /* The one long tail the set allows itself, and it is still STRUCK: 12 ms in,
+       1.5 s out. An 80 ms attack on a 1.9 s note is a pad fading up, which is
+       the sound the rest of this pass exists to remove. */
+    osc({ wave: 'triangle', f: HZ.Cs3, dur: 1.5, attack: 0.012, gain: 0.08,
           filt: { type: 'lowpass', f: 2600 }, bus: 'game', send: 0.30, t: 0.500 });
-    osc({ wave: 'triangle', f: HZ.Gs3, dur: 1.9, attack: 0.08, gain: 0.05,
+    osc({ wave: 'triangle', f: HZ.Gs3, dur: 1.5, attack: 0.012, gain: 0.05,
           filt: { type: 'lowpass', f: 2600 }, bus: 'game', send: 0.30, t: 0.500 });
-    nz({ src: 'pink', dur: 1.4, attack: 0.50, gain: 0.09, crush: 'soft',
+    nz({ src: 'pink', dur: 1.2, attack: 0.30, gain: 0.09, crush: 'soft',
          filt: { type: 'bandpass', f: 900, q: 0.8 }, bus: 'game', send: 0.30, t: 0.560 });
     clik({ f: 2000, q: 6, gain: 0.05, bus: 'ui', t: 1.500 });
 
     endClash();
     stopHoldTone();
     duckBed(0.45, 600, 2000);
-    if (drone) guard(function () {
-      var t = ctx.currentTime;
-      drone.lp.frequency.linearRampToValueAtTime(900, t + 2.0);
-      drone.trem.gain.linearRampToValueAtTime(0.0001, t + 2.6);
-    });
-    if (bedNodes) global.setTimeout(function () { if (cfg.bed) { /* bed stays, just ducked */ } }, 0);
+    stopPressure();
+    /* The ambient bed deliberately survives the win — it is the room, not the
+       game — and duckBed() above already pulls it under the fanfare. */
   };
 
   /* ==================================================================== *
@@ -1341,7 +1539,14 @@
     '.fxbar .fxlab{font:900 10px/1 Anton600,Impact,sans-serif;letter-spacing:.14em;',
     'text-transform:uppercase;color:#b991e4}',
     '.fx-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;',
-    'clip:rect(0 0 0 0);white-space:nowrap;border:0}'
+    'clip:rect(0 0 0 0);white-space:nowrap;border:0}',
+    /* One-time hail. Three hard steps, no fade — the same quantized vocabulary
+       as EASE.step and pRingLoop, and inside no-preference so a reduced-motion
+       reader gets the aria-live sentence and a still control. */
+    '@media (prefers-reduced-motion:no-preference){',
+    '.fxbar-hail{animation:fxHail 560ms steps(2,end) 3}}',
+    '@keyframes fxHail{from{border-color:rgba(185,145,228,.28)}',
+    'to{border-color:#f7931a}}'
   ].join('');
 
   /* --- pools ---------------------------------------------------------- */
@@ -2110,7 +2315,7 @@
     global.setTimeout(function () { if (upt) pDrain(upt, false); }, 300);
   };
 
-  MOTION['buffer:set'] = function () { /* drone only — no visual */ };
+  MOTION['buffer:set'] = function () { /* pressure pulse only — no visual */ };
 
   MOTION['ability:activate'] = function (d) {
     var el = targetEl(d, 'network');
@@ -2393,7 +2598,7 @@
     });
   }
 
-  /* The pressure drone needs the absolute Buffer level for activeSeat.
+  /* The pressure pulse needs the absolute Buffer level for activeSeat.
      buffer:set is authoritative; generate/burn deltas are the fallback when the
      host never emits it (it will then over-report after a spend and self-correct
      on the next burn — documented, graceful). */
@@ -2508,7 +2713,10 @@
     if (!controlEl) return;
     if (muteBtn) {
       muteBtn.setAttribute('aria-pressed', cfg.muted ? 'true' : 'false');
-      muteBtn.setAttribute('aria-label', cfg.muted ? 'Sound off' : 'Sound on');
+      /* The shortcut is named in the accessible name AND in the tooltip: it was
+         only ever documented in the source, which is not where players look. */
+      muteBtn.setAttribute('aria-label', (cfg.muted ? 'Sound off' : 'Sound on') + ', press M to toggle');
+      muteBtn.title = (cfg.muted ? 'Sound off' : 'Sound on') + ' (M)';
       muteBtn.textContent = '';
       muteBtn.appendChild(svgMeter(cfg.muted));
     }
@@ -2516,10 +2724,46 @@
     if (motionSel) motionSel.value = cfg.motion;
   }
 
+  /* The live region has to be cleared and re-filled a tick later or a repeated
+     message (mute, unmute, mute) is not re-announced. The node is captured, not
+     re-read: destroy() nulls srNode, and this timer used to outlive it and throw
+     outside every guard — reachable any time the host tears the layer down
+     within 30 ms of a mute toggle. */
   function announce(msg) {
-    if (!srNode) return;
-    srNode.textContent = '';
-    global.setTimeout(function () { srNode.textContent = msg; }, 30);
+    var n = srNode;
+    if (!n) return;
+    n.textContent = '';
+    global.setTimeout(function () { guard(function () { n.textContent = msg; }); }, 30);
+  }
+
+  /* The introduction, once per browser. Autoplay policy means the very first
+     gesture is also the first instant the game could have made a sound, which is
+     the only moment where "that noise came from this control, and M turns it
+     off" is information rather than an interruption. */
+  function hailControls() {
+    if (cfg.hailed) return;
+    /* Nothing to introduce yet if the host armed audio before mounting — stay
+       un-hailed so the real first gesture still gets the introduction. */
+    if (!srNode && !controlEl) return;
+    cfg.hailed = true;
+    saveCfg();
+    /* Which way the control is pointing has to be read off cfg, not assumed. A
+       player who muted before this build shipped has muted:true stored with no
+       hailed key at all, so the hail fires for them on their very first gesture
+       after the upgrade — and "Sound is on" would then be a flat untruth told
+       only to screen-reader users, about a control the blink below is pointing
+       at while it renders as muted. The introduction is worth making either
+       way; only the second half of the sentence changes. */
+    announce(cfg.muted
+      ? 'Sound is off. Press M to unmute, or use the sound control in the table controls.'
+      : 'Sound is on. Press M to mute, or use the sound control in the table controls.');
+    if (!controlEl) return;
+    guard(function () {
+      controlEl.classList.add('fxbar-hail');
+      global.setTimeout(function () {
+        guard(function () { if (controlEl) controlEl.classList.remove('fxbar-hail'); });
+      }, 1900);
+    });
   }
 
   function mountControls(parent) {
@@ -2530,7 +2774,10 @@
     if (!parent) { bar.style.right = '16px'; bar.style.bottom = '16px'; }
     else { bar.style.position = 'relative'; bar.style.right = ''; bar.style.bottom = ''; }
 
-    var lab = doc.createElement('span'); lab.className = 'fxlab'; lab.textContent = 'FX';
+    bar.title = 'Sound and motion — press M to mute';
+
+    /* "FX" told a player nothing; it read as a decoration on the control row. */
+    var lab = doc.createElement('span'); lab.className = 'fxlab'; lab.textContent = 'SOUND';
     bar.appendChild(lab);
 
     muteBtn = doc.createElement('button');
@@ -2541,11 +2788,13 @@
     volInput = doc.createElement('input');
     volInput.type = 'range'; volInput.min = '0'; volInput.max = '100'; volInput.step = '5';
     volInput.setAttribute('aria-label', 'Effects volume');
+    volInput.title = 'Effects volume';
     volInput.addEventListener('input', function () { API.volume(Number(volInput.value) / 100); });
     bar.appendChild(volInput);
 
     motionSel = doc.createElement('select');
     motionSel.setAttribute('aria-label', 'Motion');
+    motionSel.title = 'Motion: follow the system setting, always full, or always reduced';
     [['auto', 'Auto'], ['full', 'Full'], ['reduced', 'Reduced']].forEach(function (o) {
       var op = doc.createElement('option'); op.value = o[0]; op.textContent = o[1];
       motionSel.appendChild(op);
@@ -2627,7 +2876,7 @@
 
       if (opts.control !== false) mountControls(opts.parent || null);
       mounted = true;
-      if (cfg.pressure) { /* drone is created lazily at game:start */ }
+      if (cfg.pressure) { /* the pressure pulse starts lazily at game:start */ }
       return API;
     }) || API;
   }
@@ -2635,6 +2884,9 @@
   function onVisibility() {
     if (!doc) return;
     if (doc.hidden) suspendAudio(); else resumeAudio();
+    /* A hidden tab schedules nothing at all; coming back has to restart both
+       timers, which is also why they self-reschedule rather than setInterval. */
+    pressureSchedule(); holdPingSchedule();
   }
 
   function stopAll() {
@@ -2649,7 +2901,7 @@
           });
         });
         voices.length = 0;
-        stopHoldTone(); stopClashBus(0.06);
+        stopHoldTone(); stopClashBus(0.06); cancelPressureBeat();
       }
       clearLoopRings();
       animSet.forEach(function (a) { guard(function () { a.cancel(); }); });
@@ -2676,7 +2928,7 @@
       if (controlEl && controlEl.parentNode) controlEl.parentNode.removeChild(controlEl);
       layer = styleNode = srNode = controlEl = null;
       pools = {}; mounted = false;
-      if (drone) { guard(function () { drone.o1.stop(); drone.o2.stop(); drone.lfo.stop(); }); drone = null; }
+      stopPressure();
       if (ctx && ctx.close) guard(function () { ctx.close(); });
       ctx = null; ready = false; masterGain = null;
     });
@@ -2774,7 +3026,7 @@
           cfg.bed = patch.bed;
           if (ready) { if (cfg.bed) startBed(); else stopBed(); }
         }
-        applyMaster(); updateDrone(); refreshControls(); saveCfg();
+        applyMaster(); pressureSchedule(); refreshControls(); saveCfg();
       });
       return API;
     },
@@ -2790,6 +3042,9 @@
 
     mute: function (on) {
       cfg.muted = !!on; applyMaster(); refreshControls(); saveCfg();
+      /* Both periodic layers gate on cfg.muted, so they have to be re-asked:
+         muting must stop scheduling, not merely schedule into a silent master. */
+      pressureSchedule(); holdPingSchedule();
       announce(cfg.muted ? 'Sound off' : 'Sound on');
       return API;
     },
