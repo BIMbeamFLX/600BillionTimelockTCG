@@ -10,6 +10,35 @@ const REPO = path.resolve(__dirname, "..");
 const CENSUS_PATH = path.join(REPO, "cards", "nutft-census.json");
 const VERSION = "1";
 
+/* Durable mint state. The demo held counts, spent secrets and trade receipts in
+ * memory, so every restart re-issued pack-0001 with the same cards and the supply
+ * cap only ever held until the next deploy. A mint handing out bearer proofs that
+ * people keep cannot be allowed to forget what it already sold. */
+const MINT_DDL = `
+CREATE TABLE IF NOT EXISTS nutft_mint (
+  id             INTEGER PRIMARY KEY CHECK (id = 1),
+  census_sha256  TEXT NOT NULL,
+  catalog_uri    TEXT NOT NULL,
+  collection_id  TEXT NOT NULL,
+  next_pack      INTEGER NOT NULL,
+  commitment     TEXT NOT NULL,
+  counts_json    TEXT NOT NULL,
+  updated_at     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS nutft_spent (
+  y         TEXT PRIMARY KEY,
+  asset_id  TEXT NOT NULL,
+  spent_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS nutft_trades (
+  idempotency_key TEXT PRIMARY KEY,
+  result_json     TEXT NOT NULL,
+  traded_at       TEXT NOT NULL
+);
+`;
+
 const text = (value) => new TextEncoder().encode(value);
 const hex = (value) => Buffer.from(value).toString("hex");
 
@@ -68,6 +97,42 @@ function createNutftMint(options = {}) {
   const state = { counts: { ...catalog.counts }, nextPack: 1, state: initialCommitment };
   const spent = new Set();
   const trades = new Map();
+
+  /* No db keeps the original in-memory behaviour, which is what the offline demo
+   * and most tests want. Anything that sells a card for real passes one in. */
+  const db = options.db || null;
+  const now = () => new Date().toISOString();
+  if (db) {
+    db.exec(MINT_DDL);
+    const row = db.prepare("SELECT * FROM nutft_mint WHERE id = 1").get();
+    if (!row) {
+      db.prepare(`INSERT INTO nutft_mint
+        (id, census_sha256, catalog_uri, collection_id, next_pack, commitment, counts_json, updated_at)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(census.census_sha256, catalogUri, collectionId, 1, initialCommitment, JSON.stringify(state.counts), now());
+    } else {
+      /* Resuming a sold-into mint under a different census, catalog_uri or
+       * collection would issue cards whose CardBinding disagrees with the ones
+       * already in people's wallets — and catalog_uri is hashed into every
+       * binding, so that split is permanent rather than merely wrong. Refuse to
+       * start instead of minting a second, incompatible run. */
+      const mismatch = row.census_sha256 !== census.census_sha256 ? ["census_sha256", row.census_sha256, census.census_sha256]
+        : row.catalog_uri !== catalogUri ? ["catalog_uri", row.catalog_uri, catalogUri]
+        : row.collection_id !== collectionId ? ["collection_id", row.collection_id, collectionId]
+        : null;
+      if (mismatch) {
+        throw new Error(`this mint has already sold ${row.next_pack - 1} pack(s) under a different ${mismatch[0]}: `
+          + `stored ${mismatch[1]}, configured ${mismatch[2]}. Refusing to start.`);
+      }
+      state.counts = JSON.parse(row.counts_json);
+      state.nextPack = row.next_pack;
+      state.state = row.commitment;
+      for (const spentRow of db.prepare("SELECT y FROM nutft_spent").all()) spent.add(spentRow.y);
+      for (const tradeRow of db.prepare("SELECT idempotency_key, result_json FROM nutft_trades").all()) {
+        trades.set(tradeRow.idempotency_key, JSON.parse(tradeRow.result_json));
+      }
+    }
+  }
   const catalogPrivateKey = crypto.createHash("sha256").update("600B NutFT catalog issuer").digest();
   let cashu;
 
@@ -158,9 +223,16 @@ function createNutftMint(options = {}) {
       };
     });
 
-    // ponytail: the demo keeps the census in memory; add durable mint storage before real sales.
-    state.counts = { ...state.counts };
-    const resolved = openPack(state.counts, catalog.pools, catalog.slots, beacon, expected.pack_id);
+    /* Disk first, memory second. If the write fails the caller gets an error and
+     * never sees these signatures, instead of walking away with cards the mint
+     * has no record of selling. */
+    const nextCounts = { ...state.counts };
+    const resolved = openPack(nextCounts, catalog.pools, catalog.slots, beacon, expected.pack_id);
+    if (db) {
+      db.prepare("UPDATE nutft_mint SET next_pack = ?, commitment = ?, counts_json = ?, updated_at = ? WHERE id = 1")
+        .run(state.nextPack + 1, expected.next_state, JSON.stringify(nextCounts), now());
+    }
+    state.counts = nextCounts;
     state.state = expected.next_state;
     state.nextPack += 1;
     return { ...expected, cards: expected.cards, signatures, keyset_id: keyset.keysetId, resolved };
@@ -192,6 +264,19 @@ function createNutftMint(options = {}) {
       signature: { id: keyset.keysetId, amount: 1, C_: blind.C_.toHex(true), dleq: { s: hex(dleq.s), e: hex(dleq.e) } },
     };
     // Commit only after every input, destination, binding, and signature check passed.
+    if (db) {
+      const at = now();
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        db.prepare("INSERT INTO nutft_spent (y, asset_id, spent_at) VALUES (?, ?, ?)").run(y, inputReference.asset_id, at);
+        db.prepare("INSERT INTO nutft_trades (idempotency_key, result_json, traded_at) VALUES (?, ?, ?)")
+          .run(body.idempotency_key, JSON.stringify(result), at);
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    }
     spent.add(y);
     trades.set(body.idempotency_key, result);
     return result;

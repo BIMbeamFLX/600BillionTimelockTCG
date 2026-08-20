@@ -131,3 +131,87 @@ test("the browser wallet reloads a bought booster from its own storage", async (
     "reload returns the same seven assets the mint issued",
   );
 });
+
+test("a restarted mint remembers what it already sold", async (t) => {
+  // Regression: counts, nextPack and spent secrets lived only in memory, so
+  // `systemctl restart tcg-table` — the last step of the deploy runbook — reset
+  // sold to 0 and re-issued pack-0001 with the identical cards. The supply cap
+  // held only until the next restart.
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "nutft-durable-"));
+  const dbPath = join(dir, "mint.db");
+  t.after(() => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* windows keeps the db file briefly */ } });
+
+  const buy = async (base) => {
+    const keys = await (await fetch(`${base}/v1/keys`)).json();
+    const keyset = keys.keysets[0];
+    const pubkey = hex(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey()));
+    const quote = await (await fetch(`${base}/nutft/quote`)).json();
+    const outputs = quote.cards.map((card) => cashu.OutputData.createSingleP2PKData({
+      pubkey,
+      blindKeys: true,
+      additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+    }, 1, keyset.id));
+    const response = await fetch(`${base}/nutft/booster`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        pack_id: quote.pack_id,
+        state: quote.state,
+        outputs: outputs.map((output, i) => ({ amount: 1, id: output.blindedMessage.id, B_: output.blindedMessage.B_, nutft: {
+          collection_id: quote.cards[i].collection_id,
+          asset_id: quote.cards[i].asset_id,
+          catalog_uri: quote.cards[i].catalog_uri,
+        } })),
+      }),
+    });
+    assert.equal(response.status, 200);
+    return { quote, issued: await response.json() };
+  };
+
+  const first = await createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
+  const one = await buy(first.url);
+  const afterFirst = await (await fetch(`${first.url}/nutft/state`)).json();
+  assert.equal(afterFirst.sold, 1);
+  assert.equal(afterFirst.next_pack, "pack-0002");
+  first.close();
+
+  // Same database, new process-lifetime: this is what a systemctl restart does.
+  const second = await createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
+  t.after(() => second.close());
+  const resumed = await (await fetch(`${second.url}/nutft/state`)).json();
+  assert.equal(resumed.sold, 1, "the restarted mint still knows pack-0001 is gone");
+  assert.equal(resumed.next_pack, "pack-0002", "it does not re-issue pack-0001");
+  assert.equal(resumed.state, afterFirst.state, "the published commitment survives the restart");
+  assert.deepEqual(resumed.remaining, afterFirst.remaining, "the supply counts survive the restart");
+
+  const two = await buy(second.url);
+  assert.equal(two.quote.pack_id, "pack-0002");
+  assert.notDeepEqual(
+    two.issued.cards.map((card) => card.asset_id),
+    one.issued.cards.map((card) => card.asset_id),
+    "the second pack is not a replay of the first",
+  );
+});
+
+test("a mint that has sold refuses to restart under a different catalog_uri", async (t) => {
+  // catalog_uri is hashed into every asset_binding, so resuming under a new one
+  // would issue cards that disagree with the ones already in people's wallets.
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "nutft-binding-"));
+  const dbPath = join(dir, "mint.db");
+  t.after(() => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* windows keeps the db file briefly */ } });
+
+  const first = await createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
+  first.close();
+
+  await assert.rejects(
+    () => createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: "https://example.test/nutft/catalog" }),
+    /different catalog_uri/,
+    "the mint refuses rather than splitting the binding",
+  );
+});
