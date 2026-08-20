@@ -3278,6 +3278,7 @@
     agreement: null,   // pending | confirmed | disputed, from the referee
     invite: null,      // the invite we joined from, if any (for the accept event)
     unsubscribe: null,
+    inviteTimer: null,
     catalogOk: true,
     /* Match ids we have already announced on nostr. A match is announced ONCE,
      * not once per reload — the signer popup is the player's attention, and
@@ -3661,7 +3662,7 @@
    * what a start announcement is, so no new storage role is invented for it. */
   async function announceStart(state) {
     if (!state || state.status !== "playing" || session.seat === null) return;
-    if (readAnnounced().indexOf(state.matchId) >= 0) return;
+    if (wasAnnounced(state.matchId)) return;
     if (!nostr().hasNip07()) return;
     markAnnounced(state.matchId); // before the await: one popup, even if STATE repeats
     const role = session.seat === 0 ? "invite" : "accept";
@@ -3979,6 +3980,8 @@
         if (row.hostOnline === false) bits.push("host away");
         item.append(el("span", null, bits.join(" · ")));
         const button = el("button", "btn ghost", row.stake ? `Join for ${row.stake} sats` : "Join");
+        button.disabled = row.hostOnline === false;
+        if (button.disabled) button.textContent = "Host away";
         button.addEventListener("click", () => joinTable(row.code, null, row.stake || 0));
         item.append(button);
         list.append(item);
@@ -3997,9 +4000,19 @@
     }
     list.append(el("div", "netline", "Listening for invites on the relays…"));
     if (remote.unsubscribe) remote.unsubscribe();
+    if (remote.inviteTimer) clearTimeout(remote.inviteTimer);
     let first = true;
+    const timeout = remote.inviteTimer = setTimeout(() => {
+      if (!first) return;
+      list.innerHTML = "";
+      list.append(el("div", "netline", "No invitations found. Check again to retry the relays."));
+      if (remote.unsubscribe) remote.unsubscribe();
+      remote.unsubscribe = null;
+      remote.inviteTimer = null;
+    }, 6000);
+    timeout.unref?.();
     remote.unsubscribe = nostr().subscribeInvites(nostr().savedPubkey(), (invite) => {
-      if (first) { list.innerHTML = ""; first = false; }
+      if (first) { clearTimeout(timeout); remote.inviteTimer = null; list.innerHTML = ""; first = false; }
       const item = el("div", "netrow");
       item.append(el("span", null,
         `${invite.code} · ${invite.host.name || "?"} (${invite.host.affinity || "?"}) · ${nostr().shortNpub(invite.pubkey)}`));
@@ -4021,7 +4034,7 @@
         ? `Published to ${res.accepted.length}/${res.tried} relays.`
         : `No relay accepted the ${role}. The match is unaffected — nostr is the announcement, never the gate.`,
         res.ok ? "good" : "");
-      return true;
+      return res.ok;
     } catch (error) {
       netNotice(`Signing was declined — ${role} not published. The match is unaffected.`, "");
       return false;

@@ -293,7 +293,7 @@ BIP-340 signature verification.
 ## Tests
 
 ```bash
-npm run test:js     # 284 tests: engine, client, transport, ladder, and every card wave
+npm run test:js     # 314 tests: engine, client, transport, NutFT, ladder, and every card wave
 uv run pytest       # the Python generators
 ```
 

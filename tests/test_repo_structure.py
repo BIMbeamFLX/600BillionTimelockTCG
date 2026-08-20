@@ -20,6 +20,7 @@ def test_static_site_pages_live_together() -> None:
         "quickstart.html",
         "rules.html",
         "shop.html",
+        "wallet.html",
     }
     assert not any(REPO_ROOT.glob("*.html"))
 

@@ -531,6 +531,16 @@ test("a NutFT-marked Stack proves current wallet possession before play", async 
   assert.ok(game.state, "the verified Stack should start after all 40 proofs pass");
 });
 
+test("a listed table whose host is away is not joinable", async () => {
+  const stub = netStub({ tables: async () => [{ code: "ABC123", name: "Host", affinity: "Power", stake: 0, hostOnline: false }] });
+  const { byId } = loadPlay(stub);
+  byId("refreshTables").click();
+  await new Promise((resolve) => setImmediate(resolve));
+  const row = byId("tableList").children[0];
+  assert.equal(row.children[1].disabled, true);
+  assert.equal(row.children[1].textContent, "Host away");
+});
+
 test("a finished match can be published from a STATE alone — no live OVER needed", () => {
   const stub = netStub();
   const { byId, game } = loadPlay(stub);

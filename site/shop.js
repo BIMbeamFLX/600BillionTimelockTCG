@@ -95,10 +95,10 @@
    * never a control that no-ops or dies at a wall. */
   const PULL_MODE = MODE === "mint" && PAID_LIVE && ONLINE ? "mint" : "demo";
 
-  const RANK = { promo: 3, rare: 3, uncommon: 2, common: 1 };
+  const RANK = { genesis: 5, vault: 4, promo: 3, rare: 3, uncommon: 2, common: 1 };
   const NUTFT_PACK_SIZE = 7;
   const NUTFT_TOTAL_CARDS = 146475;
-  let nutftState = { sold: 0, packs: 20925 };
+  let nutftState = { sold: 0, packs: 20925, tier_odds: {} };
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => {
@@ -262,7 +262,7 @@
    * the bug being fixed. A phone gets the same page in this tab instead; back
    * returns to the shop, and the collection is in storage, not in the DOM. */
   function openGallery(cardId, sameTab) {
-    const url = `cards.html#${cardId}`;
+    const url = `cards.html?card=${encodeURIComponent(cardId)}`;
     if (sameTab) {
       root.location.href = url;
       return;
@@ -710,7 +710,7 @@
 
     const odds = $("odds");
     odds.innerHTML = "";
-    Object.entries(BOX.odds || {})
+    Object.entries((mint ? nutftState.tier_odds : BOX.odds) || {})
       .sort((a, b) => (RANK[b[0]] || 1) - (RANK[a[0]] || 1))
       .forEach(([rarity, percent]) => {
         const row = el("div", `odd rarity-${rarity}`);
@@ -726,13 +726,13 @@
     if (mint) $("verifyResult").textContent = "NutFT mode verifies the signed catalog and each Blossom face in the wallet.";
     const paidState = $("paidState");
     paidState.className = `state ${PULL_MODE === "mint" ? "state--live" : "state--off"}`;
-    paidState.textContent = PULL_MODE === "mint" ? "NUTFT · LIVE" : "NUTFT · OPEN ?SHOP=MINT";
+    paidState.textContent = PULL_MODE === "mint" ? "NUTFT · DEMO" : "NUTFT · OPEN ?SHOP=MINT";
 
     const modeBox = $("modeNote");
     modeBox.className = `note mode-${PULL_MODE}`;
     modeBox.innerHTML =
       PULL_MODE === "mint"
-        ? "<strong>NutFT mint mode.</strong> This demo issues one Cashu proof per card into the browser wallet. The mint sees the CardBinding declaration; the wallet verifies the hidden secret, P2BK destination, and DLEQ."
+        ? "<strong>NutFT mint mode.</strong> This demo issues one Cashu proof per card into the browser wallet. The mint validates the disclosed output opening and CardBinding; the wallet verifies P2BK, DLEQ, proof state, and catalog data."
         : "<strong>Alpha — free demo packs.</strong> The box, the order, the odds and the fingerprint below are the real ones; only the payment is skipped. Your collection lives in this browser. When the mint goes live the same packs cost sats and the cards become yours on Nostr.";
 
     /* Two different truths, and the page must not tell the wrong one: there is

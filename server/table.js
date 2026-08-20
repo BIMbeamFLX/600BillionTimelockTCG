@@ -1684,6 +1684,7 @@ async function createTable(opts) {
      * process and every live match with it. Rejected here, before any path is
      * built from it. */
     if (pathname.indexOf("\0") >= 0) return reply(400, { error: "bad url" });
+    if (pathname === "/favicon.ico") { res.writeHead(204).end(); return; }
 
     if (pathname.startsWith("/v1/") || pathname.startsWith("/nutft/")) {
       return nutft.handle(req, res, url);
