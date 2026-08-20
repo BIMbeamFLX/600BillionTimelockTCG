@@ -569,6 +569,7 @@
       res.problem ||
         `Sent — "${DRAFT_NAME}" now holds ${res.n} cards. Open the Stack Builder and press Load.`
     );
+    return res;
   }
 
   // ---------------------------------------------------------- collection
@@ -879,8 +880,9 @@
       const button = $("sendStack");
       button.disabled = true;
       stackNote("Sending…");
-      await sendCollection();
-      button.disabled = false;
+      const result = await sendCollection();
+      if (result.n >= 0) root.location.href = `deck.html?load=${encodeURIComponent(DRAFT_NAME)}`;
+      else button.disabled = false;
     });
 
     $("verifyBox").addEventListener("click", async () => {
