@@ -105,3 +105,44 @@ function payRequest({ callbackUrl, amountMsat, metadata }) {
 const error = (reason) => ({ status: "ERROR", reason });
 
 module.exports = { encodeLnurl, metadataFor, descriptionHash, payRequest, error, convertBits };
+
+/* Decode an npub to the 32-byte hex pubkey. Written here because the encoder
+ * and its charset already live in this file, and the copy in site/net.js is
+ * browser-side and not exported.
+ *
+ * Returns null rather than throwing: this reads operator configuration, and a
+ * single fat-fingered key in an allowlist should name itself in a log line, not
+ * take the whole mint down at boot. */
+function decodeNpub(value) {
+  const input = String(value || "").trim().toLowerCase();
+  if (!input.startsWith("npub1")) return null;
+  const pos = input.lastIndexOf("1");
+  const hrp = input.slice(0, pos);
+  const dataPart = input.slice(pos + 1);
+  if (hrp !== "npub" || dataPart.length < 6) return null;
+  const data = [];
+  for (const ch of dataPart) {
+    const index = CHARSET.indexOf(ch);
+    if (index < 0) return null;
+    data.push(index);
+  }
+  if (polymod([...hrpExpand(hrp), ...data]) !== 1) return null;   // checksum
+  try {
+    const bytes = convertBits(data.slice(0, -6), 5, 8, false);
+    if (bytes.length !== 32) return null;
+    return Buffer.from(bytes).toString("hex");
+  } catch {
+    return null;
+  }
+}
+
+/* Accepts an npub or a bare 64-hex key, so an operator can paste whichever they
+ * have to hand. */
+function toPubkeyHex(value) {
+  const raw = String(value || "").trim();
+  if (/^[0-9a-f]{64}$/i.test(raw)) return raw.toLowerCase();
+  return decodeNpub(raw);
+}
+
+module.exports.decodeNpub = decodeNpub;
+module.exports.toPubkeyHex = toPubkeyHex;

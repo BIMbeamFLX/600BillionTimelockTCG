@@ -8,6 +8,7 @@ const { censusHash, hashParts, loadCensus, openPack } = require("./nutft-draw.js
 const lnd = require("./lnd.js");
 const { createBeacon } = require("./beacon.js");
 const lnurl = require("./lnurl.js");
+const { toPubkeyHex } = require("./lnurl.js");
 const { createFunding } = require("./funding.js");
 
 const REPO = path.resolve(__dirname, "..");
@@ -182,6 +183,36 @@ function createNutftMint(options = {}) {
      cheapest — a ladder that wraps around would sell the scarcest packs for the
      introductory price. */
   const priceFor = (soldCount) => (priceTiers.find((tier) => soldCount < tier.upTo) || priceTiers[priceTiers.length - 1]).msat;
+  /* Who may buy, and whether anyone may. Deploying a mint that is already
+     selling means the window between "it is reachable" and "we announced it" is
+     a window in which one person can quietly take the whole cheap tier. The box
+     therefore starts CLOSED unless told otherwise, and opens deliberately.
+
+       closed     nobody buys; everything else stays testable
+       allowlist  only the listed nostr keys buy
+       open       anyone buys
+
+     Default is "open" so an existing free demo behaves exactly as it does now;
+     a PAID mint with no explicit setting is the case worth guarding, and that is
+     checked below. */
+  const salesMode = String(options.sales || process.env.NUTFT_SALES || "open").toLowerCase();
+  if (!["open", "closed", "allowlist"].includes(salesMode)) {
+    throw new Error(`NUTFT_SALES must be open, closed or allowlist — got ${salesMode}`);
+  }
+  const allowlist = new Set();
+  for (const entry of String(options.allowlist || process.env.NUTFT_ALLOWLIST || "").split(",")) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    const hex = toPubkeyHex(trimmed);
+    /* A mistyped key names itself instead of taking the mint down at boot —
+       but it must not silently become "nobody", which is why it is logged. */
+    if (hex) allowlist.add(hex);
+    else console.error(`[nutft] NUTFT_ALLOWLIST entry is not an npub or 32-byte hex, ignored: ${trimmed}`);
+  }
+  if (salesMode === "allowlist" && !allowlist.size) {
+    throw new Error("NUTFT_SALES=allowlist with an empty NUTFT_ALLOWLIST would sell to nobody; set the list or use closed");
+  }
+
   const priceMsat = priceFor(0);
   const paidMint = Boolean(funding);
   if (paidMint && !(priceMsat > 0)) throw new Error("the booster price must be a positive number of msat");
@@ -320,7 +351,29 @@ function createNutftMint(options = {}) {
 
   /* A quote the buyer can actually pay. The invoice is bound to this pack id,
      so a settled payment buys the pack it was quoted for and no other. */
+  /* The gate. Checked at EVERY entry that can reach an invoice, not only at the
+     claim: gating the claim alone would let an unlisted buyer pay and then be
+     refused their cards, which is taking money for nothing.
+
+     `buyer` is the pubkey proven by the caller. It is undefined on the
+     wallet-driven LNURL path, which cannot sign a nostr event — so while the
+     box is gated that path refuses rather than quietly letting anyone through
+     the side door. */
+  function requireMayBuy(buyer) {
+    if (salesMode === "open") return;
+    if (salesMode === "closed") {
+      throw new Error("the box is not open yet — boosters are not on sale");
+    }
+    if (!buyer) {
+      throw new Error("early access: sign in with your nostr key to buy a booster");
+    }
+    if (!allowlist.has(String(buyer).toLowerCase())) {
+      throw new Error("early access: this key is not on the list yet");
+    }
+  }
+
   async function payableQuote(opts = {}) {
+    requireMayBuy(opts.buyer);
     const base = await quote();
     /* Read once, here, and used for the invoice, the record and the reply — so
        the three can never disagree about what this booster costs. */
@@ -474,6 +527,10 @@ function createNutftMint(options = {}) {
   }
 
   async function signBooster(body) {
+    /* Gated here too. The quote check stops an invoice being created; this stops
+       a pack being issued against one that already exists — a quote handed out
+       before the box was gated must not still be claimable afterwards. */
+    requireMayBuy(body && body.buyer);
     const keyset = await ready;
     if (typeof body.idempotency_key !== "string" || !body.idempotency_key) throw new Error("booster idempotency_key is required");
     const requestHash = crypto.createHash("sha256").update(canonical(body)).digest("hex");
@@ -565,7 +622,7 @@ function createNutftMint(options = {}) {
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceFor(state.nextPack - 1) : 0, price_tiers: paidMint && priceTiers.length > 1 ? priceTiers.map((t) => ({ up_to_packs: t.upTo === Infinity ? null : t.upTo, price_msat: t.msat })) : undefined, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), test_mint: Boolean(funding && funding.testMint), catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
+        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceFor(state.nextPack - 1) : 0, price_tiers: paidMint && priceTiers.length > 1 ? priceTiers.map((t) => ({ up_to_packs: t.upTo === Infinity ? null : t.upTo, price_msat: t.msat })) : undefined, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), test_mint: Boolean(funding && funding.testMint), sales: salesMode, catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && url.pathname === "/v1/checkstate") {
@@ -590,6 +647,10 @@ function createNutftMint(options = {}) {
       if (req.method === "GET" && url.pathname === "/nutft/lnurlp") {
         if (!paidMint) return json(res, 200, lnurl.error("this mint is free — no payment is needed"));
         if (!publicBase) return json(res, 200, lnurl.error("mint is not configured with a public URL"));
+        /* A wallet cannot prove a nostr key, so a gated box cannot serve this
+           path at all. Saying so is better than handing over a payable invoice
+           that will not be honoured. */
+        if (salesMode !== "open") return json(res, 200, lnurl.error("the box is not open to wallet payments yet"));
         return json(res, 200, lnurl.payRequest({
           callbackUrl: `${publicBase}/nutft/lnurlp/callback`,
           amountMsat: priceFor(state.nextPack - 1),
@@ -602,6 +663,7 @@ function createNutftMint(options = {}) {
          paying by QR the buyer has no other way to learn their payment_hash. */
       if (req.method === "GET" && url.pathname === "/nutft/lnurlp/callback") {
         if (!paidMint) return json(res, 200, lnurl.error("this mint is free — no payment is needed"));
+        if (salesMode !== "open") return json(res, 200, lnurl.error("the box is not open to wallet payments yet"));
         const amount = Number(url.searchParams.get("amount"));
         const wanted = priceFor(state.nextPack - 1);
         if (!Number.isFinite(amount) || amount !== wanted) {

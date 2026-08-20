@@ -801,3 +801,81 @@ test("the price ladder charges by how many packs have sold", async (t) => {
     "and is refused rather than quietly ignored",
   );
 });
+
+test("a closed box sells to nobody, through any door", async (t) => {
+  // The premine window: between "the mint is reachable" and "we announced it",
+  // one person could quietly take the whole cheap tier. The box starts closed
+  // and opens deliberately — and it must be closed at EVERY entry, because a
+  // gate on the claim alone would take money and then refuse the cards.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  const mint = createNutftMint({
+    db, catalogUri: "https://x/nutft/catalog", publicBase: "https://x",
+    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000,
+    sales: "closed",
+  });
+
+  const hit = async (path) => {
+    const out = {};
+    const res = { writeHead(c) { out.code = c; return res; }, end(b) { out.body = JSON.parse(b); } };
+    await mint.handle({ method: "GET" }, res, new URL(`https://x${path}`));
+    return out.body;
+  };
+
+  await assert.rejects(() => mint.payableQuote(), /not open yet/i, "no invoice is created");
+  await assert.rejects(
+    () => mint.signBooster({ idempotency_key: "c1", pack_id: "pack-0001", state: "x", outputs: [] }),
+    /not open yet/i,
+    "and no pack is issued against an older quote",
+  );
+  assert.match((await hit("/nutft/lnurlp")).reason, /not open to wallet payments/i, "the QR path is shut too");
+  assert.match((await hit("/nutft/lnurlp/callback?amount=21000")).reason, /not open to wallet payments/i,
+    "including its callback, which is the one that would have taken the money");
+
+  const info = await hit("/v1/info");
+  assert.equal(info.nuts["31"].sales, "closed", "and the mint says so out loud");
+});
+
+test("an allowlisted box sells only to the keys on the list", async (t) => {
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  // Mixed input on purpose: an npub and a bare hex key, because an operator
+  // pastes whichever they have to hand.
+  const npub = "npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6";
+  const npubHex = "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d";
+  const hexKey = "b".repeat(64);
+
+  const mint = createNutftMint({
+    db, catalogUri: "https://x/nutft/catalog", publicBase: "https://x",
+    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000,
+    sales: "allowlist", allowlist: `${npub}, ${hexKey}`,
+  });
+
+  await assert.rejects(() => mint.payableQuote(), /sign in with your nostr key/i,
+    "an anonymous buyer is told what is missing, not just refused");
+  await assert.rejects(() => mint.payableQuote({ buyer: "c".repeat(64) }), /not on the list/i,
+    "and an unlisted key is told plainly");
+
+  const viaNpub = await mint.payableQuote({ buyer: npubHex });
+  assert.ok(viaNpub.payment_request, "a key listed as an npub can buy");
+  const viaHex = await mint.payableQuote({ buyer: hexKey.toUpperCase() });
+  assert.ok(viaHex.payment_request, "and one listed as hex, case-insensitively");
+
+  // An empty list under allowlist mode would sell to nobody while looking open.
+  assert.throws(
+    () => createNutftMint({
+      db: new DatabaseSync(":memory:"), catalogUri: "https://y/nutft/catalog",
+      funding: createMockFunding({}), allowVirtual: "1", sales: "allowlist", allowlist: "",
+    }),
+    /would sell to nobody/i,
+    "so it is refused at startup",
+  );
+});
