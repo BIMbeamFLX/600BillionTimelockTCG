@@ -469,10 +469,15 @@ function createNutftMint(options = {}) {
      pack that block determines and nothing else. Until it is mined the honest
      answer is "not yet", with the height so they can watch it themselves. */
   async function revealFor(paymentHash) {
-    if (!chain) throw new Error("this mint does not seal packs");
     if (!isPaymentRef(paymentHash)) throw new Error("payment_hash is not a valid payment reference");
     const row = q ? q.invoice.get(paymentHash) : null;
     if (!row) throw new Error("unknown payment_hash: quote the booster first");
+    if (!chain) {
+      await requirePaidFor({ pack_id: row.pack_id }, paymentHash, false);
+      const resolved = await quote();
+      if (resolved.pack_id !== row.pack_id || resolved.state !== row.state) throw new Error("stale booster quote");
+      return { ...resolved, sealed: false };
+    }
     if (!row.target_height) throw new Error("this sale was not sealed against a block");
     let hash;
     try {
@@ -485,6 +490,7 @@ function createNutftMint(options = {}) {
       return { sealed: true, target_height: row.target_height, cards: null,
         note: `block ${row.target_height} is not mined yet` };
     }
+    await requirePaidFor({ pack_id: row.pack_id }, paymentHash, false);
     const resolved = await quote(hash);
     return { sealed: false, target_height: row.target_height, beacon: hash,
       pack_id: resolved.pack_id, state: resolved.state, next_state: resolved.next_state,

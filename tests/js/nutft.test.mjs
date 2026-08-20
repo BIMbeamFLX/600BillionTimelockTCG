@@ -168,6 +168,30 @@ test("browser wallet claims a paid sealed pack after its block arrives", async (
   assert.equal((await wallet.snapshot(base)).owned.length, 7);
 });
 
+test("browser wallet claims the invoice from an LNURL success link", async (t) => {
+  const { createServer } = await import("node:http");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { createMockFunding } = require("../../server/funding.js");
+  let mint;
+  const server = createServer((request, response) => mint.handle(
+    request, response, new URL(request.url, `http://${request.headers.host}`),
+  ));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  mint = createNutftMint({
+    db, catalogUri: `${base}/nutft/catalog`, funding: createMockFunding({}),
+    priceMsat: 21000, allowVirtual: "1",
+  });
+  const quote = await mint.payableQuote();
+  const wallet = await browserWallet(new Map(), fetch);
+  const issued = await wallet.claimBooster(base, quote.payment_hash, { timeoutMs: 1000 });
+  assert.equal(issued.cards.length, 7);
+  assert.equal((await wallet.snapshot(base)).owned.length, 7);
+});
+
 test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", async (t) => {
   const dir = mkdtempSync(join(tmpdir(), "600b-nutft-"));
   const dbPath = join(dir, "mint.db");
@@ -474,8 +498,7 @@ test("a sealed pack cannot be known at purchase, and resolves to its own block",
   assert.equal(quote.target_height, height + 1, "it commits to a block above the tip");
   assert.ok(quote.payment_request, "and it is payable");
 
-  // Before the block exists, nobody can open it — not even after paying.
-  settled.add(quote.payment_hash);
+  // Before the block exists, nobody can open it.
   const early = await mint.revealFor(quote.payment_hash);
   assert.equal(early.sealed, true);
   assert.equal(early.cards, null, "an unmined block reveals nothing");
@@ -485,8 +508,11 @@ test("a sealed pack cannot be known at purchase, and resolves to its own block",
     "and the mint will not sign against a block that does not exist",
   );
 
-  // The block arrives.
+  // The block arrives, but an unpaid buyer cannot inspect the pack and choose
+  // whether it is valuable enough to settle the already-reserved invoice.
   height += 1;
+  await assert.rejects(() => mint.revealFor(quote.payment_hash), /not settled/i);
+  settled.add(quote.payment_hash);
   const opened = await mint.revealFor(quote.payment_hash);
   assert.equal(opened.sealed, false);
   assert.equal(opened.cards.length, 7, "the pack opens to seven cards");

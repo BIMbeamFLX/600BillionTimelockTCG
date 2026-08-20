@@ -66,6 +66,14 @@ def test_stack_builder_rejects_imported_stake_module_cards_before_save() -> None
     assert 'if (isStake(byId[id])) return `${byId[id].name}: Stake module is not enabled`' in builder
 
 
+def test_shop_uses_the_lnurl_success_action_claim() -> None:
+    """Returning from a paid wallet must claim that invoice instead of quoting another pack."""
+    shop = (REPO_ROOT / "site" / "shop.js").read_text(encoding="utf-8")
+
+    assert 'let claim = params.get("claim")' in shop
+    assert "root.NutFTWallet.claimBooster(MINT_URL, claim" in shop
+
+
 def test_landing_page_links_to_rules_and_final_cards() -> None:
     """The site entry point must use the dedicated rulebook and final card faces."""
     landing = (REPO_ROOT / "site" / "index.html").read_text(encoding="utf-8")

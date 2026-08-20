@@ -321,6 +321,25 @@
 
   const buyBooster = (mintUrl, opts) => locked(() => buyBoosterUnlocked(mintUrl, opts || {}));
 
+  async function claimBoosterUnlocked(mintUrl, paymentHash, opts = {}) {
+    const c = await cashu();
+    let state = await identity(c);
+    if (state.pending) {
+      if (state.pending.body.payment_hash !== paymentHash) throw new Error("finish the pending wallet operation before claiming another booster");
+      return awaitSettlement(state, c, await getKeyset(state.pending.mintUrl, c), opts);
+    }
+    const keyset = await getKeyset(mintUrl, c);
+    const pending = { type: "booster", mintUrl, outputs: [], body: {
+      idempotency_key: root.crypto.randomUUID(), pack_id: null, state: null,
+      payment_hash: paymentHash, outputs: [],
+    } };
+    state = { ...state, pending };
+    write(state);
+    return awaitSettlement(state, c, keyset, opts);
+  }
+
+  const claimBooster = (mintUrl, paymentHash, opts) => locked(() => claimBoosterUnlocked(mintUrl, paymentHash, opts || {}));
+
   async function proofs(mintUrl) {
     const c = await cashu();
     const state = await read();
@@ -456,5 +475,5 @@
 
   const restoreBackup = (text) => locked(() => restoreBackupUnlocked(text));
 
-  root.NutFTWallet = { buyBooster, snapshot, tradeProof, importToken, destination, recoverPending, exportBackup, restoreBackup, read, cashu, hex, bytes };
+  root.NutFTWallet = { buyBooster, claimBooster, snapshot, tradeProof, importToken, destination, recoverPending, exportBackup, restoreBackup, read, cashu, hex, bytes };
 })(globalThis);
