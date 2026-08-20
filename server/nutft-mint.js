@@ -219,10 +219,17 @@ function createNutftMint(options = {}) {
   async function payableQuote() {
     const base = await quote();
     if (!paidMint) return { ...base, price_msat: 0, paid: false };
-    const { paymentRequest, paymentHash } = await lnd.createInvoice(lndConfig, {
-      amountMsat: priceMsat,
-      memo: `600B booster ${base.pack_id}`,
-    });
+    /* A funding-source failure is ours, not the buyer's, and its message names
+       the node's address and port. Log the detail, hand back a plain sentence:
+       an operational fault must not double as a map of the deployment. */
+    let invoice;
+    try {
+      invoice = await lnd.createInvoice(lndConfig, { amountMsat: priceMsat, memo: `600B booster ${base.pack_id}` });
+    } catch (error) {
+      console.error("[nutft] lnd createInvoice failed:", error && error.message);
+      throw new Error("the mint cannot reach its funding source right now — try again shortly");
+    }
+    const { paymentRequest, paymentHash } = invoice;
     if (q) q.putInvoice.run(paymentHash, base.pack_id, base.state, priceMsat, new Date().toISOString());
     return { ...base, paid: true, price_msat: priceMsat, payment_request: paymentRequest, payment_hash: paymentHash };
   }
@@ -238,7 +245,14 @@ function createNutftMint(options = {}) {
     if (!row) throw new Error("unknown payment_hash: quote the booster first");
     if (row.pack_id !== expected.pack_id) throw new Error("this invoice was quoted for a different pack");
     if (row.claimed) throw new Error("this invoice has already been claimed");
-    if (!(await lnd.isSettled(lndConfig, paymentHash))) throw new Error("invoice is not settled yet");
+    let settledNow;
+    try {
+      settledNow = await lnd.isSettled(lndConfig, paymentHash);
+    } catch (error) {
+      console.error("[nutft] lnd isSettled failed:", error && error.message);
+      throw new Error("the mint cannot confirm payment right now — your invoice is unaffected, try again shortly");
+    }
+    if (!settledNow) throw new Error("invoice is not settled yet");
     const claim = q.claimInvoice.run(paymentHash);
     if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
   }
