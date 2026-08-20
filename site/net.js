@@ -937,6 +937,8 @@
 
   function parseInvite(event) {
     if (!event || event.kind !== KIND_HANDSHAKE || typeof event.content !== "string") return null;
+    const expiry = Array.isArray(event.tags) && event.tags.find((tag) => tag[0] === "expiration");
+    if (expiry && !(Number(expiry[1]) > Math.floor(Date.now() / 1000))) return null;
     let body;
     try { body = JSON.parse(event.content); } catch (err) { return null; }
     if (!body || body.v !== 1 || body.kind !== "invite") return null;
