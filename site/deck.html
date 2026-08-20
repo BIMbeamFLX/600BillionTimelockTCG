@@ -399,6 +399,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * storage budget — which is exactly what reaching into the key got wrong. */
   const HANDOFF = K.DECK_HANDOFF || "600b:deck-handoff";
   const SHOP = K.SHOP || "600b:shop";
+  const MARKED = "600b:nutft-decks";
 
   /* ------------------------------------------------------------ the budget
    * Inside a shell the WHOLE napplet lives in 512 KB (docs/napplet-spec.md,
@@ -1199,10 +1200,9 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     });
     saveBtn.disabled = libraryReady && !durable;
     if (!problem) try {
-      let marked = {};
-      try { marked = JSON.parse(localStorage.getItem("600b:nutft-decks")) || {}; } catch (error) { marked = {}; }
+      const marked = await store.json(MARKED, {});
       if (owned) marked[name] = true; else delete marked[name];
-      localStorage.setItem("600b:nutft-decks", JSON.stringify(marked));
+      await store.setJson(MARKED, marked);
     } catch (error) { /* gameplay will treat an unmarked Stack as prototype mode */ }
     say(problem || `Saved "${name}" — ${list.length} cards.`, problem ? "bad" : "good");
   });

@@ -3375,17 +3375,21 @@
    * showed the real one. Held in memory because the two readers below run
    * synchronously inside startGame and a menu build. */
   let stackLibrary = {};
+  let nutftLibrary = {};
   function loadStackLibrary(onReady) {
     const N = globalThis.E1Napplet;
-    const done = (value) => {
-      stackLibrary = value && typeof value === "object" ? value : {};
+    const done = (stacks, marked) => {
+      stackLibrary = stacks && typeof stacks === "object" ? stacks : {};
+      nutftLibrary = marked && typeof marked === "object" ? marked : {};
       if (typeof onReady === "function") onReady();
     };
     if (N && N.storage) {
-      N.storage.json("600b:decks", {}).then(done, () => done({}));
+      Promise.all([N.storage.json("600b:decks", {}), N.storage.json("600b:nutft-decks", {})])
+        .then(([stacks, marked]) => done(stacks, marked), () => done({}, {}));
       return;
     }
-    try { done(JSON.parse(localStorage.getItem("600b:decks"))); } catch (error) { done({}); }
+    try { done(JSON.parse(localStorage.getItem("600b:decks")), JSON.parse(localStorage.getItem("600b:nutft-decks"))); }
+    catch (error) { done({}, {}); }
   }
 
   const NET = globalThis.E1Net;
@@ -4080,10 +4084,7 @@
 
   // -------------------------------------------------------------- setup
 
-  const nutftDecks = () => {
-    try { return JSON.parse(localStorage.getItem("600b:nutft-decks")) || {}; }
-    catch (error) { return {}; }
-  };
+  const nutftDecks = () => nutftLibrary;
 
   function verifyNutftSetup() {
     const marked = nutftDecks();

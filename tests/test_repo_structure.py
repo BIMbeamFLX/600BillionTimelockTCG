@@ -42,6 +42,14 @@ def test_rulebook_chapter_search_includes_the_chapter_copy() -> None:
     assert "link.dataset.terms.includes(needle)" in rulebook
 
 
+def test_stack_builder_persists_nutft_markers_through_the_storage_adapter() -> None:
+    """Shell and website storage must keep a Stack and its ownership marker together."""
+    builder = (REPO_ROOT / "site" / "deck.html").read_text(encoding="utf-8")
+
+    assert "await store.setJson(MARKED" in builder
+    assert 'localStorage.setItem("600b:nutft-decks"' not in builder
+
+
 def test_landing_page_links_to_rules_and_final_cards() -> None:
     """The site entry point must use the dedicated rulebook and final card faces."""
     landing = (REPO_ROOT / "site" / "index.html").read_text(encoding="utf-8")
