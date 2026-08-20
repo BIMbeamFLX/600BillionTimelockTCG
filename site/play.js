@@ -110,6 +110,11 @@
      * for the referee's FRAME (or REJECT, which arrives with a fresh view). The
      * local path below is untouched and still runs the hotseat game. */
     if (session.seat !== null) {
+      if (!remote.catalogOk) {
+        session.notice = "Card set mismatch — reload with the same build as the referee before playing.";
+        render();
+        return false;
+      }
       if (session.awaitingSeq !== null) return false; // swallow the double-click
       if (!globalThis.E1Net.act(action)) {
         session.notice = "Not connected to the table — the action was not sent.";

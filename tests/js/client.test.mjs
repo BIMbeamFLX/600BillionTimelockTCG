@@ -667,6 +667,22 @@ test("an invalid deterministic seed stays in setup with a useful error", () => {
   assert.match(byId("prompt").textContent, /seed.*whole number/i);
 });
 
+test("a catalog mismatch blocks remote actions instead of only showing a banner", () => {
+  globalThis.localStorage = { getItem: () => null, setItem() {} };
+  const stub = netStub();
+  const { game } = loadPlay(stub);
+  stub.handlers.onState({
+    ...STATE_BASE,
+    seat: 0,
+    role: "seat",
+    status: "playing",
+    catalogDigest: "sha256:not-this-build",
+    view: globalThis.E1Engine.view(clientGame(), 0),
+  });
+  assert.equal(game.dispatch("PASS_PRIORITY", 0), false);
+  assert.equal(stub.calls.some((call) => call[0] === "act"), false);
+});
+
 /* The client-side lobby test that stood here was removed with the lobby it
  * exercised: matchmaking is its own napplet now, so play.html no longer has
  * #refreshTables or #tableList and there is nothing here to click. The
