@@ -481,3 +481,77 @@ test("LNURL-pay serves a scannable booster and binds the description hash", asyn
   const encoded = lnurlModule.encodeLnurl("https://tcg.example/nutft/lnurlp");
   assert.match(encoded, /^LNURL1[0-9A-Z]+$/, "bech32, uppercase for QR alphanumeric mode");
 });
+
+test("staging runs the whole payment path on virtual sats, and says so", async (t) => {
+  // A staging deployment has to exercise quote -> invoice -> settle -> claim
+  // -> the double-claim guard, because a bug in that path is exactly what
+  // staging exists to catch. It must do it without being able to move a real
+  // satoshi, and it must never be mistaken for production.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const funding = createMockFunding({ settleAfterMs: 60_000 });   // unpaid for now
+  const mint = createNutftMint({
+    db, catalogUri: "https://staging.example/nutft/catalog",
+    funding, priceMsat: 21000, allowVirtual: "1",
+  });
+
+  const infoRes = { writeHead() { return infoRes; }, end(b) { infoRes.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET" }, infoRes, new URL("https://x/v1/info"));
+  assert.equal(infoRes.parsed.nuts["31"].paid, true);
+  assert.equal(infoRes.parsed.nuts["31"].funding, "mock");
+  assert.equal(infoRes.parsed.nuts["31"].virtual_sats, true, "staging announces that its money is not real");
+
+  const quote = await mint.payableQuote();
+  assert.match(quote.payment_request, /^lnbcmock/, "and its invoices cannot be mistaken for payable ones");
+
+  // Unpaid behaves exactly as production does.
+  await assert.rejects(
+    () => mint.signBooster({ idempotency_key: "v1", pack_id: quote.pack_id, state: quote.state, payment_hash: quote.payment_hash, outputs: [] }),
+    /not settled/i,
+    "an unpaid virtual invoice buys nothing either",
+  );
+
+  // Settle it, then the real thing: outputs, signatures, and the replay guard.
+  funding.settle(quote.payment_hash);
+  const keysRes = { writeHead() { return keysRes; }, end(b) { keysRes.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET" }, keysRes, new URL("https://x/v1/keys"));
+  const keyset = keysRes.parsed.keysets[0];
+  const pubkey = hex(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey()));
+  const outs = quote.cards.map((card) => cashu.OutputData.createSingleP2PKData({
+    pubkey, blindKeys: true,
+    additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+  }, 1, keyset.id));
+  const body = {
+    idempotency_key: "v2", pack_id: quote.pack_id, state: quote.state, payment_hash: quote.payment_hash,
+    outputs: outs.map((o) => ({ amount: 1, id: o.blindedMessage.id, B_: o.blindedMessage.B_, nutft: opening(o) })),
+  };
+  const result = await mint.signBooster(body);
+  assert.equal(result.signatures.length, 7, "a settled virtual invoice mints a real pack of proofs");
+
+  const next = await mint.payableQuote();
+  await assert.rejects(
+    () => mint.signBooster({ ...body, idempotency_key: "v3", pack_id: next.pack_id, state: next.state }),
+    /different pack|already been claimed/i,
+    "and the replay guard behaves the same as it will in production",
+  );
+});
+
+test("a mock funding source refuses to start without being told it is staging", async (t) => {
+  // Virtual money must never be a production surprise: a misconfigured unit
+  // that quietly gives boosters away for fake sats would look like it works.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  assert.throws(
+    () => createNutftMint({ db, catalogUri: "https://x/nutft/catalog", funding: createMockFunding({}) }),
+    /NUTFT_ALLOW_VIRTUAL/,
+    "it demands an explicit confirmation that this is staging",
+  );
+});

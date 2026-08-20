@@ -8,6 +8,7 @@ const { censusHash, hashParts, loadCensus, openPack } = require("./nutft-draw.js
 const lnd = require("./lnd.js");
 const { createBeacon } = require("./beacon.js");
 const lnurl = require("./lnurl.js");
+const { createFunding } = require("./funding.js");
 
 const REPO = path.resolve(__dirname, "..");
 const CENSUS_PATH = path.join(REPO, "cards", "nutft-census.json");
@@ -145,10 +146,14 @@ function createNutftMint(options = {}) {
   /* Lightning. With no LND_REST_URL there is no funding source and the mint
      stays exactly as it is today: free, and honest about being a demo. Wiring a
      node in is what turns it into a shop, and nothing else changes. */
-  const lndConfig = options.lnd === null ? null : (options.lnd || lnd.readConfig(options.lndOptions || {}));
+  /* The funding source is behind a two-function interface, so which node or
+     wallet API takes the money is not the mint's business and can change
+     without touching this file. */
+  const funding = options.lnd === null && !options.funding ? null : createFunding(options);
+  const lndConfig = funding && funding.name === "lnd" ? (options.lnd || lnd.readConfig(options.lndOptions || {})) : null;
   const priceMsat = Number(options.priceMsat || process.env.NUTFT_PRICE_MSAT || 21000);
   if (lndConfig && !(priceMsat > 0)) throw new Error("NUTFT_PRICE_MSAT must be a positive number of msat");
-  const paidMint = Boolean(lndConfig);
+  const paidMint = Boolean(funding);
 
   /* The block-commitment beacon. Off by default: without it the mint keeps the
      fixed beacon it has today, which is fine for a free demo and disqualifying
@@ -164,6 +169,12 @@ function createNutftMint(options = {}) {
 
   const beaconLive = String(options.beaconSource ?? process.env.NUTFT_BEACON_SOURCE ?? "") === "lnd";
   if (beaconLive && !lndConfig) throw new Error("NUTFT_BEACON_SOURCE=lnd needs a chain source: configure LND_REST_URL");
+  /* Virtual money must never be a production surprise. The mint says which
+     backend it is on, and refuses to run a mock one unless told explicitly. */
+  if (funding && funding.virtual && String(options.allowVirtual ?? process.env.NUTFT_ALLOW_VIRTUAL ?? "") !== "1") {
+    throw new Error("NUTFT_FUNDING=mock issues virtual sats and settles them itself; "
+      + "set NUTFT_ALLOW_VIRTUAL=1 to confirm this is a staging deployment");
+  }
   const chain = beaconLive
     ? createBeacon({ db, lnd: lndConfig, confirmations: options.beaconConfirmations, getInfo: options.beaconGetInfo })
     : null;
@@ -258,7 +269,7 @@ function createNutftMint(options = {}) {
     }
     let invoice;
     try {
-      invoice = await lnd.createInvoice(lndConfig, {
+      invoice = await funding.createInvoice({
         amountMsat: priceMsat,
         memo: `600B booster ${base.pack_id}`,
         descriptionHash: opts.descriptionHash,
@@ -325,7 +336,7 @@ function createNutftMint(options = {}) {
     if (row.claimed) throw new Error("this invoice has already been claimed");
     let settledNow;
     try {
-      settledNow = await lnd.isSettled(lndConfig, paymentHash);
+      settledNow = await funding.isSettled(paymentHash);
     } catch (error) {
       console.error("[nutft] lnd isSettled failed:", error && error.message);
       throw new Error("the mint cannot confirm payment right now — your invoice is unaffected, try again shortly");
@@ -473,7 +484,7 @@ function createNutftMint(options = {}) {
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceMsat : 0, catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
+        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceMsat : 0, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && url.pathname === "/v1/checkstate") {
@@ -541,7 +552,7 @@ function createNutftMint(options = {}) {
 
   /* signBooster and payableQuote are exported so the payment gate can be
      tested directly, without standing up an HTTP server and an lnd. */
-  return { handle, catalogUri, collectionId, initialCommitment, state, signBooster, payableQuote, revealFor, paidMint, sealed: Boolean(chain) };
+  return { handle, catalogUri, collectionId, initialCommitment, state, signBooster, payableQuote, revealFor, paidMint, funding, sealed: Boolean(chain) };
 }
 
 module.exports = { assetBinding, canonical, createNutftMint };
