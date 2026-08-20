@@ -20,6 +20,22 @@ const opening = (output) => ({
   p2pk_e: output.ephemeralE,
 });
 
+/* Well-formed outputs for a quote. Worth a helper rather than a fourth copy:
+   the mint validates outputs BEFORE it consumes the invoice, so a test that
+   passes `outputs: []` stops at the output check and never reaches the payment
+   one — and would then assert the wrong refusal while looking correct. */
+async function outputsFor(mint, quote, origin) {
+  const res = { writeHead() { return res; }, end(b) { res.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET" }, res, new URL(`${origin}/v1/keys`));
+  const keyset = res.parsed.keysets[0];
+  const pubkey = hex(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey()));
+  const built = quote.cards.map((card) => cashu.OutputData.createSingleP2PKData({
+    pubkey, blindKeys: true,
+    additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+  }, 1, keyset.id));
+  return built.map((o) => ({ amount: 1, id: o.blindedMessage.id, B_: o.blindedMessage.B_, nutft: opening(o) }));
+}
+
 test("NutFT draw vector stays compatible with the manifest package", () => {
   const { selfTest } = require("../../server/nutft-draw.js");
   assert.equal(selfTest(require("../../cards/nutft-testvector.json")), true);
@@ -254,7 +270,7 @@ test("a paid mint sells nothing until the invoice actually settles", async (t) =
   assert.equal(quote.body.cards.length, 7);
 
   // Unpaid: the mint must refuse before it signs anything.
-  const unpaidBody = { idempotency_key: "k1", pack_id: quote.body.pack_id, state: quote.body.state, payment_hash: quote.body.payment_hash, outputs: [] };
+  const unpaidBody = { idempotency_key: "k1", pack_id: quote.body.pack_id, state: quote.body.state, payment_hash: quote.body.payment_hash, outputs: await outputsFor(mint, quote.body, "https://x") };
   await assert.rejects(() => mint.signBooster(unpaidBody), /not settled/i, "an unsettled invoice buys nothing");
 
   // A payment_hash the mint never issued.
@@ -266,7 +282,7 @@ test("a paid mint sells nothing until the invoice actually settles", async (t) =
 
   // Missing entirely.
   await assert.rejects(
-    () => mint.signBooster({ idempotency_key: "k2", pack_id: quote.body.pack_id, state: quote.body.state, outputs: [] }),
+    () => mint.signBooster({ idempotency_key: "k2", pack_id: quote.body.pack_id, state: quote.body.state, outputs: unpaidBody.outputs }),
     /payment_hash is required/i,
     "no payment hash at all is refused",
   );
@@ -511,12 +527,18 @@ test("staging runs the whole payment path on virtual sats, and says so", async (
   const quote = await mint.payableQuote();
   assert.match(quote.payment_request, /^lnbcmock/, "and its invoices cannot be mistaken for payable ones");
 
-  // Unpaid behaves exactly as production does.
-  await assert.rejects(
-    () => mint.signBooster({ idempotency_key: "v1", pack_id: quote.pack_id, state: quote.state, payment_hash: quote.payment_hash, outputs: [] }),
-    /not settled/i,
-    "an unpaid virtual invoice buys nothing either",
-  );
+  /* Unpaid behaves exactly as production does. Real outputs, deliberately: with
+     an empty array this now stops at the output check and never reaches the
+     payment one, so it would have asserted the wrong refusal. */
+  const vOuts = await outputsFor(mint, quote, "https://x");
+  const vBody = (key) => ({
+    idempotency_key: key, pack_id: quote.pack_id, state: quote.state,
+    /* A fresh array each time: the malformed-output case below rewrites one
+       entry, and sharing the reference would corrupt the good claim too. */
+    payment_hash: quote.payment_hash, outputs: vOuts.map((o) => ({ ...o })),
+  });
+  await assert.rejects(() => mint.signBooster(vBody("v1")), /not settled/i,
+    "an unpaid virtual invoice buys nothing either");
 
   // Settle it, then the real thing: outputs, signatures, and the replay guard.
   funding.settle(quote.payment_hash);
@@ -535,9 +557,18 @@ test("staging runs the whole payment path on virtual sats, and says so", async (
   const result = await mint.signBooster(body);
   assert.equal(result.signatures.length, 7, "a settled virtual invoice mints a real pack of proofs");
 
+  /* The replay guard proper: a spent invoice presented against the NEXT pack.
+     Outputs built for that pack, deliberately — outputs are validated before
+     the invoice is consumed now, so reusing the old pack's outputs would be
+     turned away by the CardBinding check and this would assert the wrong
+     refusal while still passing. */
   const next = await mint.payableQuote();
+  const nextOuts = await outputsFor(mint, next, "https://x");
   await assert.rejects(
-    () => mint.signBooster({ ...body, idempotency_key: "v3", pack_id: next.pack_id, state: next.state }),
+    () => mint.signBooster({
+      idempotency_key: "v3", pack_id: next.pack_id, state: next.state,
+      payment_hash: quote.payment_hash, outputs: nextOuts,
+    }),
     /different pack|already been claimed/i,
     "and the replay guard behaves the same as it will in production",
   );
@@ -1255,4 +1286,41 @@ test("a mint that cannot be reached keeps the booster you paid for", async (t) =
   const recovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
   assert.equal(recovered.cards.length, 7, "the same outputs claim the same pack");
   assert.equal(JSON.parse(storage.get("600b:nutft-wallet")).pending, null, "and the pending is then cleared");
+});
+
+test("a malformed output must not burn the invoice behind it", async (t) => {
+  // requirePaidFor marks the invoice claimed, and that is a one-way door. It
+  // used to run BEFORE the outputs were validated, so a single bad output left
+  // a paying buyer with a spent invoice, no cards, and no retry that could
+  // recover either. Nothing in the output check reveals anything the buyer does
+  // not already hold, so there was never a reason for it to sit behind payment.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  const funding = createMockFunding({ settleAfterMs: 60_000 });
+  const mint = createNutftMint({
+    db, catalogUri: "https://burn.example/nutft/catalog",
+    funding, priceMsat: 21000, allowVirtual: "1",
+  });
+
+  const quote = await mint.payableQuote();
+  const good = await outputsFor(mint, quote, "https://burn.example");
+  funding.settle(quote.payment_hash);
+
+  const body = (key, outputs) => ({
+    idempotency_key: key, pack_id: quote.pack_id, state: quote.state,
+    payment_hash: quote.payment_hash, outputs,
+  });
+
+  const mangled = good.map((o) => ({ ...o }));
+  mangled[3] = { ...mangled[3], B_: "not-a-point" };
+  await assert.rejects(() => mint.signBooster(body("burn-1", mangled)), /hex|B_|output|point/i,
+    "the malformed output is refused");
+
+  const recovered = await mint.signBooster(body("burn-2", good));
+  assert.equal(recovered.signatures.length, 7,
+    "and the invoice survives it — the buyer gets the pack they paid for");
 });

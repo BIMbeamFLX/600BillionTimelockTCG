@@ -214,7 +214,17 @@ function createNutftMint(options = {}) {
     throw new Error("NUTFT_SALES=allowlist with an empty NUTFT_ALLOWLIST would sell to nobody; set the list or use closed");
   }
   /* One proof, one request, for as long as a proof stays fresh. */
-  const seenAuth = nip98.createSeenStore(nip98.DEFAULT_MAX_AGE);
+  /* One store PER ENDPOINT, not one shared store. They are separate namespaces
+     because a proof is already bound to its path: an id admitted for /nutft/quote
+     can never be presented at /nutft/booster anyway, so sharing bought nothing
+     — while it meant traffic on the read-only quote path could crowd out the
+     claim path, which is the one that hands over cards somebody paid for. */
+  const seenStores = new Map();
+  const seenFor = (path) => {
+    let store = seenStores.get(path);
+    if (!store) { store = nip98.createSeenStore(nip98.DEFAULT_MAX_AGE); seenStores.set(path, store); }
+    return store;
+  };
 
   const priceMsat = priceFor(0);
   const paidMint = Boolean(funding);
@@ -373,6 +383,7 @@ function createNutftMint(options = {}) {
     if (!proof || !proof.header) {
       throw new Error("early access: sign the request with your nostr key to buy a booster");
     }
+    const seenAuth = seenFor(String(proof.path || ""));
     const checked = nip98.verify(proof.header, {
       method: proof.method,
       path: proof.path,
@@ -612,10 +623,17 @@ function createNutftMint(options = {}) {
     /* Money before signatures. Checked here rather than at the top so a caller
        cannot learn whether a pack is still available without paying, and so a
        stale quote is rejected before an invoice is ever consumed. */
-    await requirePaidFor(expected, body.payment_hash);
-
+    /* Validate what the buyer sent BEFORE taking their money. requirePaidFor
+       marks the invoice claimed, and that is a one-way door: if an output turns
+       out to be malformed afterwards, the throw leaves a paid invoice consumed
+       and a buyer with nothing, no retry that can recover it. Nothing here
+       reveals anything a buyer does not already hold — these are their own
+       outputs, checked against a quote they were already given — so there is no
+       reason for it to sit behind the payment. */
     if (!Array.isArray(body.outputs) || body.outputs.length !== expected.cards.length) throw new Error("one output is required per card");
     for (let i = 0; i < expected.cards.length; i += 1) validateOutput(body.outputs[i], reference(expected.cards[i].asset_id), keyset.keysetId);
+
+    await requirePaidFor(expected, body.payment_hash);
 
     const signatures = body.outputs.map((output) => {
       const blind = cashu.createBlindSignature(cashu.pointFromHex(output.B_), keyset.privKeys["1"], keyset.keysetId);
