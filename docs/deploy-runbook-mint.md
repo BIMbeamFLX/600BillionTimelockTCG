@@ -1,4 +1,4 @@
-# Mint deploy runbook — Path A (free demo on tcg.zapburg.com)
+# Mint deploy runbook — Path A (free demo on tcg.nappelin.com)
 
 `written: 2026-08-20` `verified against: origin/main @ 7372206 (PR #4 merged)` `tests: 316 green`
 
@@ -22,7 +22,7 @@ in two places better than mine**:
 | Forgeable signing keys | `crypto.randomBytes(32)` generated once and persisted in the DB (`getOrCreate`). Random per deployment, no env vars to manage. |
 | Mint forgot sales on restart | Durable in SQLite; `sold` and keys both survive. Verified across a real restart. |
 | Wallet page dead | Fixed; plus he added transfer, import, and wallet backup. |
-| **Odds panel contradicted the mint** | **Fixed** — `/nutft/state` now serves real `tier_odds` and the shop shows all five tiers: Genesis 0.15 / Vault 1.05 / Rare 15.48 / Uncommon 16.66 / Common 66.65. |
+| **Odds panel contradicted the mint** | **Fixed** — `/nutft/state` now serves real `tier_odds` and the shop shows all five tiers: Genesis 0.15 / Vault 1.05 / Rare 15.48 / Uncommon 16.66 / Common 66.65. Those are the r2 census's shares; the fifteen-card box moved them — see §6. |
 
 One tradeoff to know: because the mint key now lives **in the database**, `matches.db`
 backups contain forging material. Treat DB backups as secrets — same care as a wallet file.
@@ -64,7 +64,7 @@ git checkout main && git pull
 npm run build && npm run test:js
 ```
 
-Expect **316 passing**. Red means stop.
+Expect **365 passing**. Red means stop.
 
 Smoke it locally — this is also your demo rehearsal:
 
@@ -73,7 +73,7 @@ node server/table.js
 ```
 
 Open `http://localhost:8777/shop.html?shop=mint`, buy a pack, then
-`http://localhost:8777/wallet.html`. You should see seven tiles, each
+`http://localhost:8777/wallet.html`. You should see fifteen tiles, each
 `DLEQ ✓ · P2BK ✓ · Blossom ✓`. (Locally the default 8777 URI is correct, which is why this
 works without extra config — on the box it will not be.) Ctrl-C.
 
@@ -83,7 +83,7 @@ Edit `/etc/systemd/system/tcg-table.service` and add one line beside the existin
 `Environment=` entries:
 
 ```
-Environment=NUTFT_CATALOG_URI=https://tcg.zapburg.com/nutft/catalog
+Environment=NUTFT_CATALOG_URI=https://tcg.nappelin.com/nutft/catalog
 ```
 
 Do this **before** the first pack is ever sold from the box.
@@ -108,21 +108,21 @@ sudo systemctl daemon-reload && sudo systemctl restart tcg-table
 Then, from anywhere:
 
 ```bash
-curl.exe https://tcg.zapburg.com/api/health
+curl.exe https://tcg.nappelin.com/api/health
 ```
 
 ```bash
-curl.exe https://tcg.zapburg.com/nutft/catalog
+curl.exe https://tcg.nappelin.com/nutft/catalog
 ```
 
-Check `catalog_uri` in that response reads `https://tcg.zapburg.com/nutft/catalog` — **not**
+Check `catalog_uri` in that response reads `https://tcg.nappelin.com/nutft/catalog` — **not**
 localhost. If it says localhost, stop and fix §2.2 before anyone buys.
 
 ### 2.5 The real test — do this yourself in a browser
 
-1. `https://tcg.zapburg.com/shop.html?shop=mint` → buy a pack.
-2. `https://tcg.zapburg.com/wallet.html` → seven tiles, each `DLEQ ✓ · P2BK ✓ · Blossom ✓`.
-3. Restart the service once more, reload the wallet: still seven, still valid, and
+1. `https://tcg.nappelin.com/shop.html?shop=mint` → buy a pack.
+2. `https://tcg.nappelin.com/wallet.html` → fifteen tiles, each `DLEQ ✓ · P2BK ✓ · Blossom ✓`.
+3. Restart the service once more, reload the wallet: still fifteen, still valid, and
    `/nutft/state` still shows your `sold` count.
 
 If step 2 shows "INVALID", it is §2.2. Nothing else produces that symptom.

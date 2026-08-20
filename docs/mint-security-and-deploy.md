@@ -123,7 +123,7 @@ must be published before it goes in the unit.
 
 - **Catalog re-signed on every GET** (~2 ms schnorr + serialize of 285 assets per
   `/nutft/catalog`). Fine at demo traffic; cache it once real load arrives.
-- **`spent`/`trades` load fully into memory on boot.** At 125,577 max cards this is a
+- **`spent`/`trades` load fully into memory on boot.** At 292,977 max cards this is a
   small map; not a concern at this set size, worth remembering if the set grows.
 - **Confirmed already sound:** DLEQ + P2BK + CardBinding verification on both issue and
   reload paths; the trade path checks owner witness, input binding and double-spend, and
@@ -266,7 +266,7 @@ Add to `/etc/systemd/system/tcg-table.service` under the existing `Environment=`
 (you edit this on the box as root):
 
 ```
-Environment=NUTFT_CATALOG_URI=https://tcg.zapburg.com/nutft/catalog
+Environment=NUTFT_CATALOG_URI=https://tcg.nappelin.com/nutft/catalog
 ```
 
 (One line. This is a demo; the permanent `naddr` decision belongs to Path B. Because the
@@ -292,15 +292,15 @@ sudo systemctl daemon-reload && sudo systemctl restart tcg-table
 Then from anywhere:
 
 ```bash
-curl.exe https://tcg.zapburg.com/api/health
-curl.exe https://tcg.zapburg.com/v1/info
-curl.exe https://tcg.zapburg.com/nutft/state
+curl.exe https://tcg.nappelin.com/api/health
+curl.exe https://tcg.nappelin.com/v1/info
+curl.exe https://tcg.nappelin.com/nutft/state
 ```
 
 `/api/health` → `{"ok":true,…}`. `/v1/info` → `"demo_keys":true` (expected for the demo).
 `/nutft/state` → `sold` and `next_pack` that **persist across a restart** now — run the
 restart twice and confirm `sold` does not reset. Then open the shop and wallet in a
-browser against `tcg.zapburg.com` and buy one pack.
+browser against `tcg.nappelin.com` and buy one pack.
 
 **A7. Done.** If anything looks wrong, `sudo systemctl rollback` is not a thing — you
 redeploy the previous working tree, or `git checkout` the prior commit and rerun A5–A6.
