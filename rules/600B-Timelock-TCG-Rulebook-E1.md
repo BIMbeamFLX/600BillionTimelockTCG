@@ -265,7 +265,7 @@ The E1 Classic Profile uses the original open deck-building shape.
 
 - Minimum Stack size: **40 cards**.
 - Maximum Stack size: none, but the player must be able to randomize it.
-- Copy limit: **3 copies of any one card**, with two exceptions: Basic Resources are
+- Copy limit: **4 copies of any one card**, with two exceptions: Basic Resources are
   unlimited, and Genesis cards are limited to **1 copy**.
 - Sideboard: none.
 - Resource cards count toward the minimum.
@@ -275,9 +275,9 @@ The copy limit is not conservatism, it is the load-bearing rule of the format. E
 little card selection, so density is the only way to make a Stack reliable — which means an
 unlimited profile does not merely *allow* twenty copies of your best card, it makes that the
 correct build. Measured against all eleven precons, a 26-copy Zap Stack won 97.7% of games
-with a mean kill on turn 3.8. Three copies keeps a card findable without letting one card be
-the whole Stack, and it is what turns deckbuilding into a set of choices rather than an
-arithmetic problem.
+with a mean kill on turn 3.8. Four copies keeps a card findable — and a spare fourth worth
+owning — without letting one card be the whole Stack. The number moved from three to four;
+what it is defending against sits at twenty-six, so the margin is not close.
 
 Basic Resources are exempt for the same reason every deck-building game exempts its basic
 lands. A 40-card Stack wants 16–18 Resources and Edition One prints only ten Basic

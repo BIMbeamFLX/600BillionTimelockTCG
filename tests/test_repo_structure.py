@@ -209,3 +209,42 @@ def test_inline_page_scripts_assign_nothing_they_never_declare() -> None:
             "That is the signature of a merge that kept one branch's variable and "
             "left the other branch's assignment behind."
         )
+
+
+def _max_copies(text: str, where: str) -> int:
+    """The §7 cap as this file literally declares it."""
+    match = re.search(r"const MAX_COPIES = (\d+)", text)
+    assert match, f"{where} no longer declares MAX_COPIES"
+    return int(match.group(1))
+
+
+def test_the_copy_cap_is_one_number_in_both_files() -> None:
+    """site/deck.html duplicates engine.js's §7 cap, held together by a comment.
+
+    deck.html cannot import engine.js -- the Stack Builder runs before the engine
+    is loaded -- so the constant is written twice on purpose, with "must match
+    site/engine.js" beside it. A comment is not a check: raising the cap meant
+    remembering two files, and the one that gets forgotten is the Builder, which
+    would then refuse Stacks the referee accepts (or accept ones it rejects).
+    """
+    engine = (REPO_ROOT / "site" / "engine.js").read_text(encoding="utf-8")
+    builder = (REPO_ROOT / "site" / "deck.html").read_text(encoding="utf-8")
+
+    assert _max_copies(engine, "site/engine.js") == _max_copies(builder, "site/deck.html"), (
+        "the Stack Builder and the engine disagree about the §7 cap"
+    )
+
+
+def test_both_files_still_special_case_genesis_and_basic_resources() -> None:
+    """The cap is three rules, not one number, and both copies carry all three.
+
+    A cap that is only a number drifts quietly: Genesis is one per Stack because
+    fewer copies exist in the world than a flat cap would allow a Stack to ask
+    for, and Basic Resources are exempt because ten of them have to fill sixteen
+    slots. Losing either branch in one file makes legal Stacks unbuildable in
+    one place and illegal ones buildable in the other.
+    """
+    for name in ("engine.js", "deck.html"):
+        text = (REPO_ROOT / "site" / name).read_text(encoding="utf-8")
+        assert 'rarity === "genesis" ? 1' in text, f"{name} lost the Genesis limit of one"
+        assert 'type === "Basic Resource"' in text, f"{name} lost the Basic Resource exemption"

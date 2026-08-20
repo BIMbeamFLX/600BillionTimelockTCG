@@ -155,6 +155,17 @@ function createNutftMint(options = {}) {
   const funding = options.lnd === null && !options.funding ? null : createFunding(options);
   const invoiceTtlSeconds = Number(options.invoiceTtlSeconds || process.env.NUTFT_INVOICE_TTL_SECONDS || 900);
   if (!Number.isFinite(invoiceTtlSeconds) || invoiceTtlSeconds < 60) throw new Error("NUTFT_INVOICE_TTL_SECONDS must be at least 60");
+  /* How long a PAID booster stays reserved for the buyer who paid.
+   *
+   * Longer than the invoice window on purpose: somebody who has actually sent
+   * sats deserves more room to finish than somebody who only asked for a
+   * quote. When it lapses the pack simply becomes buyable again -- nothing has
+   * to be returned, because nothing was ever taken. state.counts is decremented
+   * in the CLAIM, so an unclaimed pack never left the mint. */
+  const claimGraceSeconds = Number(options.claimGraceSeconds || process.env.NUTFT_CLAIM_GRACE_SECONDS || 3600);
+  if (!Number.isFinite(claimGraceSeconds) || claimGraceSeconds < invoiceTtlSeconds) {
+    throw new Error("NUTFT_CLAIM_GRACE_SECONDS must be at least NUTFT_INVOICE_TTL_SECONDS — a paid booster cannot be held for less time than an unpaid one");
+  }
   const lndConfig = funding && funding.name === "lnd" ? (options.lnd || lnd.readConfig(options.lndOptions || {})) : null;
   /* The price ladder. Written as "soldBelow:msat" pairs, cheapest first:
    *   NUTFT_PRICE_SCHEDULE="2100:21000,59775:420000,62775:10000000"
@@ -268,7 +279,14 @@ function createNutftMint(options = {}) {
      already names the canonical host, so there is one place to change hosts. */
   const publicBase = (options.publicBase || process.env.NUTFT_PUBLIC_BASE || "" ||
     (process.env.PUBLIC_URL || "").replace(/^ws/, "http").replace(/\/ws$/, "")).replace(/\/$/, "");
-  const payMetadata = lnurl.metadataFor("600B Timelock TCG — one booster, 7 cards");
+  /* DERIVED, not typed. This string is what a wallet SHOWS the buyer when it
+     scans the QR -- it is the description of the goods inside the payment
+     request, and LUD-06 commits its hash into the invoice. It said "7 cards"
+     while the census had been printing 15 for some time, so every LNURL payer
+     was shown a smaller pack than the one they were buying. Reading the number
+     from the census is the only version of this that cannot drift again. */
+  const payMetadata = lnurl.metadataFor(
+    `600B Timelock TCG — one booster, ${census.mint.cards_per_pack} cards`);
 
   const beaconLive = String(options.beaconSource ?? process.env.NUTFT_BEACON_SOURCE ?? "") === "lnd";
   /* The beacon reads the chain; the funding source takes the money. They are
@@ -434,8 +452,22 @@ function createNutftMint(options = {}) {
       try { settled = await funding.isSettled(row.payment_hash, row.amount_msat); }
       catch (error) { throw new Error("the mint cannot confirm an existing checkout right now — try again shortly"); }
       const created = Date.parse(row.created_at);
-      if (settled || !Number.isFinite(created) || created + invoiceTtlSeconds * 1000 > Date.now()) {
-        throw new Error("this booster already has an active invoice — pay or claim it, or try again after it expires");
+      const now = Date.now();
+      /* `settled ||` used to short-circuit the age check entirely, so a PAID but
+         never-claimed invoice blocked its pack forever -- and because nextPack
+         only advances on a claim, that pack stays "next" forever too. One buyer
+         paying 21 sat and closing the tab stopped the whole shop, and the error
+         told them to wait for an expiry that could not arrive. Proven with a
+         test before this line was touched.
+
+         Both cases age now. A settled invoice simply gets longer. */
+      const unknownAge = !Number.isFinite(created);
+      const quoteHeld = unknownAge || created + invoiceTtlSeconds * 1000 > now;
+      const paidHeld = settled && (unknownAge || created + claimGraceSeconds * 1000 > now);
+      if (settled ? paidHeld : quoteHeld) {
+        throw new Error(settled
+          ? "this booster is paid for and is being collected — it becomes available again if it is not claimed"
+          : "this booster already has an active invoice — pay or claim it, or try again after it expires");
       }
     }
     /* A funding-source failure is ours, not the buyer's, and its message names
@@ -784,6 +816,12 @@ function createNutftMint(options = {}) {
           next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs,
           cards_per_pack: census.mint.cards_per_pack,
           paid_cards_per_pack: census.mint.paid_cards_per_pack,
+          /* Whether the till is open. This was only in /v1/info, which the shop
+             does not read, so a CLOSED mint still drew a live "Buy a booster"
+             button -- the refusal arrived after the click, from the server. The
+             shop asks this endpoint for everything else about the box; it should
+             not have to learn from a failure that the box is shut. */
+          sales: salesMode,
           tier_odds: tierOdds, remaining: state.counts,
         });
       }

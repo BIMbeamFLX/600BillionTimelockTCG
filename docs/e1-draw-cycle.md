@@ -1,5 +1,18 @@
 # Edition One: the draw cycle
 
+> **Superseded in one number, 2026-08-21.** `MAX_COPIES` moved from **3 to 4**
+> (owner's call: a fourth copy should be worth owning in a game whose cards are
+> bearer assets). Everything below was measured and tuned under a three-card
+> playset, and the numbers are left as they were measured rather than edited to
+> match — a rewritten analysis is not a re-run one.
+>
+> What that means for this document: the rates in §3 were set for a deck running
+> three of each, so a fourth copy raises the density of every card analysed here
+> by about a third, and **the degenerate-deck check in §5 should be re-run at
+> four** before the format is called settled. The cap still sits an order of
+> magnitude below the measured breaking point — 26 copies of Zap won 97.7% — so
+> this is a tuning question, not a format-safety one.
+
 Sixteen existing cards were retuned to give Edition One a card-advantage game.
 No new cards were invented — every one of the 297 illustrations still depicts a
 card that exists, and every changed card keeps its name, cost, stats, rarity,

@@ -1426,11 +1426,27 @@
     $("boxFill").style.width = `${total ? (left / total) * 100 : 0}%`;
     $("resetBox").hidden = !(PULL_MODE === "demo" && state.cursor > 0);
     const button = $("openPack");
-    button.disabled = booting || busy || empty;
+    /* `closed` is the cutover state: the mint refuses new sales while already
+       paid packs stay claimable. It refuses politely and the page shows why,
+       but only AFTER the click -- and a control that looks live and does
+       nothing is the thing this page says it exists not to be. `allowlist` is
+       deliberately NOT included: whether this particular key may buy is the
+       mint's answer to give, not the shop's to guess. */
+    const shut = mint && nutftState.sales === "closed";
+    button.disabled = booting || busy || empty || shut;
     if (booting) {
       /* Until storage answers, the cursor is unknown — pulling now would open
        * the top of the box a second time and then be overwritten. */
       button.textContent = "Opening the shop…";
+    } else if (shut) {
+      button.textContent = "The box is not open yet";
+      const note = $("packNote");
+      if (!note.textContent) {
+        note.className = "pack-note";
+        note.textContent = "This mint is not selling yet. Everything above is already published "
+          + "and checkable — the census fingerprint, the print run of every tier, and how much of "
+          + "each is still unminted. Only the till is shut.";
+      }
     } else if (empty) {
       /* A disabled button must say why. The note only explains when there is
        * nothing else there — the last pack's own summary outranks it. */

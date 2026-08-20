@@ -644,8 +644,18 @@
    * selection in the set and density is the only way to make a deck reliable. A
    * measured 26-copy build won 97.7% against all eleven precons, mean kill turn
    * 3.8. The cap is what turns deckbuilding into a choice instead of an
-   * arithmetic problem. */
-  const MAX_COPIES = 3;
+   * arithmetic problem.
+   *
+   * FOUR, raised from three (owner's call). Three made owning a fourth copy
+   * worthless, which is a bad thing to tell a collector in a game whose cards
+   * are bearer assets. Four is still an order of magnitude below the measured
+   * breaking point, so the reason the cap exists is untouched — the eleven
+   * precons were built under three and stay legal, since raising a ceiling
+   * cannot make an existing list illegal.
+   *
+   * It applies in OG too: there the Stack Builder takes min(this, what you
+   * actually hold), so ownership can only ever bite EARLIER, never later. */
+  const MAX_COPIES = 4;
   /* BASIC RESOURCES ARE EXEMPT, for the same reason every card game exempts its
    * basic lands: a 40-card Stack needs 16-18 Resources and there are only ten
    * Basic Resources in the set, so capping them at three makes a legal Stack
