@@ -9,6 +9,11 @@ const { canonical } = require("../../server/nutft-mint.js");
 const cashu = await import("@cashu/cashu-ts");
 
 const hex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+const opening = (output) => ({
+  secret: new TextDecoder().decode(output.secret),
+  blinding_factor: output.blindingFactor.toString(16).padStart(64, "0"),
+  p2pk_e: output.ephemeralE,
+});
 
 test("NutFT draw vector stays compatible with the manifest package", () => {
   const { selfTest } = require("../../server/nutft-draw.js");
@@ -19,6 +24,8 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: "http://127.0.0.1/nutft/catalog" });
   t.after(() => table.close());
   const base = table.url;
+  const info = await (await fetch(`${base}/v1/info`)).json();
+  assert.equal(info.nuts[31].output_openings, true);
   const catalog = await (await fetch(`${base}/nutft/catalog`)).json();
   const { signature, issuer_pubkey: issuer, ...catalogPayload } = catalog;
   const catalogDigest = createHash("sha256").update(canonical(catalogPayload)).digest("hex");
@@ -39,11 +46,8 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
     body: JSON.stringify({
       pack_id: quote.pack_id,
       state: quote.state,
-      outputs: outputs.map((output, i) => ({ amount: 1, id: output.blindedMessage.id, B_: output.blindedMessage.B_, nutft: {
-        collection_id: quote.cards[i].collection_id,
-        asset_id: quote.cards[i].asset_id,
-        catalog_uri: quote.cards[i].catalog_uri,
-      } })),
+      idempotency_key: "demo-booster-1",
+      outputs: outputs.map((output) => ({ amount: 1, id: output.blindedMessage.id, B_: output.blindedMessage.B_, nutft: opening(output) })),
     }),
   });
   assert.equal(issue.status, 200);
@@ -68,7 +72,7 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
     const wrongTrade = await fetch(`${base}/nutft/trade`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
       idempotency_key: "demo-trade-wrong-binding",
       inputs: cashu.serializeProofs([cashu.signP2PKProof(proofs[otherIndex], cashu.maybeDeriveP2BKPrivateKeys(hex(privateKey), proofs[otherIndex])[0])]),
-      outputs: [{ amount: 1, id: wrongOutput.blindedMessage.id, B_: wrongOutput.blindedMessage.B_, nutft: { collection_id: inputTag[1], asset_id: inputTag[2], catalog_uri: inputTag[3] } }],
+      outputs: [{ amount: 1, id: wrongOutput.blindedMessage.id, B_: wrongOutput.blindedMessage.B_, nutft: opening(wrongOutput) }],
     }) });
     assert.equal(wrongTrade.status, 400);
     assert.equal(otherTag[2] !== inputTag[2], true);
@@ -77,7 +81,7 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   const tradeBody = {
     idempotency_key: "demo-trade-1",
     inputs: cashu.serializeProofs([signedInput]),
-    outputs: [{ amount: 1, id: replacement.blindedMessage.id, B_: replacement.blindedMessage.B_, nutft: { collection_id: inputTag[1], asset_id: inputTag[2], catalog_uri: inputTag[3] } }],
+    outputs: [{ amount: 1, id: replacement.blindedMessage.id, B_: replacement.blindedMessage.B_, nutft: opening(replacement) }],
   };
   const trade = await fetch(`${base}/nutft/trade`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(tradeBody) });
   assert.equal(trade.status, 200);
@@ -85,6 +89,9 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   const replacementProof = replacement.toProof({ ...tradeResult.signature, amount: cashu.Amount.from(1) }, proofKeyset);
   assert.equal(cashu.getTag(replacementProof.secret, "nutft")[4], inputTag[4]);
   assert.deepEqual(await (await fetch(`${base}/nutft/trade`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(tradeBody) })).json(), tradeResult);
+  const changedBody = structuredClone(tradeBody);
+  changedBody.outputs[0].nutft.blinding_factor = "1".padStart(64, "0");
+  assert.equal((await fetch(`${base}/nutft/trade`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(changedBody) })).status, 400);
   assert.equal((await fetch(`${base}/nutft/trade`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...tradeBody, idempotency_key: "demo-trade-2" }) })).status, 400);
   const spent = await (await fetch(`${base}/v1/checkstate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys: [cashu.hashToCurve(new TextEncoder().encode(proofs[0].secret)).toHex(true)] }) })).json();
   assert.equal(spent.states[0].state, "SPENT");

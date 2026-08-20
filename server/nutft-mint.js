@@ -213,15 +213,43 @@ function createNutftMint(options = {}) {
     };
   }
 
+  function parseNutftSecret(secret, p2pkE) {
+    if (typeof secret !== "string") throw new Error("NutFT output secret is required");
+    let parsed;
+    try { parsed = JSON.parse(secret); }
+    catch { throw new Error("NutFT output secret is invalid JSON"); }
+    if (JSON.stringify(parsed) !== secret || !Array.isArray(parsed) || parsed.length !== 2 || parsed[0] !== "P2PK" || !parsed[1] || typeof parsed[1] !== "object") {
+      throw new Error("NutFT output secret is not canonical P2PK");
+    }
+    const tags = parsed[1].tags;
+    const matches = Array.isArray(tags) ? tags.filter((tag) => Array.isArray(tag) && tag[0] === "nutft") : [];
+    if (matches.length !== 1 || matches[0].length !== 6 || matches[0].some((value) => typeof value !== "string" || !value)) {
+      throw new Error("NutFT secret must contain exactly one canonical nutft tag");
+    }
+    const tag = matches[0].slice(1);
+    if (tag[0] !== VERSION) throw new Error("unsupported NutFT version");
+    const assetReference = { collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3] };
+    if (tag[4] !== assetBinding(assetReference)) throw new Error("NutFT asset binding is invalid");
+    if (typeof p2pkE !== "string") throw new Error("NutFT demo outputs must use P2BK");
+    cashu.pointFromHex(parsed[1].data);
+    cashu.pointFromHex(p2pkE);
+    return { reference: assetReference, binding: tag[4] };
+  }
+
   function validateOutput(output, expected, keysetId) {
     if (!output || output.amount !== 1 || output.id !== keysetId || typeof output.B_ !== "string") {
       throw new Error("NutFT output must have amount=1 and the active keyset id");
     }
-    const declarationValue = output.nutft;
-    if (!declarationValue || canonical(declarationValue) !== canonical(reference(expected.asset_id))) {
-      throw new Error(`CardBinding mismatch for ${expected.asset_id}`);
+    const opening = output.nutft;
+    if (!opening || typeof opening.blinding_factor !== "string" || !/^[0-9a-f]{64}$/.test(opening.blinding_factor) || /^0+$/.test(opening.blinding_factor)) {
+      throw new Error("NutFT output blinding factor is invalid");
     }
-    cashu.pointFromHex(output.B_);
+    const parsed = parseNutftSecret(opening.secret, opening.p2pk_e);
+    const recomputed = cashu.blindMessage(text(opening.secret), BigInt(`0x${opening.blinding_factor}`)).B_.toHex(true);
+    if (recomputed !== cashu.pointFromHex(output.B_).toHex(true)) throw new Error("NutFT output opening does not match B_");
+    if (expected && canonical(parsed.reference) !== canonical(expected)) throw new Error(`CardBinding mismatch for ${expected.asset_id}`);
+    if (!cards.has(parsed.reference.asset_id) || parsed.reference.collection_id !== collectionId) throw new Error(`unknown asset_id: ${parsed.reference.asset_id}`);
+    return parsed;
   }
 
   async function keysResponse() {
@@ -236,7 +264,7 @@ function createNutftMint(options = {}) {
     const expected = quote();
     if (body.pack_id !== expected.pack_id || body.state !== expected.state) throw new Error("stale booster quote");
     if (!Array.isArray(body.outputs) || body.outputs.length !== expected.cards.length) throw new Error("one output is required per card");
-    for (let i = 0; i < expected.cards.length; i += 1) validateOutput(body.outputs[i], expected.cards[i], keyset.keysetId);
+    for (let i = 0; i < expected.cards.length; i += 1) validateOutput(body.outputs[i], reference(expected.cards[i].asset_id), keyset.keysetId);
 
     const signatures = body.outputs.map((output) => {
       const blind = cashu.createBlindSignature(cashu.pointFromHex(output.B_), keyset.privKeys["1"], keyset.keysetId);
@@ -267,19 +295,24 @@ function createNutftMint(options = {}) {
   async function trade(body) {
     const keyset = await ready;
     if (typeof body.idempotency_key !== "string" || !body.idempotency_key) throw new Error("trade idempotency_key is required");
-    if (trades.has(body.idempotency_key)) return trades.get(body.idempotency_key);
+    const requestHash = crypto.createHash("sha256").update(canonical(body)).digest("hex");
+    if (trades.has(body.idempotency_key)) {
+      const previous = trades.get(body.idempotency_key);
+      if (previous.requestHash !== requestHash) throw new Error("idempotency_key was already used for a different trade");
+      return previous.result;
+    }
     const inputs = cashu.deserializeProofs(body.inputs || []);
     if (inputs.length !== 1 || !Array.isArray(body.outputs) || body.outputs.length !== 1) throw new Error("demo trade accepts one card at a time");
     const input = inputs[0];
-    const tag = cashu.getTag(input.secret, "nutft");
-    if (!tag || tag.length !== 5 || tag[0] !== VERSION) throw new Error("input is not a NutFT proof");
-    const inputReference = { collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3] };
-    if (tag[4] !== assetBinding(inputReference) || inputReference.collection_id !== collectionId || input.amount.toString() !== "1") throw new Error("input CardBinding is invalid");
+    const parsedInput = parseNutftSecret(input.secret, input.p2pk_e);
+    const inputReference = parsedInput.reference;
+    if (input.id !== keyset.keysetId || inputReference.collection_id !== collectionId || input.amount.toString() !== "1" || !cards.has(inputReference.asset_id)) throw new Error("input CardBinding is invalid");
     const y = cashu.hashToCurve(text(input.secret)).toHex(true);
     if (spent.has(y)) throw new Error("input proof is already spent");
     if (!cashu.verifyUnblindedSignature({ id: input.id, secret: text(input.secret), C: cashu.pointFromHex(input.C) }, keyset.privKeys["1"])) throw new Error("input signature is invalid");
     if (!cashu.isP2PKSpendAuthorised(input)) throw new Error("input owner witness is invalid");
-    validateOutput(body.outputs[0], { asset_id: inputReference.asset_id }, keyset.keysetId);
+    const outputBinding = validateOutput(body.outputs[0], inputReference, keyset.keysetId);
+    if (outputBinding.binding !== parsedInput.binding) throw new Error("replacement CardBinding must equal input CardBinding");
     const output = body.outputs[0];
     const blind = cashu.createBlindSignature(cashu.pointFromHex(output.B_), keyset.privKeys["1"], keyset.keysetId);
     const dleq = cashu.createDLEQProof(cashu.pointFromHex(output.B_), keyset.privKeys["1"]);
@@ -304,14 +337,14 @@ function createNutftMint(options = {}) {
       }
     }
     spent.add(y);
-    trades.set(body.idempotency_key, result);
+    trades.set(body.idempotency_key, { requestHash, result });
     return result;
   }
 
   async function handle(req, res, url) {
     try {
       if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: usingDemoKeys ? "600B NutFT demo mint" : "600B NutFT mint", version: "0.1.0", demo_keys: usingDemoKeys, nuts: { 31: { supported: true, versions: [1], p2bk: true, dleq: true }, 7: { supported: true } } });
+        return json(res, 200, { name: usingDemoKeys ? "600B NutFT demo mint" : "600B NutFT mint", version: "0.1.0", demo_keys: usingDemoKeys, nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true }, 7: { supported: true } } });
       }
       if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && url.pathname === "/v1/checkstate") {
