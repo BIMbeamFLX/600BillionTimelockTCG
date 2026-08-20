@@ -324,10 +324,11 @@
     remote.unsubscribe = nostr().subscribeInvites(nostr().savedPubkey(), (invite) => {
       if (first) { list.innerHTML = ""; first = false; }
       const item = el("div", "netrow");
+      const stake = Number.isInteger(invite.stake) ? satsWord(invite.stake) : "stake unknown";
       item.append(el("span", null,
-        `${invite.code} · ${invite.host.name || "?"} (${invite.host.affinity || "?"}) · ${nostr().shortNpub(invite.pubkey)}`));
-      const button = el("button", "btn ghost", "Join");
-      button.addEventListener("click", () => joinTable(invite.code, invite));
+        `${invite.code} · ${invite.host.name || "?"} (${invite.host.affinity || "?"}) · ${nostr().shortNpub(invite.pubkey)} · ${stake}`));
+      const button = el("button", "btn ghost", invite.stake ? `Join for ${invite.stake} sats` : "Join");
+      button.addEventListener("click", () => joinTable(invite.code, invite, invite.stake));
       item.append(button);
       list.append(item);
     });
@@ -355,6 +356,8 @@
     const state = NET.lastState;
     if (!state) return;
     const to = String($("challengeNpub").value || "").trim();
+    const recipient = to ? nostr().toHexPubkey(to) : null;
+    if (to && !recipient) return void netNotice("Enter a valid npub or 64-character public key.", "bad");
     if (NET.publicTableIsLocal()) {
       netNotice("This table is only reachable at a loopback address — an invite carrying it cannot be joined from another machine. Start the referee with PUBLIC_HOST set to the Tailscale name and open this page through it.", "bad");
       return;
@@ -367,7 +370,8 @@
       affinity: lobbyAffinity(),
       ruleset: state.ruleset,
       catalogDigest: state.catalogDigest,
-      to: to ? nostr().toHexPubkey(to) : null,
+      stake: state.stake,
+      to: recipient,
     }));
   }
 

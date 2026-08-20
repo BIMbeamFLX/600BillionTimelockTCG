@@ -562,6 +562,57 @@ test("the lobby leaves for the table only once a seat is dealt", () => {
   assert.equal(nav.length, 1, "the hand-off fired twice");
 });
 
+test("a published challenge carries the stake the referee confirmed", () => {
+  const stub = netStub();
+  let options;
+  stub.nostr.inviteEvent = (value) => {
+    options = value;
+    return { kind: 4600, tags: [], content: "{}" };
+  };
+  const { byId } = loadLobby(stub);
+  stub.lastState = { ...STATE_BASE, seat: 0, role: "seat", status: "open", stake: 750 };
+  stub.handlers.onState(stub.lastState);
+  byId("publishInvite").click();
+  assert.equal(options.stake, 750, "the invite omitted the amount the guest would be asked to play for");
+});
+
+test("an invalid challenge npub cannot silently become an open invite", () => {
+  const stub = netStub();
+  let invitations = 0;
+  stub.nostr.toHexPubkey = () => null;
+  stub.nostr.inviteEvent = () => {
+    invitations += 1;
+    return { kind: 4600, tags: [], content: "{}" };
+  };
+  const { byId } = loadLobby(stub);
+  stub.lastState = { ...STATE_BASE, seat: 0, role: "seat", status: "open", stake: 0 };
+  stub.handlers.onState(stub.lastState);
+  byId("challengeNpub").value = "not-an-npub";
+  byId("publishInvite").click();
+  assert.equal(invitations, 0);
+  assert.match(byId("netNotice").textContent, /valid npub/i);
+});
+
+test("a relay invite shows and acknowledges its stake before joining", () => {
+  const stub = netStub();
+  let offer;
+  stub.nostr.subscribeInvites = (_pubkey, onInvite) => {
+    offer = onInvite;
+    return () => {};
+  };
+  const { byId } = loadLobby(stub);
+  byId("checkInvites").click();
+  offer({
+    code: "K7M2QF", table: "ws://bitbeam:8777/ws", pubkey: "b".repeat(64),
+    host: { name: "Anna", affinity: "Signal" }, stake: 750,
+  });
+  const row = byId("inviteList").children.at(-1);
+  assert.match(row.textContent + row.children.map((child) => child.textContent).join(" "), /750.*sats/i);
+  row.children.at(-1).click();
+  const join = stub.calls.find((call) => call[0] === "join");
+  assert.equal(join[1].stake, 750, "the join did not echo the amount the guest accepted");
+});
+
 test("the table sends a player back to the lobby, it does not host one", () => {
   const stub = netStub();
   const { byId } = loadPlay(stub);
