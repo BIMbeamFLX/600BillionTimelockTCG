@@ -249,6 +249,11 @@ html:has(.bay--stage) #revealAll:not([hidden]) {
 .odd b { display: block; font: 20px/1 var(--display); color: var(--power); }
 .odd span { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .odd i { display: block; margin-top: 5px; font-style: normal; font-family: var(--mono); font-size: 10px; color: var(--ink-dim); }
+/* The live figure sits under the print run, quieter than it, because the run is
+   the promise and this is only where the box has got to. <u> without the
+   underline: it is a distinct kind of statement, not emphasis. */
+.odd__left { display: block; margin-top: 3px; text-decoration: none;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-dim); }
 .odd.rarity-uncommon { border-color: var(--purple); }
 .odd.rarity-rare { border-color: var(--ember); }
 .odd.rarity-rare b { color: var(--ember); }

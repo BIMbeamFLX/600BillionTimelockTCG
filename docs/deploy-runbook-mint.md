@@ -185,20 +185,29 @@ the moment money does.
 
 `written: 2026-08-20` `census: tier-census-r3` `tests: 365 green`
 
-A booster is fifteen cards now, so E1 was resized to fill one: **10 Common + 3 Uncommon +
-1 Prime + 1 free Basic**, over the same 20,925 packs. The prime pool did not move — Genesis
-is still 21 copies each, Vault 63, Rare 216 — so only the bottom of the curve grew, and the
-odds of pulling a named Genesis are the 1-in-998 they always were.
+Two changes landed together. A booster is **fifteen cards** now — 10 Common + 3 Uncommon +
+1 Prime + 1 free Basic — and the mint is **three times the size**, 62,775 packs against
+20,925, with every print run tripled to match.
+
+The second is the one to say out loud, because it spends a promise: **there are 63 of each
+Genesis card now, not 21.** Anyone repeating the old number is repeating something that
+stopped being true. Everything else about the curve is untouched — a named Genesis is still
+one pack in 998, the tier shares do not move at all, and the copy spread is the same 111:1 —
+because tripling every tier at once changes the scale and none of the ratios.
 
 | | r2 (until now) | r3 (this deploy) |
 |---|---|---|
 | cards per pack | 7 | **15** |
 | numbered cards per pack | 6 | **14** |
-| Common / Uncommon copies each | 930 / 279 | **2,325 / 837** |
-| capped copies | 125,577 | **292,977** |
-| cards in the box | 146,475 | **313,875** |
-| `census_sha256` | `651e12f3…` | **`0e8a94f0…`** |
+| packs | 20,925 | **62,775** |
+| Genesis / Vault / Rare copies each | 21 / 63 / 216 | **63 / 189 / 648** |
+| Common / Uncommon copies each | 930 / 279 | **6,975 / 2,511** |
+| capped copies | 125,577 | **878,931** |
+| cards in the box | 146,475 | **941,625** |
+| unreachable prime tail | 27 | **81** |
+| `census_sha256` | `651e12f3…` | **`7a1212fb…`** |
 | `tier_odds` | 0.15 / 1.05 / 15.48 / 16.66 / 66.65 | **0.06 / 0.45 / 6.64 / 21.43 / 71.42** |
+| a named Genesis, per pack | 1 in 998 | **1 in 998** |
 
 **A new census is a new mint, and the code enforces that.** `createNutftMint` hashes
 `census_sha256` + `collection_id` + `catalog_uri` into `nutft_meta.configuration` and
@@ -271,11 +280,11 @@ sudo systemctl start tcg-table
 curl.exe https://tcg.nappelin.com/nutft/state
 ```
 
-Four things have to read right: `census_sha256` is `0e8a94f0…`, `packs` is `20925`, `sold`
+Four things have to read right: `census_sha256` is `7a1212fb…`, `packs` is `62775`, `sold`
 is `0`, and `tier_odds` is `0.06 / 0.45 / 6.64 / 21.43 / 71.42`. Then buy one pack at
 `/shop.html?shop=mint` — **fifteen tiles**, each `DLEQ ✓ · P2BK ✓ · Blossom ✓` — and press
 the shop's verify button, which re-hashes the mint's own signed catalog: it must answer
-MATCH against `0e8a94f0…`, not DIFFERENT CENSUS.
+MATCH against `7a1212fb…`, not DIFFERENT CENSUS.
 
 Faces did not change in this resize, so there is no blob re-upload and no Blossom recheck.
 

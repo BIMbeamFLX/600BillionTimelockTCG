@@ -38,7 +38,7 @@ OUT = ROOT / "site" / "shop-data.js"
 # page has to download. Said here rather than rounded away on the page.
 #
 # NOTE the previous comment claimed this was "the same run as the mint's set".
-# It was not — the mint runs 2,325/837/216/63/21 — and that was one half of the
+# It was not — the mint runs 6,975/2,511/648/189/63 — and that was one half of the
 # two-different-boxes problem a review found on the shop page.
 #
 # .get()'s default is deliberately absent below: an unknown tier must be a loud

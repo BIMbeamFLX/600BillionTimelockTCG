@@ -12,9 +12,17 @@ Every pool must divide evenly across the cards drawing from it. A pool that does
 not divide leaves a tail of cards printed one copy deeper than their neighbours -
 a rarity nobody declared and nobody can see.
 
-The prime caps are NOT derived. Genesis is 21 copies whatever the mint size,
-which is the whole reason "only 21 complete sets can ever exist" survives a
-resize. A bigger pack grows the bottom of the curve and nothing else.
+The prime caps are NOT derived from the pack shape, and they are the one thing
+here that is a decision rather than a consequence. Changing the PACK grows the
+bottom of the curve and nothing else; changing the mint SIZE is what moves them,
+and only because they are written down beside PACKS and moved deliberately.
+
+That is the trade, stated plainly: the caps are what "only N complete sets can
+ever exist" means. Tripling the mint tripled them, so that sentence now reads 63
+rather than 21. Every ratio survives untouched -- a named Genesis is still one
+pack in 998, the tier shares do not move, and the copy spread is unchanged --
+but the headline scarcity number is three times what it was, and anyone who
+repeats the old one is repeating something that stopped being true here.
 
 `p_per_pack` is the exact chance of seeing a named card in one pack: drawing is
 without replacement, so it is one minus the product of the misses over the
@@ -38,11 +46,13 @@ CENSUS = ROOT / "cards" / "nutft-census.json"
 # The pack. 15 cards: 10 Common, 3 Uncommon, one Prime - Rare, Vault or Genesis,
 # the only slot whose tier is uncertain - and one free uncapped Basic Resource.
 # Change these numbers and every supply figure in the census follows.
-PACKS = 20925
+PACKS = 62775
 SLOTS = {"common": 10, "uncommon": 3, "prime": 1, "basic": 1}
 
-# Held across resizes on purpose - see the module docstring.
-PRIME_CAPS = {"Genesis": 21, "Vault": 63, "Rare": 216}
+# Moved WITH the mint size, not held against it - see the module docstring. At
+# 20,925 packs these were 21 / 63 / 216; tripling the mint tripled them, which is
+# what puts 63 Genesis Lotus in the world instead of 21.
+PRIME_CAPS = {"Genesis": 63, "Vault": 189, "Rare": 648}
 
 VERSION = "tier-census-r3"
 NOTE = "Scored Edition One scarcity census. See docs/adr/0004-mint-tier-authority.md."

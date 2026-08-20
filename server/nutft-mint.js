@@ -157,8 +157,8 @@ function createNutftMint(options = {}) {
   if (!Number.isFinite(invoiceTtlSeconds) || invoiceTtlSeconds < 60) throw new Error("NUTFT_INVOICE_TTL_SECONDS must be at least 60");
   const lndConfig = funding && funding.name === "lnd" ? (options.lnd || lnd.readConfig(options.lndOptions || {})) : null;
   /* The price ladder. Written as "soldBelow:msat" pairs, cheapest first:
-   *   NUTFT_PRICE_SCHEDULE="2100:21000,19925:420000,20925:10000000"
-   * reads as "the first 2100 packs cost 21 sat, up to 19925 they cost 420, and
+   *   NUTFT_PRICE_SCHEDULE="2100:21000,59775:420000,62775:10000000"
+   * reads as "the first 2100 packs cost 21 sat, up to 59775 they cost 420, and
    * the rest cost 10000". A single NUTFT_PRICE_MSAT still works and behaves as
    * one flat tier, so nothing that exists today has to change.
    *
@@ -774,7 +774,18 @@ function createNutftMint(options = {}) {
         return json(res, 200, signedCatalog());
       }
       if (req.method === "GET" && url.pathname === "/nutft/state") {
-        return json(res, 200, { unit: collectionId, state: current(), census_sha256: census.census_sha256, next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs, tier_odds: tierOdds, remaining: state.counts });
+        /* The PACK SHAPE is published too. The shop has to say how big the box
+           is, and without this it either guessed or carried the number written
+           down by hand -- which is how every supply figure on that page came to
+           disagree with the mint after a resize. A client should never have to
+           know a fact the server already holds. */
+        return json(res, 200, {
+          unit: collectionId, state: current(), census_sha256: census.census_sha256,
+          next_pack: packId(), sold: state.nextPack - 1, packs: census.mint.packs,
+          cards_per_pack: census.mint.cards_per_pack,
+          paid_cards_per_pack: census.mint.paid_cards_per_pack,
+          tier_odds: tierOdds, remaining: state.counts,
+        });
       }
       if (req.method === "GET" && url.pathname === "/nutft/quote") {
         return json(res, 200, await payableQuote({ proof: proofFrom(req, url, "GET") }));

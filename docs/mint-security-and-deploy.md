@@ -82,7 +82,7 @@ a fixed config value (`NUTFT_BEACON`, default all-zeros).
 
 **Verified:** with the public census, the public draw algorithm and a known beacon, I
 precomputed the box offline — 175 packs in 28 ms, first Genesis at `pack-0175`, whole
-20,925-pack box computable in seconds. A buyer (or the operator) who knows the beacon
+62,775-pack box computable in seconds. A buyer (or the operator) who knows the beacon
 knows exactly which pack number holds each Genesis card before buying.
 
 This is the mechanism your handover already specifies the fix for: the beacon must be a
@@ -123,7 +123,7 @@ must be published before it goes in the unit.
 
 - **Catalog re-signed on every GET** (~2 ms schnorr + serialize of 285 assets per
   `/nutft/catalog`). Fine at demo traffic; cache it once real load arrives.
-- **`spent`/`trades` load fully into memory on boot.** At 292,977 max cards this is a
+- **`spent`/`trades` load fully into memory on boot.** At 878,931 max cards this is a
   small map; not a concern at this set size, worth remembering if the set grows.
 - **Confirmed already sound:** DLEQ + P2BK + CardBinding verification on both issue and
   reload paths; the trade path checks owner witness, input binding and double-spend, and
@@ -210,7 +210,7 @@ ceilings** — none of which bite tomorrow.
   needs the DB and the census — but do not build that now.
 - **Cache the catalog** (§1 LOW) and add the mint rate-limit (§1 MEDIUM) before any
   traffic spike; both are small.
-- **The real scaling constraint is not throughput, it is supply**: one mint is 20,925
+- **The real scaling constraint is not throughput, it is supply**: one mint is 62,775
   packs, fixed. "Scale" here means minting a second set, which is a census + key +
   catalog decision, not an infra one.
 

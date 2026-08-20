@@ -4,7 +4,7 @@
  *
  * The problem it solves: pack contents are a deterministic function of
  * (beacon, pack_id, remaining counts). With a fixed beacon that function is
- * computable by anyone holding the public census, so the whole 20,925-pack box
+ * computable by anyone holding the public census, so the whole 62,775-pack box
  * can be worked out offline in seconds and a buyer can simply wait for the pack
  * that holds a Genesis card. A secret beacon is no better — it moves the same
  * power to the operator, who can then grind one.
