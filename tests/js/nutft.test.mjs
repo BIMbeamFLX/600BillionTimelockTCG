@@ -11,6 +11,11 @@ import vm from "node:vm";
 const require = createRequire(import.meta.url);
 const { createTable } = require("../../server/table.js");
 const { canonical, createNutftMint } = require("../../server/nutft-mint.js");
+const CENSUS = require("../../cards/nutft-census.json");
+/* The pack size belongs to the census, not to this file: the mint fills slots
+   straight out of cards/nutft-census.json, so a resize there has to move every
+   count here with it rather than leave nineteen literals lying around. */
+const PACK = CENSUS.mint.cards_per_pack;
 const cashu = await import("@cashu/cashu-ts");
 
 const hex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -89,7 +94,7 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   await (await browserWallet(storage, fetchImpl)).buyBooster(table.url);
   const reloaded = await browserWallet(storage, fetchImpl);
   const snapshot = await reloaded.snapshot(table.url);
-  assert.equal(snapshot.owned.length, 7);
+  assert.equal(snapshot.owned.length, PACK);
   assert.equal(snapshot.spent.length, 0);
   assert.equal(snapshot.invalid.length, 0);
   const recipientStorage = new Map();
@@ -97,12 +102,12 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   const recipientPubkey = await recipient.destination();
   const transfer = await reloaded.tradeProof(table.url, snapshot.owned[0].proof.secret, recipientPubkey);
   assert.match(transfer.token, /^cashu/);
-  assert.equal((await reloaded.snapshot(table.url)).owned.length, 6);
+  assert.equal((await reloaded.snapshot(table.url)).owned.length, PACK - 1);
   const poisonedState = JSON.parse(storage.get("600b:nutft-wallet"));
   poisonedState.tokens.push(transfer.token);
   storage.set("600b:nutft-wallet", JSON.stringify(poisonedState));
   const poisonedSnapshot = await (await browserWallet(storage, fetchImpl)).snapshot(table.url);
-  assert.equal(poisonedSnapshot.owned.length, 6, "a proof addressed to another key is not owned");
+  assert.equal(poisonedSnapshot.owned.length, PACK - 1, "a proof addressed to another key is not owned");
   assert.match(poisonedSnapshot.invalid[0].error, /not addressed to this wallet/i);
   const keysetId = (await (await fetch(`${table.url}/v1/keys`)).json()).keysets[0].id;
   const decodedTransfer = cashu.getDecodedToken(transfer.token, [keysetId]);
@@ -138,7 +143,7 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   await assert.rejects(() => browserWallet(storage, flakyFetch).then((wallet) => wallet.tradeProof(table.url, secondCard, recipientPubkey)), /lost response/);
   const recovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
   assert.match(recovered.token, /^cashu/);
-  assert.equal((await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned.length, 5);
+  assert.equal((await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned.length, PACK - 2);
 
   // A reverse proxy serves HTML for a 502. That is transport failure, not a
   // mint refusal: the trade may already have spent its input and the pending
@@ -159,7 +164,7 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   );
   const gatewayRecovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
   assert.match(gatewayRecovered.token, /^cashu/);
-  assert.equal((await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned.length, 4);
+  assert.equal((await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned.length, PACK - 3);
 
   storage.set("600b:nutft-wallet", "{broken");
   await assert.rejects(() => browserWallet(storage, fetchImpl).then((wallet) => wallet.read()), /corrupted/);
@@ -202,8 +207,8 @@ test("browser wallet claims a paid sealed pack after its block arrives", async (
     },
   });
   assert.ok(invoice?.paymentRequest, "the buyer sees the invoice before the reveal");
-  assert.equal(issued.cards.length, 7);
-  assert.equal((await wallet.snapshot(base)).owned.length, 7);
+  assert.equal(issued.cards.length, PACK);
+  assert.equal((await wallet.snapshot(base)).owned.length, PACK);
 });
 
 test("browser wallet claims the invoice from an LNURL success link", async (t) => {
@@ -226,8 +231,8 @@ test("browser wallet claims the invoice from an LNURL success link", async (t) =
   const quote = await mint.payableQuote();
   const wallet = await browserWallet(new Map(), fetch);
   const issued = await wallet.claimBooster(base, quote.payment_hash, { timeoutMs: 1000 });
-  assert.equal(issued.cards.length, 7);
-  assert.equal((await wallet.snapshot(base)).owned.length, 7);
+  assert.equal(issued.cards.length, PACK);
+  assert.equal((await wallet.snapshot(base)).owned.length, PACK);
 });
 
 test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", async (t) => {
@@ -242,7 +247,7 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   assert.equal(info.nuts[31].catalog_issuer, catalog.issuer_pubkey);
   assert.equal(typeof catalog.assets[0].type_line, "string");
   assert.equal(typeof catalog.assets[0].face.sha256, "string");
-  const census = require("../../cards/nutft-census.json");
+  const census = CENSUS;
   const censusById = new Map(census.cards.map((card) => [card.id, card]));
   assert.equal(catalog.assets.length, census.cards.length);
   for (const asset of catalog.assets) {
@@ -279,12 +284,12 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   const proofKeyset = { id: keyset.id, keys: keyset.keys };
   const proofs = outputs.map((output, i) => output.toProof({ ...issued.signatures[i], amount: cashu.Amount.from(1) }, proofKeyset));
   assert.equal(issued.unit, "600B-E1");
-  assert.equal(proofs.length, 7);
+  assert.equal(proofs.length, PACK);
   assert.ok(proofs.every((proof) => proof.amount.toString() === "1" && proof.p2pk_e && proof.dleq));
   assert.deepEqual(proofs.map((proof) => cashu.getTag(proof.secret, "nutft")[2]), issued.cards.map((card) => card.asset_id));
   assert.ok(proofs.every((proof) => cashu.hasValidDleq(proof, proofKeyset, { require: true })));
   const token = cashu.getEncodedToken({ mint: base, unit: issued.unit, proofs });
-  assert.equal(cashu.getDecodedToken(token, [keyset.id]).proofs.length, 7);
+  assert.equal(cashu.getDecodedToken(token, [keyset.id]).proofs.length, PACK);
   const state = await (await fetch(`${base}/v1/checkstate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys: [cashu.hashToCurve(new TextEncoder().encode(proofs[0].secret)).toHex(true)] }) })).json();
   assert.equal(state.states[0].state, "UNSPENT");
   const signedInput = cashu.signP2PKProof(proofs[0], cashu.maybeDeriveP2BKPrivateKeys(hex(privateKey), proofs[0])[0]);
@@ -329,7 +334,10 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   assert.deepEqual(await (await fetch(`${base}/nutft/trade`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(tradeBody) })).json(), tradeResult);
   const mintState = await (await fetch(`${base}/nutft/state`)).json();
   assert.equal(mintState.next_pack, "pack-0002");
-  assert.deepEqual(mintState.tier_odds, { genesis: 0.15, vault: 1.05, rare: 15.48, uncommon: 16.66, common: 66.65 });
+  /* Pinned to the literals on purpose: these are the shares the shop prints and
+     a buyer quotes back. Deriving them from the census here would assert the
+     server against itself and let a resize move the published odds in silence. */
+  assert.deepEqual(mintState.tier_odds, { genesis: 0.06, vault: 0.45, rare: 6.64, uncommon: 21.43, common: 71.42 });
   assert.equal((await fetch(`${base}/v1/swap`, { method: "POST" })).status, 404);
   assert.equal((await fetch(`${base}/v1/melt`, { method: "POST" })).status, 404);
   assert.equal((await fetch(`${base}/v1/checkstate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys: ["not-a-curve-point"] }) })).status, 400);
@@ -384,7 +392,7 @@ test("a paid mint sells nothing until the invoice actually settles", async (t) =
   assert.equal(quote.body.price_msat, 21000);
   assert.ok(quote.body.payment_request, "the quote carries an invoice to pay");
   assert.match(quote.body.payment_hash, /^[0-9a-f]{64}$/);
-  assert.equal(quote.body.cards.length, 7);
+  assert.equal(quote.body.cards.length, PACK);
 
   // Unpaid: the mint must refuse before it signs anything.
   const unpaidBody = { idempotency_key: "k1", pack_id: quote.body.pack_id, state: quote.body.state, payment_hash: quote.body.payment_hash, outputs: await outputsFor(mint, quote.body, "https://x") };
@@ -498,7 +506,7 @@ test("one settled invoice buys exactly one pack, and never a second", async (t) 
     "and neither does an output that is the right shape and the wrong contents");
 
   const result = await mint.signBooster(paidBody);
-  assert.equal(result.signatures.length, 7, "a settled invoice mints the whole pack");
+  assert.equal(result.signatures.length, PACK, "a settled invoice mints the whole pack");
   assert.equal(result.unit, "600B-E1");
 
   // The same settled invoice must not buy the next pack too.
@@ -575,7 +583,7 @@ test("a sealed pack cannot be known at purchase, and resolves to its own block",
   settled.add(quote.payment_hash);
   const opened = await mint.revealFor(quote.payment_hash);
   assert.equal(opened.sealed, false);
-  assert.equal(opened.cards.length, 7, "the pack opens to seven cards");
+  assert.equal(opened.cards.length, PACK, "the pack opens to every card in it");
   assert.equal(opened.beacon, hashAt(quote.target_height), "against the hash of the committed block");
 
   // The same sale always opens the same way, even once the chain moves on.
@@ -745,7 +753,7 @@ test("staging runs the whole payment path on virtual sats, and says so", async (
     outputs: outs.map((o) => ({ amount: 1, id: o.blindedMessage.id, B_: o.blindedMessage.B_, nutft: opening(o) })),
   };
   const result = await mint.signBooster(body);
-  assert.equal(result.signatures.length, 7, "a settled virtual invoice mints a real pack of proofs");
+  assert.equal(result.signatures.length, PACK, "a settled virtual invoice mints a real pack of proofs");
 
   /* The replay guard proper: a spent invoice presented against the NEXT pack.
      Outputs built for that pack, deliberately — outputs are validated before
@@ -1290,7 +1298,7 @@ test("a paid booster stays claimable even if the list changes underneath it", as
     payment_hash: quote.payment_hash,
     outputs: outs.map((o) => ({ amount: 1, id: o.blindedMessage.id, B_: o.blindedMessage.B_, nutft: opening(o) })),
   });
-  assert.equal(result.signatures.length, 7, "the pack they paid for is still theirs");
+  assert.equal(result.signatures.length, PACK, "the pack they paid for is still theirs");
 });
 
 test("the shop proves a key only when the mint asks for one", async (t) => {
@@ -1343,10 +1351,10 @@ test("the shop proves a key only when the mint asks for one", async (t) => {
 
   const listed = await browserWallet(new Map(), fetch, signer);
   const bought = await listed.buyBooster(gated.url);
-  /* Asserted on the real shape. This was once `bought.length ?? bought.owned?.length ?? 7`
-     compared against 7 — a chain that reaches the literal whenever the shape is
-     unexpected, so it read as coverage while asserting 7 === 7. */
-  assert.equal(bought.cards.length, 7, "a listed key gets its seven cards");
+  /* Asserted on the real shape. This was once a `?? PACK` fallback compared
+     against PACK — a chain that reaches the literal whenever the shape is
+     unexpected, so it read as coverage while asserting PACK === PACK. */
+  assert.equal(bought.cards.length, PACK, "a listed key gets a whole pack");
   /* Twice, and both are load-bearing: this mint is free, so requireSettled
      waves the claim through and the claim is its own door. A PAID mint signs
      only the quote — the settled invoice is the receipt, and re-checking there
@@ -1476,7 +1484,7 @@ test("a mint that cannot be reached keeps the booster you paid for", async (t) =
   // And it really is recoverable once the gateway is back.
   breakClaim = false;
   const recovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
-  assert.equal(recovered.cards.length, 7, "the same outputs claim the same pack");
+  assert.equal(recovered.cards.length, PACK, "the same outputs claim the same pack");
   assert.equal(JSON.parse(storage.get("600b:nutft-wallet")).pending, null, "and the pending is then cleared");
 });
 
@@ -1518,7 +1526,7 @@ test("a malformed output must not burn the invoice behind it", async (t) => {
     "the malformed output is refused");
 
   const recovered = await mint.signBooster(body("burn-2", good));
-  assert.equal(recovered.signatures.length, 7,
+  assert.equal(recovered.signatures.length, PACK,
     "and the invoice survives it — the buyer gets the pack they paid for");
 });
 
@@ -1538,7 +1546,7 @@ test("one unreadable token does not take the whole wallet with it", async (t) =>
   const storage = new Map();
   await (await browserWallet(storage, fetchImpl)).buyBooster(table.url);
   const good = await (await browserWallet(storage, fetchImpl)).snapshot(table.url);
-  assert.equal(good.owned.length, 7, "the pack is there to begin with");
+  assert.equal(good.owned.length, PACK, "the pack is there to begin with");
 
   /* A token from somewhere this mint cannot read. Its shape is a valid cashu
      token; its keyset is not one this mint has ever issued. */
@@ -1547,7 +1555,7 @@ test("one unreadable token does not take the whole wallet with it", async (t) =>
   storage.set("600b:nutft-wallet", JSON.stringify(saved));
 
   const after = await (await browserWallet(storage, fetchImpl)).snapshot(table.url);
-  assert.equal(after.owned.length, 7, "the seven good cards are still readable");
+  assert.equal(after.owned.length, PACK, "every good card is still readable");
   assert.equal(after.unreadable.length, 1, "and the one this mint cannot open is reported, not fatal");
   assert.match(after.unreadable[0].error, /.+/, "with the reason it could not be read");
 
@@ -1580,7 +1588,7 @@ test("a dead token does not block trading the cards around it", async (t) => {
 
   const sender = await browserWallet(storage, fetchImpl);
   const before = await sender.snapshot(table.url);
-  assert.equal(before.owned.length, 7);
+  assert.equal(before.owned.length, PACK);
   assert.equal(before.unreadable.length, 1, "the dead token is present for the whole test");
 
   const card = before.owned[0];
@@ -1588,7 +1596,7 @@ test("a dead token does not block trading the cards around it", async (t) => {
   assert.match(transfer.token, /^cashu/, "the trade goes through with the dead token still in storage");
 
   const after = await (await browserWallet(storage, fetchImpl)).snapshot(table.url);
-  assert.equal(after.owned.length, 6, "the sender is one card lighter");
+  assert.equal(after.owned.length, PACK - 1, "the sender is one card lighter");
   assert.equal(after.unreadable.length, 1, "and the dead token is still just sitting there, harmless");
 
   assert.equal(await recipient.importToken(table.url, transfer.token), 1, "the recipient takes it");
