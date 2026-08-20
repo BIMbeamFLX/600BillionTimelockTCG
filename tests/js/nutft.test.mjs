@@ -55,6 +55,28 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   assert.equal(snapshot.owned.length, 7);
   assert.equal(snapshot.spent.length, 0);
   assert.equal(snapshot.invalid.length, 0);
+  const recipientStorage = new Map();
+  const recipient = await browserWallet(recipientStorage, fetchImpl);
+  const recipientPubkey = await recipient.destination();
+  const transfer = await reloaded.tradeProof(table.url, snapshot.owned[0].proof.secret, recipientPubkey);
+  assert.match(transfer.token, /^cashu/);
+  assert.equal((await reloaded.snapshot(table.url)).owned.length, 6);
+  assert.equal(await recipient.importToken(table.url, transfer.token), 1);
+  assert.equal((await recipient.snapshot(table.url)).owned.length, 1);
+  let dropTradeResponse = true;
+  const flakyFetch = async (url, options) => {
+    const response = await fetchImpl(url, options);
+    if (dropTradeResponse && String(url).endsWith("/nutft/trade")) {
+      dropTradeResponse = false;
+      throw new Error("simulated lost response");
+    }
+    return response;
+  };
+  const secondCard = (await reloaded.snapshot(table.url)).owned[0].proof.secret;
+  await assert.rejects(() => browserWallet(storage, flakyFetch).then((wallet) => wallet.tradeProof(table.url, secondCard, recipientPubkey)), /lost response/);
+  const recovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
+  assert.match(recovered.token, /^cashu/);
+  assert.equal((await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned.length, 5);
   storage.set("600b:nutft-wallet", "{broken");
   await assert.rejects(() => browserWallet(storage, fetchImpl).then((wallet) => wallet.read()), /corrupted/);
   assert.equal(storage.get("600b:nutft-wallet"), "{broken");
