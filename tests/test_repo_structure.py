@@ -50,6 +50,13 @@ def test_rulebook_article_does_not_repeat_the_hero_title() -> None:
     assert rulebook.count("<h1>") == 1
 
 
+def test_pack_skip_control_sits_above_the_full_screen_reveal_stage() -> None:
+    """The stage overlay must not intercept the button that skips its animation."""
+    shop = (REPO_ROOT / "site" / "shop.html").read_text(encoding="utf-8")
+
+    assert ":has(.bay--stage) #revealAll:not([hidden])" in shop
+
+
 def test_stack_builder_persists_nutft_markers_through_the_storage_adapter() -> None:
     """Shell and website storage must keep a Stack and its ownership marker together."""
     builder = (REPO_ROOT / "site" / "deck.html").read_text(encoding="utf-8")
