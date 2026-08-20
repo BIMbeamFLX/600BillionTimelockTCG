@@ -23,16 +23,28 @@ const config = (deckA, deckB) => ({
   firstPlayer: 0,
 });
 
-/* A legal 40 under the §7 copy limit: three of everything until it fills.
+/* A legal 40 under the §7 copy limit: three of everything until it fills, or
+ * fewer where the card itself allows fewer.
+ *
  * It used to be 20 Orchards and 20 of one filler, which stopped being a legal
- * Stack the moment MAX_COPIES landed. */
+ * Stack the moment MAX_COPIES landed. Then it took MAX_COPIES of everything,
+ * which stopped being legal the moment Genesis was capped at one — this
+ * fixture quietly held two Genesis Lotus, and the copy-limit test below then
+ * failed on the fixture instead of on the thing it was testing.
+ *
+ * Asking the engine via copyLimit() rather than hardcoding a number is what
+ * stops that happening a third time. */
 const orchard = CARDS.find((c) => c.name === "Satoshi Orchard");
 const playable = CARDS.filter((c) => !(c.text || "").includes("Stake"));
 const forty = (() => {
   const out = [orchard.id, orchard.id, orchard.id];
   for (const card of playable) {
     if (card.id === orchard.id) continue;
-    for (let i = 0; i < E.MAX_COPIES && out.length < 40; i++) out.push(card.id);
+    /* Capped at MAX_COPIES as well as the card's own limit: copyLimit is
+       Infinity for Basic Resources, and this fixture wants variety, not forty
+       Orchards. */
+    const limit = Math.min(E.copyLimit(card), E.MAX_COPIES);
+    for (let i = 0; i < limit && out.length < 40; i++) out.push(card.id);
     if (out.length >= 40) break;
   }
   return out.slice(0, 40);

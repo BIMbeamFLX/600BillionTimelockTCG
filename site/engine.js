@@ -653,6 +653,24 @@
    * deck — the measured 97.7% build was 26 copies of Zap — and a Resource
    * cannot be that, because it does nothing on its own. */
   const uncapped = (card) => card && card.type === "Basic Resource";
+  /* GENESIS IS LIMITED TO ONE PER STACK, and it is the re-tiering that forces
+   * it. Twenty-one copies of a Genesis card will ever exist across the whole
+   * mint — so at a flat cap of three, a Stack could ask for more of one card
+   * than the world contains, and the eleven precons could not legally ship the
+   * cards they are built around.
+   *
+   * The split that makes this work: the 21 minted copies are the COLLECTIBLE,
+   * capped and tradeable, while precons and the Stack Builder issue an
+   * untradeable PLAY copy. A new player builds the deck on day one, and a
+   * Genesis card is worth owning because it is scarce — not because it gates
+   * the game. Scarcity that decides matches is pay-to-win; scarcity that
+   * decides bragging rights is a collectible.
+   *
+   * Infinity for Basic Resources rather than a separate branch at each call
+   * site: one function now answers "how many of this card may a Stack hold",
+   * and there is no second place to forget. */
+  const copyLimit = (card) =>
+    uncapped(card) ? Infinity : card && card.rarity === "genesis" ? 1 : MAX_COPIES;
 
   const PHASE_ORDER = ["open", "build1", "clash", "build2", "close"];
   const PHASE_STEPS = {
@@ -1509,12 +1527,12 @@
     const used = {};
     const deck = [];
     const draw = (test, count) => {
-      const options = pool.filter((card) => test(card) && (uncapped(card) || (used[card.id] || 0) < MAX_COPIES));
+      const options = pool.filter((card) => test(card) && (used[card.id] || 0) < copyLimit(card));
       if (!options.length) return;
       let bag = [];
       for (let i = 0; i < count; i++) {
         if (!bag.length) {
-          bag = pool.filter((card) => test(card) && (uncapped(card) || (used[card.id] || 0) < MAX_COPIES));
+          bag = pool.filter((card) => test(card) && (used[card.id] || 0) < copyLimit(card));
           if (!bag.length) return; // the category is exhausted at the limit
         }
         const pick = nextInt(stream, bag.length);
@@ -1648,8 +1666,9 @@
       const copies = {};
       for (const cardId of deck) {
         copies[cardId] = (copies[cardId] || 0) + 1;
-        if (copies[cardId] > MAX_COPIES && !uncapped(cardOf(context, cardId))) {
-          fail("SCHEMA", `seat ${seat} Stack has ${copies[cardId]} copies of ${cardId}, limit ${MAX_COPIES} (§7)`);
+        const limit = copyLimit(cardOf(context, cardId));
+        if (copies[cardId] > limit) {
+          fail("SCHEMA", `seat ${seat} Stack has ${copies[cardId]} copies of ${cardId}, limit ${limit} (§7)`);
         }
       }
       for (const cardId of deck) {
@@ -7034,6 +7053,7 @@
     TURN_RIBBON,
     MIN_STACK,
     MAX_COPIES,
+    copyLimit,
     PHASE_ORDER,
     PHASE_STEPS,
     SYMBOLS,
