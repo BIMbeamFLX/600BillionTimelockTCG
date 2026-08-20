@@ -85,6 +85,21 @@ def _uncapped(card: dict) -> bool:
     return card.get("type") == "Basic Resource"
 
 
+def copy_limit(card: dict) -> float:
+    """How many of this card one Stack may hold. Mirrors copyLimit() in engine.js.
+
+    Genesis is capped at ONE. Twenty-one copies of a Genesis card will ever exist
+    in E1, so a flat cap of three let a generated Stack ask for more of one card
+    than the world contains -- and the referee refuses such a Stack outright at
+    seat setup. No shipped precon happens to hold two today, but nothing here
+    stopped it: this file carried its own flat MAX_COPIES and had never heard of
+    the tier. A precon that cannot be played is worse than a slightly worse one.
+    """
+    if _uncapped(card):
+        return float("inf")
+    return 1 if card.get("rarity") == "genesis" else MAX_COPIES
+
+
 def fill(picks: list[dict], count: int) -> list[str]:
     """Exactly `count` ids: distinct picks first, then copies within the copy limit.
 
@@ -102,12 +117,12 @@ def fill(picks: list[dict], count: int) -> list[str]:
     guard = 0
     while len(out) < count and guard < count * len(picks) * MAX_COPIES:
         guard += 1
-        card_id = picks[i % len(picks)]["id"]
+        card = picks[i % len(picks)]
         i += 1
-        if counts.get(card_id, 0) >= MAX_COPIES and not _uncapped(picks[(i - 1) % len(picks)]):
+        if counts.get(card["id"], 0) >= copy_limit(card):
             continue
-        counts[card_id] = counts.get(card_id, 0) + 1
-        out.append(card_id)
+        counts[card["id"]] = counts.get(card["id"], 0) + 1
+        out.append(card["id"])
     return out
 
 
