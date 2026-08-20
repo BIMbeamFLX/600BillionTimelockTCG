@@ -284,7 +284,12 @@ main { container-type: inline-size; }
 .hist__n { font: 12px/1 var(--display); letter-spacing: .12em; color: var(--ember); }
 .hist__box { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); letter-spacing: .04em; }
 .hist__cards { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+/* These are <button> elements so a keyboard can reach them; the reset below is
+   what keeps them looking like the chips they replaced. font: inherit matters —
+   a button does not inherit the page font, and without it every chip renders in
+   the UA's default face at the UA's default size. */
 .hist__c { padding: 2px 7px; border: 1px solid var(--line); background: var(--soot); color: var(--muted); font-size: 12px; cursor: pointer;
+  font-family: inherit; line-height: inherit; text-align: left; border-radius: 0; appearance: none;
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 .hist__c.rarity-uncommon { border-color: var(--purple); color: var(--purple); }
 .hist__c.rarity-rare, .hist__c.rarity-vault, .hist__c.rarity-genesis { border-color: var(--ember); color: var(--ember); }
@@ -550,10 +555,14 @@ main { container-type: inline-size; }
     <h2>Where your <span class="accent">cards go</span></h2>
     <p class="lead">Two places, and they are two different things.</p>
     <div class="grid grid--3">
+      <!-- The wallet counts PROOFS, so this panel says proofs. A free alpha pull
+           is not minted and never reaches it; promising otherwise would send a
+           demo player to an empty page looking for the pack they just opened.
+           The note below is where that player is answered. -->
       <a class="panel panel--act" href="wallet.html">
         <h3>The wallet →</h3>
-        <p>What you own, counted: how many cards, how many of them different, how many spare. Packs bought
-        from the mint arrive there as proofs the moment the mint issues them.</p>
+        <p>Cards the mint has issued you, counted: how many, how many of them different, how many spare.
+        A pack bought from the mint lands there the moment the mint issues it.</p>
       </a>
       <a class="panel" href="deck.html">
         <h3>The Stack Builder →</h3>
@@ -571,9 +580,11 @@ main { container-type: inline-size; }
       </div>
     </div>
     <p class="note" style="margin-top:16px"><strong>Free alpha packs stay in this browser.</strong> Nothing is
-    minted for them and nothing is published — it is a playground, not a ledger. Packs bought from the NutFT
-    mint are proofs, and proofs are what the wallet holds. <b>Right click</b> on a desktop, <b>press and
-    hold</b> on a phone, opens any card's gallery entry.</p>
+    minted for them and nothing is published — it is a playground, not a ledger. They live in this browser and
+    nowhere else. A click on any card above sends it to the Stack Builder, which is where a pull becomes part
+    of a deck — though the draft lives in the same browser storage, so that is a step towards playing with it,
+    not a safer place to put it. <b>Right click</b> on a desktop, <b>press and hold</b> on a phone, opens a card's gallery entry
+    instead.</p>
   </section>
 
   <section class="section section--tight" id="historyBlock" hidden>

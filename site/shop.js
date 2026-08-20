@@ -799,7 +799,15 @@
       row.append(time, el("span", "hist__box", slotLabel(entry)));
       const cards = el("span", "hist__cards");
       entry.ids.forEach((id, i) => {
-        const chip = el("span", `hist__c rarity-${rarityOf(id)}`, nameOf(id));
+        /* A BUTTON, not a span. These chips are the only route left from the
+           shop to "put this card in a Stack" — the collection grid that used to
+           carry #sendStack moved to the wallet. A span with a click handler is
+           unreachable by keyboard and invisible to a screen reader, so removing
+           that grid had quietly removed every non-mouse way to reach a pull.
+           A real button brings focus, Enter and Space with it for nothing. */
+        const chip = el("button", `hist__c rarity-${rarityOf(id)}`, nameOf(id));
+        chip.type = "button";
+        chip.setAttribute("aria-label", `${nameOf(id)} — ${rarityOf(id)}. Add to a Stack.`);
         chip.title = `${id} — ${rarityOf(id)}. Click or tap to add to a Stack; right-click, or press and hold, for details.`;
         if (entry.fresh[i]) chip.append(el("i", null, "NEW"));
         const hold = bindHold(chip, () => openGallery(id, true));

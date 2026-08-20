@@ -527,6 +527,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   let owned = null;
   let verified = null;            // verified NutFT counts, once the wallet is read
   let unreadable = 0;             // tokens this mint cannot open at all — see the wallet read below
+  let opened = 0;                 // proofs it DID open, however it then judged them
   const MODE_KEY = "600b:deck-mode";
   /* `wish` is what the player asked for and `mode` is what is legal right now,
    * and they have to be two variables. They used to be one, and the single
@@ -1074,10 +1075,16 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
      * one card you pulled read "1 in Stack" with Add still lit, and pressing it
      * did nothing a player could see. */
     const limit = effectiveLimit(byId[id]);
+    /* Two different questions, and they were being answered by one comparison.
+       Add is disabled at or above the limit; the words "the maximum" are only
+       true AT it. In OG the limit is what you own, so a Stack carried over from
+       Freestyle can sit ABOVE it — and that Stack was being told it was exactly
+       at the cap while the deck pane on the same screen refused to add more. */
     const full = copies >= limit;
     dlgCopies.textContent = !copies ? "not in Stack"
-      : full ? `${copies} in Stack — the maximum`
-        : `${copies} in Stack`;
+      : copies === limit ? `${copies} in Stack — the maximum`
+        : copies > limit ? `${copies} in Stack — over the ${limit} you own`
+          : `${copies} in Stack`;
     dlgRemove.disabled = copies === 0;
     dlgAdd.disabled = INDEX.get(id).stake || full;
   }
@@ -1427,7 +1434,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
      * two real causes and stops. It is appended rather than substituted because
      * the pool is still whatever the readable proofs say. */
     const aside = unreadable
-      ? ` ${unreadable} token${unreadable === 1 ? "" : "s"} here cannot be opened by this mint — bought from a different mint, or minted before this one rotated its keyset — so whatever ${unreadable === 1 ? "it holds is" : "they hold are"} not in the OG pool.`
+      ? ` ${unreadable} token${unreadable === 1 ? "" : "s"} here cannot be opened by this mint — bought from a different mint, or minted before this one rotated its keyset — so ${unreadable === 1 ? "the card it holds is" : "the cards they hold are"} not in the OG pool.`
       : "";
 
     ownershipNote.textContent = (mode === "og"
@@ -1439,8 +1446,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
           /* Unreadable tokens and an empty wallet look identical from here, and
              telling someone who has bought packs to go buy a pack is the worst
              thing this line could say. */
-          : unreadable
+          : unreadable && !opened
             ? "Freestyle: the whole catalog is legal. OG stays closed because not one card in this wallet could be read here."
+          : unreadable
+            ? "Freestyle: the whole catalog is legal. OG stays closed because none of the cards this mint could read are still yours to play."
             : "Freestyle: the whole catalog is legal. Buy a booster to unlock OG, which builds only from cards you own.") + aside;
 
     if (typeof renderGrid === "function") renderGrid();
@@ -1468,6 +1477,12 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
      * still catches it — no proofs, no OG — but the note has to say which of the
      * two silences this is. */
     unreadable = view.unreadable.length;
+    /* Proofs this mint DID open, whatever it then thought of them. "Nothing
+       could be read" must not be said over a wallet holding spent or rejected
+       proofs: those were read, and the mint has an opinion about them. That is
+       the exact distinction the unreadable bucket exists to preserve, and
+       counting only view.owned would have inverted it. */
+    opened = view.owned.length + view.spent.length + view.invalid.length;
     walletReady = true;
     applyMode(wish, { save: false });
   }).catch((error) => {

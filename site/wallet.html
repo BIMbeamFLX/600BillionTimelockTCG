@@ -65,6 +65,7 @@
 .row > :first-child { flex: 1; min-width: 0; }
 .hint { margin: 6px 0 0; color: var(--ink-dim); font-size: 12px; line-height: 1.6; }
 .tool-note { margin: 10px 0 0; min-height: 20px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.tool-note.bad { color: var(--danger); }
 .keyline { font-family: var(--mono); font-size: 12px; color: var(--cream); word-break: break-all; }
 
 /* The last thing between a person and an irreversible spend, so it wears the
@@ -80,8 +81,17 @@
 .preview li div { min-width: 0; }
 .preview li strong { display: block; font-size: 13px; }
 .preview li span { font-size: 12px; color: var(--muted); }
-.preview__verdict { margin: 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
-.preview__verdict.bad { color: var(--danger); }
+
+.handoff { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); background: rgba(9, 8, 11, .55); }
+.handoff + .handoff { margin-top: 10px; }
+.handoff p { margin: 0; font-size: 13px; color: var(--muted); }
+.handoff p b { color: var(--cream); }
+.handoff textarea {
+  width: 100%; box-sizing: border-box; padding: 10px; resize: vertical;
+  background: var(--soot); color: var(--cream); border: 1px solid var(--line);
+  font-family: var(--mono); font-size: 12px;
+}
+.handoff textarea:focus-visible { border-color: var(--ember); }
 
 .cannot ul { margin: 8px 0 0; padding-left: 18px; }
 .cannot li { font-size: 12px; line-height: 1.7; color: var(--ink-dim); }
@@ -167,17 +177,19 @@
             <p id="sendConfirmWhat"></p>
             <p class="keyline" id="sendConfirmKey"></p>
             <p>Sending spends the card at the mint. There is no take-back and no undo.</p>
-            <div class="row"><button class="btn" id="sendGo" type="button">Send it</button><button class="btn btn--ghost" id="sendCancel" type="button">Cancel</button></div>
+            <!-- The card and the key are described BY the button, so landing on
+                 it reads back what is about to be spent and to whom. -->
+            <div class="row"><button class="btn" id="sendGo" type="button" aria-describedby="sendConfirmWhat sendConfirmKey">Send it</button><button class="btn btn--ghost" id="sendCancel" type="button">Cancel</button></div>
           </div>
           <p class="tool-note" id="sendNote" role="status" aria-live="polite"></p>
+          <!-- Every transfer made in this session, newest first. A list and not a
+               single box on purpose: a second transfer used to overwrite the
+               first, and an overwritten token is a card nobody can claim. -->
           <div id="outgoing" hidden>
-            <div class="field">
-              <label for="outgoingToken">Token to hand over</label>
-              <textarea id="outgoingToken" rows="3" readonly></textarea>
-            </div>
-            <div class="row" style="margin-top:8px"><button class="btn btn--ghost" id="copyOutgoing" type="button">Copy transfer token</button></div>
-            <p class="hint">Only the key you named can claim it, so any channel will do. But this is the only copy:
-              keep the page open until they confirm the import, because nothing here can produce it a second time.</p>
+            <p class="hint" style="margin-bottom:10px">Only the key you named can claim these, so any channel will do.
+              But each is the only copy of its transfer and they live on this page alone — copy them out before you
+              close the tab, because nothing here can produce them a second time.</p>
+            <div id="outgoingList"></div>
           </div>
         </section>
 
@@ -285,7 +297,7 @@
   const sendConfirm = $("sendConfirm");
   const sendNote = $("sendNote");
   const outgoing = $("outgoing");
-  const outgoingToken = $("outgoingToken");
+  const outgoingList = $("outgoingList");
   const importToken = $("importToken");
   const importButton = $("importButton");
   const importPreview = $("importPreview");
@@ -315,7 +327,7 @@
         const bytes = await response.arrayBuffer();
         if (bytes.byteLength > 3 * 1024 * 1024 || (asset.face.bytes && bytes.byteLength !== asset.face.bytes) || await digest(bytes) !== asset.face.sha256) throw new Error("content hash mismatch");
         return URL.createObjectURL(new Blob([bytes], { type: asset.face.mime || "image/webp" }));
-      } catch (reason) { lastError = reason; }
+      } catch (mirrorFailed) { lastError = mirrorFailed; }
     }
     throw lastError;
   }
@@ -402,6 +414,16 @@
      * leaving the send picker reading "No cards in this wallet" for that whole
      * time is a lie about the wallet's contents. */
     fillPicker();
+    paintFaces(painted);
+  }
+
+  /* Deliberately NOT awaited. One mirror round trip per distinct card, against
+   * hosts that can 404 or hang, is tens of seconds on a full collection — and
+   * everything that ends with "then reload the collection" would sit behind it,
+   * including the Send button re-enabling itself after a transfer. A paint from
+   * a previous render writes into tiles that are already detached, which costs
+   * nothing. */
+  async function paintFaces(painted) {
     for (const { stack, tile } of painted) {
       try {
         tile.image.src = await verifiedFace(stack.asset);
@@ -429,6 +451,17 @@
       sendCard.append(new Option(`${stack.asset.name} — ${stack.asset.tier} · ${copies}`, stack.id));
     }
     if (byAsset.has(previous)) sendCard.value = previous;
+    /* A confirmation left standing across a reload of the collection must point
+     * at the proof that is there NOW. Anything else offers to spend a card the
+     * mint has already moved. */
+    if (pendingSend) {
+      const fresh = byAsset.get(pendingSend.stack.id);
+      if (fresh) pendingSend.stack = fresh;
+      else {
+        resetConfirm();
+        say(sendNote, "That card is no longer in this wallet, so the transfer was not started.", true);
+      }
+    }
   }
 
   // -------------------------------------------------- what is NOT shown above
@@ -470,7 +503,7 @@
       bad.replaceChildren();
       bad.append(el("p", null, invalid.length === 1
         ? "1 proof was isolated because this mint rejected it."
-        : `${invalid.length} proofs were isolated because this mint rejected it.`));
+        : `${invalid.length} proofs were isolated because this mint rejected them.`));
       const why = el("p");
       why.style.marginTop = "8px";
       why.append(el("strong", null, "The mint has an opinion about these, and the opinion is no."),
@@ -517,20 +550,49 @@
     try {
       const result = await root.NutFTWallet.recoverPending();
       if (pending.type === "trade" && result && result.token) {
-        outgoing.hidden = false;
-        outgoingToken.value = result.token;
+        /* The pending records the input secret and the outputs, not the card's
+         * name — the proof it was cut from left this wallet when the mint spent
+         * it, so there is nothing left here to read a name off. */
+        addHandoff("Recovered transfer", "", result.token);
         say(sendNote, "Recovered. The token below is the one the recipient needs — it was never lost, only uncollected.");
       } else {
         say(sendNote, "Recovered. The cards are in the collection above.");
       }
+      button.disabled = false;
       await refresh();
     } catch (thrown) {
       say(sendNote, `The mint could not finish it: ${reason(thrown)} — the transfer stays pending, so this can be tried again.`, true);
+      button.disabled = false;
     }
-    button.disabled = false;
   });
 
   // ------------------------------------------------------------------ sending
+
+  /* One block per transfer, newest first, each with the name of the card it
+   * carries. A single shared box would let a second transfer overwrite the
+   * first, and the mint will not sign that answer twice — an overwritten token
+   * is a card that neither side can ever claim. */
+  function addHandoff(name, recipient, token) {
+    const block = el("div", "handoff");
+    const line = el("p");
+    line.append(el("b", null, name));
+    if (recipient) line.append(document.createTextNode(" → "), el("span", "keyline", recipient));
+    const box = el("textarea");
+    box.rows = 3;
+    box.readOnly = true;
+    box.value = token;
+    box.setAttribute("aria-label", `Transfer token for ${name}`);
+    const button = el("button", "btn btn--ghost btn--small", "Copy this token");
+    button.type = "button";
+    button.addEventListener("click", async () => {
+      await copy(token);
+      button.textContent = "Copied";
+    });
+    block.append(line, box, button);
+    outgoing.hidden = false;
+    outgoingList.prepend(block);
+    return box;
+  }
 
   function resetConfirm() {
     pendingSend = null;
@@ -577,13 +639,17 @@
     say(sendNote, `Asking the mint to move ${stack.asset.name}…`);
     try {
       const result = await root.NutFTWallet.tradeProof(mint, stack.items[0].proof.secret, recipient);
+      const name = stack.asset.name;
       resetConfirm();
-      outgoing.hidden = false;
-      outgoingToken.value = result.token;
-      say(sendNote, `${stack.asset.name} is on its way. Hand the token below to the person holding that key — it is the only copy.`);
+      const box = addHandoff(name, recipient, result.token);
+      say(sendNote, `${name} is on its way. Hand the token below to the person holding that key — it is the only copy.`);
       recipientKey.value = "";
+      /* Re-armed before the collection reloads, not after: a second transfer
+       * must not have to wait on a redraw of cards that have nothing to do
+       * with it. */
+      button.disabled = false;
+      box.focus();
       await refresh();
-      outgoingToken.focus();
     } catch (thrown) {
       resetConfirm();
       /* The difference that matters after a failure: a pending left behind means
@@ -594,8 +660,8 @@
         ? `The mint did not answer: ${reason(thrown)}. ${stack.asset.name} is NOT lost — the replacement is waiting as a pending transfer. Use "Finish it now" above.`
         : `The transfer did not start: ${reason(thrown)}. Nothing was spent and ${stack.asset.name} is still in this wallet.`,
         true);
+      button.disabled = false;
     }
-    button.disabled = false;
   });
 
   // ---------------------------------------------------------------- receiving
@@ -625,8 +691,12 @@
   async function describeToken(text) {
     const c = await root.NutFTWallet.cashu();
     const decoded = c.getDecodedToken(text, keysetIds);
+    /* Read locally and never sent anywhere: deriving the P2BK key is the only
+     * way to answer "is this token even addressed to me", which is the one
+     * question worth asking before accepting anything. Unreadable storage just
+     * means the question goes unanswered, not that the preview fails. */
     let privateKey = "";
-    try { privateKey = (await root.NutFTWallet.read()).privateKey || ""; } catch { /* identity comes back below */ }
+    try { privateKey = (await root.NutFTWallet.read()).privateKey || ""; } catch { privateKey = ""; }
     const cards = decoded.proofs.map((proof) => {
       /* A secret that is not a NutFT secret at all is a thing a stranger can
        * paste, so reading the tag is allowed to fail without taking the
@@ -675,18 +745,18 @@
       }
     }
 
-    const verdict = el("p", "preview__verdict");
-    if (problems.length) {
-      verdict.classList.add("bad");
-      verdict.textContent = `This wallet cannot accept it: ${problems.join("; ")}.`;
-    } else {
-      verdict.textContent = detail.cards.length === 1
-        ? "One card, from this mint, locked to your key. Accepting runs the full check and files it above."
-        : `${detail.cards.length} cards, from this mint, locked to your key. Accepting runs the full check and files them above.`;
-    }
-    importPreview.append(list, verdict);
+    importPreview.append(list);
     importPreview.hidden = false;
-    return problems.length === 0;
+    /* The verdict is handed back rather than printed here, so it lands in the
+     * one live region on this panel — a preview a screen reader is never told
+     * about is a preview only some people get. */
+    if (problems.length) return { ok: false, verdict: `This wallet cannot accept it: ${problems.join("; ")}.` };
+    return {
+      ok: true,
+      verdict: detail.cards.length === 1
+        ? "One card, from this mint, locked to your key. Accepting runs the full check and files it above."
+        : `${detail.cards.length} cards, from this mint, locked to your key. Accepting runs the full check and files them above.`,
+    };
   }
 
   $("checkButton").addEventListener("click", async (event) => {
@@ -698,9 +768,9 @@
     button.disabled = true;
     say(importNote, "Reading the token…");
     try {
-      const acceptable = await renderPreview(text);
-      importButton.disabled = !acceptable;
-      say(importNote, acceptable ? "" : "Nothing was imported.", !acceptable);
+      const preview = await renderPreview(text);
+      importButton.disabled = !preview.ok;
+      say(importNote, preview.verdict, !preview.ok);
     } catch (thrown) {
       /* The same distinction the collection makes: this mint could not open it.
        * That is not a verdict on the card. */
@@ -761,7 +831,6 @@
 
   const copy = async (value) => { if (!value) return; if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value); };
   $("copyDestination").addEventListener("click", () => copy(destination.value));
-  $("copyOutgoing").addEventListener("click", () => copy(outgoingToken.value));
 
   $("downloadBackup").addEventListener("click", async () => {
     const blob = new Blob([await root.NutFTWallet.exportBackup()], { type: "application/json" });
