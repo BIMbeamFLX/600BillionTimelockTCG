@@ -399,6 +399,15 @@
 
   /* Cards sit on an arc, never a rank — the same --rot/--lift contract the
    * table uses, so hover and flip compose on top instead of fighting it. */
+  /* Chunks the pack into rows and arcs each one on its own. Arcing all 15 as a
+     single sweep bends a GRID, which reads as a mistake rather than a hand --
+     the curve has to belong to the row you are looking at. */
+  function arcRows(nodes, perRow, spread, depth) {
+    for (let i = 0; i < nodes.length; i += perRow) {
+      arcRow(nodes.slice(i, i + perRow), spread, depth);
+    }
+  }
+
   function arcRow(nodes, spread, depth) {
     const n = nodes.length;
     for (let i = 0; i < n; i += 1) {
@@ -653,16 +662,35 @@
     if (bay.classList.contains("bay--stage")) return;
     bay.classList.add("bay--stage");
     document.documentElement.style.overflow = "hidden";
-    const hint = el("div", "bay--stage-note", "Click anywhere to close");
+    const hint = el("div", "bay--stage-note", "Esc or ✕ to close");
     hint.id = "stageHint";
     document.body.append(hint);
+
+    /* The close, spelled out. This used to be `bay.addEventListener("click")`,
+       which closed the stage on ANY click inside it -- including the click on
+       a card that turns it over, because the flip handler is on the card and
+       the card is in the bay. Turning over the first card of a pack you had
+       just paid for therefore threw the pack away. Now: the button, Escape, or
+       a click that landed on the BACKDROP and not on anything in it. */
+    const x = el("button", "stage-x", "✕");
+    x.id = "stageClose";
+    x.type = "button";
+    x.setAttribute("aria-label", "Close the pack");
+    x.addEventListener("click", () => leaveStage(bay));
+    document.body.append(x);
+
     const leave = (event) => {
-      if (event.type === "keydown" && event.key !== "Escape") return;
+      if (event.type === "keydown") {
+        if (event.key !== "Escape") return;
+      } else if (event.target !== bay) {
+        return;                       // it hit a card, not the backdrop
+      }
       leaveStage(bay);
     };
     bay.__leave = leave;
     document.addEventListener("keydown", leave);
     bay.addEventListener("click", leave);
+    x.focus();
   }
 
   function leaveStage(bay) {
@@ -671,6 +699,8 @@
     document.documentElement.style.overflow = "";
     const hint = document.getElementById("stageHint");
     if (hint) hint.remove();
+    const x = document.getElementById("stageClose");
+    if (x) x.remove();
     if (bay.__leave) {
       document.removeEventListener("keydown", bay.__leave);
       bay.removeEventListener("click", bay.__leave);
@@ -707,13 +737,18 @@
 
     tray.innerHTML = "";
     tray.hidden = false;
+    /* --n keeps the off-stage flex row honest; --cols/--rows drive the grid the
+       stage switches to. Five to a row unless the pack is smaller than that. */
+    const perRow = Math.min(5, Math.max(1, entry.ids.length));
     tray.style.setProperty("--n", String(Math.max(1, entry.ids.length)));
+    tray.style.setProperty("--cols", String(perRow));
+    tray.style.setProperty("--rows", String(Math.ceil(entry.ids.length / perRow)));
     dealt = entry.ids.map((id, i) => {
       const node = cardNode(id, i, entry.fresh[i]);
       tray.append(node);
       return node;
     });
-    arcRow(dealt, 8, -18);
+    arcRows(dealt, perRow, 8, -18);
 
     const summary = packSummary(entry);
     $("packSlot").textContent = `PACK #${pad(entry.n, 3)} · ${slotLabel(entry)}`;
@@ -950,6 +985,7 @@
       renderMintState();
       renderBoxFacts();
       renderTiers();
+      renderStarter();
       syncControls();
       return "";
     } catch (error) {
@@ -1198,10 +1234,21 @@
     return tier;
   };
 
+  /* Not the same question as "is the tier missing".
+   *
+   * The box is derived from the mint now, so before it answers there are no
+   * tiers at all -- and a throw there took the whole of init() down with it,
+   * which is how the tier table came to render empty while the mint was
+   * perfectly healthy. A tier that is ABSENT once the box has been read is
+   * still a fault worth raising loudly; a box that has not arrived yet is just
+   * a page that is not ready. */
+  const boxRead = () => MINT_BOX.ready;
+
   /* Every figure the starter section prints, in one place: STARTER's own numbers
    * and the census's Genesis row, multiplied out. The homepage has already shown
    * once what a total typed twice does to a page about scarcity. */
   function starterFacts() {
+    if (!boxRead()) return null;
     const genesis = tierNamed("Genesis");
     const perTitle = genesis.copies / genesis.cards;
     /* "E1 keeps N copies of each Genesis card" is only a sentence while the run
@@ -1231,6 +1278,11 @@
 
   function renderStarter() {
     const f = starterFacts();
+    /* Every figure in this section is multiplied out of the census's Genesis
+       row, so before the mint answers there is nothing honest to print. The
+       section keeps its prose and leaves the numbers blank rather than showing
+       zeros -- and readMintState calls this again once the box has been read. */
+    if (!f) return;
     const promo = STARTER.promo;
 
     $("starterLead").textContent =
@@ -1443,6 +1495,15 @@
         lastStoreProblem = "";
         await revealPack(await pullPack(PULL_MODE === "mint" ? MINT_BOX.packSize : BOX.packSize));
         renderHistory();
+        /* Re-read the mint. The box facts and the per-tier "still unminted"
+           figures came from a snapshot taken at boot, so a buyer watched their
+           own purchase leave every counter untouched -- the worst possible
+           thing for a page whose argument is that these numbers are the
+           mint's and not ours. The pull just changed them; ask again.
+           Not awaited: the pack is already revealed, and the counters catching
+           up a moment later is fine while blocking the reveal on a round trip
+           is not. */
+        if (PULL_MODE === "mint") readMintState().catch(() => {});
         /* Whatever storage said about THIS pack, said now — never swallowed. */
         storeNote(lastStoreProblem || (durable ? "" : NO_STORE));
       } catch (error) {
