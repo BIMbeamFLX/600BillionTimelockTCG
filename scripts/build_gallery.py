@@ -556,6 +556,20 @@ TEMPLATE = """<!doctype html>
       color: var(--purple);
       font: italic 15px/1.45 Georgia, serif;
     }
+    /* Sits above the grid, in the ember the site uses for "act", because it is
+       the answer to "where did all the pictures go". */
+    .face-notice {
+      margin: 0 0 10px; padding: 9px 12px;
+      color: var(--cream); background: rgba(255,106,0,.08);
+      border-left: 3px solid var(--ember);
+      font-size: 13px; line-height: 1.5;
+    }
+    .face-notice__back {
+      margin-left: 6px; padding: 3px 9px; cursor: pointer;
+      background: var(--ember); color: var(--black); border: 0;
+      font: 11px/1 var(--display); letter-spacing: .07em; text-transform: uppercase;
+    }
+    .face-notice__back:hover { filter: brightness(1.12); }
     .empty {
       grid-column: 1 / -1;
       padding: 70px 20px;
@@ -772,6 +786,10 @@ TEMPLATE = """<!doctype html>
         </div>
       </div>
     </section>
+    <!-- When every card is drawn as text the page looks broken rather than
+         configured, so it says which it is. A chip reading "Text cards" is not
+         enough signal for 296 pictures going missing. -->
+    <p class="face-notice" id="faceNotice" role="status" hidden></p>
     <section class="gallery" id="gallery">
       <div class="empty" id="emptyState" hidden>No cards match these filters.</div>
     </section>
@@ -948,10 +966,34 @@ TEMPLATE = """<!doctype html>
       }
     }
 
+    /* Says which of the two reasons is in play, because they need different
+       answers: a choice can be undone here, an unreachable mirror cannot. */
+    function syncFaceNotice() {
+      const notice = byId("faceNotice");
+      if (!notice) return;
+      if (faceMode !== "text") { notice.hidden = true; notice.replaceChildren(); return; }
+      notice.hidden = false;
+      notice.replaceChildren();
+      if (!facesReachable()) {
+        notice.append(document.createTextNode(
+          "Card art cannot be fetched from here, so every card is drawn as text. "
+          + "The rules and costs below are the real ones."));
+        return;
+      }
+      notice.append(document.createTextNode("Text cards are on, so the artwork is hidden. "));
+      const back = document.createElement("button");
+      back.type = "button";
+      back.className = "face-notice__back";
+      back.textContent = "Show the art";
+      back.addEventListener("click", () => setFaceMode("art", true));
+      notice.append(back);
+    }
+
     function syncFaceToggle() {
       const isText = faceMode === "text";
       faceToggle.setAttribute("aria-pressed", String(isText));
       faceToggle.classList.toggle("chip--on", isText);
+      syncFaceNotice();
     }
 
     function setFaceMode(mode, remember) {
@@ -1511,6 +1553,7 @@ TEMPLATE = """<!doctype html>
     if (!facesReachable()) {
       faceToggle.disabled = true;
       faceToggle.title = "Card art cannot be fetched from here, so every card is drawn as text.";
+      syncFaceNotice();
       say("NO CARD ART HERE — TEXT CARDS");
     } else if (nap) {
       nap.storage.get(FACE_KEY).then((saved) => {
