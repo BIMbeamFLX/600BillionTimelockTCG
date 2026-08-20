@@ -23,7 +23,7 @@
   async function read() {
     if (memory) return memory;
     const saved = root.localStorage.getItem(STORE);
-    if (!saved) return (memory = { privateKey: "", pubkey: "", tokens: [] });
+    if (!saved) return (memory = { privateKey: "", pubkey: "", tokens: [], outgoing: [] });
     try { memory = JSON.parse(saved); }
     catch { throw new Error("Wallet storage is corrupted. Preserve 600b:nutft-wallet before making changes."); }
     if (!validState(memory)) {
@@ -36,6 +36,24 @@
   function write(state) {
     root.localStorage.setItem(STORE, JSON.stringify(state));
     memory = state;
+  }
+
+  /* Transfers this wallet has sent and not yet marked delivered. Newest first.
+     Read-only copies: a caller mutating the array must not be able to drop a
+     token that is still the only claim on a card. */
+  async function outgoing() {
+    const state = await read();
+    return (Array.isArray(state.outgoing) ? state.outgoing : []).map((entry) => ({ ...entry }));
+  }
+
+  /* Forget one, once it is known to be in the recipient's hands. Deliberately
+     explicit and deliberately not automatic: this wallet cannot observe whether
+     the other side claimed it, so only a person can say so. */
+  async function forgetOutgoing(token) {
+    const state = await read();
+    const kept = (Array.isArray(state.outgoing) ? state.outgoing : []).filter((entry) => entry.token !== token);
+    write({ ...state, outgoing: kept });
+    return kept.length;
   }
 
   function locked(work) {
@@ -121,7 +139,20 @@
       ? [c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: remaining })]
       : [];
     const token = c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: [proof] });
-    write({ ...state, tokens: [...rebuilt, ...opaque], pending: null });
+    /* PERSIST THE OUTGOING TOKEN. It is the only thing that can ever claim this
+       card: the sender no longer holds it, the recipient does not have it yet,
+       and it is locked to a key only the recipient has. Returning it and writing
+       nothing meant the single copy lived in whatever variable the caller kept —
+       so a reload, a closed tab or a crash between the trade and the hand-off
+       destroyed the card outright. Nobody could claim it, ever. That is not a
+       hypothetical: it happened to a card during development.
+       Kept until the sender says it was delivered. They are a few hundred bytes
+       each, and an undelivered transfer nobody can find is the worse trade. */
+    const outgoing = [
+      { token, asset_id: response.asset_id || null, at: new Date().toISOString() },
+      ...(Array.isArray(state.outgoing) ? state.outgoing : []),
+    ];
+    write({ ...state, tokens: [...rebuilt, ...opaque], outgoing, pending: null });
     return { ...response, token, proof };
   }
 
@@ -430,7 +461,12 @@
   }
 
   async function snapshot(mintUrl) {
-    await locked(recoverPending);
+    /* A pending the mint refuses must not hide the cards that are fine. This ran
+       uncaught, so one stuck transfer threw before a single proof was inspected
+       and the whole collection vanished behind an error — the same shape as the
+       unreadable-token bug, one level up. The recovery is still attempted, and
+       the page has its own route to retry it. */
+    try { await locked(recoverPending); } catch { /* reported by recoverPending's own caller */ }
     const c = await cashu();
     const keyset = await getKeyset(mintUrl, c);
     const catalogs = new Map();
@@ -457,7 +493,14 @@
   async function tradeProofUnlocked(mintUrl, secret, recipientPubkey) {
     const c = await cashu();
     let state = await identity(c);
-    if (state.pending) return submitPending(state, c, await getKeyset(state.pending.mintUrl, c));
+    /* REFUSE, do not silently finish something else. This used to call
+       submitPending and hand back THAT token — so asking to send card X while an
+       older transfer was unfinished completed the older trade and returned a
+       token for card Y. The caller had every reason to believe it had just sent
+       X. Finishing a pending is a deliberate act with its own entry point. */
+    if (state.pending) {
+      throw new Error("finish the transfer already in progress before starting another");
+    }
     const keyset = await getKeyset(mintUrl, c);
     const all = readableProofs(state, keyset, c);
     const index = all.findIndex((proof) => proof.secret === secret);
@@ -533,5 +576,5 @@
 
   const restoreBackup = (text) => locked(() => restoreBackupUnlocked(text));
 
-  root.NutFTWallet = { buyBooster, snapshot, tradeProof, importToken, destination, recoverPending, exportBackup, restoreBackup, read, cashu, hex, bytes };
+  root.NutFTWallet = { buyBooster, snapshot, tradeProof, importToken, destination, recoverPending, outgoing, forgetOutgoing, exportBackup, restoreBackup, read, cashu, hex, bytes };
 })(globalThis);

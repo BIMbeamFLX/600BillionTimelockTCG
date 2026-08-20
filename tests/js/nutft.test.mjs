@@ -1466,3 +1466,81 @@ test("a dead token does not block trading the cards around it", async (t) => {
   assert.equal(got.owned.length, 1);
   assert.equal(got.owned[0].asset.asset_id, card.asset.asset_id, "and it is the same card that was sent");
 });
+
+test("a sent card survives the tab being closed", async (t) => {
+  // The hole this closes cost a real card during development. finishPending
+  // built the recipient's token, returned it, and wrote NOTHING. At that moment
+  // the sender no longer holds the card, the recipient does not have it yet,
+  // and the token is locked to a key only the recipient has -- so the single
+  // copy lived in whatever variable the caller happened to keep. A reload, a
+  // closed tab or a crash between the trade and the hand-off destroyed the card
+  // outright, claimable by nobody, forever.
+  const catalogUri = "http://127.0.0.1/nutft/catalog";
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });
+  t.after(() => table.close());
+  const fetchImpl = (url, options) => fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
+
+  const storage = new Map();
+  await (await browserWallet(storage, fetchImpl)).buyBooster(table.url);
+  const recipient = await browserWallet(new Map(), fetchImpl);
+  const recipientPubkey = await recipient.destination();
+
+  const sender = await browserWallet(storage, fetchImpl);
+  const card = (await sender.snapshot(table.url)).owned[0];
+  const sent = await sender.tradeProof(table.url, card.proof.secret, recipientPubkey);
+
+  /* Throw away everything the caller was handed, and reload from storage --
+     exactly what closing the tab does. */
+  const reloaded = await browserWallet(storage, fetchImpl);
+  const pendingTransfers = await reloaded.outgoing();
+  assert.equal(pendingTransfers.length, 1, "the transfer is still findable after a reload");
+  assert.equal(pendingTransfers[0].token, sent.token, "and it is the same token the recipient needs");
+
+  assert.equal(await recipient.importToken(table.url, pendingTransfers[0].token), 1,
+    "recovered from storage alone, it still claims the card");
+
+  /* Forgetting is deliberate: this wallet cannot see whether the other side
+     claimed it, so only a person can say the transfer is done. */
+  assert.equal(await reloaded.forgetOutgoing(sent.token), 0, "and it clears only when told");
+  assert.equal((await (await browserWallet(storage, fetchImpl)).outgoing()).length, 0);
+});
+
+test("sending a card never quietly finishes a different transfer", async (t) => {
+  // tradeProof opened with `if (state.pending) return submitPending(...)`, so
+  // asking to send card X while an older transfer was unfinished completed the
+  // OLDER trade and handed back a token for card Y -- while the caller had
+  // every reason to believe it had just sent X.
+  const catalogUri = "http://127.0.0.1/nutft/catalog";
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });
+  t.after(() => table.close());
+  const fetchImpl = (url, options) => fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
+
+  const storage = new Map();
+  await (await browserWallet(storage, fetchImpl)).buyBooster(table.url);
+  const recipientPubkey = await (await browserWallet(new Map(), fetchImpl)).destination();
+
+  // Wedge a pending in, the way a dropped response leaves one.
+  const owned = (await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned;
+  let drop = true;
+  const flaky = async (url, options) => {
+    if (drop && String(url).endsWith("/nutft/trade")) { drop = false; throw new Error("simulated lost response"); }
+    return fetchImpl(url, options);
+  };
+  await assert.rejects(
+    () => browserWallet(storage, flaky).then((w) => w.tradeProof(table.url, owned[0].proof.secret, recipientPubkey)),
+    /lost response/,
+  );
+  assert.ok(JSON.parse(storage.get("600b:nutft-wallet")).pending, "a pending is sitting there");
+
+  await assert.rejects(
+    () => browserWallet(storage, fetchImpl).then((w) => w.tradeProof(table.url, owned[1].proof.secret, recipientPubkey)),
+    /finish the transfer already in progress/i,
+    "a second send is refused rather than completing the first one under its name",
+  );
+
+  // The explicit route still works, and finishes the transfer that was actually started.
+  const recovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
+  assert.match(recovered.token, /^cashu/);
+  assert.equal((await (await browserWallet(storage, fetchImpl)).outgoing()).length, 1,
+    "and it is written down like any other outgoing transfer");
+});
