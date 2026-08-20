@@ -125,3 +125,49 @@ def test_sats_leaderboard_is_data_driven_and_contains_no_fake_results() -> None:
     assert "No verified matches yet." in page
     assert "settledSats" in page
     assert "demo" not in page.lower()
+
+
+def test_inline_page_scripts_assign_nothing_they_never_declare() -> None:
+    """An identifier that is assigned and appears exactly once is a merge orphan.
+
+    This is not a general linter and does not pretend to be. It catches one
+    specific, expensive shape: a merge keeps one branch's variable, deletes the
+    other's declaration, and leaves behind a lone assignment somewhere the
+    conflict markers never reached.
+
+    That is exactly what happened to the Stack Builder. Two branches fixed the
+    same defect; the surviving one calls the variable `wish`, and the click
+    handler that opens OG mode still said `requestedMode = name`. Nothing
+    declared it, so the handler threw a ReferenceError BEFORE applyMode ever
+    ran -- and a listener error does not propagate to the caller, so from the
+    outside the OG button simply did nothing. No mode change, no message, no
+    clue. It shipped, and it was found by clicking the button in a browser.
+
+    An honest note on the rule: a first attempt at this test treated `{ x = ` as
+    a destructuring default and whitelisted it, which silently swallowed
+    `{ requestedMode = name; ... }` -- the arrow-function body -- and reported
+    the buggy file as clean. Counting total appearances instead is cruder and
+    actually works: a declared variable is mentioned at least twice.
+    """
+    import re
+
+    for page in ("deck.html", "wallet.html", "shop.html", "index.html"):
+        path = REPO_ROOT / "site" / page
+        if not path.exists():
+            continue
+        html = path.read_text(encoding="utf-8")
+        source = "\n".join(re.findall(r"<script>(.*?)</script>", html, re.S))
+        source = re.sub(r"/\*.*?\*/", "", source, flags=re.S)
+        source = re.sub(r"(?m)//.*$", "", source)
+
+        assigned = set(re.findall(r"(?<![.\w$?])([A-Za-z_$][\w$]*)\s*=(?![=>])", source))
+        orphans = [
+            name
+            for name in sorted(assigned)
+            if len(re.findall(r"(?<![\w$.])" + re.escape(name) + r"(?![\w$])", source)) == 1
+        ]
+        assert not orphans, (
+            f"{page} assigns to {orphans}, which appear nowhere else in the file. "
+            "That is the signature of a merge that kept one branch's variable and "
+            "left the other branch's assignment behind."
+        )

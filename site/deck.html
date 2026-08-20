@@ -1462,7 +1462,13 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   }
 
   for (const [name, button] of Object.entries(modeButtons)) {
-    if (button) button.addEventListener("click", () => { requestedMode = name; applyMode(name); });
+    /* applyMode() sets `wish` itself, which is the variable that survives a
+       coerced fallback. An earlier merge left an assignment to `requestedMode`
+       here -- the name the other branch used -- and nothing declared it, so this
+       handler threw a ReferenceError BEFORE applyMode ever ran. A listener error
+       does not propagate to the caller, so from outside the button simply did
+       nothing: no OG mode, no message, no clue. */
+    if (button) button.addEventListener("click", () => applyMode(name));
   }
   applyMode(wish, { save: false });
 
