@@ -439,7 +439,13 @@ test("an active invoice reserves the next pack without blocking it forever", asy
   assert.match(collision.reason.message, /active invoice/i);
 
   settled.add(first.value.payment_hash);
-  await assert.rejects(() => mint.payableQuote(), /active invoice/i, "a paid reservation stays reserved until claim");
+  /* A settled invoice now says something different from an unsettled one --
+     it is not "an active invoice" to pay, it is a booster somebody already
+     bought. The reservation itself is unchanged; the "without blocking it
+     forever" half of this test's own title is covered by the tombstone test
+     below, which is the part that was never actually asserted here. */
+  await assert.rejects(() => mint.payableQuote(), /paid for and is being collected/i,
+    "a paid reservation stays reserved until claim");
   settled.clear();
   db.prepare("UPDATE nutft_invoices SET created_at = ? WHERE payment_hash = ?")
     .run("2000-01-01T00:00:00.000Z", first.value.payment_hash);
@@ -1862,4 +1868,79 @@ test("the state endpoint says whether the till is open", async (t) => {
     const info = await hit("/v1/info");
     assert.equal(info.body.nuts["31"].sales, sales, "the two endpoints must not disagree");
   }
+});
+
+test("a paid booster is reserved for its buyer, and does not become a tombstone", async (t) => {
+  /* `settled ||` short-circuited the age check, so a PAID but never-claimed
+     invoice blocked its pack forever -- and nextPack only advances on a claim,
+     so that pack stays "next" forever too. One buyer paying and closing the tab
+     stopped the whole shop, and the error told them to wait for an expiry that
+     could not arrive.
+
+     Nothing has to be given back when the hold lapses: state.counts is
+     decremented in the CLAIM, so an unclaimed pack never left the mint. */
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+
+  const settled = new Set();
+  let issued = 0;
+  const fakeLnd = { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 1000 };
+  const lnd = require("../../server/lnd.js");
+  const realCreate = lnd.createInvoice, realSettled = lnd.isSettled;
+  lnd.createInvoice = async () => {
+    issued += 1;
+    return { paymentRequest: `lnbc-fake-${issued}`, paymentHash: "aa".repeat(16) + String(issued).padStart(32, "0") };
+  };
+  lnd.isSettled = async (_c, hash) => settled.has(hash);
+  t.after(() => { lnd.createInvoice = realCreate; lnd.isSettled = realSettled; });
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000,
+    invoiceTtlSeconds: 60, claimGraceSeconds: 60,
+  });
+  const quote = async () => {
+    const out = { code: 0, body: null };
+    const res = { writeHead(c) { out.code = c; return res; }, end(b) { out.body = b ? JSON.parse(b) : null; } };
+    await mint.handle({ method: "GET", on: () => {}, setEncoding: () => {} }, res, new URL("http://x/nutft/quote"));
+    return out;
+  };
+  const stateNow = () => JSON.parse(db.prepare("SELECT value FROM nutft_meta WHERE key = 'state'").get().value);
+
+  const first = await quote();
+  assert.equal(first.code, 200);
+  const countsBefore = JSON.stringify(stateNow().counts);
+
+  settled.add(first.body.payment_hash);        // paid, and then abandoned
+
+  const during = await quote();
+  assert.equal(during.code, 400, "while the hold stands the pack belongs to whoever paid");
+  assert.match(during.body.error, /paid for and is being collected/);
+
+  // Age the row rather than sleeping through the grace window.
+  db.prepare("UPDATE nutft_invoices SET created_at = ? WHERE payment_hash = ?")
+    .run(new Date(Date.now() - 7200_000).toISOString(), first.body.payment_hash);
+
+  const after = await quote();
+  assert.equal(after.code, 200, "once the hold lapses the booster is buyable again");
+
+  assert.equal(JSON.stringify(stateNow().counts), countsBefore,
+    "no card ever left the mint: counts are decremented in the claim, and nothing was claimed");
+  assert.equal(stateNow().nextPack, 1, "and the pack number did not move either");
+});
+
+test("a paid booster may not be held for less time than an unpaid one", async (t) => {
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  assert.throws(
+    () => createNutftMint({
+      db, catalogUri: "http://127.0.0.1/nutft/catalog",
+      lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 1000 },
+      priceMsat: 21000, invoiceTtlSeconds: 900, claimGraceSeconds: 120,
+    }),
+    /at least NUTFT_INVOICE_TTL_SECONDS/,
+  );
 });
