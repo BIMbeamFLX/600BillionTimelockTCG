@@ -794,48 +794,17 @@
     );
   }
 
+  /* The per-pack rows are no longer DRAWN, but state.history is still written on
+     every pull: pack number, time, and the slice of the box it came off. That
+     record is what makes the fingerprint on this page checkable, so it is kept
+     rather than dropped — the wallet can render it whenever it wants to, and
+     nothing has to be reconstructed to make that possible.
+     The block itself still shows, because it now carries the route to the
+     wallet and a buyer who has just opened a pack needs to be told where the
+     cards went. */
   function renderHistory() {
     const block = $("historyBlock");
-    const list = $("historyList");
-    list.innerHTML = "";
-    block.hidden = !state.history.length;
-    if (!state.history.length) return;
-    for (const entry of state.history) {
-      const when = new Date(entry.at);
-      const row = el("li", "hist");
-      row.append(el("b", "hist__n", `#${pad(entry.n, 3)}`));
-      const time = el("span", "hist__box", `${pad(when.getHours(), 2)}:${pad(when.getMinutes(), 2)}`);
-      time.title = when.toLocaleString();
-      row.append(time, el("span", "hist__box", slotLabel(entry)));
-      const cards = el("span", "hist__cards");
-      entry.ids.forEach((id, i) => {
-        /* A BUTTON, not a span. These chips are the only route left from the
-           shop to "put this card in a Stack" — the collection grid that used to
-           carry #sendStack moved to the wallet. A span with a click handler is
-           unreachable by keyboard and invisible to a screen reader, so removing
-           that grid had quietly removed every non-mouse way to reach a pull.
-           A real button brings focus, Enter and Space with it for nothing. */
-        const chip = el("button", `hist__c rarity-${rarityOf(id)}`, nameOf(id));
-        chip.type = "button";
-        chip.setAttribute("aria-label", `${nameOf(id)} — ${rarityOf(id)}. Add to a Stack.`);
-        chip.title = `${id} — ${rarityOf(id)}. Click or tap to add to a Stack; right-click, or press and hold, for details.`;
-        if (entry.fresh[i]) chip.append(el("i", null, "NEW"));
-        const hold = bindHold(chip, () => openGallery(id, true));
-        chip.addEventListener("click", async () => {
-          if (hold.take()) return;
-          stackNote("Saving…");
-          await addToStack(id);
-        });
-        chip.addEventListener("contextmenu", (event) => {
-          event.preventDefault();
-          if (hold.pending) return;
-          openGallery(id);
-        });
-        cards.append(chip);
-      });
-      row.append(cards);
-      list.append(row);
-    }
+    if (block) block.hidden = !state.history.length;
   }
 
   // ------------------------------------------------------------- the proof

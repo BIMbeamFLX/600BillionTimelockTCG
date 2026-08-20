@@ -591,11 +591,20 @@ html:has(.bay--stage) #revealAll:not([hidden]) {
     instead.</p>
   </section>
 
+  <!-- YOUR CARDS ARE NOT SHOWN HERE ANY MORE. This page sells packs; the wallet
+       is where a collection lives, and two places showing the same cards meant
+       two places that could disagree about what you own.
+
+       The per-pack record is still WRITTEN — every pull keeps its pack number,
+       its time and the slice of the box it came off, which is what makes the
+       fingerprint above checkable. It is only no longer drawn here, so putting
+       it in the wallet later is a display change and not a recovery job. -->
   <section class="section section--tight" id="historyBlock" hidden>
-    <h2>What you <span class="accent">pulled</span></h2>
-    <p class="lead">Every pack, with the slice of the box it came off. These positions are the ones the
-    fingerprint above covers — you can point at any row and check it against the revealed order.</p>
-    <ol class="hists" id="historyList"></ol>
+    <h2>Where your <span class="accent">cards are</span></h2>
+    <p class="lead">Everything you pull goes straight to your <a href="wallet.html">wallet</a> — that is
+    where your collection lives, with a count on each card and the checks that prove it is yours. From
+    there, <a href="deck.html">the Stack Builder</a> in OG mode builds a Stack out of exactly what you own.</p>
+    <ol class="hists" id="historyList" hidden></ol>
   </section>
 
   <!-- A SECOND EDITION, AND THE REASON FOR IT. Starter sets are the only place
