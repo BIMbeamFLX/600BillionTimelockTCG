@@ -73,6 +73,16 @@
 }
 
 * { box-sizing: border-box; margin: 0; }
+
+/* The reset above zeroes EVERY margin, and one of the margins it zeroes is the
+   UA stylesheet's `dialog { margin: auto }`. A dialog opened with showModal()
+   is laid out in the top layer against `inset: 0`, and it is the auto margins —
+   nothing else — that centre it in that box. Without them every modal on the
+   site sat flush against the top of the viewport: the card reader on
+   cards.html, the Stack dialogs on deck.html, the table's own dialogs. Restored
+   here rather than per page, because it is the reset that broke it. */
+dialog { margin: auto; }
+
 html { color-scheme: dark; scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
