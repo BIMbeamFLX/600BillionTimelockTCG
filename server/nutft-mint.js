@@ -155,6 +155,12 @@ function createNutftMint(options = {}) {
   if (lndConfig && !(priceMsat > 0)) throw new Error("NUTFT_PRICE_MSAT must be a positive number of msat");
   const paidMint = Boolean(funding);
 
+  /* The payment reference is whatever the funding source calls a payment: lnd
+     gives a 32-byte hash, a Cashu mint gives a quote UUID. The mint stores it
+     and hands it back, so it only needs to be unambiguous and safe to put in a
+     URL and a SQL parameter — not to have one particular shape. */
+  const isPaymentRef = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{8,128}$/.test(value);
+
   /* The block-commitment beacon. Off by default: without it the mint keeps the
      fixed beacon it has today, which is fine for a free demo and disqualifying
      for a paid one, because the whole box is then precomputable offline. Turned
@@ -168,7 +174,23 @@ function createNutftMint(options = {}) {
   const payMetadata = lnurl.metadataFor("600B Timelock TCG — one booster, 7 cards");
 
   const beaconLive = String(options.beaconSource ?? process.env.NUTFT_BEACON_SOURCE ?? "") === "lnd";
-  if (beaconLive && !lndConfig) throw new Error("NUTFT_BEACON_SOURCE=lnd needs a chain source: configure LND_REST_URL");
+  /* The beacon reads the chain; the funding source takes the money. They are
+     independent, and conflating them broke as soon as a node-less funding
+     source existed: paying through a Cashu mint left the beacon with no chain
+     to read even when an lnd was configured purely to read blocks.
+     NOTE, and it matters for a node-less deployment: a Cashu mint sells
+     invoices but publishes no block data, so going node-less removes the
+     beacon's chain source. Either keep an lnd for blocks alone, or accept a
+     third party for them — and a third party that can lie about a block hash
+     can choose which pack you get, which is the property the beacon exists to
+     remove. */
+  const chainConfig = options.chainLnd || (options.beaconGetInfo ? {} : null)
+    || lndConfig || (options.lnd && options.lnd !== null ? options.lnd : null)
+    || lnd.readConfig(options.lndOptions || {});
+  if (beaconLive && !chainConfig && !options.beaconGetInfo) {
+    throw new Error("NUTFT_BEACON_SOURCE=lnd needs a chain source: set LND_REST_URL, "
+      + "which may point at a node used only for reading blocks");
+  }
   /* Virtual money must never be a production surprise. The mint says which
      backend it is on, and refuses to run a mock one unless told explicitly. */
   if (funding && funding.virtual && String(options.allowVirtual ?? process.env.NUTFT_ALLOW_VIRTUAL ?? "") !== "1") {
@@ -176,7 +198,7 @@ function createNutftMint(options = {}) {
       + "set NUTFT_ALLOW_VIRTUAL=1 to confirm this is a staging deployment");
   }
   const chain = beaconLive
-    ? createBeacon({ db, lnd: lndConfig, confirmations: options.beaconConfirmations, getInfo: options.beaconGetInfo })
+    ? createBeacon({ db, lnd: chainConfig, confirmations: options.beaconConfirmations, getInfo: options.beaconGetInfo })
     : null;
 
   const mintSeed = Buffer.from(getOrCreate("mint_seed", () => crypto.randomBytes(32).toString("hex")), "hex");
@@ -300,9 +322,7 @@ function createNutftMint(options = {}) {
      answer is "not yet", with the height so they can watch it themselves. */
   async function revealFor(paymentHash) {
     if (!chain) throw new Error("this mint does not seal packs");
-    if (typeof paymentHash !== "string" || !/^[0-9a-f]{64}$/i.test(paymentHash)) {
-      throw new Error("payment_hash must be 32-byte hex");
-    }
+    if (!isPaymentRef(paymentHash)) throw new Error("payment_hash is not a valid payment reference");
     const row = q ? q.invoice.get(paymentHash) : null;
     if (!row) throw new Error("unknown payment_hash: quote the booster first");
     if (!row.target_height) throw new Error("this sale was not sealed against a block");
@@ -329,7 +349,7 @@ function createNutftMint(options = {}) {
   async function requirePaidFor(expected, paymentHash) {
     if (!paidMint) return;
     if (typeof paymentHash !== "string") throw new Error("payment_hash is required to buy a booster");
-    if (!/^[0-9a-f]{64}$/i.test(paymentHash)) throw new Error("payment_hash must be 32-byte hex");
+    if (!isPaymentRef(paymentHash)) throw new Error("payment_hash is not a valid payment reference");
     const row = q ? q.invoice.get(paymentHash) : null;
     if (!row) throw new Error("unknown payment_hash: quote the booster first");
     if (row.pack_id !== expected.pack_id) throw new Error("this invoice was quoted for a different pack");

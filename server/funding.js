@@ -71,6 +71,10 @@ function createFunding(options = {}) {
 
   const backend = String(options.backend || process.env.NUTFT_FUNDING || "").toLowerCase();
   if (backend === "mock") return createMockFunding(options);
+  if (backend === "cashu") {
+    const { createCashuFunding } = require("./funding-cashu.js");
+    return createCashuFunding(options);
+  }
   if (backend === "lnd" || (!backend && (options.lnd || process.env.LND_REST_URL))) {
     const config = options.lnd || lnd.readConfig(options.lndOptions || {});
     return config ? createLndFunding(config) : null;

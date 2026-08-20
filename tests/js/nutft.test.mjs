@@ -555,3 +555,84 @@ test("a mock funding source refuses to start without being told it is staging", 
     "it demands an explicit confirmation that this is staging",
   );
 });
+
+test("the node-less Cashu funding source guards the ways it can lose money", async (t) => {
+  // A public mint hands anyone a real bolt11, which is what removes the node.
+  // The failure modes are all about custody, so those are what is guarded.
+  const { createCashuFunding } = require("../../server/funding-cashu.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  assert.throws(() => createCashuFunding({ db }), /NUTFT_CASHU_MINT/, "a mint URL is required");
+  assert.throws(
+    () => createCashuFunding({ db, mintUrl: "http://mint.example" }),
+    /must be https/,
+    "an http mint would expose the quote to the network path",
+  );
+
+  const funding = createCashuFunding({ db, mintUrl: "https://mint.example" });
+  assert.equal(funding.name, "cashu");
+  assert.equal(funding.custodial, true, "it declares that somebody else holds the sats");
+  assert.equal(funding.virtual, false);
+  assert.equal(funding.balanceSat(), 0, "and exposes the balance so a sweep can be scheduled");
+
+  // A mint quote is priced in whole sats. Rounding would charge a price other
+  // than the one advertised, so it refuses instead.
+  await assert.rejects(
+    () => funding.createInvoice({ amountMsat: 21500 }),
+    /whole sats/,
+    "a fractional sat is refused rather than rounded",
+  );
+
+  // Without a database the received ecash would live only in one reply.
+  const noDb = createCashuFunding({ mintUrl: "https://mint.example" });
+  assert.equal(noDb.balanceSat(), 0);
+});
+
+test("a mint quote id is a valid payment reference, not just a 32-byte hash", async (t) => {
+  // The 64-hex assumption was baked in when lnd was the only funding source. A
+  // Cashu mint quote is addressed by a UUID, so rejecting one on shape would
+  // make the node-less backend unusable at the point of claiming a pack.
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  const mint = createNutftMint({
+    db, catalogUri: "https://x/nutft/catalog",
+    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000,
+    beaconSource: "lnd", beaconConfirmations: 1,
+    lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 500 },
+    beaconGetInfo: async () => ({ height: 910000, hash: "c".repeat(64) }),
+  });
+
+  // revealFor takes a payment reference straight from the query string, so it
+  // is where shape actually gets enforced.
+  await assert.rejects(
+    () => mint.revealFor("../../etc/passwd"),
+    /not a valid payment reference/,
+    "a path traversal attempt is refused on shape",
+  );
+  await assert.rejects(
+    () => mint.revealFor("short"),
+    /not a valid payment reference/,
+    "and so is something too short to be any funding source's reference",
+  );
+
+  // A UUID passes the shape gate and fails on its merits instead — which is
+  // exactly what a Cashu quote id must do.
+  await assert.rejects(
+    () => mint.revealFor("01a01ec3-491d-74e0-8413-cb60b99d8262"),
+    /unknown payment_hash/,
+    "a quote id is accepted as a reference and looked up",
+  );
+
+  // So does a 32-byte hash, so the lnd backend is unaffected by the change.
+  await assert.rejects(
+    () => mint.revealFor("a".repeat(64)),
+    /unknown payment_hash/,
+    "and a payment hash still works exactly as before",
+  );
+});

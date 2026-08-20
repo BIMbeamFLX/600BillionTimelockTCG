@@ -1237,7 +1237,7 @@
    * only the HRP — the payload is a bech32 TLV stream, and decoding all of it
    * to answer "how much" would be a second parser to get wrong. */
   function bolt11Sats(invoice) {
-    const match = /^ln(?:bc|tb|bcrt)(\d+)?([munp])?1/i.exec(String(invoice || ""));
+    const match = /^ln(?:bcrt|tbs|bc|tb)(\d+)?([munp])?1/i.exec(String(invoice || ""));
     if (!match) return null;
     if (!match[1]) return 0; // no amount named: the payer chooses
     const digits = BigInt(match[1]);
