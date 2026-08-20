@@ -161,6 +161,24 @@ function createNutftMint(options = {}) {
      URL and a SQL parameter — not to have one particular shape. */
   const isPaymentRef = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{8,128}$/.test(value);
 
+  /* Collection must not depend on the buyer coming back. A funding source that
+     only learns about a payment when someone claims their pack loses every sale
+     where the buyer paid and then closed the tab — the payment succeeded and
+     the money was never taken. Where the backend can sweep, run it on a timer.
+     unref() so this never holds the process open by itself. */
+  let reconcileTimer = null;
+  if (funding && typeof funding.reconcile === "function") {
+    const everyMs = Math.max(30_000, Number(options.reconcileMs || process.env.NUTFT_RECONCILE_MS || 120_000));
+    const sweep = () => {
+      Promise.resolve()
+        .then(() => funding.reconcile({}))
+        .catch((error) => console.error("[nutft] reconcile pass failed:", error && error.message));
+    };
+    reconcileTimer = setInterval(sweep, everyMs);
+    if (reconcileTimer && typeof reconcileTimer.unref === "function") reconcileTimer.unref();
+  }
+  const stop = () => { if (reconcileTimer) clearInterval(reconcileTimer); reconcileTimer = null; };
+
   /* The block-commitment beacon. Off by default: without it the mint keeps the
      fixed beacon it has today, which is fine for a free demo and disqualifying
      for a paid one, because the whole box is then precomputable offline. Turned
@@ -576,7 +594,7 @@ function createNutftMint(options = {}) {
 
   /* signBooster and payableQuote are exported so the payment gate can be
      tested directly, without standing up an HTTP server and an lnd. */
-  return { handle, catalogUri, collectionId, initialCommitment, state, signBooster, payableQuote, revealFor, paidMint, funding, sealed: Boolean(chain) };
+  return { handle, catalogUri, collectionId, initialCommitment, state, signBooster, payableQuote, revealFor, paidMint, funding, stop, sealed: Boolean(chain) };
 }
 
 module.exports = { assetBinding, canonical, createNutftMint };

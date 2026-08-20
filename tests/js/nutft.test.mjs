@@ -636,3 +636,109 @@ test("a mint quote id is a valid payment reference, not just a 32-byte hash", as
     "and a payment hash still works exactly as before",
   );
 });
+
+test("a buyer who pays and never comes back does not lose their money", async (t) => {
+  // The bug this covers: taking the money only ever happened inside a buyer's
+  // own claim request. Pay the invoice, close the tab, and the quote sat PAID
+  // until it expired — the sale succeeded and the sats stayed with the mint
+  // operator. A 100% loss on a completed sale.
+  const { createCashuFunding } = require("../../server/funding-cashu.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  // A stand-in mint: quotes go UNPAID -> PAID, and minting can only happen once.
+  const quotes = new Map();
+  let minted = 0;
+  const fakeWallet = {
+    createMintQuoteBolt11: async (amount) => {
+      const quote = `q-${quotes.size + 1}`;
+      quotes.set(quote, { state: "UNPAID", amount, expiry: Math.floor(Date.now() / 1000) + 900 });
+      return { quote, request: `lntbs${amount}n1fake`, amount, expiry: quotes.get(quote).expiry, state: "UNPAID" };
+    },
+    checkMintQuoteBolt11: async (quote) => quotes.get(quote) || { state: "UNKNOWN" },
+    mintProofsBolt11: async (amount, quote) => {
+      const row = quotes.get(quote);
+      if (!row || row.state !== "PAID") throw new Error("quote is not payable");
+      row.state = "ISSUED";                       // a mint issues exactly once
+      minted += 1;
+      return [{ amount, secret: `s-${quote}`, C: "02ab", id: "keyset" }];
+    },
+    loadMint: async () => {},
+  };
+
+  const funding = createCashuFunding({ db, mintUrl: "https://mint.example", wallet: fakeWallet });
+
+  const invoice = await funding.createInvoice({ amountMsat: 21000 });
+  assert.ok(invoice.paymentHash, "a quote was issued");
+  assert.equal(funding.balanceSat(), 0, "and nothing is owed to us yet");
+
+  // The buyer pays — and then vanishes. No claim request ever arrives.
+  quotes.get(invoice.paymentHash).state = "PAID";
+
+  // Before the fix this was the end of the story. Now the sweep collects it.
+  const first = await funding.reconcile({});
+  assert.equal(first.checked, 1, "the unclaimed quote is still being watched");
+  assert.equal(first.collected, 1, "and the payment is collected without the buyer");
+  assert.equal(funding.balanceSat(), 21, "the sats are ours and written down");
+  assert.equal(minted, 1);
+
+  // A second pass must not mint again — the quote is settled and off the list.
+  const second = await funding.reconcile({});
+  assert.equal(second.checked, 0, "a collected quote is not checked forever");
+  assert.equal(minted, 1, "and is never minted twice");
+  assert.equal(funding.balanceSat(), 21);
+});
+
+test("the claim path and the sweep can never both mint one quote", async (t) => {
+  // Minting is not idempotent at the mint: two concurrent calls mean one wins
+  // and one errors, and if the winner's write is the one that fails, the proofs
+  // are gone with no retry that recovers them.
+  const { createCashuFunding } = require("../../server/funding-cashu.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+
+  const quotes = new Map();
+  let concurrent = 0;
+  let maxConcurrent = 0;
+  let minted = 0;
+  const fakeWallet = {
+    createMintQuoteBolt11: async (amount) => {
+      const quote = "q-race";
+      quotes.set(quote, { state: "PAID", amount, expiry: Math.floor(Date.now() / 1000) + 900 });
+      return { quote, request: "lntbs21n1fake", amount, expiry: quotes.get(quote).expiry, state: "UNPAID" };
+    },
+    checkMintQuoteBolt11: async (quote) => {
+      await new Promise((r) => setTimeout(r, 10));
+      return quotes.get(quote) || { state: "UNKNOWN" };
+    },
+    mintProofsBolt11: async (amount, quote) => {
+      concurrent += 1;
+      maxConcurrent = Math.max(maxConcurrent, concurrent);
+      await new Promise((r) => setTimeout(r, 20));
+      concurrent -= 1;
+      const row = quotes.get(quote);
+      if (row.state === "ISSUED") throw new Error("quote already issued");
+      row.state = "ISSUED";
+      minted += 1;
+      return [{ amount, secret: "s", C: "02ab", id: "keyset" }];
+    },
+    loadMint: async () => {},
+  };
+
+  const funding = createCashuFunding({ db, mintUrl: "https://mint.example", wallet: fakeWallet });
+  const invoice = await funding.createInvoice({ amountMsat: 21000 });
+
+  // The buyer claims at the same moment the sweep runs.
+  const [claimed] = await Promise.all([
+    funding.isSettled(invoice.paymentHash),
+    funding.reconcile({}),
+    funding.isSettled(invoice.paymentHash),
+  ]);
+
+  assert.equal(claimed, true, "the buyer still gets their pack");
+  assert.equal(maxConcurrent, 1, "only one mint call was ever in flight");
+  assert.equal(minted, 1, "so the quote was minted exactly once");
+  assert.equal(funding.balanceSat(), 21, "and counted exactly once");
+});
