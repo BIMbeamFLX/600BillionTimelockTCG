@@ -102,6 +102,10 @@ main { container-type: inline-size; }
   text-align: center; color: var(--muted); font-size: 12px; letter-spacing: .08em;
   text-transform: uppercase; pointer-events: none;
 }
+html:has(.bay--stage) #revealAll:not([hidden]) {
+  position: fixed; left: 50%; bottom: 62px; z-index: 92;
+  transform: translateX(-50%);
+}
 
 /* The die. A pack is a settled question you have not read yet, so it arrives as
    something being rolled and then stops being a die. It is decoration with a
