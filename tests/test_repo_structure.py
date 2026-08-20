@@ -35,6 +35,13 @@ def test_rulebook_numeric_anchors_use_direct_id_lookup() -> None:
     assert 'querySelector(link.getAttribute("href"))' not in rulebook
 
 
+def test_rulebook_chapter_search_includes_the_chapter_copy() -> None:
+    """A reader searching a rules concept should find the chapter that explains it."""
+    rulebook = (REPO_ROOT / "site" / "rules.html").read_text(encoding="utf-8")
+
+    assert "link.dataset.terms.includes(needle)" in rulebook
+
+
 def test_landing_page_links_to_rules_and_final_cards() -> None:
     """The site entry point must use the dedicated rulebook and final card faces."""
     landing = (REPO_ROOT / "site" / "index.html").read_text(encoding="utf-8")
