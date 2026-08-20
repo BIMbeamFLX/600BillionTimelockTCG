@@ -18,11 +18,13 @@ NUTFT_ALLOWLIST=npub1...,<32-byte-hex>,...
 
 In `allowlist` mode, require a fresh NIP-98 proof when a paid quote creates the invoice. A paid claim treats its settled invoice as the entitlement and performs no identity check. Trades are anonymous. A free mint has no invoice receipt, so its claim remains gated.
 
+The initial alpha runs in `allowlist` mode. Public beta switches to `open` only after the alpha bugs are fixed.
+
 Allowlist entries must never be hardcoded in source, generated assets or deployment documentation.
 
 ## Consequences
 
 - Changing or closing the list cannot invalidate an already-paid pack.
 - Open sales do not prompt a Nostr extension or disclose identity.
-- The direct LNURL wallet path is unavailable while allowlisting because an ordinary Lightning wallet cannot provide the NIP-98 proof; buyers use the browser flow.
-
+- Alpha buyers use the authenticated browser flow before receiving an invoice. They can pay that invoice with any Lightning wallet.
+- A public LNURL callback must not bypass the alpha's NIP-98 gate. It may be exposed after public beta switches to `open`.
