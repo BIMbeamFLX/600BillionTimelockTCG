@@ -406,18 +406,51 @@
     return node;
   }
 
+  /* What the pack says about itself. This used to be three fixed sentences, one
+     per tier, and the rare one quoted the pull odds at you — so opening ten
+     packs meant reading the same line ten times. The odds belong in the box's
+     own numbers, not in a remark about your luck.
+
+     Written in the set's own register: short, dry, and about the world rather
+     than about probability. The last line used is never picked twice running,
+     which is the difference between a voice and a stuck record. */
+  const PACK_LINES = {
+    3: [
+      "A rare. Somebody in the set is going to remember this one.",
+      "That is a rare. The block clock does not do favours — it does arithmetic.",
+      "A rare, off the top of the box, exactly where it always was.",
+      "Rare. Opens once. Make it count.",
+      "A rare. The order was fixed before you got here, and it was fixed like this.",
+      "Rare pull. Somewhere a relay just picked up the signal.",
+    ],
+    2: [
+      "An uncommon rode along.",
+      "One uncommon. The set's middle class, and it does the work.",
+      "An uncommon — the card you did not plan for and end up building around.",
+      "Uncommon in the wrapper. Turns out the wall had opinions.",
+      "One uncommon. Not the headline; often the reason it worked.",
+    ],
+    1: [
+      "All commons. The floor of the set, and the backbone of a Stack.",
+      "Commons, top to bottom. Somebody has to run the grid.",
+      "Nothing rare here. The box is not being unkind, it is being a box.",
+      "Commons. Unglamorous, load-bearing, and in every Stack that ever won.",
+      "A quiet pack. The network runs on quiet packs.",
+    ],
+  };
+  let lastLine = "";
+  function packLine(best, count) {
+    const pool = PACK_LINES[best] || PACK_LINES[1];
+    const fresh = pool.filter((line) => line !== lastLine);
+    const pick = fresh[Math.floor(Math.random() * fresh.length)] || pool[0];
+    lastLine = pick;
+    return best === 1 && count ? pick.replace("All commons", `${count} commons`) : pick;
+  }
+
   function packSummary(entry) {
     const best = entry.ids.reduce((top, id) => Math.max(top, rankOf(id)), 1);
     const news = entry.fresh.filter(Boolean).length;
-    const rareOdds = (BOX.odds && BOX.odds.rare) || 0;
-    let line;
-    if (best === 3) {
-      line = `A rare. That is the ${rareOdds}% — the box is not being kind to you, it is being honest.`;
-    } else if (best === 2) {
-      line = "An uncommon in the pack.";
-    } else {
-      line = `${entry.ids.length} commons. The floor of the set — and the backbone of a Stack.`;
-    }
+    let line = packLine(best, entry.ids.length);
     if (news) line += ` ${news} new to your collection.`;
     return { line, best };
   }
@@ -768,22 +801,9 @@
   function renderBoxFacts() {
     const mint = PULL_MODE === "mint";
     $("boxCommit").textContent = mint ? "census " + (nutftState.census_sha256 || "loading…") : (BOX.commitment || "—");
-    $("boxSeed").textContent = mint ? "mint beacon" : BOX.seed;
     $("boxSize").textContent = mint ? NUTFT_TOTAL_CARDS : BOX.box.length;
-    $("boxTotal").textContent = mint ? NUTFT_TOTAL_CARDS : BOX.box.length;
     $("packSize").textContent = mint ? NUTFT_PACK_SIZE : BOX.packSize;
-    $("packSizeFact").textContent = mint ? NUTFT_PACK_SIZE : BOX.packSize;
     $("packPrice").textContent = PULL_MODE === "mint" ? "NutFT demo" : "free";
-
-    const odds = $("odds");
-    odds.innerHTML = "";
-    Object.entries((mint ? nutftState.tier_odds : BOX.odds) || {})
-      .sort((a, b) => (RANK[b[0]] || 1) - (RANK[a[0]] || 1))
-      .forEach(([rarity, percent]) => {
-        const row = el("div", `odd rarity-${rarity}`);
-        row.append(el("b", null, `${percent}%`), el("span", null, rarity));
-        odds.append(row);
-      });
   }
 
   function renderModeCopy() {
