@@ -266,6 +266,25 @@
     };
     const signed = await signer.signEvent(unsigned);
     if (!signed || !signed.sig) return null;
+    /* THE PAGE MUST NOT SAY "signed out" WHILE ACTING AS YOU.
+     *
+     * The signer is read straight off the extension, deliberately — that is what
+     * NIP-98 needs. But the site keeps its own idea of who is signed in under
+     * 600b:pubkey, and the two came apart: after a sign-out the nav chip read
+     * "Sign in with Nostr", the shop offered to sign you in, and pressing Buy
+     * still completed a purchase under the extension's key. Nothing silent
+     * happened — the extension asks — but the page claimed one thing and did
+     * another, and on a one-per-key mint that spends somebody's allocation
+     * under a name the page never showed.
+     *
+     * So the key that just signed is adopted. Whoever bought is now who the
+     * page says bought. Wrapped because storage can refuse in private mode, and
+     * a purchase must not fail over a display detail. */
+    try {
+      if (/^[0-9a-f]{64}$/i.test(signed.pubkey || "")) {
+        root.localStorage.setItem("600b:pubkey", signed.pubkey);
+      }
+    } catch (error) { /* private mode: the sale still stands */ }
     /* btoa is byte-wise; a non-ASCII byte anywhere in the event would throw.
        Encode as UTF-8 first so the header survives any content the signer adds. */
     const bytes = new TextEncoder().encode(JSON.stringify(signed));
