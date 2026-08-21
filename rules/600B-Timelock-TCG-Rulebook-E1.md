@@ -19,7 +19,7 @@ grid sang — lives on the [lore page](../site/lore.html).
 
 The first rules profile deliberately preserves the strategic shape of first-generation
 dueling card games: 20 starting Uptime, seven cards in the opening Wallet, forty-card
-minimum Stacks, one Resource play each turn, classic resource burn and a three-copy limit
+minimum Stacks, one Resource play each turn, classic resource burn and a four-copy limit
 that Basic Resources ignore and Genesis cards tighten to one. Timing is expressed through
 one deterministic last-in-first-out Queue so the same rules can be enforced by a web app.
 
@@ -281,14 +281,15 @@ what it is defending against sits at twenty-six, so the margin is not close.
 
 Basic Resources are exempt for the same reason every deck-building game exempts its basic
 lands. A 40-card Stack wants 16–18 Resources and Edition One prints only ten Basic
-Resources, so a cap of three would make a legal Stack arithmetically impossible. The cap
+Resources, so a cap would leave a Stack drawing its Resources from ten cards and nothing
+else — at three that is arithmetically impossible, and at four it is a straitjacket. The cap
 exists to stop one *spell* being the whole Stack, and a Resource cannot be that, because it
 does nothing on its own.
 
-Genesis cards run the other way: **one copy per Stack**. Twenty-one copies of any single
-Genesis card will ever be minted, so at a cap of three a legal Stack could ask for more of a
-card than the world contains. The one-copy limit is what stops that — and what keeps
-scarcity out of the match. The 21 minted copies are the collectible: capped, owned and
+Genesis cards run the other way: **one copy per Stack**. Sixty-three copies of any single
+Genesis card will ever be minted, so a Stack asking for four would be asking for a meaningful
+share of every copy that exists. The one-copy limit is what stops that — and what keeps
+scarcity out of the match. The 63 minted copies are the collectible: capped, owned and
 tradeable. The copy in your Stack is a play copy, issued free by the precons and the Stack
 Builder and not tradeable at all. A Genesis card is worth owning because it is scarce, never
 because it is the only way to play the game.
@@ -935,7 +936,7 @@ The following decisions are locked for the first full-set pipeline pass:
 - 20 starting Uptime;
 - seven-card opening Wallet;
 - 40-card minimum Stack;
-- no copy limit;
+- four copies of any one card, Basic Resources exempt, Genesis one;
 - no sideboard;
 - no mulligan;
 - first player draws;

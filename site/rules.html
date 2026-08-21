@@ -14,7 +14,6 @@
        shell it paints exactly what 600b.css already says. -->
   <script src="napplet.js"></script>
 <script src="bugreport.js" defer></script>
-<script src="nostr-id.js" defer></script>
   <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
   <style>
     /* This page links 600b.css and must not repaint it. It used to redefine the
@@ -427,7 +426,7 @@
 <a href="#21-protocol-notes" data-terms="21-protocol-notes protocol notes every card also has short simple guide the database and website explains what usually accomplishes ordinary language never adds removes overrides rule formal rules field remains authoritative may carry note teaches one accurate bitcoin nostr cypherpunk idea connected mechanic have gameplay effect use factual claim avoid investment price predictions distinguish settlement from lightning routing identities events relays cite source even when citation not printed this how game educates creates memory gives that correct name">21. Protocol notes</a>
 <a href="#22-quick-reference" data-terms="22-quick-reference quick reference setup cards uptime draw mulligan first player draws turn unlock maintenance build clash end cleanup attackers blockers strike regular damage timing active gets priority act pass both resolve queue top resource boundary buffer empties phase and boundaries lose per unused state checks empty resilience lethal illegal attachment escaped token">22. Quick reference</a>
 <a href="#23-terminology-map" data-terms="23-terminology-map terminology map this table for production and migration only the 600b term appears final cards generic tcg concept life uptime deck library stack hand wallet battlefield play network graveyard archive exile removed from game cold storage resolution queue mana pool buffer color resource affinity tap untap commit unlock land creature avatar artifact hardware enchantment protocol aura attachment instant interrupt zap sorcery operation power toughness action resilience destroy decommission counter spell invalidate flying broadcast reach guard banding mesh trample overflow landwa">23. Terminology map</a>
-<a href="#24-e1-rules-lock" data-terms="24-e1-rules-lock rules lock the following decisions are locked for first full-set pipeline pass two players starting uptime seven-card opening wallet 40-card minimum stack copy limit sideboard mulligan player draws one resource play per turn classic burn lifo queue all zaps and non-resource abilities six card types five affinities stake toss opt-in legacy adapters original 600b names lore artwork phrasing symbols frame any change this list creates new profile requires version bump">24. E1 rules lock</a>
+<a href="#24-e1-rules-lock" data-terms="24-e1-rules-lock rules lock the following decisions are locked for first full-set pipeline pass two players starting uptime seven-card opening wallet 40-card minimum stack four copies any one card basic resources exempt genesis sideboard mulligan player draws resource play per turn classic burn lifo queue all zaps and non-resource abilities six types five affinities stake toss opt-in legacy adapters original 600b names lore artwork phrasing symbols frame change this list creates new profile requires version bump">24. E1 rules lock</a>
 <a href="#25-originality-and-release-note" data-terms="25-originality-and-release-note originality and release note 600b timelock tcg original prototype early collectible-card games are used mechanical research benchmark only the project does not license include third-party card names text story artwork icons logos frame design visual trade dress all public terminology writing educational notes lore illustration layout must before commercial distribution obtain independent intellectual-property review full mapping rules implementation system this paragraph guidance legal advice 600 000 stack build meme repeat rulebook version 0-draft language engl">25. Originality and release note</a></nav>
   </details>
   <header class="hero">
@@ -479,7 +478,7 @@
 <a href="#21-protocol-notes" data-terms="21-protocol-notes protocol notes every card also has short simple guide the database and website explains what usually accomplishes ordinary language never adds removes overrides rule formal rules field remains authoritative may carry note teaches one accurate bitcoin nostr cypherpunk idea connected mechanic have gameplay effect use factual claim avoid investment price predictions distinguish settlement from lightning routing identities events relays cite source even when citation not printed this how game educates creates memory gives that correct name">21. Protocol notes</a>
 <a href="#22-quick-reference" data-terms="22-quick-reference quick reference setup cards uptime draw mulligan first player draws turn unlock maintenance build clash end cleanup attackers blockers strike regular damage timing active gets priority act pass both resolve queue top resource boundary buffer empties phase and boundaries lose per unused state checks empty resilience lethal illegal attachment escaped token">22. Quick reference</a>
 <a href="#23-terminology-map" data-terms="23-terminology-map terminology map this table for production and migration only the 600b term appears final cards generic tcg concept life uptime deck library stack hand wallet battlefield play network graveyard archive exile removed from game cold storage resolution queue mana pool buffer color resource affinity tap untap commit unlock land creature avatar artifact hardware enchantment protocol aura attachment instant interrupt zap sorcery operation power toughness action resilience destroy decommission counter spell invalidate flying broadcast reach guard banding mesh trample overflow landwa">23. Terminology map</a>
-<a href="#24-e1-rules-lock" data-terms="24-e1-rules-lock rules lock the following decisions are locked for first full-set pipeline pass two players starting uptime seven-card opening wallet 40-card minimum stack copy limit sideboard mulligan player draws one resource play per turn classic burn lifo queue all zaps and non-resource abilities six card types five affinities stake toss opt-in legacy adapters original 600b names lore artwork phrasing symbols frame any change this list creates new profile requires version bump">24. E1 rules lock</a>
+<a href="#24-e1-rules-lock" data-terms="24-e1-rules-lock rules lock the following decisions are locked for first full-set pipeline pass two players starting uptime seven-card opening wallet 40-card minimum stack four copies any one card basic resources exempt genesis sideboard mulligan player draws resource play per turn classic burn lifo queue all zaps and non-resource abilities six types five affinities stake toss opt-in legacy adapters original 600b names lore artwork phrasing symbols frame change this list creates new profile requires version bump">24. E1 rules lock</a>
 <a href="#25-originality-and-release-note" data-terms="25-originality-and-release-note originality and release note 600b timelock tcg original prototype early collectible-card games are used mechanical research benchmark only the project does not license include third-party card names text story artwork icons logos frame design visual trade dress all public terminology writing educational notes lore illustration layout must before commercial distribution obtain independent intellectual-property review full mapping rules implementation system this paragraph guidance legal advice 600 000 stack build meme repeat rulebook version 0-draft language engl">25. Originality and release note</a></div>
       <p id="tocEmpty" hidden>No chapter matches.</p>
     </nav>
@@ -492,7 +491,7 @@ The world these rules are played in — the runners, the five tools and the nigh
 grid sang — lives on the <a href="lore.html">lore page</a>.</p>
 <p>The first rules profile deliberately preserves the strategic shape of first-generation
 dueling card games: 20 starting Uptime, seven cards in the opening Wallet, forty-card
-minimum Stacks, one Resource play each turn, classic resource burn and a three-copy limit
+minimum Stacks, one Resource play each turn, classic resource burn and a four-copy limit
 that Basic Resources ignore and Genesis cards tighten to one. Timing is expressed through
 one deterministic last-in-first-out Queue so the same rules can be enforced by a web app.</p>
 <blockquote>
@@ -818,13 +817,14 @@ owning — without letting one card be the whole Stack. The number moved from th
 what it is defending against sits at twenty-six, so the margin is not close.</p>
 <p>Basic Resources are exempt for the same reason every deck-building game exempts its basic
 lands. A 40-card Stack wants 16–18 Resources and Edition One prints only ten Basic
-Resources, so a cap of three would make a legal Stack arithmetically impossible. The cap
+Resources, so a cap would leave a Stack drawing its Resources from ten cards and nothing
+else — at three that is arithmetically impossible, and at four it is a straitjacket. The cap
 exists to stop one <em>spell</em> being the whole Stack, and a Resource cannot be that, because it
 does nothing on its own.</p>
-<p>Genesis cards run the other way: <strong>one copy per Stack</strong>. Twenty-one copies of any single
-Genesis card will ever be minted, so at a cap of three a legal Stack could ask for more of a
-card than the world contains. The one-copy limit is what stops that — and what keeps
-scarcity out of the match. The 21 minted copies are the collectible: capped, owned and
+<p>Genesis cards run the other way: <strong>one copy per Stack</strong>. Sixty-three copies of any single
+Genesis card will ever be minted, so a Stack asking for four would be asking for a meaningful
+share of every copy that exists. The one-copy limit is what stops that — and what keeps
+scarcity out of the match. The 63 minted copies are the collectible: capped, owned and
 tradeable. The copy in your Stack is a play copy, issued free by the precons and the Stack
 Builder and not tradeable at all. A Genesis card is worth owning because it is scarce, never
 because it is the only way to play the game.</p>
@@ -1470,7 +1470,7 @@ memory a correct name.</p>
 <li>20 starting Uptime;</li>
 <li>seven-card opening Wallet;</li>
 <li>40-card minimum Stack;</li>
-<li>no copy limit;</li>
+<li>four copies of any one card, Basic Resources exempt, Genesis one;</li>
 <li>no sideboard;</li>
 <li>no mulligan;</li>
 <li>first player draws;</li>
