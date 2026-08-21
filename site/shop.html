@@ -301,6 +301,10 @@ html:has(.bay--stage) #packSlot {
 .pack-note { min-height: 24px; margin-top: 4px; text-align: center; color: var(--muted); font-size: 14px; }
 .pack-note.is-rare { color: var(--ember); }
 .pack-note.is-error { color: var(--danger); }
+/* The scannable code a phone actually needs. Cream background and real
+   padding beyond the encoder's own quiet zone -- contrast is what fails
+   first under a bar light or a cracked screen, not resolution. */
+.pack-note .qr { display: block; margin: 10px auto; width: min(220px, 70%); background: var(--cream); padding: 8px; }
 .pack-cta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 10px; }
 .slot { margin-top: 6px; text-align: right; color: var(--ink-dim); font-family: var(--mono); font-size: 11px; letter-spacing: .06em; }
 
@@ -813,6 +817,10 @@ html:has(.bay--stage) #packSlot {
 <script src="storage-keys.js"></script>
 <script src="nutft-wallet.js"></script>
 <script src="g-data.js"></script>
+<!-- Before shop.js: showInvoice renders a QR the moment a purchase mints an
+     invoice, and site/qr.js -- the same encoder play.js already uses for a
+     wager payout -- has to exist before that function can reach for it. -->
+<script src="qr.js"></script>
 <script src="shop.js"></script>
 </body>
 </html>

@@ -1264,10 +1264,14 @@
     if (on) $("nostrWho").textContent = shortNpub(signedIn) || "signed in";
   }
 
-  /* The invoice, shown while the mint waits to be paid. Deliberately plain: the
-     bolt11 as selectable text, a copy button, and a lightning: link a phone can
-     open. No QR library is pulled in for this — the string is long enough that a
-     scannable code needs real care, and a wrong QR is worse than none. */
+  /* The invoice, shown while the mint waits to be paid: a QR a phone can point
+     its camera at, the bolt11 as selectable text under it, a copy button, and a
+     lightning: link a phone can open directly. The QR uses site/qr.js -- the
+     same hand-rolled, byte-mode, EC-level-M encoder play.js already uses for a
+     wager payout, so this is the second caller of a module that was already
+     carrying its own test suite, not a new dependency. Wrapped in try/catch:
+     an unscannable code would be worse than the plain text alone, so a failure
+     here falls back to exactly what this page showed before it had one. */
   function showInvoice(invoice) {
     const note = $("packNote");
     if (!note) return;
@@ -1289,6 +1293,19 @@
       warn.style.cssText = "margin-top:4px;color:var(--gold);font-size:12px";
       warn.textContent = "It pays itself in a few seconds — do not scan it with a real wallet.";
     }
+    const QR = root.E1QR;
+    let qrHolder = null;
+    if (QR && typeof QR.svg === "function") {
+      try {
+        qrHolder = document.createElement("div");
+        qrHolder.className = "qr";
+        /* Uppercased for the same reason play.js's does: bech32 is case
+           INsensitive, so a wallet reads either, and this is the one already
+           proven against a real scanner in this codebase. */
+        qrHolder.innerHTML = QR.svg(invoice.paymentRequest.toUpperCase(), { ec: "M" });
+      } catch (error) { qrHolder = null; }
+    }
+
     const body = document.createElement("div");
     body.style.cssText = "margin-top:6px;word-break:break-all;font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--muted)";
     body.textContent = invoice.paymentRequest;
@@ -1312,6 +1329,7 @@
     wait.textContent = "Waiting for payment… the cards appear as soon as the mint confirms it.";
     note.append(head);
     if (warn) note.append(warn);
+    if (qrHolder) note.append(qrHolder);
     note.append(body, row, wait);
   }
 
