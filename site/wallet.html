@@ -7,6 +7,12 @@
 <title>600B Timelock TCG — NutFT Wallet</title>
 <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="600b.css">
+<!-- The wallet never loaded the adapter, so the top-bar sign-in chip would
+     have had nothing to ask about identity: napplet.js IS that question.
+     Nothing else on this page reads it, and the collection still comes
+     from the mint and this browser exactly as before. -->
+<script src="napplet.js"></script>
+<script src="nostr-id.js" defer></script>
 <style>
 /* Page-local only. Palette, type, nav, .framed / .chip-num / .note / .banner and
    the buttons all come from 600b.css; what lives here is the collection grid and
