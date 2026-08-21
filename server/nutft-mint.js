@@ -530,7 +530,12 @@ function createNutftMint(options = {}) {
       throw new Error("the box is not open yet — boosters are not on sale");
     }
     if (!proof || !proof.header) {
-      throw new Error("early access: sign the request with your nostr key to buy a booster");
+      if (salesMode === "signed") {
+        throw new Error(
+          `early access: sign the request with any nostr key — there is no allowlist — to buy this ${productName}`,
+        );
+      }
+      throw new Error(`early access: sign the request with your nostr key to buy a ${productName}`);
     }
     const seenAuth = seenFor(String(proof.path || ""));
     const checked = nip98.verify(proof.header, {

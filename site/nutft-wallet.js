@@ -387,6 +387,13 @@
   /* Telling someone to install what they already have is worse than saying
      nothing, so a declined prompt gets its own sentence. */
   const earlyAccessAdvice = (detail, declined) => {
+    if (/any nostr key|no allowlist/i.test(detail)) {
+      const action = declined
+        ? "your NIP-07 signer did not sign the request"
+        : "add or unlock a NIP-07 signer (Alby or nos2x), then press Buy again";
+      return `early access: ${action}. Any nostr key works here — there is no allowlist. `
+        + "Checkout stopped before Lightning; no invoice was created.";
+    }
     if (declined) {
       return "early access: your nostr extension did not sign the request — the signature is "
         + "what proves your key is on the list, so the sale cannot go ahead without it";

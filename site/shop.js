@@ -1982,15 +1982,21 @@
   function bindControls() {
     $("buyStarter").addEventListener("click", async () => {
       const note = $("starterBuyNote");
+      let invoiceShown = false;
       starterBusy = true;
       renderStarterSale();
       note.className = "pack-note";
       note.textContent = "";
+      note.setAttribute("role", "status");
+      note.setAttribute("aria-live", "polite");
       try {
         if (!starterMint || !starterMint.verified) throw new Error("the G mint is not ready");
         if (!root.NutFTWallet) throw new Error("the NutFT wallet is not available");
         const issued = await root.NutFTWallet.buyBooster(G_MINT_URL, {
-          onInvoice: (invoice) => showInvoice(invoice, "starterBuyNote"),
+          onInvoice: (invoice) => {
+            invoiceShown = true;
+            showInvoice(invoice, "starterBuyNote");
+          },
           onWaiting: () => { if (note && note.dataset) note.dataset.waiting = "1"; },
         });
         clearInvoice("starterBuyNote");
@@ -1998,8 +2004,16 @@
         note.innerHTML = `<strong>Starter set received.</strong> ${issued.cards.length} G cards are now in <a href="wallet.html">your wallet</a>.`;
         await readStarterMint();
       } catch (error) {
-        note.className = "pack-note is-error";
-        note.textContent = String((error && error.message) || error);
+        if (root.E1MintErrors && typeof root.E1MintErrors.render === "function") {
+          root.E1MintErrors.render(note, error, {
+            sales: starterMint?.info?.sales || "",
+            product: "starter set",
+            invoiceShown,
+          });
+        } else {
+          note.className = "pack-note is-error";
+          note.textContent = String((error && error.message) || error);
+        }
       } finally {
         starterBusy = false;
         renderStarterSale();

@@ -2546,8 +2546,36 @@ test('NUTFT_SALES="signed": any nostr key qualifies, no curated roster', async (
   await assert.rejects(() => mint.payableQuote({ proof }), /already been used/i,
     "the same signed event must not be replayable just because the mode has no roster");
 
-  await assert.rejects(() => mint.payableQuote({ proof: null }), /sign the request/i,
-    "a signature is still mandatory -- \"signed\" is not \"open\" wearing a different name");
+  await assert.rejects(
+    () => mint.payableQuote({ proof: null }),
+    /sign the request with any nostr key.*no allowlist.*starter set/i,
+    "the refusal says what G actually needs instead of borrowing allowlist/booster words",
+  );
+});
+
+test("a G buyer without NIP-07 gets the signed-sale instructions, not allowlist advice", async (t) => {
+  const { createMockFunding } = require("../../server/funding.js");
+  const table = await createTable({
+    port: 0,
+    host: "127.0.0.1",
+    dbPath: ":memory:",
+    nutftCatalogUri: "http://127.0.0.1/nutft/catalog",
+    gNutftEnabled: true,
+    gNutftDbPath: ":memory:",
+    gNutftCatalogUri: "http://127.0.0.1/g/nutft/catalog",
+    gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
+    gNutftAllowVirtual: "1",
+    gNutftSales: "signed",
+    gNutftOnePerKey: true,
+    gNutftPriceMsat: 210_000,
+  });
+  t.after(() => table.close());
+
+  await assert.rejects(
+    () => browserWallet(new Map(), fetch).then((wallet) => wallet.buyBooster(`${table.url}/g`)),
+    /NIP-07.*any nostr key.*no allowlist.*no invoice was created/i,
+    "the browser says how to reach the signed G mint and confirms Lightning never started",
+  );
 });
 
 test('NUTFT_SALES="signed" plus one-per-key: two strangers, one set each', async (t) => {
