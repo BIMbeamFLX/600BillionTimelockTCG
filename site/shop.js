@@ -1535,6 +1535,40 @@
       `${STARTER.decksPerSet} decks of ${STARTER.deckSize}, built to be played against each other straight out ` +
       `of the box. Across the whole run that is ${num(decks)} decks and ${num(STARTER.sets * STARTER.cardsPerSet)} cards.`;
 
+    $("starterPromoLine").textContent =
+      `${promo.name} (${promo.id}) — one in each of the ${STARTER.genesisSets} strong sets, and nowhere else in ` +
+      `this edition.`;
+    /* ABOVE THE GUARD, all three of these. The promo face in particular: below
+       it, the free box view — which is what the nav's "Shop" link opens — never
+       set a src at all and painted an empty card-shaped rectangle under the
+       heading "The promo". The section that says a thing is not on sale was
+       also stranded, so the dead button had a bare em dash where its reason
+       belonged. None of the three needs a census to be true. */
+    const face = $("starterPromoFace");
+    face.alt = promo.name;
+    /* NOT lazy. setFace hands this an object URL, and a lazily-loaded image that
+       is assigned one never decoded it here — the probe loaded the identical
+       blob instantly with the attribute gone. It is one 150KB image in a
+       section that now sits directly under the booster, so there is nothing to
+       defer and an empty card-shaped rectangle to avoid. */
+    face.removeAttribute("loading");
+    if (FACES) FACES.setFace(face, promo.face);
+    else face.src = `../art/cards/node-runner-web/${encodeURIComponent(promo.face)}`;
+
+    $("starterState").innerHTML =
+      "<strong>Not on sale yet.</strong> There is no G mint. Nothing on this page can quote a price, request an " +
+      "invoice or take an order for a starter set, and no list is being kept. When a G mint exists it will publish " +
+      "this edition's catalog and its cap the same way the E1 mint publishes its census, and this button will do " +
+      "something.";
+
+    /* The strong sets, said without the E1 comparison, which is the only part
+       that needs the census. */
+    $("starterPanel2").textContent =
+      `${STARTER.genesisSets} of the ${num(STARTER.sets)} sets are the strong ones: one of their two decks carries ` +
+      `a single Genesis card, and one ${promo.name} promo comes in the box with it. No Genesis card appears in ` +
+      `more than ${STARTER.perGenesisCard} of those ${STARTER.genesisSets} sets. The other ` +
+      `${num(STARTER.sets - STARTER.genesisSets)} sets hold ${STARTER.decksPerSet} decks with no Genesis card in either.`;
+
     /* The rest compares this run against E1's, so it waits. readMintState calls
        this again once the box has been read. */
     if (!f) return;
@@ -1546,29 +1580,16 @@
       `land on at least ${f.minTitles} of the game's ${f.titles} Genesis cards rather than piling onto one. ` +
       `The other ${num(f.plainSets)} sets hold ${STARTER.decksPerSet} decks with no Genesis card in either.`;
 
+    /* Shown only now, with something in them. */
+    const panel3Box = $("starterPanel3Box");
+    if (panel3Box) panel3Box.hidden = false;
+    $("starterNote").hidden = false;
+
     $("starterPanel3").textContent =
       `These are a separate edition, marked G: their own collection id (${STARTER.collectionId}), their own ` +
       `catalog, their own cap of ${num(STARTER.sets)} sets, published the way the mint publishes its census. ` +
       `Not one card here comes out of the E1 box. Edition One still prints ${f.perTitle} copies of each of its ` +
       `${f.titles} Genesis cards, and that stays true whether or not a single starter set is ever sold.`;
-
-    $("starterPromoLine").textContent =
-      `${promo.name} (${promo.id}) — one in each of the ${STARTER.genesisSets} strong sets, and nowhere else in ` +
-      `this edition.`;
-    const face = $("starterPromoFace");
-    face.alt = promo.name;
-    face.loading = "lazy";
-    if (FACES) FACES.setFace(face, promo.face);
-    else face.src = `../art/cards/node-runner-web/${encodeURIComponent(promo.face)}`;
-
-    /* Said in the register the rest of the page uses: what cannot happen here,
-     * and what would have to exist before it could. No waiting list is implied,
-     * because none is being kept. */
-    $("starterState").innerHTML =
-      "<strong>Not on sale yet.</strong> There is no G mint. Nothing on this page can quote a price, request an " +
-      "invoice or take an order for a starter set, and no list is being kept. When a G mint exists it will publish " +
-      "this edition's catalog and its cap the same way the E1 mint publishes its census, and this button will do " +
-      "something.";
 
     $("starterNote").innerHTML =
       `<strong>Why a second edition rather than a slice of the first.</strong> E1's Genesis run is ` +

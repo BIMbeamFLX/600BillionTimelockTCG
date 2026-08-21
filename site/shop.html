@@ -594,13 +594,17 @@ html:has(.bay--stage) #packSlot {
         <h3>2 · The strong ones</h3>
         <p id="starterPanel2">—</p>
       </div>
-      <div class="panel">
+      <!-- Hidden until the census answers: everything it says is a comparison
+           against E1's Genesis print run. A heading over an em dash is worse
+           than no panel — it promises a third point and delivers a
+           placeholder. renderStarter shows it. -->
+      <div class="panel" id="starterPanel3Box" hidden>
         <h3>3 · Edition One does not move</h3>
         <p id="starterPanel3">—</p>
       </div>
     </div>
 
-    <p class="note" id="starterNote" style="margin-top:16px">—</p>
+    <p class="note" id="starterNote" style="margin-top:16px" hidden>—</p>
   </section>
 
   <section class="section section--tight">

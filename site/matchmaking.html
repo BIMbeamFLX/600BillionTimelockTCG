@@ -82,8 +82,17 @@ a { color: var(--orange-soft); }
 .startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
 .btn { padding: 12px 18px; color: var(--black); background: var(--orange); border: 0; cursor: pointer; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
 .btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
-.btn:hover { background: var(--gold); }
-.btn.ghost:hover { background: var(--panel-2); }
+.btn:hover:not(:disabled) { background: var(--gold); }
+.btn.ghost:hover:not(:disabled) { background: var(--panel-2); }
+/* A DISABLED BUTTON MUST LOOK DISABLED. These carried full ember, a pointer
+   cursor and a gold hover while disabled=true, so the biggest control on the
+   page invited a click and answered with nothing — no message, no console
+   error, enabled and disabled pixel-identical. The hover rules are guarded
+   too, because lighting up under the cursor is the strongest promise a
+   control can make. */
+.btn:disabled, .btn[aria-disabled="true"] {
+  opacity: .45; cursor: not-allowed; filter: none;
+}
 .zlabel { font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--purple); margin-bottom: 5px; }
 .chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
 
