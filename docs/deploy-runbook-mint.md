@@ -12,6 +12,12 @@ tomorrow.
 > `/home/deploy/tcg-data/g-mint.db`. Production uses `phoenixd`, a flat
 > 210-sat price, `G_NUTFT_SALES=signed`, and `G_NUTFT_ONE_PER_KEY=1`. Do not
 > point G at the E1 database or inherit E1's price schedule.
+>
+> Paid buyers whose quote carried a valid NIP-98 identity gain relay transport
+> for encrypted wallet backups after issuance completes. The entitlement is
+> durable in the mint database and mirrored to
+> `/home/deploy/bimCVP/infra/relay-allow/tcg-wallet-buyers`. strfry consults that
+> file only for kind `37378`; buying cards does not grant BIMCVP or lore access.
 
 **Everything below was verified by running the merged code, not read.** I bought a pack,
 opened the wallet, restarted the server, and re-verified — results in §4.
@@ -101,10 +107,11 @@ Do this **before** the first pack is ever sold from the box.
 powershell -File G:\projekte\HetzerDeploy\deploy-tcg.ps1 -SshTarget deploy@178.105.93.78
 ```
 
-The deploy script was fixed today: it previously copied only `server\table.js`, which would
-have crashed the box with `MODULE_NOT_FOUND` on start — and since the referee and the site
-are one process, that takes the live game down too. It now ships `server\*.js` and the
-preflight fails loudly if `nutft-mint.js` or `nutft-draw.js` is missing.
+The deploy script ships `server\*.js` and its preflight fails loudly if the mint,
+draw, relay writer, or guarded policy patcher is missing. On production it also
+creates the TCG-owned relay file and applies the idempotent kind-37378 policy
+addition. An unknown relay-policy shape aborts the install instead of replacing
+the existing pilot and lore rules.
 
 ### 2.4 Restart and verify (your YubiKey)
 
@@ -131,6 +138,8 @@ localhost. If it says localhost, stop and fix §2.2 before anyone buys.
 2. `https://tcg.nappelin.com/wallet.html` → fifteen tiles, each `DLEQ ✓ · P2BK ✓ · Blossom ✓`.
 3. Restart the service once more, reload the wallet: still fifteen, still valid, and
    `/nutft/state` still shows your `sold` count.
+4. Publish wallet sync: the relay accepts kind `37378`. A Nostr key that has not
+   completed a paid issuance is still rejected.
 
 If step 2 shows "INVALID", it is §2.2. Nothing else produces that symptom.
 

@@ -120,11 +120,19 @@ function createNutftMint(options = {}) {
          a crash cannot leave a key flagged without a pack, or a pack issued
          without the flag.
 
-         This links a nostr key to a pack, which the E1 mint deliberately does
-         not do. That is the price of "one each", paid knowingly: you cannot
-         enforce one-per-person without knowing who a person is. Written only
-         when NUTFT_ONE_PER_KEY is on. */
+         This allocation table is G-only. Repeat-purchase editions do not write
+         it; their independently scoped wallet-backup entitlement is recorded
+         in the table below. Written only when NUTFT_ONE_PER_KEY is on. */
       CREATE TABLE IF NOT EXISTS nutft_buyers (
+        pubkey  TEXT PRIMARY KEY,
+        pack_id TEXT NOT NULL,
+        at      TEXT NOT NULL
+      );
+      /* A successful, identified PAID purchase grants only wallet-backup
+         transport on the relay. This is separate from nutft_buyers because E1
+         permits repeat purchases while G uses one-per-key; both kinds of
+         buyer need the same recoverable backup entitlement. */
+      CREATE TABLE IF NOT EXISTS nutft_wallet_backup_buyers (
         pubkey  TEXT PRIMARY KEY,
         pack_id TEXT NOT NULL,
         at      TEXT NOT NULL
@@ -153,15 +161,32 @@ function createNutftMint(options = {}) {
       putOperation: db.prepare("INSERT INTO nutft_operations (type, operation_key, request_hash, response_json) VALUES (?, ?, ?, ?)"),
       invoice: db.prepare("SELECT * FROM nutft_invoices WHERE payment_hash = ?"),
       activeInvoices: db.prepare("SELECT * FROM nutft_invoices WHERE pack_id = ? AND claimed = 0 ORDER BY created_at DESC"),
-      putInvoice: db.prepare("INSERT OR REPLACE INTO nutft_invoices (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height) VALUES (?, ?, ?, ?, 0, ?, ?)"),
+      putInvoice: db.prepare(`
+        INSERT OR REPLACE INTO nutft_invoices
+          (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height, buyer)
+        VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+      `),
       claimInvoice: db.prepare("UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0"),
       buyerOf: db.prepare("SELECT pubkey FROM nutft_buyers WHERE pubkey = ?"),
       /* Plain INSERT, not INSERT OR IGNORE: a second row for the same key is
          not a duplicate to smooth over, it is a second allocation, and it has
          to raise inside the issuance transaction rather than pass quietly. */
       addBuyer: db.prepare("INSERT INTO nutft_buyers (pubkey, pack_id, at) VALUES (?, ?, ?)"),
-      setInvoiceBuyer: db.prepare("UPDATE nutft_invoices SET buyer = ? WHERE payment_hash = ?"),
+      addWalletBackupBuyer: db.prepare(
+        "INSERT OR IGNORE INTO nutft_wallet_backup_buyers (pubkey, pack_id, at) VALUES (?, ?, ?)",
+      ),
+      walletBackupBuyers: db.prepare(
+        "SELECT pubkey FROM nutft_wallet_backup_buyers ORDER BY pubkey",
+      ),
+      backfillWalletBackupBuyers: db.prepare(`
+        INSERT OR IGNORE INTO nutft_wallet_backup_buyers (pubkey, pack_id, at)
+        SELECT pubkey, pack_id, at FROM nutft_buyers
+      `),
     };
+    /* Existing G buyers already paid before relay backup existed. Their
+       one-per-key rows are durable proof of completed issuance, so migrate
+       those entitlements instead of making them buy again. */
+    q.backfillWalletBackupBuyers.run();
   }
   const getMeta = (key) => db ? q.meta.get(key)?.value : memory.meta.get(key);
   const putMeta = (key, value) => db ? q.putMeta.run(key, value) : memory.meta.set(key, value);
@@ -181,6 +206,9 @@ function createNutftMint(options = {}) {
     : memory.operations.set(`${type}:${key}`, { requestHash, result });
   const isSpent = (y) => db ? Boolean(q.spent.get(y)) : memory.spent.has(y);
   const putSpent = (y) => db ? q.putSpent.run(y) : memory.spent.add(y);
+  const walletBackupBuyers = () => q
+    ? q.walletBackupBuyers.all().map((row) => row.pubkey)
+    : [];
   const configuration = canonical({ census_sha256: census.census_sha256, collection_id: collectionId, catalog_uri: catalogUri });
   const storedConfiguration = getMeta("configuration");
   if (storedConfiguration && storedConfiguration !== configuration) throw new Error("mint database belongs to a different NutFT census, collection, or catalog URI");
@@ -317,6 +345,16 @@ function createNutftMint(options = {}) {
   const paidMint = Boolean(funding);
   if (paidMint && !db) throw new Error("a paid mint requires a database so invoices and issuance survive restart");
   if (paidMint && !(priceMsat > 0)) throw new Error("the booster price must be a positive number of msat");
+  const notifyWalletBackupBuyer = async (buyer) => {
+    if (!buyer || typeof options.onWalletBackupBuyer !== "function") return;
+    try { await options.onWalletBackupBuyer(buyer); }
+    catch (error) {
+      /* Cards and a settled invoice are the primary transaction. A relay-file
+         fault must be visible but must never confiscate the cards; the durable
+         entitlement above lets a retry or restart repair it. */
+      console.error("[nutft] wallet-backup authorization failed:", error && error.message);
+    }
+  };
 
   /* The payment reference is whatever the funding source calls a payment: lnd
      gives a 32-byte hash, a Cashu mint gives a quote UUID. The mint stores it
@@ -696,11 +734,20 @@ function createNutftMint(options = {}) {
       throw new Error("the mint cannot reach its funding source right now — try again shortly");
     }
     const { paymentRequest, paymentHash } = invoice;
-    if (q) q.putInvoice.run(paymentHash, base.pack_id, base.state, priceNow, new Date().toISOString(), commitment ? commitment.targetHeight : null);
-    /* The invoice carries the buyer, so the claim can flag the key without
-       asking the claimant anything. Written after the row exists, and only
-       when the rule is on -- E1's invoices stay anonymous. */
-    if (q && onePerKey && buyer) q.setInvoiceBuyer.run(buyer, paymentHash);
+    /* The invoice carries the already-proven buyer so a completed paid claim
+       can grant wallet-backup transport without re-identifying the claimant.
+       Anonymous open/LNURL sales still have no buyer and gain no relay access. */
+    if (q) {
+      q.putInvoice.run(
+        paymentHash,
+        base.pack_id,
+        base.state,
+        priceNow,
+        new Date().toISOString(),
+        commitment ? commitment.targetHeight : null,
+        buyer || null,
+      );
+    }
     const head = {
       paid: true, price_msat: priceNow,
       payment_request: paymentRequest, payment_hash: paymentHash,
@@ -849,6 +896,8 @@ function createNutftMint(options = {}) {
     const previous = getOperation("booster", body.idempotency_key);
     if (previous) {
       if (previous.requestHash !== requestHash) throw new Error("idempotency_key was already used for a different booster");
+      const previousInvoice = q && paidMint ? q.invoice.get(String(body.payment_hash || "")) : null;
+      await notifyWalletBackupBuyer(previousInvoice && previousInvoice.buyer);
       return previous.result;
     }
     /* On a PAID mint the sales gate is deliberately NOT checked in this
@@ -912,6 +961,7 @@ function createNutftMint(options = {}) {
     const resolved = drawPaidCards(nextCounts, expected.pack_id, saleBeacon || beacon);
     const nextState = { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
     const result = { ...expected, cards: expected.cards, signatures, keyset_id: keyset.keysetId, resolved };
+    let walletBackupBuyer = null;
     atomic(() => {
       /* Claim in the same transaction as issuance. A malformed output, signing
          failure, or database error must leave a settled invoice retryable. */
@@ -921,11 +971,17 @@ function createNutftMint(options = {}) {
            a pack without a row would hand out a second. The PRIMARY KEY makes
            the second attempt raise rather than pass, and the raise rolls the
            whole issuance back. */
-        if (onePerKey) {
-          const invoiceRow = q.invoice.get(body.payment_hash);
-          if (invoiceRow && invoiceRow.buyer) {
+        const invoiceRow = q.invoice.get(body.payment_hash);
+        if (invoiceRow && invoiceRow.buyer) {
+          walletBackupBuyer = invoiceRow.buyer;
+          if (onePerKey) {
             q.addBuyer.run(invoiceRow.buyer, expected.pack_id, new Date().toISOString());
           }
+          q.addWalletBackupBuyer.run(
+            invoiceRow.buyer,
+            expected.pack_id,
+            new Date().toISOString(),
+          );
         }
         const claim = q.claimInvoice.run(body.payment_hash);
         if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
@@ -934,6 +990,7 @@ function createNutftMint(options = {}) {
       putOperation("booster", body.idempotency_key, requestHash, result);
     });
     Object.assign(state, nextState);
+    await notifyWalletBackupBuyer(walletBackupBuyer);
     return result;
   }
 
@@ -1148,7 +1205,11 @@ function createNutftMint(options = {}) {
 
   /* signBooster and payableQuote are exported so the payment gate can be
      tested directly, without standing up an HTTP server and an lnd. */
-  return { handle, catalogUri, collectionId, initialCommitment, state, signBooster, payableQuote, revealFor, paidMint, funding, stop, sealed: Boolean(chain) };
+  return {
+    handle, catalogUri, collectionId, initialCommitment, state, signBooster,
+    payableQuote, revealFor, walletBackupBuyers, paidMint, funding, stop,
+    sealed: Boolean(chain),
+  };
 }
 
 module.exports = { assetBinding, canonical, createNutftMint };

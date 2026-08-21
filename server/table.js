@@ -32,6 +32,7 @@ const { DatabaseSync } = require("node:sqlite");
 const { WebSocketServer } = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
 const { createNutftMint } = require("./nutft-mint.js");
+const { createRelayWalletAllowlist } = require("./relay-wallet-allowlist.js");
 
 const REPO = path.resolve(__dirname, "..");
 const E = require(path.join(REPO, "site", "engine.js"));
@@ -201,7 +202,7 @@ CREATE TABLE IF NOT EXISTS nostr_events (
  *   gNutftCensusPath?:string, gNutftCatalogUri?:string,
  *   gNutftFunding?:object, gNutftFundingBackend?:string,
  *   gNutftSales?:string, gNutftPriceMsat?:number,
- *   gNutftOnePerKey?:boolean}} opts
+ *   gNutftOnePerKey?:boolean, walletBackupAllowlistPath?:string}} opts
  */
 async function createTable(opts) {
   const options = opts || {};
@@ -306,6 +307,16 @@ async function createTable(opts) {
   const db = new DatabaseSync(dbPath);
   db.exec(DDL);
 
+  /* The relay consumes this TCG-owned file only for encrypted wallet snapshot
+   * heads (kind 37378). The mint supplies a proven buyer only after paid
+   * issuance, so the table never has to infer identity from a wallet event. */
+  const relayWalletAllowlist = options.walletBackupAllowlistPath
+    ? createRelayWalletAllowlist(options.walletBackupAllowlistPath)
+    : null;
+  const authorizeWalletBackup = relayWalletAllowlist
+    ? (pubkey) => relayWalletAllowlist.authorize(pubkey)
+    : null;
+
   const startedAt = Date.now();
   let nutft;
   try {
@@ -315,6 +326,7 @@ async function createTable(opts) {
       catalogUri: options.nutftCatalogUri,
       beacon: options.nutftBeacon,
       db,
+      onWalletBackupBuyer: authorizeWalletBackup,
     });
   } catch (error) {
     db.close();
@@ -369,12 +381,28 @@ async function createTable(opts) {
         allowVirtual: options.gNutftAllowVirtual ?? "",
         invoiceTtlSeconds: options.gNutftInvoiceTtlSeconds,
         claimGraceSeconds: options.gNutftClaimGraceSeconds,
+        onWalletBackupBuyer: authorizeWalletBackup,
       });
     } catch (error) {
       if (gDb) gDb.close();
       nutft.stop();
       db.close();
       throw error;
+    }
+  }
+
+  if (relayWalletAllowlist) {
+    try {
+      relayWalletAllowlist.authorizeMany([
+        ...nutft.walletBackupBuyers(),
+        ...(gNutft ? gNutft.walletBackupBuyers() : []),
+      ]);
+    } catch (error) {
+      if (gNutft) gNutft.stop();
+      if (gDb) gDb.close();
+      nutft.stop();
+      db.close();
+      throw new Error(`wallet-backup relay allowlist is not writable: ${error.message}`);
     }
   }
 
@@ -2161,6 +2189,7 @@ if (require.main === module) {
     gNutftClaimGraceSeconds: process.env.G_NUTFT_CLAIM_GRACE_SECONDS
       ? Number(process.env.G_NUTFT_CLAIM_GRACE_SECONDS)
       : undefined,
+    walletBackupAllowlistPath: process.env.TCG_WALLET_BACKUP_ALLOWLIST,
   })
     .then((table) => {
       console.log(`[table] 600B referee on ${table.url}  (ws ${table.wsUrl})`);

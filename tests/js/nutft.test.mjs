@@ -2536,6 +2536,53 @@ test("the G mint's one-per-key gate survives a real quote-sign-claim round trip"
   assert.equal(bobsTurn.code, 200, "a different listed key is unaffected by alice's refusal");
 });
 
+test("a signed buyer gains wallet-backup access only after the paid set is issued", async (t) => {
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const nip98mod = require("../../server/nip98.js");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { randomBytes } = await import("node:crypto");
+
+  const secret = randomBytes(32);
+  const pubkey = hex(schnorr.getPublicKey(secret));
+  const authorized = [];
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, censusPath: require.resolve("../../cards/g-census.json"),
+    collectionId: "600B-G", catalogUri: "http://127.0.0.1:9/g/nutft/catalog",
+    funding: createMockFunding({ settleAfterMs: 0 }), allowVirtual: "1", priceMsat: 210_000,
+    sales: "signed", onePerKey: true,
+    onWalletBackupBuyer: (buyer) => authorized.push(buyer),
+  });
+
+  const event = {
+    pubkey, created_at: Math.floor(Date.now() / 1000), kind: 27235, content: "",
+    tags: [["u", "https://x/nutft/quote"], ["method", "GET"]],
+  };
+  event.id = nip98mod.eventId(event);
+  event.sig = hex(schnorr.sign(event.id, secret));
+  const proof = {
+    header: "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64"),
+    method: "GET", path: "/nutft/quote", host: "x",
+  };
+
+  const quote = await mint.payableQuote({ proof });
+  assert.deepEqual(authorized, [], "signing up and reserving an unpaid set grants no relay access");
+
+  const outputs = await outputsFor(mint, quote, "http://x");
+  await mint.signBooster({
+    idempotency_key: "wallet-access-after-payment",
+    pack_id: quote.pack_id,
+    state: quote.state,
+    payment_hash: quote.payment_hash,
+    outputs,
+  });
+  assert.deepEqual(authorized, [pubkey], "the completed paid issuance authorizes its proven buyer");
+  assert.deepEqual(mint.walletBackupBuyers(), [pubkey],
+    "the entitlement is persisted so a restart can repair the relay file");
+});
+
 test('NUTFT_SALES="signed": any nostr key qualifies, no curated roster', async (t) => {
   /* This is the actual rule the owner asked for: "die was sich einloggen mit
      nip-07 duerfen genau ein deck kaufen" -- everyone who signs in, not a
