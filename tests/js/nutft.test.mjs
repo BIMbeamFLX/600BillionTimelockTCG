@@ -2347,3 +2347,155 @@ test("the hashed draw is untouched by the sequential option", async (t) => {
   const b = draw.openPack({ ...catalog.counts }, catalog.pools, catalog.slots, "11".repeat(32), "pack-0001", catalog.sequential);
   assert.deepEqual(a, b, "passing an empty sequential set changes nothing");
 });
+
+// -------------------------------------------------------- the G mint (manifest)
+
+test("createNutftMint boots a manifest census and sells a starter set end to end", async (t) => {
+  /* Not just that openManifestPack draws the right cards (proven last night) --
+     that the MINT, quote/sign/claim/state, runs against a manifest census the
+     way it runs against a drawn one. Booted against the real, generated
+     cards/g-census.json, not a fixture, so a change to build_g_supply.py that
+     breaks the shape this depends on fails here too. */
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const G = require("../../cards/g-census.json");
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, censusPath: require.resolve("../../cards/g-census.json"),
+    collectionId: "600B-G", catalogUri: "http://127.0.0.1:9/g/nutft/catalog",
+    funding: createMockFunding({ settleAfterMs: 0 }), allowVirtual: "1", priceMsat: 210_000, sales: "open",
+  });
+
+  const hit = async (method, urlPath, body) => {
+    const out = { code: 0, body: null };
+    const res = { writeHead(c) { out.code = c; return res; }, end(b) { out.body = b ? JSON.parse(b) : null; } };
+    const bytes = body ? Buffer.from(JSON.stringify(body)) : null;
+    await mint.handle(
+      { method, on: (ev, cb) => { if (ev === "data" && bytes) cb(bytes); if (ev === "end") cb(); }, setEncoding: () => {} },
+      res, new URL(`http://x${urlPath}`),
+    );
+    return out;
+  };
+
+  const info = await hit("GET", "/v1/info");
+  assert.equal(info.body.nuts["31"].paid, true);
+  assert.equal(info.body.nuts["31"].sales, "open");
+
+  const quote = await hit("GET", "/nutft/quote");
+  assert.equal(quote.code, 200);
+  /* set-0001, not pack-0001: the census declares its own pack_id_prefix
+     because a starter SET is not a booster PACK. */
+  assert.equal(quote.body.pack_id, "set-0001");
+  assert.equal(quote.body.cards.length, G.mint.cards_per_pack);
+
+  const outputs = await outputsFor(mint, quote.body, "http://x");
+  const claim = await hit("POST", "/nutft/booster", {
+    idempotency_key: "g-e2e-1", pack_id: quote.body.pack_id, state: quote.body.state,
+    payment_hash: quote.body.payment_hash, outputs,
+  });
+  assert.equal(claim.code, 200);
+  assert.equal(claim.body.signatures.length, G.mint.cards_per_pack);
+  assert.equal(claim.body.resolved.length, G.mint.cards_per_pack,
+    "a manifest pack has no separate basic slot to withhold from `resolved`");
+  assert.deepEqual(claim.body.resolved, G.manifest[0].cards,
+    "the mint issued exactly what the census lists for set 1");
+
+  const state = await hit("GET", "/nutft/state");
+  assert.equal(state.body.sold, 1);
+  assert.equal(state.body.next_pack, "set-0002", "the sequence advances in the census's own unit");
+});
+
+test("the first set the G mint sells carries a Genesis card and the FIPS promo", async (t) => {
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const G = require("../../cards/g-census.json");
+  const genesisIds = new Set(G.cards.filter((c) => c.tier === "Genesis").map((c) => c.id));
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, censusPath: require.resolve("../../cards/g-census.json"),
+    collectionId: "600B-G", catalogUri: "http://127.0.0.1:9/g/nutft/catalog",
+    funding: createMockFunding({ settleAfterMs: 0 }), allowVirtual: "1", priceMsat: 210_000, sales: "open",
+  });
+  const hit = async (method, urlPath) => {
+    const out = { code: 0, body: null };
+    const res = { writeHead(c) { out.code = c; return res; }, end(b) { out.body = b ? JSON.parse(b) : null; } };
+    await mint.handle({ method, on: () => {}, setEncoding: () => {} }, res, new URL(`http://x${urlPath}`));
+    return out;
+  };
+  const quote = await hit("GET", "/nutft/quote");
+  const ids = quote.body.cards.map((c) => c.asset_id);
+  assert.equal(ids.filter((id) => genesisIds.has(id)).length, 1, "set 1 is strong: exactly one Genesis");
+  assert.ok(ids.includes("FIPS-P01"), "set 1 is strong: carries the promo");
+});
+
+test("the G mint's one-per-key gate survives a real quote-sign-claim round trip", async (t) => {
+  /* Proven at the low level last night (nutft_buyers, the transaction). This is
+     the same guarantee through the actual HTTP surface a buyer hits: two keys,
+     one set each, and a second attempt by the first key refused before it can
+     spend a second allocation -- with a second key completely unaffected. */
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const nip98mod = require("../../server/nip98.js");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { randomBytes } = await import("node:crypto");
+
+  const makeKey = () => { const sec = randomBytes(32); return { sec, pub: hex(schnorr.getPublicKey(sec)) }; };
+  const alice = makeKey(), bob = makeKey();
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, censusPath: require.resolve("../../cards/g-census.json"),
+    collectionId: "600B-G", catalogUri: "http://127.0.0.1:9/g/nutft/catalog",
+    funding: createMockFunding({ settleAfterMs: 0 }), allowVirtual: "1", priceMsat: 210_000,
+    sales: "allowlist", allowlist: `${alice.pub},${bob.pub}`, onePerKey: true,
+  });
+
+  let nonce = 0;
+  const proofFor = (who, urlPath, method) => {
+    nonce += 1;
+    const event = {
+      pubkey: who.pub, created_at: Math.floor(Date.now() / 1000), kind: 27235, content: "",
+      tags: [["u", `https://x${urlPath}`], ["method", method], ["nonce", String(nonce)]],
+    };
+    event.id = nip98mod.eventId(event);
+    event.sig = hex(schnorr.sign(event.id, who.sec));
+    return "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64");
+  };
+  const hitSigned = async (who, method, urlPath, body) => {
+    const out = { code: 0, body: null };
+    const res = { writeHead(c) { out.code = c; return res; }, end(b) { out.body = b ? JSON.parse(b) : null; } };
+    const bytes = body ? Buffer.from(JSON.stringify(body)) : null;
+    await mint.handle(
+      { method, headers: { authorization: proofFor(who, urlPath, method) },
+        on: (ev, cb) => { if (ev === "data" && bytes) cb(bytes); if (ev === "end") cb(); }, setEncoding: () => {} },
+      res, new URL(`http://x${urlPath}`),
+    );
+    return out;
+  };
+
+  const buyOne = async (who, tag) => {
+    const quote = await hitSigned(who, "GET", "/nutft/quote");
+    if (quote.code !== 200) return quote;
+    const outputs = await outputsFor(mint, quote.body, "http://x");
+    return hitSigned(who, "POST", "/nutft/booster", {
+      idempotency_key: tag, pack_id: quote.body.pack_id, state: quote.body.state,
+      payment_hash: quote.body.payment_hash, outputs,
+    });
+  };
+
+  const first = await buyOne(alice, "alice-g-1");
+  assert.equal(first.code, 200);
+  assert.equal(first.body.signatures.length, 82);
+
+  const again = await buyOne(alice, "alice-g-2");
+  assert.equal(again.code, 400);
+  assert.match(again.body.error, /already taken its allocation/i);
+
+  const bobsTurn = await buyOne(bob, "bob-g-1");
+  assert.equal(bobsTurn.code, 200, "a different listed key is unaffected by alice's refusal");
+});

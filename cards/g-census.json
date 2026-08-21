@@ -7,6 +7,7 @@
   "cards_per_pack": 82,
   "paid_cards_per_pack": 82,
   "issuance": "manifest",
+  "pack_id_prefix": "set",
   "strong_sets": 21,
   "per_genesis_card": 3
  },

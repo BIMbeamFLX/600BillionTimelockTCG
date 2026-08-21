@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { schnorr } = require("@noble/curves/secp256k1");
-const { censusHash, hashParts, loadCensus, openPack } = require("./nutft-draw.js");
+const { censusHash, hashParts, loadCensus, openPack, openManifestPack } = require("./nutft-draw.js");
 const lnd = require("./lnd.js");
 const { createBeacon } = require("./beacon.js");
 const lnurl = require("./lnurl.js");
@@ -69,9 +69,14 @@ function readBody(req) {
 function createNutftMint(options = {}) {
   const census = JSON.parse(fs.readFileSync(options.censusPath || process.env.NUTFT_CENSUS_PATH || CENSUS_PATH, "utf8"));
   const catalog = loadCensus(census);
-  const tierOdds = Object.fromEntries(Object.entries(census.tiers)
-    .filter(([, tier]) => tier.share_of_mint != null)
-    .map(([name, tier]) => [name.toLowerCase(), Number(tier.share_of_mint.toFixed(2))]));
+  /* A MANIFEST census (a starter-set edition: content is listed, not drawn) has
+     no odds to publish, because nothing is drawn -- census.tiers does not
+     exist for one. {} is the honest answer, not a crash: the shop's odds tiles
+     are E1-only UI and never asked to render a manifest mint's tier_odds. */
+  const tierOdds = catalog.issuance === "manifest" ? {} : Object.fromEntries(
+    Object.entries(census.tiers)
+      .filter(([, tier]) => tier.share_of_mint != null)
+      .map(([name, tier]) => [name.toLowerCase(), Number(tier.share_of_mint.toFixed(2))]));
   const collectionId = options.collectionId || process.env.NUTFT_COLLECTION_ID || "600B-E1";
   const catalogUri = options.catalogUri || process.env.NUTFT_CATALOG_URI || "http://localhost:8777/nutft/catalog";
   if (!/^https?:$/.test(new URL(catalogUri).protocol)) throw new Error("NUTFT_CATALOG_URI must be an absolute HTTP(S) URL");
@@ -79,7 +84,17 @@ function createNutftMint(options = {}) {
   if (!/^[0-9a-f]{64}$/.test(beacon)) throw new Error("NUTFT_BEACON must be 32-byte hex");
 
   const cards = new Map(census.cards.map((card) => [card.id, card]));
-  const basicId = catalog.basic[0];
+  /* A manifest edition's every card is already named in the manifest entry --
+     that is the whole difference from a draw, which tops up with one free
+     Basic Resource because a drawn pack does not include one on its own.
+     catalog.basic is empty for a manifest census (nothing there has
+     pool: "none"), so basicId would be undefined and silently corrupt every
+     pack's card list; guarding here means the draw path is the only one that
+     ever reads it. */
+  const basicId = catalog.issuance === "manifest" ? null : catalog.basic[0];
+  if (catalog.issuance !== "manifest" && !basicId) {
+    throw new Error("this census has no Basic Resource to fill the free slot every draw needs");
+  }
   const initialCommitment = censusHash(catalog.counts);
   const db = options.db;
   const memory = { meta: new Map(), spent: new Set(), operations: new Map() };
@@ -392,7 +407,12 @@ function createNutftMint(options = {}) {
   };
   const catalogIssuer = () => hex(schnorr.getPublicKey(catalogPrivateKey));
   const current = () => state.state;
-  const packId = () => `pack-${String(state.nextPack).padStart(4, "0")}`;
+  /* "pack" for a drawn edition (E1). A manifest edition may declare its own —
+     G's census says "set", because a starter set is not a booster pack, and
+     its manifest is keyed set-0001 to match. Absent, "pack" is exactly today's
+     behaviour: zero change for a census that never heard of this field. */
+  const packIdPrefix = census.mint.pack_id_prefix || "pack";
+  const packId = () => `${packIdPrefix}-${String(state.nextPack).padStart(4, "0")}`;
   const atomic = (work) => {
     if (!db) return work();
     db.exec("BEGIN IMMEDIATE");
@@ -412,12 +432,39 @@ function createNutftMint(options = {}) {
     return run;
   };
 
+  /* THE ONE PLACE a pack is drawn or read, used by quote() and by the claim
+   * below -- so a draw census and a manifest census can never disagree between
+   * the two about what "pack N" means, and a future third issuance kind only
+   * has to be taught here once.
+   *
+   * DRAW (E1): openPack picks the PAID cards from weighted pools using the
+   * beacon and pack id. It does not include the free Basic -- that is added by
+   * the caller, deliberately kept separate below, because the claim path
+   * records this paid-only draw as `resolved` and a test pins that exact
+   * shape (tests/js/nutft.test.mjs: "the committed beacon advances exactly
+   * the six capped cards it revealed", asserted against the cards MINUS the
+   * basic). Folding the basic in here would silently change what that field
+   * means without changing the test that depends on it.
+   * MANIFEST (G): openManifestPack returns exactly what the census lists for
+   * this pack_id -- there is no separate "basic slot" concept to keep apart
+   * from it; the manifest entry IS the whole pack (see build_g_supply.py). */
+  function drawPaidCards(counts, id, b) {
+    if (catalog.issuance === "manifest") return openManifestPack(counts, catalog.manifest, id);
+    return openPack(counts, catalog.pools, catalog.slots, b, id, catalog.sequential);
+  }
+  /* The full pack a BUYER receives: drawPaidCards() plus the free Basic, for a
+   * draw census. A manifest census has no separate Basic to add -- its draw
+   * already is the full pack -- so this is the identity function there. */
+  function resolveFullPack(counts, id, b) {
+    const paid = drawPaidCards(counts, id, b);
+    return catalog.issuance === "manifest" ? paid : [...paid, basicId];
+  }
+
   async function quote(beaconOverride) {
     const b = beaconOverride || beacon;
     const id = packId();
     const counts = { ...state.counts };
-    const paid = openPack(counts, catalog.pools, catalog.slots, b, id, catalog.sequential);
-    const ids = [...paid, basicId];
+    const ids = resolveFullPack(counts, id, b);
     const nextState = hashParts(current(), id, b, ids.join(",")).toString("hex");
     return {
       pack_id: id,
@@ -816,7 +863,7 @@ function createNutftMint(options = {}) {
     });
 
     const nextCounts = { ...state.counts };
-    const resolved = openPack(nextCounts, catalog.pools, catalog.slots, saleBeacon || beacon, expected.pack_id, catalog.sequential);
+    const resolved = drawPaidCards(nextCounts, expected.pack_id, saleBeacon || beacon);
     const nextState = { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
     const result = { ...expected, cards: expected.cards, signatures, keyset_id: keyset.keysetId, resolved };
     atomic(() => {

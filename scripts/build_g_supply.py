@@ -263,6 +263,12 @@ def build(strict: bool = True) -> dict:
             "cards_per_pack": CARDS_PER_SET,
             "paid_cards_per_pack": CARDS_PER_SET,
             "issuance": "manifest",
+            # The mint's own packId() builds "pack-0001" for a drawn edition; a
+            # starter SET is not a booster PACK, and the manifest below is already
+            # keyed "set-0001" to say so. Declared here rather than hardcoded in the
+            # mint, so a third edition can name its own unit without another
+            # special case in server code.
+            "pack_id_prefix": "set",
             "strong_sets": STRONG_SETS,
             "per_genesis_card": PER_GENESIS_CARD,
         },
