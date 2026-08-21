@@ -30,3 +30,10 @@ art/references/join-homepage/
 # git history already holds the originals, and a second 17 MB copy of them
 # in the tree is weight with no new information in it.
 art/world-plates/original/
+
+# A database moved aside by hand is still a database. *.db does not match
+# matches.db.pre-r3-20260820_225142, and those files carry mint_seed and
+# catalog_private_key rows — one `git add -A` would put mint keys in a public
+# repo. Ignore anything that starts life as one.
+*.db.*
+*.sqlite.*
