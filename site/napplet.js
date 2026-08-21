@@ -97,6 +97,23 @@
 
   const LS_PUBKEY = "600b:pubkey"; // the key the website's own login already writes
 
+  /* NIP-44 is the only bridge a bearer wallet may use between devices. The
+   * npub identifies the encrypted record; it is not a password and cannot open
+   * anything. All encryption stays on the host side through this adapter, just
+   * like signing. A napplet that does not expose NIP-44 refuses sync with a
+   * backup-file fallback -- missing capability never becomes a key leak. */
+  const nip44Provider = () => {
+    if (has("identity")) {
+      const provided = shell.identity.nip44 || shell.nip44;
+      if (provided && typeof provided.encrypt === "function"
+          && typeof provided.decrypt === "function") return provided;
+      return null;
+    }
+    const provided = globalThis.nostr && globalThis.nostr.nip44;
+    return provided && typeof provided.encrypt === "function"
+      && typeof provided.decrypt === "function" ? provided : null;
+  };
+
   const identity = {
     /** Where the current identity comes from, for UI that must be honest about it. */
     source() {
@@ -139,6 +156,25 @@
       if (has("identity") && shell.identity.signEvent) return shell.identity.signEvent(event);
       if (globalThis.nostr && globalThis.nostr.signEvent) return globalThis.nostr.signEvent(event);
       throw new Error("no signer available");
+    },
+    nip44: {
+      available: () => Boolean(nip44Provider()),
+      async encrypt(pubkey, plaintext) {
+        if (!/^[0-9a-f]{64}$/.test(String(pubkey || ""))) {
+          throw new Error("NIP-44 needs a valid recipient pubkey");
+        }
+        const provider = nip44Provider();
+        if (!provider) throw new Error("this signer does not offer NIP-44 encryption");
+        return provider.encrypt(pubkey, String(plaintext));
+      },
+      async decrypt(pubkey, ciphertext) {
+        if (!/^[0-9a-f]{64}$/.test(String(pubkey || ""))) {
+          throw new Error("NIP-44 needs a valid sender pubkey");
+        }
+        const provider = nip44Provider();
+        if (!provider) throw new Error("this signer does not offer NIP-44 decryption");
+        return provider.decrypt(pubkey, String(ciphertext));
+      },
     },
     forget() {
       localDel(LS_PUBKEY);

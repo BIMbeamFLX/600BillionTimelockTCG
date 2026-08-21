@@ -85,6 +85,40 @@ async function browserWallet(storage, fetchImpl, nostr) {
   return context.NutFTWallet;
 }
 
+test("relay sync replaces only the exact wallet state it inspected", async () => {
+  const STORE = "600b:nutft-wallet";
+  const state = (key, tokens = []) => ({
+    privateKey: key, pubkey: `${key}-pub`, tokens, outgoing: [],
+  });
+  const backup = (wallet) => JSON.stringify({ format: "600b-nutft-wallet-v1", wallet });
+
+  const storage = new Map([[STORE, JSON.stringify(state("local"))]]);
+  const wallet = await browserWallet(storage, async () => { throw new Error("unused"); });
+  const expected = await wallet.exportBackup();
+  assert.equal(await wallet.replaceBackup(backup(state("remote", ["cashu-remote"])), expected), 1);
+  assert.deepEqual(JSON.parse(storage.get(STORE)), state("remote", ["cashu-remote"]),
+    "a generated empty mobile wallet may adopt the synced P2BK wallet");
+
+  const staleStorage = new Map([[STORE, JSON.stringify(state("same", ["one"]))]]);
+  const staleWallet = await browserWallet(staleStorage, async () => { throw new Error("unused"); });
+  const staleExpected = await staleWallet.exportBackup();
+  staleStorage.set(STORE, JSON.stringify(state("same", ["one", "another-tab"])));
+  await assert.rejects(
+    () => staleWallet.replaceBackup(backup(state("same", ["remote"])), staleExpected),
+    /changed in another tab/,
+  );
+  assert.deepEqual(JSON.parse(staleStorage.get(STORE)), state("same", ["one", "another-tab"]));
+
+  const occupiedStorage = new Map([[STORE, JSON.stringify(state("first", ["mine"]))]]);
+  const occupied = await browserWallet(occupiedStorage, async () => { throw new Error("unused"); });
+  const occupiedExpected = await occupied.exportBackup();
+  await assert.rejects(
+    () => occupied.replaceBackup(backup(state("second", ["theirs"])), occupiedExpected),
+    /two different non-empty wallets/,
+  );
+  assert.deepEqual(JSON.parse(occupiedStorage.get(STORE)), state("first", ["mine"]));
+});
+
 test("browser wallet survives reload and preserves corrupted storage", async (t) => {
   const catalogUri = "http://127.0.0.1/nutft/catalog";
   const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });

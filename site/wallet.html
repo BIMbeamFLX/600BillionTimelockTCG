@@ -77,6 +77,7 @@
 .tool-note { margin: 10px 0 0; min-height: 20px; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .tool-note.bad { color: var(--danger); }
 .keyline { font-family: var(--mono); font-size: 12px; color: var(--cream); word-break: break-all; }
+#syncWallet { min-height: 44px; }
 
 /* The last thing between a person and an irreversible spend, so it wears the
    one action colour and names the card in full. */
@@ -245,6 +246,21 @@
     </div>
   </section>
 
+  <section class="section section--tight" aria-labelledby="syncTitle">
+    <h2 id="syncTitle">Wallet <span class="accent">sync</span></h2>
+    <p class="muted" style="max-width:var(--measure)">Carry this wallet to another device through
+      <b>relay.bimcvp.com</b>. The complete snapshot is encrypted by your Nostr signer before it leaves this browser.
+      Your npub points to it, but cannot open it; use the same signer on the other device. The relay never sees the
+      wallet key, cards or Cashu tokens.</p>
+    <p class="hint" style="max-width:var(--measure)">Sync once after buying, sending or receiving, then press the same
+      button on the other device. If two devices both changed the same revision, both copies are preserved and sync
+      stops instead of choosing one.</p>
+    <div class="row" style="margin-top:14px;max-width:760px">
+      <button class="btn" id="syncWallet" type="button" style="flex:0 0 auto">Sync over BIMCVP relay</button>
+    </div>
+    <p class="tool-note" id="syncNote" role="status" aria-live="polite"></p>
+  </section>
+
   <section class="section section--tight" aria-labelledby="backupTitle">
     <h2 id="backupTitle">Wallet <span class="accent">backup</span></h2>
     <p class="muted" style="max-width:var(--measure)">The backup contains the private key and the tokens themselves.
@@ -260,7 +276,9 @@
   </section>
 </main>
 
+<script src="schnorr.js"></script>
 <script src="nutft-wallet.js"></script>
+<script src="nostr-wallet-sync.js"></script>
 <script src="bugreport.js" defer></script>
 <script>
 (async function () {
@@ -326,6 +344,7 @@
   const importNote = $("importNote");
   const recover = $("recover");
   const recoverText = $("recoverText");
+  const syncNote = $("syncNote");
 
   /* What the last snapshot found, kept so the trade desk can answer questions
    * about the collection without asking the mint a second time. */
@@ -944,6 +963,27 @@
 
   const copy = async (value) => { if (!value) return; if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value); };
   $("copyDestination").addEventListener("click", () => copy(destination.value));
+
+  $("syncWallet").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    say(syncNote, "Checking the signed wallet chain on relay.bimcvp.com…");
+    try {
+      const result = await root.E1WalletSync.sync();
+      if (result.status === "restored") {
+        destination.value = await root.NutFTWallet.destination();
+        await refresh();
+        say(syncNote, `Restored revision ${result.revision}: ${result.tokens} token${result.tokens === 1 ? "" : "s"} now live on this device.`);
+      } else if (result.status === "published") {
+        say(syncNote, `Revision ${result.revision} is encrypted and signed on the BIMCVP relay. The other device can pull it now.`);
+      } else {
+        say(syncNote, `Revision ${result.revision} is already current on this device and the BIMCVP relay.`);
+      }
+    } catch (thrown) {
+      say(syncNote, `Sync stopped: ${reason(thrown)}. No local wallet was overwritten.`, true);
+    }
+    button.disabled = false;
+  });
 
   $("downloadBackup").addEventListener("click", async () => {
     const blob = new Blob([await root.NutFTWallet.exportBackup()], { type: "application/json" });

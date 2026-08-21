@@ -131,6 +131,34 @@ test("a junk identity from either source is refused rather than seated", async (
   await assert.rejects(() => bad.identity.login(), /usable identity/);
 });
 
+test("NIP-44 stays inside the signer and disappears cleanly when unavailable", async () => {
+  const KEY = "b".repeat(64);
+  const calls = [];
+  const withNip44 = load({
+    localStorage: memoryStorage().api,
+    document: stubRoot(),
+    nostr: {
+      getPublicKey: async () => KEY,
+      nip44: {
+        encrypt: async (pubkey, plaintext) => {
+          calls.push(["encrypt", pubkey, plaintext]); return "sealed";
+        },
+        decrypt: async (pubkey, ciphertext) => {
+          calls.push(["decrypt", pubkey, ciphertext]); return "opened";
+        },
+      },
+    },
+  });
+  assert.equal(withNip44.identity.nip44.available(), true);
+  assert.equal(await withNip44.identity.nip44.encrypt(KEY, "wallet"), "sealed");
+  assert.equal(await withNip44.identity.nip44.decrypt(KEY, "sealed"), "opened");
+  assert.deepEqual(calls, [["encrypt", KEY, "wallet"], ["decrypt", KEY, "sealed"]]);
+
+  const bare = load({ localStorage: memoryStorage().api, document: stubRoot() });
+  assert.equal(bare.identity.nip44.available(), false);
+  await assert.rejects(() => bare.identity.nip44.encrypt(KEY, "wallet"), /does not offer NIP-44/);
+});
+
 // ------------------------------------------------------------------- theme
 
 test("without a theme domain the fallback palette is painted", () => {

@@ -822,22 +822,63 @@
     return JSON.stringify({ format: "600b-nutft-wallet-v1", wallet: state }, null, 2);
   }
 
-  async function restoreBackupUnlocked(text) {
+  function backupFrom(text) {
     let backup;
     try { backup = JSON.parse(text); }
     catch { throw new Error("wallet backup is not valid JSON"); }
-    if (backup?.format !== "600b-nutft-wallet-v1" || !validState(backup.wallet)) throw new Error("wallet backup has an invalid format");
+    if (backup?.format !== "600b-nutft-wallet-v1" || !validState(backup.wallet)) {
+      throw new Error("wallet backup has an invalid format");
+    }
+    return backup.wallet;
+  }
+
+  async function restoreBackupUnlocked(text) {
+    const wallet = backupFrom(text);
     const current = await read();
-    if (current.tokens.length || current.pending) throw new Error("restore requires an empty wallet so existing bearer assets are not overwritten");
-    write(backup.wallet);
-    return backup.wallet.tokens.length;
+    if (current.tokens.length || current.pending) {
+      throw new Error("restore requires an empty wallet so existing bearer assets are not overwritten");
+    }
+    write(wallet);
+    return wallet.tokens.length;
   }
 
   const restoreBackup = (text) => locked(() => restoreBackupUnlocked(text));
 
+  /* cashu-sync's snapshot rule is REPLACE AFTER HEAD CHECK, never merge. A merge can
+   * resurrect a stale spent token or combine two different pending operations.
+   * The caller hands us the exact state it inspected before its network round
+   * trip; the lock makes this a compare-and-swap against localStorage too, so a
+   * purchase completed in another tab cannot be overwritten by a remote head.
+   * A generated-but-empty mobile wallet may adopt the remote P2BK key. A
+   * non-empty wallet under a different key is preserved and refused. */
+  async function replaceBackupUnlocked(text, expectedText) {
+    const remote = backupFrom(text);
+    const expected = backupFrom(expectedText);
+    const current = await read();
+    if (canonical(current) !== canonical(expected)) {
+      throw new Error(
+        "this wallet changed in another tab while sync was running; nothing was overwritten",
+      );
+    }
+    const currentHasData = current.tokens.length || current.pending
+      || (Array.isArray(current.outgoing) && current.outgoing.length);
+    const sameKey = current.privateKey === remote.privateKey && current.pubkey === remote.pubkey;
+    if (currentHasData && !sameKey) {
+      throw new Error(
+        "this device and the sync head hold two different non-empty wallets; download both backups instead of overwriting either one",
+      );
+    }
+    write(remote);
+    return remote.tokens.length;
+  }
+
+  const replaceBackup = (text, expectedText) => locked(
+    () => replaceBackupUnlocked(text, expectedText),
+  );
+
   root.NutFTWallet = {
     buyBooster, claimBooster, snapshot, snapshotMany, tradeProof, importToken,
     destination, recoverPending, outgoing, forgetOutgoing, exportBackup,
-    restoreBackup, read, cashu, hex, bytes,
+    restoreBackup, replaceBackup, read, cashu, hex, bytes,
   };
 })(globalThis);
