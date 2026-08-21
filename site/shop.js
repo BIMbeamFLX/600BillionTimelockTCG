@@ -93,6 +93,7 @@
   /* The live mint's base URL. Null until the operator has one — the shop then
    * explains itself instead of pretending to sell. */
   const MINT_URL = root.location && /^https?:$/.test(root.location.protocol) ? root.location.origin : null;
+  const G_MINT_URL = MINT_URL ? `${MINT_URL}/g` : null;
   const PAID_LIVE = Boolean(MINT_URL);
 
   const params = new URLSearchParams(root.location.search);
@@ -257,6 +258,8 @@
        only its id, because a mint has no opinion about what a card is called. */
     promo: { id: (G && G.promoId) || "FIPS-P01", name: "Global FIPS Balloon Network", face: "Global FIPS Balloon Network.webp" },
   };
+  let starterMint = null;
+  let starterBusy = false;
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => {
@@ -1272,8 +1275,8 @@
      carrying its own test suite, not a new dependency. Wrapped in try/catch:
      an unscannable code would be worse than the plain text alone, so a failure
      here falls back to exactly what this page showed before it had one. */
-  function showInvoice(invoice) {
-    const note = $("packNote");
+  function showInvoice(invoice, noteId = "packNote") {
+    const note = $(noteId);
     if (!note) return;
     note.className = "pack-note";
     note.innerHTML = "";
@@ -1333,8 +1336,8 @@
     note.append(body, row, wait);
   }
 
-  function clearInvoice() {
-    const note = $("packNote");
+  function clearInvoice(noteId = "packNote") {
+    const note = $(noteId);
     if (note) { note.innerHTML = ""; note.textContent = ""; }
   }
 
@@ -1565,6 +1568,100 @@
     };
   }
 
+  async function readStarterMint() {
+    if (!G_MINT_URL || !ONLINE) {
+      starterMint = { verified: false, problem: "The G mint cannot be reached from this page." };
+      renderStarter();
+      return;
+    }
+    try {
+      const [infoResponse, stateResponse, catalogResponse] = await Promise.all([
+        fetch(`${G_MINT_URL}/v1/info`),
+        fetch(`${G_MINT_URL}/nutft/state`),
+        fetch(`${G_MINT_URL}/nutft/catalog`),
+      ]);
+      if (!infoResponse.ok || !stateResponse.ok || !catalogResponse.ok) {
+        throw new Error(`G mint endpoints answered ${infoResponse.status}/${stateResponse.status}/${catalogResponse.status}`);
+      }
+      const info = await infoResponse.json();
+      const state = await stateResponse.json();
+      const catalog = await catalogResponse.json();
+      const nut31 = (info && info.nuts && info.nuts["31"]) || {};
+      const expectedCatalog = `${G_MINT_URL}/nutft/catalog`;
+      const problems = [];
+      if (state.unit !== STARTER.collectionId) problems.push(`unit ${state.unit || "missing"}`);
+      if (catalog.collection_id !== STARTER.collectionId) problems.push("catalog collection");
+      if (catalog.catalog_uri !== expectedCatalog) problems.push("catalog URI");
+      if (state.census_sha256 !== (G && G.commitment)) problems.push("census fingerprint");
+      if (Number(state.packs) !== STARTER.sets) problems.push("set count");
+      if (Number(state.cards_per_pack) !== STARTER.cardsPerSet) problems.push("cards per set");
+      if (nut31.paid !== true || nut31.virtual_sats === true || nut31.test_mint === true) {
+        problems.push("production funding");
+      }
+      if (nut31.funding !== "phoenixd") problems.push("first-party phoenixd funding");
+      if (nut31.issuance !== "manifest" || nut31.product !== "starter set") {
+        problems.push("starter-set issuance");
+      }
+      if (nut31.one_per_key !== true) problems.push("one-per-key gate");
+      starterMint = {
+        verified: problems.length === 0,
+        problem: problems.length ? `Configuration mismatch: ${problems.join(", ")}.` : "",
+        state,
+        catalog,
+        info: nut31,
+      };
+    } catch (error) {
+      starterMint = { verified: false, problem: String((error && error.message) || error) };
+    }
+    renderStarter();
+  }
+
+  function renderStarterSale() {
+    const pill = $("starterSaleState");
+    const button = $("buyStarter");
+    const note = $("starterState");
+    if (!pill || !button || !note) return;
+
+    if (!starterMint) {
+      pill.className = "state state--off";
+      pill.textContent = "EDITION G · CHECKING";
+      button.disabled = true;
+      button.textContent = "Checking the G mint…";
+      note.innerHTML = "<strong>Checking the G mint.</strong> No order is possible until its catalog, cap, funding and one-per-key rule agree.";
+      return;
+    }
+    if (!starterMint.verified) {
+      pill.className = "state state--off";
+      pill.textContent = "EDITION G · OFFLINE";
+      button.disabled = true;
+      button.textContent = "Starter sets are not available";
+      note.innerHTML = `<strong>The G mint is not ready.</strong> ${starterMint.problem}`;
+      return;
+    }
+
+    const { state, info } = starterMint;
+    const sold = Number(state.sold) || 0;
+    const packs = Number(state.packs) || STARTER.sets;
+    const empty = sold >= packs;
+    const closed = state.sales === "closed";
+    const priceSats = Number(info.price_msat) / 1000;
+    pill.className = `state ${closed || empty ? "state--off" : "state--live"}`;
+    pill.textContent = closed ? "EDITION G · CLOSED" : empty ? "EDITION G · SOLD OUT" : "EDITION G · LIVE";
+    button.disabled = starterBusy || closed || empty;
+    button.textContent = starterBusy
+      ? "Buying…"
+      : closed
+        ? "The G mint is not open yet"
+        : empty
+          ? "Every starter set has been sold"
+          : `Buy one starter set · ${num(priceSats)} sats`;
+    note.innerHTML = closed
+      ? `<strong>The G mint is verified and closed.</strong> ${num(packs - sold)} of ${num(packs)} sets remain; opening the till is a configuration change.`
+      : empty
+        ? `<strong>The G run is complete.</strong> All ${num(packs)} fixed starter sets have been issued.`
+        : `<strong>Live.</strong> ${num(packs - sold)} of ${num(packs)} fixed starter sets remain. Sign with any nostr key, pay ${num(priceSats)} sats, and that key receives one set — once.`;
+  }
+
   function renderStarter() {
     const f = starterFacts();
     const promo = STARTER.promo;
@@ -1618,11 +1715,7 @@
     if (FACES) FACES.setFace(face, promo.face);
     else face.src = `../art/cards/node-runner-web/${encodeURIComponent(promo.face)}`;
 
-    $("starterState").innerHTML =
-      "<strong>Not on sale yet.</strong> There is no G mint. Nothing on this page can quote a price, request an " +
-      "invoice or take an order for a starter set, and no list is being kept. When a G mint exists it will publish " +
-      "this edition's catalog and its cap the same way the E1 mint publishes its census, and this button will do " +
-      "something.";
+    renderStarterSale();
 
     /* The strong sets, said without the E1 comparison, which is the only part
        that needs the census. */
@@ -1863,6 +1956,7 @@
       if (signedIn) identityNote(ASK_THE_MINT);
       else identityNote(ID && ID.source() !== "none" ? SIGN_IN_FIRST : NO_SIGNER);
     }
+    await readStarterMint();
     durable = await probeStorage();
     booting = false;
     renderHistory();
@@ -1886,6 +1980,32 @@
   }
 
   function bindControls() {
+    $("buyStarter").addEventListener("click", async () => {
+      const note = $("starterBuyNote");
+      starterBusy = true;
+      renderStarterSale();
+      note.className = "pack-note";
+      note.textContent = "";
+      try {
+        if (!starterMint || !starterMint.verified) throw new Error("the G mint is not ready");
+        if (!root.NutFTWallet) throw new Error("the NutFT wallet is not available");
+        const issued = await root.NutFTWallet.buyBooster(G_MINT_URL, {
+          onInvoice: (invoice) => showInvoice(invoice, "starterBuyNote"),
+          onWaiting: () => { if (note && note.dataset) note.dataset.waiting = "1"; },
+        });
+        clearInvoice("starterBuyNote");
+        note.className = "pack-note";
+        note.innerHTML = `<strong>Starter set received.</strong> ${issued.cards.length} G cards are now in <a href="wallet.html">your wallet</a>.`;
+        await readStarterMint();
+      } catch (error) {
+        note.className = "pack-note is-error";
+        note.textContent = String((error && error.message) || error);
+      } finally {
+        starterBusy = false;
+        renderStarterSale();
+      }
+    });
+
     $("openPack").addEventListener("click", async () => {
       busy = true;
       syncControls();

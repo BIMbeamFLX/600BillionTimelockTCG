@@ -2604,3 +2604,90 @@ test('NUTFT_SALES="signed" plus one-per-key: two strangers, one set each', async
   const bobFirst = await mint.payableQuote({ proof: authFor(bob, "/nutft/quote", "GET") });
   assert.ok(bobFirst.pack_id, "bob, a different stranger, is unaffected by alice's cap");
 });
+
+test("the referee mounts an independent production-shaped G mint under /g", async (t) => {
+  const { createMockFunding } = require("../../server/funding.js");
+  const e1Catalog = "http://127.0.0.1/e1/nutft/catalog";
+  const gCatalog = "http://127.0.0.1/g/nutft/catalog";
+  const table = await createTable({
+    port: 0,
+    host: "127.0.0.1",
+    dbPath: ":memory:",
+    nutftCatalogUri: e1Catalog,
+    gNutftEnabled: true,
+    gNutftDbPath: ":memory:",
+    gNutftCatalogUri: gCatalog,
+    gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
+    gNutftAllowVirtual: "1",
+    gNutftSales: "open",
+    gNutftOnePerKey: false,
+    gNutftPriceMsat: 210_000,
+  });
+  t.after(() => table.close());
+
+  const [e1State, gState, gInfo, gCatalogResponse] = await Promise.all([
+    fetch(`${table.url}/nutft/state`).then((response) => response.json()),
+    fetch(`${table.url}/g/nutft/state`).then((response) => response.json()),
+    fetch(`${table.url}/g/v1/info`).then((response) => response.json()),
+    fetch(`${table.url}/g/nutft/catalog`).then((response) => response.json()),
+  ]);
+  assert.equal(e1State.unit, "600B-E1");
+  assert.equal(e1State.sold, 0);
+  assert.equal(gState.unit, "600B-G");
+  assert.equal(gState.next_pack, "set-0001");
+  assert.equal(gState.sold, 0);
+  assert.equal(gState.packs, 210);
+  assert.equal(gState.cards_per_pack, 82);
+  assert.equal(gInfo.nuts["31"].product, "starter set");
+  assert.equal(gInfo.nuts["31"].issuance, "manifest");
+  assert.equal(gCatalogResponse.catalog_uri, gCatalog);
+
+  const quote = await fetch(`${table.url}/g/nutft/quote`).then((response) => response.json());
+  assert.equal(quote.pack_id, "set-0001");
+  assert.equal(quote.cards.length, 82);
+  assert.equal(quote.price_msat, 210_000);
+  assert.equal((await fetch(`${table.url}/gibberish/nutft/state`)).status, 404,
+    "the /g prefix is a path segment, not a startsWith wildcard");
+});
+
+test("one browser wallet reads E1 boosters and G starter sets together", async (t) => {
+  const { createMockFunding } = require("../../server/funding.js");
+  const e1Catalog = "http://127.0.0.1/e1/nutft/catalog";
+  const gCatalog = "http://127.0.0.1/g/nutft/catalog";
+  const table = await createTable({
+    port: 0,
+    host: "127.0.0.1",
+    dbPath: ":memory:",
+    nutftCatalogUri: e1Catalog,
+    gNutftEnabled: true,
+    gNutftDbPath: ":memory:",
+    gNutftCatalogUri: gCatalog,
+    gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
+    gNutftAllowVirtual: "1",
+    gNutftSales: "open",
+    gNutftOnePerKey: false,
+    gNutftPriceMsat: 210_000,
+  });
+  t.after(() => table.close());
+  const fetchImpl = (url, options) => {
+    if (url === e1Catalog) return fetch(`${table.url}/nutft/catalog`, options);
+    if (url === gCatalog) return fetch(`${table.url}/g/nutft/catalog`, options);
+    return fetch(url, options);
+  };
+  const wallet = await browserWallet(new Map(), fetchImpl);
+  await wallet.buyBooster(table.url);
+  await wallet.buyBooster(`${table.url}/g`);
+
+  const e1Only = await wallet.snapshot(table.url);
+  assert.equal(e1Only.owned.length, 15);
+  assert.equal(e1Only.unreadable.length, 1,
+    "a single-mint view still reports the other mint's token as opaque");
+
+  const combined = await wallet.snapshotMany([table.url, `${table.url}/g`]);
+  assert.equal(combined.owned.length, 97);
+  assert.equal(combined.invalid.length, 0);
+  assert.equal(combined.unreadable.length, 0);
+  assert.deepEqual(new Set(combined.owned.map((item) => item.unit)), new Set(["600B-E1", "600B-G"]));
+  assert.deepEqual(new Set(combined.catalogs.map((catalog) => catalog.collection_id)),
+    new Set(["600B-E1", "600B-G"]));
+});

@@ -267,6 +267,8 @@
   "use strict";
   const root = globalThis;
   const mint = root.location.origin;
+  const gMint = `${mint}/g`;
+  const mints = [mint, gMint];
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => {
     const node = document.createElement(tag);
@@ -328,10 +330,12 @@
   /* What the last snapshot found, kept so the trade desk can answer questions
    * about the collection without asking the mint a second time. */
   let stacks = [];                       // one entry per distinct card, rarest first
-  const byAsset = new Map();             // asset_id -> stack
+  const byAsset = new Map();             // collection_id + asset_id -> stack
   const verifiedAssets = new Map();      // "catalog_uri\nasset_id" -> catalog entry
-  let keysetIds = [];                    // every 600B-E1 keyset this mint will name
+  let keysetIds = [];                    // every supported 600B keyset either mint names
+  const mintUnits = new Map();           // mint URL -> supported unit
   let pendingSend = null;                // the transfer sitting on the confirmation
+  let pendingImportMint = null;          // mint named by the checked incoming token
 
   const digest = async (bytes) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -365,8 +369,16 @@
     const map = new Map();
     for (const item of owned) {
       const id = item.tag[2];
-      let stack = map.get(id);
-      if (!stack) map.set(id, (stack = { id, asset: item.asset, tier: tierOf(item.asset), items: [] }));
+      const collectionId = item.tag[1];
+      const key = `${collectionId}\n${id}`;
+      let stack = map.get(key);
+      if (!stack) {
+        stack = {
+          key, id, collectionId, asset: item.asset,
+          tier: tierOf(item.asset), items: [],
+        };
+        map.set(key, stack);
+      }
       stack.items.push(item);
     }
     /* Rarest first so the cards worth finding are where a person looks first,
@@ -418,7 +430,8 @@
     body.append(el("strong", null, stack.asset.name));
     /* The ×N square is decorative; the copies are spelled out here so the tile
      * reads the same aloud as it does on screen. */
-    body.append(el("p", null, `${stack.asset.tier} · ${stack.id} · ${count === 1 ? "1 copy" : `${count} copies`}`));
+    body.append(el("p", null,
+      `${stack.asset.tier} · ${stack.collectionId} · ${stack.id} · ${count === 1 ? "1 copy" : `${count} copies`}`));
     if (count > stack.tier.copies) {
       body.append(el("p", "wallet-card__over", stack.tier.copies === 1
         ? "A Stack may hold one — the rest are spares to trade."
@@ -429,7 +442,7 @@
     const send = el("button", "btn btn--ghost btn--small", "Send a copy");
     send.type = "button";
     send.addEventListener("click", () => {
-      sendCard.value = stack.id;
+      sendCard.value = stack.key;
       resetConfirm();
       recipientKey.focus();
       recipientKey.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
@@ -458,7 +471,7 @@
   async function renderCollection(owned) {
     stacks = groupOwned(owned);
     byAsset.clear();
-    for (const stack of stacks) byAsset.set(stack.id, stack);
+    for (const stack of stacks) byAsset.set(stack.key, stack);
 
     $("ownedCount").textContent = String(owned.length);
     $("uniqueCount").textContent = String(stacks.length);
@@ -512,14 +525,17 @@
     $("sendReview").disabled = false;
     for (const stack of stacks) {
       const copies = stack.items.length === 1 ? "1 copy" : `${stack.items.length} copies`;
-      sendCard.append(new Option(`${stack.asset.name} — ${stack.asset.tier} · ${copies}`, stack.id));
+      sendCard.append(new Option(
+        `${stack.asset.name} — ${stack.collectionId} · ${stack.asset.tier} · ${copies}`,
+        stack.key,
+      ));
     }
     if (byAsset.has(previous)) sendCard.value = previous;
     /* A confirmation left standing across a reload of the collection must point
      * at the proof that is there NOW. Anything else offers to spend a card the
      * mint has already moved. */
     if (pendingSend) {
-      const fresh = byAsset.get(pendingSend.stack.id);
+      const fresh = byAsset.get(pendingSend.stack.key);
       if (fresh) pendingSend.stack = fresh;
       else {
         resetConfirm();
@@ -702,7 +718,11 @@
     button.disabled = true;
     say(sendNote, `Asking the mint to move ${stack.asset.name}…`);
     try {
-      const result = await root.NutFTWallet.tradeProof(mint, stack.items[0].proof.secret, recipient);
+      const result = await root.NutFTWallet.tradeProof(
+        stack.items[0].mintUrl,
+        stack.items[0].proof.secret,
+        recipient,
+      );
       const name = stack.asset.name;
       resetConfirm();
       const box = addHandoff(name, recipient, result.token);
@@ -735,10 +755,22 @@
    * same list. Inactive keysets are kept on purpose: a token signed before a
    * rotation still deserves to be read out loud before it is imported. */
   async function readKeysetIds() {
-    const response = await fetch(`${mint}/v1/keys`);
-    if (!response.ok) throw new Error(`mint keys unavailable (${response.status})`);
-    const data = await response.json();
-    return (data.keysets || []).filter((keyset) => keyset.unit === "600B-E1").map((keyset) => keyset.id);
+    const ids = [];
+    for (const mintUrl of mints) {
+      try {
+        const response = await fetch(`${mintUrl}/v1/keys`);
+        if (!response.ok) continue;
+        const data = await response.json();
+        const supported = (data.keysets || []).filter(
+          (keyset) => /^600B-(?:E1|G)$/.test(keyset.unit || ""),
+        );
+        for (const keyset of supported) ids.push(keyset.id);
+        const active = supported.find((keyset) => keyset.active !== false);
+        if (active) mintUnits.set(mintUrl, active.unit);
+      } catch { /* an optional mint may be offline; the other still works */ }
+    }
+    if (!ids.length) throw new Error("mint keys unavailable");
+    return ids;
   }
 
   const previewKey = (uri, assetId) => `${uri}\n${assetId}`;
@@ -779,8 +811,11 @@
     importPreview.replaceChildren();
     const detail = await describeToken(text);
     const problems = [];
-    if (detail.mint !== mint) problems.push(`the token names a different mint (${detail.mint})`);
-    if (detail.unit !== "600B-E1") problems.push(`the unit is ${detail.unit}, not 600B-E1`);
+    const expectedUnit = mintUnits.get(detail.mint);
+    if (!expectedUnit) problems.push(`the token names an unsupported mint (${detail.mint})`);
+    if (expectedUnit && detail.unit !== expectedUnit) {
+      problems.push(`the unit is ${detail.unit}, but that mint advertises ${expectedUnit}`);
+    }
     if (!detail.cards.length) problems.push("it carries no proofs");
     if (detail.cards.some((card) => !card.mine)) problems.push("at least one card is locked to a different key than yours");
 
@@ -814,7 +849,11 @@
     /* The verdict is handed back rather than printed here, so it lands in the
      * one live region on this panel — a preview a screen reader is never told
      * about is a preview only some people get. */
-    if (problems.length) return { ok: false, verdict: `This wallet cannot accept it: ${problems.join("; ")}.` };
+    if (problems.length) {
+      pendingImportMint = null;
+      return { ok: false, verdict: `This wallet cannot accept it: ${problems.join("; ")}.` };
+    }
+    pendingImportMint = detail.mint;
     return {
       ok: true,
       verdict: detail.cards.length === 1
@@ -846,6 +885,7 @@
   /* A token edited after the check is a different token, and the accept button
    * must not still be armed from the last one. */
   importToken.addEventListener("input", () => {
+    pendingImportMint = null;
     importButton.disabled = true;
     importPreview.hidden = true;
   });
@@ -855,7 +895,9 @@
     button.disabled = true;
     say(importNote, "Verifying with the mint…");
     try {
-      const count = await root.NutFTWallet.importToken(mint, importToken.value.trim());
+      if (!pendingImportMint) throw new Error("check this token before accepting it");
+      const count = await root.NutFTWallet.importToken(pendingImportMint, importToken.value.trim());
+      pendingImportMint = null;
       importToken.value = "";
       importPreview.hidden = true;
       say(importNote, count === 1 ? "Accepted. The card is in the collection above." : `Accepted. ${count} cards are in the collection above.`);
@@ -871,17 +913,24 @@
   async function refresh() {
     error.hidden = true;
     try {
-      const snapshot = await root.NutFTWallet.snapshot(mint);
-      meta.replaceChildren(chip(`${snapshot.owned.length} UNSPENT`), chip("UNIT 600B-E1"));
+      const snapshot = await root.NutFTWallet.snapshotMany(mints);
+      meta.replaceChildren(chip(`${snapshot.owned.length} UNSPENT`));
+      const byUnit = new Map();
+      for (const item of snapshot.owned) {
+        byUnit.set(item.unit, (byUnit.get(item.unit) || 0) + 1);
+      }
+      for (const [unit, count] of byUnit) meta.append(chip(`${unit} · ${count}`));
       if (snapshot.spent.length) meta.append(chip(`${snapshot.spent.length} SPENT`));
       if (snapshot.invalid.length) meta.append(chip(`${snapshot.invalid.length} REJECTED`));
       if (snapshot.unreadable.length) meta.append(chip(`${snapshot.unreadable.length} UNREADABLE`));
-      if (snapshot.catalog) {
-        meta.append(chip(`CATALOG ${snapshot.catalog.census_sha256.slice(0, 12)}…`));
+      for (const catalog of snapshot.catalogs) {
+        meta.append(chip(`${catalog.collection_id} ${catalog.census_sha256.slice(0, 12)}…`));
         /* Every asset of a catalog whose signature has already been checked —
          * which is what lets a pasted token be named without fetching anything
          * a stranger pointed at. */
-        for (const asset of snapshot.catalog.assets || []) verifiedAssets.set(previewKey(snapshot.catalog.catalog_uri, asset.asset_id), asset);
+        for (const asset of catalog.assets || []) {
+          verifiedAssets.set(previewKey(catalog.catalog_uri, asset.asset_id), asset);
+        }
       }
       renderCannotRead(snapshot.unreadable, snapshot.invalid);
       await renderCollection(snapshot.owned);

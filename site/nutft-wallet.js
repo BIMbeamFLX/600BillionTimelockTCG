@@ -103,8 +103,15 @@
     }
     const data = await response.json();
     const keyset = data.keysets && data.keysets.find((entry) => entry.active !== false);
-    if (!keyset || keyset.unit !== "600B-E1") throw new Error("mint does not advertise the 600B-E1 NutFT unit");
-    return { id: keyset.id, keys: keyset.keys, catalogIssuer: capability.catalog_issuer };
+    if (!keyset || !/^600B-(?:E1|G)$/.test(keyset.unit || "")) {
+      throw new Error("mint does not advertise a supported 600B NutFT unit");
+    }
+    return {
+      id: keyset.id,
+      keys: keyset.keys,
+      unit: keyset.unit,
+      catalogIssuer: capability.catalog_issuer,
+    };
   }
 
   const opening = (output) => ({
@@ -502,10 +509,12 @@
 
   const readableProofs = (state, keyset, c) => splitTokens(state, keyset, c).proofs;
 
-  async function verifyCatalog(catalogUri, catalog, c, issuerExpected) {
+  async function verifyCatalog(catalogUri, catalog, c, keyset) {
     const { issuer_pubkey: issuer, signature, ...payload } = catalog || {};
     const digestHex = await digest(canonical(payload));
-    if (!catalog || catalog.collection_id !== "600B-E1" || catalog.catalog_uri !== catalogUri || issuer !== issuerExpected || !signature || !c.schnorrVerifyDigest(signature, digestHex, issuer)) {
+    if (!catalog || catalog.collection_id !== keyset.unit || catalog.catalog_uri !== catalogUri
+        || issuer !== keyset.catalogIssuer || !signature
+        || !c.schnorrVerifyDigest(signature, digestHex, issuer)) {
       throw new Error("catalog signature or collection validation failed");
     }
     return catalog;
@@ -521,7 +530,7 @@
       const catalogResponse = await fetch(tag[3]);
       if (!catalogResponse.ok) throw new Error(`catalog unavailable (${catalogResponse.status})`);
       catalog = await catalogResponse.json();
-      await verifyCatalog(tag[3], catalog, c, keyset.catalogIssuer);
+      await verifyCatalog(tag[3], catalog, c, keyset);
       catalogs.set(tag[3], catalog);
     }
     const asset = catalog.assets.find((card) => card.asset_id === tag[2]);
@@ -561,6 +570,63 @@
        that conflates them tells a buyer their card is bad when the truth is
        that they are looking at the wrong mint. */
     return { catalog: catalogs.values().next().value || null, owned, spent, invalid, unreadable };
+  }
+
+  /* One browser wallet may hold E1 boosters and G starter sets at the same
+   * time. A token that one mint cannot decode is not unreadable until every
+   * supported mint has had a chance: otherwise every valid G set appears as a
+   * dead foreign token on the E1 wallet page (and vice versa). */
+  async function snapshotMany(mintUrls) {
+    try { await locked(recoverPending); } catch { /* the recovery panel owns this error */ }
+    const c = await cashu();
+    const walletState = await read();
+    const descriptors = [];
+    const unavailable = [];
+    for (const mintUrl of [...new Set((mintUrls || []).map(String))]) {
+      try { descriptors.push({ mintUrl, keyset: await getKeyset(mintUrl, c) }); }
+      catch (error) { unavailable.push({ mintUrl, error: error.message }); }
+    }
+    if (!descriptors.length) throw new Error("no supported 600B mint is reachable");
+
+    const catalogs = new Map();
+    const owned = [];
+    const spent = [];
+    const invalid = [];
+    const unreadable = [];
+    for (const token of walletState.tokens) {
+      let match = null;
+      let decoded = null;
+      let lastError = null;
+      for (const descriptor of descriptors) {
+        try {
+          const candidate = c.getDecodedToken(token, [descriptor.keyset.id]);
+          if (candidate.mint !== descriptor.mintUrl || candidate.unit !== descriptor.keyset.unit) continue;
+          match = descriptor;
+          decoded = candidate;
+          break;
+        } catch (error) { lastError = error; }
+      }
+      if (!match) {
+        unreadable.push({
+          token,
+          error: lastError && lastError.message ? lastError.message : "no supported mint recognises this token",
+        });
+        continue;
+      }
+      for (const proof of decoded.proofs) {
+        try {
+          const item = await inspectProof(match.mintUrl, proof, c, match.keyset, catalogs);
+          if (!c.maybeDeriveP2BKPrivateKeys(walletState.privateKey, proof).length) {
+            throw new Error("proof is not addressed to this wallet");
+          }
+          const withMint = { ...item, mintUrl: match.mintUrl, unit: match.keyset.unit };
+          (item.state === "SPENT" ? spent : owned).push(withMint);
+        } catch (error) {
+          invalid.push({ proof, mintUrl: match.mintUrl, error: error.message });
+        }
+      }
+    }
+    return { catalogs: [...catalogs.values()], owned, spent, invalid, unreadable, unavailable };
   }
 
   async function tradeProofUnlocked(mintUrl, secret, recipientPubkey) {
@@ -613,7 +679,9 @@
     state = await read();
     const keyset = await getKeyset(mintUrl, c);
     const decoded = c.getDecodedToken(token, [keyset.id]);
-    if (decoded.mint !== mintUrl || decoded.unit !== "600B-E1" || !decoded.proofs.length) throw new Error("token mint, unit, or proofs are invalid");
+    if (decoded.mint !== mintUrl || decoded.unit !== keyset.unit || !decoded.proofs.length) {
+      throw new Error("token mint, unit, or proofs are invalid");
+    }
     /* The token being imported above may still throw — a caller pasting a
        broken token deserves to hear so. But the wallet it is landing in must
        not: a dead token already in storage cannot be allowed to block an
@@ -652,5 +720,9 @@
 
   const restoreBackup = (text) => locked(() => restoreBackupUnlocked(text));
 
-  root.NutFTWallet = { buyBooster, claimBooster, snapshot, tradeProof, importToken, destination, recoverPending, outgoing, forgetOutgoing, exportBackup, restoreBackup, read, cashu, hex, bytes };
+  root.NutFTWallet = {
+    buyBooster, claimBooster, snapshot, snapshotMany, tradeProof, importToken,
+    destination, recoverPending, outgoing, forgetOutgoing, exportBackup,
+    restoreBackup, read, cashu, hex, bytes,
+  };
 })(globalThis);

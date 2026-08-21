@@ -227,7 +227,12 @@ function createNutftMint(options = {}) {
     return { upTo, msat };
   });
 
-  const scheduleRaw = options.priceSchedule || process.env.NUTFT_PRICE_SCHEDULE || "";
+  /* Empty is meaningful for a second mint: it says "use this mint's flat
+     price", even when the first mint has a process-wide price schedule. Use an
+     own-property check instead of `||`, which would leak E1's schedule into G. */
+  const scheduleRaw = Object.prototype.hasOwnProperty.call(options, "priceSchedule")
+    ? options.priceSchedule
+    : process.env.NUTFT_PRICE_SCHEDULE || "";
   const priceTiers = scheduleRaw
     ? parseSchedule(scheduleRaw)
     : [{ upTo: Infinity, msat: Number(options.priceMsat || process.env.NUTFT_PRICE_MSAT || 21000) }];
@@ -263,7 +268,13 @@ function createNutftMint(options = {}) {
     throw new Error(`NUTFT_SALES must be open, closed, allowlist or signed — got ${salesMode}`);
   }
   const allowlist = new Set();
-  for (const entry of String(options.allowlist || process.env.NUTFT_ALLOWLIST || "").split(",")) {
+  /* As with the price schedule, an explicitly empty list belongs to this mint.
+     Falling through to the process-wide E1 roster would couple two editions
+     that are required to have independent issuance policy. */
+  const allowlistRaw = Object.prototype.hasOwnProperty.call(options, "allowlist")
+    ? options.allowlist
+    : process.env.NUTFT_ALLOWLIST || "";
+  for (const entry of String(allowlistRaw).split(",")) {
     const trimmed = entry.trim();
     if (!trimmed) continue;
     const hex = toPubkeyHex(trimmed);
@@ -341,14 +352,30 @@ function createNutftMint(options = {}) {
      already names the canonical host, so there is one place to change hosts. */
   const publicBase = (options.publicBase || process.env.NUTFT_PUBLIC_BASE || "" ||
     (process.env.PUBLIC_URL || "").replace(/^ws/, "http").replace(/\/ws$/, "")).replace(/\/$/, "");
+  /* Mounting a second, unrelated edition (G, the starter sets) on the same
+     table.js process means two nutft-mint instances share one origin, so each
+     needs its own slice of the URL space -- "" for E1, "/g" for G. This is a
+     DIFFERENT thing from publicBase above, on purpose: publicBase names the
+     SITE (where shop.html itself lives, never under a mint's prefix), while
+     pathPrefix names where THIS mint's own API routes live under it. Folding
+     them into one string would have pointed the LNURL claim redirect at
+     "/g/shop.html", which does not exist -- shop.html is the same static file
+     for every edition. Empty by default: zero change for E1, whose routes
+     have always lived at the bare paths matched below. */
+  const pathPrefix = options.pathPrefix || "";
+  if (pathPrefix && (!/^\/[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~-]+)*$/.test(pathPrefix)
+      || pathPrefix.endsWith("/"))) {
+    throw new Error("pathPrefix must be empty or an absolute path without a trailing slash");
+  }
   /* DERIVED, not typed. This string is what a wallet SHOWS the buyer when it
      scans the QR -- it is the description of the goods inside the payment
      request, and LUD-06 commits its hash into the invoice. It said "7 cards"
      while the census had been printing 15 for some time, so every LNURL payer
      was shown a smaller pack than the one they were buying. Reading the number
      from the census is the only version of this that cannot drift again. */
+  const productName = catalog.issuance === "manifest" ? "starter set" : "booster";
   const payMetadata = lnurl.metadataFor(
-    `600B Timelock TCG — one booster, ${census.mint.cards_per_pack} cards`);
+    `600B Timelock TCG — one ${productName}, ${census.mint.cards_per_pack} cards`);
 
   const beaconLive = String(options.beaconSource ?? process.env.NUTFT_BEACON_SOURCE ?? "") === "lnd";
   /* The beacon reads the chain; the funding source takes the money. They are
@@ -956,12 +983,24 @@ function createNutftMint(options = {}) {
   });
 
   async function handle(req, res, url) {
+    /* Routing uses localPath (the prefix stripped); NIP-98 verification below
+       (proofFrom) deliberately keeps using the untouched `url` -- a buyer's
+       browser signs the REAL address it fetched (".../g/nutft/quote"), and
+       checking that signature against anything else would refuse every
+       correctly-signed request this mint ever receives. Two different
+       questions -- "which route is this" and "what did the buyer actually
+       sign" -- answered from two different strings on purpose. */
+    const ownsPath = !pathPrefix
+      || url.pathname === pathPrefix
+      || url.pathname.startsWith(`${pathPrefix}/`);
+    if (!ownsPath) return json(res, 404, { error: "not found" });
+    const localPath = pathPrefix ? url.pathname.slice(pathPrefix.length) || "/" : url.pathname;
     try {
-      if (req.method === "GET" && url.pathname === "/v1/info") {
-        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceFor(state.nextPack - 1) : 0, price_tiers: paidMint && priceTiers.length > 1 ? priceTiers.map((t) => ({ up_to_packs: t.upTo === Infinity ? null : t.upTo, price_msat: t.msat })) : undefined, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), test_mint: Boolean(funding && funding.testMint), sales: salesMode, catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
+      if (req.method === "GET" && localPath === "/v1/info") {
+        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceFor(state.nextPack - 1) : 0, price_tiers: paidMint && priceTiers.length > 1 ? priceTiers.map((t) => ({ up_to_packs: t.upTo === Infinity ? null : t.upTo, price_msat: t.msat })) : undefined, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), test_mint: Boolean(funding && funding.testMint), sales: salesMode, one_per_key: onePerKey, issuance: catalog.issuance, product: productName, catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
       }
-      if (req.method === "GET" && url.pathname === "/v1/keys") return json(res, 200, await keysResponse());
-      if (req.method === "POST" && url.pathname === "/v1/checkstate") {
+      if (req.method === "GET" && localPath === "/v1/keys") return json(res, 200, await keysResponse());
+      if (req.method === "POST" && localPath === "/v1/checkstate") {
         const body = await readBody(req);
         await ready;
         if (!Array.isArray(body.Ys) || body.Ys.length > 256) throw new Error("Ys must be an array of at most 256 points");
@@ -971,11 +1010,11 @@ function createNutftMint(options = {}) {
         }
         return json(res, 200, { states: body.Ys.map((Y) => ({ Y, state: isSpent(Y) ? "SPENT" : "UNSPENT" })) });
       }
-      if (req.method === "POST" && url.pathname === "/nutft/trade") return json(res, 200, await trade(await readBody(req)));
-      if (req.method === "GET" && url.pathname === "/nutft/catalog") {
+      if (req.method === "POST" && localPath === "/nutft/trade") return json(res, 200, await trade(await readBody(req)));
+      if (req.method === "GET" && localPath === "/nutft/catalog") {
         return json(res, 200, signedCatalog());
       }
-      if (req.method === "GET" && url.pathname === "/nutft/state") {
+      if (req.method === "GET" && localPath === "/nutft/state") {
         /* The PACK SHAPE is published too. The shop has to say how big the box
            is, and without this it either guessed or carried the number written
            down by hand -- which is how every supply figure on that page came to
@@ -1002,14 +1041,14 @@ function createNutftMint(options = {}) {
          path, so the proof gets its own replay namespace from seenFor and
          eligibility traffic can never crowd out the door that hands over cards
          somebody paid for. */
-      if (req.method === "GET" && url.pathname === "/nutft/eligibility") {
+      if (req.method === "GET" && localPath === "/nutft/eligibility") {
         return json(res, 200, eligibility(proofFrom(req, url, "GET")));
       }
-      if (req.method === "GET" && url.pathname === "/nutft/quote") {
+      if (req.method === "GET" && localPath === "/nutft/quote") {
         return json(res, 200, await payableQuote({ proof: proofFrom(req, url, "GET") }));
       }
       /* LUD-06 step 1: what a wallet reads when it scans the QR. */
-      if (req.method === "GET" && url.pathname === "/nutft/lnurlp") {
+      if (req.method === "GET" && localPath === "/nutft/lnurlp") {
         if (!paidMint) return json(res, 200, lnurl.error("this mint is free — no payment is needed"));
         if (!publicBase) return json(res, 200, lnurl.error("mint is not configured with a public URL"));
         /* A wallet cannot prove a nostr key, so a gated box cannot serve this
@@ -1017,7 +1056,9 @@ function createNutftMint(options = {}) {
            that will not be honoured. */
         if (salesMode !== "open") return json(res, 200, lnurl.error("the box is not open to wallet payments yet"));
         return json(res, 200, lnurl.payRequest({
-          callbackUrl: `${publicBase}/nutft/lnurlp/callback`,
+          /* pathPrefix here, NOT in the shop.html link below: this is the
+             mint's own route, the redirect two blocks down is the static site's. */
+          callbackUrl: `${publicBase}${pathPrefix}/nutft/lnurlp/callback`,
           amountMsat: priceFor(state.nextPack - 1),
           metadata: payMetadata,
         }));
@@ -1026,7 +1067,7 @@ function createNutftMint(options = {}) {
          is actually created, so a scan that is never paid costs a quote and
          nothing else. successAction carries the claim link, because after
          paying by QR the buyer has no other way to learn their payment_hash. */
-      if (req.method === "GET" && url.pathname === "/nutft/lnurlp/callback") {
+      if (req.method === "GET" && localPath === "/nutft/lnurlp/callback") {
         if (!paidMint) return json(res, 200, lnurl.error("this mint is free — no payment is needed"));
         if (salesMode !== "open") return json(res, 200, lnurl.error("the box is not open to wallet payments yet"));
         const amount = Number(url.searchParams.get("amount"));
@@ -1052,10 +1093,10 @@ function createNutftMint(options = {}) {
           return json(res, 200, lnurl.error(error.message));
         }
       }
-      if (req.method === "GET" && url.pathname === "/nutft/reveal") {
+      if (req.method === "GET" && localPath === "/nutft/reveal") {
         return json(res, 200, await revealFor(url.searchParams.get("payment_hash") || ""));
       }
-      if (req.method === "POST" && url.pathname === "/nutft/booster") {
+      if (req.method === "POST" && localPath === "/nutft/booster") {
         /* The proof rides on the header, never in the body. A body field would
            be the same mistake as before: something the caller writes rather
            than something they prove. It is only consulted on a free mint —

@@ -6,6 +6,13 @@ Companion to [`mint-security-and-deploy.md`](mint-security-and-deploy.md), which
 full audit and the Path B checklist for a paid mint. This file is only the steps for
 tomorrow.
 
+> 2026-08-21 production note: Edition G now runs as a second first-party issuer
+> under `/g`. Its permanent identity is `600B-G` plus
+> `https://tcg.nappelin.com/g/nutft/catalog`, backed by
+> `/home/deploy/tcg-data/g-mint.db`. Production uses `phoenixd`, a flat
+> 210-sat price, `G_NUTFT_SALES=signed`, and `G_NUTFT_ONE_PER_KEY=1`. Do not
+> point G at the E1 database or inherit E1's price schedule.
+
 **Everything below was verified by running the merged code, not read.** I bought a pack,
 opened the wallet, restarted the server, and re-verified — results in §4.
 

@@ -197,7 +197,11 @@ CREATE TABLE IF NOT EXISTS nostr_events (
  * @param {{port?:number, dbPath?:string, siteDir?:string, host?:string,
  *   pinSeed?:number, maxPayload?:number, controlMax?:number,
  *   publicHost?:string, trustedHosts?:string[], allowedOrigins?:string[],
- *   nutftCatalogUri?:string}} opts
+ *   nutftCatalogUri?:string, gNutftEnabled?:boolean, gNutftDbPath?:string,
+ *   gNutftCensusPath?:string, gNutftCatalogUri?:string,
+ *   gNutftFunding?:object, gNutftFundingBackend?:string,
+ *   gNutftSales?:string, gNutftPriceMsat?:number,
+ *   gNutftOnePerKey?:boolean}} opts
  */
 async function createTable(opts) {
   const options = opts || {};
@@ -315,6 +319,63 @@ async function createTable(opts) {
   } catch (error) {
     db.close();
     throw error;
+  }
+
+  /* Edition G is a second issuer, not a mode of the E1 issuer. It therefore
+   * gets a second SQLite file, its own identity triple and its own route
+   * prefix. Sharing the referee/E1 database here would make one edition's
+   * `nutft_meta.configuration` prevent the other from booting — and removing
+   * that guard would be worse, because their signing keys and supply counters
+   * would then share names. */
+  let gDb = null;
+  let gNutft = null;
+  if (options.gNutftEnabled) {
+    const gDbPath = options.gNutftDbPath;
+    if (!gDbPath) {
+      nutft.stop();
+      db.close();
+      throw new Error("G_NUTFT_DB is required when the G mint is enabled");
+    }
+    if (dbPath !== ":memory:" && path.resolve(gDbPath) === path.resolve(dbPath)) {
+      nutft.stop();
+      db.close();
+      throw new Error("the G mint must use a database separate from the referee and E1 mint");
+    }
+    if (!options.gNutftFunding && !options.gNutftFundingBackend) {
+      nutft.stop();
+      db.close();
+      throw new Error("G_NUTFT_FUNDING is required when the G mint is enabled");
+    }
+    if (gDbPath !== ":memory:") fs.mkdirSync(path.dirname(gDbPath), { recursive: true });
+    try {
+      gDb = new DatabaseSync(gDbPath);
+      gDb.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;");
+      gNutft = createNutftMint({
+        censusPath: options.gNutftCensusPath || path.join(REPO, "cards", "g-census.json"),
+        collectionId: options.gNutftCollectionId || "600B-G",
+        catalogUri: options.gNutftCatalogUri,
+        beacon: options.gNutftBeacon || "00".repeat(32),
+        beaconSource: options.gNutftBeaconSource ?? "",
+        db: gDb,
+        funding: options.gNutftFunding,
+        backend: options.gNutftFundingBackend,
+        sales: options.gNutftSales || "closed",
+        allowlist: options.gNutftAllowlist ?? "",
+        onePerKey: options.gNutftOnePerKey ?? true,
+        priceSchedule: options.gNutftPriceSchedule ?? "",
+        priceMsat: options.gNutftPriceMsat ?? 210_000,
+        publicBase: options.gNutftPublicBase,
+        pathPrefix: "/g",
+        allowVirtual: options.gNutftAllowVirtual ?? "",
+        invoiceTtlSeconds: options.gNutftInvoiceTtlSeconds,
+        claimGraceSeconds: options.gNutftClaimGraceSeconds,
+      });
+    } catch (error) {
+      if (gDb) gDb.close();
+      nutft.stop();
+      db.close();
+      throw error;
+    }
   }
 
   /* CREATE TABLE IF NOT EXISTS does nothing to a database that predates a
@@ -1798,6 +1859,10 @@ async function createTable(opts) {
     if (pathname.indexOf("\0") >= 0) return reply(400, { error: "bad url" });
     if (pathname === "/favicon.ico") { res.writeHead(204).end(); return; }
 
+    if (pathname.startsWith("/g/v1/") || pathname.startsWith("/g/nutft/")) {
+      if (!gNutft) return reply(404, { error: "not found" });
+      return gNutft.handle(req, res, url);
+    }
     if (pathname.startsWith("/v1/") || pathname.startsWith("/nutft/")) {
       return nutft.handle(req, res, url);
     }
@@ -2028,6 +2093,7 @@ async function createTable(opts) {
     url: `http://${host === "0.0.0.0" ? "localhost" : host}:${boundPort}`,
     wsUrl: `ws://${host === "0.0.0.0" ? "localhost" : host}:${boundPort}/ws`,
     db,
+    gDb,
     matches,
     async close() {
       clearInterval(heartbeat);
@@ -2036,7 +2102,10 @@ async function createTable(opts) {
       }
       await new Promise((resolve) => wss.close(resolve));
       await new Promise((resolve) => server.close(resolve));
+      nutft.stop();
+      if (gNutft) gNutft.stop();
       db.close();
+      if (gDb) gDb.close();
     },
   };
 }
@@ -2055,6 +2124,7 @@ if (require.main === module) {
   const allowedOrigins = process.env.TABLE_ORIGINS
     ? process.env.TABLE_ORIGINS.split(",").map((value) => value.trim()).filter(Boolean)
     : [];
+  const enabled = (value) => ["1", "true", "yes", "on"].includes(String(value || "").toLowerCase());
   createTable({
     port, dbPath, pinSeed, rateMax, controlMax, maxPayload, allowedOrigins,
     /* Behind the prescribed Caddy-on-loopback proxy set TRUST_PROXY=loopback so
@@ -2068,6 +2138,29 @@ if (require.main === module) {
     publicUrl: process.env.PUBLIC_URL,
     publicScheme: process.env.PUBLIC_SCHEME,
     nutftCatalogUri: process.env.NUTFT_CATALOG_URI,
+    gNutftEnabled: enabled(process.env.G_NUTFT_ENABLED),
+    gNutftDbPath: process.env.G_NUTFT_DB,
+    gNutftCensusPath: process.env.G_NUTFT_CENSUS_PATH,
+    gNutftCollectionId: process.env.G_NUTFT_COLLECTION_ID,
+    gNutftCatalogUri: process.env.G_NUTFT_CATALOG_URI,
+    gNutftFundingBackend: process.env.G_NUTFT_FUNDING,
+    gNutftSales: process.env.G_NUTFT_SALES,
+    gNutftAllowlist: process.env.G_NUTFT_ALLOWLIST,
+    gNutftOnePerKey: process.env.G_NUTFT_ONE_PER_KEY === undefined
+      ? true
+      : enabled(process.env.G_NUTFT_ONE_PER_KEY),
+    gNutftPriceSchedule: process.env.G_NUTFT_PRICE_SCHEDULE,
+    gNutftPriceMsat: process.env.G_NUTFT_PRICE_MSAT
+      ? Number(process.env.G_NUTFT_PRICE_MSAT)
+      : 210_000,
+    gNutftPublicBase: process.env.G_NUTFT_PUBLIC_BASE,
+    gNutftAllowVirtual: process.env.G_NUTFT_ALLOW_VIRTUAL,
+    gNutftInvoiceTtlSeconds: process.env.G_NUTFT_INVOICE_TTL_SECONDS
+      ? Number(process.env.G_NUTFT_INVOICE_TTL_SECONDS)
+      : undefined,
+    gNutftClaimGraceSeconds: process.env.G_NUTFT_CLAIM_GRACE_SECONDS
+      ? Number(process.env.G_NUTFT_CLAIM_GRACE_SECONDS)
+      : undefined,
   })
     .then((table) => {
       console.log(`[table] 600B referee on ${table.url}  (ws ${table.wsUrl})`);

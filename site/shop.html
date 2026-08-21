@@ -565,7 +565,7 @@ html:has(.bay--stage) #packSlot {
 
         <div class="bay-head">
           <div class="banner">Starter set // <span id="starterSetLine">—</span></div>
-          <span class="state state--off">EDITION G · NOT LIVE YET</span>
+          <span class="state state--off" id="starterSaleState">EDITION G · CHECKING</span>
         </div>
 
         <div class="facts" style="margin-top:14px">
@@ -581,8 +581,10 @@ html:has(.bay--stage) #packSlot {
              button follows when the box runs out. A control that looks live and
              does nothing is the thing this page exists not to be. -->
         <div class="pack-cta">
-          <button class="btn" id="buyStarter" type="button" disabled>Starter sets are not on sale yet</button>
+          <button class="btn" id="buyStarter" type="button" disabled>Checking the G mint…</button>
         </div>
+
+        <p class="pack-note" id="starterBuyNote" role="status" aria-live="polite"></p>
 
         <div class="note mode-off" id="starterState" style="margin-top:12px">—</div>
       </div>
