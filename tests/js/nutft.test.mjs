@@ -1245,6 +1245,258 @@ test("early access needs a signature, not a claim", async (t) => {
   );
 });
 
+test("a buyer can ask whether they may buy without buying anything", async (t) => {
+  /* Before this the only way to find out was to press Buy. The shop drew a live
+     button, the mint refused after the click, and an early-access buyer learned
+     they were not on the list from a failed purchase.
+
+     /nutft/quote cannot answer the question: it creates a real invoice and
+     reserves the pack, so polling it would burn boosters and then refuse the
+     buyer their own next click. This endpoint has to answer without writing
+     anything, and that is what the second half of this test measures. */
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const nip98 = require("../../server/nip98.js");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { randomBytes } = await import("node:crypto");
+
+  const hexOf = (b) => Buffer.from(b).toString("hex");
+  const listedSec = randomBytes(32);
+  const listedPub = hexOf(schnorr.getPublicKey(listedSec));
+  const strangerSec = randomBytes(32);
+
+  /* A nonce per event. Two signatures inside the same second are the same
+     event, hash to the same id, and the second is correctly refused as a
+     replay -- which would be the replay store passing, not this endpoint. */
+  let nonce = 0;
+  const sign = (sec, path = "/nutft/eligibility") => {
+    nonce += 1;
+    const event = {
+      pubkey: hexOf(schnorr.getPublicKey(sec)), created_at: Math.floor(Date.now() / 1000),
+      kind: 27235, content: "",
+      tags: [["u", `https://x.example${path}`], ["method", "GET"], ["nonce", String(nonce)]],
+    };
+    event.id = nip98.eventId(event);
+    event.sig = hexOf(schnorr.sign(event.id, sec));
+    return "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64");
+  };
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const funding = createMockFunding({ settleAfterMs: 60_000 });
+  const mint = createNutftMint({
+    db, catalogUri: "https://x.example/nutft/catalog", publicBase: "https://x.example",
+    funding, allowVirtual: "1", priceMsat: 21000,
+    sales: "allowlist", allowlist: listedPub,
+  });
+
+  const ask = async (header) => {
+    const res = { writeHead(code) { res.code = code; return res; }, end(b) { res.parsed = JSON.parse(b); } };
+    await mint.handle(
+      { method: "GET", headers: header ? { authorization: header } : {} },
+      res, new URL("https://x.example/nutft/eligibility"),
+    );
+    return res;
+  };
+
+  /* Unsigned: a plain answer, not an error. "No" is a successful reply to the
+     question that was asked. */
+  const anonymous = await ask("");
+  assert.equal(anonymous.code, 200, "the question was answered, not refused");
+  assert.equal(anonymous.parsed.sales, "allowlist");
+  assert.equal(anonymous.parsed.may_buy, false);
+  assert.match(anonymous.parsed.reason, /sign the request/i,
+    "and it says what is missing rather than leaving the buyer to guess");
+
+  // A real signature from a key nobody listed.
+  const stranger = await ask(sign(strangerSec));
+  assert.equal(stranger.code, 200);
+  assert.equal(stranger.parsed.may_buy, false);
+  assert.match(stranger.parsed.reason, /not on the list/i);
+
+  // A real signature from a listed key.
+  const listed = await ask(sign(listedSec));
+  assert.equal(listed.code, 200);
+  assert.equal(listed.parsed.may_buy, true, "a listed key is told yes before it clicks");
+  assert.equal(listed.parsed.sales, "allowlist");
+
+  /* THE POINT. Asking must cost nothing: the pack on the counter, the sold
+     count and the invoice table are all exactly as they were. A probe that
+     moved any of them would sell the box to whoever checked it most. */
+  const stateRes = { writeHead() { return stateRes; }, end(b) { stateRes.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET" }, stateRes, new URL("https://x.example/nutft/state"));
+  assert.equal(stateRes.parsed.sold, 0, "no pack was sold by asking");
+  assert.equal(mint.state.nextPack, 1, "and the pack on the counter is still the first one");
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM nutft_invoices").get().n, 0,
+    "not one invoice was written");
+
+  /* The yes has to survive being acted on: quoting after a yes still works, so
+     the probe did not quietly consume the buyer's turn. */
+  const quote = await mint.payableQuote({ proof: {
+    header: sign(listedSec, "/nutft/quote"), method: "GET", path: "/nutft/quote", host: "x.example",
+  } });
+  assert.ok(quote.payment_request, "and the yes it gave was a true one");
+});
+
+test("the eligibility answer never describes anybody but the caller", async (t) => {
+  /* An early-access roster is a list of people about to hold something
+     valuable. The endpoint answers about one key -- the one that signed -- and
+     its reply must not leak the list, its length, or whether some other key is
+     on it. */
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const nip98 = require("../../server/nip98.js");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { randomBytes } = await import("node:crypto");
+
+  const hexOf = (b) => Buffer.from(b).toString("hex");
+  const keys = Array.from({ length: 7 }, () => {
+    const sec = randomBytes(32);
+    return { sec, pub: hexOf(schnorr.getPublicKey(sec)) };
+  });
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, catalogUri: "https://x.example/nutft/catalog", publicBase: "https://x.example",
+    sales: "allowlist", allowlist: keys.map((k) => k.pub).join(","),
+  });
+
+  const event = {
+    pubkey: keys[0].pub, created_at: Math.floor(Date.now() / 1000), kind: 27235, content: "",
+    tags: [["u", "https://x.example/nutft/eligibility"], ["method", "GET"]],
+  };
+  event.id = nip98.eventId(event);
+  event.sig = hexOf(schnorr.sign(event.id, keys[0].sec));
+
+  const res = { writeHead(code) { res.code = code; return res; }, end(b) { res.body = b; res.parsed = JSON.parse(b); } };
+  await mint.handle(
+    { method: "GET", headers: { authorization: "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64") } },
+    res, new URL("https://x.example/nutft/eligibility"),
+  );
+
+  assert.equal(res.parsed.may_buy, true);
+  assert.deepEqual(Object.keys(res.parsed).sort(), ["may_buy", "reason", "sales"],
+    "three fields, and nothing that grew in beside them");
+  /* Seven listed keys and no seven anywhere in the body is the whole
+     assertion. */
+  for (const other of keys.slice(1)) {
+    assert.equal(res.body.includes(other.pub), false, "another listed key is never named");
+  }
+  assert.equal(res.body.includes(keys[0].pub), false,
+    "and the caller is not echoed back either -- they signed it, they know it");
+  assert.equal(/(^|[^0-9])7([^0-9]|$)/.test(res.body), false, "the size of the list is not published");
+});
+
+test("eligibility says no to a key that has already taken its starter set", async (t) => {
+  /* NUTFT_ONE_PER_KEY lives in payableQuoteOnce, not in requireMayBuy, so an
+     answer built on requireMayBuy alone would say yes to a key that is out of
+     allocation -- and the buyer would be refused at the click anyway, which is
+     the exact failure this endpoint exists to remove. */
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { createMockFunding } = require("../../server/funding.js");
+  const nip98 = require("../../server/nip98.js");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { DatabaseSync } = await import("node:sqlite");
+  const { randomBytes } = await import("node:crypto");
+
+  const hexOf = (b) => Buffer.from(b).toString("hex");
+  const key = () => { const sec = randomBytes(32); return { sec, pub: hexOf(schnorr.getPublicKey(sec)) }; };
+  const alice = key(), bob = key();
+
+  let nonce = 0;
+  const proofFor = (who, path) => {
+    nonce += 1;
+    const event = {
+      pubkey: who.pub, created_at: Math.floor(Date.now() / 1000), kind: 27235, content: "",
+      tags: [["u", `https://g.example${path}`], ["method", "GET"], ["nonce", String(nonce)]],
+    };
+    event.id = nip98.eventId(event);
+    event.sig = hexOf(schnorr.sign(event.id, who.sec));
+    return "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64");
+  };
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const funding = createMockFunding({});
+  const mint = createNutftMint({
+    db, catalogUri: "https://g.example/nutft/catalog", publicBase: "https://g.example",
+    funding, allowVirtual: "1", priceMsat: 210_000,
+    sales: "allowlist", allowlist: `${alice.pub},${bob.pub}`, onePerKey: true,
+  });
+
+  const ask = async (who) => {
+    const res = { writeHead(code) { res.code = code; return res; }, end(b) { res.parsed = JSON.parse(b); } };
+    await mint.handle(
+      { method: "GET", headers: { authorization: proofFor(who, "/nutft/eligibility") } },
+      res, new URL("https://g.example/nutft/eligibility"),
+    );
+    return res.parsed;
+  };
+
+  assert.equal((await ask(alice)).may_buy, true, "before she buys, Alice is told yes");
+
+  const quote = await mint.payableQuote({ proof: {
+    header: proofFor(alice, "/nutft/quote"), method: "GET", path: "/nutft/quote", host: "g.example",
+  } });
+  funding.settle(quote.payment_hash);
+  const issued = await mint.signBooster({
+    idempotency_key: "alice-1", pack_id: quote.pack_id, state: quote.state,
+    payment_hash: quote.payment_hash,
+    outputs: await outputsFor(mint, quote, "https://g.example"),
+  });
+  assert.equal(issued.signatures.length, PACK, "she takes her one set");
+
+  const after = await ask(alice);
+  assert.equal(after.may_buy, false, "and is told so before she reaches for the button again");
+  assert.match(after.reason, /one starter set per key/i,
+    "in the same words the quote uses, so the two cannot drift apart");
+
+  // Per KEY, not per mint: the flag must not shut the shop for everyone else.
+  assert.equal((await ask(bob)).may_buy, true, "a different listed key is unaffected");
+});
+
+test("a shut till says who you are without promising a sale", async (t) => {
+  /* The cutover state. Somebody who signs in the night before the box opens
+     gets an honest "not yet" rather than a yes they cannot act on -- and
+     `closed` is decided before any signature is looked at, so the mint learns
+     nothing about a key it is not going to serve. */
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, catalogUri: "https://x.example/nutft/catalog", publicBase: "https://x.example",
+    sales: "closed",
+  });
+
+  const res = { writeHead(code) { res.code = code; return res; }, end(b) { res.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET", headers: {} }, res, new URL("https://x.example/nutft/eligibility"));
+  assert.equal(res.code, 200);
+  assert.equal(res.parsed.sales, "closed", "the shop can tell a shut till from a refused key");
+  assert.equal(res.parsed.may_buy, false);
+  assert.match(res.parsed.reason, /not open yet/i);
+});
+
+test("an open box needs no signature to answer yes", async (t) => {
+  /* E1 sells to anybody. Asking must not turn an open sale into one that pops a
+     nostr extension -- the answer is already known without a key. */
+  const { createNutftMint } = require("../../server/nutft-mint.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, catalogUri: "https://x.example/nutft/catalog", publicBase: "https://x.example", sales: "open",
+  });
+
+  const res = { writeHead(code) { res.code = code; return res; }, end(b) { res.parsed = JSON.parse(b); } };
+  await mint.handle({ method: "GET", headers: {} }, res, new URL("https://x.example/nutft/eligibility"));
+  assert.equal(res.code, 200);
+  assert.equal(res.parsed.sales, "open");
+  assert.equal(res.parsed.may_buy, true, "an unsigned request is enough where the box is open");
+});
+
 test("a paid booster stays claimable even if the list changes underneath it", async (t) => {
   // The gate belongs on issuance. Re-checking a credential at claim time would
   // confiscate an invoice somebody had already paid — taking money and refusing

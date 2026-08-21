@@ -481,6 +481,50 @@ function createNutftMint(options = {}) {
     return checked.pubkey;
   }
 
+  /* One question, one sentence, asked from two places: the quote refuses with
+     it, and /nutft/eligibility reports it. Written once so a buyer cannot be
+     told two different things about the same rule depending on which door they
+     knocked on. */
+  const ALREADY_HAS_ITS_SET = "one starter set per key — this one already has its set";
+  const hasTakenItsSet = (buyer) => Boolean(onePerKey && q && buyer && q.buyerOf.get(buyer));
+
+  /* "May I buy?", answered without buying.
+   *
+   * /nutft/quote cannot answer this: it creates a real invoice and reserves the
+   * pack, so using it as a probe would burn boosters and then refuse the buyer
+   * their own next click. This writes nothing — no invoice, no reservation, no
+   * advance of state.nextPack — because a buyer who checks before clicking must
+   * not be worse off than one who does not.
+   *
+   * It speaks about ONE key: the one that signed this request. The list itself
+   * is never published, nor its length, nor whether anybody else is on it — an
+   * early-access roster is a list of people about to hold something valuable,
+   * and that is not the mint's to hand out. The caller's own key is not echoed
+   * back either; they signed it, so telling them costs a field and tells them
+   * nothing.
+   *
+   * requireMayBuy throws because every other caller is about to hand something
+   * over. Here the refusal IS the answer, so it is caught and reported in the
+   * gate's own words — a buyer reads the same sentence whether they asked
+   * first or just pressed Buy. */
+  function eligibility(proof) {
+    let buyer;
+    try { buyer = requireMayBuy(proof); }
+    catch (error) { return { sales: salesMode, may_buy: false, reason: error.message }; }
+    /* The one-per-key rule lives at the quote, not in requireMayBuy. Leaving it
+       out here would answer "yes" to a key that is out of allocation, and the
+       buyer would be refused at the click anyway — which is the failure this
+       endpoint exists to remove. */
+    if (hasTakenItsSet(buyer)) return { sales: salesMode, may_buy: false, reason: ALREADY_HAS_ITS_SET };
+    return {
+      sales: salesMode,
+      may_buy: true,
+      reason: salesMode === "open"
+        ? "the box is open — anyone can buy, and no signature is needed"
+        : "this key has early access",
+    };
+  }
+
   async function payableQuoteOnce(opts = {}) {
     const buyer = requireMayBuy(opts.proof);
     /* Checked HERE, at the quote, and never at the claim. The repository rule
@@ -488,9 +532,7 @@ function createNutftMint(options = {}) {
        invoice may collect it, and asking them who they are again would make a
        bearer asset answer to a name. So the key is read once, while it is
        already being read for the allowlist, and the pack is bound to it. */
-    if (onePerKey && q && buyer && q.buyerOf.get(buyer)) {
-      throw new Error("one starter set per key — this one already has its set");
-    }
+    if (hasTakenItsSet(buyer)) throw new Error(ALREADY_HAS_ITS_SET);
     const base = await quote();
     /* Read once, here, and used for the invoice, the record and the reply — so
        the three can never disagree about what this booster costs. */
@@ -888,6 +930,16 @@ function createNutftMint(options = {}) {
           sales: salesMode,
           tier_odds: tierOdds, remaining: state.counts,
         });
+      }
+      /* Beside the quote, because it exists to be asked instead of it. A "no"
+         is a successful answer to the question, so this is always 200 — a 400
+         would be the shop failing to ask rather than the mint declining, and
+         the page has to be able to tell those apart. proofFrom passes this
+         path, so the proof gets its own replay namespace from seenFor and
+         eligibility traffic can never crowd out the door that hands over cards
+         somebody paid for. */
+      if (req.method === "GET" && url.pathname === "/nutft/eligibility") {
+        return json(res, 200, eligibility(proofFrom(req, url, "GET")));
       }
       if (req.method === "GET" && url.pathname === "/nutft/quote") {
         return json(res, 200, await payableQuote({ proof: proofFrom(req, url, "GET") }));
