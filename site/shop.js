@@ -25,9 +25,12 @@
  *
  * Nothing here touches browser storage, a nostr extension or a bare palette:
  * it all goes through the napplet adapter, which is async, so state is read at
- * boot and every write is a queued read-modify-write. Neither this page nor
- * the Stack Builder needs an identity — no pull is signed, no collection is
- * published — so the identity domain is simply never asked for.
+ * boot and every write is a queued read-modify-write. No pull is signed and no
+ * collection is published, so a free pack still needs no identity at all — but
+ * EARLY ACCESS does. While the mint sells to a short list of nostr keys, the
+ * page asks the identity domain who the buyer is and asks the mint whether that
+ * key may buy. It asks only when the buyer presses something: a page that
+ * signed on load would pop the extension at every visitor who wandered past.
  * ------------------------------------------------------------------------ */
 (function (root) {
   "use strict";
@@ -993,6 +996,215 @@
     }
   }
 
+  /* ------------------------------------------------------------ early access
+   * Who the buyer is, and whether this box will sell to them — settled before
+   * the click rather than discovered by it.
+   *
+   * The mint opens to a short list of nostr keys first. Until this existed the
+   * page drew a live Buy button for everybody and the refusal arrived from the
+   * server after the purchase was attempted, which is the one thing a shop
+   * built on "check it yourself" should never do.
+   *
+   * NONE of it is load-bearing for the free box. The row only appears where
+   * there is a mint to ask, every failure is a sentence rather than a thrown
+   * page, and no signature is ever requested until the buyer presses something.
+   */
+
+  /* bech32, BIP-173. Written out rather than imported: site/net.js has this
+   * encoder, but net.js is the whole table transport, and a shop page has no
+   * business loading match plumbing for forty lines of arithmetic. index.html
+   * keeps its own copy for the same reason. */
+  const B32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+  function bech32Polymod(values) {
+    const GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+    let chk = 1;
+    for (const v of values) {
+      const top = chk >> 25;
+      chk = ((chk & 0x1ffffff) << 5) ^ v;
+      for (let i = 0; i < 5; i += 1) if ((top >> i) & 1) chk ^= GEN[i];
+    }
+    return chk;
+  }
+  function npubOf(hexKey) {
+    if (!/^[0-9a-f]{64}$/.test(hexKey || "")) return "";
+    const words = [];
+    let acc = 0, bits = 0;
+    for (const byte of hexKey.match(/../g).map((h) => parseInt(h, 16))) {
+      acc = (acc << 8) | byte; bits += 8;
+      while (bits >= 5) { bits -= 5; words.push((acc >> bits) & 31); }
+    }
+    if (bits) words.push((acc << (5 - bits)) & 31);
+    const hrp = [];
+    for (const c of "npub") hrp.push(c.charCodeAt(0) >> 5);
+    hrp.push(0);
+    for (const c of "npub") hrp.push(c.charCodeAt(0) & 31);
+    const mod = bech32Polymod(hrp.concat(words, [0, 0, 0, 0, 0, 0])) ^ 1;
+    let checksum = "";
+    for (let i = 0; i < 6; i += 1) checksum += B32[(mod >> (5 * (5 - i))) & 31];
+    return "npub1" + words.map((w) => B32[w]).join("") + checksum;
+  }
+  const shortNpub = (hexKey) => {
+    const npub = npubOf(hexKey);
+    return npub ? `${npub.slice(0, 12)}…${npub.slice(-5)}` : "";
+  };
+
+  /* napplet.js owns the identity seam: the shell's key inside a shell, a NIP-07
+   * extension on the website, and the same 600b:pubkey the rest of the site
+   * signs in with — so signing in here signs you in for a match too. If
+   * napplet.js never loaded there is no seam, the row says so, and the free box
+   * carries on. */
+  const ID = (NAP && NAP.identity) || null;
+  const NO_SIGNER =
+    "No nostr signer in this browser. Early access is proved with a nostr key, so you need a NIP-07 "
+    + "extension — Alby or nos2x are the usual two — and then a key that is on the list. "
+    + "The free pack below needs none of this.";
+  const SIGN_IN_FIRST =
+    "The mint opens to a few nostr keys before it opens to everyone. Sign in to find out whether yours "
+    + "is one of them: it costs nothing, buys nothing, and reserves nothing.";
+  const ASK_THE_MINT =
+    "Signed in. Ask the mint whether this key has early access — it will not sell you anything to answer.";
+
+  let signedIn = null;   // hex pubkey the page is currently showing, or null
+  let access = null;     // the mint's last eligibility answer, or null
+
+  /* Random, not a counter: a counter restarts at one on every page load, so two
+     loads inside the same second would collide exactly where a counter was
+     supposed to stop them. */
+  function nonce() {
+    const rng = root.crypto && root.crypto.getRandomValues
+      ? Array.from(root.crypto.getRandomValues(new Uint8Array(8)))
+      : Array.from({ length: 8 }, () => Math.floor(Math.random() * 256));
+    return rng.map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  /* NIP-98, the same event site/nutft-wallet.js builds for a gated quote. That
+   * one is module-private, so this is a second copy rather than a call, and it
+   * must keep the same shape: server/nip98.js verifies both against one rule —
+   * kind 27235, an absolute `u`, a `method`, and a clock inside the window.
+   *
+   * Returns the pubkey alongside the header, because the SIGNER decides who
+   * signed. The stored key is only what the last login wrote down, and a buyer
+   * who switched accounts in their extension since would otherwise be shown one
+   * npub beside an answer about a different one. */
+  async function signedProof(url, method) {
+    if (!ID) return null;
+    const signed = await ID.sign({
+      kind: 27235,
+      created_at: Math.floor(Date.now() / 1000),
+      content: "",
+      /* THE NONCE IS NOT DECORATION. created_at has one-second resolution, so
+         two checks inside the same second produce byte-identical events, which
+         hash to one id — and the mint's replay store correctly refuses the
+         second as "already been used". Pressing a button twice is not an
+         attack, and it must not read as one. Found by pressing it twice. */
+      tags: [["u", url], ["method", method], ["nonce", nonce()]],
+    });
+    if (!signed || !signed.sig) return null;
+    /* btoa is byte-wise, so one non-ASCII byte anywhere in the event would
+       throw. Encode as UTF-8 first and the header survives whatever the signer
+       decided to add. */
+    const bytes = new TextEncoder().encode(JSON.stringify(signed));
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return { header: `Nostr ${root.btoa(binary)}`, pubkey: String(signed.pubkey || "").toLowerCase() };
+  }
+
+  /* Which refusals are about the KEY, and which are about the request.
+   *
+   * "not on the list" and "already has its set" are verdicts: this key cannot
+   * buy, and the Buy button should say so rather than wait to fail. Everything
+   * else the gate can say — an expired clock, a proof minted for another
+   * deployment, an authorization already used — is the REQUEST being wrong, not
+   * the buyer, and closing the button over one of those would take a working
+   * sale away from somebody whose only mistake was pressing Check twice.
+   *
+   * An unrecognised refusal is treated as the second kind on purpose: guessing
+   * wrong that way costs a click, guessing wrong the other way costs a sale. */
+  function verdictOn(answer) {
+    if (!answer || answer.may_buy || answer.sales === "closed") return "";
+    if (/not on the list/i.test(answer.reason)) return "unlisted";
+    if (/already has its set/i.test(answer.reason)) return "spent";
+    return "";
+  }
+
+  /* The mint's answer, in words a buyer can act on. Its own sentence is the
+   * fallback rather than the first resort: it is accurate but written for the
+   * person who deployed the mint, and "this key is not on the list yet" does
+   * not tell anybody what to do about it. */
+  function accessWords(answer) {
+    if (answer.may_buy) {
+      return answer.sales === "open"
+        ? "The box is open to everyone — no key is needed to buy."
+        : "This key has early access. The button below will work.";
+    }
+    if (answer.sales === "closed") {
+      return "The till is shut: nothing is on sale yet, for anyone. Your key is signed in and there is "
+        + "nothing else to do until the box opens.";
+    }
+    if (verdictOn(answer) === "unlisted") {
+      return "This key is not on the early-access list. Copy your npub and send it to whoever is running "
+        + "the sale — nothing else here can put it on.";
+    }
+    if (verdictOn(answer) === "spent") {
+      return "This key has already taken its one starter set. It is in your wallet, not still on the shelf.";
+    }
+    /* Not a verdict, so it says so: the buyer is not being turned away, the
+       request simply did not arrive in a state the mint could answer. */
+    return `The mint could not read the request: ${answer.reason}. Nothing is refused — try again.`;
+  }
+
+  /** Asks /nutft/eligibility about the signed-in key. Returns a sentence. */
+  async function askAboutMyKey() {
+    if (!MINT_URL) return "There is no mint connected to this page.";
+    const target = new URL(`${MINT_URL}/nutft/eligibility`, root.location.href).href;
+    let proof = null;
+    if (signedIn || (ID && ID.source() !== "none")) {
+      try { proof = await signedProof(target, "GET"); }
+      catch (error) {
+        return "Your nostr signer did not sign the request. That signature is the only thing that proves "
+          + "the key is yours, so the mint cannot answer without it.";
+      }
+    }
+    /* The signer, not the cache, decides whose answer this is. */
+    if (proof && /^[0-9a-f]{64}$/.test(proof.pubkey)) signedIn = proof.pubkey;
+    let answer;
+    try {
+      const response = await fetch(target, proof ? { headers: { Authorization: proof.header } } : undefined);
+      /* A "no" arrives as a 200 with may_buy false — anything else is the
+         request failing, not the mint declining, and must not be read as one. */
+      if (!response.ok) return `The mint answered ${response.status}; it did not say whether this key may buy.`;
+      answer = await response.json();
+    } catch (error) {
+      return `The mint could not be reached: ${String((error && error.message) || error)}`;
+    }
+    /* Only an answer we actually SIGNED for is allowed to close the Buy button.
+       An anonymous check is refused by definition in early access, while the
+       wallet would still reach for the signer at the click and go through — so
+       acting on an unproven no would break a path that works. */
+    access = { ...answer, signed: Boolean(proof) };
+    renderIdentity();
+    syncControls();
+    return accessWords(answer);
+  }
+
+  const identityNote = (text) => { const node = $("mintIdentityNote"); if (node) node.textContent = text; };
+
+  function renderIdentity() {
+    const row = $("mintIdentity");
+    if (!row) return;
+    /* Mint mode only, which also covers the stranded and walled-off cases: with
+       no mint to ask, an early-access control could only ever mislead. */
+    row.hidden = PULL_MODE !== "mint";
+    if (row.hidden) return;
+    const on = Boolean(signedIn);
+    $("nostrLogin").hidden = on;
+    $("nostrWho").hidden = !on;
+    $("nostrCheck").hidden = !on;
+    $("copyNpub").hidden = !on;
+    $("nostrLogout").hidden = !on;
+    if (on) $("nostrWho").textContent = shortNpub(signedIn) || "signed in";
+  }
+
   /* The invoice, shown while the mint waits to be paid. Deliberately plain: the
      bolt11 as selectable text, a copy button, and a lightning: link a phone can
      open. No QR library is pulled in for this — the string is long enough that a
@@ -1278,29 +1490,36 @@
 
   function renderStarter() {
     const f = starterFacts();
-    /* Every figure in this section is multiplied out of the census's Genesis
-       row, so before the mint answers there is nothing honest to print. The
-       section keeps its prose and leaves the numbers blank rather than showing
-       zeros -- and readMintState calls this again once the box has been read. */
-    if (!f) return;
     const promo = STARTER.promo;
 
+    /* SPLIT, because the old version blanked the whole section whenever the
+       mint had not answered -- and most of these figures never needed it. Sets,
+       decks, the cards in the run, the strong count and the collection id come
+       out of STARTER, which is a constant in this file; only the sentences that
+       COMPARE the G run against E1's Genesis print run need the census. The
+       free box view has no mint at all, so on that page the entire block was a
+       column of em dashes, and it now sits directly under the booster where
+       nobody can miss it. */
+    const decks = STARTER.sets * STARTER.decksPerSet;
+    const setCards = STARTER.decksPerSet * STARTER.deckSize;
     $("starterLead").textContent =
       `${num(STARTER.sets)} sets, each a box with ${STARTER.decksPerSet} decks of ${STARTER.deckSize} in it — ` +
-      `${f.setCards} cards, and enough for two people to sit down and play without owning anything else. ` +
+      `${setCards} cards, and enough for two people to sit down and play without owning anything else. ` +
       `There is no pack to open: a set is a fixed pair of decks, and you know which kind you are buying.`;
-
-    $("starterSetLine").textContent = `${STARTER.decksPerSet} decks · ${f.setCards} cards`;
+    $("starterSetLine").textContent = `${STARTER.decksPerSet} decks · ${setCards} cards`;
     $("starterSets").textContent = num(STARTER.sets);
-    $("starterDecks").textContent = num(f.decks);
-    $("starterCards").textContent = num(f.cards);
+    $("starterDecks").textContent = num(decks);
+    $("starterCards").textContent = num(decks * STARTER.deckSize);
     $("starterStrong").textContent = num(STARTER.genesisSets);
-    $("starterPlain").textContent = num(f.plainSets);
+    $("starterPlain").textContent = num(STARTER.sets - STARTER.genesisSets);
     $("starterCollection").textContent = STARTER.collectionId;
-
     $("starterPanel1").textContent =
       `${STARTER.decksPerSet} decks of ${STARTER.deckSize}, built to be played against each other straight out ` +
-      `of the box. Across the whole run that is ${num(f.decks)} decks and ${num(f.cards)} cards.`;
+      `of the box. Across the whole run that is ${num(decks)} decks and ${num(decks * STARTER.deckSize)} cards.`;
+
+    /* The rest compares this run against E1's, so it waits. readMintState calls
+       this again once the box has been read. */
+    if (!f) return;
 
     $("starterPanel2").textContent =
       `${STARTER.genesisSets} of the ${num(STARTER.sets)} sets are the strong ones: one of their two decks carries ` +
@@ -1429,11 +1648,18 @@
     /* `closed` is the cutover state: the mint refuses new sales while already
        paid packs stay claimable. It refuses politely and the page shows why,
        but only AFTER the click -- and a control that looks live and does
-       nothing is the thing this page says it exists not to be. `allowlist` is
-       deliberately NOT included: whether this particular key may buy is the
-       mint's answer to give, not the shop's to guess. */
+       nothing is the thing this page says it exists not to be.
+
+       `allowlist` used to be deliberately excluded here, because whether one
+       particular key may buy was the mint's answer to give and not the shop's
+       to guess. It still is -- the difference is that the mint now answers it,
+       at /nutft/eligibility, without selling anything to do so. So this reads
+       the answer rather than guessing it, and only ever a SIGNED one: an
+       anonymous check is refused by definition in early access, while the
+       wallet would still reach for the signer at the click and succeed. */
     const shut = mint && nutftState.sales === "closed";
-    button.disabled = booting || busy || empty || shut;
+    const refused = mint && access && access.signed && access.may_buy === false && !shut;
+    button.disabled = booting || busy || empty || shut || refused;
     if (booting) {
       /* Until storage answers, the cursor is unknown — pulling now would open
        * the top of the box a second time and then be overwritten. */
@@ -1458,6 +1684,13 @@
           ? "Every pack in this census has been sold. What remains of each card is still published above, and the fingerprint still covers the print run it started from."
           : "Every card in this box has been pulled — the order is now fully revealed and checkable. Reset to open the next one.";
       }
+    } else if (refused) {
+      /* No note here on purpose: the reason is already sitting in the identity
+         row a few lines above the button, in words written for this exact
+         refusal. Saying it twice would only make the page look unsure. */
+      button.textContent = access.reason && /already has its set/i.test(access.reason)
+        ? "This key already has its set"
+        : "Not open to this key yet";
     } else if (busy) {
       button.textContent = "Opening…";
     } else {
@@ -1478,6 +1711,14 @@
        * a blank — and the note says which it is. */
       const problem = await readMintState();
       $("mintStateNote").textContent = problem || `Read at ${new Date().toLocaleTimeString()}.`;
+      /* Who the browser already knows about, read from storage. Never a
+         signature: a page that signed on load would pop the extension at every
+         visitor, and asking the mint is the buyer's move to make. */
+      try { signedIn = ID ? await ID.current() : null; }
+      catch (error) { signedIn = null; }
+      renderIdentity();
+      if (signedIn) identityNote(ASK_THE_MINT);
+      else identityNote(ID && ID.source() !== "none" ? SIGN_IN_FIRST : NO_SIGNER);
     }
     durable = await probeStorage();
     booting = false;
@@ -1493,6 +1734,7 @@
     renderModeCopy();
     renderTiers();
     renderMintState();
+    renderIdentity();
     renderStarter();
     renderHistory();
     syncControls();
@@ -1632,6 +1874,66 @@
       note.textContent = problem || `Read at ${new Date().toLocaleTimeString()}.`;
       button.disabled = false;
     });
+
+    /* Early access. Bound whether or not the row is visible — the nodes exist
+       in both modes and renderIdentity decides what is shown — but guarded, so
+       a cached page served an older shop.html cannot take the whole binding
+       pass down with it and leave the free box without a working button. */
+    if ($("mintIdentity")) {
+      const asking = async (button, work) => {
+        button.disabled = true;
+        try { identityNote(await work()); }
+        catch (error) { identityNote(String((error && error.message) || error)); }
+        finally { button.disabled = false; }
+      };
+
+      $("nostrLogin").addEventListener("click", () => {
+        const button = $("nostrLogin");
+        if (!ID || ID.source() === "none") { identityNote(NO_SIGNER); return; }
+        return asking(button, async () => {
+          signedIn = await ID.login();
+          renderIdentity();
+          /* Straight on to the question, because it is the one they came to
+             ask. This is the second prompt of the pair, and the only place the
+             page ever spends two: the buyer just pressed the button that means
+             "tell me about my key". */
+          return askAboutMyKey();
+        });
+      });
+
+      $("nostrCheck").addEventListener("click", () => asking($("nostrCheck"), askAboutMyKey));
+
+      $("copyNpub").addEventListener("click", async () => {
+        const npub = npubOf(signedIn);
+        const full = $("npubFull");
+        if (!npub) { identityNote("There is no key here to copy yet."); return; }
+        if (await copyText(npub)) {
+          full.hidden = true;
+          identityNote("Your npub is on the clipboard. Send it to whoever runs the sale to be added.");
+          return;
+        }
+        /* Clipboard blocked (private mode, or an insecure origin). The chip is
+           shortened, so the full string has to be put somewhere selectable
+           before anyone is told to select it. */
+        full.hidden = false;
+        full.textContent = npub;
+        identityNote(selectNode(full)
+          ? "Clipboard blocked here — your npub is selected below, copy it by hand."
+          : "Clipboard blocked here — your npub is below, copy it by hand.");
+      });
+
+      $("nostrLogout").addEventListener("click", () => {
+        if (ID) ID.forget();
+        signedIn = null;
+        /* The answer went with the key. Leaving it behind would keep the Buy
+           button closed against a key nobody is signed in as any more. */
+        access = null;
+        $("npubFull").hidden = true;
+        renderIdentity();
+        syncControls();
+        identityNote("Forgotten on this device. Your extension still holds the key — this page no longer does.");
+      });
+    }
 
     $("copyCommit").addEventListener("click", async () => {
       const node = $("boxCommit");
