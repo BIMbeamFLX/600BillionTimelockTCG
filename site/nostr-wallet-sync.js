@@ -20,6 +20,9 @@
   const D_TAG = "com.600b.nutft-wallet.v0";
   const META_STORE = "600b:nutft-wallet-sync-v0";
   const FORMAT = "600b-nutft-wallet-sync-v0";
+  const CHUNK_FORMAT = "600b-nip44-chunks-v1";
+  const MAX_NIP44_PLAINTEXT_BYTES = 60000;
+  const MAX_NIP44_CHUNKS = 21;
   const MAX_CIPHERTEXT_BYTES = 850000;
   const MAX_EVENTS = 500;
   const RELAY_TIMEOUT_MS = 12000;
@@ -93,7 +96,7 @@
     const compressed = await gzip(utf8(encoded));
     return compressed
       ? JSON.stringify({ codec: "gzip-base64", data: base64(compressed) })
-      : JSON.stringify({ codec: "plain-json", data: encoded });
+      : JSON.stringify({ codec: "base64-json", data: base64(utf8(encoded)) });
   }
 
   async function unpackSnapshot(cleartext, outerPreviousEventId, outerRevision) {
@@ -103,7 +106,11 @@
     let encoded;
     if (wrapper?.codec === "gzip-base64" && typeof wrapper.data === "string") {
       encoded = await gunzip(unbase64(wrapper.data));
+    } else if (wrapper?.codec === "base64-json" && typeof wrapper.data === "string") {
+      encoded = new TextDecoder().decode(unbase64(wrapper.data));
     } else if (wrapper?.codec === "plain-json" && typeof wrapper.data === "string") {
+      /* Read snapshots created by the first deployed sync build. New fallback
+       * snapshots are base64 so their chunk boundaries are always ASCII. */
       encoded = wrapper.data;
     } else {
       throw new Error("the decrypted wallet snapshot uses an unsupported codec");
@@ -296,18 +303,57 @@
       && (!Array.isArray(state.outgoing) || state.outgoing.length === 0);
   };
 
+  async function encryptPayload(identity, pubkey, cleartext) {
+    if (utf8(cleartext).length !== cleartext.length) {
+      throw new Error("the packed wallet snapshot is not safe to split at ASCII boundaries");
+    }
+    const chunks = [];
+    for (let offset = 0; offset < cleartext.length; offset += MAX_NIP44_PLAINTEXT_BYTES) {
+      const part = cleartext.slice(offset, offset + MAX_NIP44_PLAINTEXT_BYTES);
+      const ciphertext = await identity.nip44.encrypt(pubkey, part);
+      if (typeof ciphertext !== "string" || !ciphertext) {
+        throw new Error("the signer returned an empty NIP-44 wallet chunk");
+      }
+      chunks.push(ciphertext);
+    }
+    if (!chunks.length || chunks.length > MAX_NIP44_CHUNKS) {
+      throw new Error("this wallet needs too many NIP-44 chunks; download the backup file instead");
+    }
+    return JSON.stringify({ format: CHUNK_FORMAT, chunks });
+  }
+
+  async function decryptPayload(identity, pubkey, content) {
+    let envelope = null;
+    try { envelope = JSON.parse(content); }
+    catch { /* The first deployed sync build stored one raw NIP-44 ciphertext. */ }
+    if (envelope?.format !== CHUNK_FORMAT) {
+      return identity.nip44.decrypt(pubkey, content);
+    }
+    if (!Array.isArray(envelope.chunks) || !envelope.chunks.length
+        || envelope.chunks.length > MAX_NIP44_CHUNKS
+        || envelope.chunks.some((chunk) => typeof chunk !== "string" || !chunk)) {
+      throw new Error("the encrypted wallet chunk envelope is invalid");
+    }
+    const cleartext = [];
+    for (const chunk of envelope.chunks) {
+      cleartext.push(await identity.nip44.decrypt(pubkey, chunk));
+    }
+    return cleartext.join("");
+  }
+
   async function decryptHead(event, pubkey) {
     const previous = singleTag(event, "prev");
     const revision = revisionOf(event);
-    const cleartext = await root.E1Napplet.identity.nip44.decrypt(pubkey, event.content);
+    const identity = root.E1Napplet.identity;
+    const cleartext = await decryptPayload(identity, pubkey, event.content);
     return unpackSnapshot(cleartext, previous, revision);
   }
 
   async function publishSnapshot(pubkey, revision, previousEventId, backupText) {
     const identity = root.E1Napplet.identity;
     const cleartext = await packSnapshot(revision, previousEventId, backupText);
-    const ciphertext = await identity.nip44.encrypt(pubkey, cleartext);
-    if (typeof ciphertext !== "string" || utf8(ciphertext).length > MAX_CIPHERTEXT_BYTES) {
+    const ciphertext = await encryptPayload(identity, pubkey, cleartext);
+    if (utf8(ciphertext).length > MAX_CIPHERTEXT_BYTES) {
       throw new Error("this wallet is too large for relay sync; download the backup file instead");
     }
     const nonce = hex(root.crypto.getRandomValues(new Uint8Array(16)));
@@ -411,6 +457,7 @@
 
   root.E1WalletSync = Object.freeze({
     sync, packSnapshot, unpackSnapshot, verifySnapshotEvent, chainFrom,
+    encryptPayload, decryptPayload,
     RELAY_URL, KIND, D_TAG, FORMAT,
   });
   if (typeof module === "object" && module.exports) module.exports = root.E1WalletSync;

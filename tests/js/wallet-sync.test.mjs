@@ -165,6 +165,59 @@ test("first device publishes and a fresh mobile wallet restores through BIMCVP",
   assert.equal(backend.events.length, 1, "restoring never publishes another branch");
 });
 
+test("a wallet larger than nos2x plaintext limit is encrypted in bounded pieces", async () => {
+  const backend = { events: [] };
+  const plaintextSizes = [];
+  let nextId = 1;
+  const strictSigner = {
+    login: async () => PUBKEY,
+    nip44: {
+      available: () => true,
+      encrypt: async (_pubkey, plaintext) => {
+        const size = new TextEncoder().encode(plaintext).length;
+        plaintextSizes.push(size);
+        if (size > 65535) {
+          throw new Error("nos2x: invalid plaintext size: must be between 1 and 65535 bytes");
+        }
+        return `sealed:${plaintext}`;
+      },
+      decrypt: async (_pubkey, ciphertext) => ciphertext.slice("sealed:".length),
+    },
+    sign: async (unsigned) => ({
+      ...unsigned,
+      id: (nextId++).toString(16).padStart(64, "0"),
+      pubkey: PUBKEY,
+      sig: "c".repeat(128),
+    }),
+  };
+  let noisyToken = "";
+  for (let index = 0; index < 12000; index += 1) {
+    noisyToken += ((index * 2654435761) >>> 0).toString(16).padStart(8, "0");
+  }
+  const largeWallet = load({
+    backend,
+    identity: strictSigner,
+    wallet: {
+      exportBackup: async () => backup("desktop", [noisyToken]),
+      replaceBackup: async () => 0,
+    },
+  });
+
+  const result = await largeWallet.sync.sync();
+  assert.equal(result.status, "published");
+  assert.ok(plaintextSizes.length > 1, "the snapshot crossed the signer in multiple pieces");
+  assert.ok(plaintextSizes.every((size) => size > 0 && size <= 65535));
+  assert.equal(
+    backend.events.length, 1,
+    "the encrypted pieces still form one signed snapshot event",
+  );
+  const cleartext = await largeWallet.sync.decryptPayload(
+    strictSigner, PUBKEY, backend.events[0].content,
+  );
+  const restored = await largeWallet.sync.unpackSnapshot(cleartext, "", 0);
+  assert.equal(restored.backup.wallet.tokens[0], noisyToken);
+});
+
 test("a relay fork is reported instead of silently choosing a wallet", async () => {
   const genesis = event("1".repeat(64), 0);
   const left = event("2".repeat(64), 1, genesis.id);
