@@ -121,7 +121,7 @@ function createNutftMint(options = {}) {
   }
   const initialCommitment = censusHash(catalog.counts);
   const db = options.db;
-  const memory = { meta: new Map(), spent: new Set(), operations: new Map() };
+  const memory = { meta: new Map(), spent: new Set(), operations: new Map(), signatures: new Map() };
   let q;
   if (db) {
     db.exec(`
@@ -168,6 +168,11 @@ function createNutftMint(options = {}) {
         response_json TEXT NOT NULL,
         PRIMARY KEY (type, operation_key)
       );
+      CREATE TABLE IF NOT EXISTS nutft_signatures (
+        b_             TEXT PRIMARY KEY,
+        output_json    TEXT NOT NULL,
+        signature_json TEXT NOT NULL
+      );
     `);
     /* CREATE TABLE IF NOT EXISTS does nothing to a table that predates a
        column, and SQLite has no ADD COLUMN IF NOT EXISTS. A mint that has
@@ -183,6 +188,8 @@ function createNutftMint(options = {}) {
       putSpent: db.prepare("INSERT INTO nutft_spent (y) VALUES (?)"),
       operation: db.prepare("SELECT request_hash, response_json FROM nutft_operations WHERE type = ? AND operation_key = ?"),
       putOperation: db.prepare("INSERT INTO nutft_operations (type, operation_key, request_hash, response_json) VALUES (?, ?, ?, ?)"),
+      signature: db.prepare("SELECT output_json, signature_json FROM nutft_signatures WHERE b_ = ?"),
+      putSignature: db.prepare("INSERT INTO nutft_signatures (b_, output_json, signature_json) VALUES (?, ?, ?)"),
       invoice: db.prepare("SELECT * FROM nutft_invoices WHERE payment_hash = ?"),
       activeInvoices: db.prepare("SELECT * FROM nutft_invoices WHERE pack_id = ? AND claimed = 0 ORDER BY created_at DESC"),
       putInvoice: db.prepare(`
@@ -228,6 +235,19 @@ function createNutftMint(options = {}) {
   const putOperation = (type, key, requestHash, result) => db
     ? q.putOperation.run(type, key, requestHash, JSON.stringify(result))
     : memory.operations.set(`${type}:${key}`, { requestHash, result });
+  const getSignature = (b) => {
+    const row = db ? q.signature.get(b) : memory.signatures.get(b);
+    return row && {
+      output: JSON.parse(row.output_json || JSON.stringify(row.output)),
+      signature: JSON.parse(row.signature_json || JSON.stringify(row.signature)),
+    };
+  };
+  const putSignature = (output, signature) => {
+    const stored = { amount: output.amount, id: output.id, B_: output.B_ };
+    return db
+      ? q.putSignature.run(output.B_, JSON.stringify(stored), JSON.stringify(signature))
+      : memory.signatures.set(output.B_, { output: stored, signature });
+  };
   const isSpent = (y) => db ? Boolean(q.spent.get(y)) : memory.spent.has(y);
   const putSpent = (y) => db ? q.putSpent.run(y) : memory.spent.add(y);
   const walletBackupBuyers = () => q
@@ -910,6 +930,20 @@ function createNutftMint(options = {}) {
     };
   }
 
+  function restore(body) {
+    if (!Array.isArray(body.outputs) || body.outputs.length > 500) {
+      throw new Error("outputs must be an array of at most 500 blinded messages");
+    }
+    const found = [];
+    for (const output of body.outputs) {
+      if (!output || typeof output.B_ !== "string") throw new Error("outputs contains an invalid blinded message");
+      cashu.pointFromHex(output.B_);
+      const saved = getSignature(output.B_);
+      if (saved) found.push(saved);
+    }
+    return { outputs: found.map((item) => item.output), signatures: found.map((item) => item.signature) };
+  }
+
   /* Deliberately NOT gated on a live credential. The gate belongs on issuance:
      an unlisted buyer never obtains a payable invoice, so an invoice that exists
      was obtained by a listed one, and the settled payment row carries that fact
@@ -975,7 +1009,12 @@ function createNutftMint(options = {}) {
        only a malformed output. */
     await requireSettled(expected, body.payment_hash);
     if (!Array.isArray(body.outputs) || body.outputs.length !== expected.cards.length) throw new Error("one output is required per card");
-    for (let i = 0; i < expected.cards.length; i += 1) validateOutput(body.outputs[i], reference(expected.cards[i].asset_id), keyset.keysetId);
+    const blinded = new Set();
+    for (let i = 0; i < expected.cards.length; i += 1) {
+      validateOutput(body.outputs[i], reference(expected.cards[i].asset_id), keyset.keysetId);
+      if (blinded.has(body.outputs[i].B_) || getSignature(body.outputs[i].B_)) throw new Error("output was already signed");
+      blinded.add(body.outputs[i].B_);
+    }
 
     /* Validate the full request before claiming its payment. A malformed output
        must not burn a settled invoice and strand the buyer without a pack. */
@@ -1023,6 +1062,7 @@ function createNutftMint(options = {}) {
       }
       putMeta("state", JSON.stringify(nextState));
       putOperation("booster", body.idempotency_key, requestHash, result);
+      body.outputs.forEach((output, index) => putSignature(output, signatures[index]));
     });
     Object.assign(state, nextState);
     await notifyWalletBackupBuyer(walletBackupBuyer);
@@ -1053,6 +1093,7 @@ function createNutftMint(options = {}) {
     const outputBinding = validateOutput(body.outputs[0], inputReference, keyset.keysetId);
     if (outputBinding.binding !== parsedInput.binding) throw new Error("replacement CardBinding must equal input CardBinding");
     const output = body.outputs[0];
+    if (getSignature(output.B_)) throw new Error("output was already signed");
     const blind = cashu.createBlindSignature(cashu.pointFromHex(output.B_), keyset.privKeys["1"], keyset.keysetId);
     const dleq = cashu.createDLEQProof(cashu.pointFromHex(output.B_), keyset.privKeys["1"]);
     const result = {
@@ -1065,6 +1106,7 @@ function createNutftMint(options = {}) {
     atomic(() => {
       putSpent(y);
       putOperation("trade", body.idempotency_key, requestHash, result);
+      putSignature(output, result.signature);
     });
     return result;
   }
@@ -1128,12 +1170,16 @@ function createNutftMint(options = {}) {
               catalog_blob_urls: catalogBlobUrls(),
             },
             7: { supported: true },
+            9: { supported: true },
           },
         });
       }
       if (req.method === "GET" && localPath === "/v1/keys") return json(res, 200, await keysResponse());
-      if (req.method === "POST" && localPath === "/v1/checkstate") {
-        const body = await readBody(req);
+      if (req.method === "POST" && localPath === "/v1/restore") {
+        await ready;
+        return json(res, 200, restore(await readBody(req)));
+      }
+      if (req.method === "POST" && localPath === "/v1/checkstate") {        const body = await readBody(req);
         await ready;
         if (!Array.isArray(body.Ys) || body.Ys.length > 256) throw new Error("Ys must be an array of at most 256 points");
         for (const Y of body.Ys) {
