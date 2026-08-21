@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build-rulebook.cjs",
+    "recover:plebeian": "node scripts/recover-plebeian-cashu.mjs",
     "table": "node server/table.js",
     "test:js": "node --test tests/js/*.test.mjs"
   },
@@ -12,6 +13,7 @@
     "@cashu/cashu-ts": "^4.7.2",
     "@noble/curves": "^1.9.7",
     "@resvg/resvg-js": "^2.6.2",
+    "@scure/bip39": "^2.3.0",
     "marked": "^17.0.5",
     "ws": "^8.21.1"
   },

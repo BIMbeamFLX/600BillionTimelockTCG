@@ -15,6 +15,7 @@ Thumbs.db
 *.db-wal
 *.db-shm
 .env
+cashu-recovery-*.json
 .art-build.*.log
 .audit/
 art/generated/

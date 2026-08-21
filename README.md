@@ -87,6 +87,13 @@ docs/
   multiplayer-architecture.md  the topology decision record
 ```
 
+## Plebeian Cashu recovery
+
+Plebeian Market's raw 64-byte Cashu seed cannot be reversed into cashu.me's 12-word BIP39
+phrase. The local recovery tool restores deterministic proofs from the original mint and
+exports standard bearer tokens for import into cashu.me. See
+[`docs/plebeian-cashu-recovery.md`](docs/plebeian-cashu-recovery.md) before using it.
+
 ## Playing locally
 
 `site/play.html` is a two-player hotseat table for the full 295-card set. It opens straight
