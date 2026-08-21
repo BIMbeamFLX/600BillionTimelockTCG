@@ -72,6 +72,35 @@ function openPack(counts, pools, slots, beacon, packId, sequential) {
   return cards;
 }
 
+/* MANIFEST ISSUANCE: the census names the contents instead of describing odds.
+ *
+ * E1 is a box — a pack is a draw from weighted pools, and what makes it fair is
+ * that the odds are published and the order was fixed before the first pack
+ * opened. A G starter set is the opposite kind of object: a precon, a known
+ * list chosen to be playable straight out of the box against the set beside it.
+ * There is nothing to draw and therefore nothing to be fair about in that
+ * sense; what has to be checkable is the CONTENT.
+ *
+ * So a manifest census lists every set. Set N is entry N, and an announced rule
+ * like "the first twenty-one carry a Genesis card" can be verified against the
+ * published file by counting — no beacon, no hashing, no trust in this code.
+ *
+ * counts are still decremented, because `remaining` and the commitment are what
+ * the shop reads and re-hashes, and a manifest edition has to answer those
+ * questions the same way a drawn one does.
+ */
+function openManifestPack(counts, manifest, packId) {
+  const entry = manifest.get(packId);
+  if (!entry) throw new Error(`no manifest entry for ${packId}`);
+  for (const id of entry) {
+    /* A manifest that promises more copies than the census declares would hand
+       out cards the edition never printed. Louder than a silent negative. */
+    if (!(counts[id] > 0)) throw new Error(`${packId} asks for ${id}, which the census has none of left`);
+    counts[id] -= 1;
+  }
+  return [...entry];
+}
+
 function loadCensus(census) {
   const counts = {};
   const pools = {};
@@ -88,6 +117,13 @@ function loadCensus(census) {
      rule. Hashed pools are still sorted, so the draw does not depend on the
      order cards happen to appear in the file. */
   const sequential = new Set(Array.isArray(census.mint.sequential) ? census.mint.sequential : []);
+  /* Keyed by pack_id rather than positional, so a set keeps its identity even if
+     the file is ever reordered — the id is what the mint quotes and the buyer
+     later checks, and an index is not an identity. */
+  const manifest = new Map();
+  for (const entry of Array.isArray(census.manifest) ? census.manifest : []) {
+    manifest.set(entry.pack_id, entry.cards);
+  }
   for (const [pool, ids] of Object.entries(pools)) {
     if (!sequential.has(pool)) ids.sort();
   }
@@ -96,7 +132,13 @@ function loadCensus(census) {
     pools,
     basic,
     sequential,
-    slots: ["common", "uncommon", "prime"].map((pool) => [pool, census.mint.slots[pool]]),
+    manifest,
+    issuance: census.mint.issuance === "manifest" ? "manifest" : "draw",
+    /* A manifest census declares no slots, because it draws nothing. Defaulting
+       to an empty shape rather than throwing lets one loader serve both kinds of
+       edition; openPack would still refuse a census that meant to draw and
+       forgot to say from where, because every slot would be zero. */
+    slots: ["common", "uncommon", "prime"].map((pool) => [pool, (census.mint.slots || {})[pool] || 0]),
   };
 }
 
@@ -122,4 +164,4 @@ if (require.main === module) {
   console.log(selfTest(vector) ? "NutFT draw vector: PASS" : "NutFT draw vector: FAIL");
 }
 
-module.exports = { censusHash, hashParts, loadCensus, openPack, selfTest };
+module.exports = { censusHash, hashParts, loadCensus, openPack, openManifestPack, selfTest };
