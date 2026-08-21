@@ -2499,3 +2499,108 @@ test("the G mint's one-per-key gate survives a real quote-sign-claim round trip"
   const bobsTurn = await buyOne(bob, "bob-g-1");
   assert.equal(bobsTurn.code, 200, "a different listed key is unaffected by alice's refusal");
 });
+
+test('NUTFT_SALES="signed": any nostr key qualifies, no curated roster', async (t) => {
+  /* This is the actual rule the owner asked for: "die was sich einloggen mit
+     nip-07 duerfen genau ein deck kaufen" -- everyone who signs in, not a
+     fixed list of invitees. "allowlist" cannot express that (it is a roster by
+     definition); this mode can, because the qualification IS the signature. */
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const nip98mod = require("../../server/nip98.js");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { randomBytes } = await import("node:crypto");
+
+  const makeKey = () => { const sec = randomBytes(32); return { sec, pub: hex(schnorr.getPublicKey(sec)) }; };
+  const stranger = makeKey(); // never named anywhere in the mint's config
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, censusPath: require.resolve("../../cards/g-census.json"),
+    collectionId: "600B-G", catalogUri: "http://127.0.0.1:9/g/nutft/catalog",
+    funding: createMockFunding({ settleAfterMs: 0 }), allowVirtual: "1", priceMsat: 210_000,
+    sales: "signed",
+    // No `allowlist` option at all -- there is deliberately nothing to be on.
+  });
+
+  const authFor = (who, urlPath, method) => {
+    const event = {
+      pubkey: who.pub, created_at: Math.floor(Date.now() / 1000), kind: 27235, content: "",
+      tags: [["u", `https://x${urlPath}`], ["method", method]],
+    };
+    event.id = nip98mod.eventId(event);
+    event.sig = hex(schnorr.sign(event.id, who.sec));
+    return { header: "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64"), method, path: urlPath, host: "x" };
+  };
+
+  const proof = authFor(stranger, "/nutft/quote", "GET");
+  const first = await mint.payableQuote({ proof });
+  assert.ok(first.pack_id, "a signed stranger, on no list anywhere, still qualifies");
+
+  /* THE ONE THIS TEST EXISTS FOR: an early draft of this mode returned before
+     the replay guard ran, so the exact same signed event could be replayed
+     without limit -- the one hole the file's own ordering comment exists to
+     close for "allowlist", silently reopened for "signed". Caught by writing
+     this assertion, not by reading the code twice. */
+  await assert.rejects(() => mint.payableQuote({ proof }), /already been used/i,
+    "the same signed event must not be replayable just because the mode has no roster");
+
+  await assert.rejects(() => mint.payableQuote({ proof: null }), /sign the request/i,
+    "a signature is still mandatory -- \"signed\" is not \"open\" wearing a different name");
+});
+
+test('NUTFT_SALES="signed" plus one-per-key: two strangers, one set each', async (t) => {
+  const { createMockFunding } = require("../../server/funding.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const nip98mod = require("../../server/nip98.js");
+  const { schnorr } = require("@noble/curves/secp256k1");
+  const { randomBytes } = await import("node:crypto");
+
+  const makeKey = () => { const sec = randomBytes(32); return { sec, pub: hex(schnorr.getPublicKey(sec)) }; };
+  const alice = makeKey(), bob = makeKey();
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const mint = createNutftMint({
+    db, censusPath: require.resolve("../../cards/g-census.json"),
+    collectionId: "600B-G", catalogUri: "http://127.0.0.1:9/g/nutft/catalog",
+    funding: createMockFunding({ settleAfterMs: 0 }), allowVirtual: "1", priceMsat: 210_000,
+    sales: "signed", onePerKey: true,
+  });
+
+  let nonce = 0;
+  const authFor = (who, urlPath, method) => {
+    nonce += 1;
+    const event = {
+      pubkey: who.pub, created_at: Math.floor(Date.now() / 1000), kind: 27235, content: "",
+      tags: [["u", `https://x${urlPath}`], ["method", method], ["nonce", String(nonce)]],
+    };
+    event.id = nip98mod.eventId(event);
+    event.sig = hex(schnorr.sign(event.id, who.sec));
+    return { header: "Nostr " + Buffer.from(JSON.stringify(event)).toString("base64"), method, path: urlPath, host: "x" };
+  };
+
+  /* One-per-key is only recorded on a COMPLETED claim (nutft_buyers is written
+     inside signBooster's transaction) -- a second QUOTE before that would hit
+     the paid-and-being-collected reservation instead, which is a different
+     refusal for a different reason. So this walks the whole thing, the way a
+     real buyer does. */
+  const aliceFirst = await mint.payableQuote({ proof: authFor(alice, "/nutft/quote", "GET") });
+  assert.ok(aliceFirst.pack_id);
+  const aliceOutputs = await outputsFor(mint, aliceFirst, "http://x");
+  const aliceClaim = await mint.signBooster({
+    idempotency_key: "signed-alice-1", pack_id: aliceFirst.pack_id, state: aliceFirst.state,
+    payment_hash: aliceFirst.payment_hash, outputs: aliceOutputs,
+  });
+  assert.equal(aliceClaim.signatures.length, 82);
+
+  await assert.rejects(
+    () => mint.payableQuote({ proof: authFor(alice, "/nutft/quote", "GET") }),
+    /already taken its allocation/i,
+    "alice, unlisted anywhere, is still capped at one by the buyers table",
+  );
+
+  const bobFirst = await mint.payableQuote({ proof: authFor(bob, "/nutft/quote", "GET") });
+  assert.ok(bobFirst.pack_id, "bob, a different stranger, is unaffected by alice's cap");
+});

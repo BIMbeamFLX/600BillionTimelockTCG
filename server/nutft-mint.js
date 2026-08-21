@@ -247,14 +247,20 @@ function createNutftMint(options = {}) {
 
        closed     nobody buys; everything else stays testable
        allowlist  only the listed nostr keys buy
-       open       anyone buys
+       signed     any key that signs may buy -- no curated list, but a key is
+                  required, which is what a one-per-key edition needs to have
+                  anything to count. "The G starter sets": everyone who signs
+                  in gets one, not everyone on a roster.
+       open       anyone buys, no signature asked -- so there is no key to
+                  gate a second attempt by, which is why onePerKey below
+                  refuses to combine with this mode.
 
      Default is "open" so an existing free demo behaves exactly as it does now;
      a PAID mint with no explicit setting is the case worth guarding, and that is
      checked below. */
   const salesMode = String(options.sales || process.env.NUTFT_SALES || "open").toLowerCase();
-  if (!["open", "closed", "allowlist"].includes(salesMode)) {
-    throw new Error(`NUTFT_SALES must be open, closed or allowlist — got ${salesMode}`);
+  if (!["open", "closed", "allowlist", "signed"].includes(salesMode)) {
+    throw new Error(`NUTFT_SALES must be open, closed, allowlist or signed — got ${salesMode}`);
   }
   const allowlist = new Set();
   for (const entry of String(options.allowlist || process.env.NUTFT_ALLOWLIST || "").split(",")) {
@@ -277,8 +283,8 @@ function createNutftMint(options = {}) {
      advertise a rule the mint cannot keep. */
   const onePerKeyRaw = options.onePerKey ?? process.env.NUTFT_ONE_PER_KEY ?? "";
   const onePerKey = onePerKeyRaw === true || onePerKeyRaw === "1" || onePerKeyRaw === "true";
-  if (onePerKey && salesMode !== "allowlist") {
-    throw new Error("NUTFT_ONE_PER_KEY needs NUTFT_SALES=allowlist — without a signed request there is no key to count against");
+  if (onePerKey && salesMode !== "allowlist" && salesMode !== "signed") {
+    throw new Error("NUTFT_ONE_PER_KEY needs NUTFT_SALES=allowlist or NUTFT_SALES=signed — without a signed request there is no key to count against");
   }
   if (salesMode === "allowlist" && !allowlist.size) {
     throw new Error("NUTFT_SALES=allowlist with an empty NUTFT_ALLOWLIST would sell to nobody; set the list or use closed");
@@ -519,7 +525,13 @@ function createNutftMint(options = {}) {
        Checking the list first means a stranger costs us one signature check and
        nothing that persists. Only a key we have already decided may act is
        allowed to spend a slot. */
-    if (!allowlist.has(checked.pubkey)) {
+    /* "allowlist" checks the curated list here; "signed" skips straight to the
+       replay guard below, because the signature alone is the qualification —
+       there is no roster to fail, every valid nostr key is early access. Both
+       still have to pass the SAME admit() call beneath this: skipping it for
+       "signed" would mean one signed event could be replayed without limit,
+       which is the exact hole the ordering comment above exists to close. */
+    if (salesMode !== "signed" && !allowlist.has(checked.pubkey)) {
       throw new Error("early access: this key is not on the list yet");
     }
     if (!seenAuth.admit(checked.id, checked.createdAt, checked.now)) {
