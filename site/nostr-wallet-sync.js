@@ -11,21 +11,28 @@
  *
  * The event content is NIP-44-encrypted to the same signer. The relay can see
  * the signer, time and ciphertext size, but never the wallet key or Cashu
- * tokens. An npub identifies the chain; only its signer can open it. */
+ * tokens. Large ciphertexts are stored as hash-addressed blobs on the BIMCVP
+ * Blossom server; the signed event contains only the verified pointer. An npub
+ * identifies the chain; only its signer can open it. */
 (function (root) {
   "use strict";
 
   const RELAY_URL = "wss://relay.bimcvp.com";
+  const BLOSSOM_URL = "https://blossom.bimcvp.com";
   const KIND = 37378;
   const D_TAG = "com.600b.nutft-wallet.v0";
   const META_STORE = "600b:nutft-wallet-sync-v0";
   const FORMAT = "600b-nutft-wallet-sync-v0";
   const CHUNK_FORMAT = "600b-nip44-chunks-v1";
+  const BLOB_FORMAT = "600b-wallet-blossom-v1";
   const MAX_NIP44_PLAINTEXT_BYTES = 60000;
   const MAX_NIP44_CHUNKS = 21;
-  const MAX_CIPHERTEXT_BYTES = 850000;
+  const MAX_DIRECT_CIPHERTEXT_BYTES = 50000;
+  const MAX_RELAY_EVENT_BYTES = 65536;
+  const MAX_BLOB_BYTES = 2000000;
   const MAX_EVENTS = 500;
   const RELAY_TIMEOUT_MS = 12000;
+  const BLOSSOM_TIMEOUT_MS = 120000;
   const HEX_32 = /^[0-9a-f]{32}$/;
   const HEX_64 = /^[0-9a-f]{64}$/;
 
@@ -40,7 +47,11 @@
   };
 
   const utf8 = (text) => new TextEncoder().encode(text);
+  const eventBytes = (event) => utf8(JSON.stringify(event)).length;
   const hex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const sha256Bytes = async (bytes) => hex(new Uint8Array(
+    await root.crypto.subtle.digest("SHA-256", bytes),
+  ));
   const digest = async (value) => hex(new Uint8Array(
     await root.crypto.subtle.digest("SHA-256", utf8(canonical(value))),
   ));
@@ -152,7 +163,7 @@
       ]);
     if (!verifier || typeof verifier.verifyEvent !== "function" || event?.kind !== KIND
         || event.pubkey !== pubkey || typeof event.content !== "string"
-        || utf8(event.content).length > MAX_CIPHERTEXT_BYTES || !HEX_32.test(nonce)
+        || eventBytes(event) > MAX_RELAY_EVENT_BYTES || !HEX_32.test(nonce)
         || !exactTags || revision === null
         || (previous !== "" && !HEX_64.test(previous))) return false;
     try { return await verifier.verifyEvent(event); }
@@ -341,11 +352,117 @@
     return cleartext.join("");
   }
 
+  const blossomSignal = () => (typeof root.AbortSignal?.timeout === "function"
+    ? root.AbortSignal.timeout(BLOSSOM_TIMEOUT_MS) : undefined);
+
+  function blossomPointer(content) {
+    let pointer;
+    try { pointer = JSON.parse(content); }
+    catch { return null; }
+    if (pointer?.format !== BLOB_FORMAT) return null;
+    if (!HEX_64.test(pointer.sha256 || "")
+        || pointer.url !== `${BLOSSOM_URL}/${pointer.sha256}`
+        || !Number.isSafeInteger(pointer.bytes) || pointer.bytes < 1
+        || pointer.bytes > MAX_BLOB_BYTES) {
+      throw new Error("the signed Blossom wallet pointer is invalid");
+    }
+    return pointer;
+  }
+
+  async function downloadBlob(pointer) {
+    if (typeof root.fetch !== "function") {
+      throw new Error("this browser cannot download the encrypted wallet blob");
+    }
+    let response;
+    try {
+      response = await root.fetch(pointer.url, { signal: blossomSignal(), cache: "no-store" });
+    } catch {
+      throw new Error("the encrypted wallet blob could not be downloaded from BIMCVP Blossom");
+    }
+    if (!response.ok) {
+      throw new Error(
+        `BIMCVP Blossom could not find the encrypted wallet blob (${response.status})`,
+      );
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length !== pointer.bytes || bytes.length > MAX_BLOB_BYTES
+        || await sha256Bytes(bytes) !== pointer.sha256) {
+      throw new Error("the encrypted wallet blob does not match its signed SHA-256 pointer");
+    }
+    try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+    catch { throw new Error("the encrypted wallet blob is not valid UTF-8"); }
+  }
+
+  async function blossomAuthorization(identity, pubkey, sha256) {
+    const now = Math.floor(Date.now() / 1000);
+    const unsigned = {
+      kind: 24242,
+      created_at: now,
+      tags: [["t", "upload"], ["x", sha256], ["expiration", String(now + 600)]],
+      content: "upload encrypted 600B wallet snapshot",
+    };
+    const signed = await identity.sign(unsigned);
+    const exact = signed?.kind === unsigned.kind && signed.pubkey === pubkey
+      && signed.created_at === unsigned.created_at && signed.content === unsigned.content
+      && canonical(signed.tags) === canonical(unsigned.tags);
+    if (!exact || !(await root.E1Schnorr.verifyEvent(signed))) {
+      throw new Error("the signer returned an invalid Blossom upload authorization");
+    }
+    return `Nostr ${base64(utf8(JSON.stringify(signed)))}`;
+  }
+
+  async function uploadBlob(identity, pubkey, content) {
+    if (typeof root.fetch !== "function") {
+      throw new Error("this browser cannot upload the encrypted wallet blob");
+    }
+    const bytes = utf8(content);
+    if (!bytes.length || bytes.length > MAX_BLOB_BYTES) {
+      throw new Error("this wallet is too large for Blossom sync; keep the backup file instead");
+    }
+    const sha256 = await sha256Bytes(bytes);
+    const authorization = await blossomAuthorization(identity, pubkey, sha256);
+    let response;
+    try {
+      response = await root.fetch(`${BLOSSOM_URL}/upload`, {
+        method: "PUT",
+        headers: {
+          Authorization: authorization,
+          "Content-Type": "application/json",
+          "X-SHA-256": sha256,
+        },
+        body: bytes,
+        signal: blossomSignal(),
+      });
+    } catch {
+      throw new Error("the encrypted wallet blob upload to BIMCVP Blossom failed");
+    }
+    if (!response.ok) {
+      const reason = response.headers.get("x-reason") || `HTTP ${response.status}`;
+      throw new Error(`BIMCVP Blossom refused the encrypted wallet blob: ${reason}`);
+    }
+    let descriptor;
+    try { descriptor = await response.json(); }
+    catch { throw new Error("BIMCVP Blossom returned an invalid blob descriptor"); }
+    if (descriptor?.sha256 !== sha256 || descriptor.size !== bytes.length) {
+      throw new Error("BIMCVP Blossom returned the wrong wallet blob descriptor");
+    }
+    const pointer = {
+      format: BLOB_FORMAT,
+      sha256,
+      url: `${BLOSSOM_URL}/${sha256}`,
+      bytes: bytes.length,
+    };
+    await downloadBlob(pointer);
+    return pointer;
+  }
+
   async function decryptHead(event, pubkey) {
     const previous = singleTag(event, "prev");
     const revision = revisionOf(event);
     const identity = root.E1Napplet.identity;
-    const cleartext = await decryptPayload(identity, pubkey, event.content);
+    const pointer = blossomPointer(event.content);
+    const content = pointer ? await downloadBlob(pointer) : event.content;
+    const cleartext = await decryptPayload(identity, pubkey, content);
     return unpackSnapshot(cleartext, previous, revision);
   }
 
@@ -353,9 +470,8 @@
     const identity = root.E1Napplet.identity;
     const cleartext = await packSnapshot(revision, previousEventId, backupText);
     const ciphertext = await encryptPayload(identity, pubkey, cleartext);
-    if (utf8(ciphertext).length > MAX_CIPHERTEXT_BYTES) {
-      throw new Error("this wallet is too large for relay sync; download the backup file instead");
-    }
+    const content = utf8(ciphertext).length > MAX_DIRECT_CIPHERTEXT_BYTES
+      ? JSON.stringify(await uploadBlob(identity, pubkey, ciphertext)) : ciphertext;
     const nonce = hex(root.crypto.getRandomValues(new Uint8Array(16)));
     const unsigned = {
       kind: KIND,
@@ -364,7 +480,7 @@
         ["d", `${D_TAG}:${nonce}`], ["sync", D_TAG], ["prev", previousEventId],
         ["schema", "0"], ["rev", String(revision)],
       ],
-      content: ciphertext,
+      content,
     };
     const signed = await identity.sign(unsigned);
     if (!(await verifySnapshotEvent(signed, pubkey))) {

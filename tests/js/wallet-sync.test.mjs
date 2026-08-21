@@ -62,6 +62,15 @@ function relayClass(backend) {
         return;
       }
       if (message[0] === "EVENT") {
+        const eventBytes = new TextEncoder().encode(JSON.stringify(message[1])).length;
+        if (backend.maxEventBytes && eventBytes > backend.maxEventBytes) {
+          queueMicrotask(() => this.emit("message", {
+            data: JSON.stringify([
+              "OK", message[1].id, false, `invalid: event too large: ${eventBytes}`,
+            ]),
+          }));
+          return;
+        }
         backend.events.push(message[1]);
         queueMicrotask(() => this.emit("message", {
           data: JSON.stringify(["OK", message[1].id, true, "stored"]),
@@ -71,6 +80,34 @@ function relayClass(backend) {
 
     close() {}
   };
+}
+
+async function blossomFetch(backend, url, options = {}) {
+  const target = new URL(url);
+  if (target.origin !== "https://blossom.bimcvp.com") {
+    throw new Error(`unexpected fetch target ${target.origin}`);
+  }
+  const blobs = (backend.blobs ||= new Map());
+  if (target.pathname === "/upload" && options.method === "PUT") {
+    const bytes = new Uint8Array(await new Response(options.body).arrayBuffer());
+    const sha256 = Buffer.from(await crypto.subtle.digest("SHA-256", bytes)).toString("hex");
+    const authorization = options.headers?.Authorization || options.headers?.authorization || "";
+    if (!authorization.startsWith("Nostr ")) return new Response("auth required", { status: 401 });
+    blobs.set(sha256, bytes);
+    (backend.uploads ||= []).push({ sha256, authorization, bytes: bytes.length });
+    return new Response(JSON.stringify({
+      url: `${target.origin}/${sha256}.json`,
+      sha256,
+      size: bytes.length,
+      type: "application/json",
+      uploaded: 1_700_000_000,
+    }), { status: 201, headers: { "content-type": "application/json" } });
+  }
+  const sha256 = target.pathname.slice(1).split(".")[0];
+  const bytes = blobs.get(sha256);
+  return bytes
+    ? new Response(bytes, { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("missing", { status: 404 });
 }
 
 function load({ backend = { events: [] }, wallet, storage = new Map(), identity } = {}) {
@@ -100,6 +137,7 @@ function load({ backend = { events: [] }, wallet, storage = new Map(), identity 
     Uint8Array,
     Date,
     Promise,
+    fetch: (url, options) => blossomFetch(backend, url, options),
     WebSocket: relayClass(backend),
     setTimeout,
     clearTimeout,
@@ -165,8 +203,8 @@ test("first device publishes and a fresh mobile wallet restores through BIMCVP",
   assert.equal(backend.events.length, 1, "restoring never publishes another branch");
 });
 
-test("a wallet larger than nos2x plaintext limit is encrypted in bounded pieces", async () => {
-  const backend = { events: [] };
+test("a large wallet round-trips through a Blossom pointer and a 65536-byte relay", async () => {
+  const backend = { events: [], maxEventBytes: 65536 };
   const plaintextSizes = [];
   let nextId = 1;
   const strictSigner = {
@@ -179,9 +217,11 @@ test("a wallet larger than nos2x plaintext limit is encrypted in bounded pieces"
         if (size > 65535) {
           throw new Error("nos2x: invalid plaintext size: must be between 1 and 65535 bytes");
         }
-        return `sealed:${plaintext}`;
+        return `sealed:${Buffer.from(plaintext, "utf8").toString("base64")}`;
       },
-      decrypt: async (_pubkey, ciphertext) => ciphertext.slice("sealed:".length),
+      decrypt: async (_pubkey, ciphertext) => Buffer.from(
+        ciphertext.slice("sealed:".length), "base64",
+      ).toString("utf8"),
     },
     sign: async (unsigned) => ({
       ...unsigned,
@@ -207,15 +247,35 @@ test("a wallet larger than nos2x plaintext limit is encrypted in bounded pieces"
   assert.equal(result.status, "published");
   assert.ok(plaintextSizes.length > 1, "the snapshot crossed the signer in multiple pieces");
   assert.ok(plaintextSizes.every((size) => size > 0 && size <= 65535));
-  assert.equal(
-    backend.events.length, 1,
-    "the encrypted pieces still form one signed snapshot event",
+  assert.equal(backend.events.length, 1, "the relay stores only the signed snapshot pointer");
+  assert.ok(
+    new TextEncoder().encode(JSON.stringify(backend.events[0])).length <= backend.maxEventBytes,
   );
-  const cleartext = await largeWallet.sync.decryptPayload(
-    strictSigner, PUBKEY, backend.events[0].content,
-  );
-  const restored = await largeWallet.sync.unpackSnapshot(cleartext, "", 0);
-  assert.equal(restored.backup.wallet.tokens[0], noisyToken);
+  assert.equal(backend.blobs.size, 1, "the encrypted wallet is one content-addressed blob");
+  const pointer = JSON.parse(backend.events[0].content);
+  assert.equal(pointer.format, "600b-wallet-blossom-v1");
+  assert.equal(pointer.url, `https://blossom.bimcvp.com/${pointer.sha256}`);
+  assert.equal(pointer.bytes, backend.blobs.get(pointer.sha256).length);
+  const auth = JSON.parse(Buffer.from(
+    backend.uploads[0].authorization.slice("Nostr ".length), "base64",
+  ).toString("utf8"));
+  assert.equal(auth.kind, 24242);
+  assert.deepEqual(auth.tags.find((tag) => tag[0] === "x"), ["x", pointer.sha256]);
+
+  let replacement = null;
+  const emptyMobile = backup("generated-mobile");
+  const mobile = load({
+    backend,
+    identity: strictSigner,
+    wallet: {
+      exportBackup: async () => emptyMobile,
+      replaceBackup: async (remote, expected) => { replacement = { remote, expected }; return 1; },
+    },
+  });
+  const restored = await mobile.sync.sync();
+  assert.equal(restored.status, "restored");
+  assert.equal(replacement.expected, emptyMobile);
+  assert.equal(JSON.parse(replacement.remote).wallet.tokens[0], noisyToken);
 });
 
 test("a relay fork is reported instead of silently choosing a wallet", async () => {
