@@ -3,11 +3,19 @@
 
   const STORE = "600b:nutft-wallet";
   const CASHU_URL = "https://esm.sh/@cashu/cashu-ts@4.7.2?bundle";
+  const BIP39_URL = "https://esm.sh/@scure/bip39@2.3.0?bundle";
+  const ENGLISH_URL = "https://esm.sh/@scure/bip39@2.3.0/wordlists/english.js?bundle";
+  const BIP32_URL = "https://esm.sh/@scure/bip32@2.3.0?bundle";
   let cashuPromise;
+  let walletCryptoPromise;
+  const seedCache = new Map();
   let memory = null;
   let queue = Promise.resolve();
 
   const cashu = () => (cashuPromise ||= root.__cashu ? Promise.resolve(root.__cashu) : import(CASHU_URL));
+  const walletCrypto = () => (walletCryptoPromise ||= root.__walletCrypto
+    ? Promise.resolve(root.__walletCrypto)
+    : Promise.all([import(BIP39_URL), import(ENGLISH_URL), import(BIP32_URL)]).then(([bip39, english, bip32]) => ({ ...bip39, wordlist: english.wordlist, HDKey: bip32.HDKey })));
   const hex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   const bytes = (value) => Uint8Array.from(value.match(/.{2}/g).map((part) => parseInt(part, 16)));
   const canonical = (value) => {
@@ -18,7 +26,7 @@
   const digest = async (value) => hex(new Uint8Array(await root.crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))));
   const reference = (tag) => ({ collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3] });
   const binding = async (tag) => digest(`Cashu_NutFT_v1${canonical(reference(tag))}`);
-  const validState = (state) => state && typeof state === "object" && typeof state.privateKey === "string" && typeof state.pubkey === "string" && Array.isArray(state.tokens) && state.tokens.every((token) => typeof token === "string") && (state.pending == null || typeof state.pending === "object");
+  const validState = (state) => state && typeof state === "object" && typeof state.privateKey === "string" && typeof state.pubkey === "string" && (state.seedPhrase == null || typeof state.seedPhrase === "string") && (state.counters == null || (typeof state.counters === "object" && !Array.isArray(state.counters))) && Array.isArray(state.tokens) && state.tokens.every((token) => typeof token === "string") && (state.pending == null || typeof state.pending === "object");
 
   /* ALWAYS re-read storage. The cache used to be returned outright, so this
    * function could not see a write made by another TAB — and every decision
@@ -39,9 +47,9 @@
   async function read() {
     let saved = null;
     try { saved = root.localStorage.getItem(STORE); }
-    catch { return memory || (memory = { privateKey: "", pubkey: "", tokens: [], outgoing: [] }); }
+    catch { return memory || (memory = { privateKey: "", pubkey: "", seedPhrase: "", counters: {}, tokens: [], outgoing: [] }); }
     if (saved === null && memory) return memory;
-    if (!saved) return (memory = { privateKey: "", pubkey: "", tokens: [], outgoing: [] });
+    if (!saved) return (memory = { privateKey: "", pubkey: "", seedPhrase: "", counters: {}, tokens: [], outgoing: [] });
     try { memory = JSON.parse(saved); }
     catch { throw new Error("Wallet storage is corrupted. Preserve 600b:nutft-wallet before making changes."); }
     if (!validState(memory)) {
@@ -84,8 +92,10 @@
   async function identity(c) {
     const state = await read();
     if (!state.privateKey) {
-      const privateKey = c.createRandomSecretKey();
-      const next = { ...state, privateKey: hex(privateKey), pubkey: hex(c.getPubKeyFromPrivKey(privateKey)) };
+      const wc = await walletCrypto();
+      const seedPhrase = wc.generateMnemonic(wc.wordlist, 128);
+      const privateKey = wc.HDKey.fromMasterSeed(wc.mnemonicToSeedSync(seedPhrase)).derive("m/129373'/10'/0'/0'/0").privateKey;
+      const next = { ...state, seedPhrase, counters: {}, privateKey: hex(privateKey), pubkey: hex(c.getPubKeyFromPrivKey(privateKey)) };
       write(next);
       return next;
     }
@@ -101,10 +111,18 @@
     if (!capability || capability.supported !== true || !capability.versions?.includes(1) || capability.output_openings !== true || capability.p2bk !== true || capability.dleq !== true || typeof capability.catalog_issuer !== "string") {
       throw new Error("mint does not advertise the required NUT-31/P2BK/DLEQ capabilities");
     }
+    if (!info.nuts?.[9]?.supported) throw new Error("mint does not advertise NUT-09 restore support");
     const data = await response.json();
     const keyset = data.keysets && data.keysets.find((entry) => entry.active !== false);
     if (!keyset || keyset.unit !== "600B-E1") throw new Error("mint does not advertise the 600B-E1 NutFT unit");
     return { id: keyset.id, keys: keyset.keys, catalogIssuer: capability.catalog_issuer };
+  }
+
+  async function getCatalog(mintUrl, c, keyset) {
+    const response = await fetch(`${mintUrl}/nutft/catalog`);
+    if (!response.ok) throw new Error(`catalog unavailable (${response.status})`);
+    const catalog = await response.json();
+    return verifyCatalog(catalog.catalog_uri, catalog, c, keyset.catalogIssuer);
   }
 
   const opening = (output) => ({
@@ -120,11 +138,63 @@
     saved.p2pk_e,
   );
   const requestOutput = (saved) => ({ amount: 1, id: saved.id, B_: saved.B_, nutft: { secret: saved.secret, blinding_factor: saved.blinding_factor, p2pk_e: saved.p2pk_e } });
-  const boosterOutputs = (cards, state, c, keyset) => cards.map((card) => c.OutputData.createSingleP2PKData({
-    pubkey: state.pubkey,
-    blindKeys: true,
-    additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
-  }, 1, keyset.id));
+  const counterKey = (mintUrl, keysetId) => `${mintUrl}|${keysetId}`;
+  const SECP256K1_N = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+
+  async function seedContext(seedPhrase) {
+    if (!seedCache.has(seedPhrase)) {
+      const wc = await walletCrypto();
+      const seed = wc.mnemonicToSeedSync(seedPhrase);
+      seedCache.set(seedPhrase, {
+        seed,
+        hmacKey: root.crypto.subtle.importKey("raw", seed, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]),
+      });
+    }
+    const context = seedCache.get(seedPhrase);
+    return { seed: context.seed, hmacKey: await context.hmacKey };
+  }
+
+  async function deterministicOutput(card, state, c, keyset, counter) {
+    const { seed, hmacKey } = await seedContext(state.seedPhrase);
+    const derived = c.deriveSecretAndBlindingFactor(seed, keyset.id, counter);
+    const eDigest = new Uint8Array(await root.crypto.subtle.sign("HMAC", hmacKey, new TextEncoder().encode(`600B_NutFT_P2BK_E_v1${keyset.id}${counter}`)));
+    const e = BigInt(`0x${hex(eDigest)}`) % SECP256K1_N;
+    if (!e) throw new Error("derived invalid P2BK key");
+    const { blinded, Ehex } = c.deriveP2BKBlindedPubkeys([state.pubkey], bytes(e.toString(16).padStart(64, "0")));
+    const secret = JSON.stringify(["P2PK", {
+      nonce: hex(derived.secret),
+      data: blinded[0],
+      tags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+    }]);
+    const encoded = new TextEncoder().encode(secret);
+    const r = BigInt(`0x${hex(derived.blindingFactor)}`);
+    const B_ = c.blindMessage(encoded, r).B_.toHex(true);
+    return new c.OutputData({ amount: c.Amount.from(1), id: keyset.id, B_ }, r, encoded, Ehex);
+  }
+
+  async function outputsFor(cards, mintUrl, state, c, keyset) {
+    if (!state.seedPhrase) {
+      return { outputs: cards.map((card) => c.OutputData.createSingleP2PKData({
+        pubkey: state.pubkey,
+        blindKeys: true,
+        additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+      }, 1, keyset.id)), counters: state.counters || {} };
+    }
+    const catalog = await getCatalog(mintUrl, c, keyset);
+    const key = counterKey(mintUrl, keyset.id);
+    const counters = { ...(state.counters || {}) };
+    let counter = Number(counters[key] || 0);
+    const outputs = [];
+    for (const card of cards) {
+      const index = catalog.assets.findIndex((asset) => asset.asset_id === card.asset_id);
+      if (index < 0) throw new Error(`catalog has no asset ${card.asset_id}`);
+      counter += (index - (counter % catalog.assets.length) + catalog.assets.length) % catalog.assets.length;
+      outputs.push({ card, counter });
+      counter += 1;
+    }
+    counters[key] = counter;
+    return { outputs: await Promise.all(outputs.map((item) => deterministicOutput(item.card, state, c, keyset, item.counter))), counters };
+  }
 
   async function finishPending(state, pending, response, c, keyset) {
     if (pending.type === "booster") {
@@ -195,9 +265,10 @@
         wait.awaitingPayment = true;
         throw wait;
       }
-      const outputs = boosterOutputs(opened.cards, state, c, keyset).map(savedOutput);
+      const prepared = await outputsFor(opened.cards, pending.mintUrl, state, c, keyset);
+      const outputs = prepared.outputs.map(savedOutput);
       pending = { ...pending, outputs, body: { ...pending.body, pack_id: opened.pack_id, state: opened.state, outputs: outputs.map(requestOutput) } };
-      state = { ...state, pending };
+      state = { ...state, counters: prepared.counters, pending };
       write(state);
     }
     const path = pending.type === "booster" ? "/nutft/booster" : "/nutft/trade";
@@ -399,8 +470,8 @@
     }
     const keyset = await getKeyset(mintUrl, c);
     const quote = await requestQuote(mintUrl);
-    const outputs = Array.isArray(quote.cards) ? boosterOutputs(quote.cards, state, c, keyset) : [];
-    const saved = outputs.map(savedOutput);
+    const prepared = Array.isArray(quote.cards) ? await outputsFor(quote.cards, mintUrl, state, c, keyset) : { outputs: [], counters: state.counters || {} };
+    const saved = prepared.outputs.map(savedOutput);
     const pending = { type: "booster", mintUrl, outputs: saved, body: {
       idempotency_key: root.crypto.randomUUID(),
       pack_id: quote.pack_id,
@@ -410,7 +481,7 @@
       payment_hash: quote.payment_hash,
       outputs: saved.map(requestOutput),
     } };
-    state = { ...state, pending };
+    state = { ...state, counters: prepared.counters, pending };
     write(state);
     /* A paid mint hands back an invoice the buyer settles in their own wallet.
        Show it, then wait — nothing here ever touches their credentials. */
@@ -585,14 +656,24 @@
     const tag = c.getTag(oldProof.secret, "nutft");
     if (typeof recipientPubkey !== "string") throw new Error("recipient P2BK public key is required");
     c.pointFromHex(recipientPubkey);
-    const output = c.OutputData.createSingleP2PKData({
-      pubkey: recipientPubkey,
-      blindKeys: true,
-      additionalTags: [["nutft", ...tag]],
-    }, 1, keyset.id);
+    let output;
+    let counters = state.counters || {};
+    if (state.seedPhrase && recipientPubkey === state.pubkey) {
+      const prepared = await outputsFor([{
+        collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3], asset_binding: tag[4],
+      }], mintUrl, state, c, keyset);
+      [output] = prepared.outputs;
+      counters = prepared.counters;
+    } else {
+      output = c.OutputData.createSingleP2PKData({
+        pubkey: recipientPubkey,
+        blindKeys: true,
+        additionalTags: [["nutft", ...tag]],
+      }, 1, keyset.id);
+    }
     const saved = savedOutput(output);
     const pending = { type: "trade", mintUrl, input_secret: oldProof.secret, outputs: [saved], body: { idempotency_key: root.crypto.randomUUID(), inputs: c.serializeProofs([signed]), outputs: [requestOutput(saved)] } };
-    state = { ...state, pending };
+    state = { ...state, counters, pending };
     write(state);
     return submitPending(state, c, keyset);
   }
@@ -629,10 +710,112 @@
       if (item.state !== "UNSPENT" || !c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof).length) throw new Error("token is spent or not addressed to this wallet");
     }
     write({ ...state, tokens: [...state.tokens, token] });
+    /* Received proofs were made by the sender, so their random output material
+       cannot be recovered from this wallet's NUT-13 seed. Reissue each one to
+       our own destination immediately; the old token remains stored if a
+       request fails, and the normal pending/outgoing records cover a lost
+       response after the mint spends it. */
+    if (state.seedPhrase) {
+      for (const proof of decoded.proofs) {
+        try {
+          const moved = await tradeProofUnlocked(mintUrl, proof.secret, state.pubkey);
+          const current = await read();
+          write({
+            ...current,
+            tokens: [...current.tokens, moved.token],
+            outgoing: (current.outgoing || []).filter((entry) => entry.token !== moved.token),
+          });
+        } catch { break; }
+      }
+    }
     return decoded.proofs.length;
   }
 
   const importToken = (mintUrl, token) => locked(() => importTokenUnlocked(mintUrl, token));
+
+  async function recoveryPhraseUnlocked() {
+    const c = await cashu();
+    const phrase = (await identity(c)).seedPhrase;
+    if (!phrase) throw new Error("this wallet predates recovery phrases; keep using its backup file");
+    return phrase;
+  }
+
+  const recoveryPhrase = () => locked(recoveryPhraseUnlocked);
+
+  async function restoreSeedUnlocked(mintUrl, phrase) {
+    const current = await read();
+    if (current.tokens.length || current.pending || (current.outgoing || []).length) {
+      throw new Error("recovery requires an empty wallet so bearer assets are not overwritten");
+    }
+    const wc = await walletCrypto();
+    const seedPhrase = String(phrase || "").trim().toLowerCase().replace(/\s+/g, " ");
+    if (!wc.validateMnemonic(seedPhrase, wc.wordlist)) throw new Error("recovery phrase is not a valid 12-word BIP39 phrase");
+    const seed = wc.mnemonicToSeedSync(seedPhrase);
+    const c = await cashu();
+    const privateKey = wc.HDKey.fromMasterSeed(seed).derive("m/129373'/10'/0'/0'/0").privateKey;
+    const state = {
+      privateKey: hex(privateKey), pubkey: hex(c.getPubKeyFromPrivKey(privateKey)), seedPhrase,
+      counters: {}, tokens: [], outgoing: [], pending: null,
+    };
+    const keyset = await getKeyset(mintUrl, c);
+    const catalog = await getCatalog(mintUrl, c, keyset);
+    const recovered = [];
+    let counter = 0;
+    let emptyBatches = 0;
+    let lastCounterWithSignature = -1;
+    const gapBatches = Math.max(3, Math.ceil(catalog.assets.length / 100));
+
+    while (emptyBatches < gapBatches) {
+      const candidates = await Promise.all(Array.from({ length: 100 }, (_, i) => {
+        const at = counter + i;
+        return deterministicOutput(catalog.assets[at % catalog.assets.length], state, c, keyset, at);
+      }));
+      const response = await fetch(`${mintUrl}/v1/restore`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ outputs: candidates.map((output) => ({
+          amount: 1, id: output.blindedMessage.id, B_: output.blindedMessage.B_,
+        })) }),
+      });
+      if (!response.ok) throw new Error(`signature restore failed (${response.status})`);
+      const restored = await response.json();
+      if (!Array.isArray(restored.outputs) || !Array.isArray(restored.signatures) || restored.outputs.length !== restored.signatures.length) {
+        throw new Error("mint returned an invalid NUT-09 restore response");
+      }
+      const signatures = new Map(restored.outputs.map((output, index) => [output.B_, restored.signatures[index]]));
+      const batch = [];
+      for (let i = 0; i < candidates.length; i += 1) {
+        const signature = signatures.get(candidates[i].blindedMessage.B_);
+        if (!signature) continue;
+        lastCounterWithSignature = counter + i;
+        const proof = candidates[i].toProof({ ...signature, amount: c.Amount.from(signature.amount) }, keyset);
+        if (!proof.p2pk_e || !c.hasValidDleq(proof, keyset, { require: true }) || !c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof).length) {
+          throw new Error("mint returned an invalid restored NutFT proof");
+        }
+        batch.push(proof);
+      }
+      if (batch.length) {
+        const Ys = batch.map((proof) => c.hashToCurve(new TextEncoder().encode(proof.secret)).toHex(true));
+        const checked = await fetch(`${mintUrl}/v1/checkstate`, {
+          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys }),
+        });
+        if (!checked.ok) throw new Error(`restored proof state unavailable (${checked.status})`);
+        const states = (await checked.json()).states;
+        batch.forEach((proof, index) => { if (states[index]?.state === "UNSPENT") recovered.push(proof); });
+        emptyBatches = 0;
+      } else {
+        emptyBatches += 1;
+      }
+      counter += 100;
+    }
+
+    state.counters[counterKey(mintUrl, keyset.id)] = lastCounterWithSignature + 1;
+    if (recovered.length) state.tokens = [c.getEncodedToken({ mint: mintUrl, unit: "600B-E1", proofs: recovered })];
+    write(state);
+    return recovered.length;
+  }
+
+  const restoreSeed = (mintUrl, phrase) => locked(() => restoreSeedUnlocked(mintUrl, phrase));
 
   async function exportBackup() {
     const state = await read();
@@ -652,5 +835,5 @@
 
   const restoreBackup = (text) => locked(() => restoreBackupUnlocked(text));
 
-  root.NutFTWallet = { buyBooster, claimBooster, snapshot, tradeProof, importToken, destination, recoverPending, outgoing, forgetOutgoing, exportBackup, restoreBackup, read, cashu, hex, bytes };
+  root.NutFTWallet = { buyBooster, claimBooster, snapshot, tradeProof, importToken, destination, recoverPending, outgoing, forgetOutgoing, recoveryPhrase, restoreSeed, exportBackup, restoreBackup, read, cashu, hex, bytes };
 })(globalThis);

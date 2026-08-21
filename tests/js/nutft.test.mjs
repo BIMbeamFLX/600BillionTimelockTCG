@@ -7,6 +7,9 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import vm from "node:vm";
+import * as bip39 from "@scure/bip39";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
+import { HDKey } from "@scure/bip32";
 
 const require = createRequire(import.meta.url);
 const { createTable } = require("../../server/table.js");
@@ -17,6 +20,7 @@ const CENSUS = require("../../cards/nutft-census.json");
    count here with it rather than leave nineteen literals lying around. */
 const PACK = CENSUS.mint.cards_per_pack;
 const cashu = await import("@cashu/cashu-ts");
+const walletCrypto = { ...bip39, wordlist, HDKey };
 
 const hex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 const opening = (output) => ({
@@ -67,6 +71,7 @@ async function browserWallet(storage, fetchImpl, nostr) {
   const source = await readFile(new URL("../../site/nutft-wallet.js", import.meta.url), "utf8");
   const context = {
     __cashu: cashu,
+    __walletCrypto: walletCrypto,
     crypto: globalThis.crypto,
     fetch: fetchImpl,
     localStorage: {
@@ -84,6 +89,50 @@ async function browserWallet(storage, fetchImpl, nostr) {
   vm.runInNewContext(source, context, { filename: "nutft-wallet.js" });
   return context.NutFTWallet;
 }
+
+test("mint advertises and serves NUT-09 signature restore", async (t) => {
+  const catalogUri = "http://127.0.0.1/nutft/catalog";
+  const dir = mkdtempSync(join(tmpdir(), "600b-nut09-"));
+  const dbPath = join(dir, "mint.db");
+  let table = await createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: catalogUri });
+  t.after(async () => { await table.close(); rmSync(dir, { recursive: true, force: true }); });
+  const storage = new Map();
+  const fetchImpl = (url, options) => fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
+  await (await browserWallet(storage, fetchImpl)).buyBooster(table.url);
+  const info = await (await fetch(`${table.url}/v1/info`)).json();
+  assert.equal(info.nuts[9].supported, true);
+
+  const saved = JSON.parse(storage.get("600b:nutft-wallet"));
+  const keysetId = (await (await fetch(`${table.url}/v1/keys`)).json()).keysets[0].id;
+  const proof = cashu.getDecodedToken(saved.tokens[0], [keysetId]).proofs[0];
+  const B_ = cashu.blindMessage(new TextEncoder().encode(proof.secret), BigInt(`0x${proof.dleq.r}`)).B_.toHex(true);
+  await table.close();
+  table = await createTable({ port: 0, host: "127.0.0.1", dbPath, nutftCatalogUri: catalogUri });
+  const restored = await (await fetch(`${table.url}/v1/restore`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ outputs: [{ amount: 0, id: keysetId, B_ }, { amount: 1, id: keysetId, B_: hex(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey())) }] }),
+  })).json();
+  assert.deepEqual(restored.outputs.map((output) => output.B_), [B_]);
+  assert.equal(restored.signatures.length, 1);
+  assert.equal(restored.signatures[0].C_, cashu.pointFromHex(restored.signatures[0].C_).toHex(true));
+});
+
+test("NUT-13 recovery phrase restores deterministic unspent NutFT outputs", async (t) => {
+  const catalogUri = "http://127.0.0.1/nutft/catalog";
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });
+  t.after(() => table.close());
+  const fetchImpl = (url, options) => fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
+  const wallet = await browserWallet(new Map(), fetchImpl);
+  await wallet.buyBooster(table.url);
+  const phrase = await wallet.recoveryPhrase();
+  assert.equal(phrase.split(" ").length, 12);
+
+  const recoveredStorage = new Map();
+  const recovered = await browserWallet(recoveredStorage, fetchImpl);
+  assert.equal(await recovered.restoreSeed(table.url, phrase), PACK);
+  assert.equal((await recovered.snapshot(table.url)).owned.length, PACK);
+  assert.equal(JSON.parse(recoveredStorage.get("600b:nutft-wallet")).seedPhrase, phrase);
+});
 
 test("browser wallet survives reload and preserves corrupted storage", async (t) => {
   const catalogUri = "http://127.0.0.1/nutft/catalog";

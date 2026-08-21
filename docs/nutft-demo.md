@@ -18,9 +18,14 @@ It is a test mint and does not process Lightning payments or real money.
 5. `/nutft/trade` atomically consumes one owner-authorized proof and signs one
    P2BK replacement carrying the identical NutFT binding. Idempotency records
    let a wallet recover a completed booster or trade after a lost response.
+6. The mint stores every blinded message and signature and serves NUT-09
+   `/v1/restore`; the capability is advertised through `/v1/info`.
+7. New wallets use a 12-word BIP39 phrase, the NUT-13 per-keyset KDF for each
+   NutFT secret nonce and blinding factor, and the NUT-13 P2PK derivation path.
+   Received cards are immediately reissued to deterministic wallet outputs.
 
 The mint advertises NUT-31 through `/v1/info` and exposes `/v1/keys` and
-`/v1/checkstate`. Generic swap and melt routes are deliberately absent because
+`/v1/checkstate`, plus NUT-09 through `/v1/restore`. Generic swap and melt routes are deliberately absent because
 they could consume a NutFT proof without preserving its card binding.
 
 The store issues boosters, the wallet imports and transfers bearer tokens, the
@@ -51,8 +56,10 @@ npm run table
 
 The default `http://localhost:8777/nutft/catalog` is only for local use. Changing
 the catalog URI changes every card binding, so a deployment must not change it
-after issuance. Wallet backups contain private keys and bearer proofs and must
-be stored as secrets.
+after issuance. Wallet backups and recovery phrases can reconstruct bearer
+assets and must be stored as secrets. Wallets created before NUT-13 support
+remain file-backup-only because their historical random outputs cannot be
+derived retroactively.
 
 ## Demo boundaries
 
