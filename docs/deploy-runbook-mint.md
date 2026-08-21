@@ -246,7 +246,7 @@ powershell -File G:\projekte\HetzerDeploy\deploy-tcg.ps1 -SshTarget deploy@178.1
 ### 6.3 Clear the old mint state, keep the mint's identity (your YubiKey)
 
 The DB lives outside the webroot at `/home/deploy/tcg-data/matches.db` and holds the game's
-matches as well, so empty the four `nutft_*` tables — never the file.
+matches as well, so empty the NutFT state tables — never the file.
 
 ```bash
 sudo systemctl stop tcg-table
@@ -257,13 +257,13 @@ cp /home/deploy/tcg-data/matches.db /home/deploy/tcg-data/matches.db.r2-backup
 ```
 
 ```bash
-sqlite3 /home/deploy/tcg-data/matches.db "DELETE FROM nutft_meta WHERE key IN ('configuration','state'); DELETE FROM nutft_invoices; DELETE FROM nutft_operations; DELETE FROM nutft_spent;"
+sqlite3 /home/deploy/tcg-data/matches.db "DELETE FROM nutft_meta WHERE key IN ('configuration','state'); DELETE FROM nutft_invoices; DELETE FROM nutft_operations; DELETE FROM nutft_signatures; DELETE FROM nutft_spent;"
 ```
 
 No `sqlite3` on the box? The node that runs the server has one built in:
 
 ```bash
-node -e "const{DatabaseSync}=require('node:sqlite');const d=new DatabaseSync('/home/deploy/tcg-data/matches.db');d.exec(\"DELETE FROM nutft_meta WHERE key IN ('configuration','state');DELETE FROM nutft_invoices;DELETE FROM nutft_operations;DELETE FROM nutft_spent;\");console.log('nutft state cleared')"
+node -e "const{DatabaseSync}=require('node:sqlite');const d=new DatabaseSync('/home/deploy/tcg-data/matches.db');d.exec(\"DELETE FROM nutft_meta WHERE key IN ('configuration','state');DELETE FROM nutft_invoices;DELETE FROM nutft_operations;DELETE FROM nutft_signatures;DELETE FROM nutft_spent;\");console.log('nutft state cleared')"
 ```
 
 `mint_seed` and `catalog_private_key` stay behind on purpose: they are the mint's identity,

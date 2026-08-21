@@ -219,6 +219,8 @@ It uses the census and draw vector from the 600b mint package, creates one
 P2BK-locked Cashu output per card, and asks the NutFT-aware demo mint to sign
 them with DLEQ. The browser wallet verifies the CardBinding, catalog, Blossom
 face hash, proof state, amount and unit before showing cards at `wallet.html`.
+NUT-09 signature restore and NUT-13 deterministic wallet outputs let a new
+wallet recover its unspent cards from its 12-word phrase.
 
 The demo mint intentionally exposes no generic swap or melt endpoint. It keeps
 mint keys, booster progress, spent proofs, and idempotency records in SQLite and

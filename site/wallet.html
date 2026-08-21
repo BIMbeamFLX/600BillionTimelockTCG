@@ -257,6 +257,15 @@
         <input id="restoreBackup" type="file" accept="application/json">
       </label>
     </div>
+    <div class="row" style="margin-top:14px;max-width:760px;align-items:flex-start">
+      <button class="btn btn--ghost" id="showRecovery" type="button" style="flex:0 0 auto">Show recovery phrase</button>
+      <label class="field" style="margin:0;flex:1;min-width:220px">
+        <span style="font:900 10px/1 var(--body);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)">Restore from 12 words</span>
+        <textarea id="restorePhrase" rows="2" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
+        <button class="btn btn--ghost" id="restoreSeed" type="button">Recover cards</button>
+      </label>
+    </div>
+    <p class="note mode-off" id="recoveryWords" role="status" aria-live="polite" hidden></p>
   </section>
 </main>
 
@@ -909,6 +918,29 @@
     if (!file) return;
     try { await root.NutFTWallet.restoreBackup(await file.text()); location.reload(); }
     catch (thrown) { fail(reason(thrown)); event.currentTarget.value = ""; }
+  });
+
+  $("showRecovery").addEventListener("click", async () => {
+    try {
+      const phrase = await root.NutFTWallet.recoveryPhrase();
+      const note = $("recoveryWords");
+      note.textContent = `${phrase} — write these words down offline; anyone with them can recover your cards.`;
+      note.hidden = false;
+    } catch (thrown) { fail(reason(thrown)); }
+  });
+
+  $("restoreSeed").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const count = await root.NutFTWallet.restoreSeed(mint, $("restorePhrase").value);
+      $("recoveryWords").textContent = `Recovered ${count} unspent card${count === 1 ? "" : "s"}.`;
+      $("recoveryWords").hidden = false;
+      location.reload();
+    } catch (thrown) {
+      fail(reason(thrown));
+      button.disabled = false;
+    }
   });
 
   try { destination.value = await root.NutFTWallet.destination(); }
