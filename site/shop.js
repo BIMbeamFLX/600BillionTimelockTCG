@@ -97,11 +97,26 @@
 
   const params = new URLSearchParams(root.location.search);
   let claim = params.get("claim");
-  const MODE = params.get("shop") === "mint" ? "mint" : "demo";
+  const SHOP_PARAM = params.get("shop");
+  /* "demo" is an explicit override, not just the fallback: once the default
+   * below can resolve to "mint" on its own, a link still has to be able to
+   * insist on the free box (index.html's "Open a free pack" does exactly
+   * that). Anything else — including no parameter at all — is undecided
+   * until resolveDefaultMode() below settles it, one way or the other,
+   * before the page renders anything. */
+  let MODE = SHOP_PARAM === "mint" ? "mint" : "demo";
   /* What the button will ACTUALLY do. Asking for mint mode without a mint —
    * or from a sandbox that cannot reach one — gets the free pull and a notice,
    * never a control that no-ops or dies at a wall. */
-  const PULL_MODE = MODE === "mint" && PAID_LIVE && ONLINE ? "mint" : "demo";
+  let PULL_MODE = MODE === "mint" && PAID_LIVE && ONLINE ? "mint" : "demo";
+  /* Whether the mint actually behind PULL_MODE==="mint" is a real one asking
+   * for real sats, or a test/dev mint (NUTFT_TEST_MINT). Null until a read of
+   * /v1/info has actually answered — the button and pill default to the
+   * OPTIMISTIC (live) reading while that is unknown, because on the one mint
+   * that matters (production) it resolves correctly within one same-origin
+   * round trip, and the alternative is a guaranteed-wrong guess on a page
+   * that only has two things to say. */
+  let TEST_MINT = null;
 
   /* Every rung the ladder below names, and Basic shares the floor with Common
    * on purpose: RANK drives the REVEAL, and a Basic Resource is not a moment —
@@ -981,6 +996,24 @@
       : "—";
   }
 
+  /* Whether THIS mint is a real one, straight from the one place that knows:
+   * /v1/info's own nuts.31 block. Never guessed from PULL_MODE — a paid mint
+   * and a test mint answer /nutft/quote identically, so the only honest
+   * source is the flag the mint itself publishes. Returns null on any
+   * failure; the caller decides what null means to it. */
+  async function fetchMintInfo(signal) {
+    if (!MINT_URL) return null;
+    try {
+      const response = await fetch(`${MINT_URL}/v1/info`, signal ? { signal } : undefined);
+      if (!response.ok) return null;
+      const info = await response.json();
+      const nut31 = (info && info.nuts && info.nuts["31"]) || {};
+      return { paid: nut31.paid === true, testMint: nut31.test_mint === true };
+    } catch {
+      return null;
+    }
+  }
+
   /** Reads /nutft/state into `nutftState`. Returns "" or a sentence. */
   async function readMintState() {
     if (!MINT_URL) return "There is no mint connected to this page.";
@@ -988,6 +1021,10 @@
       const response = await fetch(`${MINT_URL}/nutft/state`);
       if (!response.ok) return `The mint answered ${response.status}; the numbers above are the last ones it gave.`;
       nutftState = await response.json();
+      /* Best-effort and never blocking: a stale TEST_MINT reading is a wrong
+         pill for a few seconds, not a broken purchase. */
+      const info = await fetchMintInfo();
+      if (info) TEST_MINT = info.testMint;
       /* The catalog carries each card's tier and print run; the state carries
          what is left of each. Neither alone can answer "how many Rares are
          still in there", so the box facts are rebuilt from both — and only
@@ -1003,6 +1040,10 @@
       renderBoxFacts();
       renderTiers();
       renderStarter();
+      /* The pill and the button say "live" the moment the page paints, on the
+         optimistic default — this is what corrects it to "test mint" (or
+         confirms "live") once /v1/info has actually answered. */
+      renderModeCopy();
       syncControls();
       return "";
     } catch (error) {
@@ -1627,9 +1668,22 @@
     $("footnoteMint").hidden = !mint;
     $("mintState").hidden = !mint;
     if (mint && MINT_URL) $("stateLink").href = `${MINT_URL}/nutft/state`;
+    /* THREE states, not two. This pill used to say "NUTFT · DEMO" whenever
+       PULL_MODE was "mint" -- including on production, right now, where the
+       mint is real and 21 sat actually moves. "Demo" was correct language for
+       the alpha; it became a false statement on a live till the moment
+       phoenixd went in, and nothing here ever noticed the mint had stopped
+       being a demo. TEST_MINT (read from /v1/info, never guessed) is what
+       tells the difference between a real mint and a dev/staging one; both
+       ARE mint mode, so PULL_MODE alone was never enough to know which. */
     const paidState = $("paidState");
-    paidState.className = `state ${PULL_MODE === "mint" ? "state--live" : "state--off"}`;
-    paidState.textContent = PULL_MODE === "mint" ? "NUTFT · DEMO" : "NUTFT · OPEN ?SHOP=MINT";
+    if (mint) {
+      paidState.className = `state ${TEST_MINT === true ? "state--test" : "state--live"}`;
+      paidState.textContent = TEST_MINT === true ? "NUTFT · TEST MINT" : "NUTFT · LIVE";
+    } else {
+      paidState.className = "state state--off";
+      paidState.textContent = "NUTFT · OPEN ?SHOP=MINT";
+    }
 
     const modeBox = $("modeNote");
     modeBox.className = `note mode-${PULL_MODE}`;
@@ -1639,7 +1693,7 @@
            arrived from the homepage has just been shown a 4 535-card box and is
            now looking at a different one. Two boxes are fine; two boxes with
            nothing saying so is the page contradicting itself. */
-        ? "<strong>NutFT mint mode.</strong> This is the mint's own box — a census of print runs, not the free alpha box the rest of the site counts. The demo issues one Cashu proof per card into the browser wallet. The mint validates the disclosed output opening and CardBinding; the wallet verifies P2BK, DLEQ, proof state, and catalog data."
+        ? "<strong>NutFT mint mode.</strong> This is the mint's own box — a census of print runs, not the free alpha box the rest of the site counts. The mint issues one Cashu proof per card into the browser wallet. The mint validates the disclosed output opening and CardBinding; the wallet verifies P2BK, DLEQ, proof state, and catalog data."
         : "<strong>Alpha — free demo packs.</strong> The box, the order, the odds and the fingerprint below are the real ones; only the payment is skipped. Your collection lives in this browser. When the mint goes live the same packs cost sats and the cards become yours on Nostr.";
 
     /* Two different truths, and the page must not tell the wrong one: there is
@@ -1668,8 +1722,36 @@
       }
     }
 
+    /* The closing note under "How the NutFT mint works" -- guarded, because a
+       cached shop.html served from before this id existed must not throw on
+       the rest of the page. */
+    const howNote = $("nutftHowNote");
+    if (howNote) {
+      if (mint && TEST_MINT === false) {
+        howNote.innerHTML =
+          "<strong>This mint is live.</strong> Opening a pack above requests a real invoice, and the sats it asks for move for real. The cards it issues are yours: bearer proofs, checkable in this browser, spendable and tradeable outside this page.";
+      } else if (mint && TEST_MINT === true) {
+        howNote.innerHTML =
+          "<strong>This is a test mint.</strong> It behaves exactly like the real one and asks for real invoices, but it is not the one selling this edition. " +
+          `<a href="${MINT_URL}/v1/info">Check its own /v1/info</a> if that matters to you.`;
+      } else {
+        howNote.innerHTML =
+          "<strong>Demo mode is free.</strong> Open <a href=\"shop.html?shop=mint\">the NutFT mint</a> to pay in sats and receive a real card. Nothing here can take a payment.";
+      }
+    }
+
     const button = $("openPack");
-    button.textContent = PULL_MODE === "mint" ? "Buy a booster · demo mint" : "Open a free pack";
+    button.textContent = buyLabel();
+  }
+
+  /* One label, used by renderModeCopy's first paint and syncControls' every
+   * later refresh, so the two can never say something different about the
+   * same button. "Demo mint" described the alpha; it said so on a mint
+   * charging real sats the moment phoenixd went in, because nothing here
+   * distinguished "mint mode" from "real mint" until TEST_MINT existed. */
+  function buyLabel() {
+    if (PULL_MODE !== "mint") return "Open a free pack";
+    return TEST_MINT === true ? "Buy a booster · test mint" : "Buy a booster";
   }
 
   function syncControls() {
@@ -1737,7 +1819,7 @@
     } else if (busy) {
       button.textContent = "Opening…";
     } else {
-      button.textContent = PULL_MODE === "mint" ? "Buy a booster · demo mint" : "Open a free pack";
+      button.textContent = buyLabel();
     }
   }
 
@@ -1996,13 +2078,46 @@
     });
   }
 
-  root.addEventListener("DOMContentLoaded", init);
+  /* Settles MODE before ANYTHING renders, so there is one paint, not a flash
+   * of the free box followed by a jump to the mint. Only runs when nothing
+   * explicit chose a side: `?shop=mint` and `?shop=demo` both return
+   * immediately, exactly as they always have.
+   *
+   * A short, real timeout rather than none — a mint that is slow or
+   * unreachable must not hang the page waiting for a decision the free box
+   * can already make. Same-origin, so on the deployment that matters
+   * (production) this settles in well under the budget; the budget exists
+   * for every OTHER deployment, where there may be no mint to ask at all. */
+  async function resolveDefaultMode() {
+    if (SHOP_PARAM || !PAID_LIVE || !ONLINE) return;
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 2500) : null;
+    try {
+      const info = await fetchMintInfo(controller ? controller.signal : undefined);
+      /* Real and paying, not a test mint standing in for one — the whole
+         point is to land a first-time visitor on the till that actually
+         sells, never on a dev mint dressed up as the real thing. */
+      if (info && info.paid && !info.testMint) {
+        MODE = "mint";
+        PULL_MODE = "mint";
+        TEST_MINT = false;
+      }
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  root.addEventListener("DOMContentLoaded", () => { resolveDefaultMode().then(init); });
   root.E1_SHOP = {
     get state() {
       return state;
     },
-    mode: MODE,
-    pullMode: PULL_MODE,
+    get mode() {
+      return MODE;
+    },
+    get pullMode() {
+      return PULL_MODE;
+    },
     paidLive: PAID_LIVE,
     online: ONLINE,
     box: BOX,
