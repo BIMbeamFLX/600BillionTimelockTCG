@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -55,6 +56,21 @@ test("the first twenty-one sets carry a Genesis card and the promo, and no other
   const worst = Math.max(...Object.values(genesisPerTitle));
   assert.ok(worst <= G.mint.per_genesis_card,
     `no Genesis title may appear in more than ${G.mint.per_genesis_card} strong sets; worst is ${worst}`);
+});
+
+test("the G promo publishes the same content-addressed face the wallet can verify", () => {
+  const promo = G.cards.find((card) => card.id === PROMO);
+  const file = path.join(REPO, "art", "cards", "node-runner-web",
+    "Global FIPS Balloon Network.webp");
+  const bytes = readFileSync(file);
+  assert.ok(promo.face, "FIPS-P01 needs face metadata in the signed G catalog");
+  assert.equal(promo.face.sha256, createHash("sha256").update(bytes).digest("hex"));
+  assert.equal(promo.face.bytes, bytes.length);
+  assert.equal(promo.face.mime, "image/webp");
+  assert.equal(promo.face.urls.length, 3);
+  for (const url of promo.face.urls) {
+    assert.match(url, new RegExp(`/${promo.face.sha256}\\.webp$`));
+  }
 });
 
 test("the whole run empties the census exactly, with nothing left over and nothing short", () => {

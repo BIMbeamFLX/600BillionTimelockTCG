@@ -22292,7 +22292,17 @@
    "tier": "Promo",
    "type_line": "Protocol — FIPS Balloon Mesh",
    "copies": 21,
-   "pool": "extra"
+   "pool": "extra",
+   "face": {
+    "sha256": "30aa041b145d8f48574fe8d00344d6d9813f349760d9b6969e47c2b13c1b41ce",
+    "mime": "image/webp",
+    "bytes": 150910,
+    "urls": [
+     "https://blossom.primal.net/30aa041b145d8f48574fe8d00344d6d9813f349760d9b6969e47c2b13c1b41ce.webp",
+     "https://blossom.bimcvp.com/30aa041b145d8f48574fe8d00344d6d9813f349760d9b6969e47c2b13c1b41ce.webp",
+     "https://nostr.download/30aa041b145d8f48574fe8d00344d6d9813f349760d9b6969e47c2b13c1b41ce.webp"
+    ]
+   }
   }
  ]
 }

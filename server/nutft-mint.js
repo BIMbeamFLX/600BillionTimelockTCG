@@ -429,6 +429,8 @@ function createNutftMint(options = {}) {
     census_sha256: census.census_sha256,
     assets: census.cards.map((card) => cardInfo(card.id)),
   });
+  const catalogDigest = crypto.createHash("sha256")
+    .update(canonical(catalogPayload())).digest("hex");
   const signedCatalog = () => {
     const payload = catalogPayload();
     const digest = crypto.createHash("sha256").update(canonical(payload)).digest();
@@ -1002,7 +1004,37 @@ function createNutftMint(options = {}) {
     const localPath = pathPrefix ? url.pathname.slice(pathPrefix.length) || "/" : url.pathname;
     try {
       if (req.method === "GET" && localPath === "/v1/info") {
-        return json(res, 200, { name: "600B NutFT demo mint", version: "0.1.0", nuts: { 31: { supported: true, versions: [1], output_openings: true, p2bk: true, dleq: true, paid: paidMint, price_msat: paidMint ? priceFor(state.nextPack - 1) : 0, price_tiers: paidMint && priceTiers.length > 1 ? priceTiers.map((t) => ({ up_to_packs: t.upTo === Infinity ? null : t.upTo, price_msat: t.msat })) : undefined, funding: funding ? funding.name : "none", virtual_sats: Boolean(funding && funding.virtual), test_mint: Boolean(funding && funding.testMint), sales: salesMode, one_per_key: onePerKey, issuance: catalog.issuance, product: productName, catalog_issuer: catalogIssuer() }, 7: { supported: true } } });
+        return json(res, 200, {
+          name: "600B NutFT demo mint",
+          version: "0.1.0",
+          nuts: {
+            31: {
+              supported: true,
+              versions: [1],
+              output_openings: true,
+              p2bk: true,
+              dleq: true,
+              paid: paidMint,
+              price_msat: paidMint ? priceFor(state.nextPack - 1) : 0,
+              price_tiers: paidMint && priceTiers.length > 1
+                ? priceTiers.map((tier) => ({
+                  up_to_packs: tier.upTo === Infinity ? null : tier.upTo,
+                  price_msat: tier.msat,
+                }))
+                : undefined,
+              funding: funding ? funding.name : "none",
+              virtual_sats: Boolean(funding && funding.virtual),
+              test_mint: Boolean(funding && funding.testMint),
+              sales: salesMode,
+              one_per_key: onePerKey,
+              issuance: catalog.issuance,
+              product: productName,
+              catalog_issuer: catalogIssuer(),
+              catalog_sha256: catalogDigest,
+            },
+            7: { supported: true },
+          },
+        });
       }
       if (req.method === "GET" && localPath === "/v1/keys") return json(res, 200, await keysResponse());
       if (req.method === "POST" && localPath === "/v1/checkstate") {

@@ -39,6 +39,7 @@
   const CARDS = root.E1_CARDS || [];
   const BY_ID = Object.fromEntries(CARDS.map((c) => [c.id, c]));
   const FACES = root.E1Faces || null;
+  const REVEAL_PAGES = root.E1RevealPages || null;
   /* The shared storage contract (site/storage-keys.js). Prefer it; fall back to
    * this file's own literals so a missing include degrades to today's values. */
   const K = root.E1Keys || {};
@@ -428,6 +429,8 @@
   let revealToken = 0;
   let skipping = false;
   let dealt = [];
+  let starterReveal = null;
+  let revealPageBusy = false;
 
   const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
   const beat = (ms) => (skipping || reduced() ? Promise.resolve() : sleep(ms));
@@ -730,7 +733,14 @@
 
   function leaveStage(bay) {
     if (!bay.classList.contains("bay--stage")) return;
-    bay.classList.remove("bay--stage");
+    const wasStarter = bay.classList.contains("bay--set-stage");
+    bay.classList.remove("bay--stage", "bay--set-stage");
+    if (wasStarter) {
+      revealToken += 1;
+      starterReveal = null;
+      revealPageBusy = false;
+      syncRevealPages();
+    }
     document.documentElement.style.overflow = "";
     const hint = document.getElementById("stageHint");
     if (hint) hint.remove();
@@ -758,13 +768,73 @@
     return die;
   }
 
+  function syncRevealPages() {
+    const controls = $("revealPages");
+    if (!controls) return;
+    controls.hidden = !starterReveal;
+    if (!starterReveal) return;
+    const index = starterReveal.index;
+    $("revealPageLabel").textContent = `${index + 1} / ${starterReveal.pages.length}`;
+    $("revealPrev").disabled = revealPageBusy || index <= 0;
+    $("revealNext").disabled = revealPageBusy || index >= starterReveal.pages.length - 1;
+  }
+
+  async function showStarterPage(index) {
+    if (!starterReveal || revealPageBusy || index < 0 || index >= starterReveal.pages.length) return;
+    revealPageBusy = true;
+    starterReveal.index = index;
+    syncRevealPages();
+    const page = starterReveal.pages[index];
+    try {
+      await revealPack({
+        n: starterReveal.n,
+        ids: page.ids,
+        fresh: page.fresh,
+        kind: "starter",
+        page: {
+          index,
+          total: starterReveal.pages.length,
+          totalCards: starterReveal.totalCards,
+        },
+      });
+    } finally {
+      revealPageBusy = false;
+      syncRevealPages();
+    }
+  }
+
+  async function revealStarterSet(issued) {
+    if (!REVEAL_PAGES || typeof REVEAL_PAGES.split !== "function") {
+      throw new Error("the starter-set reveal pager is unavailable");
+    }
+    const cards = Array.isArray(issued?.cards) ? issued.cards : [];
+    const ids = cards.map((card) => card && card.asset_id).filter(Boolean);
+    if (!ids.length || ids.length !== cards.length) {
+      throw new Error("the starter-set receipt has an invalid card list");
+    }
+    const match = /^set-(\d+)$/.exec(String(issued.pack_id || ""));
+    starterReveal = {
+      n: match ? Number(match[1]) : 0,
+      index: 0,
+      totalCards: ids.length,
+      pages: REVEAL_PAGES.split(ids, ids.map(() => false)),
+    };
+    await showStarterPage(0);
+  }
+
   async function revealPack(entry) {
     const tray = $("packTray");
     const bay = $("packBay");
     const skip = $("revealAll");
     const note = $("packNote");
     const token = (revealToken += 1);
+    if (entry.kind !== "starter") {
+      starterReveal = null;
+      revealPageBusy = false;
+    }
     enterStage(bay);
+    bay.classList.toggle("bay--set-stage", entry.kind === "starter");
+    syncRevealPages();
     rollDie(bay, entry.ids.length);
     await beat(560);
     if (token !== revealToken) return;
@@ -786,7 +856,15 @@
     arcRows(dealt, perRow, 8, -18);
 
     const summary = packSummary(entry);
-    $("packSlot").textContent = `PACK #${pad(entry.n, 3)} · ${slotLabel(entry)}`;
+    const page = entry.page || null;
+    $("packSlot").textContent = page
+      ? `SET #${pad(entry.n, 4)} · PAGE ${page.index + 1}/${page.total}`
+      : `PACK #${pad(entry.n, 3)} · ${slotLabel(entry)}`;
+    const finalLine = page
+      ? page.index === page.total - 1
+        ? `Starter set revealed. All ${page.totalCards} cards are in your wallet.`
+        : `Page ${page.index + 1} of ${page.total}. The whole set is already safe in your wallet.`
+      : summary.line;
 
     if (reduced()) {
       /* No stagger, no charge, no skip control to offer: the whole pack is
@@ -794,7 +872,7 @@
       for (const node of dealt) node.classList.add("flipped");
       skip.hidden = true;
       note.className = `pack-note${summary.best >= 3 ? " is-rare" : ""}`;
-      note.textContent = summary.line;
+      note.textContent = finalLine;
       return;
     }
 
@@ -826,13 +904,16 @@
     bay.classList.remove("bay--charged");
     skip.hidden = true;
     note.className = `pack-note${summary.best >= 3 ? " is-rare" : ""}`;
-    note.textContent = summary.line;
+    note.textContent = finalLine;
   }
 
   function clearTray() {
     revealToken += 1;
     skipping = false;
     dealt = [];
+    starterReveal = null;
+    revealPageBusy = false;
+    syncRevealPages();
     const tray = $("packTray");
     tray.innerHTML = "";
     tray.hidden = true;
@@ -1980,6 +2061,13 @@
   }
 
   function bindControls() {
+    $("revealPrev").addEventListener("click", () => {
+      if (starterReveal) showStarterPage(starterReveal.index - 1);
+    });
+    $("revealNext").addEventListener("click", () => {
+      if (starterReveal) showStarterPage(starterReveal.index + 1);
+    });
+
     $("buyStarter").addEventListener("click", async () => {
       const note = $("starterBuyNote");
       let invoiceShown = false;
@@ -2002,6 +2090,13 @@
         clearInvoice("starterBuyNote");
         note.className = "pack-note";
         note.innerHTML = `<strong>Starter set received.</strong> ${issued.cards.length} G cards are now in <a href="wallet.html">your wallet</a>.`;
+        try {
+          await revealStarterSet(issued);
+        } catch (revealError) {
+          note.append(document.createTextNode(
+            ` The cards are safe; only the reveal could not open (${String(revealError?.message || revealError)}).`,
+          ));
+        }
         await readStarterMint();
       } catch (error) {
         if (root.E1MintErrors && typeof root.E1MintErrors.render === "function") {

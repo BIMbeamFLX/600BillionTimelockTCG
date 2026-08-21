@@ -325,6 +325,11 @@ html:has(.bay--stage) #packSlot {
    first under a bar light or a cracked screen, not resolution. */
 .pack-note .qr { display: block; margin: 10px auto; width: min(220px, 70%); background: var(--cream); padding: 8px; }
 .pack-cta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 10px; }
+.reveal-pages { display: flex; gap: 10px; align-items: center; justify-content: center; }
+.reveal-pages[hidden] { display: none; }
+.reveal-pages__label { min-width: 92px; text-align: center; color: var(--ink-dim); }
+html:has(.bay--set-stage) #openPack,
+html:has(.bay--set-stage) #resetBox { display: none; }
 .slot { margin-top: 6px; text-align: right; color: var(--ink-dim); font-family: var(--mono); font-size: 11px; letter-spacing: .06em; }
 
 /* Box depletion, drawn as a trace filling up. */
@@ -424,9 +429,11 @@ html:has(.bay--stage) #packSlot {
 
 @media (max-width: 420px) {
   .pack-cta .btn { flex: 1 1 100%; text-align: center; }
+  .pack-cta .reveal-pages .btn { flex: 0 1 auto; }
 }
 @container (max-width: 420px) {
   .pack-cta .btn { flex: 1 1 100%; text-align: center; }
+  .pack-cta .reveal-pages .btn { flex: 0 1 auto; }
 }
 
 /* Below ~360px the shop collapses: the arc keeps its shape on smaller cards
@@ -537,6 +544,11 @@ html:has(.bay--stage) #packSlot {
 
         <div class="pack-cta" id="packCta">
           <button class="btn" id="openPack" type="button">Open a free pack</button>
+          <span class="reveal-pages" id="revealPages" hidden>
+            <button class="btn btn--ghost btn--small" id="revealPrev" type="button">Previous page</button>
+            <span class="reveal-pages__label mono" id="revealPageLabel" role="status"></span>
+            <button class="btn btn--ghost btn--small" id="revealNext" type="button">Next page</button>
+          </span>
           <button class="btn btn--ghost btn--small" id="revealAll" type="button" hidden>Turn them all over</button>
           <button class="btn btn--ghost btn--small" id="resetBox" type="button" hidden>Reset demo box</button>
         </div>
@@ -839,6 +851,7 @@ html:has(.bay--stage) #packSlot {
 <script src="nutft-wallet.js"></script>
 <script src="g-data.js"></script>
 <script src="mint-errors.js"></script>
+<script src="reveal-pages.js"></script>
 <!-- Before shop.js: showInvoice renders a QR the moment a purchase mints an
      invoice, and site/qr.js -- the same encoder play.js already uses for a
      wager payout -- has to exist before that function can reach for it. -->

@@ -2,6 +2,9 @@
   "use strict";
 
   const STORE = "600b:nutft-wallet";
+  const CATALOG_CACHE = "600b:nutft-catalogs-v1";
+  const CATALOG_CACHE_VERSION = 1;
+  const CATALOG_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
   const CASHU_URL = "https://esm.sh/@cashu/cashu-ts@4.7.2?bundle";
   let cashuPromise;
   let memory = null;
@@ -111,6 +114,9 @@
       keys: keyset.keys,
       unit: keyset.unit,
       catalogIssuer: capability.catalog_issuer,
+      catalogDigest: /^[0-9a-f]{64}$/.test(capability.catalog_sha256 || "")
+        ? capability.catalog_sha256
+        : "",
     };
   }
 
@@ -516,35 +522,111 @@
 
   const readableProofs = (state, keyset, c) => splitTokens(state, keyset, c).proofs;
 
+  /* Catalogs are public, signed and immutable for an edition. Keeping them next
+   * to the wallet avoids downloading hundreds of card records on every visit.
+   * A cached catalog is never trusted because it came from localStorage: its
+   * signature is checked again against the issuer advertised by the live mint.
+   * Bearer proofs and proof states are deliberately not copied into this cache. */
+  function readCatalogCache() {
+    try {
+      const parsed = JSON.parse(root.localStorage.getItem(CATALOG_CACHE) || "null");
+      if (parsed?.version === CATALOG_CACHE_VERSION && parsed.catalogs
+          && typeof parsed.catalogs === "object" && !Array.isArray(parsed.catalogs)) {
+        return parsed;
+      }
+    } catch { /* a cache is disposable; the bearer wallet above is not */ }
+    return { version: CATALOG_CACHE_VERSION, catalogs: {} };
+  }
+
+  function storeCatalog(catalogUri, catalog) {
+    try {
+      const cache = readCatalogCache();
+      cache.catalogs[catalogUri] = { cachedAt: Date.now(), catalog };
+      root.localStorage.setItem(CATALOG_CACHE, JSON.stringify(cache));
+    } catch { /* private mode or a full quota only makes the next load cold */ }
+  }
+
   async function verifyCatalog(catalogUri, catalog, c, keyset) {
     const { issuer_pubkey: issuer, signature, ...payload } = catalog || {};
     const digestHex = await digest(canonical(payload));
     if (!catalog || catalog.collection_id !== keyset.unit || catalog.catalog_uri !== catalogUri
         || issuer !== keyset.catalogIssuer || !signature
+        || (keyset.catalogDigest && keyset.catalogDigest !== digestHex)
         || !c.schnorrVerifyDigest(signature, digestHex, issuer)) {
       throw new Error("catalog signature or collection validation failed");
     }
     return catalog;
   }
 
-  async function inspectProof(mintUrl, proof, c, keyset, catalogs) {
+  async function catalogFor(catalogUri, c, keyset, catalogs) {
+    let catalog = catalogs.get(catalogUri);
+    if (catalog) return catalog;
+    const cached = readCatalogCache().catalogs[catalogUri];
+    if (cached && Number.isFinite(cached.cachedAt)
+        && cached.cachedAt + CATALOG_CACHE_MAX_AGE_MS > Date.now()) {
+      try {
+        catalog = await verifyCatalog(catalogUri, cached.catalog, c, keyset);
+      } catch { catalog = null; }
+    }
+    if (!catalog) {
+      const response = await fetch(catalogUri);
+      if (!response.ok) throw new Error(`catalog unavailable (${response.status})`);
+      catalog = await verifyCatalog(catalogUri, await response.json(), c, keyset);
+      storeCatalog(catalogUri, catalog);
+    }
+    catalogs.set(catalogUri, catalog);
+    return catalog;
+  }
+
+  async function inspectProofStatic(proof, c, keyset, catalogs) {
     const parsed = JSON.parse(proof.secret);
     const tags = parsed?.[1]?.tags?.filter((tag) => Array.isArray(tag) && tag[0] === "nutft") || [];
     const tag = tags[0] && tags[0].slice(1);
     if (JSON.stringify(parsed) !== proof.secret || tags.length !== 1 || !tag || tag.length !== 5 || tag[0] !== "1" || proof.id !== keyset.id || proof.amount.toString() !== "1" || !proof.p2pk_e || !c.hasValidDleq(proof, keyset, { require: true }) || await binding(tag) !== tag[4]) throw new Error("invalid NutFT proof");
-    let catalog = catalogs.get(tag[3]);
-    if (!catalog) {
-      const catalogResponse = await fetch(tag[3]);
-      if (!catalogResponse.ok) throw new Error(`catalog unavailable (${catalogResponse.status})`);
-      catalog = await catalogResponse.json();
-      await verifyCatalog(tag[3], catalog, c, keyset);
-      catalogs.set(tag[3], catalog);
-    }
+    const catalog = await catalogFor(tag[3], c, keyset, catalogs);
     const asset = catalog.assets.find((card) => card.asset_id === tag[2]);
     if (!asset || asset.asset_binding !== tag[4]) throw new Error(`catalog has no verified asset ${tag[2]}`);
-    const stateResponse = await fetch(`${mintUrl}/v1/checkstate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys: [c.hashToCurve(new TextEncoder().encode(proof.secret)).toHex(true)] }) });
-    if (!stateResponse.ok) throw new Error(`proof state unavailable (${stateResponse.status})`);
-    return { proof, tag, asset, state: (await stateResponse.json()).states[0].state };
+    return {
+      proof,
+      tag,
+      asset,
+      Y: c.hashToCurve(new TextEncoder().encode(proof.secret)).toHex(true),
+    };
+  }
+
+  async function withProofStates(mintUrl, items) {
+    if (!items.length) return [];
+    const checked = [];
+    /* The mint deliberately caps one request at 256 curve points. A large E1
+     * collection still loads in batches instead of regressing to one request per
+     * card once it grows past that line. */
+    for (let offset = 0; offset < items.length; offset += 256) {
+      const batch = items.slice(offset, offset + 256);
+      const response = await fetch(`${mintUrl}/v1/checkstate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ Ys: batch.map((item) => item.Y) }),
+      });
+      if (!response.ok) throw new Error(`proof state unavailable (${response.status})`);
+      const payload = await response.json();
+      if (!Array.isArray(payload.states) || payload.states.length !== batch.length) {
+        throw new Error("proof state response has the wrong length");
+      }
+      checked.push(...batch.map((item, index) => {
+        const answer = payload.states[index];
+        if (!answer || answer.Y !== item.Y || !["UNSPENT", "SPENT"].includes(answer.state)) {
+          throw new Error("proof state response does not match the request");
+        }
+        const { Y, ...owned } = item;
+        return { ...owned, state: answer.state };
+      }));
+    }
+    return checked;
+  }
+
+  async function inspectProof(mintUrl, proof, c, keyset, catalogs) {
+    const item = await inspectProofStatic(proof, c, keyset, catalogs);
+    return (await withProofStates(mintUrl, [item]))[0];
   }
 
   async function snapshot(mintUrl) {
@@ -562,14 +644,22 @@
     const spent = [];
     const invalid = [];
     const { proofs: readable, unreadable } = await decodeTokens(mintUrl);
+    const candidates = [];
     for (const proof of readable) {
       try {
-        const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
+        const item = await inspectProofStatic(proof, c, keyset, catalogs);
         if (!c.maybeDeriveP2BKPrivateKeys(walletState.privateKey, proof).length) throw new Error("proof is not addressed to this wallet");
-        (item.state === "SPENT" ? spent : owned).push(item);
+        candidates.push(item);
       } catch (error) {
         invalid.push({ proof, error: error.message });
       }
+    }
+    try {
+      for (const item of await withProofStates(mintUrl, candidates)) {
+        (item.state === "SPENT" ? spent : owned).push(item);
+      }
+    } catch (error) {
+      for (const item of candidates) invalid.push({ proof: item.proof, error: error.message });
     }
     /* `unreadable` is deliberately its own bucket and not folded into
        `invalid`: an invalid proof is one this mint HAS an opinion about and
@@ -589,9 +679,14 @@
     const walletState = await read();
     const descriptors = [];
     const unavailable = [];
-    for (const mintUrl of [...new Set((mintUrls || []).map(String))]) {
-      try { descriptors.push({ mintUrl, keyset: await getKeyset(mintUrl, c) }); }
-      catch (error) { unavailable.push({ mintUrl, error: error.message }); }
+    const uniqueMints = [...new Set((mintUrls || []).map(String))];
+    const discovered = await Promise.all(uniqueMints.map(async (mintUrl) => {
+      try { return { mintUrl, keyset: await getKeyset(mintUrl, c) }; }
+      catch (error) { return { mintUrl, error: error.message }; }
+    }));
+    for (const descriptor of discovered) {
+      if (descriptor.keyset) descriptors.push(descriptor);
+      else unavailable.push({ mintUrl: descriptor.mintUrl, error: descriptor.error });
     }
     if (!descriptors.length) throw new Error("no supported 600B mint is reachable");
 
@@ -600,6 +695,7 @@
     const spent = [];
     const invalid = [];
     const unreadable = [];
+    const candidates = new Map(descriptors.map((descriptor) => [descriptor.mintUrl, []]));
     for (const token of walletState.tokens) {
       let match = null;
       let decoded = null;
@@ -622,17 +718,29 @@
       }
       for (const proof of decoded.proofs) {
         try {
-          const item = await inspectProof(match.mintUrl, proof, c, match.keyset, catalogs);
+          const item = await inspectProofStatic(proof, c, match.keyset, catalogs);
           if (!c.maybeDeriveP2BKPrivateKeys(walletState.privateKey, proof).length) {
             throw new Error("proof is not addressed to this wallet");
           }
-          const withMint = { ...item, mintUrl: match.mintUrl, unit: match.keyset.unit };
-          (item.state === "SPENT" ? spent : owned).push(withMint);
+          candidates.get(match.mintUrl).push(item);
         } catch (error) {
           invalid.push({ proof, mintUrl: match.mintUrl, error: error.message });
         }
       }
     }
+    await Promise.all(descriptors.map(async (descriptor) => {
+      const pending = candidates.get(descriptor.mintUrl);
+      try {
+        for (const item of await withProofStates(descriptor.mintUrl, pending)) {
+          const withMint = { ...item, mintUrl: descriptor.mintUrl, unit: descriptor.keyset.unit };
+          (item.state === "SPENT" ? spent : owned).push(withMint);
+        }
+      } catch (error) {
+        for (const item of pending) {
+          invalid.push({ proof: item.proof, mintUrl: descriptor.mintUrl, error: error.message });
+        }
+      }
+    }));
     return { catalogs: [...catalogs.values()], owned, spent, invalid, unreadable, unavailable };
   }
 

@@ -256,6 +256,8 @@ test("store issues one DLEQ/P2BK proof per card and preserves CardBinding", asyn
   }
   const { signature, issuer_pubkey: issuer, ...catalogPayload } = catalog;
   const catalogDigest = createHash("sha256").update(canonical(catalogPayload)).digest("hex");
+  assert.equal(info.nuts[31].catalog_sha256, catalogDigest,
+    "the live capability invalidates a stale but correctly signed local catalog");
   assert.equal(cashu.schnorrVerifyDigest(signature, catalogDigest, issuer), true);
   const keys = await (await fetch(`${base}/v1/keys`)).json();
   const keyset = keys.keysets[0];
@@ -2718,4 +2720,69 @@ test("one browser wallet reads E1 boosters and G starter sets together", async (
   assert.deepEqual(new Set(combined.owned.map((item) => item.unit)), new Set(["600B-E1", "600B-G"]));
   assert.deepEqual(new Set(combined.catalogs.map((catalog) => catalog.collection_id)),
     new Set(["600B-E1", "600B-G"]));
+});
+
+test("wallet batches live proof checks and reuses verified catalogs after reload", async (t) => {
+  const { createMockFunding } = require("../../server/funding.js");
+  const e1Catalog = "http://127.0.0.1/e1/nutft/catalog";
+  const gCatalog = "http://127.0.0.1/g/nutft/catalog";
+  const table = await createTable({
+    port: 0,
+    host: "127.0.0.1",
+    dbPath: ":memory:",
+    nutftCatalogUri: e1Catalog,
+    gNutftEnabled: true,
+    gNutftDbPath: ":memory:",
+    gNutftCatalogUri: gCatalog,
+    gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
+    gNutftAllowVirtual: "1",
+    gNutftSales: "open",
+    gNutftOnePerKey: false,
+    gNutftPriceMsat: 210_000,
+  });
+  t.after(() => table.close());
+  const storage = new Map();
+  const calls = { catalogs: 0, states: [] };
+  const fetchImpl = async (url, options) => {
+    const target = String(url);
+    if (target === e1Catalog || target === gCatalog) {
+      calls.catalogs += 1;
+      return fetch(target === e1Catalog
+        ? `${table.url}/nutft/catalog`
+        : `${table.url}/g/nutft/catalog`, options);
+    }
+    if (target.endsWith("/v1/checkstate")) {
+      calls.states.push({ target, count: JSON.parse(options.body).Ys.length });
+    }
+    return fetch(url, options);
+  };
+  const wallet = await browserWallet(storage, fetchImpl);
+  await wallet.buyBooster(table.url);
+  await wallet.buyBooster(`${table.url}/g`);
+
+  const first = await wallet.snapshotMany([table.url, `${table.url}/g`]);
+  assert.equal(first.owned.length, 97);
+  assert.equal(calls.catalogs, 2, "the cold load fetches each signed catalog once");
+  assert.deepEqual(calls.states.map((call) => call.count).sort((a, b) => a - b), [15, 82],
+    "one live state request is enough for every proof from a mint");
+
+  calls.catalogs = 0;
+  calls.states = [];
+  const reloaded = await browserWallet(storage, fetchImpl);
+  const warm = await reloaded.snapshotMany([table.url, `${table.url}/g`]);
+  assert.equal(warm.owned.length, 97);
+  assert.equal(calls.catalogs, 0, "a reload re-verifies the local signed catalog without downloading it");
+  assert.deepEqual(calls.states.map((call) => call.count).sort((a, b) => a - b), [15, 82],
+    "proof state stays live even when public catalog data is cached");
+
+  const cached = JSON.parse(storage.get("600b:nutft-catalogs-v1"));
+  cached.catalogs[e1Catalog].catalog.assets[0].name = "tampered local name";
+  storage.set("600b:nutft-catalogs-v1", JSON.stringify(cached));
+  calls.catalogs = 0;
+  calls.states = [];
+  const repaired = await (await browserWallet(storage, fetchImpl))
+    .snapshotMany([table.url, `${table.url}/g`]);
+  assert.equal(repaired.owned.length, 97);
+  assert.equal(calls.catalogs, 1,
+    "a cached catalog with a bad signature is discarded and fetched again");
 });

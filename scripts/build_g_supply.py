@@ -55,6 +55,11 @@ PROMO_ID = "FIPS-P01"  # rides along in every strong set, and nowhere else
 
 COLLECTION_ID = "600B-G"
 VERSION = "g-census-r1"
+MIRRORS = [
+    "https://blossom.primal.net",
+    "https://blossom.bimcvp.com",
+    "https://nostr.download",
+]
 
 
 def _load_js_global(path: Path, name: str) -> dict:
@@ -123,6 +128,19 @@ def build(strict: bool = True) -> dict:
     cards = _e1_cards()
     promos = json.loads((REPO / "cards" / "promos.json").read_text(encoding="utf-8"))
     promo = next(card for card in promos["cards"] if card["id"] == PROMO_ID)
+    blobs = json.loads((REPO / "cards" / "e1-blob-manifest.json").read_text(encoding="utf-8"))
+    promo_file = next(record for record in blobs["files"] if record.get("name") == promo["name"])
+    face_path = REPO / "art" / "cards" / "node-runner-web" / promo_file["file"]
+    face_bytes = face_path.read_bytes()
+    face_digest = hashlib.sha256(face_bytes).hexdigest()
+    if face_digest != promo_file["sha256"] or len(face_bytes) != promo_file["bytes"]:
+        raise SystemExit(f"{face_path}: bytes do not match the content-addressed manifest")
+    promo_face = {
+        "sha256": face_digest,
+        "mime": promo_file["mime"],
+        "bytes": len(face_bytes),
+        "urls": [f"{mirror}/{face_digest}{face_path.suffix.lower()}" for mirror in MIRRORS],
+    }
 
     names = sorted(precons)
     for name in names:
@@ -220,6 +238,7 @@ def build(strict: bool = True) -> dict:
                 "type_line": promo["type_line"],
                 "copies": counts[cid],
                 "pool": "extra",
+                "face": promo_face,
             }
         source = cards[cid]
         return {
@@ -274,11 +293,7 @@ def build(strict: bool = True) -> dict:
         },
         "manifest": manifest,
         "census_sha256": commitment,
-        "mirrors": [
-            "https://blossom.primal.net",
-            "https://blossom.bimcvp.com",
-            "https://nostr.download",
-        ],
+        "mirrors": MIRRORS,
         "cards": [card_entry(cid) for cid in sorted(counts)],
     }
 
