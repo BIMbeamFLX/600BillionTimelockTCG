@@ -49,9 +49,9 @@ DECK_SIZE = 40
 EXTRA_SLOTS = 2
 CARDS_PER_SET = DECKS_PER_SET * DECK_SIZE + EXTRA_SLOTS
 
-STRONG_SETS = 21          # the first N, and they are the first ON PURPOSE
-PER_GENESIS_CARD = 3      # the most any one Genesis title may appear across them
-PROMO_ID = "FIPS-P01"     # rides along in every strong set, and nowhere else
+STRONG_SETS = 21  # the first N, and they are the first ON PURPOSE
+PER_GENESIS_CARD = 3  # the most any one Genesis title may appear across them
+PROMO_ID = "FIPS-P01"  # rides along in every strong set, and nowhere else
 
 COLLECTION_ID = "600B-G"
 VERSION = "g-census-r1"
@@ -89,7 +89,7 @@ def _load_js_global(path: Path, name: str) -> dict:
         elif ch == closer:
             depth -= 1
             if depth == 0:
-                return json.loads(text[start:index + 1])
+                return json.loads(text[start : index + 1])
     raise SystemExit(f"{path.name}: never closed the {name} literal")
 
 
@@ -178,8 +178,9 @@ def build(strict: bool = True) -> dict:
     manifest: list[dict] = []
     for index in range(SETS):
         left, right = pairs[index]
-        contents = (playable(precons[left]["cards"], index)
-                    + playable(precons[right]["cards"], index + DECK_SIZE))
+        contents = playable(precons[left]["cards"], index) + playable(
+            precons[right]["cards"], index + DECK_SIZE
+        )
         strong = index < STRONG_SETS
         if strong:
             # Round-robin across the titles, so the cap holds by construction
@@ -190,13 +191,15 @@ def build(strict: bool = True) -> dict:
         contents += extras
         if len(contents) != CARDS_PER_SET:
             raise SystemExit(f"set {index + 1} has {len(contents)} cards, expected {CARDS_PER_SET}")
-        manifest.append({
-            "set": index + 1,
-            "pack_id": f"set-{index + 1:04d}",
-            "decks": [left, right],
-            "strong": strong,
-            "cards": contents,
-        })
+        manifest.append(
+            {
+                "set": index + 1,
+                "pack_id": f"set-{index + 1:04d}",
+                "decks": [left, right],
+                "strong": strong,
+                "cards": contents,
+            }
+        )
 
     counts: dict[str, int] = {}
     for entry in manifest:
@@ -211,13 +214,20 @@ def build(strict: bool = True) -> dict:
     def card_entry(cid: str) -> dict:
         if cid == PROMO_ID:
             return {
-                "id": PROMO_ID, "name": promo["name"], "tier": "Promo",
-                "type_line": promo["type_line"], "copies": counts[cid], "pool": "extra",
+                "id": PROMO_ID,
+                "name": promo["name"],
+                "tier": "Promo",
+                "type_line": promo["type_line"],
+                "copies": counts[cid],
+                "pool": "extra",
             }
         source = cards[cid]
         return {
-            "id": cid, "name": source["name"], "tier": source["tier"],
-            "type_line": source["type_line"], "copies": counts[cid],
+            "id": cid,
+            "name": source["name"],
+            "tier": source["tier"],
+            "type_line": source["type_line"],
+            "copies": counts[cid],
             "pool": "extra" if source["tier"] in ("Genesis", "Vault") else "deck",
             "face": source.get("face"),
         }
@@ -235,7 +245,9 @@ def build(strict: bool = True) -> dict:
         )
     worst = max(strong_genesis.values()) if strong_genesis else 0
     if strict and worst > PER_GENESIS_CARD:
-        raise SystemExit(f"a Genesis title appears in {worst} strong sets, cap is {PER_GENESIS_CARD}")
+        raise SystemExit(
+            f"a Genesis title appears in {worst} strong sets, cap is {PER_GENESIS_CARD}"
+        )
 
     return {
         "set": COLLECTION_ID,
@@ -256,7 +268,11 @@ def build(strict: bool = True) -> dict:
         },
         "manifest": manifest,
         "census_sha256": commitment,
-        "mirrors": ["https://blossom.primal.net", "https://blossom.bimcvp.com", "https://nostr.download"],
+        "mirrors": [
+            "https://blossom.primal.net",
+            "https://blossom.bimcvp.com",
+            "https://nostr.download",
+        ],
         "cards": [card_entry(cid) for cid in sorted(counts)],
     }
 
@@ -264,21 +280,57 @@ def build(strict: bool = True) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=REPO / "cards" / "g-census.json")
-    parser.add_argument("--lenient", action="store_true", help="report cap breaches instead of refusing")
+    parser.add_argument("--site-out", type=Path, default=REPO / "site" / "g-data.js")
+    parser.add_argument(
+        "--lenient", action="store_true", help="report cap breaches instead of refusing"
+    )
     args = parser.parse_args()
 
     census = build(strict=not args.lenient)
     args.out.write_text(json.dumps(census, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
+    # The SHOP's copy of these numbers, generated rather than typed. The page had
+    # "2 decks of 40 = 80 cards" hand-written in shop.js while this census printed
+    # 82, and a page whose whole argument is that its figures are the mint's cannot
+    # carry a figure the mint disagrees with. The manifest itself is 390KB and has
+    # no business on a shop page; these few numbers do.
+    strong_sets = sum(1 for entry in census["manifest"] if entry["strong"])
+    genesis_copies = sum(c["copies"] for c in census["cards"] if c["tier"] == "Genesis")
+    site = {
+        "collectionId": census["set"],
+        "version": census["version"],
+        "sets": census["mint"]["packs"],
+        "decksPerSet": DECKS_PER_SET,
+        "deckSize": DECK_SIZE,
+        "cardsPerSet": census["mint"]["cards_per_pack"],
+        "extraSlots": EXTRA_SLOTS,
+        "genesisSets": strong_sets,
+        "genesisCopies": genesis_copies,
+        "perGenesisCard": census["mint"]["per_genesis_card"],
+        "promoId": PROMO_ID,
+        "commitment": census["census_sha256"],
+    }
+    header = [
+        "/* Generated by scripts/build_g_supply.py - do not edit by hand.",
+        " * The G edition's published shape, so the shop states what the census",
+        " * states and the two cannot drift. */",
+        "globalThis.E1_G = " + json.dumps(site, indent=1) + ";",
+        'if (typeof module === "object" && module.exports) module.exports = globalThis.E1_G;',
+        "",
+    ]
+    args.site_out.write_text(chr(10).join(header), encoding="utf-8")
+
     strong = sum(1 for entry in census["manifest"] if entry["strong"])
     print(f"{args.out.relative_to(REPO)}")
     print(f"  sets            {census['mint']['packs']}")
     print(f"  cards per set   {census['mint']['cards_per_pack']}")
-    print(f"  cards in the run {census['mint']['packs'] * census['mint']['cards_per_pack']:,}".replace(",", " "))
+    total_cards = census["mint"]["packs"] * census["mint"]["cards_per_pack"]
+    print(f"  cards in the run {total_cards:,}".replace(",", " "))
     print(f"  strong sets     {strong} (the first {strong})")
     print(f"  distinct cards  {len(census['cards'])}")
     print(f"  commitment      {census['census_sha256']}")
-    print(f"  genesis NutFTs  {sum(c['copies'] for c in census['cards'] if c['tier'] == 'Genesis')}")
+    minted_genesis = sum(c["copies"] for c in census["cards"] if c["tier"] == "Genesis")
+    print(f"  genesis NutFTs  {minted_genesis}")
 
 
 if __name__ == "__main__":
