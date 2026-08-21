@@ -875,14 +875,11 @@
      * wallpaper instead of a moment. */
     if ((event.seat === 0 || event.seat === 1) && tone !== "system") {
       const seatMeta = session.full && session.full.seats ? session.full.seats[event.seat] : null;
-      const card = seatAvatarCard(event.seat);
-      const shout = card ? null : (seatMeta ? portraitFor(seatMeta.pubkey) : null);
-      if ((card || shout) && node.prepend) {
-        const face = el("img", "shout");
-        if (face.setAttribute) face.setAttribute("alt", "");
-        if (card) setFace(face, card);
-        else if (face.setAttribute) face.setAttribute("src", shout);
-        node.prepend(face);
+      const face = seatFace(event.seat, seatMeta ? seatMeta.name : "", seatMeta ? seatMeta.pubkey : null);
+      if ((face.url || face.card) && node.prepend) {
+        const img = el("img", "shout");
+        paintFace(img, face, "");
+        node.prepend(img);
       }
     }
     host.append(node);
@@ -991,15 +988,15 @@
   };
 
   /* ------------------------------------------------------------- portraits
-   * A seat is a person, not a number. The view already carries each seat's
-   * pubkey (engine seatView), and net.js already resolves a signature-verified
-   * kind-0 into {name, picture, lud16} — so a face costs one lookup and no new
-   * art, no engine change and no hashed byte.
+   * A seat is a person, not a number — and a person is a character, not a card.
+   * The site ships one square portrait per character and site/portraits.js is
+   * the single place that turns a name into one, so the playerbar, the
+   * Kampfansage and the seat picker cannot answer this differently.
    *
    * Everything here degrades to nothing: hotseat seats have no pubkey, a
-   * sandboxed napplet may have no relay, and the test DOM has no Image and no
-   * network at all. In every one of those cases the bar simply keeps the name
-   * it has always had. */
+   * sandboxed napplet may have no relay, a build without portraits.js has no
+   * index, and the test DOM has no Image and no network at all. In every one of
+   * those cases the bar simply keeps the name it has always had. */
   const PORTRAITS = new Map();   // pubkey -> url | null (null = looked up, none)
 
   function portraitFor(pubkey) {
@@ -1023,56 +1020,167 @@
     return null;
   }
 
-  /* A hotseat seat has no pubkey and therefore no profile to resolve, which left
-   * local play faceless. It does not need one: the set already contains 88
-   * Avatars, every one of them a finished, hash-verified, Blossom-mirrored face.
-   * So you pick the Avatar you play as, and that card IS your portrait — no new
-   * art, and "everyone plays their avatar" in the most literal sense the game
-   * can mean it.
-   *
-   * Kept entirely client-side and OUT of the engine config: seats feed newSeat,
-   * which feeds the hashed transcript, and a cosmetic choice must never move a
-   * hashed byte or make two clients disagree about a match. */
-  const SEAT_AVATARS = [null, null];   // seat -> cardId chosen at the setup screen
+  /* A URL the browser could not load. Remembered so the next render answers
+   * with the fallback instead of asking for the same missing file again — one
+   * 404 per portrait, not one per frame. */
+  const BROKEN = new Set();
 
+  /* Which character each seat plays as. Kept entirely client-side and OUT of
+   * the engine config: seats feed newSeat, which feeds the hashed transcript,
+   * and a cosmetic choice must never move a hashed byte or make two clients
+   * disagree about a match. That is also exactly why it decides nothing at a
+   * networked table — see seatFace(). */
+  const SEAT_AVATARS = [null, null];   // seat -> character key chosen at setup
+
+  /* Every Avatar in the set. The filter is a substring on purpose: four of the
+   * 92 are "Hardware Avatar", and an equality test would drop them. */
   const avatarChoices = () => CARDS
     .filter((card) => card.type && card.type.indexOf("Avatar") >= 0)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  function seatAvatarCard(seatIndex) {
-    const id = SEAT_AVATARS[seatIndex];
-    return id && CARD_BY_ID[id] ? CARD_BY_ID[id] : null;
+  /* Those 92 Avatars are 30 people — five Rootzoll cards would be five rows of
+   * one face — so the picker lists characters instead. The list is derived from
+   * the cards rather than from the portrait index, because play-data.js is
+   * always there and the index is a fetch a file:// page cannot make. Each
+   * character keeps one card, which is the face shown if the portrait itself
+   * cannot be had.
+   *
+   * Built once and kept: a seat's pick is stored as a key out of this list, so
+   * the list must not be allowed to change underneath it. */
+  let CHARACTERS = null;
+  function characters() {
+    if (CHARACTERS) return CHARACTERS;
+    const P = globalThis.E1Portraits || null;
+    const seen = new Map();
+    for (const card of avatarChoices()) {
+      const label = card.name.split(",")[0].split("&")[0].trim();
+      const key = (P && P.slugFor(card.name)) || label.toLowerCase();
+      /* Alphabetically first is not good enough on its own: "Rootzoll & Leon,
+       * Dual Operator" sorts ahead of every solo Rootzoll card, so the one
+       * character in the set with a duo card would offer a two-person picture
+       * as their single-character avatar wherever the portrait cannot be had. */
+      const solo = card.name.indexOf("&") < 0;
+      const held = seen.get(key);
+      if (!held || (solo && !held.solo)) seen.set(key, { key, label, card, solo });
+    }
+    /* THE INDEX ADDS, IT DOES NOT REPLACE. The cards give thirty people and are
+       always present, which is why they are the floor: a file:// page cannot
+       fetch the portrait index, and the picker still has to work there. But the
+       index carries thirteen more faces with no card in this set — the Street of
+       SEC roster, and kerni — and the owner asked for both rosters in the
+       picker. So they are appended when the index is readable and simply absent
+       when it is not, rather than the picker depending on a fetch. */
+    if (P && typeof P.characters === "function") {
+      for (const key of P.characters()) {
+        /* characters() answers with SLUGS, not records — the display name comes
+           from nameFor, because "saltmonster" is not "Salt Monster" and
+           title-casing a slug reads as a typo to the person it names. A slug
+           the index carries no name for is skipped: an avatar nobody can
+           recognise in the list is worse than one absent from it. */
+        if (typeof key !== "string" || !key || seen.has(key)) continue;
+        const label = (typeof P.nameFor === "function" ? P.nameFor(key) : "").trim();
+        if (!label) continue;
+        /* card: null is the honest record — these people have no card to fall
+           back to, so characterFace has nothing to degrade to and says so. */
+        seen.set(key, { key, label, card: null, solo: true });
+      }
+    }
+    CHARACTERS = Array.from(seen.values()).sort((a, b) => a.label.localeCompare(b.label));
+    return CHARACTERS;
+  }
+
+  function seatCharacter(seatIndex) {
+    const key = SEAT_AVATARS[seatIndex];
+    if (!key) return null;
+    return characters().find((entry) => entry.key === key) || null;
+  }
+
+  /* A character's face: the portrait, and the card that names them only when
+   * the portrait cannot be had — no portraits.js on the page, no such character
+   * in the index, or an image the browser refused. A card face is the honest
+   * degradation, never the intended avatar. */
+  function characterFace(entry) {
+    const P = globalThis.E1Portraits || null;
+    /* A card-less character — one the index knows and this set never printed —
+       is resolved by their own name. There is no card behind them, so if the
+       portrait cannot be had there is nothing to degrade to, and saying so
+       beats reaching into a null. */
+    const P_NAME = entry.card ? entry.card.name : entry.label;
+    const url = P ? P.urlFor(P_NAME) : null;
+    return url && !BROKEN.has(url) ? { url, card: null } : { url: null, card: entry.card || null };
+  }
+
+  /* Last resort: the seat's own kind-0 picture. Not a character, but it is
+   * still this person's face, and it is the only one a stranger playing under
+   * their own name will ever have here. */
+  function relayFace(pubkey) {
+    const url = portraitFor(pubkey);
+    return { url: url && !BROKEN.has(url) ? url : null, card: null };
+  }
+
+  /* One question, one answer, three render sites, because the same person
+   * wearing three different faces is the drift this replaced.
+   *
+   * The picked character decides only in hotseat. A pick is local — it is
+   * deliberately not in the seat config, so it never crosses the wire — and
+   * honouring it at a networked table would paint one face on this screen and
+   * a different one on the opponent's. Online the seat NAME is the only key
+   * both clients hold, and it resolves to the same portrait on both. */
+  function seatFace(seatIndex, name, pubkey) {
+    if (session.role === "hotseat") {
+      /* This screen holds both seats, so the picker's answer is the whole
+       * answer — including "no Avatar", which is a choice and not a gap. */
+      const entry = seatCharacter(seatIndex);
+      return entry ? characterFace(entry) : relayFace(pubkey);
+    }
+    const P = globalThis.E1Portraits || null;
+    const url = P && name ? P.urlFor(name) : null;
+    return url && !BROKEN.has(url) ? { url, card: null } : relayFace(pubkey);
+  }
+
+  /* Paint one <img>. A portrait that 404s must not leave a broken image on the
+   * bar, so a failed URL is struck off and the page repainted down the same
+   * chain the resolver would have produced without it. */
+  function paintFace(img, face, alt) {
+    if (img.setAttribute && typeof alt === "string") img.setAttribute("alt", alt);
+    if (face.url) {
+      img.onerror = () => {
+        img.onerror = null;
+        BROKEN.add(face.url);
+        repaint();
+      };
+      if (!img.getAttribute || img.getAttribute("src") !== face.url) {
+        if (img.setAttribute) img.setAttribute("src", face.url);
+      }
+      return;
+    }
+    img.onerror = null;
+    if (face.card) setFace(img, face.card);
+  }
+
+  /* A late answer — the portrait index arriving, or an image failing — has to
+   * reach whatever is on screen, and that is either the table or the picker. */
+  const AVATAR_SYNC = [];
+  function repaint() {
+    if (session.full) render();
+    for (const sync of AVATAR_SYNC) sync();
   }
 
   /* The portrait is a square chip, not a circle: the frame on every card face is
    * square and the board speaks the card's language. */
   function mountPortrait(bar, pubkey, name, seatIndex) {
     if (!bar || !bar.children) return;
-    const card = seatAvatarCard(seatIndex);
-    const url = card ? null : portraitFor(pubkey);
-    if (card) {
-      let node = Array.prototype.find
-        ? Array.prototype.find.call(bar.children, (c) => c && c.className === "portrait")
-        : null;
-      if (!node) {
-        node = el("img", "portrait");
-        if (bar.prepend) bar.prepend(node); else bar.append(node);
-      }
-      setFace(node, card);
-      if (node.setAttribute) node.setAttribute("alt", `${name || "Player"} plays ${card.name}`);
-      return;
-    }
+    const face = seatFace(seatIndex, name, pubkey);
     let img = Array.prototype.find
       ? Array.prototype.find.call(bar.children, (c) => c && c.className === "portrait")
       : null;
-    if (!url) { if (img && img.remove) img.remove(); return; }
+    if (!face.url && !face.card) { if (img && img.remove) img.remove(); return; }
     if (!img) {
       img = el("img", "portrait");
       if (img.setAttribute) img.setAttribute("loading", "lazy");
       if (bar.prepend) bar.prepend(img); else bar.append(img);
     }
-    if (img.getAttribute && img.getAttribute("src") !== url) img.setAttribute("src", url);
-    if (img.setAttribute) img.setAttribute("alt", `${name || "Player"} avatar`);
+    paintFace(img, face, `${name || "Player"} avatar`);
   }
 
   const faceUrl = (card) => "../art/cards/node-runner-web/" + encodeURIComponent(card.face);
@@ -4678,12 +4786,16 @@
   /* The seat menus: affinity presets, the precon library, then whatever the
    * player has saved. Separated out so it can be called again once the
    * asynchronous Stack library arrives. */
-  /* One menu per seat, listing every Avatar in the set. The preview is the real
-   * card face through the same resolver the table uses, so what you pick is
-   * exactly what you will see on the bar. */
+  /* One menu per seat, listing the 30 characters the set draws. The preview
+   * goes through the same resolver the table does, so what you pick is what a
+   * HOTSEAT bar shows. It is not what a networked bar shows, and the comment
+   * used to claim otherwise: a pick is local and deliberately never crosses the
+   * wire, so online both seats resolve from the seat NAME instead — see
+   * seatFace(). Same screen, two doors, and only one of them honours this. */
   function buildAvatarMenus() {
-    const choices = avatarChoices();
+    const choices = characters();
     if (!choices.length) return;
+    AVATAR_SYNC.length = 0;   // rebuilt with the menus, so they never stack up
     for (const [id, seatIndex] of [["avatarA", 0], ["avatarB", 1]]) {
       const select = document.getElementById(id);
       if (!select) continue;
@@ -4691,31 +4803,78 @@
       const none = el("option", null, "No Avatar - just my name");
       none.value = "";
       select.append(none);
-      for (const card of choices) {
-        const option = el("option", null, card.name);
-        option.value = card.id;
+      for (const entry of choices) {
+        const option = el("option", null, entry.label);
+        option.value = entry.key;
         select.append(option);
       }
       const preview = document.getElementById(seatIndex === 0 ? "avatarPreviewA" : "avatarPreviewB");
       const sync = () => {
         SEAT_AVATARS[seatIndex] = select.value || null;
-        const card = seatAvatarCard(seatIndex);
         if (!preview) return;
-        if (card) { setFace(preview, card); preview.hidden = false; }
-        else { preview.hidden = true; }
+        const entry = seatCharacter(seatIndex);
+        const face = entry ? characterFace(entry) : { url: null, card: null };
+        if (!face.url && !face.card) { preview.hidden = true; return; }
+        /* .avatar-preview in play.html is card-shaped from when this preview WAS
+         * a card face. A portrait is square, and cropping a square into a tall
+         * box shows a strip of a face rather than a face — so the portrait case
+         * overrides. The card case CLEARS the override rather than repeating the
+         * stylesheet's numbers here, which would leave two copies of the card
+         * crop to keep in step and no link between them. */
+        if (preview.style) {
+          preview.style.aspectRatio = face.url ? "1 / 1" : "";
+          preview.style.objectPosition = face.url ? "50% 50%" : "";
+        }
+        paintFace(preview, face, "");
+        preview.hidden = false;
       };
       select.addEventListener("change", sync);
-      /* Default to the Avatar that carries the seat's own name where the set has
-       * one - a player called FLX starts as FLX - otherwise stay on name-only. */
+      AVATAR_SYNC.push(sync);
+      /* Default to the character that carries the seat's own name where the set
+       * has one - a player called FLX starts as FLX - otherwise stay on
+       * name-only. Through the same resolver, so a seat named Proton lands on
+       * the character the cards call P. */
       const seatName = (document.getElementById(seatIndex === 0 ? "nameA" : "nameB") || {}).value || "";
-      const match = seatName && choices.find((c) => c.name.toLowerCase().indexOf(seatName.toLowerCase() + ",") === 0);
-      if (match) select.value = match.id;
+      const P = globalThis.E1Portraits || null;
+      const wanted = !seatName ? null
+        : (P ? P.slugFor(seatName) : seatName.trim().toLowerCase());
+      const match = wanted && choices.find((entry) => entry.key === wanted);
+      if (match) select.value = match.key;
       sync();
     }
   }
 
+  /* The picker is built before the portrait index has arrived — the index is a
+     fetch, buildSeatMenus is not — so the first list is the thirty characters
+     the CARDS name and the thirteen with no card are missing. Rebuilt once the
+     fetch lands.
+
+     Safe to rebuild only because the index ADDS: every key already in the list
+     is still in it, so a seat that has already picked keeps its pick. If this
+     ever starts removing characters, a stored pick could point at a person who
+     is no longer offered, and that has to be handled rather than assumed. */
+  let avatarMenusRefreshed = false;
+  function refreshAvatarMenusWhenPortraitsLand() {
+    const P = globalThis.E1Portraits;
+    if (avatarMenusRefreshed || !P || !P.ready || typeof P.ready.then !== "function") return;
+    avatarMenusRefreshed = true;
+    P.ready.then(() => {
+      const before = ["avatarA", "avatarB"].map((id) => {
+        const select = document.getElementById(id);
+        return select ? select.value : "";
+      });
+      CHARACTERS = null;
+      buildAvatarMenus();
+      before.forEach((value, index) => {
+        const select = document.getElementById(index === 0 ? "avatarA" : "avatarB");
+        if (select && value) select.value = value;
+      });
+    }).catch(() => { /* no index, thirty characters, and the game plays */ });
+  }
+
   function buildSeatMenus() {
     buildAvatarMenus();
+    refreshAvatarMenusWhenPortraitsLand();
     for (const id of ["deckA", "deckB"]) {
       const select = document.getElementById(id);
       if (!select) return;
@@ -4787,6 +4946,12 @@
      * answers late: inside a shell the storage NAP is asynchronous, so a menu
      * assembled at boot would list the presets and silently omit every Stack
      * the player had built. */
+    /* The portrait index lands after the first paint, and it is what turns an
+     * assumed file name into a verified one — so repaint once when it does. */
+    const portraits = globalThis.E1Portraits;
+    if (portraits && portraits.ready && typeof portraits.ready.then === "function") {
+      portraits.ready.then(repaint, () => { /* no index, and the derived name stands */ });
+    }
     const start = document.getElementById("start");
     start.disabled = true;
     loadStackLibrary(() => { buildSeatMenus(); start.disabled = false; });

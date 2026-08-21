@@ -1135,6 +1135,12 @@ a { color: var(--orange-soft); }
      the phone in their hand. play.js degrades to copy-and-paste without it. -->
 <script src="qr.js"></script>
 <script src="nutft-wallet.js"></script>
+<!-- BEFORE play.js, because play.js asks for globalThis.E1Portraits at load
+     and degrades to the card face when it is absent. Without this tag the
+     resolver was dead code: five call sites, every one falling through to
+     null, and the portraits simply never appeared -- nothing broken, nothing
+     working either. -->
+<script src="portraits.js"></script>
 <script src="play.js"></script>
 </body>
 </html>
