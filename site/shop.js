@@ -1071,7 +1071,11 @@
   const NO_SIGNER =
     "No nostr signer in this browser. Early access is proved with a nostr key, so you need a NIP-07 "
     + "extension — Alby or nos2x are the usual two — and then a key that is on the list. "
-    + "The free pack below needs none of this.";
+    /* NOT "the free pack below". In mint mode there is no free pack below: the one
+       control there is the mint's own buy button, which refuses this visitor with
+       the same advice. Pointing at a way out that does not exist on this page is
+       worse than pointing at none. The free box has its own URL and it is a link. */
+    + "The free alpha box needs none of this — it is the same page without ?shop=mint.";
   const SIGN_IN_FIRST =
     "The mint opens to a few nostr keys before it opens to everyone. Sign in to find out whether yours "
     + "is one of them: it costs nothing, buys nothing, and reserves nothing.";

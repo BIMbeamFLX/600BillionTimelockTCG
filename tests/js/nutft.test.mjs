@@ -1450,7 +1450,7 @@ test("eligibility says no to a key that has already taken its starter set", asyn
 
   const after = await ask(alice);
   assert.equal(after.may_buy, false, "and is told so before she reaches for the button again");
-  assert.match(after.reason, /one starter set per key/i,
+  assert.match(after.reason, /already taken its allocation/i,
     "in the same words the quote uses, so the two cannot drift apart");
 
   // Per KEY, not per mint: the flag must not shut the shop for everyone else.
@@ -2197,7 +2197,7 @@ test("a paid booster may not be held for less time than an unpaid one", async (t
   );
 });
 
-test("one starter set per key: the second attempt is refused, and only for that key", async (t) => {
+test("one allocation per key: the second attempt is refused, and only for that key", async (t) => {
   /* The G rule: sign in with nostr, take exactly one set, and be flagged. The
      flag is written in the SAME transaction as the issuance, so this walks the
      whole path -- quote, settle, claim -- rather than asserting on the quote
@@ -2266,7 +2266,7 @@ test("one starter set per key: the second attempt is refused, and only for that 
   assert.equal(first.signatures.length, PACK, "a listed key gets its one set");
 
   await assert.rejects(() => mint.payableQuote({ proof: proofFor(alice, "/nutft/quote") }),
-    /one starter set per key/i, "and cannot come back for a second");
+    /already taken its allocation/i, "and cannot come back for a second");
 
   /* Per KEY, not per mint: the flag must not close the shop for everyone else. */
   const second = await buyOne(bob, "bob-1");

@@ -485,7 +485,12 @@ function createNutftMint(options = {}) {
      it, and /nutft/eligibility reports it. Written once so a buyer cannot be
      told two different things about the same rule depending on which door they
      knocked on. */
-  const ALREADY_HAS_ITS_SET = "one starter set per key — this one already has its set";
+  /* Says what this mint actually sells. NUTFT_ONE_PER_KEY was written for the G
+     starter sets, but the flag is a property of the MINT, not of the edition, and
+     on the E1 mint it caps boosters — where "one starter set per key" is a
+     sentence about a product this mint does not sell, two screens under a panel
+     saying there is no G mint yet. */
+  const ALREADY_HAS_ITS_SET = "one per key — this key has already taken its allocation";
   const hasTakenItsSet = (buyer) => Boolean(onePerKey && q && buyer && q.buyerOf.get(buyer));
 
   /* "May I buy?", answered without buying.
