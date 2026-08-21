@@ -218,7 +218,7 @@ def _max_copies(text: str, where: str) -> int:
     return int(match.group(1))
 
 
-def test_the_copy_cap_is_one_number_in_both_files() -> None:
+def test_the_copy_cap_is_one_number_in_all_three_files() -> None:
     """site/deck.html duplicates engine.js's §7 cap, held together by a comment.
 
     deck.html cannot import engine.js -- the Stack Builder runs before the engine
@@ -229,10 +229,31 @@ def test_the_copy_cap_is_one_number_in_both_files() -> None:
     """
     engine = (REPO_ROOT / "site" / "engine.js").read_text(encoding="utf-8")
     builder = (REPO_ROOT / "site" / "deck.html").read_text(encoding="utf-8")
+    wallet = (REPO_ROOT / "site" / "wallet.html").read_text(encoding="utf-8")
 
-    assert _max_copies(engine, "site/engine.js") == _max_copies(builder, "site/deck.html"), (
+    cap = _max_copies(engine, "site/engine.js")
+    assert cap == _max_copies(builder, "site/deck.html"), (
         "the Stack Builder and the engine disagree about the §7 cap"
     )
+
+    """The wallet is the THIRD copy, and it is the one that was missed.
+
+    It writes the cap once per tier rather than as a constant, because loading a
+    320KB rules engine into a wallet to read one integer is not a trade worth
+    making. When the cap went from three to four this table stayed at three, so
+    the wallet refused a legal fourth copy while the Stack Builder next door
+    accepted it — and 27 of the 210 G starter sets hold four of a non-basic,
+    starting with set 1. A comment saying "must match" is what let that happen.
+    """
+    tiers = re.findall(r"^\s*(\w+):\s*\{ rung: \d+, copies: (\d+|Infinity) \},", wallet, re.M)
+    assert tiers, "site/wallet.html no longer declares a TIERS table"
+    for tier, copies in tiers:
+        if tier == "genesis":
+            assert copies == "1", "Genesis is one per Stack in the engine; the wallet must agree"
+        elif copies != "Infinity":
+            assert int(copies) == cap, (
+                f"site/wallet.html caps {tier} at {copies}; the engine's §7 cap is {cap}"
+            )
 
 
 def test_both_files_still_special_case_genesis_and_basic_resources() -> None:

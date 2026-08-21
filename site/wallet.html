@@ -277,7 +277,13 @@
   const chip = (text) => el("span", "chip", text);
 
   /* Every rung of the ladder, rarest first, with the copy limit that rung
-   * carries into a Stack beside it (engine.js MAX_COPIES, rulebook §7: three,
+   * carries into a Stack beside it. The number IS engine.js MAX_COPIES, written
+   * here a third time -- engine.js, deck.html, this file -- because loading a
+   * 320KB rules engine into a wallet to read one integer is not a trade worth
+   * making. It has to be changed in all three, and it was not: the cap went to
+   * four and this table stayed at three, so the wallet refused a legal fourth
+   * copy while the Stack Builder next door accepted it. A test now binds all
+   * three (tests/test_repo_structure.py). Genesis is one,
    * one for a Genesis, and no ceiling at all on a Basic Resource — a Stack
    * needs 16-18 of them).
    *
@@ -287,11 +293,11 @@
    * beneath a Basic Resource. Twice burned; fail where it is loud. */
   const TIERS = {
     genesis:  { rung: 0, copies: 1 },
-    vault:    { rung: 1, copies: 3 },
-    promo:    { rung: 2, copies: 3 },
-    rare:     { rung: 3, copies: 3 },
-    uncommon: { rung: 4, copies: 3 },
-    common:   { rung: 5, copies: 3 },
+    vault:    { rung: 1, copies: 4 },
+    promo:    { rung: 2, copies: 4 },
+    rare:     { rung: 3, copies: 4 },
+    uncommon: { rung: 4, copies: 4 },
+    common:   { rung: 5, copies: 4 },
     basic:    { rung: 6, copies: Infinity },
   };
   const tierOf = (asset) => {
