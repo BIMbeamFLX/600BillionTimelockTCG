@@ -1448,7 +1448,18 @@ function createNutftMint(options = {}) {
       /* The whole chain. Served by the mint so a napplet with no relay
          access can verify it; the relays carry the same events for
          everyone else. */
-      if (req.method === "GET" && localPath === "/nutft/supply") return json(res, 200, supply.chain());
+      if (req.method === "GET" && localPath === "/nutft/supply") {
+        /* One page. Absent, the newest; ?from=<seq> starts there instead.
+           A malformed sequence number is refused rather than rounded to
+           something plausible, so a client never silently verifies a
+           different stretch of the chain than the one it asked for. */
+        const raw = url.searchParams.get("from");
+        const from = raw === null ? undefined : Number(raw);
+        if (raw !== null && (!Number.isInteger(from) || from < 1)) {
+          throw new Error("from must be a positive snapshot sequence number");
+        }
+        return json(res, 200, supply.chain(from));
+      }
       /* Beside the quote, because it exists to be asked instead of it. A "no"
          is a successful answer to the question, so this is always 200 — a 400
          would be the shop failing to ask rather than the mint declining, and
