@@ -145,6 +145,7 @@
       keys: keyset.keys,
       unit: keyset.unit,
       catalogIssuer: capability.catalog_issuer,
+      purchaseMode: capability.purchase_mode === true,
       catalogUri: typeof capability.catalog_uri === "string" && (capability.catalog_uri.startsWith("https://") || capability.catalog_uri.startsWith("http://")) ? capability.catalog_uri : "",
       catalogDigest: /^[0-9a-f]{64}$/.test(capability.catalog_sha256 || "")
         ? capability.catalog_sha256
@@ -307,6 +308,36 @@
 
   async function submitPending(state, c, keyset) {
     let pending = state.pending;
+    if (pending.type === "booster" && !pending.outputs.length && pending.body.purchase_id) {
+      const response = await postSigned(`${pending.mintUrl}/nutft/purchase`, {
+        purchase_id: pending.body.purchase_id, pack_id: pending.body.pack_id, state: pending.body.state,
+        ...(pending.body.payment_hash ? { payment_hash: pending.body.payment_hash } : {}),
+      });
+      if (!response.ok) {
+        const detail = response.detail || `purchase unavailable (${response.status})`;
+        if (AWAITING_PAYMENT.test(detail)) {
+          const wait = new Error(detail);
+          wait.awaitingPayment = true;
+          throw wait;
+        }
+        /* Nothing was committed on a stale quote; anything else may have been,
+           so the pending record stays for a retry under the same purchase_id. */
+        if (/stale booster quote/i.test(detail)) write({ ...state, pending: null });
+        throw new Error(detail);
+      }
+      const receipt = await response.json();
+      if (receipt.status === "sealed" || !Array.isArray(receipt.cards)) {
+        const wait = new Error(receipt.note || "the pack is still sealed");
+        wait.awaitingPayment = true;
+        throw wait;
+      }
+      if (receipt.purchase_id !== pending.body.purchase_id || receipt.status !== "purchased") throw new Error("invalid purchase receipt");
+      const prepared = await outputsFor(receipt.cards, pending.mintUrl, state, c, keyset);
+      const outputs = prepared.outputs.map(savedOutput);
+      pending = { ...pending, outputs, body: { ...pending.body, pack_id: receipt.pack_id, state: receipt.state, outputs: outputs.map(requestOutput) } };
+      state = { ...state, counters: prepared.counters, pending };
+      write(state);
+    }
     if (pending.type === "booster" && !pending.outputs.length && pending.body.payment_hash) {
       const response = await fetch(`${pending.mintUrl}/nutft/reveal?payment_hash=${encodeURIComponent(pending.body.payment_hash)}`);
       if (!response.ok) throw new Error(`sealed booster unavailable (${response.status})`);
@@ -336,7 +367,10 @@
         wait.awaitingPayment = true;
         throw wait;
       }
-      write({ ...state, pending: null });
+      /* A committed purchase still owns its cards: only a final verdict from
+         the mint drops the pending record; a temporary refusal keeps it. */
+      const terminal = /purchase expired|already claimed|stale booster quote|does not take committed purchases/i;
+      if (!pending.body.purchase_id || terminal.test(detail)) write({ ...state, pending: null });
       throw new Error(detail);
     }
     return finishPending(state, pending, await response.json(), c, keyset);
@@ -530,8 +564,13 @@
     const quote = await requestQuote(mintUrl);
     const prepared = Array.isArray(quote.cards) ? await outputsFor(quote.cards, mintUrl, state, c, keyset) : { outputs: [], counters: state.counters || {} };
     const saved = prepared.outputs.map(savedOutput);
+    /* Purchase mode: the quote withholds the cards, so the wallet commits with
+       its own purchase_id first (see submitPending) and builds the outputs from
+       the receipt. The same id is the claim's idempotency key. */
+    const purchaseId = quote.purchase_required ? hex(root.crypto.getRandomValues(new Uint8Array(32))) : null;
     const pending = { type: "booster", mintUrl, outputs: saved, body: {
-      idempotency_key: root.crypto.randomUUID(),
+      idempotency_key: purchaseId || root.crypto.randomUUID(),
+      ...(purchaseId ? { purchase_id: purchaseId } : {}),
       pack_id: quote.pack_id,
       state: quote.state,
       /* Absent on a free mint, required on a paid one. Carried inside the
@@ -925,6 +964,37 @@
 
   const tradeProof = (mintUrl, secret, recipientPubkey) => locked(() => tradeProofUnlocked(mintUrl, secret, recipientPubkey));
 
+  /* A possession certificate: prove to a table or a tournament that this
+     wallet holds specific unspent cards, without spending them. Each proof is
+     authorized with the P2BK key it is locked to; the mint answers with a
+     certificate signed by the catalog key. Nothing leaves the wallet but the
+     proofs' public parts and the signatures. */
+  async function provePossessionUnlocked(mintUrl, secrets, player, room) {
+    const c = await cashu();
+    const state = await identity(c);
+    if (!Array.isArray(secrets) || !secrets.length || secrets.length > 64 || new Set(secrets).size !== secrets.length) {
+      throw new Error("choose 1 to 64 distinct owned cards");
+    }
+    const all = await proofs(mintUrl);
+    const inputs = secrets.map((secret) => {
+      const proof = all.find((candidate) => candidate.secret === secret);
+      if (!proof) throw new Error("card is not in this wallet");
+      return proof;
+    });
+    const authorizations = inputs.map((proof) => {
+      const keys = c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof);
+      if (!keys.length) throw new Error("card is not addressed to this wallet");
+      return c.schnorrSignMessage(canonical({ domain: "NutFT-play-v1", player, room, secret: proof.secret }), keys[0]);
+    });
+    const response = await fetch(`${mintUrl}/nutft/possession`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ player, room, inputs: c.serializeProofs(inputs), authorizations }),
+    });
+    if (!response.ok) throw new Error(await refusal(response));
+    return response.json();
+  }
+  const provePossession = (mintUrl, secrets, player, room) => locked(() => provePossessionUnlocked(mintUrl, secrets, player, room));
+
   async function destinationUnlocked() {
     const c = await cashu();
     return (await identity(c)).pubkey;
@@ -1126,6 +1196,6 @@
   root.NutFTWallet = {
     buyBooster, claimBooster, snapshot, snapshotMany, tradeProof, importToken,
     destination, recoverPending, outgoing, forgetOutgoing, exportBackup,
-    restoreBackup, replaceBackup, recoveryPhrase, restoreSeed, read, cashu, hex, bytes,
+    restoreBackup, replaceBackup, recoveryPhrase, restoreSeed, provePossession, read, cashu, hex, bytes,
   };
   root.NutFTWallet.encodeToken = encodeToken;})(globalThis);

@@ -1,6 +1,6 @@
 # NutFT: committed purchases and possession certificates
 
-Status: specification, 10 September 2026, not implemented. Adopted from the
+Status: specified and implemented on 10 September 2026 on branch feature/nutft-purchase-possession; section 5 records the decisions taken. Adopted from the
 NutFT Pokémon proof of concept (its server is unpublished; the client contract
 was read from `nutft-wallet.js` there). Line numbers below refer to
 `server/nutft-mint.js` and `site/nutft-wallet.js` on `feature/nutft-catalog-blob`.
@@ -141,14 +141,13 @@ path; an alias can be added if the PoC game runtime needs it). JSON body:
 
 ### 3.2 Verification, in order
 
-1. Shape and size; `room` and `player` well formed.
+1. Shape and size; `room` and `player` well formed; no duplicate secrets.
 2. Each proof: keyset id, amount 1, well-formed `nutft` tag, binding recomputed
    (`parseNutftSecret` 867-888 and the claim's checks), DLEQ.
 3. Each proof unspent in `nutft_spent` (the same source as `/v1/checkstate`,
    1135-1144).
 4. Each authorization verifies against the P2BK public key carried in the
    proof's secret.
-5. No duplicate secrets.
 
 Nothing is spent, marked, or stored except a counter for rate limiting.
 

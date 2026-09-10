@@ -106,6 +106,12 @@ function createNutftMint(options = {}) {
   }
   const beacon = (options.beacon || process.env.NUTFT_BEACON || "00".repeat(32)).toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(beacon)) throw new Error("NUTFT_BEACON must be 32-byte hex");
+  /* Committed purchases (docs/nutft-purchase-and-possession.md). Off unless
+     NUTFT_PURCHASE_MODE=1: the quote keeps revealing the pack until the shop
+     and the wallet have passed the new path against the regtest mint. */
+  const purchaseMode = Boolean(options.purchaseMode ?? (process.env.NUTFT_PURCHASE_MODE === "1"));
+  /* Injectable for the tests that age a purchase past its claim grace. */
+  const clock = typeof options.clock === "function" ? options.clock : Date.now;
 
   const cards = new Map(census.cards.map((card) => [card.id, card]));
   /* A manifest edition's every card is already named in the manifest entry --
@@ -121,7 +127,7 @@ function createNutftMint(options = {}) {
   }
   const initialCommitment = censusHash(catalog.counts);
   const db = options.db;
-  const memory = { meta: new Map(), spent: new Set(), operations: new Map(), signatures: new Map() };
+  const memory = { meta: new Map(), spent: new Set(), operations: new Map(), signatures: new Map(), purchases: new Map() };
   let q;
   if (db) {
     db.exec(`
@@ -173,6 +179,22 @@ function createNutftMint(options = {}) {
         output_json    TEXT NOT NULL,
         signature_json TEXT NOT NULL
       );
+      /* A committed purchase: the draw a buyer committed to under a
+         purchase_id, with the state it replaced, kept until it is claimed or
+         released after the claim grace (docs/nutft-purchase-and-possession.md). */
+      CREATE TABLE IF NOT EXISTS nutft_purchases (
+        purchase_id   TEXT PRIMARY KEY,
+        pack_id       TEXT NOT NULL,
+        state         TEXT NOT NULL,
+        next_state    TEXT NOT NULL,
+        quote_json    TEXT NOT NULL,
+        resolved_json TEXT NOT NULL,
+        previous_json TEXT NOT NULL,
+        buyer         TEXT,
+        payment_hash  TEXT,
+        created_at    TEXT NOT NULL,
+        status        TEXT NOT NULL DEFAULT 'purchased'
+      );
     `);
     /* CREATE TABLE IF NOT EXISTS does nothing to a table that predates a
        column, and SQLite has no ADD COLUMN IF NOT EXISTS. A mint that has
@@ -209,6 +231,14 @@ function createNutftMint(options = {}) {
       walletBackupBuyers: db.prepare(
         "SELECT pubkey FROM nutft_wallet_backup_buyers ORDER BY pubkey",
       ),
+      purchase: db.prepare("SELECT * FROM nutft_purchases WHERE purchase_id = ?"),
+      putPurchase: db.prepare(`
+        INSERT INTO nutft_purchases
+          (purchase_id, pack_id, state, next_state, quote_json, resolved_json, previous_json, buyer, payment_hash, created_at, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'purchased')
+      `),
+      setPurchaseStatus: db.prepare("UPDATE nutft_purchases SET status = ? WHERE purchase_id = ? AND status = 'purchased'"),
+      openPurchases: db.prepare("SELECT * FROM nutft_purchases WHERE status = 'purchased' ORDER BY created_at ASC"),
       backfillWalletBackupBuyers: db.prepare(`
         INSERT OR IGNORE INTO nutft_wallet_backup_buyers (pubkey, pack_id, at)
         SELECT pubkey, pack_id, at FROM nutft_buyers
@@ -235,6 +265,20 @@ function createNutftMint(options = {}) {
   const putOperation = (type, key, requestHash, result) => db
     ? q.putOperation.run(type, key, requestHash, JSON.stringify(result))
     : memory.operations.set(`${type}:${key}`, { requestHash, result });
+  const getPurchase = (id) => (db ? q.purchase.get(id) : memory.purchases.get(id));
+  const putPurchase = (row) => (db
+    ? q.putPurchase.run(row.purchase_id, row.pack_id, row.state, row.next_state, row.quote_json, row.resolved_json, row.previous_json, row.buyer, row.payment_hash, row.created_at)
+    : memory.purchases.set(row.purchase_id, { ...row, status: "purchased" }));
+  const setPurchaseStatus = (id, status) => {
+    if (db) return q.setPurchaseStatus.run(status, id).changes === 1;
+    const row = memory.purchases.get(id);
+    if (!row || row.status !== "purchased") return false;
+    row.status = status;
+    return true;
+  };
+  const openPurchases = () => (db
+    ? q.openPurchases.all()
+    : [...memory.purchases.values()].filter((row) => row.status === "purchased"));
   const getSignature = (b) => {
     const row = db ? q.signature.get(b) : memory.signatures.get(b);
     return row && {
@@ -718,13 +762,17 @@ function createNutftMint(options = {}) {
 
   async function payableQuoteOnce(opts = {}) {
     const buyer = requireMayBuy(opts.proof);
+    if (purchaseMode) releaseExpiredPurchases();
     /* Checked HERE, at the quote, and never at the claim. The repository rule
        is that a paid claim is not re-identified: whoever holds the settled
        invoice may collect it, and asking them who they are again would make a
        bearer asset answer to a name. So the key is read once, while it is
        already being read for the allowlist, and the pack is bound to it. */
     if (hasTakenItsSet(buyer)) throw new Error(ALREADY_HAS_ITS_SET);
-    const base = await quote();
+    const drawn = await quote();
+    /* In purchase mode the draw is not disclosed here: the buyer commits with
+       POST /nutft/purchase first and sees the cards in the receipt. */
+    const base = purchaseMode ? withheld(drawn) : drawn;
     /* Read once, here, and used for the invoice, the record and the reply — so
        the three can never disagree about what this booster costs. */
     const priceNow = priceFor(state.nextPack - 1);
@@ -824,6 +872,150 @@ function createNutftMint(options = {}) {
 
   const payableQuote = (opts) => serializeSale(() => payableQuoteOnce(opts));
 
+  /* ---- committed purchases (docs/nutft-purchase-and-possession.md) ---- */
+
+  const isPurchaseId = (value) => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+
+  /* What a quote or a reveal discloses in purchase mode: the pack's identity
+     and price, never its cards. The draw stays with the mint until a
+     purchase_id commits to it. */
+  function withheld(drawn, extra) {
+    return {
+      pack_id: drawn.pack_id, state: drawn.state, unit: drawn.unit, amount: drawn.amount,
+      catalog_uri: drawn.catalog_uri, purchase_required: true, cards: null, ...extra,
+    };
+  }
+
+  /* Option A: a purchase nobody claimed within the claim grace gives its pack
+     back -- counts, state and pack id return to what they were, so the next
+     quote hands the same pack out again. The state chain is sequential, so
+     only the newest open purchase can be undone; an older expired one waits
+     until everything after it is gone. Runs inside the sale chain, before a
+     quote or a purchase, never beside a claim. */
+  function releaseExpiredPurchases() {
+    const now = clock();
+    const open = openPurchases().sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+    for (let i = open.length - 1; i >= 0; i -= 1) {
+      const row = open[i];
+      const created = Date.parse(row.created_at);
+      if (!Number.isFinite(created) || created + claimGraceSeconds * 1000 > now) break;
+      const previous = JSON.parse(row.previous_json);
+      if (previous.nextPack + 1 !== state.nextPack || state.state !== row.next_state) break;
+      atomic(() => {
+        if (!setPurchaseStatus(row.purchase_id, "expired")) throw new Error("purchase changed while it was being released");
+        putMeta("state", JSON.stringify(previous));
+      });
+      Object.assign(state, previous);
+    }
+  }
+
+  async function purchaseOnce(body, proof) {
+    if (!purchaseMode) throw new Error("this mint does not take committed purchases");
+    await ready;
+    if (!isPurchaseId(body.purchase_id)) throw new Error("purchase_id must be 32 random bytes as hex");
+    const requestHash = crypto.createHash("sha256").update(canonical(body)).digest("hex");
+    const previous = getOperation("purchase", body.purchase_id);
+    if (previous) {
+      if (previous.requestHash !== requestHash) throw new Error("purchase_id was already used for a different purchase");
+      const row = getPurchase(body.purchase_id);
+      if (row && row.status === "expired") throw new Error("purchase expired");
+      return previous.result;
+    }
+    releaseExpiredPurchases();
+    /* The same gate as the claim: a free mint identifies the buyer here, a
+       paid mint trusts the settled invoice it issued while the buyer was
+       allowed to buy. */
+    const buyer = paidMint ? null : requireMayBuy(proof);
+    if (!paidMint && hasTakenItsSet(buyer)) throw new Error(ALREADY_HAS_ITS_SET);
+    let saleBeacon;
+    if (chain) {
+      const row = q ? q.invoice.get(String(body.payment_hash || "")) : null;
+      if (!row || !row.target_height) throw new Error("unknown payment_hash: quote the booster first");
+      saleBeacon = await chain.beaconFor(row.target_height);
+      if (!saleBeacon) {
+        return { purchase_id: body.purchase_id, status: "sealed", target_height: row.target_height, cards: null,
+          note: `block ${row.target_height} is not mined yet` };
+      }
+    }
+    const expected = await quote(saleBeacon);
+    if (body.pack_id !== expected.pack_id || body.state !== expected.state) throw new Error("stale booster quote");
+    await requireSettled(expected, body.payment_hash);
+    const nextCounts = { ...state.counts };
+    const resolved = drawPaidCards(nextCounts, expected.pack_id, saleBeacon || beacon);
+    const previousState = { counts: { ...state.counts }, state: state.state, nextPack: state.nextPack };
+    const nextState = { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
+    const invoiceRow = q && paidMint ? q.invoice.get(String(body.payment_hash || "")) : null;
+    const result = { purchase_id: body.purchase_id, status: "purchased", ...expected };
+    atomic(() => {
+      putPurchase({
+        purchase_id: body.purchase_id, pack_id: expected.pack_id, state: expected.state, next_state: expected.next_state,
+        quote_json: JSON.stringify(expected), resolved_json: JSON.stringify(resolved), previous_json: JSON.stringify(previousState),
+        buyer: (invoiceRow && invoiceRow.buyer) || buyer || null,
+        payment_hash: typeof body.payment_hash === "string" ? body.payment_hash : null,
+        created_at: new Date(clock()).toISOString(),
+      });
+      putMeta("state", JSON.stringify(nextState));
+      putOperation("purchase", body.purchase_id, requestHash, result);
+    });
+    Object.assign(state, nextState);
+    return result;
+  }
+  const purchase = (body, proof) => serializeSale(() => purchaseOnce(body, proof));
+
+  /* ---- possession certificates (docs/nutft-purchase-and-possession.md, section 3) ---- */
+
+  const POSSESSION_DOMAIN = "NutFT-play-v1";
+
+  /* The holder proves, without spending, that specific unspent cards are
+     theirs: one BIP-340 signature per proof by the P2BK key it is locked to,
+     over the room and player it is shown for. The answer is signed by the
+     catalog key, so anyone with the issuer key from /v1/info can check it
+     offline; Y lets them re-check liveness later without seeing the secret. */
+  async function possession(body) {
+    const keyset = await ready;
+    if (typeof body.player !== "string" || !/^[0-9a-f]{64}$/.test(body.player)) throw new Error("player must be a 32-byte hex public key");
+    if (typeof body.room !== "string" || !body.room || body.room.length > 128) throw new Error("room must be 1 to 128 characters");
+    if (!Array.isArray(body.inputs) || !body.inputs.length || body.inputs.length > 64) throw new Error("inputs must hold 1 to 64 proofs");
+    if (!Array.isArray(body.authorizations) || body.authorizations.length !== body.inputs.length) throw new Error("one authorization is required per proof");
+    const inputs = cashu.deserializeProofs(body.inputs);
+    /* Duplicates are a shape error, refused before any proof is examined, so
+       the same card cannot be listed twice however its first copy fares. */
+    const seen = new Set();
+    for (let i = 0; i < inputs.length; i += 1) {
+      if (seen.has(inputs[i].secret)) throw new Error(`proof ${i + 1} is a duplicate`);
+      seen.add(inputs[i].secret);
+    }
+    const assets = [];
+    for (let i = 0; i < inputs.length; i += 1) {
+      const input = inputs[i];
+      const label = `proof ${i + 1}`;
+      const parsed = parseNutftSecret(input.secret, input.p2pk_e);
+      if (input.id !== keyset.keysetId || parsed.reference.collection_id !== collectionId || input.amount.toString() !== "1" || !cards.has(parsed.reference.asset_id)) {
+        throw new Error(`${label} is not a card of this mint`);
+      }
+      const y = cashu.hashToCurve(text(input.secret)).toHex(true);
+      if (isSpent(y)) throw new Error(`${label} is already spent`);
+      if (!cashu.verifyUnblindedSignature({ id: input.id, secret: text(input.secret), C: cashu.pointFromHex(input.C) }, keyset.privKeys["1"])) {
+        throw new Error(`${label} carries an invalid signature`);
+      }
+      const authorization = body.authorizations[i];
+      const message = canonical({ domain: POSSESSION_DOMAIN, player: body.player, room: body.room, secret: input.secret });
+      const digestHex = crypto.createHash("sha256").update(message).digest("hex");
+      const holder = JSON.parse(input.secret)[1].data;
+      if (typeof authorization !== "string" || !/^[0-9a-f]{128}$/.test(authorization) || !cashu.schnorrVerifyDigest(authorization, digestHex, holder)) {
+        throw new Error(`${label} is not authorized by its holder`);
+      }
+      assets.push({ asset_id: parsed.reference.asset_id, Y: y });
+    }
+    const payload = {
+      kind: "nutft/possession", version: 1,
+      mint: publicBase ? `${publicBase}${pathPrefix}` : null, unit: collectionId,
+      room: body.room, player: body.player, checked_at: Math.floor(clock() / 1000), assets,
+    };
+    const digest = crypto.createHash("sha256").update(canonical(payload)).digest();
+    return { ...payload, signature: hex(schnorr.sign(digest, catalogPrivateKey)) };
+  }
+
   /* Opening a sealed pack. The beacon is the hash of the block the sale
      committed to — not the tip, not a later block — so the buyer receives the
      pack that block determines and nothing else. Until it is mined the honest
@@ -836,7 +1028,7 @@ function createNutftMint(options = {}) {
       await requireSettled({ pack_id: row.pack_id }, paymentHash);
       const resolved = await quote();
       if (resolved.pack_id !== row.pack_id || resolved.state !== row.state) throw new Error("stale booster quote");
-      return { ...resolved, sealed: false };
+      return purchaseMode ? withheld(resolved, { sealed: false }) : { ...resolved, sealed: false };
     }
     if (!row.target_height) throw new Error("this sale was not sealed against a block");
     let hash;
@@ -852,6 +1044,7 @@ function createNutftMint(options = {}) {
     }
     await requireSettled({ pack_id: row.pack_id }, paymentHash);
     const resolved = await quote(hash);
+    if (purchaseMode) return withheld(resolved, { sealed: false, target_height: row.target_height });
     return { sealed: false, target_height: row.target_height, beacon: hash,
       pack_id: resolved.pack_id, state: resolved.state, next_state: resolved.next_state,
       cards: resolved.cards, unit: resolved.unit, amount: resolved.amount, catalog_uri: resolved.catalog_uri };
@@ -992,14 +1185,31 @@ function createNutftMint(options = {}) {
        against anything else would hand over a different pack than the one the
        chain determined, which is the whole property being sold. */
     let saleBeacon;
-    if (chain) {
-      const row = q ? q.invoice.get(String(body.payment_hash || "")) : null;
-      if (!row || !row.target_height) throw new Error("unknown payment_hash: quote the booster first");
-      saleBeacon = await chain.beaconFor(row.target_height);
-      if (!saleBeacon) throw new Error(`block ${row.target_height} is not mined yet — the pack is still sealed`);
+    let expected;
+    let purchaseRow = null;
+    if (body.purchase_id !== undefined) {
+      /* A committed purchase: the cards were drawn and the pack reserved when
+         the purchase was made, so the claim signs exactly those cards and
+         leaves the mint state alone. */
+      if (!purchaseMode) throw new Error("this mint does not take committed purchases");
+      if (!isPurchaseId(body.purchase_id) || body.idempotency_key !== body.purchase_id) throw new Error("purchase_id must be the idempotency_key of this claim");
+      purchaseRow = getPurchase(body.purchase_id);
+      if (!purchaseRow) throw new Error("unknown purchase_id: purchase the booster first");
+      if (purchaseRow.status === "expired") throw new Error("purchase expired");
+      if (purchaseRow.status !== "purchased") throw new Error("purchase already claimed");
+      expected = JSON.parse(purchaseRow.quote_json);
+      if (body.pack_id !== expected.pack_id || body.state !== expected.state) throw new Error("stale booster quote");
+    } else {
+      if (purchaseMode) throw new Error("this mint takes committed purchases: POST /nutft/purchase first");
+      if (chain) {
+        const row = q ? q.invoice.get(String(body.payment_hash || "")) : null;
+        if (!row || !row.target_height) throw new Error("unknown payment_hash: quote the booster first");
+        saleBeacon = await chain.beaconFor(row.target_height);
+        if (!saleBeacon) throw new Error(`block ${row.target_height} is not mined yet — the pack is still sealed`);
+      }
+      expected = await quote(saleBeacon);
+      if (body.pack_id !== expected.pack_id || body.state !== expected.state) throw new Error("stale booster quote");
     }
-    const expected = await quote(saleBeacon);
-    if (body.pack_id !== expected.pack_id || body.state !== expected.state) throw new Error("stale booster quote");
     /* Settlement here, but the invoice is NOT consumed here. It is claimed
        inside the issuance transaction below, so a malformed output, a signing
        failure or a database error all leave a settled invoice retryable rather
@@ -1032,8 +1242,9 @@ function createNutftMint(options = {}) {
     });
 
     const nextCounts = { ...state.counts };
-    const resolved = drawPaidCards(nextCounts, expected.pack_id, saleBeacon || beacon);
-    const nextState = { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
+    const resolved = purchaseRow ? JSON.parse(purchaseRow.resolved_json) : drawPaidCards(nextCounts, expected.pack_id, saleBeacon || beacon);
+    /* A committed purchase advanced the state when it was made; its claim only signs. */
+    const nextState = purchaseRow ? null : { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
     const result = { ...expected, cards: expected.cards, signatures, keyset_id: keyset.keysetId, resolved };
     let walletBackupBuyer = null;
     atomic(() => {
@@ -1060,11 +1271,15 @@ function createNutftMint(options = {}) {
         const claim = q.claimInvoice.run(body.payment_hash);
         if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
       }
-      putMeta("state", JSON.stringify(nextState));
+      if (purchaseRow) {
+        if (!setPurchaseStatus(purchaseRow.purchase_id, "claimed")) throw new Error("purchase already claimed");
+      } else {
+        putMeta("state", JSON.stringify(nextState));
+      }
       putOperation("booster", body.idempotency_key, requestHash, result);
       body.outputs.forEach((output, index) => putSignature(output, signatures[index]));
     });
-    Object.assign(state, nextState);
+    if (nextState) Object.assign(state, nextState);
     await notifyWalletBackupBuyer(walletBackupBuyer);
     return result;
   }
@@ -1168,6 +1383,7 @@ function createNutftMint(options = {}) {
               catalog_uri: catalogUri,
               catalog_blob_sha256: catalogBlobSha256,
               catalog_blob_urls: catalogBlobUrls(),
+              purchase_mode: purchaseMode,
             },
             7: { supported: true },
             9: { supported: true },
@@ -1188,6 +1404,10 @@ function createNutftMint(options = {}) {
         }
         return json(res, 200, { states: body.Ys.map((Y) => ({ Y, state: isSpent(Y) ? "SPENT" : "UNSPENT" })) });
       }
+      if (req.method === "POST" && localPath === "/nutft/purchase") {
+        return json(res, 200, await purchase(await readBody(req), proofFrom(req, url, "POST")));
+      }
+      if (req.method === "POST" && localPath === "/nutft/possession") return json(res, 200, await possession(await readBody(req)));
       if (req.method === "POST" && localPath === "/nutft/trade") return json(res, 200, await trade(await readBody(req)));
       if ((req.method === "GET" || req.method === "HEAD") && localPath === "/nutft/catalog") {
         return blob(res, req.method, catalogBytes, "no-store");
@@ -1299,6 +1519,7 @@ function createNutftMint(options = {}) {
   return {
     handle, catalogUri, collectionId, initialCommitment, state, signBooster,
     payableQuote, revealFor, walletBackupBuyers, paidMint, funding, stop,
+    purchase, possession, releaseExpiredPurchases, purchaseMode,
     sealed: Boolean(chain),
   };
 }
