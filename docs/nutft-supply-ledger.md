@@ -90,8 +90,10 @@ Every check is local. Nothing has to be asked of the mint to verify a chain.
    catalog.
 2. Every event names this collection, this catalog and this census, in the
    content and in the `x` tag.
-3. Sequence numbers run 1, 2, 3 with no gap or repeat, each `prev` is the id of
-   the one before, and `created_at` never goes backwards.
+3. Within a page, sequence numbers run consecutively with no gap or repeat,
+   each `prev` is the id of the one before, and `created_at` never goes
+   backwards. A page that begins at `seq` 1 has `prev: null` there; a page that
+   begins anywhere else names a predecessor it does not itself carry.
 4. `packs` and `issued_per_pack` never change.
 5. `remaining` covers exactly the printed cards, every count lies within
    0 and the printed copies, and no count ever grows from one snapshot to the
@@ -103,9 +105,15 @@ Every check is local. Nothing has to be asked of the mint to verify a chain.
    them, so this identity holds from the first sale on and does not depend on
    when the ledger was switched on.
 
-A verifier that keeps the last `seq` and id it has seen adds a ninth: the chain
-it is shown next time must still contain that event at that number. A mint that
-signs two different histories is caught by the first holder who saw both.
+A verifier that keeps the last snapshot it has seen adds one more: the chain it
+is shown next time must still carry that id at that sequence number, and its
+figures must not have moved backwards since. A mint that signs two different
+histories is caught by the first holder who saw both.
+
+Keeping the figures and not only the id is what makes this work across a gap
+larger than one page. A client that has been away can hold the mint to what it
+remembers by comparing its own copy with the oldest snapshot on the newest
+page, without fetching everything in between.
 
 ## What the mint does
 
@@ -134,7 +142,8 @@ state it attests.
 
 | Route | What |
 | --- | --- |
-| `GET /nutft/supply` | the whole chain: `issuer`, `kind`, `collection_id`, `census_sha256`, `relays`, `fault`, `events` |
+| `GET /nutft/supply` | one page of the chain, newest by default |
+| `GET /nutft/supply?from=<seq>` | the page beginning at that sequence number |
 | `GET /nutft/state` | as before, plus `supply`, the latest event. `remaining` beside it stays the live **allocation** figure, which is why the two can differ while a purchase is open |
 | `GET /v1/info` | `nuts.31.supply_kind` and `nuts.31.supply_relays` |
 
@@ -151,28 +160,55 @@ that any holder can show which one.
 It does not carry prices. A NutFT transfer moves a card and nothing else, and
 the ledger counts cards, not sats.
 
-## How large the chain gets
+## Why it is paged
 
-A snapshot carries one count per printed card, so its size follows the
-edition, and the chain grows by one snapshot every interval in which
-something was actually sold. An interval that sold nothing adds nothing.
+A snapshot carries one count per printed card, so its size follows the edition
+and the chain grows without bound:
 
 | Edition | One snapshot | Snapshots before the chain reaches 2 MiB |
 | --- | ---: | ---: |
 | `600B-E1`, 295 cards | 5,143 bytes | 407 |
 | `600B-G`, 153 cards | 2,893 bytes | 724 |
 
-2 MiB is the cap a Bearlett napplet puts on a single mint response
-(`MAX_RESPONSE_BYTES` in its NutFT service). **Past that, `/nutft/supply`
-stops being readable by a napplet**, and supply verification fails closed
-rather than degrading quietly. At one snapshot per selling day that is a
-little over a year of active sales for Edition One.
+2 MiB is the cap a Bearlett napplet puts on a single mint response. Served
+whole, this route would have stopped being readable after about 407 selling
+days for Edition One, and supply verification would have failed closed and
+looked like a broken mint rather than a full chain.
 
-The fix, when it is needed, is paging: serve a bounded window and let a
-client ask for the range that covers its own witness. That is a change to
-this route and to the client, **not to the event format** -- the events
-already published stay valid and verifiable, so it can wait until the
-figures above say it should not.
+So the response carries at most 100 snapshots, about half a megabyte for
+Edition One. Every response says what it covers, which is what lets a client
+know whether it has the whole story:
+
+| Field | Meaning |
+| --- | --- |
+| `total` | the sequence number of the newest snapshot, so the length of the chain |
+| `first_seq`, `last_seq` | the range this response carries, `0` when it carries nothing |
+| `page_size` | the most snapshots any response will carry |
+| `events` | the snapshots themselves, oldest first |
+
+A `from` past the head is not an error. It answers with no events and a
+truthful `total`, because "there is nothing at that number yet" is an answer.
+A `from` that is not a positive whole number **is** refused, so a client never
+silently verifies a different stretch of the chain than the one it asked for.
+
+### How a client reads it
+
+- **First time.** Ask without `from` and get the newest page. Each snapshot
+  balances its own books, so the current figures can be checked without the
+  history. This is trust on first use, the same footing the remembered
+  snapshot below is established on.
+- **Coming back, recently.** Ask without `from`. If the remembered snapshot is
+  on that page, its id must match, and the page's own checks cover everything
+  since. One request.
+- **Coming back after a long absence.** The remembered snapshot is older than
+  the page. Ask again with `from=<its seq>` to confirm the mint still signs
+  the same id there, and compare the remembered figures with the oldest
+  snapshot on the newest page: no count may have grown and packs sold may not
+  have shrunk across the gap. Two requests, whatever the size of the gap.
+
+Walking every page between the two is possible and stricter, but it is not
+required: the checks above already catch a mint that rewrote its history or
+moved its figures backwards, which is what the chain exists to catch.
 
 ## Operator notes
 
