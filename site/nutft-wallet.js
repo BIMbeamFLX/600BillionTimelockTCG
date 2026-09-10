@@ -1052,7 +1052,7 @@
     }
 
     state.counters[counterKey(mintUrl, keyset.id)] = lastCounterWithSignature + 1;
-    if (recovered.length) state.tokens = [c.getEncodedToken({ mint: mintUrl, unit: "600B-E1", proofs: recovered })];
+    if (recovered.length) state.tokens = [encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: recovered })];
     write(state);
     return recovered.length;
   }
