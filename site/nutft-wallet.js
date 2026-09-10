@@ -1,7 +1,10 @@
 (function (root) {
   "use strict";
 
-  const STORE = "600b:nutft-wallet";
+  /* A page may point the wallet at its own storage slot (NUTFT_STORE) and pin
+     the editions it accepts (NUTFT_UNITS, an array of unit names). Both are
+     read once, before this file runs; unset means the 600B defaults. */
+  const STORE = (typeof root.NUTFT_STORE === "string" && root.NUTFT_STORE) || "600b:nutft-wallet";
   const CATALOG_CACHE = "600b:nutft-catalogs-v1";
   const CATALOG_CACHE_VERSION = 1;
   const CATALOG_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -106,9 +109,26 @@
     }
     const data = await response.json();
     const keyset = data.keysets && data.keysets.find((entry) => entry.active !== false);
-    if (!keyset || !/^600B-(?:E1|G)$/.test(keyset.unit || "")) {
-      throw new Error("mint does not advertise a supported 600B NutFT unit");
+    /* A NutFT keyset has exactly one amount, 1: a card is one proof. Its unit
+       name is the collection id, so the wallet no longer carries a list of
+       editions it has heard of. A page that wants to pin editions sets
+       NUTFT_UNITS before loading this file. */
+    const allowed = Array.isArray(root.NUTFT_UNITS) && root.NUTFT_UNITS.length ? root.NUTFT_UNITS : null;
+    const amounts = keyset && keyset.keys && typeof keyset.keys === "object" ? Object.keys(keyset.keys) : [];
+    if (!keyset || typeof keyset.unit !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(keyset.unit)
+        || amounts.length !== 1 || amounts[0] !== "1") {
+      throw new Error("mint does not advertise a NutFT keyset (one unit, amount 1)");
     }
+    if (allowed && !allowed.includes(keyset.unit)) {
+      throw new Error(`mint unit ${keyset.unit} is not one this page accepts (${allowed.join(", ")})`);
+    }
+    /* The catalog by hash. The mint's own /blossom path comes first, then the
+       mirrors it advertises; each candidate is checked against the hash
+       before it is parsed (see fetchCatalog). */
+    const blobSha = /^[0-9a-f]{64}$/.test(capability.catalog_blob_sha256 || "") ? capability.catalog_blob_sha256 : "";
+    const blobUrls = blobSha && Array.isArray(capability.catalog_blob_urls)
+      ? capability.catalog_blob_urls.filter((entry) => typeof entry === "string" && /^https?:\/\//.test(entry)).slice(0, 8)
+      : [];
     return {
       id: keyset.id,
       keys: keyset.keys,
@@ -117,7 +137,20 @@
       catalogDigest: /^[0-9a-f]{64}$/.test(capability.catalog_sha256 || "")
         ? capability.catalog_sha256
         : "",
+      catalogBlob: blobSha ? { sha256: blobSha, urls: [`${mintUrl}/blossom/${blobSha}`, ...blobUrls] } : null,
     };
+  }
+
+  /* cashu-ts 4.7.2 base64-encodes a token in 32 KiB chunks and joins the
+     chunk strings, so any token above that size carries "=" padding in its
+     middle and no longer decodes; a 60-card deck is such a token. Serialize
+     once in binary and encode the whole payload in one go instead. */
+  function encodeToken(c, value) {
+    if (typeof root.btoa !== "function" || typeof c.getEncodedTokenBinary !== "function") return c.getEncodedToken(value);
+    const bytes = c.getEncodedTokenBinary(value).slice(5); // drops the "crawB" binary prefix
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    return `cashuB${root.btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
   }
 
   const opening = (output) => ({
@@ -149,7 +182,7 @@
           throw new Error(`wallet rejected issued proof ${i + 1}`);
         }
       }
-      const token = c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs });
+      const token = encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs });
       write({ ...state, tokens: [...state.tokens, token], pending: null });
       return { ...response, token, proofs };
     }
@@ -172,9 +205,9 @@
        and triggered by something that looked unrelated. */
     const { opaque } = splitTokens(state, keyset, c);
     const rebuilt = remaining.length
-      ? [c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: remaining })]
+      ? [encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs: remaining })]
       : [];
-    const token = c.getEncodedToken({ mint: pending.mintUrl, unit: response.unit, proofs: [proof] });
+    const token = encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs: [proof] });
     /* PERSIST THE OUTGOING TOKEN. It is the only thing that can ever claim this
        card: the sender no longer holds it, the recipient does not have it yet,
        and it is locked to a key only the recipient has. Returning it and writing
@@ -558,6 +591,34 @@
     return catalog;
   }
 
+  async function digestBytes(bytes) {
+    const hash = new Uint8Array(await root.crypto.subtle.digest("SHA-256", bytes));
+    return Array.from(hash, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  /* The catalog is a content-addressed blob first and a URL second. When the
+     mint advertises the blob hash, the wallet tries the mint's own /blossom
+     path and the advertised mirrors, and accepts bytes only if they hash to
+     the advertised value; verifyCatalog still checks the signature after.
+     A missing or tampered blob falls back to the catalog URL from the tag. */
+  async function fetchCatalog(catalogUri, keyset) {
+    const blob = keyset.catalogBlob;
+    if (blob) {
+      for (const url of blob.urls) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) continue;
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          if (await digestBytes(bytes) !== blob.sha256) continue;
+          return JSON.parse(new TextDecoder().decode(bytes));
+        } catch { /* the next mirror, then the catalog URL */ }
+      }
+    }
+    const response = await fetch(catalogUri);
+    if (!response.ok) throw new Error(`catalog unavailable (${response.status})`);
+    return response.json();
+  }
+
   async function catalogFor(catalogUri, c, keyset, catalogs) {
     let catalog = catalogs.get(catalogUri);
     if (catalog) return catalog;
@@ -569,9 +630,7 @@
       } catch { catalog = null; }
     }
     if (!catalog) {
-      const response = await fetch(catalogUri);
-      if (!response.ok) throw new Error(`catalog unavailable (${response.status})`);
-      catalog = await verifyCatalog(catalogUri, await response.json(), c, keyset);
+      catalog = await verifyCatalog(catalogUri, await fetchCatalog(catalogUri, keyset), c, keyset);
       storeCatalog(catalogUri, catalog);
     }
     catalogs.set(catalogUri, catalog);
@@ -688,7 +747,7 @@
       if (descriptor.keyset) descriptors.push(descriptor);
       else unavailable.push({ mintUrl: descriptor.mintUrl, error: descriptor.error });
     }
-    if (!descriptors.length) throw new Error("no supported 600B mint is reachable");
+    if (!descriptors.length) throw new Error("no NutFT mint is reachable");
 
     const catalogs = new Map();
     const owned = [];
@@ -881,4 +940,5 @@
     destination, recoverPending, outgoing, forgetOutgoing, exportBackup,
     restoreBackup, replaceBackup, read, cashu, hex, bytes,
   };
+  root.NutFTWallet.encodeToken = encodeToken;
 })(globalThis);

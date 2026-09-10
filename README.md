@@ -303,6 +303,20 @@ uv run python scripts/build_blob_manifest.py --dir art/cards/node-runner-web \
 Each entry records the card id and name, mime type, byte length, SHA-256 and the
 resolved Blossom URL.
 
+The signed catalog is a blob too. The mint signs it deterministically, freezes
+the bytes at boot, serves them under `/blossom/<sha256>` next to `/nutft/catalog`,
+and advertises the hash as `catalog_blob_sha256` in `/v1/info`. Publish that blob
+to the mirrors and tell the mint about them:
+
+```powershell
+$env:PALACE_NSEC = "<nsec>"; node scripts/upload-catalog.mjs https://tcg.nappelin.com --go
+$env:NUTFT_CATALOG_MIRRORS = "https://blossom.bimcvp.com,https://blossom.primal.net"
+```
+
+A wallet then fetches the catalog by hash, from the mint or any mirror, and only
+parses bytes that hash to the advertised value. The catalog URL in the token tag
+stays the identity; the blob is how the same bytes travel.
+
 ## Build
 
 ```bash
