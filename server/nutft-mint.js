@@ -5,6 +5,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { schnorr } = require("@noble/curves/secp256k1");
 const { censusHash, hashParts, loadCensus, openPack, openManifestPack } = require("./nutft-draw.js");
+const { createSupplyLedger } = require("./nutft-supply.js");
 const lnd = require("./lnd.js");
 const { createBeacon } = require("./beacon.js");
 const lnurl = require("./lnurl.js");
@@ -1374,6 +1375,8 @@ function createNutftMint(options = {}) {
               funding: funding ? funding.name : "none",
               virtual_sats: Boolean(funding && funding.virtual),
               test_mint: Boolean(funding && funding.testMint),
+              supply_kind: supply.kind,
+              supply_relays: supply.relays,
               sales: salesMode,
               one_per_key: onePerKey,
               issuance: catalog.issuance,
@@ -1437,8 +1440,15 @@ function createNutftMint(options = {}) {
              not have to learn from a failure that the box is shut. */
           sales: salesMode,
           tier_odds: tierOdds, remaining: state.counts,
+          /* The same figures, signed. `remaining` above is live; this is the
+             last snapshot the ledger attested, and the one a wallet checks. */
+          supply: supply.latest(),
         });
       }
+      /* The whole chain. Served by the mint so a napplet with no relay
+         access can verify it; the relays carry the same events for
+         everyone else. */
+      if (req.method === "GET" && localPath === "/nutft/supply") return json(res, 200, supply.chain());
       /* Beside the quote, because it exists to be asked instead of it. A "no"
          is a successful answer to the question, so this is always 200 — a 400
          would be the shop failing to ask rather than the mint declining, and
@@ -1516,9 +1526,57 @@ function createNutftMint(options = {}) {
 
   /* signBooster and payableQuote are exported so the payment gate can be
      tested directly, without standing up an HTTP server and an lnd. */
+  /* The supply ledger: the figures /nutft/state serves, signed and chained.
+     See docs/nutft-supply-ledger.md. The first snapshot is taken here so
+     the ledger is never empty while the mint answers. A ledger that cannot
+     balance its books logs the fault and attests nothing, and the mint
+     still sells: a new attestation must not be able to take the shop down,
+     and the fault is visible in /nutft/supply for as long as it lasts. */
+  const supplyLog = options.supplyLog || ((message) => console.error(`[nutft supply] ${message}`));
+  const supply = createSupplyLedger({
+    db,
+    canonical,
+    privateKey: catalogPrivateKey,
+    collectionId,
+    catalogUri,
+    censusSha256: census.census_sha256,
+    packs: census.mint.packs,
+    issuedPerPack: census.mint.paid_cards_per_pack,
+    copies: catalog.counts,
+    /* Reservations given back, so the ledger attests cards that are in
+       somebody's hands rather than packs the mint has merely set aside. An
+       open purchase decremented exactly the cards in its resolved draw and
+       advanced the pack counter by one; undoing both here leaves issuance,
+       which is the only figure that never goes backwards. */
+    read: () => {
+      const open = purchaseMode ? openPurchases() : [];
+      const remaining = { ...state.counts };
+      for (const row of open) {
+        for (const id of JSON.parse(row.resolved_json)) {
+          if (remaining[id] !== undefined) remaining[id] += 1;
+        }
+      }
+      return { remaining, sold: state.nextPack - 1 - open.length };
+    },
+    relays: options.supplyRelays ?? process.env.NUTFT_SUPPLY_RELAYS ?? "",
+    intervalSeconds: options.supplyIntervalSeconds ?? process.env.NUTFT_SUPPLY_INTERVAL_SECONDS ?? "",
+    log: supplyLog,
+  });
+  try {
+    supply.snapshot();
+  } catch (error) {
+    supplyLog(error.message);
+  }
+  supply.start();
+  if (supply.relays.length) {
+    const first = setTimeout(() => supply.publish().catch((error) => supplyLog(error.message)), 0);
+    if (typeof first.unref === "function") first.unref();
+  }
+  const stopAll = () => { stop(); supply.stop(); };
+
   return {
     handle, catalogUri, collectionId, initialCommitment, state, signBooster,
-    payableQuote, revealFor, walletBackupBuyers, paidMint, funding, stop,
+    payableQuote, revealFor, walletBackupBuyers, paidMint, funding, stop: stopAll, supply,
     purchase, possession, releaseExpiredPurchases, purchaseMode,
     sealed: Boolean(chain),
   };

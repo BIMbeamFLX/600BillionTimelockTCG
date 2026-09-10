@@ -28,6 +28,12 @@ The mint advertises NUT-31 through `/v1/info` and exposes `/v1/keys` and
 `/v1/checkstate`, plus NUT-09 through `/v1/restore`. Generic swap and melt routes are deliberately absent because
 they could consume a NutFT proof without preserving its card binding.
 
+`/nutft/supply` serves the mint's supply ledger: the figures `/nutft/state`
+reports, signed with the catalog key and chained snapshot to snapshot, so a
+holder can verify how many of each card have been issued without trusting
+the answer of the moment. The format is in
+[nutft-supply-ledger.md](nutft-supply-ledger.md).
+
 The store issues boosters, the wallet imports and transfers bearer tokens, the
 deck builder limits NutFT stacks to verified unspent proofs, and gameplay
 rechecks a NutFT-marked stack before starting. Game rules remain outside the
