@@ -145,6 +145,7 @@
       keys: keyset.keys,
       unit: keyset.unit,
       catalogIssuer: capability.catalog_issuer,
+      catalogUri: typeof capability.catalog_uri === "string" && (capability.catalog_uri.startsWith("https://") || capability.catalog_uri.startsWith("http://")) ? capability.catalog_uri : "",
       catalogDigest: /^[0-9a-f]{64}$/.test(capability.catalog_sha256 || "")
         ? capability.catalog_sha256
         : "",
@@ -164,11 +165,15 @@
     return `cashuB${root.btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
   }
 
+  /* The mint's catalog for deterministic outputs: by hash first and shared
+     with the collection cache when the mint advertises its catalog URI,
+     otherwise straight from the mint, verified against the keyset either way. */
   async function getCatalog(mintUrl, c, keyset) {
+    if (keyset.catalogUri) return catalogFor(keyset.catalogUri, c, keyset, new Map());
     const response = await fetch(`${mintUrl}/nutft/catalog`);
     if (!response.ok) throw new Error(`catalog unavailable (${response.status})`);
     const catalog = await response.json();
-    return verifyCatalog(catalog.catalog_uri, catalog, c, keyset.catalogIssuer);
+    return verifyCatalog(catalog.catalog_uri, catalog, c, keyset);
   }
 
   const opening = (output) => ({
