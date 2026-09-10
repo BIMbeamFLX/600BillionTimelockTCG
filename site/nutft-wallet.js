@@ -1,9 +1,10 @@
 (function (root) {
   "use strict";
 
-  /* A page may point the wallet at its own storage slot (NUTFT_STORE) and pin
-     the editions it accepts (NUTFT_UNITS, an array of unit names). Both are
-     read once, before this file runs; unset means the 600B defaults. */
+  /* A page may point the wallet at its own storage slot (NUTFT_STORE), pin the
+     editions it accepts (NUTFT_UNITS, an array of unit names), and hand it an
+     asynchronous store (NUTFT_STORAGE, see the storage port below). All three
+     are read once, before this file runs; unset means the 600B defaults. */
   const STORE = (typeof root.NUTFT_STORE === "string" && root.NUTFT_STORE) || "600b:nutft-wallet";
   const CATALOG_CACHE = "600b:nutft-catalogs-v1";
   const CATALOG_CACHE_VERSION = 1;
@@ -17,6 +18,28 @@
   const seedCache = new Map();
   let memory = null;
   let queue = Promise.resolve();
+
+  /* THE STORAGE PORT.
+   *
+   * A page has localStorage, which is synchronous and cannot report a refusal
+   * after the fact. A napplet has none of that: its store belongs to the shell,
+   * every call is asynchronous, and a write is not done until the shell says so.
+   * A wallet that treats an unacknowledged write as finished can burn a card
+   * against a write that never landed, so both shapes go through this one
+   * object and every mutation below awaits it.
+   *
+   * A shell injects NUTFT_STORAGE before this file runs. Without it the port
+   * wraps localStorage, so the pages keep behaving exactly as they did. */
+  const store = (() => {
+    const injected = root.NUTFT_STORAGE;
+    if (injected && typeof injected.getItem === "function" && typeof injected.setItem === "function") {
+      return injected;
+    }
+    return {
+      getItem: async (key) => root.localStorage.getItem(key),
+      setItem: async (key, value) => { root.localStorage.setItem(key, value); },
+    };
+  })();
 
   const cashu = () => (cashuPromise ||= root.__cashu ? Promise.resolve(root.__cashu) : import(CASHU_URL));
   const walletCrypto = () => (walletCryptoPromise ||= root.__walletCrypto
@@ -41,7 +64,7 @@
    * The loss that made this urgent: the shop opens a booster pending in one
    * tab; the wallet, opened earlier, still holds a cached state with no pending;
    * a send there passes the "is a transfer already running" guard, and its
-   * write() then overwrites the booster pending with the trade's. For a PAID
+   * await write() then overwrites the booster pending with the trade's. For a PAID
    * booster that destroys the outputs, so the sats are gone with nothing left to
    * claim — precisely the loss the comment in submitPending warns about, reached
    * by a route it never considered. The site actively moves players between
@@ -52,7 +75,7 @@
    * few kilobytes per call is not a cost worth a correctness hole. */
   async function read() {
     let saved = null;
-    try { saved = root.localStorage.getItem(STORE); }
+    try { saved = await store.getItem(STORE); }
     catch { return memory || (memory = { privateKey: "", pubkey: "", seedPhrase: "", counters: {}, tokens: [], outgoing: [] }); }
     if (saved === null && memory) return memory;
     if (!saved) return (memory = { privateKey: "", pubkey: "", seedPhrase: "", counters: {}, tokens: [], outgoing: [] });
@@ -65,8 +88,10 @@
     return memory;
   }
 
-  function write(state) {
-    root.localStorage.setItem(STORE, JSON.stringify(state));
+  /* memory advances only after the store has acknowledged the write. A refused
+     write therefore leaves both the store and this wallet on the old state. */
+  async function write(state) {
+    await store.setItem(STORE, JSON.stringify(state));
     memory = state;
   }
 
@@ -84,7 +109,7 @@
   async function forgetOutgoing(token) {
     const state = await read();
     const kept = (Array.isArray(state.outgoing) ? state.outgoing : []).filter((entry) => entry.token !== token);
-    write({ ...state, outgoing: kept });
+    await write({ ...state, outgoing: kept });
     return kept.length;
   }
 
@@ -102,7 +127,7 @@
       const seedPhrase = wc.generateMnemonic(wc.wordlist, 128);
       const privateKey = wc.HDKey.fromMasterSeed(wc.mnemonicToSeedSync(seedPhrase)).derive("m/129373'/10'/0'/0'/0").privateKey;
       const next = { ...state, seedPhrase, counters: {}, privateKey: hex(privateKey), pubkey: hex(c.getPubKeyFromPrivKey(privateKey)) };
-      write(next);
+      await write(next);
       return next;
     }
     return state;
@@ -259,7 +284,7 @@
         }
       }
       const token = encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs });
-      write({ ...state, tokens: [...state.tokens, token], pending: null });
+      await write({ ...state, tokens: [...state.tokens, token], pending: null });
       return { ...response, token, proofs };
     }
     const all = readableProofs(state, keyset, c);
@@ -297,7 +322,7 @@
       { token, asset_id: response.asset_id || null, at: new Date().toISOString() },
       ...(Array.isArray(state.outgoing) ? state.outgoing : []),
     ];
-    write({ ...state, tokens: [...rebuilt, ...opaque], outgoing, pending: null });
+    await write({ ...state, tokens: [...rebuilt, ...opaque], outgoing, pending: null });
     return { ...response, token, proof };
   }
 
@@ -322,7 +347,7 @@
         }
         /* Nothing was committed on a stale quote; anything else may have been,
            so the pending record stays for a retry under the same purchase_id. */
-        if (/stale booster quote/i.test(detail)) write({ ...state, pending: null });
+        if (/stale booster quote/i.test(detail)) await write({ ...state, pending: null });
         throw new Error(detail);
       }
       const receipt = await response.json();
@@ -336,7 +361,7 @@
       const outputs = prepared.outputs.map(savedOutput);
       pending = { ...pending, outputs, body: { ...pending.body, pack_id: receipt.pack_id, state: receipt.state, outputs: outputs.map(requestOutput) } };
       state = { ...state, counters: prepared.counters, pending };
-      write(state);
+      await write(state);
     }
     if (pending.type === "booster" && !pending.outputs.length && pending.body.payment_hash) {
       const response = await fetch(`${pending.mintUrl}/nutft/reveal?payment_hash=${encodeURIComponent(pending.body.payment_hash)}`);
@@ -351,7 +376,7 @@
       const outputs = prepared.outputs.map(savedOutput);
       pending = { ...pending, outputs, body: { ...pending.body, pack_id: opened.pack_id, state: opened.state, outputs: outputs.map(requestOutput) } };
       state = { ...state, counters: prepared.counters, pending };
-      write(state);
+      await write(state);
     }
     const path = pending.type === "booster" ? "/nutft/booster" : "/nutft/trade";
     /* Signed only if the mint refuses without one, and retried BEFORE the
@@ -370,7 +395,7 @@
       /* A committed purchase still owns its cards: only a final verdict from
          the mint drops the pending record; a temporary refusal keeps it. */
       const terminal = /purchase expired|already claimed|stale booster quote|does not take committed purchases/i;
-      if (!pending.body.purchase_id || terminal.test(detail)) write({ ...state, pending: null });
+      if (!pending.body.purchase_id || terminal.test(detail)) await write({ ...state, pending: null });
       throw new Error(detail);
     }
     return finishPending(state, pending, await response.json(), c, keyset);
@@ -438,7 +463,7 @@
      * a purchase must not fail over a display detail. */
     try {
       if (/^[0-9a-f]{64}$/i.test(signed.pubkey || "")) {
-        root.localStorage.setItem("600b:pubkey", signed.pubkey);
+        await store.setItem("600b:pubkey", signed.pubkey);
       }
     } catch (error) { /* private mode: the sale still stands */ }
     /* btoa is byte-wise; a non-ASCII byte anywhere in the event would throw.
@@ -579,7 +604,7 @@
       outputs: saved.map(requestOutput),
     } };
     state = { ...state, counters: prepared.counters, pending };
-    write(state);
+    await write(state);
     /* A paid mint hands back an invoice the buyer settles in their own wallet.
        Show it, then wait — nothing here ever touches their credentials. */
     if (quote.paid && quote.payment_request && typeof opts.onInvoice === "function") {
@@ -623,7 +648,7 @@
       payment_hash: paymentHash, outputs: [],
     } };
     state = { ...state, pending };
-    write(state);
+    await write(state);
     return awaitSettlement(state, c, keyset, opts);
   }
 
@@ -675,9 +700,9 @@
    * A cached catalog is never trusted because it came from localStorage: its
    * signature is checked again against the issuer advertised by the live mint.
    * Bearer proofs and proof states are deliberately not copied into this cache. */
-  function readCatalogCache() {
+  async function readCatalogCache() {
     try {
-      const parsed = JSON.parse(root.localStorage.getItem(CATALOG_CACHE) || "null");
+      const parsed = JSON.parse((await store.getItem(CATALOG_CACHE)) || "null");
       if (parsed?.version === CATALOG_CACHE_VERSION && parsed.catalogs
           && typeof parsed.catalogs === "object" && !Array.isArray(parsed.catalogs)) {
         return parsed;
@@ -686,11 +711,11 @@
     return { version: CATALOG_CACHE_VERSION, catalogs: {} };
   }
 
-  function storeCatalog(catalogUri, catalog) {
+  async function storeCatalog(catalogUri, catalog) {
     try {
-      const cache = readCatalogCache();
+      const cache = await readCatalogCache();
       cache.catalogs[catalogUri] = { cachedAt: Date.now(), catalog };
-      root.localStorage.setItem(CATALOG_CACHE, JSON.stringify(cache));
+      await store.setItem(CATALOG_CACHE, JSON.stringify(cache));
     } catch { /* private mode or a full quota only makes the next load cold */ }
   }
 
@@ -737,7 +762,7 @@
   async function catalogFor(catalogUri, c, keyset, catalogs) {
     let catalog = catalogs.get(catalogUri);
     if (catalog) return catalog;
-    const cached = readCatalogCache().catalogs[catalogUri];
+    const cached = (await readCatalogCache()).catalogs[catalogUri];
     if (cached && Number.isFinite(cached.cachedAt)
         && cached.cachedAt + CATALOG_CACHE_MAX_AGE_MS > Date.now()) {
       try {
@@ -746,7 +771,7 @@
     }
     if (!catalog) {
       catalog = await verifyCatalog(catalogUri, await fetchCatalog(catalogUri, keyset), c, keyset);
-      storeCatalog(catalogUri, catalog);
+      await storeCatalog(catalogUri, catalog);
     }
     catalogs.set(catalogUri, catalog);
     return catalog;
@@ -958,7 +983,7 @@
     const saved = savedOutput(output);
     const pending = { type: "trade", mintUrl, input_secret: oldProof.secret, outputs: [saved], body: { idempotency_key: root.crypto.randomUUID(), inputs: c.serializeProofs([signed]), outputs: [requestOutput(saved)] } };
     state = { ...state, counters, pending };
-    write(state);
+    await write(state);
     return submitPending(state, c, keyset);
   }
 
@@ -1026,7 +1051,7 @@
       const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
       if (item.state !== "UNSPENT" || !c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof).length) throw new Error("token is spent or not addressed to this wallet");
     }
-    write({ ...state, tokens: [...state.tokens, token] });
+    await write({ ...state, tokens: [...state.tokens, token] });
     /* Received proofs were made by the sender, so their random output material
        cannot be recovered from this wallet's NUT-13 seed. Reissue each one to
        our own destination immediately; the old token remains stored if a
@@ -1037,7 +1062,7 @@
         try {
           const moved = await tradeProofUnlocked(mintUrl, proof.secret, state.pubkey);
           const current = await read();
-          write({
+          await write({
             ...current,
             tokens: [...current.tokens, moved.token],
             outgoing: (current.outgoing || []).filter((entry) => entry.token !== moved.token),
@@ -1128,7 +1153,7 @@
 
     state.counters[counterKey(mintUrl, keyset.id)] = lastCounterWithSignature + 1;
     if (recovered.length) state.tokens = [encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: recovered })];
-    write(state);
+    await write(state);
     return recovered.length;
   }
 
@@ -1155,7 +1180,7 @@
     if (current.tokens.length || current.pending) {
       throw new Error("restore requires an empty wallet so existing bearer assets are not overwritten");
     }
-    write(wallet);
+    await write(wallet);
     return wallet.tokens.length;
   }
 
@@ -1185,7 +1210,7 @@
         "this device and the sync head hold two different non-empty wallets; download both backups instead of overwriting either one",
       );
     }
-    write(remote);
+    await write(remote);
     return remote.tokens.length;
   }
 
