@@ -44,6 +44,19 @@ function json(res, code, value) {
   res.end(body);
 }
 
+/* A blob response in the BUD-01 shape: the exact bytes, their length, and an
+   open CORS header, so a wallet on another origin can fetch the catalog the
+   same way it fetches a card face from a Blossom server. */
+function blob(res, method, bytes, cacheControl) {
+  res.writeHead(200, {
+    "content-type": "application/json; charset=utf-8",
+    "content-length": bytes.length,
+    "cache-control": cacheControl,
+    "access-control-allow-origin": "*",
+  });
+  res.end(method === "HEAD" ? undefined : bytes);
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -80,6 +93,17 @@ function createNutftMint(options = {}) {
   const collectionId = options.collectionId || process.env.NUTFT_COLLECTION_ID || "600B-E1";
   const catalogUri = options.catalogUri || process.env.NUTFT_CATALOG_URI || "http://localhost:8777/nutft/catalog";
   if (!/^https?:$/.test(new URL(catalogUri).protocol)) throw new Error("NUTFT_CATALOG_URI must be an absolute HTTP(S) URL");
+  /* Blossom servers that hold a copy of the signed catalog blob, comma
+     separated. The mint advertises `<mirror>/<sha256>` for each in /v1/info so
+     a wallet can fetch the catalog by hash from any of them, or from the
+     mint's own /blossom path, before it ever trusts the catalog URL above. */
+  const rawMirrors = options.catalogMirrors ?? process.env.NUTFT_CATALOG_MIRRORS ?? "";
+  const catalogMirrors = (Array.isArray(rawMirrors) ? rawMirrors : String(rawMirrors).split(","))
+    .map((entry) => String(entry).trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+  for (const mirror of catalogMirrors) {
+    if (!/^https?:$/.test(new URL(mirror).protocol)) throw new Error("NUTFT_CATALOG_MIRRORS entries must be absolute HTTP(S) URLs");
+  }
   const beacon = (options.beacon || process.env.NUTFT_BEACON || "00".repeat(32)).toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(beacon)) throw new Error("NUTFT_BEACON must be 32-byte hex");
 
@@ -469,15 +493,26 @@ function createNutftMint(options = {}) {
   });
   const catalogDigest = crypto.createHash("sha256")
     .update(canonical(catalogPayload())).digest("hex");
+  /* BIP-340 with zero auxiliary randomness: the signature, and with it the
+     signed catalog, is byte-for-byte the same on every boot. That is what
+     lets the catalog travel as a content-addressed blob -- the hash below
+     stays valid across restarts and mirrors instead of changing with every
+     fresh nonce. The payload is frozen by the identity triple anyway. */
   const signedCatalog = () => {
     const payload = catalogPayload();
     const digest = crypto.createHash("sha256").update(canonical(payload)).digest();
     return {
       ...payload,
       issuer_pubkey: hex(schnorr.getPublicKey(catalogPrivateKey)),
-      signature: hex(schnorr.sign(digest, catalogPrivateKey)),
+      signature: hex(schnorr.sign(digest, catalogPrivateKey, new Uint8Array(32))),
     };
   };
+  /* Frozen once. /nutft/catalog and /blossom/<sha256> serve these exact
+     bytes and /v1/info advertises their hash, so a wallet can take the catalog
+     from any mirror and know it holds the issuer's catalog before parsing. */
+  const catalogBytes = Buffer.from(JSON.stringify(signedCatalog()));
+  const catalogBlobSha256 = crypto.createHash("sha256").update(catalogBytes).digest("hex");
+  const catalogBlobUrls = () => catalogMirrors.map((mirror) => `${mirror}/${catalogBlobSha256}`);
   const catalogIssuer = () => hex(schnorr.getPublicKey(catalogPrivateKey));
   const current = () => state.state;
   /* "pack" for a drawn edition (E1). A manifest edition may declare its own —
@@ -1088,6 +1123,9 @@ function createNutftMint(options = {}) {
               product: productName,
               catalog_issuer: catalogIssuer(),
               catalog_sha256: catalogDigest,
+              catalog_uri: catalogUri,
+              catalog_blob_sha256: catalogBlobSha256,
+              catalog_blob_urls: catalogBlobUrls(),
             },
             7: { supported: true },
           },
@@ -1105,8 +1143,15 @@ function createNutftMint(options = {}) {
         return json(res, 200, { states: body.Ys.map((Y) => ({ Y, state: isSpent(Y) ? "SPENT" : "UNSPENT" })) });
       }
       if (req.method === "POST" && localPath === "/nutft/trade") return json(res, 200, await trade(await readBody(req)));
-      if (req.method === "GET" && localPath === "/nutft/catalog") {
-        return json(res, 200, signedCatalog());
+      if ((req.method === "GET" || req.method === "HEAD") && localPath === "/nutft/catalog") {
+        return blob(res, req.method, catalogBytes, "no-store");
+      }
+      /* The same bytes by hash. Only the catalog lives here; card faces stay
+         on the real Blossom mirrors. An unknown hash is a 404, never a guess. */
+      const blobMatch = (req.method === "GET" || req.method === "HEAD") && /^\/blossom\/([0-9a-f]{64})$/.exec(localPath);
+      if (blobMatch) {
+        if (blobMatch[1] !== catalogBlobSha256) return json(res, 404, { error: "blob not found" });
+        return blob(res, req.method, catalogBytes, "public, max-age=31536000, immutable");
       }
       if (req.method === "GET" && localPath === "/nutft/state") {
         /* The PACK SHAPE is published too. The shop has to say how big the box

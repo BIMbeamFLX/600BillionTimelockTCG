@@ -2826,6 +2826,10 @@ test("wallet batches live proof checks and reuses verified catalogs after reload
   const calls = { catalogs: 0, states: [] };
   const fetchImpl = async (url, options) => {
     const target = String(url);
+    /* A catalog download counts whether it arrives by hash from the mint's
+       /blossom path, the wallet's first choice, or from the catalog URL as
+       the fallback. */
+    if (/[/]blossom[/][0-9a-f]{64}$/.test(target)) calls.catalogs += 1;
     if (target === e1Catalog || target === gCatalog) {
       calls.catalogs += 1;
       return fetch(target === e1Catalog
@@ -2843,7 +2847,7 @@ test("wallet batches live proof checks and reuses verified catalogs after reload
 
   const first = await wallet.snapshotMany([table.url, `${table.url}/g`]);
   assert.equal(first.owned.length, 97);
-  assert.equal(calls.catalogs, 2, "the cold load fetches each signed catalog once");
+  assert.equal(calls.catalogs, 2, "the cold load fetches each signed catalog once, by hash");
   assert.deepEqual(calls.states.map((call) => call.count).sort((a, b) => a - b), [15, 82],
     "one live state request is enough for every proof from a mint");
 

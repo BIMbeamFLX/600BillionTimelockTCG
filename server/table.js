@@ -324,6 +324,7 @@ async function createTable(opts) {
       censusPath: options.nutftCensusPath,
       collectionId: options.nutftCollectionId,
       catalogUri: options.nutftCatalogUri,
+      catalogMirrors: options.nutftCatalogMirrors,
       beacon: options.nutftBeacon,
       db,
       onWalletBackupBuyer: authorizeWalletBackup,
@@ -366,6 +367,7 @@ async function createTable(opts) {
         censusPath: options.gNutftCensusPath || path.join(REPO, "cards", "g-census.json"),
         collectionId: options.gNutftCollectionId || "600B-G",
         catalogUri: options.gNutftCatalogUri,
+        catalogMirrors: options.gNutftCatalogMirrors,
         beacon: options.gNutftBeacon || "00".repeat(32),
         beaconSource: options.gNutftBeaconSource ?? "",
         db: gDb,
@@ -1887,11 +1889,11 @@ async function createTable(opts) {
     if (pathname.indexOf("\0") >= 0) return reply(400, { error: "bad url" });
     if (pathname === "/favicon.ico") { res.writeHead(204).end(); return; }
 
-    if (pathname.startsWith("/g/v1/") || pathname.startsWith("/g/nutft/")) {
+    if (pathname.startsWith("/g/v1/") || pathname.startsWith("/g/nutft/") || pathname.startsWith("/g/blossom/")) {
       if (!gNutft) return reply(404, { error: "not found" });
       return gNutft.handle(req, res, url);
     }
-    if (pathname.startsWith("/v1/") || pathname.startsWith("/nutft/")) {
+    if (pathname.startsWith("/v1/") || pathname.startsWith("/nutft/") || pathname.startsWith("/blossom/")) {
       return nutft.handle(req, res, url);
     }
 
@@ -2166,11 +2168,13 @@ if (require.main === module) {
     publicUrl: process.env.PUBLIC_URL,
     publicScheme: process.env.PUBLIC_SCHEME,
     nutftCatalogUri: process.env.NUTFT_CATALOG_URI,
+    nutftCatalogMirrors: process.env.NUTFT_CATALOG_MIRRORS,
     gNutftEnabled: enabled(process.env.G_NUTFT_ENABLED),
     gNutftDbPath: process.env.G_NUTFT_DB,
     gNutftCensusPath: process.env.G_NUTFT_CENSUS_PATH,
     gNutftCollectionId: process.env.G_NUTFT_COLLECTION_ID,
     gNutftCatalogUri: process.env.G_NUTFT_CATALOG_URI,
+    gNutftCatalogMirrors: process.env.G_NUTFT_CATALOG_MIRRORS,
     gNutftFundingBackend: process.env.G_NUTFT_FUNDING,
     gNutftSales: process.env.G_NUTFT_SALES,
     gNutftAllowlist: process.env.G_NUTFT_ALLOWLIST,
