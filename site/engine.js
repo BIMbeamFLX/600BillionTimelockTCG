@@ -378,8 +378,11 @@
         case "decommission":
           if (op.scope === "target") {
             spec.push({
-              kind: op.kind === "Permanent" ? "permanent" : "type:" + op.kind,
-              types: op.kinds || [op.kind],
+              /* Firewall is a keyword (printed as a subtype on some cards), never a
+               * card type: "type:Firewall" matched nothing, so every "decommission
+               * target Firewall" card could never be played. */
+              kind: op.kind === "Permanent" ? "permanent" : op.kind === "Firewall" ? "keyword:Firewall" : "type:" + op.kind,
+              types: op.kind === "Firewall" ? undefined : op.kinds || [op.kind],
               affinity: op.affinity,
               notAffinity: op.notAffinity,
               notType: op.notType,
@@ -4519,6 +4522,7 @@
     if (spec.kind === "avatar" || spec.kind === "any") return isAvatarUid(state, env.ctx, target.uid);
     if (spec.kind === "queueOrPermanent") return true;
     if (spec.kind === "permanent") return true; // any Network card
+    if (spec.kind.indexOf("keyword:") === 0) return hasKeywordUid(state, env.ctx, target.uid, spec.kind.slice(8));
     if (spec.types) return spec.types.some((type) => cardTypeOf(state, env.ctx, target.uid).indexOf(type) >= 0);
     if (spec.kind.indexOf("type:") === 0) return cardTypeOf(state, env.ctx, target.uid).indexOf(spec.kind.slice(5)) >= 0;
     return true;
