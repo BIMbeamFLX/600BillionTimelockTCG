@@ -7103,13 +7103,21 @@
 
     const wallet = state.zones[zoneKey(seat, "wallet")];
     const network = state.zones[zoneKey(seat, "network")];
+    // §5.6 / §9.2 sorcery speed: your own Build phase, Queue empty.
+    const sorcerySpeed =
+      state.turn.active === seat &&
+      (state.turn.phase === "build1" || state.turn.phase === "build2") &&
+      !(state.queue && state.queue.length);
     if (Array.isArray(wallet)) {
       for (const uid of wallet) {
         const object = state.objects[uid];
         if (!object || !object.cardId) continue;
-        push("PLAY_CARD", { uid });
-        if (
-          state.turn.active === seat &&
+        const card = context.catalog.byId[object.cardId];
+        if (!card) continue;
+        if (!card.isResource) {
+          if (card.type === "Zap" || sorcerySpeed) push("PLAY_CARD", { uid });
+        } else if (
+          sorcerySpeed &&
           state.turn.resourcePlays.used < resourcePlayLimit(state, context, seat)
         ) {
           push("PLAY_RESOURCE", { uid });
@@ -7120,7 +7128,27 @@
       for (const uid of network) {
         const object = state.objects[uid];
         if (!object || !object.cardId) continue;
-        push("ACTIVATE_ABILITY", { uid, abilityIndex: 0 });
+        const card = context.catalog.byId[object.cardId];
+        if (!card) continue;
+        card.abilities.forEach((ability, abilityIndex) => {
+          if (ability.kind !== "activated") return;
+          // §19.4 a Commit ability is spent until the next Unlock.
+          if (ability.commit && (object.committed || object.bootDelay)) return;
+          if (!ability.resourceAbility) {
+            push("ACTIVATE_ABILITY", { uid, abilityIndex });
+            return;
+          }
+          // §10.3 — a choice generator is offered once per affinity it names.
+          const choiceOp = (ability.ops || []).find((op) => op.op === "generate" && op.affinity === "choice");
+          if (!choiceOp) {
+            push("ACTIVATE_RESOURCE_ABILITY", { uid, abilityIndex });
+            return;
+          }
+          const allowed = Array.isArray(choiceOp.options) && choiceOp.options.length
+            ? choiceOp.options.map((name) => AFFINITY_SYMBOL[name] || name)
+            : SYMBOLS;
+          for (const choice of allowed) push("ACTIVATE_RESOURCE_ABILITY", { uid, abilityIndex, choice });
+        });
       }
     }
     return out;
