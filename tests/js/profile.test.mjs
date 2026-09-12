@@ -170,3 +170,54 @@ test("playing a game does not mutate the shared card catalog", () => {
   runScript(E.createGame(FIXED_CONFIG()), 40);
   assert.equal(JSON.stringify(CARDS), before);
 });
+
+test("the profile is resolved from state.ruleset, and defaults to Classic", () => {
+  const state = E.createGame(FIXED_CONFIG());
+  assert.equal(E.profileOf(state).id, "classic");
+  /* The three ways a ruleset can fail to name a profile. All of them are old
+   * logs, old configs or corrupted input, and all of them are Classic — that is
+   * what those matches were played under. */
+  assert.equal(E.profileOf({ ruleset: undefined }).id, "classic");
+  assert.equal(E.profileOf({ ruleset: "garbage" }).id, "classic");
+  assert.equal(E.profileOf({}).id, "classic");
+  assert.equal(E.profileOf(null).id, "classic");
+  /* A view carries ruleset too, so legalActions can resolve the profile from a
+   * redacted view without needing the full state. */
+  assert.equal(E.profileOf(E.view(state, 0)).id, "classic");
+  assert.equal(E.profileOf(E.view(state, null)).id, "classic");
+});
+
+test("a ruleset nobody implements is refused rather than played as Classic", () => {
+  assert.throws(() => E.createGame(Object.assign(FIXED_CONFIG(), { ruleset: "F9.9" })), /ruleset/);
+  assert.throws(() => E.createGame(Object.assign(FIXED_CONFIG(), { ruleset: "" })), /ruleset/);
+  /* Explicitly naming the profile you are already getting is not an error, and
+   * it changes nothing but the derived gameId — which is sha256 over the whole
+   * config, so any new config key moves it. A referee that starts naming the
+   * ruleset therefore mints different ids than one that omits it; pin the id
+   * and the rest of the state has to come out byte for byte the same. */
+  const bare = E.createGame(FIXED_CONFIG());
+  const named = E.createGame(Object.assign(FIXED_CONFIG(), { ruleset: "E1.0", gameId: bare.gameId }));
+  assert.equal(E.profileOf(named).id, "classic");
+  assert.equal(E.hashState(named), PINNED.openHash);
+});
+
+test("the Classic descriptor reproduces the constants it replaces", () => {
+  const classic = E.PROFILES.classic;
+  assert.equal(classic.ruleset, "E1.0");
+  assert.deepEqual(classic.phaseOrder, E.PHASE_ORDER);
+  assert.deepEqual(classic.phaseSteps, E.PHASE_STEPS);
+  assert.deepEqual(classic.ribbon, E.TURN_RIBBON);
+  assert.equal(classic.burnsBuffers, true);
+  assert.deepEqual(classic.illegal, []);
+  /* A descriptor that can be edited at runtime is a descriptor that can be
+   * edited by one match and read by the next. */
+  assert.throws(() => { E.PROFILES.classic = null; }, TypeError);
+  assert.throws(() => { classic.burnsBuffers = false; }, TypeError);
+});
+
+test("ribbonFor answers with the same array TURN_RIBBON exports", () => {
+  const state = E.createGame(FIXED_CONFIG());
+  assert.deepEqual(E.ribbonFor(state), E.TURN_RIBBON);
+  assert.deepEqual(E.ribbonFor(E.view(state, 0)), E.TURN_RIBBON);
+  assert.deepEqual(E.ribbonFor(null), E.TURN_RIBBON);
+});

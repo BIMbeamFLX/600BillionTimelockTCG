@@ -703,6 +703,59 @@
     { phase: "close", step: "cleanup", label: "Cleanup" },
   ];
 
+  /* ----------------------------------------------------------- rules profiles
+   *
+   * A profile is the part of the rules that is not the same in every edition of
+   * this game: the shape of a turn, who holds priority, how a played card
+   * resolves, where Resources come from, and how combat is declared. Everything
+   * else is shared — the op interpreter, continuous effects, state checks,
+   * redaction, the manual layer — because a card that reads "deal 2 damage"
+   * means the same thing under any profile, and duplicating 1400 lines of
+   * interpreter to say so twice would be how the two drift apart.
+   *
+   * The profile is resolved from `state.ruleset`: a field createGame has always
+   * written, view has always carried and the referee has always persisted, and
+   * that nothing has ever read back. Keying on it costs NO new state field, so
+   * Classic's hashState, publicHash and prevHash do not move, every serialized
+   * log still replays, and a stored match resumes onto the same chain. It also
+   * puts the profile inside the hash and inside the deck commitment, so no peer
+   * can switch rules mid-match.
+   *
+   * Not on `ctx`: ctx is rebuilt from caller-supplied input on every apply()
+   * and is deliberately not part of the state, so a profile carried there would
+   * be client-chosen per action and droppable — previewClash would forecast
+   * under the wrong rules and say nothing about it. */
+  const CLASSIC_PROFILE = Object.freeze({
+    id: "classic",
+    ruleset: "E1.0",
+    label: "Classic",
+    phaseOrder: PHASE_ORDER,
+    phaseSteps: PHASE_STEPS,
+    ribbon: TURN_RIBBON,
+    priority: "full", // both seats hold priority in every step that grants it
+    queue: "lifo", // a played card waits on the Queue for both seats to pass
+    resources: "cards", // Resource cards, committed by hand, §12.1 burn
+    combat: "clash", // declare attackers, then blockers, then order and assign
+    burnsBuffers: true,
+    genericOnlyCosts: false,
+    illegal: Object.freeze([]),
+  });
+
+  const PROFILES = Object.freeze({ classic: CLASSIC_PROFILE });
+  const RULESET_PROFILE = Object.freeze({ "E1.0": "classic" });
+
+  /* Accepts a state, a view, or anything with a `ruleset`. Falls back to
+   * Classic, which is what an old log with no ruleset field must resume as. */
+  function profileOf(source) {
+    const ruleset = source && source.ruleset;
+    return PROFILES[RULESET_PROFILE[ruleset] || "classic"];
+  }
+
+  /* The ribbon for a given game. TURN_RIBBON stays exported as a plain array
+   * because play.js reads it as data in three places; making *that* symbol
+   * profile-aware would throw at render time and take the table down. */
+  const ribbonFor = (source) => profileOf(source).ribbon;
+
   const DEFAULT_POLICY = {
     priority: "full",
     manualConsent: "ask",
@@ -1593,6 +1646,12 @@
     const settings = config || {};
     const seatConfigs = settings.seats || [{ name: "Player 1" }, { name: "Player 2" }];
     if (seatConfigs.length !== 2) fail("SCHEMA", "the E1 Classic Profile is exactly two players");
+    /* A ruleset nobody implements must not deal a game that silently plays by
+     * some other ruleset's rules. Absent still means Classic — that is what an
+     * old config and an old log are, and they have to keep resuming. */
+    if (settings.ruleset !== undefined && !RULESET_PROFILE[settings.ruleset]) {
+      fail("SCHEMA", `unknown ruleset ${JSON.stringify(settings.ruleset)}`);
+    }
     const seeds = settings.seeds || {};
     if (!Number.isInteger(seeds.public) || !Array.isArray(seeds.hidden) || seeds.hidden.length !== 2) {
       // The factory is pure: it takes every seed as an input and generates none.
@@ -7061,6 +7120,10 @@
     MANUAL_OPS,
     ACTION_KEYS,
     TURN_RIBBON,
+    PROFILES,
+    RULESET_PROFILE,
+    profileOf,
+    ribbonFor,
     MIN_STACK,
     MAX_COPIES,
     copyLimit,
