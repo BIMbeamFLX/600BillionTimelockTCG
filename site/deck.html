@@ -299,6 +299,10 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   </section>
 
   <aside class="deckpane">
+    <div class="modes" role="group" aria-label="Rules the card values follow">
+      <a class="mode" id="rulesClassic" href="deck.html">Classic</a>
+      <a class="mode" id="rulesFast" href="deck.html?rules=fast">Fast</a>
+    </div>
     <h2>Your Stack</h2>
     <div class="row"><input type="text" id="deckName" placeholder="Stack name" autocomplete="off"></div>
     <div class="countrow"><b class="count low" id="count">0</b><span id="countHint">of 40 · 40 to go</span></div>
@@ -370,15 +374,22 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
 </footer>
 
 <script src="play-data.js"></script>
+<script src="play-data-fast.js"></script>
 <script src="blob-map.js"></script>
 <script src="faces.js"></script>
 <script src="precons.js"></script>
+<script src="precons-fast.js"></script>
 <script src="storage-keys.js"></script>
 <script src="nutft-wallet.js"></script>
 <script>
 (() => {
   "use strict";
-  const CARDS = globalThis.E1_CARDS || [];
+  /* Two rules profiles share the same 295 cards and differ in their values:
+   * deck.html?rules=fast shows the Fast costs, stats and text, and the Fast
+   * starter shelf. The ids in a saved Stack are the same under both. */
+  const RULES = new URLSearchParams(location.search).get("rules") === "fast" ? "fast" : "classic";
+  const CARDS = (RULES === "fast" ? globalThis.E1_CARDS_FAST : globalThis.E1_CARDS) || globalThis.E1_CARDS || [];
+  const PRECONS = (RULES === "fast" ? globalThis.E1_PRECONS_FAST : globalThis.E1_PRECONS) || {};
   const byId = Object.fromEntries(CARDS.map((c) => [c.id, c]));
   /* The shared storage contract (site/storage-keys.js). Prefer it; fall back to
    * this page's own literals so a missing include degrades to today's values. */
@@ -1311,7 +1322,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * pane — tweak it, rename it, save it as your own. */
   function renderPrecons() {
     const box = document.getElementById("preconList");
-    const precons = globalThis.E1_PRECONS || {};
+    const precons = PRECONS;
     const names = Object.keys(precons);
     if (!names.length) {
       box.parentElement.hidden = true;
@@ -1396,7 +1407,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     dropParam("load");
     // The player's own Stack outranks a starter deck that happens to share a name.
     if (Array.isArray(library[wanted])) { importCards(wanted, library[wanted]); return; }
-    const precon = (globalThis.E1_PRECONS || {})[wanted];
+    const precon = PRECONS[wanted];
     if (precon && Array.isArray(precon.cards)) { importCards(wanted, precon.cards); return; }
     say(`No Stack called "${wanted}" is saved here.`, "bad");
   }
@@ -1411,6 +1422,12 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
    * it is ALL there is when a shell withholds the storage domain, which is
    * exactly the spec's fallback: "preconstructed decks only". */
   renderPrecons();
+  for (const [id, rules] of [["rulesClassic", "classic"], ["rulesFast", "fast"]]) {
+    const link = document.getElementById(id);
+    const on = RULES === rules;
+    link.classList.toggle("is-on", on);
+    if (on) link.setAttribute("aria-current", "page");
+  }
   renderSaved();
   const modeButtons = { freestyle: document.getElementById("modeFreestyle"), og: document.getElementById("modeOg") };
   const ownershipNote = document.getElementById("ownershipNote");
