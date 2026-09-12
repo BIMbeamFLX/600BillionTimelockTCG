@@ -1,6 +1,7 @@
 /* Boost Converter (E1-260) and Timelock Vault (E1-275): statics printed before a
  * Commit ability used to compile into its cost, so Commit was never charged and
- * the ability could be activated without limit (3907 times in one NPC turn). */
+ * the ability could be activated without limit (3907 times in one NPC turn).
+ * The Vault also skips a turn to unlock. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -188,4 +189,77 @@ test("no activated ability's cost contains a sentence", () => {
     }
   }
   assert.deepEqual(offenders, []);
+});
+
+const vaultIndex = (predicate) => byName["Timelock Vault"].abilities.findIndex(predicate);
+const VAULT_SKIP = vaultIndex((a) => a.kind === "activated" && a.cost === "");
+const VAULT_COMMIT = vaultIndex((a) => a.kind === "activated" && a.cost === "Commit");
+
+/* Pass until `seat` starts a Build phase, recording whose turns began meanwhile. */
+function turnsUntilBuild(state, seat) {
+  const seen = [];
+  let last = `${state.turn.number}:${state.turn.active}`;
+  state = passUntil(state, (current) => {
+    const key = `${current.turn.number}:${current.turn.active}`;
+    if (key !== last) {
+      seen.push(current.turn.active);
+      last = key;
+    }
+    return seen.length > 0 && current.turn.active === seat &&
+      current.turn.phase === "build1" && current.priority.seat === seat;
+  });
+  return { state, seen };
+}
+
+test("Timelock Vault cannot skip a turn while it is unlocked", () => {
+  let state = game(882760);
+  const vault = seed(state, 0, byName["Timelock Vault"].id);
+  state = passUntil(state, buildOne);
+  const result = act(state, "ACTIVATE_ABILITY", 0, { uid: vault, abilityIndex: VAULT_SKIP });
+
+  assert.equal(result.error && result.error.code, "CANNOT_AFFORD");
+  assert.equal(state.skipTurns, undefined);
+});
+
+test("Timelock Vault unlocks by skipping its controller's next turn", () => {
+  let state = game(882770);
+  const vault = seed(state, 0, byName["Timelock Vault"].id, { committed: true });
+  state = passUntil(state, buildOne);
+  state = ok(act(state, "ACTIVATE_ABILITY", 0, { uid: vault, abilityIndex: VAULT_SKIP }));
+  state = passUntil(state, (current) => current.queue.length === 0 && current.priority.seat === 0);
+
+  assert.equal(state.objects[vault].committed, false, "the skip did not unlock it");
+  assert.deepEqual(state.skipTurns, [1, 0]);
+  const run = turnsUntilBuild(state, 0);
+  assert.deepEqual(run.seen, [1, 1, 0], "seat 0's next turn was not skipped");
+  assert.deepEqual(run.state.skipTurns, [0, 0]);
+  assert.equal(run.state.objects[vault].committed, false, "it stayed unlocked across the skip");
+});
+
+test("a second skip queued before the first resolves costs no extra turn", () => {
+  let state = game(882780);
+  const vault = seed(state, 0, byName["Timelock Vault"].id, { committed: true });
+  state = passUntil(state, buildOne);
+  state = ok(act(state, "ACTIVATE_ABILITY", 0, { uid: vault, abilityIndex: VAULT_SKIP }));
+  state = ok(act(state, "ACTIVATE_ABILITY", 0, { uid: vault, abilityIndex: VAULT_SKIP }));
+  state = passUntil(state, (current) => current.queue.length === 0 && current.priority.seat === 0);
+
+  assert.deepEqual(state.skipTurns, [1, 0]);
+});
+
+test("Timelock Vault's extra turn is the turn the skip consumes", () => {
+  let state = game(882790);
+  const vault = seed(state, 0, byName["Timelock Vault"].id, { committed: true });
+  state = passUntil(state, buildOne);
+  state = ok(act(state, "ACTIVATE_ABILITY", 0, { uid: vault, abilityIndex: VAULT_SKIP }));
+  state = passUntil(state, (current) => current.queue.length === 0 && current.priority.seat === 0);
+  state = ok(act(state, "ACTIVATE_ABILITY", 0, { uid: vault, abilityIndex: VAULT_COMMIT }));
+  state = passUntil(state, (current) => current.queue.length === 0 && current.priority.seat === 0);
+  assert.deepEqual(state.extraTurns, [1, 0]);
+
+  const run = turnsUntilBuild(state, 0);
+  assert.deepEqual(run.seen, [1, 0], "the Vault gained or lost a turn overall");
+  assert.deepEqual(run.state.extraTurns, [0, 0]);
+  assert.deepEqual(run.state.skipTurns, [0, 0]);
+  assert.equal(run.state.objects[vault].committed, true, "it unlocked without another skip");
 });

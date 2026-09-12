@@ -1852,6 +1852,25 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
             )
             continue
 
+        if re.fullmatch(r"You may skip a turn to unlock it\.?", line, re.I):
+            # The skip is your next turn. Both ops re-check committed so a second
+            # activation queued before the first resolves costs no extra turn.
+            committed = {"sourceCommitted": True}
+            abilities.append(
+                {
+                    "kind": "activated",
+                    "cost": "",
+                    "text": line,
+                    "ops": [
+                        {"op": "skipTurn", "condition": committed},
+                        {"op": "unlockSelf", "condition": committed},
+                    ],
+                    "requireCommitted": True,
+                    "manual": False,
+                }
+            )
+            continue
+
         draw_damage = re.fullmatch(
             r"If committed at draw, it deals (\d+) damage to you\.?", line, re.I
         )

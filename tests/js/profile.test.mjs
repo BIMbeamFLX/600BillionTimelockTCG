@@ -12,9 +12,9 @@
  * literal to make the test pass — find out what moved, and whether it was
  * meant to.
  *
- * Re-pinned once on purpose: the Boost Converter / Timelock Vault compile fix
- * changed the catalog, so catalogDigest (and the prevHash chain built on it)
- * moved. Every state of the script, with those two fields stripped, was proved
+ * Re-pinned on purpose by the Boost Converter / Timelock Vault compile fix and
+ * again by Timelock Vault's skip-a-turn ability: each changed the catalog, so
+ * catalogDigest (and the prevHash chain built on it) moved. Every state of the script, with those two fields stripped, was proved
  * byte-identical across processes before and after. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -95,10 +95,10 @@ function runScript(state, actions) {
 }
 
 const PINNED = {
-  openHash: "ee3466397d21e42ef6b18b10cd99dd8dc76cfbc28d71896dfde0a29942f5427d",
-  openPublicHash: "c02abe184e68f07324adb00a27cb491313b155635147320370cfb09c6dd2c88f",
-  afterHash: "ff10d03370a1f87a5e81c880c3c9bade09b906a739e6f15b544a809a6496c07f",
-  afterPublicHash: "3daa0cfddaeffa4efa859735f0d266ded439a3a4187350cf827ec03b1b17994a",
+  openHash: "ca8a0731f338169284455ec429898623bd6587a5783d64c9e6ce0d5bbd2b8b7a",
+  openPublicHash: "cb69e65a9406ce911760e64806dcc2f1a1a68114831762b2016c98eef08cc297",
+  afterHash: "fb4ecd6ca5d37770220246134f2986f67f86314c94fd8754d9b92b13de69a797",
+  afterPublicHash: "713e2a91f97d60510d1f6a3372c51fee9811918f00378c486aeb13aa2778879c",
   afterSeq: 40,
   afterTurn: 3,
   afterPhase: "open",

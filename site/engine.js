@@ -2747,6 +2747,12 @@
         emit(env, "EXTRA_TURN", { seat: controller, count: state.extraTurns[controller] });
         return "done";
       }
+      case "skipTurn": {
+        state.skipTurns = state.skipTurns || [0, 0];
+        state.skipTurns[controller] += 1;
+        emit(env, "SKIP_TURN", { seat: controller, count: state.skipTurns[controller] });
+        return "done";
+      }
       case "moveTarget": {
         const target = nextTarget(env, item);
         if (target && target.kind === "object" && state.objects[target.uid]) {
@@ -4805,6 +4811,14 @@
     if (state.extraTurns[endingSeat] > 0) state.extraTurns[endingSeat] -= 1;
     else state.turn.active = 1 - state.turn.active;
     if (state.turn.active === state.turn.firstPlayer) state.turn.number += 1;
+    // A skipped turn passes straight to the other seat. skipTurns exists only
+    // once a card created it, so games that never skip hash as before.
+    while (state.skipTurns && state.skipTurns[state.turn.active] > 0) {
+      state.skipTurns[state.turn.active] -= 1;
+      emit(env, "TURN_SKIPPED", { number: state.turn.number, seat: state.turn.active });
+      state.turn.active = 1 - state.turn.active;
+      if (state.turn.active === state.turn.firstPlayer) state.turn.number += 1;
+    }
     const profile = profileOf(state);
     state.turn.phase = profile.phaseOrder[0];
     state.turn.step = profile.phaseSteps[state.turn.phase][0];
@@ -5694,6 +5708,9 @@
       const ability = card.abilities[payload.abilityIndex];
       if (!ability || ability.kind !== "activated") fail("SCHEMA", "not an activated ability");
       if (ability.resourceAbility) fail("SCHEMA", "use ACTIVATE_RESOURCE_ABILITY (§10.3)");
+      if (ability.requireCommitted && !object.committed) {
+        fail("CANNOT_AFFORD", "only a committed object can use that ability");
+      }
       if (ability.timing === "your-turn" && state.turn.active !== action.seat) {
         fail("WRONG_PHASE", "activate only during your turn");
       }
