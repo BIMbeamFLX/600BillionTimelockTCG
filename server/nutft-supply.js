@@ -8,8 +8,18 @@
  * the mint, and two holders cannot tell whether they were told the same
  * thing. This module turns the same figures into Nostr events, signed with
  * the catalog key a wallet already trusts, each naming the id of the one
- * before it. The chain is kept in the mint's own database, served whole
- * under /nutft/supply, and pushed to relays when any are configured.
+ * before it. The chain is kept in the mint's own database, served a page at
+ * a time under /nutft/supply, and pushed to relays when any are configured.
+ *
+ * A PAGE, NOT THE WHOLE CHAIN. A snapshot carries one count per printed card,
+ * so Edition One's is about 5 KB and the chain grows without bound. Served
+ * whole it would eventually exceed what a client will read in one response,
+ * and supply verification would stop working with no warning. So the route
+ * answers with at most SUPPLY_PAGE snapshots: the newest ones by default,
+ * which is what a client that has never seen this chain wants, or the page
+ * beginning at ?from=<seq>, which is how a returning client reaches back to
+ * the snapshot it remembers. Every response says which sequence numbers it
+ * covers and how long the chain is, so a client always knows what it has.
  *
  * Snapshots are taken on a timer, not per sale. A per-sale event would
  * timestamp every purchase; a timer says only how many cards left the mint
@@ -47,6 +57,10 @@ const { schnorr } = require("@noble/curves/secp256k1");
 
 const SUPPLY_KIND = 7610;
 const SUPPLY_SCHEMA = "600b-nutft-supply-v1";
+/* Snapshots per response. 100 of Edition One's is about half a megabyte,
+   comfortably inside the two a napplet will read, and it covers a client that
+   checks in at least every hundred selling days in a single request. */
+const SUPPLY_PAGE = 100;
 const MIN_INTERVAL_SECONDS = 60;
 const DEFAULT_INTERVAL_SECONDS = 86_400;
 const PUBLISH_TIMEOUT_MS = 10_000;
@@ -110,6 +124,7 @@ function createSupplyLedger(options) {
     `);
     q = {
       all: db.prepare("SELECT event_json FROM nutft_supply ORDER BY seq"),
+      range: db.prepare("SELECT event_json FROM nutft_supply WHERE seq >= ? ORDER BY seq LIMIT ?"),
       latest: db.prepare("SELECT event_json FROM nutft_supply ORDER BY seq DESC LIMIT 1"),
       unpublished: db.prepare("SELECT id, event_json FROM nutft_supply WHERE published_at IS NULL ORDER BY seq"),
       put: db.prepare("INSERT INTO nutft_supply (seq, id, event_json) VALUES (?, ?, ?)"),
@@ -127,6 +142,31 @@ function createSupplyLedger(options) {
   const unpublished = () => (q
     ? q.unpublished.all().map((row) => ({ id: row.id, event: parse(row) }))
     : memory.filter((row) => !row.published_at));
+
+  const seqOf = (event) => JSON.parse(event.content).seq;
+  const headSeq = () => (head ? seqOf(head) : 0);
+
+  /* One bounded page, oldest first. Without a `from` it is the tail: the
+     newest snapshots, which is what a client with no history of its own is
+     asking for. With one it starts there, which is how a client walks back to
+     the snapshot it remembers. A `from` past the head yields no events and a
+     truthful `total`, rather than an error: "there is nothing at that
+     sequence number yet" is an answer. */
+  const page = (from) => {
+    const total = headSeq();
+    const wanted = Number.isInteger(from) && from > 0 ? from : total - SUPPLY_PAGE + 1;
+    const start = Math.max(1, wanted);
+    const events = total === 0 ? [] : (q
+      ? q.range.all(start, SUPPLY_PAGE).map(parse)
+      : memory.filter((row) => seqOf(row.event) >= start).slice(0, SUPPLY_PAGE).map((row) => row.event));
+    return {
+      total,
+      page_size: SUPPLY_PAGE,
+      first_seq: events.length ? seqOf(events[0]) : 0,
+      last_seq: events.length ? seqOf(events[events.length - 1]) : 0,
+      events,
+    };
+  };
 
   const figures = () => {
     const current = read();
@@ -302,7 +342,8 @@ function createSupplyLedger(options) {
     events,
     latest: () => head,
     fault: () => fault,
-    chain: () => ({
+    page,
+    chain: (from) => ({
       kind: SUPPLY_KIND,
       schema: SUPPLY_SCHEMA,
       issuer: pubkey,
@@ -310,9 +351,9 @@ function createSupplyLedger(options) {
       census_sha256: censusSha256,
       relays,
       fault,
-      events: events(),
+      ...page(from),
     }),
   };
 }
 
-module.exports = { SUPPLY_KIND, SUPPLY_SCHEMA, createSupplyLedger, eventId };
+module.exports = { SUPPLY_KIND, SUPPLY_PAGE, SUPPLY_SCHEMA, createSupplyLedger, eventId };

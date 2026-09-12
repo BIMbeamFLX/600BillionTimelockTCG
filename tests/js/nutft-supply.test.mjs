@@ -13,7 +13,7 @@ import { WebSocketServer } from "ws";
 
 const require = createRequire(import.meta.url);
 const { canonical, createNutftMint } = require("../../server/nutft-mint.js");
-const { SUPPLY_KIND, SUPPLY_SCHEMA, createSupplyLedger, eventId } = require("../../server/nutft-supply.js");
+const { SUPPLY_KIND, SUPPLY_PAGE, SUPPLY_SCHEMA, createSupplyLedger, eventId } = require("../../server/nutft-supply.js");
 const { schnorr } = require("@noble/curves/secp256k1");
 const CENSUS = require("../../cards/nutft-census.json");
 const cashu = await import("@cashu/cashu-ts");
@@ -356,4 +356,100 @@ test("publishing offers every pending snapshot once and marks what a relay took"
   unreachable.snapshot();
   assert.deepEqual(await unreachable.publish(), { pending: 1, published: 0 }, "a dead relay is a pending snapshot, not a crash");
   assert.deepEqual(await ledgerFor(figures).publish(), { pending: 0, published: 0 }, "no relays, nothing to do");
+});
+
+/* A chain longer than one response, and the walk back through it. */
+function longLedger(count) {
+  const figures = { current: { remaining: { A: 300 }, sold: 0 } };
+  const ledger = createSupplyLedger({
+    privateKey: Buffer.from(schnorr.utils.randomPrivateKey()),
+    canonical,
+    collectionId: "600B-T",
+    catalogUri: "http://127.0.0.1/nutft/catalog",
+    censusSha256: "ab".repeat(32),
+    packs: 300,
+    issuedPerPack: 1,
+    copies: { A: 300 },
+    read: () => figures.current,
+    log: () => {},
+    intervalSeconds: 0,
+  });
+  for (let sold = 0; sold < count; sold += 1) {
+    figures.current = { remaining: { A: 300 - sold }, sold };
+    assert.ok(ledger.snapshot(), `snapshot ${sold + 1} was signed`);
+  }
+  return ledger;
+}
+
+test("the chain is served a bounded page at a time, newest first by default", () => {
+  const count = SUPPLY_PAGE * 2 + 37;
+  const ledger = longLedger(count);
+  const seqs = (page) => page.events.map((event) => JSON.parse(event.content).seq);
+
+  const tail = ledger.chain();
+  assert.equal(tail.total, count, "the response says how long the whole chain is");
+  assert.equal(tail.page_size, SUPPLY_PAGE);
+  assert.equal(tail.events.length, SUPPLY_PAGE, "and never carries more than a page");
+  assert.equal(tail.first_seq, count - SUPPLY_PAGE + 1);
+  assert.equal(tail.last_seq, count);
+  assert.deepEqual(seqs(tail), Array.from({ length: SUPPLY_PAGE }, (_, i) => count - SUPPLY_PAGE + 1 + i),
+    "no argument means the newest page, which is what a client with no history wants");
+
+  const first = ledger.chain(1);
+  assert.equal(first.first_seq, 1);
+  assert.equal(first.last_seq, SUPPLY_PAGE);
+  assert.equal(JSON.parse(first.events[0].content).prev, null, "the chain still starts where it started");
+
+  /* Walking from the beginning reaches the head, and every page joins the
+     one before it: that is what a returning client does from its witness. */
+  const walked = [];
+  let from = 1;
+  for (let guard = 0; guard < 10; guard += 1) {
+    const page = ledger.chain(from);
+    if (walked.length) {
+      assert.equal(JSON.parse(page.events[0].content).prev, walked[walked.length - 1].id,
+        "each page names the last event of the page before it");
+    }
+    walked.push(...page.events);
+    if (page.last_seq >= page.total) break;
+    from = page.last_seq + 1;
+  }
+  assert.equal(walked.length, count, "the walk covers the whole chain");
+  assert.deepEqual(walked.map((event) => JSON.parse(event.content).seq), Array.from({ length: count }, (_, i) => i + 1));
+  assert.ok(walked.every(verified), "and every snapshot along it is signed");
+
+  const short = ledger.chain(count - 5);
+  assert.equal(short.events.length, 6, "a page near the head is as short as what is left");
+  assert.equal(short.last_seq, count);
+
+  const beyond = ledger.chain(count + 1);
+  assert.deepEqual(beyond.events, [], "past the head there is nothing yet, which is an answer and not an error");
+  assert.equal(beyond.total, count, "and the length of the chain is still told truthfully");
+  assert.equal(beyond.first_seq, 0);
+
+  assert.deepEqual(ledger.chain(0).events, ledger.chain().events, "a nonsensical start falls back to the newest page");
+});
+
+test("the route pages, and refuses a sequence number it cannot read", async (t) => {
+  const mint = createNutftMint({ lnd: null, catalogUri: CATALOG_URI, supplyIntervalSeconds: 0 });
+  t.after(() => mint.stop());
+  const api = await serve(mint);
+  t.after(api.close);
+
+  const whole = await api.get("/nutft/supply");
+  assert.equal(whole.total, 1);
+  assert.equal(whole.first_seq, 1);
+  assert.equal(whole.last_seq, 1);
+  assert.equal(whole.page_size, SUPPLY_PAGE);
+  assert.equal(whole.events.length, 1);
+  assert.deepEqual(await api.get("/nutft/supply?from=1"), whole, "asking for the only page gives the only page");
+
+  const empty = await api.get("/nutft/supply?from=2");
+  assert.deepEqual(empty.events, []);
+  assert.equal(empty.total, 1);
+
+  for (const bad of ["0", "-1", "abc", "1.5", ""]) {
+    const answer = await api.get(`/nutft/supply?from=${bad}`);
+    assert.match(answer.error, /positive snapshot sequence number/, `from=${bad} is refused`);
+  }
 });

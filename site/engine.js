@@ -3236,9 +3236,15 @@
         const target = nextTarget(env, item);
         if (target) {
           state.prevention = state.prevention || [];
+          /* null, never undefined, for the half of the target that does not
+           * apply: canonicalJSON refuses undefined, apply() hashes its input
+           * first, and a shield carrying `uid: undefined` made every later
+           * action fail — a concession included. Same shape as preventDamage. */
           state.prevention.push({
             kind: target.kind === "seat" ? "seat" : "object",
-            seat: target.seat, uid: target.uid, amount: resolveAmount(env, item, op, op.amount),
+            seat: target.kind === "seat" ? target.seat : null,
+            uid: target.kind === "seat" ? null : target.uid,
+            amount: resolveAmount(env, item, op, op.amount),
             turn: state.turn.number,
           });
           state.effects.push({
