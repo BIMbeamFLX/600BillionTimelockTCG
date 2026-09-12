@@ -787,16 +787,21 @@
      * are refused. Resource cards stay in the Stacks until the Fast card data
      * redesigns them.
      *
-     * Attacking still follows no rule, and says so: combat is "none" rather
-     * than "clash", because with no Clash phase there is, for now, no way to
-     * attack at all. It flips in the commit that implements it. */
+     * Combat is an action, not a phase: in their Build phase the active player
+     * sends one Avatar at a time at the opponent or at one of the opponent's
+     * Avatars (DECLARE_ATTACK), and damage is exchanged at once. Nobody blocks.
+     * Firewall is a taunt, Broadcast ignores it. The four Clash declarations
+     * are refused. */
     priority: "active",
     queue: "immediate",
     resources: "pool",
-    combat: "none",
+    combat: "attack",
     burnsBuffers: false,
     genericOnlyCosts: true,
-    illegal: Object.freeze(["PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "ACTIVATE_UPTIME_RESOURCE"]),
+    illegal: Object.freeze([
+      "PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "ACTIVATE_UPTIME_RESOURCE",
+      "DECLARE_ATTACKERS", "DECLARE_BLOCKERS", "ORDER_BLOCKERS", "ASSIGN_COMBAT_DAMAGE",
+    ]),
   });
 
   /* A starting value, to be settled by simulation (plan step 4), not by taste. */
@@ -5191,11 +5196,14 @@
     for (const seat of [state.turn.active, 1 - state.turn.active]) {
       const waiting = state.pendingTriggers[String(seat)];
       if (!waiting.length) continue;
-      if (waiting.length >= 2) {
+      const fast = profileOf(state).queue === "immediate";
+      if (waiting.length >= 2 && !fast) {
         state.awaiting = { kind: "triggers", seat };
         return;
       }
-      for (const trigger of waiting.splice(0)) pushQueue(env, trigger);
+      /* Fast asks nobody to order triggers: they resolve in the order they
+       * were raised, so the first one raised goes on the Queue last. */
+      for (const trigger of fast ? waiting.splice(0).reverse() : waiting.splice(0)) pushQueue(env, trigger);
     }
   }
 
@@ -5224,7 +5232,8 @@
     }
     if (
       keywords.indexOf("Firewall") >= 0 &&
-      !hasRule(state, env.ctx, uid, "canAttackWithFirewall")
+      !hasRule(state, env.ctx, uid, "canAttackWithFirewall") &&
+      profileOf(state).combat !== "attack" // Fast: a Firewall is a taunt, and may attack
     ) return false; // §14 Firewall
     // "can't attack unless defending player controls a … Resource"
     for (const ability of card.abilities) {
@@ -5430,6 +5439,50 @@
     stateChecks(env);
   }
 
+  /* Fast combat damage, through the shared damageTarget so prevention,
+   * redirects, Sovereign Mode and Reboot all apply. First Strike on one side
+   * only: that side hits first, and a target that did not survive does not hit
+   * back. Otherwise both hit at once, with the Action values from before
+   * either blow. Overflow sends what exceeds the target's remaining
+   * Resilience on to the defending player. */
+  function resolveAttack(env, attackerUid, targetUid, defender) {
+    const state = env.state;
+    const power = (uid) => Math.max(0, statsOf(state, env.ctx, uid).action);
+    if (!targetUid) {
+      damageTarget(env, { kind: "seat", seat: defender }, power(attackerUid), attackerUid,
+        { combat: true, unblocked: true });
+      stateChecks(env);
+      return;
+    }
+    const standing = (uid) => Boolean(state.objects[uid]) && zoneName(state.objects[uid].zone) === "network";
+    const hit = (from, to, amount) => {
+      if (!standing(from) || !standing(to) || amount <= 0) return;
+      const lethal = Math.max(0, statsOf(state, env.ctx, to).resilience - state.objects[to].damage);
+      if (from === attackerUid && amount > lethal && hasKeywordUid(state, env.ctx, from, "Overflow")) {
+        damageTarget(env, { kind: "object", uid: to }, lethal, from, { combat: true });
+        damageTarget(env, { kind: "seat", seat: defender }, amount - lethal, from, { combat: true, unblocked: true });
+        return;
+      }
+      damageTarget(env, { kind: "object", uid: to }, amount, from, { combat: true });
+    };
+    const first = (uid) => hasKeywordUid(state, env.ctx, uid, "First Strike");
+    const attackerFirst = first(attackerUid);
+    const targetFirst = first(targetUid);
+    if (attackerFirst !== targetFirst) {
+      const [lead, follow] = attackerFirst ? [attackerUid, targetUid] : [targetUid, attackerUid];
+      hit(lead, follow, power(lead));
+      stateChecks(env);
+      if (!state.result && standing(follow)) hit(follow, lead, power(follow));
+    } else {
+      const attackerPower = power(attackerUid);
+      const targetPower = power(targetUid);
+      hit(attackerUid, targetUid, attackerPower);
+      hit(targetUid, attackerUid, targetPower);
+    }
+    emit(env, "COMBAT_DAMAGE", { firstStrike: attackerFirst !== targetFirst });
+    stateChecks(env);
+  }
+
   /* Authoritative, side-effect-free clash forecast. The UI supplies only
    * declarations that have not been submitted yet; every damage assignment,
    * First Strike removal, prevention, redirect and state check is then run by
@@ -5532,6 +5585,7 @@
     DECLARE_BLOCKERS: ["blocks"],
     ORDER_BLOCKERS: ["order"],
     ASSIGN_COMBAT_DAMAGE: ["assignment"],
+    DECLARE_ATTACK: ["attacker", "target"],
     CHOOSE: ["choiceId", "selection"],
     ORDER_TRIGGERS: ["qids"],
     CHOOSE_UNLOCK: ["uids"],
@@ -5964,6 +6018,65 @@
         raiseTriggers(env, "attackers-declared", { seat: action.seat, attackers: state.clash.attackers.slice() });
       }
       if (!state.clash.attackers.length) skipRestOfPhase(env);
+    },
+
+    /* Fast: one Avatar attacks one target, now. The opponent, or an Avatar on
+     * the opponent's Network; if that Network holds a Firewall Avatar, a
+     * Firewall is the only legal target unless the attacker has Broadcast. */
+    DECLARE_ATTACK(env, payload, action) {
+      const state = env.state;
+      if (profileOf(state).combat !== "attack") {
+        fail("WRONG_PROFILE", "declare attackers in the Clash phase");
+      }
+      requirePriority(env, action.seat);
+      if (action.seat !== state.turn.active) fail("NOT_YOUR_SEAT", "only on your own turn");
+      if (state.turn.phase !== "build1") fail("WRONG_PHASE", "attack during your Build phase");
+      const uid = payload.attacker;
+      requireUid(state, uid);
+      if (state.objects[uid].controller !== action.seat) fail("NOT_CONTROLLER", uid);
+      if (zoneName(state.objects[uid].zone) !== "network") {
+        fail("NOT_IN_ZONE", "that object is not on the Network", { uid });
+      }
+      if (!canAttack(env, uid)) fail("CANNOT_ATTACK", `${uid} cannot attack`);
+      const defender = 1 - action.seat;
+      const target = payload.target;
+      let targetUid = null;
+      if (target && target.kind === "seat") {
+        if (target.seat !== defender) fail("BAD_TARGET", "attack the opponent, not yourself");
+      } else if (target && target.kind === "object" && typeof target.uid === "string") {
+        targetUid = target.uid;
+        requireUid(state, targetUid);
+        if (state.objects[targetUid].zone !== zoneKey(defender, "network") || !isAvatarUid(state, env.ctx, targetUid)) {
+          fail("BAD_TARGET", "attack an Avatar on the opponent's Network");
+        }
+      } else {
+        fail("SCHEMA", "target is {kind:\"seat\", seat} or {kind:\"object\", uid}");
+      }
+      if (!hasKeywordUid(state, env.ctx, uid, "Broadcast")) {
+        const firewalls = zoneArray(state, zoneKey(defender, "network")).filter(
+          (other) => isAvatarUid(state, env.ctx, other) && hasKeywordUid(state, env.ctx, other, "Firewall")
+        );
+        if (firewalls.length && firewalls.indexOf(targetUid) < 0) {
+          fail("FIREWALL", "a Firewall stands in the way: attack it first");
+        }
+      }
+      revealMasked(env, uid, "commit");
+      if (!hasRule(state, env.ctx, uid, "attackDoesNotCommit")) state.objects[uid].committed = true;
+      state.turn.attacked = state.turn.attacked || [];
+      if (state.turn.attacked.indexOf(uid) < 0) state.turn.attacked.push(uid);
+      for (const ability of cardOf(env.ctx, state.objects[uid].cardId).abilities) {
+        const rule = ability.kind === "rule-static" && ability.rule;
+        if (rule && rule.removeAfterCombat && state.objects[uid].counters[rule.counter] > 0) {
+          state.objects[uid].counters[rule.counter] -= rule.removeAfterCombat;
+        }
+      }
+      emit(env, "ATTACK", {
+        seat: action.seat,
+        attacker: uid,
+        target: targetUid ? { kind: "object", uid: targetUid } : { kind: "seat", seat: defender },
+      });
+      raiseTriggers(env, "attackers-declared", { seat: action.seat, attackers: [uid] });
+      resolveAttack(env, uid, targetUid, defender);
     },
 
     /* Defending seat only, atomic. §13.2 blocker unlocked, each blocker on at
@@ -7234,6 +7347,20 @@
         const object = state.objects[uid];
         if (!object || !object.cardId) continue;
         push("ACTIVATE_ABILITY", { uid, abilityIndex: 0 });
+      }
+    }
+    // Fast: every Avatar that may attack is offered once, at the opponent. The
+    // target is a template; a Firewall on the other side can refuse it.
+    if (profileOf(state).combat === "attack" && state.turn.active === seat && Array.isArray(network)) {
+      const env = { state, ctx: context, events: [] };
+      for (const uid of network) {
+        const object = state.objects[uid];
+        if (!object || !object.cardId) continue;
+        try {
+          if (canAttack(env, uid)) push("DECLARE_ATTACK", { attacker: uid, target: { kind: "seat", seat: 1 - seat } });
+        } catch {
+          // a redacted view may not carry enough to decide; offer nothing
+        }
       }
     }
     return out;

@@ -3,8 +3,8 @@
  * Covered so far: the turn machine (Open, one Build phase, Close — no Clash
  * phase and no Build II), and priority with the Queue (only the active player
  * holds priority, only in Build, and nothing waits on the Queue), and Resources
- * (a pool that grows by one a turn, costs paid as plain numbers, no burn).
- * Attacking gets its own tests when it lands. Classic
+ * (a pool that grows by one a turn, costs paid as plain numbers, no burn), and
+ * attacking (one Avatar at one target, now; Firewall taunts). Classic
  * itself is guarded byte for byte in profile.test.mjs; nothing in this file may
  * be relaxed to make a Classic test pass, or the other way round. */
 import { test } from "node:test";
@@ -137,18 +137,20 @@ test("the Fast turn is Open, Build, Close", () => {
 });
 
 test("the Fast descriptor claims no rule the engine does not play yet", () => {
-  /* The turn machine, priority, the Queue and Resources are Fast so far.
-   * Combat flips in the commit that implements it; a descriptor that ran ahead
-   * of the engine would be a lie a UI or a bot could act on. */
+  /* Every field is Fast now. A descriptor that ran ahead of the engine would be
+   * a lie a UI or a bot could act on, so each flipped with its subsystem. */
   const fast = E.PROFILES.fast;
   assert.equal(fast.priority, "active");
   assert.equal(fast.queue, "immediate");
   assert.equal(fast.resources, "pool");
   assert.equal(fast.burnsBuffers, false);
   assert.equal(fast.genericOnlyCosts, true);
-  assert.deepEqual([...fast.illegal], ["PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "ACTIVATE_UPTIME_RESOURCE"]);
+  assert.deepEqual([...fast.illegal], [
+    "PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "ACTIVATE_UPTIME_RESOURCE",
+    "DECLARE_ATTACKERS", "DECLARE_BLOCKERS", "ORDER_BLOCKERS", "ASSIGN_COMBAT_DAMAGE",
+  ]);
   assert.equal(E.FAST_POOL_CAP, 10);
-  assert.equal(fast.combat, "none", "with no Clash phase there is no way to attack yet");
+  assert.equal(fast.combat, "attack");
 });
 
 test("every profile keeps the shape the turn machine relies on", () => {
@@ -496,6 +498,80 @@ test("a Maintenance trigger resolves without asking anyone to pass", () => {
   assert.deepEqual([walk.state.priority.seat, walk.state.priority.window], [1, "build1:main"]);
 });
 
+test("one pass hands the turn over even for a seat that never auto-passes", () => {
+  /* Classic's auto-pass would quietly pass the opponent's window too, and hide
+   * a second window that Fast must not open at all. Turn it off for both. */
+  const settings = config("F1.0");
+  settings.seats = settings.seats.map((seat) => Object.assign({}, seat, { autoPass: { emptyQueue: false, noLegalResponse: false } }));
+  const state = E.createGame(settings);
+  const passed = act(state, "PASS_PRIORITY", 0);
+  assert.equal(passed.error, null, JSON.stringify(passed.error));
+  const windows = [];
+  let current = passed.state;
+  for (let i = 0; i < 10 && !(current.turn.active === 1 && current.priority.seat === 1); i++) {
+    if (current.priority.seat !== null) windows.push(`${current.priority.seat}:${current.priority.window}`);
+    assert.equal(current.priority.seat, null, `no window between the pass and seat 1's Build: ${windows.join(",")}`);
+    const uids = current.awaiting && current.awaiting.kind === "discard"
+      ? current.zones["0:wallet"].slice(0, current.zones["0:wallet"].length - 7) : [];
+    const result = act(current, "DISCARD_TO_LIMIT", current.awaiting.seat, { uids });
+    assert.equal(result.error, null, JSON.stringify(result.error));
+    current = result.state;
+  }
+  assert.deepEqual([current.turn.active, current.priority.seat, current.priority.window], [1, 1, "build1:main"]);
+});
+
+test("two Maintenance triggers at once both resolve inside the pass", () => {
+  const state = E.createGame(config("F1.0"));
+  const clock = CARDS.find((card) => card.name === "Uptime Clock");
+  for (let i = 0; i < 2; i++) {
+    const uid = "o" + state.nextUid;
+    state.nextUid += 1;
+    state.objects[uid] = {
+      uid, cardId: clock.id, owner: 0, controller: 0, zone: "0:network", committed: false,
+      bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+      revealedTo: [], revealedUntil: null, token: false, entersSeq: state.seq, prevUid: null,
+    };
+    state.zones["0:network"].push(uid);
+  }
+  const uptime = state.seats[1].uptime;
+  const walk = passUntil(state, (s) => s.turn.active === 1 && s.priority.seat !== null);
+  // Nobody is asked to order the two: Fast resolves triggers in the order raised.
+  assert.deepEqual(walk.actions.map((a) => a.type), ["PASS_PRIORITY", "DISCARD_TO_LIMIT"]);
+  assert.equal(walk.state.seats[1].uptime, uptime - 2);
+  assert.equal(walk.state.queue.length, 0);
+});
+
+test("a trigger raised while a card resolves is resolved in the same action", () => {
+  /* Grounded Signal: "When this Attachment enters, if attached Avatar has
+   * Broadcast, this Attachment deals 2 damage to that Avatar". The enter
+   * trigger only exists once the card has resolved, inside the Queue settling,
+   * so the settling has to collect it and keep going. */
+  const state = E.createGame(config("F1.0"));
+  const host = "o" + state.nextUid;
+  state.nextUid += 1;
+  state.objects[host] = {
+    uid: host, cardId: "E1-036", owner: 0, controller: 0, zone: "0:network", committed: false,
+    bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+    revealedTo: [0, 1], revealedUntil: null, token: false, entersSeq: 0, prevUid: null,
+  };
+  state.zones["0:network"].push(host);
+  state.effects.push({ kind: "grant", targetUid: host, keyword: "Broadcast", controller: 0 });
+  const signal = "o" + state.nextUid;
+  state.nextUid += 1;
+  state.objects[signal] = {
+    uid: signal, cardId: "E1-148", owner: 0, controller: 0, zone: "0:wallet", committed: false,
+    bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+    revealedTo: [0], revealedUntil: null, token: false, entersSeq: 0, prevUid: null,
+  };
+  state.zones["0:wallet"].push(signal);
+  const result = act(state, "PLAY_CARD", 0, { uid: signal, targets: [{ kind: "object", uid: host }] });
+  assert.equal(result.error, null, JSON.stringify(result.error));
+  assert.equal(result.state.queue.length, 0);
+  assert.deepEqual([result.state.pendingTriggers[0].length, result.state.pendingTriggers[1].length], [0, 0]);
+  assert.ok(result.events.some((e) => e.t === "DAMAGE" && e.pub.uid === host && e.pub.amount === 2),
+    `the enter trigger dealt its damage: ${result.events.map((e) => e.t).join(",")}`);
+});
+
 test("bot games under Fast finish, and nothing waits on the Queue between actions", () => {
   /* The NPC plays the same policy as the browser. Four pairings measured to
    * finish on these seeds. Signal/Bitcoin is left out on purpose, for a reason
@@ -563,4 +639,181 @@ test("playing a Fast game does not mutate the shared card catalog", () => {
   const before = JSON.stringify(CARDS);
   passUntil(E.createGame(config("F1.0")), (s) => s.turn.number >= 3);
   assert.equal(JSON.stringify(CARDS), before);
+});
+
+/* ------------------------------------------------------------- attacking */
+
+/* Vanilla Avatars: no abilities and no keywords, so nothing but the attack
+ * rules acts on them. Keywords are granted as plain effects where needed. */
+const MORGS = "E1-036"; // 2/2
+const CUDDY = "E1-044"; // 2/1
+const DARREN = "E1-095"; // 5/4
+const TINY = "E1-071"; // 1/1
+
+function place(state, cardId, seat, extra) {
+  const uid = "o" + state.nextUid;
+  state.nextUid += 1;
+  state.objects[uid] = Object.assign({
+    uid, cardId, owner: seat, controller: seat, zone: `${seat}:network`, committed: false,
+    bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+    revealedTo: [0, 1], revealedUntil: null, token: false, entersSeq: 0, prevUid: null,
+  }, extra || {});
+  state.zones[`${seat}:network`].push(uid);
+  return uid;
+}
+
+const grant = (state, uid, keyword) =>
+  state.effects.push({ kind: "grant", targetUid: uid, keyword, controller: state.objects[uid].controller });
+
+const attack = (state, attacker, target, seat = 0) => act(state, "DECLARE_ATTACK", seat, { attacker, target });
+const face = (seat) => ({ kind: "seat", seat });
+const avatar = (uid) => ({ kind: "object", uid });
+const inNetwork = (state, uid) => Boolean(state.objects[uid]) && state.objects[uid].zone.endsWith(":network");
+
+test("an Avatar attacks the opponent directly, once, and the turn goes on", () => {
+  const state = E.createGame(config("F1.0"));
+  const morgs = place(state, MORGS, 0);
+  const uptime = state.seats[1].uptime;
+  const hit = attack(state, morgs, face(1));
+  assert.equal(hit.error, null, JSON.stringify(hit.error));
+  assert.equal(hit.state.seats[1].uptime, uptime - 2);
+  assert.equal(hit.state.objects[morgs].committed, true, "attacking commits the Avatar");
+  assert.deepEqual(hit.state.turn.attacked, [morgs]);
+  const event = hit.events.find((e) => e.t === "ATTACK");
+  assert.deepEqual([event.pub.attacker, event.pub.target], [morgs, face(1)]);
+  assert.deepEqual([hit.state.priority.seat, hit.state.priority.window], [0, "build1:main"]);
+  assert.equal(attack(hit.state, morgs, face(1)).error.code, "CANNOT_ATTACK", "a committed Avatar cannot attack again");
+  // It is ready again on its controller's next turn.
+  const next = passUntil(hit.state, (s) => s.turn.number === 2 && s.turn.active === 0 && s.priority.seat === 0);
+  assert.equal(attack(next.state, morgs, face(1)).error, null);
+});
+
+test("two Avatars trade damage at once, and the dead go to the Archive", () => {
+  const state = E.createGame(config("F1.0"));
+  const darren = place(state, DARREN, 0); // 5/4
+  const morgs = place(state, MORGS, 1); // 2/2
+  const cuddy = place(state, CUDDY, 0); // 2/1
+  const tiny = place(state, TINY, 1); // 1/1
+  let result = attack(state, darren, avatar(morgs));
+  assert.equal(result.error, null, JSON.stringify(result.error));
+  assert.equal(inNetwork(result.state, morgs), false, "Morgs took 5 and was decommissioned");
+  assert.equal(result.state.objects[darren].damage, 2, "Darren took Morgs's 2 back");
+  assert.equal(result.state.seats[1].uptime, state.seats[1].uptime, "no Overflow, no damage to the player");
+  result = attack(result.state, cuddy, avatar(tiny));
+  assert.equal(inNetwork(result.state, tiny), false);
+  assert.equal(inNetwork(result.state, cuddy), false, "both 1-Resilience Avatars died simultaneously");
+});
+
+test("Boot Delay: an Avatar cannot attack the turn it arrives", () => {
+  const state = E.createGame(config("F1.0"));
+  const fresh = place(state, MORGS, 0, { bootDelay: true });
+  assert.equal(attack(state, fresh, face(1)).error.code, "CANNOT_ATTACK");
+  assert.equal(E.legalActions(E.view(state, 0), 0).some((move) => move.type === "DECLARE_ATTACK"), false);
+});
+
+test("a Firewall must be attacked first, unless the attacker has Broadcast", () => {
+  const state = E.createGame(config("F1.0"));
+  const morgs = place(state, MORGS, 0);
+  const loud = place(state, CUDDY, 0);
+  grant(state, loud, "Broadcast");
+  const wall = place(state, DARREN, 1);
+  grant(state, wall, "Firewall");
+  const other = place(state, TINY, 1);
+  assert.equal(attack(state, morgs, face(1)).error.code, "FIREWALL");
+  assert.equal(attack(state, morgs, avatar(other)).error.code, "FIREWALL");
+  assert.equal(attack(state, morgs, avatar(wall)).error, null);
+  assert.equal(attack(state, loud, face(1)).error, null, "Broadcast goes over the Firewall");
+  // And a Firewall may attack under Fast: it is a taunt, not a wall that never moves.
+  const own = place(state, MORGS, 0);
+  grant(state, own, "Firewall");
+  assert.equal(attack(state, own, avatar(wall)).error, null);
+});
+
+test("First Strike hits first, and a target it kills does not hit back", () => {
+  const state = E.createGame(config("F1.0"));
+  const striker = place(state, MORGS, 0); // 2/2
+  grant(state, striker, "First Strike");
+  const victim = place(state, CUDDY, 1); // 2/1
+  let result = attack(state, striker, avatar(victim));
+  assert.equal(result.error, null, JSON.stringify(result.error));
+  assert.equal(inNetwork(result.state, victim), false);
+  assert.equal(result.state.objects[striker].damage, 0, "the dead do not strike back");
+  // A defender with First Strike kills the attacker before it lands a blow.
+  const defended = E.createGame(config("F1.0"));
+  const attacker = place(defended, CUDDY, 0); // 2/1
+  const guard = place(defended, MORGS, 1); // 2/2
+  grant(defended, guard, "First Strike");
+  result = attack(defended, attacker, avatar(guard));
+  assert.equal(inNetwork(result.state, attacker), false);
+  assert.equal(result.state.objects[guard].damage, 0);
+});
+
+test("Overflow carries damage beyond lethal on to the player", () => {
+  const state = E.createGame(config("F1.0"));
+  const darren = place(state, DARREN, 0); // 5/4
+  grant(state, darren, "Overflow");
+  const tiny = place(state, TINY, 1); // 1/1
+  const result = attack(state, darren, avatar(tiny));
+  assert.equal(result.error, null, JSON.stringify(result.error));
+  assert.equal(result.state.seats[1].uptime, state.seats[1].uptime - 4);
+  assert.equal(inNetwork(result.state, tiny), false);
+  // Without Overflow the same attack stops at the Avatar.
+  const plain = E.createGame(config("F1.0"));
+  const d2 = place(plain, DARREN, 0);
+  const t2 = place(plain, TINY, 1);
+  assert.equal(attack(plain, d2, avatar(t2)).state.seats[1].uptime, plain.seats[1].uptime);
+});
+
+test("an attack that brings the opponent to zero ends the game", () => {
+  const state = E.createGame(config("F1.0"));
+  state.seats[1].uptime = 2;
+  const morgs = place(state, MORGS, 0);
+  const result = attack(state, morgs, face(1));
+  assert.ok(result.state.result, "the game has a verdict");
+  assert.deepEqual(result.state.result.winners, [0]);
+});
+
+test("attacks are refused where they do not belong", () => {
+  const state = E.createGame(config("F1.0"));
+  const mine = place(state, MORGS, 0);
+  const also = place(state, CUDDY, 0);
+  const theirs = place(state, TINY, 1);
+  assert.equal(attack(state, mine, face(0)).error.code, "BAD_TARGET", "not yourself");
+  assert.equal(attack(state, mine, avatar(also)).error.code, "BAD_TARGET", "not your own Avatar");
+  assert.equal(attack(state, theirs, face(0), 0).error.code, "NOT_CONTROLLER");
+  assert.equal(attack(state, mine, { kind: "nobody" }).error.code, "SCHEMA");
+  assert.equal(attack(state, theirs, face(0), 1).error.code, "NO_PRIORITY", "not on the opponent's turn");
+  const hand = state.zones["0:wallet"][0];
+  assert.equal(attack(state, hand, face(1)).error.code, "NOT_IN_ZONE");
+  for (const type of ["DECLARE_ATTACKERS", "DECLARE_BLOCKERS", "ORDER_BLOCKERS", "ASSIGN_COMBAT_DAMAGE"]) {
+    const payload = { DECLARE_ATTACKERS: { attackers: [] }, DECLARE_BLOCKERS: { blocks: {} },
+      ORDER_BLOCKERS: { order: {} }, ASSIGN_COMBAT_DAMAGE: { assignment: null } }[type];
+    assert.equal(act(state, type, 0, payload).error.code, "WRONG_PROFILE", type);
+  }
+  // Classic keeps its Clash and refuses the Fast action.
+  const classic = E.createGame(config());
+  const classicMine = place(classic, MORGS, 0);
+  assert.equal(attack(classic, classicMine, face(1)).error.code, "WRONG_PROFILE");
+  assert.equal(E.legalActions(E.view(classic, 0), 0).some((move) => move.type === "DECLARE_ATTACK"), false);
+});
+
+test("legalActions offers each ready Avatar an attack, and only on its controller's turn", () => {
+  const state = E.createGame(config("F1.0"));
+  const ready = place(state, MORGS, 0);
+  place(state, CUDDY, 0, { committed: true });
+  const theirs = place(state, TINY, 1);
+  const offered = E.legalActions(E.view(state, 0), 0).filter((move) => move.type === "DECLARE_ATTACK");
+  assert.deepEqual(offered.map((move) => move.payload), [{ attacker: ready, target: face(1) }]);
+  assert.equal(E.legalActions(E.view(state, 1), 1).some((move) => move.type === "DECLARE_ATTACK"), false);
+  assert.ok(theirs);
+});
+
+test("a Fast game with attacks replays, and its transcript verifies", () => {
+  const state = E.createGame(config("F1.0"));
+  const morgs = place(state, MORGS, 0);
+  const result = attack(state, morgs, face(1));
+  assert.equal(result.error, null);
+  assert.equal(E.hashState(attack(state, morgs, face(1)).state), E.hashState(result.state), "deterministic");
+  // Nothing Clash-shaped was touched.
+  assert.deepEqual(result.state.clash, state.clash);
 });
