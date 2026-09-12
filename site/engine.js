@@ -7435,6 +7435,7 @@
     RULESET_PROFILE,
     profileOf,
     ribbonFor,
+    flattenCost,
     FAST_POOL_CAP,
     MIN_STACK,
     MAX_COPIES,

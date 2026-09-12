@@ -12,6 +12,11 @@
  * needs no targets, attacks with everything eligible, blocks greedily, and
  * accepts every proposal its opponent makes (the honor system, extended to a
  * bot that has no honor to lose). It never proposes manual edits itself.
+ *
+ * Under the Fast profile there are no Resources to play or commit and no Clash
+ * to declare: the bot plays what its pool affords — aiming single-target cards
+ * at the opponent's things when they hurt and at its own when they help — and
+ * then sends each ready Avatar at the best target it sees.
  * ------------------------------------------------------------------------ */
 (function (globalScope) {
   "use strict";
@@ -64,6 +69,102 @@
       }
     }
     return blocks;
+  }
+
+  /* Ops that hurt whatever they target. A single-target card with one of these
+   * aims at the opponent first; every other targeted card aims at the bot's
+   * own side first. The engine still judges legality — this only orders tries. */
+  const HARMFUL_OPS = new Set([
+    "damage", "divideDamage", "decommission", "coldStorage", "bounce", "toggleCommitted",
+    "drainBuffer", "stealGeneratedBuffer", "discard", "invalidate", "invalidateByCostX",
+    "gridEruption", "finalSettlement", "feeSpike", "routeMisdirection", "setAffinity", "rewriteWords",
+  ]);
+
+  const isFast = (E, state) => Boolean(E.profileOf) && E.profileOf(state).id === "fast";
+
+  /* Fast target tries for a card with exactly one target: objects and seats on
+   * the side the card is meant for, biggest Avatar first, then the other side. */
+  function targetTries(E, state, seat, card) {
+    const ctx = E.resolveCtx({});
+    const harmful = card.playOps.some((op) => HARMFUL_OPS.has(op.op));
+    const sides = harmful ? [1 - seat, seat] : [seat, 1 - seat];
+    const tries = [];
+    for (const side of sides) {
+      const objects = zoneOf(state, side, "network").slice().sort((a, b) => {
+        const power = (uid) => {
+          try {
+            return E.statsOf(state, ctx, uid).action || 0;
+          } catch (error) {
+            return 0;
+          }
+        };
+        return power(b) - power(a);
+      });
+      for (const uid of objects) tries.push([{ kind: "object", uid }]);
+      tries.push([{ kind: "seat", seat: side }]);
+    }
+    return tries;
+  }
+
+  /* Fast attacks, ranked per ready Avatar: lethal to the face; otherwise the
+   * best trade it wins (kills and survives), then an even trade worth at least
+   * what it costs; otherwise the face. With a Firewall in the way and no
+   * Broadcast, only a Firewall is on the list. */
+  function planAttacks(E, state, seat, compiled) {
+    const ctx = E.resolveCtx({});
+    const env = { state, ctx };
+    const opponent = 1 - seat;
+    const safe = (fn, fallback) => {
+      try {
+        return fn();
+      } catch (error) {
+        return fallback;
+      }
+    };
+    const stats = (uid) => safe(() => E.statsOf(state, ctx, uid), { action: 0, resilience: 0 });
+    const has = (uid, keyword) => safe(() => E.keywordsOf(state, ctx, uid).indexOf(keyword) >= 0, false);
+    const left = (uid) => stats(uid).resilience - (state.objects[uid].damage || 0);
+    const ready = zoneOf(state, seat, "network")
+      .filter((uid) => safe(() => E.canAttack(env, uid), false))
+      .sort((a, b) => stats(b).action - stats(a).action);
+    if (!ready.length) return [];
+    const theirs = zoneOf(state, opponent, "network").filter((uid) => {
+      const object = state.objects[uid];
+      const card = object && object.cardId ? compiled(object.cardId) : null;
+      return Boolean(card && card.isAvatar);
+    });
+    const firewalls = theirs.filter((uid) => has(uid, "Firewall"));
+    const power = ready.reduce((sum, uid) => sum + Math.max(0, stats(uid).action), 0);
+    const lethal = !firewalls.length && power >= state.seats[opponent].uptime;
+    const face = { kind: "seat", seat: opponent };
+    const moves = [];
+    for (const attacker of ready) {
+      const strength = Math.max(0, stats(attacker).action);
+      const toughness = left(attacker);
+      const walled = firewalls.length > 0 && !has(attacker, "Broadcast");
+      if (lethal) moves.push({ attacker, target: face });
+      const pool = walled ? firewalls : theirs;
+      const trades = pool
+        .map((uid) => ({
+          uid,
+          kills: strength >= left(uid),
+          survives: stats(uid).action < toughness || (has(attacker, "First Strike") && strength >= left(uid)),
+          worth: Math.max(0, stats(uid).action) + left(uid),
+        }))
+        .filter((trade) => trade.kills)
+        .sort((a, b) => Number(b.survives) - Number(a.survives) || b.worth - a.worth || (a.uid < b.uid ? -1 : 1));
+      for (const trade of trades) {
+        if (walled || trade.survives || trade.worth >= strength + toughness) {
+          moves.push({ attacker, target: { kind: "object", uid: trade.uid } });
+        }
+      }
+      if (walled) {
+        for (const uid of firewalls) moves.push({ attacker, target: { kind: "object", uid } });
+      } else {
+        moves.push({ attacker, target: face });
+      }
+    }
+    return moves;
   }
 
   /* The ranked candidate list. `compiled` is a cardId -> compiled-card lookup
@@ -144,7 +245,9 @@
         for (const uid of selectable) {
           const object = state.objects[uid];
           const card = object && object.cardId ? compiled(object.cardId) : null;
-          const kind = card && card.isResource ? "Resource" : "Other";
+          // The engine keys caps by type ("Avatar", "Resource", …); the old
+          // "Other" bucket never matched, so a capped unlock was always refused.
+          const kind = !card ? "Other" : card.isResource ? "Resource" : card.isAvatar ? "Avatar" : card.type;
           const cap = caps[kind];
           if (cap !== undefined) {
             used[kind] = used[kind] || 0;
@@ -158,7 +261,28 @@
         // even if a cap is expressed in a way the loop above did not expect.
         push("CHOOSE_UNLOCK", { uids: required });
       }
-      if (awaiting.kind === "draw") push("CHOOSE_DRAW", { skip: false });
+      // The engine names this prompt "drawReplacement"; "draw" is kept for old states.
+      if (awaiting.kind === "draw" || awaiting.kind === "drawReplacement") push("CHOOSE_DRAW", { skip: false });
+      /* Three prompts the policy used to leave unanswered, each a stall. */
+      if (awaiting.kind === "remotePlay") {
+        const card = compiled(awaiting.cardId);
+        const modes = card && card.playModes ? card.playModes.map((mode, index) => index) : [null];
+        const payer = awaiting.payer === undefined ? seat : awaiting.payer;
+        for (const mode of modes) {
+          const spec = card && (mode === null ? card.playTargetSpec : card.playModes[mode].targetSpec) || [];
+          const tries = spec.length === 1 ? targetTries(E, state, payer, card) : [[]];
+          for (const targets of tries) {
+            push("REMOTE_PLAY_CARD", mode === null ? { targets } : { targets, modes: [mode] });
+          }
+        }
+      }
+      if (awaiting.kind === "sovereignDamage") {
+        const own = zoneOf(state, seat, "network").filter((uid) => state.objects[uid] && !state.objects[uid].token);
+        push("CHOOSE_SOVEREIGN_ARCHIVE", { uids: own.slice(0, awaiting.amount) });
+      }
+      if (awaiting.kind === "tombstoneCleanup") {
+        push("CHOOSE_TOMBSTONE_CLEANUP", { uids: awaiting.tasks.map((task) => task.options[0]) });
+      }
       if (awaiting.kind === "triggers") {
         const waiting = state.pendingTriggers[String(seat)] || [];
         push("ORDER_TRIGGERS", { qids: waiting.map((t) => t.pendingId) });
@@ -172,6 +296,8 @@
     const network = zoneOf(state, seat, "network");
     const buffer = state.seats[seat].buffer;
     const affinity = (prefs && prefs.affinity) || "Bitcoin";
+
+    if (isFast(E, state)) return fastCandidates(E, state, seat, compiled, out, push);
 
     /* 1 — the free Resource play for the turn. */
     if (state.turn.active === seat && state.turn.resourcePlays.used < state.turn.resourcePlays.allowed) {
@@ -321,7 +447,44 @@
     return out;
   }
 
-  const api = { waitingSeat, candidates };
+  /* Fast: play what the pool affords, then attack, then pass. Avatars first,
+   * then the dearest card, so the curve is spent rather than trickled. */
+  function fastCandidates(E, state, seat, compiled, out, push) {
+    const buffer = state.seats[seat].buffer;
+    const pool = Object.values(buffer).reduce((total, n) => total + n, 0);
+    const price = (cost) => (cost ? E.flattenCost(cost) : null);
+    const total = (cost) => (cost ? (cost.generic || 0) : 0);
+    if (state.turn.active === seat && ["build1", "build2"].indexOf(state.turn.phase) >= 0) {
+      const playable = zoneOf(state, seat, "wallet")
+        .map((uid) => ({ uid, card: compiled(state.objects[uid].cardId) }))
+        .filter(({ card }) =>
+          card && !card.isResource && !card.manual && !card.playModes &&
+          card.playTargetSpec.length <= 1 && E.canPay(buffer, price(card.costParsed)))
+        .sort((a, b) =>
+          Number(b.card.isAvatar) - Number(a.card.isAvatar) ||
+          total(price(b.card.costParsed)) - total(price(a.card.costParsed)) ||
+          (a.uid < b.uid ? -1 : 1));
+      for (const { uid, card } of playable) {
+        const payload = { uid, targets: [] };
+        if (card.costParsed && card.costParsed.x) {
+          const fixed = total(price(Object.assign({}, card.costParsed, { x: 0 })));
+          const x = Math.max(0, Math.min(3, Math.floor((pool - fixed) / card.costParsed.x)));
+          if (!x) continue;
+          payload.x = x;
+        }
+        if (card.playTargetSpec.length === 1) {
+          for (const targets of targetTries(E, state, seat, card)) push("PLAY_CARD", Object.assign({}, payload, { targets }));
+        } else {
+          push("PLAY_CARD", payload);
+        }
+      }
+      for (const move of planAttacks(E, state, seat, compiled)) push("DECLARE_ATTACK", move);
+    }
+    push("PASS_PRIORITY");
+    return out;
+  }
+
+  const api = { waitingSeat, candidates, planAttacks };
   globalScope.E1Npc = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
