@@ -444,6 +444,18 @@ const STATE_BASE = {
   view: null, events: [], full: true, publicHash: null, result: null,
 };
 
+/* Waits for what a test asserts instead of a fixed tick. One setImmediate was
+ * enough in isolation but not under the parallel full suite, where the NutFT
+ * check and its prompt had not settled yet. Bounded, so a real regression
+ * fails with a message rather than hanging the run. */
+async function waitFor(check, what, turns = 500) {
+  for (let turn = 0; turn < turns; turn += 1) {
+    if (check()) return;
+    await new Promise((resolve) => setTimeout(resolve, turn < 50 ? 0 : 5));
+  }
+  assert.fail(`timed out waiting for ${what}`);
+}
+
 function clientGame(seed = 990000) {
   return globalThis.E1Engine.createGame({
     seats: [{ name: "A", affinity: "Power" }, { name: "B", affinity: "Signal" }],
@@ -645,12 +657,13 @@ test("a NutFT-marked Stack proves non-basic possession while Basics stay free", 
   byId("deckA").value = "custom:Owned";
   byId("deckB").value = "Signal";
   byId("start").click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await waitFor(() => /needs 3, wallet controls 2/.test(byId("prompt").textContent), "the possession failure prompt");
   assert.equal(game.state, null);
   assert.match(byId("prompt").textContent, /needs 3, wallet controls 2/);
+  await waitFor(() => !byId("start").disabled, "Start to unlock after the failed check");
   count = 3;
   byId("start").click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await waitFor(() => game.state, "the verified Stack to start");
   assert.ok(game.state, "the verified Stack should start after all 40 proofs pass");
 });
 
@@ -669,7 +682,7 @@ test("a shell-stored NutFT marker still gates its shell-stored Stack", async (t)
   byId("deckA").value = "custom:Owned";
   byId("deckB").value = "Signal";
   byId("start").click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await waitFor(() => /needs 3, wallet controls 0/.test(byId("prompt").textContent), "the possession failure prompt");
   assert.equal(game.state, null);
   assert.match(byId("prompt").textContent, /needs 3, wallet controls 0/);
 });
@@ -686,7 +699,7 @@ test("a stale NutFT marker cannot turn a missing Stack into an empty ownership c
   byId("deckA").value = "custom:Ghost";
   byId("deckB").value = "Signal";
   byId("start").click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await waitFor(() => /Ghost.*no saved card list/i.test(byId("prompt").textContent), "the missing card list prompt");
   assert.equal(game.state, null);
   assert.match(byId("prompt").textContent, /Ghost.*no saved card list/i);
 });
@@ -716,7 +729,7 @@ test("NutFT verification locks Start against duplicate submissions", async () =>
   assert.equal(checks, 1);
   assert.equal(byId("start").disabled, true);
   release({ owned: Array.from({ length: 3 }, () => ({ tag: ["1", "600B-E1", "E1-004"] })) });
-  await new Promise((resolve) => setImmediate(resolve));
+  await waitFor(() => game.state, "the verified Stack to start");
   assert.ok(game.state);
 });
 
