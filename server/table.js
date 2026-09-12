@@ -39,6 +39,11 @@ const E = require(path.join(REPO, "site", "engine.js"));
 const CARDS = require(path.join(REPO, "site", "play-data.js"));
 
 const CATALOG = E.setCatalog(CARDS);
+/* The Fast rules (F1.0) deal the same card ids with their own values. A table
+ * opens under the rules its host chose, from the list a deployment allows
+ * (TABLE_RULESETS, default both): the client asks, the referee decides. */
+const FAST_CATALOG = E.setCatalog(require(path.join(REPO, "site", "play-data-fast.js")), "F1.0");
+const CATALOGS = { "E1.0": CATALOG, "F1.0": FAST_CATALOG };
 
 // ------------------------------------------------------------------ constants
 
@@ -509,7 +514,13 @@ async function createTable(opts) {
     return config;
   };
 
-  function mintGame(seat0, seat1) {
+  const allowedRulesets = String(
+    options.rulesets !== undefined ? options.rulesets : process.env.TABLE_RULESETS || "E1.0,F1.0"
+  ).split(",").map((value) => value.trim()).filter((value) => CATALOGS[value]);
+  /* Anything unknown or not allowed here is Classic, which every table plays. */
+  const cleanRuleset = (value) => (allowedRulesets.indexOf(value) >= 0 ? value : "E1.0");
+
+  function mintGame(seat0, seat1, ruleset) {
     const attempts = [];
     /* HASHED, NOT ADJACENT. `hidden = [pin+1, pin+2]` meant that knowing the
      * public seed gave you both hidden ones by addition — and the public seed
@@ -549,6 +560,8 @@ async function createTable(opts) {
         seeds,
         policy: { freeform: "deny" },
       };
+      // Named only for Fast, so a Classic config and its gameId are unchanged.
+      if (ruleset === "F1.0") config.ruleset = ruleset;
       try {
         return { config, state: E.createGame(config) };
       } catch (err) {
@@ -1201,7 +1214,8 @@ async function createTable(opts) {
    * referee could not build a legal deck pair", which is both slow and a lie.
    *
    * Returns null for "no deck sent", which is Ready mode: the referee deals. */
-  function cleanDeck(value) {
+  function cleanDeck(value, ruleset) {
+    const catalog = CATALOGS[ruleset] || CATALOG;
     if (value === undefined || value === null) return null;
     if (!Array.isArray(value)) throw badDeck("a Stack is a list of card ids");
     if (value.length > MAX_DECK) throw badDeck(`a Stack of ${value.length} cards is past the ${MAX_DECK} this table accepts`);
@@ -1209,7 +1223,7 @@ async function createTable(opts) {
     const copies = {};
     for (const raw of value) {
       if (typeof raw !== "string") throw badDeck("a Stack is a list of card ids");
-      const card = CATALOG.byId[raw];
+      const card = catalog.byId[raw];
       if (!card) throw badDeck(`no card called ${String(raw).slice(0, 40)} in this set`);
       /* The same filter buildDeckList applies (D-12): the Stake module is off at
        * this table, and a card the ruleset cannot resolve must not be dealt. */
@@ -1239,8 +1253,9 @@ async function createTable(opts) {
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
     const pubkey = authenticatedPubkey(conn, msg);
     if (!pubkey) return;
+    const ruleset = cleanRuleset(msg.ruleset);
     let deck;
-    try { deck = cleanDeck(msg.deck); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
+    try { deck = cleanDeck(msg.deck, ruleset); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
     /* An open table this connection is still hosting is closed first. Two
      * CREATEs on one socket used to leave the first as an advertised row with
      * nobody sitting at it — exactly the trap LEAVE exists to prevent, arrived
@@ -1254,7 +1269,7 @@ async function createTable(opts) {
     const token = hex(16);
     const at = nowIso();
     q.insertMatch.run(
-      matchId, code, "open", at, at, "{}", "E1.0", CATALOG.digest,
+      matchId, code, "open", at, at, "{}", ruleset, CATALOGS[ruleset].digest,
       null, name, affinity, pubkey, token, cleanStake(msg.stake)
     );
     if (deck) q.setSeatDeck.run(JSON.stringify(deck), matchId);
@@ -1290,7 +1305,8 @@ async function createTable(opts) {
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
     let deck;
-    try { deck = cleanDeck(msg.deck); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
+    // The table's rules are the host's: a guest's Stack is checked against them.
+    try { deck = cleanDeck(msg.deck, rec.ruleset); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
     // Belt and braces for the same fumble from a second tab of the same login.
     if (pubkey && rec.players[0].pubkey === pubkey) {
       return fail(conn.ws, "MATCH_FULL", "you cannot take both seats at one table");
@@ -1309,7 +1325,8 @@ async function createTable(opts) {
     try {
       minted = mintGame(
         { ...rec.players[0], deck: rec.decks[0] },
-        { name, affinity, pubkey, deck }
+        { name, affinity, pubkey, deck },
+        rec.ruleset
       );
     } catch (err) {
       /* A Stack somebody brought is refused as itself, not as the referee's
@@ -1380,7 +1397,7 @@ async function createTable(opts) {
       pubkey: entry.conn.pubkey,
       deck: entry.deck || null,
     }));
-    const minted = mintGame(seats[0], seats[1]); // throws DECK_BUILD_FAILED (D-12)
+    const minted = mintGame(seats[0], seats[1], first.ruleset); // throws DECK_BUILD_FAILED (D-12)
     const matchId = "m_" + hex(6);
     let code = makeCode();
     for (let i = 0; i < 20 && q.byCode.get(code); i++) code = makeCode();
@@ -1432,6 +1449,7 @@ async function createTable(opts) {
          * game, so they wait in the same line but are not dealt against each
          * other. Matched, like the wager, rather than merely announced. */
         if (deckMode(queue[j].deck) !== deckMode(queue[i].deck)) continue;
+        if (queue[j].ruleset !== queue[i].ruleset) continue; // Fast waits for Fast
         return [i, j];
       }
     }
@@ -1472,11 +1490,12 @@ async function createTable(opts) {
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
     const stake = cleanStake(msg.stake);
+    const ruleset = cleanRuleset(msg.ruleset);
     let deck;
-    try { deck = cleanDeck(msg.deck); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
+    try { deck = cleanDeck(msg.deck, ruleset); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
     const index = queueIndex(conn);
-    if (index >= 0) Object.assign(queue[index], { name, affinity, stake, deck });
-    else queue.push({ conn, name, affinity, stake, deck, at: Date.now() });
+    if (index >= 0) Object.assign(queue[index], { name, affinity, stake, deck, ruleset });
+    else queue.push({ conn, name, affinity, stake, deck, ruleset, at: Date.now() });
     pumpQueue();
   }
 

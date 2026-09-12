@@ -2288,3 +2288,57 @@ test("a built Stack waits for another built Stack, not for a dealt one", async (
   const partner = await custom.type("STATE");
   assert.equal(partner.matchId, dealt.matchId, "and they must be at the same table");
 });
+
+// ------------------------------------------------------------- Fast tables
+
+const FAST_DIGEST = E.buildCatalog(require("../../site/play-data-fast.js")).digest;
+
+test("a host can open a Fast table: both seats play F1.0 on the Fast cards", async (t) => {
+  const table = await boot(t, "f1.db");
+  const a = await table.client();
+  a.send({ t: "CREATE", ruleset: "F1.0", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const created = await a.type("STATE");
+  const b = await table.client();
+  // The guest does not choose: the table's rules are the host's.
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
+  const joined = await b.type("STATE");
+  await a.type("STATE");
+  assert.equal(joined.view.ruleset, "F1.0");
+  assert.equal(joined.view.catalogDigest, FAST_DIGEST);
+  assert.equal(joined.view.priority.window, "build1:main", "a Fast game opens in the first Build window");
+  const row = table.db.prepare("SELECT ruleset, catalog_digest FROM matches WHERE match_id=?").get(joined.matchId);
+  assert.deepEqual([row.ruleset, row.catalog_digest], ["F1.0", FAST_DIGEST]);
+  // One pass hands the turn over, through the referee.
+  a.send({ t: "ACT", action: { type: "PASS_PRIORITY", seat: 0, seq: a.view.seq, at: "", payload: {} } });
+  const after = await a.next((msg) => msg.t === "FRAME" || msg.t === "REJECT");
+  assert.equal(after.t, "FRAME", JSON.stringify(after).slice(0, 300));
+});
+
+test("a ruleset the deployment does not allow opens a Classic table", async (t) => {
+  const table = await boot(t, "f2.db", { rulesets: "E1.0" });
+  const a = await table.client();
+  a.send({ t: "CREATE", ruleset: "F1.0", name: "felix", affinity: "Power", pubkey: a.pubkey });
+  const created = await a.type("STATE");
+  const row = table.db.prepare("SELECT ruleset FROM matches WHERE match_id=?").get(created.matchId);
+  assert.equal(row.ruleset, "E1.0");
+  const b = await table.client();
+  b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
+  assert.equal((await b.type("STATE")).view.ruleset, "E1.0");
+});
+
+test("the queue pairs Fast with Fast and never with Classic", async (t) => {
+  const table = await boot(t, "f3.db");
+  const fast = await table.client();
+  fast.send({ t: "QUEUE", ruleset: "F1.0", name: "fast one", affinity: "Power" });
+  await fast.type("QUEUED");
+  const classic = await table.client();
+  classic.send({ t: "QUEUE", name: "classic", affinity: "Signal" });
+  await classic.type("QUEUED");
+  const second = await table.client();
+  second.send({ t: "QUEUE", ruleset: "F1.0", name: "fast two", affinity: "Keys" });
+  const dealt = await second.type("STATE");
+  const host = await fast.type("STATE");
+  assert.equal(dealt.matchId, host.matchId);
+  assert.equal(dealt.view.ruleset, "F1.0");
+  assert.equal(classic.seat, null, "the Classic player is still waiting");
+});

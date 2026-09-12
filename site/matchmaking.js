@@ -192,6 +192,7 @@
   const satsWord = (sats) => (sats > 0 ? `${sats.toLocaleString("en-US")} sats` : "a friendly");
   const lobbyName = () => ($("netName").value || "Player").slice(0, 40);
   const lobbyAffinity = () => $("netAffinity").value;
+  const lobbyRuleset = () => ($("netRules") && $("netRules").value === "F1.0" ? "F1.0" : "E1.0");
 
   function findMatch() {
     if (!NET.tableUrl()) return void NET_HANDLERS.onError({ code: "NO_TABLE" });
@@ -200,7 +201,7 @@
     const stake = lobbyStake();
     try { localStorage.setItem(STAKE_KEY, String(stake)); } catch (error) { /* private mode */ }
     netNotice(`Looking for an opponent playing for ${satsWord(stake)}…`, "");
-    NET.queue({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake, deck: chosenDeck() });
+    NET.queue({ name: lobbyName(), affinity: lobbyAffinity(), ruleset: lobbyRuleset(), pubkey, stake, deck: chosenDeck() });
     renderQueue();
   }
 
@@ -264,7 +265,7 @@
     if (!pubkey) return void NET_HANDLERS.onError({ code: "NIP07_REQUIRED" });
     const stake = lobbyStake();
     netNotice(`Opening a table for ${satsWord(stake)}…`, "");
-    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), pubkey, stake, deck: chosenDeck() });
+    NET.create({ name: lobbyName(), affinity: lobbyAffinity(), ruleset: lobbyRuleset(), pubkey, stake, deck: chosenDeck() });
   }
 
   /* `stake` is what this player was SHOWN, echoed back as an acknowledgement.

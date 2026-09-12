@@ -13,7 +13,7 @@
   "use strict";
 
   const E = globalThis.E1Engine;
-  const CARDS = globalThis.E1_CARDS || [];
+  let CARDS = globalThis.E1_CARDS || [];
   const SYMBOLS = ["P", "B", "K", "S", "T"];
   // The locked Plate icon per symbol — shown in the buffer pips so a resource
   // reads by shape, not just by colour.
@@ -26,6 +26,24 @@
     if (!COMPILED[cardId]) COMPILED[cardId] = E.compileCard(CARD_BY_ID[cardId]);
     return COMPILED[cardId];
   };
+  /* The same 295 ids carry other values under the Fast rules: a Fast game is
+   * drawn, costed and explained from E1_CARDS_FAST. Swapped in place, so every
+   * CARD_BY_ID / compiled() reader follows without being told. */
+  const isFast = (state) => Boolean(state && state.ruleset === "F1.0");
+  /* Fast pays every cost as a plain number; asking canPay() about the printed
+   * symbols would call a 1P card unaffordable from a pool of three. */
+  const canPayFor = (state, pool, cost) =>
+    E.canPay(pool, isFast(state) && cost && E.flattenCost ? E.flattenCost(cost) : cost);
+  function useCatalog(ruleset) {
+    const next = ruleset === "F1.0" && Array.isArray(globalThis.E1_CARDS_FAST)
+      ? globalThis.E1_CARDS_FAST
+      : globalThis.E1_CARDS || [];
+    if (next === CARDS) return;
+    CARDS = next;
+    for (const key of Object.keys(CARD_BY_ID)) delete CARD_BY_ID[key];
+    for (const key of Object.keys(COMPILED)) delete COMPILED[key];
+    for (const card of CARDS) CARD_BY_ID[card.id] = card;
+  }
 
   /* Host-side session. `full` is the unredacted state — in a multiplayer build
    * this object lives on the server (or with the dealer) and each client holds
@@ -292,7 +310,7 @@
         !ability.manual &&
         !ability.resourceAbility &&
         ability.ops &&
-        (!ability.costParsed || E.canPay(pool, ability.costParsed))
+        (!ability.costParsed || canPayFor(session.full, pool, ability.costParsed))
     );
   }
 
@@ -352,7 +370,7 @@
     for (const uid of full.zones[`${seat}:wallet`] || []) {
       const object = full.objects[uid];
       const card = object && object.cardId ? CARD_BY_ID[object.cardId] : null;
-      if (card && card.type === "Zap" && E.canPay(pool, compiled(card.id).costParsed)) return false;
+      if (card && card.type === "Zap" && canPayFor(session.full, pool, compiled(card.id).costParsed)) return false;
     }
     for (const uid of full.zones[`${seat}:network`] || []) {
       if (couldActivate(full, pool, uid)) return false;
@@ -494,6 +512,12 @@
         return event.delta > 0
           ? cue("uptime:gain", { seat: event.seat, amount: event.delta })
           : cue("damage:player", { seat: event.seat, amount: -event.delta });
+      case "ATTACK":
+        return cue("attack:strike", {
+          seat: event.seat, uid: event.attacker,
+          targetSeat: event.target && event.target.kind === "seat" ? event.target.seat : null,
+          targetUid: event.target && event.target.kind === "object" ? event.target.uid : null,
+        }, { el: true });
       case "ATTACKERS":
         cue("clash:begin", {});
         return cue("clash:declareAttackers", { count: (event.attackers || []).length });
@@ -935,6 +959,14 @@
           : `${seatName(p.seat)} declares no attackers.`, ""];
       }
       case "BLOCKERS": return [`${seatName(p.seat)} declares blocks.`, ""];
+      case "ATTACK": {
+        const who = p.cardId ? nameOf(p.cardId) : "An Avatar";
+        const target = p.target && p.target.kind === "seat"
+          ? seatName(p.target.seat)
+          : p.target && p.target.cardId ? nameOf(p.target.cardId) : "an Avatar";
+        return [`${who} attacks ${target}.`, "warn"];
+      }
+      case "POOL": return [`${seatName(p.seat)} has ${p.max + (p.bonus || 0)} Resource${p.max + (p.bonus || 0) === 1 ? "" : "s"} this turn${p.bonus ? " (+1 for going second)" : ""}.`, "good"];
       case "ORDER": return ["Blockers are ordered.", ""];
       case "COMBAT_DAMAGE": return [p.firstStrike ? "First Strike damage." : "Combat damage.", "warn"];
       case "DISCARD": case "DISCARDED": return [`${seatName(p.seat)} discards.`, "warn"];
@@ -1480,6 +1512,9 @@
     if (!object || !object.cardId) return;
     const card = compiled(object.cardId);
     const entries = [];
+    if (fastAttackReady(v, seat, uid)) {
+      entries.push({ label: "Attack", disabled: false, run: () => beginAttack(v, seat, uid) });
+    }
     card.abilities.forEach((ability, index) => {
       if (ability.kind !== "activated" || ability.manual || !ability.ops) return;
       const blocked = ability.commit && object.committed;
@@ -1620,7 +1655,7 @@
   function beginAbility(v, seat, uid, abilityIndex, choice) {
     const card = compiled(v.objects[uid].cardId);
     const ability = card.abilities[abilityIndex];
-    if (ability.resourceAbility) {
+    if (ability.resourceAbility && !isFast(session.full)) {
       const payload = { uid, abilityIndex };
       if (choice) payload.choice = choice;
       return void dispatch("ACTIVATE_RESOURCE_ABILITY", seat, payload);
@@ -1658,6 +1693,9 @@
       copyModes: pendingCopyModes, additionalCosts,
     } = picking;
     picking = null;
+    if (kind === "attack") {
+      return void dispatch("DECLARE_ATTACK", uiSeat(session.full), { attacker: uid, target: targets[0] });
+    }
     if (kind === "remoteCost") {
       beginRemotePlay(session.full, uiSeat(session.full), targets.map((entry) => entry.uid));
     } else if (kind === "play") {
@@ -1729,6 +1767,9 @@
     const object = v.objects[uid];
     if (!object || !object.cardId) return false;
     const card = compiled(object.cardId);
+    if (spec.kind === "attack") {
+      return fastAttackTargets(v, uiSeat(session.full), picking.uid).avatars.indexOf(uid) >= 0;
+    }
     if (spec.kind === "seat" || spec.kind === "queue") return false;
     const zone = String(object.zone || "").split(":")[1];
     if (spec.zone && zone !== spec.zone) return false;
@@ -1739,7 +1780,7 @@
       const awaiting = session.full.awaiting;
       if (!awaiting || object.controller !== awaiting.payer || zone !== "network") return false;
     }
-    const ctx = E.resolveCtx({});
+    const ctx = E.resolveCtx({}, session.full);
     if (spec.affinity && E.affinitiesOf(v, ctx, uid).indexOf(spec.affinity) < 0) return false;
     if (spec.notAffinity && E.affinitiesOf(v, ctx, uid).indexOf(spec.notAffinity) >= 0) return false;
     if (spec.maximumAction !== undefined && E.statsOf(v, ctx, uid).action > spec.maximumAction) return false;
@@ -1761,6 +1802,9 @@
   const wantsSeatTarget = () => {
     if (!picking) return false;
     const spec = currentPickSpec();
+    if (spec && spec.kind === "attack") {
+      return fastAttackTargets(viewNow(), uiSeat(session.full), picking.uid).face;
+    }
     return Boolean(spec && (spec.kind === "seat" || spec.kind === "any"));
   };
 
@@ -2069,7 +2113,7 @@
     for (const restriction of card.playRestrictions || []) {
       if (!PLAY_WINDOW[restriction.window](full.turn, seat)) return false;
     }
-    return E.canPay(v.seats[seat].buffer, card.costParsed);
+    return canPayFor(v, v.seats[seat].buffer, card.costParsed);
   }
 
   function actGlow(v, seat, uid) {
@@ -2083,17 +2127,61 @@
         ability.kind === "activated" &&
         !ability.manual &&
         ability.ops &&
-        (!ability.costParsed || E.canPay(v.seats[seat].buffer, ability.costParsed))
+        (!ability.costParsed || canPayFor(v, v.seats[seat].buffer, ability.costParsed))
     );
   }
 
   /* During the attackers step, every Avatar that may legally swing says so.
    * The rules were always enforced; nothing ever pointed at them. */
+  /* Fast: one ready Avatar at a time, in your own Build window, straight at a
+   * target. No declaration step, no blocks — click it, then click what it hits. */
+  function fastAttackReady(v, seat, uid) {
+    if (!isFast(v) || v.result || v.priority.seat !== seat || v.turn.active !== seat) return false;
+    const object = v.objects[uid];
+    if (!object || object.controller !== seat || !object.cardId) return false;
+    try {
+      return E.canAttack({ state: v, ctx: E.resolveCtx({}, v) }, uid);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function beginAttack(v, seat, uid) {
+    const card = compiled(v.objects[uid].cardId);
+    picking = {
+      kind: "attack", uid, targets: [],
+      spec: [{ kind: "attack", prompt: `what ${card.name} attacks — an Avatar, or the opponent` }],
+    };
+    session.notice = null;
+    render();
+  }
+
+  /* The Firewall rule, restated for the glow only: the engine refuses anything
+   * else anyway, but a player should see the taunt before being told. */
+  function fastAttackTargets(v, seat, attackerUid) {
+    const ctx = E.resolveCtx({}, v);
+    const theirs = (v.zones[`${1 - seat}:network`] || []).filter((uid) => {
+      const object = v.objects[uid];
+      return object && object.cardId && compiled(object.cardId).isAvatar;
+    });
+    const has = (uid, keyword) => {
+      try {
+        return E.keywordsOf(v, ctx, uid).indexOf(keyword) >= 0;
+      } catch (error) {
+        return false;
+      }
+    };
+    const walls = theirs.filter((uid) => has(uid, "Firewall"));
+    const over = has(attackerUid, "Broadcast");
+    return { avatars: walls.length && !over ? walls : theirs, face: !walls.length || over };
+  }
+
   function attackGlow(v, seat, uid) {
+    if (isFast(v)) return fastAttackReady(v, seat, uid);
     if (!v.awaiting || v.awaiting.kind !== "attackers" || v.awaiting.seat !== seat) return false;
     if (attackers.indexOf(uid) >= 0) return false; // already declared: it reads as attacking
     try {
-      return E.canAttack({ state: v, ctx: E.resolveCtx({}) }, uid);
+      return E.canAttack({ state: v, ctx: E.resolveCtx({}, session.full) }, uid);
     } catch (error) {
       return false;
     }
@@ -2129,10 +2217,10 @@
      * for imprecise play: half a life total, taught by the interface.
      *
      * A held Buffer is now said out loud, and the button does not pretend. */
-    const held = bufferTotal(v.seats[seat].buffer);
+    const held = isFast(v) ? 0 : bufferTotal(v.seats[seat].buffer); // Fast: nothing burns
     const anythingLeft =
       v.zones[`${seat}:wallet`].some((uid) => playGlow(v, seat, uid)) ||
-      v.zones[`${seat}:network`].some((uid) => actGlow(v, seat, uid));
+      v.zones[`${seat}:network`].some((uid) => actGlow(v, seat, uid) || fastAttackReady(v, seat, uid));
     if (held > 0) {
       button.textContent = `End turn — burns ${held}`;
       button.title = `${held} unspent Resource${held > 1 ? "s" : ""} will burn for ${held} Uptime.`;
@@ -2176,7 +2264,7 @@
    * rules. The view carries everything statsOf needs. */
   function engineStats(v, uid) {
     try {
-      return E.statsOf(v, E.resolveCtx({}), uid);
+      return E.statsOf(v, E.resolveCtx({}, session.full), uid);
     } catch (error) {
       const card = CARD_BY_ID[v.objects[uid].cardId];
       return { action: card.action || 0, resilience: card.resilience || 0 };
@@ -2461,7 +2549,8 @@
       done: () => Boolean(session.full),
     },
     {
-      title: "Play a Resource",
+      title: () => (isFast(session.full) ? "Play a card" : "Play a Resource"),
+      fastText: "The glowing cards are the ones your pool can pay for right now. The pool refills every turn and grows by one, up to ten. Click or tap a card to play it; right-click, or press and hold, to read any card first.",
       // Never name a gesture the device in the player's hands does not have:
       // a phone has no right button, so the hold is named alongside it.
       // And "a Resource" means nothing to someone who has never played: on turn
@@ -2529,10 +2618,12 @@
         Boolean(session.full && session.full.clash && (session.full.clash.attackers || []).length)),
     },
     {
-      title: "Answer an attack",
+      title: () => (isFast(session.full) ? "Attack" : "Answer an attack"),
+      fastText: "A glowing Avatar of yours can attack. Click it, then click what it hits: an enemy Avatar, or their name bar to hit them directly. Dragging works too. A Firewall has to be hit first, and nobody blocks in Fast. End turn when you are done.",
       text: "When they swing at you, their attackers are outlined in red. Click the attacker first, then the Avatar of yours that stops it — your side then marks who may legally answer it (✓ BLK) and who may not (✕ BLK). Nothing has to block; unblocked attackers hit your Uptime. Continue locks it in.",
       anchor: "#foeNetwork",
       done: () => coachTaught("blocked",
+        Boolean(isFast(session.full) && session.full.turn.attacked && session.full.turn.attacked.length) ||
         Object.keys(blocks).length > 0 ||
         Boolean(session.full && session.full.clash &&
           Object.keys(session.full.clash.blocks || {}).length)),
@@ -2577,8 +2668,10 @@
     while (coachIndex < COACH_STEPS.length && COACH_STEPS[coachIndex].done()) coachIndex += 1;
     if (coachIndex >= COACH_STEPS.length) return void finishCoach();
     const step = COACH_STEPS[coachIndex];
-    document.getElementById("coachTitle").textContent = step.title;
-    document.getElementById("coachText").textContent = step.text;
+    document.getElementById("coachTitle").textContent =
+      typeof step.title === "function" ? step.title() : step.title;
+    document.getElementById("coachText").textContent =
+      isFast(session.full) && step.fastText ? step.fastText : step.text;
     document.getElementById("coachNext").textContent =
       coachIndex === COACH_STEPS.length - 1 ? "Done" : "Next";
     bubble.hidden = false;
@@ -2666,7 +2759,7 @@
   function railAffinity(v, uid, node) {
     let names = [];
     try {
-      names = E.affinitiesOf(v, E.resolveCtx({}), uid) || [];
+      names = E.affinitiesOf(v, E.resolveCtx({}, session.full), uid) || [];
     } catch (error) {
       names = [];
     }
@@ -2761,15 +2854,19 @@
 
     const ribbon = document.getElementById("phases");
     ribbon.innerHTML = "";
-    const here = E.TURN_RIBBON.findIndex(
+    const ribbonSlots = E.ribbonFor ? E.ribbonFor(v) : E.TURN_RIBBON;
+    const here = ribbonSlots.findIndex(
       (slot) => slot.phase === v.turn.phase && (slot.step === null || slot.step === v.turn.step)
     );
-    E.TURN_RIBBON.forEach((slot, index) => {
+    ribbonSlots.forEach((slot, index) => {
       ribbon.append(el("div", "phase" + (index === here ? " active" : index < here ? " done" : ""), slot.label));
     });
 
     for (const [side, who] of [["you", seat], ["foe", foe]]) {
-      document.getElementById(`${side}Bar`).classList.toggle("seat-target", wantsSeatTarget());
+      const attackPick = Boolean(picking && picking.kind === "attack");
+      document.getElementById(`${side}Bar`).classList.toggle(
+        "seat-target", wantsSeatTarget() && !(attackPick && side === "you")
+      );
       document.getElementById(`${side}Name`).textContent = v.seats[who].name;
       /* The playerbar IS the player — so give it the player's face. */
       mountPortrait(document.getElementById(`${side}Bar`), v.seats[who].pubkey, v.seats[who].name, who);
@@ -2805,7 +2902,7 @@
         (v.seats[who].stats.manualRejected ? ` · rejected ${v.seats[who].stats.manualRejected}` : "");
       const buffer = document.getElementById(`${side}Buffer`);
       buffer.innerHTML = "";
-      for (const key of [...SYMBOLS, "N"]) {
+      for (const key of isFast(v) ? [] : [...SYMBOLS, "N"]) {
         if (!v.seats[who].buffer[key]) continue;
         const pip = el("span", "pip pip-" + key, `${v.seats[who].buffer[key]}`);
         if (SYMBOL_ICON[key]) {
@@ -2819,6 +2916,11 @@
           pip.append(` ${key}`);
         }
         buffer.append(pip);
+      }
+      if (isFast(v) && v.seats[who].poolMax !== undefined) {
+        const pool = el("span", "pip pip-pool", `${bufferTotal(v.seats[who].buffer)}/${v.seats[who].poolMax}`);
+        pool.title = "Resources left this turn / pool size";
+        buffer.append(pool);
       }
     }
 
@@ -2859,6 +2961,10 @@
         if (toggleAwaitingSelection(v, seat, uid)) return;
         if (awaiting === "attackers") return void toggleAttacker(uid);
         if (awaiting === "blockers") return void assignBlocker(uid);
+        if (picking && picking.kind === "attack" && picking.uid === uid) {
+          picking = null;
+          return void render();
+        }
         activateFromBoard(v, seat, uid, pt(event));
       },
       onContext: (uid, event) => openCardDetail(v, seat, uid, false, pt(event)),
@@ -2876,7 +2982,7 @@
         if (blocking && blockTarget && !blockingWhat(uid)) {
           let legal = false;
           try {
-            legal = E.canBlock({ state: v, ctx: E.resolveCtx({}) }, uid, blockTarget);
+            legal = E.canBlock({ state: v, ctx: E.resolveCtx({}, session.full) }, uid, blockTarget);
           } catch (error) {
             legal = false;
           }
@@ -2909,9 +3015,16 @@
     }
 
     const resourceChip = document.getElementById("resourceChip");
-    const resourceSpent = v.turn.resourcePlays.used >= v.turn.resourcePlays.allowed;
-    resourceChip.textContent = resourceSpent ? "Resource play used" : "Resource play free";
-    resourceChip.classList.toggle("quiet", resourceSpent);
+    if (isFast(v)) {
+      // Fast has no Resource play: the chip reports the pool instead.
+      const mine = v.seats[seat];
+      resourceChip.textContent = `Pool ${bufferTotal(mine.buffer)}/${mine.poolMax || 0}`;
+      resourceChip.classList.toggle("quiet", !bufferTotal(mine.buffer));
+    } else {
+      const resourceSpent = v.turn.resourcePlays.used >= v.turn.resourcePlays.allowed;
+      resourceChip.textContent = resourceSpent ? "Resource play used" : "Resource play free";
+      resourceChip.classList.toggle("quiet", resourceSpent);
+    }
     document.getElementById("continue").textContent = continueLabel(v, seat);
     renderTurnLock();
 
@@ -3009,6 +3122,7 @@
   function renderQuickClash(v, seat) {
     const button = document.getElementById("quickClash");
     if (!button) return;
+    if (isFast(v)) return void (button.hidden = true);
     const awaiting = v.awaiting && v.awaiting.seat === seat ? v.awaiting.kind : null;
     if (awaiting === "attackers") {
       const eligible = (v.zones[`${seat}:network`] || []).filter((uid) => attackGlow(v, seat, uid));
@@ -3046,7 +3160,7 @@
    * phase, whose move it is, and live counts fed by the same glow logic
    * the cards themselves use. */
   function renderHud(v, seat) {
-    const slot = E.TURN_RIBBON.find(
+    const slot = (E.ribbonFor ? E.ribbonFor(v) : E.TURN_RIBBON).find(
       (entry) => entry.phase === v.turn.phase && (entry.step === null || entry.step === v.turn.step)
     );
     document.getElementById("hudPhase").textContent = slot ? slot.label : v.turn.phase;
@@ -3184,6 +3298,7 @@
       const full = session.full;
       if (!full || full.result) return null;
       const seat = uiSeat(full);
+      if (isFast(full)) return full.priority.seat === seat && full.turn.active === seat ? "fastAttack" : null;
       if (!full.awaiting || full.awaiting.seat !== seat) return null;
       if (full.awaiting.kind === "attackers") return "attack";
       if (full.awaiting.kind === "blockers") return "block";
@@ -3228,6 +3343,20 @@
       const droppedCard = target && target.closest ? target.closest(".gcard") : null;
       const droppedUid = droppedCard && droppedCard.dataset ? droppedCard.dataset.uid : null;
 
+      if (drag.kind === "fastAttack") {
+        const v = viewNow();
+        const seat = uiSeat(session.full);
+        if (!fastAttackReady(v, seat, drag.uid)) return void render();
+        const allowed = fastAttackTargets(v, seat, drag.uid);
+        if (droppedUid && allowed.avatars.indexOf(droppedUid) >= 0) {
+          return void dispatch("DECLARE_ATTACK", seat, { attacker: drag.uid, target: { kind: "object", uid: droppedUid } });
+        }
+        if (allowed.face && (within("#foeBar") || within("#foeHand") || (within("#foeNetwork") && !droppedUid))) {
+          return void dispatch("DECLARE_ATTACK", seat, { attacker: drag.uid, target: { kind: "seat", seat: 1 - seat } });
+        }
+        session.notice = allowed.face ? null : "A Firewall stands in the way: attack it first.";
+        return void render();
+      }
       if (drag.kind === "attack") {
         // Anywhere on the opponent's side means "go at them".
         if (within("#foeBar") || within("#foeNetwork") || within("#foeHand")) {
@@ -3259,6 +3388,7 @@
 
   function continueLabel(v, seat) {
     const spec = currentPickSpec();
+    if (isFast(v) && !spec && !(v.awaiting && v.awaiting.seat === seat) && v.turn.active === seat) return "End turn";
     if (spec && spec.variable) return `Confirm ${picking.targets.length} target(s)`;
     if (v.awaiting && v.awaiting.seat === seat) {
       if (v.awaiting.kind === "attackers") return "Declare attackers";
@@ -3355,7 +3485,7 @@
     const selected = attackers.filter((uid) => v.objects[uid]);
     const meshCount = selected.filter((uid) => {
       try {
-        return E.keywordsOf(v, E.resolveCtx({}), uid).indexOf("Mesh") >= 0;
+        return E.keywordsOf(v, E.resolveCtx({}, session.full), uid).indexOf("Mesh") >= 0;
       } catch (error) {
         return false;
       }
@@ -3420,7 +3550,7 @@
    * already shows the human ones, so the bar was the only place on screen
    * speaking code. Same source as the ribbon, so they can never disagree. */
   function stepLabel(v) {
-    const slot = E.TURN_RIBBON.find(
+    const slot = (E.ribbonFor ? E.ribbonFor(v) : E.TURN_RIBBON).find(
       (entry) => entry.phase === v.turn.phase && (entry.step === null || entry.step === v.turn.step)
     );
     return slot ? slot.label : v.turn.phase;
@@ -3444,7 +3574,9 @@
     "close/cleanup": "The turn is being tidied away. Continue.",
   };
   const stepAdvice = (v) =>
-    STEP_ADVICE[`${v.turn.phase}/${v.turn.step}`] || STEP_ADVICE[v.turn.phase] || "Continue.";
+    isFast(v) && v.turn.phase === "build1"
+      ? "Play cards, attack with ready Avatars, then End turn."
+      : STEP_ADVICE[`${v.turn.phase}/${v.turn.step}`] || STEP_ADVICE[v.turn.phase] || "Continue.";
 
   /* The table speaks for exactly ONE seat in remote play (the referee seated
    * us) and in solo (uiSeat pins the view to the human for the whole game).
@@ -3582,7 +3714,7 @@
       return void render();
     }
     const v = viewNow();
-    if (!E.canAttack({ state: v, ctx: E.resolveCtx({}) }, uid)) {
+    if (!E.canAttack({ state: v, ctx: E.resolveCtx({}, session.full) }, uid)) {
       const object = v.objects[uid];
       const card = CARD_BY_ID[object.cardId];
       session.notice = !compiled(card.id).isAvatar
@@ -3651,7 +3783,7 @@
     // Same reasoning as attackers: the declaration is atomic, and the keyword
     // gates of §14 (Broadcast, Shielded, Backchannel) are checked here so the
     // player learns immediately which blocks are legal.
-    if (!E.canBlock({ state: v, ctx: E.resolveCtx({}) }, uid, blockTarget)) {
+    if (!E.canBlock({ state: v, ctx: E.resolveCtx({}, session.full) }, uid, blockTarget)) {
       const card = CARD_BY_ID[v.objects[uid].cardId];
       /* "check Broadcast, Shielded or Backchannel" was a dead end: three rules
        * named, nowhere on the page to read any of them, and a rulebook one
@@ -3919,6 +4051,7 @@
   }
 
   function adoptState(msg) {
+    if (msg.view) useCatalog(msg.view.ruleset);
     checkCatalog(msg);
     session.seat = msg.seat === 0 || msg.seat === 1 ? msg.seat : null;
     session.role = msg.role === "spectator" ? "spectator" : "seat";
@@ -3930,6 +4063,7 @@
     blocks = {};
     blockTarget = null;
     if (msg.view) {
+      useCatalog(msg.view.ruleset);
       session.full = msg.view;
       // The referee ships events oldest-first; this log unshifts, so reverse once.
       session.events = (msg.events || []).slice().reverse();
@@ -4707,8 +4841,10 @@
     // explicit decklist goes to the engine, which validates it (min 40, no
     // Stake cards) before a single object is minted.
     const stacks = stackLibrary;
+    const rulesSelect = document.getElementById("rules");
+    const ruleset = rulesSelect && rulesSelect.value === "F1.0" ? "F1.0" : "E1.0";
     const choose = (value) => {
-      const precons = globalThis.E1_PRECONS || {};
+      const precons = (ruleset === "F1.0" ? globalThis.E1_PRECONS_FAST : globalThis.E1_PRECONS) || {};
       if (value && value.startsWith("precon:") && precons[value.slice(7)]) {
         return { deck: precons[value.slice(7)].cards.slice() };
       }
@@ -4726,6 +4862,9 @@
       firstPlayer: 0,
       policy: { freeform: "deny" },
     };
+    // Named only for Fast, so a Classic config (and its gameId) stays byte for byte what it was.
+    if (ruleset === "F1.0") config.ruleset = ruleset;
+    useCatalog(ruleset);
     session.npc = solo ? 1 : null;
     // "All" is a fine stack but no answer to "generate 1 of one affinity";
     // a custom Stack answers with its own dominant affinity.
@@ -4885,7 +5024,9 @@
     // presets. Custom Stacks are a local-table feature: the referee mints
     // networked games from affinities, so remote play keeps the presets only.
     const savedStacks = stackLibrary;
-    const precons = globalThis.E1_PRECONS || {};
+    const rulesSelect = document.getElementById("rules");
+    const fastRules = Boolean(rulesSelect && rulesSelect.value === "F1.0");
+    const precons = (fastRules ? globalThis.E1_PRECONS_FAST : globalThis.E1_PRECONS) || {};
     for (const id of ["deckA", "deckB"]) {
       const select = document.getElementById(id);
       for (const name of affinities) {
@@ -4894,11 +5035,11 @@
         select.append(option);
       }
       // The precon library: curated, fully scripted Stacks, ready on turn one.
-      for (const shelf of ["Starter", "Classic"]) {
+      for (const shelf of ["Starter", "Classic", "Archetype"]) {
         const names = Object.keys(precons).filter((name) => precons[name].group === shelf);
         if (!names.length) continue;
         const group = document.createElement("optgroup");
-        group.label = shelf === "Starter" ? "Starter Stacks" : "Classic library";
+        group.label = shelf === "Starter" ? "Starter Stacks" : shelf === "Archetype" ? "Fast archetypes" : "Classic library";
         for (const name of names) {
           const option = el("option", null, `${name} · ${precons[name].affinity}`);
           option.value = `precon:${name}`;
@@ -4955,6 +5096,11 @@
     const start = document.getElementById("start");
     start.disabled = true;
     loadStackLibrary(() => { buildSeatMenus(); start.disabled = false; });
+    const rulesSelect = document.getElementById("rules");
+    if (rulesSelect && rulesSelect.addEventListener) {
+      // The precon shelf differs per rules: rebuild the seat menus, keeping plain affinities.
+      rulesSelect.addEventListener("change", () => buildSeatMenus());
+    }
     start.addEventListener("click", startGame);    document.getElementById("continue").addEventListener("click", advance);
 
     document.getElementById("coachNext").addEventListener("click", () => {
@@ -5016,6 +5162,7 @@
     for (const side of ["you", "foe"]) {
       document.getElementById(`${side}Bar`).addEventListener("click", () => {
         if (!wantsSeatTarget() || !session.full) return;
+        if (picking && picking.kind === "attack" && side === "you") return;
         const seat = uiSeat(session.full);
         offerTarget({ kind: "seat", seat: side === "you" ? seat : 1 - seat });
       });

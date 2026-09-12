@@ -1571,3 +1571,65 @@ test("the table claims the handed-off seat with the signed identity", async () =
   assert.equal(resume.pubkey, NIP07_PUBKEY, "the signed identity IS the claim");
   assert.equal(resume.token, undefined, "no token had to cross the page boundary");
 });
+
+/* ------------------------------------------------------------ the Fast table */
+
+test("the local table deals a Fast game on Fast cards, and attacks go through the table", () => {
+  globalThis.E1_CARDS_FAST = require(path.join(HERE, "..", "..", "site", "play-data-fast.js"));
+  globalThis.E1_PRECONS_FAST = require(path.join(HERE, "..", "..", "site", "precons-fast.js"));
+  const { byId, game } = loadPlay(netStub());
+  byId("rules").value = "F1.0";
+  byId("deckA").value = "precon:Power Surge";
+  byId("deckB").value = "precon:Key Custody";
+  byId("nameA").value = "A";
+  byId("nameB").value = "B";
+  byId("seed").value = "fast";
+  game.startGame();
+  const state = game.state;
+  assert.ok(state, byId("prompt").textContent);
+  assert.equal(state.ruleset, "F1.0");
+  assert.equal(state.catalogDigest, globalThis.E1Engine.buildCatalog(globalThis.E1_CARDS_FAST).digest);
+  assert.equal(byId("continue").textContent, "End turn", "Fast's one button");
+  assert.match(byId("resourceChip").textContent, /^Pool 1\/1$/);
+
+  // Put a ready Avatar on each side and attack through the table's own dispatch.
+  const fast = globalThis.E1_CARDS_FAST;
+  const vanilla = fast.find((card) => card.type === "Avatar" && card.abilities.length === 0 && card.keywords.length === 0);
+  const place = (seat) => {
+    const uid = `o${state.nextUid++}`;
+    state.objects[uid] = {
+      uid, cardId: vanilla.id, owner: seat, controller: seat, zone: `${seat}:network`, committed: false,
+      bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+      revealedTo: [0, 1], revealedUntil: null, token: false, entersSeq: 0, prevUid: null,
+    };
+    state.zones[`${seat}:network`].push(uid);
+    return uid;
+  };
+  const mine = place(0);
+  const uptime = state.seats[1].uptime;
+  assert.equal(game.dispatch("DECLARE_ATTACK", 0, { attacker: mine, target: { kind: "seat", seat: 1 } }), true);
+  assert.equal(game.state.seats[1].uptime, uptime - vanilla.action);
+  assert.equal(game.state.objects[mine].committed, true);
+});
+
+test("a remote Fast view switches the table to the Fast card values", () => {
+  globalThis.E1_CARDS_FAST = require(path.join(HERE, "..", "..", "site", "play-data-fast.js"));
+  const stub = netStub();
+  const { byId, game } = loadPlay(stub);
+  const E = globalThis.E1Engine;
+  E.setCatalog(globalThis.E1_CARDS_FAST, "F1.0");
+  const full = E.createGame({
+    ruleset: "F1.0",
+    seats: [{ name: "A", affinity: "Power" }, { name: "B", affinity: "Signal" }],
+    seeds: { public: 5, hidden: [6, 7] },
+    firstPlayer: 0,
+  });
+  stub.lastState = Object.assign({}, STATE_BASE, {
+    ruleset: "F1.0", catalogDigest: full.catalogDigest, seat: 0, view: E.view(full, 0), status: "playing",
+  });
+  stub.handlers.onState(stub.lastState);
+  // A mismatched card set refuses to send anything; the Fast digest matches the Fast cards.
+  assert.equal(game.dispatch("PASS_PRIORITY", 0, {}), true);
+  assert.equal(stub.calls.filter((call) => call[0] === "act").length, 1);
+  assert.equal(byId("continue").textContent, "End turn");
+});

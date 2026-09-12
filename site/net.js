@@ -560,6 +560,7 @@
     net.attempt = 0;
     net.intent = {
       t: "CREATE", v: WIRE,
+      ...rulesetOf(opts),
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
       stake: satsOf(opts.stake),
@@ -576,6 +577,10 @@
    * card ids; absent means "deal me one", which is what every table did before.
    * Nothing is validated here beyond the shape — the referee refuses an illegal
    * Stack, and it is the only place a hand-rolled client cannot talk past. */
+  /* The rules a table opens under. Sent only for Fast, so a Classic client's
+   * messages are exactly what they always were; the referee may still refuse. */
+  const rulesetOf = (opts) => (opts && opts.ruleset === "F1.0" ? { ruleset: "F1.0" } : {});
+
   const deckOf = (deck) =>
     (Array.isArray(deck) && deck.length ? deck.filter((id) => typeof id === "string") : undefined);
 
@@ -620,6 +625,7 @@
     net.attempt = 0;
     net.intent = {
       t: "QUEUE", v: WIRE,
+      ...rulesetOf(opts),
       name: String((opts && opts.name) || "Player").slice(0, 40),
       affinity: (opts && opts.affinity) || "All",
       /* The referee pairs on this, so it is a filter and not a preference: a
