@@ -1,0 +1,2669 @@
+{
+  "ruleset": "F1.0",
+  "source": "cards/e1-cards.json",
+  "generator": "scripts/design_fast_cards.py",
+  "balance": {
+    "Power": 0,
+    "Bitcoin": 0,
+    "Keys": 0,
+    "Signal": 0,
+    "Timelock": 0
+  },
+  "cards": [
+    {
+      "id": "E1-001",
+      "name": "Genesis Lotus",
+      "card_type": "Hardware",
+      "cost": "0",
+      "action_resilience": "",
+      "rules_text": "Commit and archive Genesis Lotus: generate 3 neutral Resources.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-002",
+      "name": "Satoshi Orchard",
+      "card_type": "Hardware",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Bitcoin Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    },
+    {
+      "id": "E1-003",
+      "name": "FLX, Culture Curator",
+      "card_type": "Avatar",
+      "cost": "4S",
+      "action_resilience": "5/5",
+      "rules_text": "Broadcast (Ignores Firewall.)\nFLX stays unlocked after attacking.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-004",
+      "name": "Zap",
+      "card_type": "Zap",
+      "cost": "P",
+      "action_resilience": "",
+      "rules_text": "Zap deals 2 damage to any target.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-005",
+      "name": "Next Block",
+      "card_type": "Operation",
+      "cost": "6T",
+      "action_resilience": "",
+      "rules_text": "After this turn, take one additional turn.",
+      "design_note": "cost floor 7"
+    },
+    {
+      "id": "E1-006",
+      "name": "Multisig Quorum",
+      "card_type": "Protocol",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Keys Avatars get +1 Action and +1 Resilience.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-007",
+      "name": "Firmware for Firewalls",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-008",
+      "name": "Grid Reset",
+      "card_type": "Operation",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gains Broadcast until end of turn.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-009",
+      "name": "Fair State",
+      "card_type": "Operation",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Return target Avatar to its owner's Wallet.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-010",
+      "name": "Cuddy, Signal Organizer",
+      "card_type": "Avatar",
+      "cost": "S",
+      "action_resilience": "2/2",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-011",
+      "name": "Keys Shield",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-012",
+      "name": "Last Broadcast",
+      "card_type": "Zap",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Return target Avatar to its owner's Wallet.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-013",
+      "name": "Shared Uptime",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nS: attached Avatar gets +1 Action and +1 Resilience until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-014",
+      "name": "Timelock Shield",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-015",
+      "name": "Local Citadel",
+      "card_type": "Protocol",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "At the beginning of your Maintenance, you may pay 1. If you do, draw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-016",
+      "name": "Timelock Protection Circuit",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "1: The next time a Timelock source of your choice would deal damage to you this turn, prevent that damage.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-017",
+      "name": "Bitcoin Protection Circuit",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "1: The next time a Bitcoin source of your choice would deal damage to you this turn, prevent that damage.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-018",
+      "name": "Power Protection Circuit",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "1: The next time a Power source of your choice would deal damage to you this turn, prevent that damage.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-019",
+      "name": "Signal Protection Circuit",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "1: The next time a Signal source of your choice would deal damage to you this turn, prevent that damage.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-020",
+      "name": "Hardened Resource",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Signal Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-021",
+      "name": "Grid Conversion",
+      "card_type": "Protocol",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "At the beginning of your Maintenance, archive this Protocol unless you pay SS.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-022",
+      "name": "Public Goods Drive",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Signal Avatars get +1 Action and +1 Resilience.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-023",
+      "name": "Emergency Reboot",
+      "card_type": "Zap",
+      "cost": "S",
+      "action_resilience": "",
+      "rules_text": "Reboot target Avatar.\nDraw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-024",
+      "name": "Protocol Cleanup",
+      "card_type": "Zap",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Decommission target Hardware or Protocol.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-025",
+      "name": "Home Miner",
+      "card_type": "Protocol",
+      "cost": "2S",
+      "action_resilience": "",
+      "rules_text": "Signal Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-026",
+      "name": "Bitcoin Shield",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-027",
+      "name": "Guardian Signal",
+      "card_type": "Zap",
+      "cost": "XS",
+      "action_resilience": "",
+      "rules_text": "Prevent the next X damage that would be dealt to any target this turn. Until end of turn, you may pay 1 any time you could play an Zap. If you do, prevent the next 1 damage that would be dealt to that Network card or player this turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-028",
+      "name": "Repair Packet",
+      "card_type": "Zap",
+      "cost": "S",
+      "action_resilience": "",
+      "rules_text": "Choose one —\n• Target player gains 3 Uptime.\n• Draw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-029",
+      "name": "Hardened Identity",
+      "card_type": "Protocol",
+      "cost": "S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +0 Action and +2 Resilience.\nS: attached Avatar gets +0 Action and +1 Resilience until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-030",
+      "name": "Community Strength",
+      "card_type": "Protocol",
+      "cost": "S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +1 Action and +2 Resilience.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-031",
+      "name": "Offline Sanctuary",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Signal Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-032",
+      "name": "Consequence Ledger",
+      "card_type": "Protocol",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "Signal Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-033",
+      "name": "Fast Path",
+      "card_type": "Protocol",
+      "cost": "S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar has First Strike.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-034",
+      "name": "Sat, Relay Rider",
+      "card_type": "Avatar",
+      "cost": "1S",
+      "action_resilience": "2/3",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-035",
+      "name": "MHB, Keys Auditor",
+      "card_type": "Avatar",
+      "cost": "3S",
+      "action_resilience": "4/4",
+      "rules_text": "SS, Commit: decommission target Keys Network card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-036",
+      "name": "Morgs, Friendly Fork",
+      "card_type": "Avatar",
+      "cost": "2S",
+      "action_resilience": "4/3",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-037",
+      "name": "AJ, Uptime Anchor",
+      "card_type": "Avatar",
+      "cost": "5S",
+      "action_resilience": "6/5",
+      "rules_text": "0: The next 1 damage that would be dealt to this Avatar this turn is dealt to its owner instead. Only this Avatar's owner may activate this ability.\nWhen this Avatar is decommissioned, its owner loses half their Uptime, rounded up.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-038",
+      "name": "Signal Rewrite",
+      "card_type": "Zap",
+      "cost": "S",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gains Broadcast until end of turn.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-039",
+      "name": "Power Shield",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-040",
+      "name": "Archive Restore",
+      "card_type": "Operation",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "Return target Avatar card from your Archive to the Network.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-041",
+      "name": "Damage Refund",
+      "card_type": "Zap",
+      "cost": "2S",
+      "action_resilience": "",
+      "rules_text": "The next time a source of your choice would deal damage to you this turn, prevent that damage. You gain Uptime equal to the damage prevented this way.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-042",
+      "name": "Courage Under Load",
+      "card_type": "Zap",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Return target Avatar to its owner's Wallet.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-043",
+      "name": "AJ, First Responder",
+      "card_type": "Avatar",
+      "cost": "1S",
+      "action_resilience": "2/2",
+      "rules_text": "Commit: Prevent the next 1 damage that would be dealt to any target this turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-044",
+      "name": "Cuddy, Fast Starter",
+      "card_type": "Avatar",
+      "cost": "S",
+      "action_resilience": "2/1",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-045",
+      "name": "Peaceful Exit",
+      "card_type": "Zap",
+      "cost": "S",
+      "action_resilience": "",
+      "rules_text": "Cold Storage target Avatar. Its controller gains Uptime equal to its Action.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-046",
+      "name": "MHB, Community Shield",
+      "card_type": "Avatar",
+      "cost": "4S",
+      "action_resilience": "3/7",
+      "rules_text": "As long as this Avatar is unlocked, all damage that would be dealt to you by unblocked Avatars is dealt to this Avatar instead.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-047",
+      "name": "Sat, Blade Firewall",
+      "card_type": "Avatar",
+      "cost": "3S",
+      "action_resilience": "3/5",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)\nBroadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-048",
+      "name": "Morgs, Signal Knight",
+      "card_type": "Avatar",
+      "cost": "1S",
+      "action_resilience": "2/2",
+      "rules_text": "First Strike\nReboot",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-049",
+      "name": "Signal Shield",
+      "card_type": "Protocol",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-050",
+      "name": "Clean Slate",
+      "card_type": "Operation",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "Decommission all Avatars. They can't be Rebooted.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-051",
+      "name": "Michael1011, Packet Shaper",
+      "card_type": "Avatar",
+      "cost": "4T",
+      "action_resilience": "5/6",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-052",
+      "name": "First Memory",
+      "card_type": "Zap",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Target player moves the top three cards of their Stack into their Wallet.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-053",
+      "name": "Boot Hardware",
+      "card_type": "Protocol",
+      "cost": "3T",
+      "action_resilience": "",
+      "rules_text": "Attach to Hardware\nAs long as attached Hardware isn't an Avatar, it's an Hardware Avatar with Action and Resilience each equal to its total resource cost.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-054",
+      "name": "Power Invalidation",
+      "card_type": "Zap",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Choose one —\n• decommission target Power Network card.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-055",
+      "name": "Query Burst",
+      "card_type": "Operation",
+      "cost": "X1T",
+      "action_resilience": "",
+      "rules_text": "Target player moves the top X cards of their Stack into their Wallet.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-056",
+      "name": "Benarc, Mirror Client",
+      "card_type": "Avatar",
+      "cost": "3T",
+      "action_resilience": "4/4",
+      "rules_text": "You may have this Avatar enter as a copy of any Avatar on the Network.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-057",
+      "name": "Remote Control",
+      "card_type": "Protocol",
+      "cost": "3T",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nYou control attached Avatar.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-058",
+      "name": "Hardware Clone",
+      "card_type": "Protocol",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "You may have this Protocol enter as a copy of any Hardware on the Network, except it's a Protocol in addition to its other types.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-059",
+      "name": "Invalid Signature",
+      "card_type": "Zap",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gains Broadcast until end of turn.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-060",
+      "name": "Exit Fee",
+      "card_type": "Protocol",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nWhen attached Avatar is decommissioned, this Attachment deals damage equal to that Avatar's Resilience to the Avatar's controller.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-061",
+      "name": "Buffer Drain",
+      "card_type": "Operation",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Return target Avatar to its owner's Wallet.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-062",
+      "name": "Relay Feedback",
+      "card_type": "Protocol",
+      "cost": "2T",
+      "action_resilience": "",
+      "rules_text": "Attach to Protocol\nAt the beginning of the Maintenance of attached Protocol's controller, this Attachment deals 1 damage to that player.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-063",
+      "name": "Broadcast Upgrade",
+      "card_type": "Protocol",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar has Broadcast.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-064",
+      "name": "Hidden Route",
+      "card_type": "Protocol",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nBroadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-065",
+      "name": "Quick Uplink",
+      "card_type": "Zap",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gains Broadcast until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-066",
+      "name": "Resource Tap",
+      "card_type": "Protocol",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Timelock Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-067",
+      "name": "Tal, Relay Captain",
+      "card_type": "Avatar",
+      "cost": "1T",
+      "action_resilience": "2/3",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-068",
+      "name": "Resource Rewrite",
+      "card_type": "Zap",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gains Broadcast until end of turn.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-069",
+      "name": "Jedai, Protocol Architect",
+      "card_type": "Avatar",
+      "cost": "5T",
+      "action_resilience": "6/7",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-070",
+      "name": "Buffer Lock",
+      "card_type": "Zap",
+      "cost": "2T",
+      "action_resilience": "",
+      "rules_text": "Return target Avatar to its owner's Wallet.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-071",
+      "name": "Darren, Channel Operator",
+      "card_type": "Avatar",
+      "cost": "T",
+      "action_resilience": "2/1",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-072",
+      "name": "Snick, Phantom Process",
+      "card_type": "Avatar",
+      "cost": "3T",
+      "action_resilience": "4/4",
+      "rules_text": "Broadcast (Ignores Firewall.)\nAt the beginning of your Maintenance, archive this Avatar unless you pay T.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-073",
+      "name": "Resource Reclassification",
+      "card_type": "Protocol",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Timelock Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 3 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-074",
+      "name": "Tal, Ghost Router",
+      "card_type": "Avatar",
+      "cost": "3T",
+      "action_resilience": "4/5",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-075",
+      "name": "Darren, Channel Raider",
+      "card_type": "Avatar",
+      "cost": "4T",
+      "action_resilience": "7/5",
+      "rules_text": "Commit: This Avatar deals 1 damage to any target.",
+      "design_note": "removed 2 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-076",
+      "name": "Maintenance Leak",
+      "card_type": "Protocol",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-077",
+      "name": "Fee Spike",
+      "card_type": "Zap",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gains Broadcast until end of turn.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-078",
+      "name": "Michael1011, Debugger",
+      "card_type": "Avatar",
+      "cost": "2T",
+      "action_resilience": "3/3",
+      "rules_text": "Commit: This Avatar deals 1 damage to any target.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-079",
+      "name": "Cognitive Surge",
+      "card_type": "Zap",
+      "cost": "2T",
+      "action_resilience": "",
+      "rules_text": "Cognitive Surge deals 4 damage to any target and 2 damage to you.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-080",
+      "name": "Hot Resource",
+      "card_type": "Protocol",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Timelock Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-081",
+      "name": "Benarc, Deep Channel",
+      "card_type": "Avatar",
+      "cost": "5T",
+      "action_resilience": "7/7",
+      "rules_text": "At the beginning of your Maintenance, draw a card.",
+      "design_note": "removed 2 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-082",
+      "name": "Call to Relay",
+      "card_type": "Zap",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Play only during an opponent's turn before attackers.\nTheir Avatars attack if able. At end step, decommission non-Firewalls that didn't attack unless they entered or changed control this turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-083",
+      "name": "Affinity Rewrite",
+      "card_type": "Zap",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gains Broadcast until end of turn.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-084",
+      "name": "Queue Filter",
+      "card_type": "Zap",
+      "cost": "2T",
+      "action_resilience": "",
+      "rules_text": "Target player moves the top three cards of their Stack into their Wallet.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-085",
+      "name": "Consensus Pause",
+      "card_type": "Protocol",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Players skip their unlock steps.\nAt the beginning of your Maintenance, archive this Protocol unless you pay T.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-086",
+      "name": "Remote Hardware Control",
+      "card_type": "Protocol",
+      "cost": "3T",
+      "action_resilience": "",
+      "rules_text": "Attach to Hardware\nYou control attached Hardware.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-087",
+      "name": "Timelock Rewrite",
+      "card_type": "Zap",
+      "cost": "2T",
+      "action_resilience": "",
+      "rules_text": "Target player moves the top three cards of their Stack into their Wallet.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-088",
+      "name": "State Reset",
+      "card_type": "Operation",
+      "cost": "4T",
+      "action_resilience": "",
+      "rules_text": "Each player shuffles their Wallet and Archive into their Stack, then draws seven cards. (Then put State Reset into its owner's Archive.)",
+      "design_note": "cost floor 5"
+    },
+    {
+      "id": "E1-089",
+      "name": "Toggle State",
+      "card_type": "Zap",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-090",
+      "name": "Return to Wallet",
+      "card_type": "Zap",
+      "cost": "T",
+      "action_resilience": "",
+      "rules_text": "Return target Avatar to its owner's Wallet.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-091",
+      "name": "Jedai, Adaptive Client",
+      "card_type": "Avatar",
+      "cost": "4T",
+      "action_resilience": "5/5",
+      "rules_text": "You may have this Avatar enter as a copy of any Avatar on the Network, except it doesn't copy that Avatar's affinity and it has \"At the beginning of your Maintenance, you may have this Avatar become a copy of target Avatar, except it doesn't copy that Avatar's affinity and it has this ability.\"",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-092",
+      "name": "Grid Eruption",
+      "card_type": "Operation",
+      "cost": "2T",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gains Broadcast until end of turn.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-093",
+      "name": "Snick, Airgap Firewall",
+      "card_type": "Avatar",
+      "cost": "2T",
+      "action_resilience": "1/5",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)\nBroadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-094",
+      "name": "Tal, Liquid Firewall",
+      "card_type": "Avatar",
+      "cost": "2T",
+      "action_resilience": "0/6",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)\nT: This Avatar gets +1 Action and +0 Resilience until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-095",
+      "name": "Darren, Flow Controller",
+      "card_type": "Avatar",
+      "cost": "4T",
+      "action_resilience": "6/5",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-096",
+      "name": "Archive Boot",
+      "card_type": "Protocol",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Attach to an Avatar card in an Archive.\nReturn it under your control and attach Archive Boot. It gets -1 Action. When Archive Boot leaves, archive that Avatar.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-097",
+      "name": "DNI, Sovereign Knight",
+      "card_type": "Avatar",
+      "cost": "1K",
+      "action_resilience": "2/2",
+      "rules_text": "First Strike\nReboot",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-098",
+      "name": "Nind, Backchannel Walker",
+      "card_type": "Avatar",
+      "cost": "3K",
+      "action_resilience": "5/5",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-099",
+      "name": "Stake Contract",
+      "card_type": "Operation",
+      "cost": "K",
+      "action_resilience": "",
+      "rules_text": "Stake module — Add the top card of your Stack to the Stake. Discard your Wallet, then draw seven cards.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-100",
+      "name": "Leaking Key Vault",
+      "card_type": "Protocol",
+      "cost": "3K",
+      "action_resilience": "",
+      "rules_text": "Keys Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-101",
+      "name": "Proof of Work",
+      "card_type": "Zap",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Search your Stack for a card, put that card into your Wallet, then shuffle.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-102",
+      "name": "Stake Swap",
+      "card_type": "Operation",
+      "cost": "2K",
+      "action_resilience": "",
+      "rules_text": "Stake module — Exchange ownership of the top card of your Stake with one random card from your opponent's Stake.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-103",
+      "name": "Bitcoin Gatekeeper",
+      "card_type": "Protocol",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Keys Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-104",
+      "name": "Keys Rewrite",
+      "card_type": "Zap",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Search your Stack for a card, put that card into your Wallet, then shuffle.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-105",
+      "name": "Stake Arbitration",
+      "card_type": "Operation",
+      "cost": "2K",
+      "action_resilience": "",
+      "rules_text": "Stake module — Each player may add the top card of their Stack to the Stake. If your opponent declines, you may play this again without paying its cost.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-106",
+      "name": "NC, Resource Reclaimer",
+      "card_type": "Avatar",
+      "cost": "5K",
+      "action_resilience": "8/7",
+      "rules_text": "No special ability.",
+      "design_note": "removed 2 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-107",
+      "name": "Deep Search",
+      "card_type": "Operation",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Search your Stack for a card, put that card into your Wallet, then shuffle.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-108",
+      "name": "Uptime Channel",
+      "card_type": "Operation",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Decommission target Hardware.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-109",
+      "name": "BlackCoffee, Reboot Crew",
+      "card_type": "Avatar",
+      "cost": "1K",
+      "action_resilience": "3/3",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-110",
+      "name": "Resource Corruption",
+      "card_type": "Protocol",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Keys Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-111",
+      "name": "Onion Route",
+      "card_type": "Protocol",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar (Target an Avatar as you play this. This card enters attached to that Avatar.)\nBroadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-112",
+      "name": "Proton, Cold Signer",
+      "card_type": "Avatar",
+      "cost": "2K",
+      "action_resilience": "0/6",
+      "rules_text": "KK, Commit: draw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-113",
+      "name": "Signal Tax",
+      "card_type": "Protocol",
+      "cost": "2K",
+      "action_resilience": "",
+      "rules_text": "Activated abilities of Signal Protocols cost 3 more to activate.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-114",
+      "name": "Burst Signature",
+      "card_type": "Zap",
+      "cost": "XK",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gets +X/+0 until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-115",
+      "name": "Gadaj, Wallet Whisperer",
+      "card_type": "Avatar",
+      "cost": "2K",
+      "action_resilience": "3/3",
+      "rules_text": "Broadcast (Ignores Firewall.)\nWhenever this Avatar deals damage to an opponent, that player discards a card at random.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-116",
+      "name": "Sovereign Mode",
+      "card_type": "Protocol",
+      "cost": "3K",
+      "action_resilience": "",
+      "rules_text": "On deploy, set your Uptime to 0. You survive at 0; Uptime gains draw cards instead. Damage archives that many non-proxy cards or you lose. If this leaves, you lose.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-117",
+      "name": "DNI, Self-Custody Giant",
+      "card_type": "Avatar",
+      "cost": "6K",
+      "action_resilience": "6/7",
+      "rules_text": "Broadcast (Ignores Firewall.)\nOverflow\nAt the beginning of your Maintenance, archive an Avatar other than this Avatar. If you can't, this Avatar deals 7 damage to you.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-118",
+      "name": "Wallet Scramble",
+      "card_type": "Operation",
+      "cost": "XK",
+      "action_resilience": "",
+      "rules_text": "Randomly choose X cards from target player's Wallet; that player discards them.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-119",
+      "name": "Nind, Archive Returner",
+      "card_type": "Avatar",
+      "cost": "1K",
+      "action_resilience": "2/1",
+      "rules_text": "This Avatar may attack as though it did not have Boot Delay.\nAt the beginning of your Maintenance, if this card is in your Archive with three or more Avatar cards above it, you may put this card onto the Network.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-120",
+      "name": "NC, Forced Signal",
+      "card_type": "Avatar",
+      "cost": "2K",
+      "action_resilience": "3/3",
+      "rules_text": "Commit — During an opponent's pre-attack step, target non-Firewall Avatar they've controlled all turn attacks if able. Decommission it at end step if it didn't.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-121",
+      "name": "Proton, Keyed Nightmare",
+      "card_type": "Avatar",
+      "cost": "5K",
+      "action_resilience": "7/7",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-122",
+      "name": "Locked Process",
+      "card_type": "Protocol",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "aura kit effect"
+    },
+    {
+      "id": "E1-123",
+      "name": "Broadcast Storm",
+      "card_type": "Protocol",
+      "cost": "3K",
+      "action_resilience": "",
+      "rules_text": "At the beginning of the end step, if no Avatars are on the Network, archive this Protocol.\nK: This Protocol deals 1 damage to each Avatar and each player.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-124",
+      "name": "BlackCoffee, Shared Secret Swarm",
+      "card_type": "Avatar",
+      "cost": "2K",
+      "action_resilience": "3/3",
+      "rules_text": "BlackCoffee, Shared Secret Swarm's Action and Resilience are each equal to the number of Avatars named BlackCoffee, Shared Secret Swarm on the Network.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-125",
+      "name": "Restore Backup",
+      "card_type": "Operation",
+      "cost": "K",
+      "action_resilience": "",
+      "rules_text": "Return target Avatar card from your Archive to your Wallet.\nDraw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-126",
+      "name": "Gadaj, Commit Auditor",
+      "card_type": "Avatar",
+      "cost": "2K",
+      "action_resilience": "3/3",
+      "rules_text": "Commit: decommission target committed Avatar.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-127",
+      "name": "Convert Uptime",
+      "card_type": "Zap",
+      "cost": "3K",
+      "action_resilience": "",
+      "rules_text": "Decommission target non-Hardware, non-Keys Avatar. It can't be Rebooted.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-128",
+      "name": "NC, Offline Operator",
+      "card_type": "Avatar",
+      "cost": "2K",
+      "action_resilience": "4/3",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-129",
+      "name": "Nind, Archive Collector",
+      "card_type": "Avatar",
+      "cost": "3K",
+      "action_resilience": "4/3",
+      "rules_text": "At the beginning of each end step, put a corpse marker on this Avatar for each Avatar that died this turn.\nRemove a corpse marker from this Avatar: Reboot this Avatar.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-130",
+      "name": "DNI, Sovereign Accumulator",
+      "card_type": "Avatar",
+      "cost": "4K",
+      "action_resilience": "5/5",
+      "rules_text": "Broadcast (Ignores Firewall.)\nWhenever an Avatar dealt damage by this Avatar this turn is decommissioned, put a +1/+1 marker on this Avatar.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-131",
+      "name": "State Mirror",
+      "card_type": "Zap",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "You gain Uptime equal to the damage dealt to you this turn. State Mirror deals damage to target Avatar you control equal to the damage dealt to you this turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-132",
+      "name": "Resource Sink",
+      "card_type": "Operation",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Decommission target Hardware.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-133",
+      "name": "Hard Shutdown",
+      "card_type": "Zap",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Decommission target non-Hardware, non-Keys Avatar. It can't be Rebooted.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-134",
+      "name": "Sovereign Strength",
+      "card_type": "Protocol",
+      "cost": "K",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +1 Resilience.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-135",
+      "name": "BlackCoffee, Backup Firewall",
+      "card_type": "Avatar",
+      "cost": "2K",
+      "action_resilience": "2/6",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-136",
+      "name": "Hardware Leak",
+      "card_type": "Protocol",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Attach to Hardware\nAt the beginning of the Maintenance of attached Hardware's controller, this Attachment deals 1 damage to that player.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-137",
+      "name": "Reduced Permissions",
+      "card_type": "Protocol",
+      "cost": "K",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets -2 Action and -1 Resilience.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-138",
+      "name": "Proton, Ephemeral Signer",
+      "card_type": "Avatar",
+      "cost": "K",
+      "action_resilience": "0/4",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-139",
+      "name": "Remote Command",
+      "card_type": "Zap",
+      "cost": "3K",
+      "action_resilience": "",
+      "rules_text": "Decommission target non-Hardware, non-Keys Avatar. It can't be Rebooted.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-140",
+      "name": "Gadaj, Archive Maintainer",
+      "card_type": "Avatar",
+      "cost": "2K",
+      "action_resilience": "2/4",
+      "rules_text": "Broadcast (Ignores Firewall.)\nOther Zombies have \"K: Reboot this Network card.\"",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-141",
+      "name": "Tunneling Patch",
+      "card_type": "Protocol",
+      "cost": "P",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nBroadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-142",
+      "name": "Power Rewrite",
+      "card_type": "Zap",
+      "cost": "P",
+      "action_resilience": "",
+      "rules_text": "Decommission target Firewall.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-143",
+      "name": "Final Settlement",
+      "card_type": "Operation",
+      "cost": "XP",
+      "action_resilience": "",
+      "rules_text": "Final Settlement deals X damage to any target. If it's an Avatar, it can't be Rebooted this turn, and if it would be decommissioned this turn, Cold Storage it instead.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-144",
+      "name": "MadMunky, Young Overclocker",
+      "card_type": "Avatar",
+      "cost": "3P",
+      "action_resilience": "3/5",
+      "rules_text": "Broadcast (Ignores Firewall.)\nP: This Avatar gets +1 Action and +0 Resilience until end of turn. If this ability has been activated four or more times this turn, archive this Avatar at the beginning of the next end step.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-145",
+      "name": "Rootzoll, Hardware Breaker",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "3/3",
+      "rules_text": "Commit: decommission target Firewall.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-146",
+      "name": "Bam, Tunnel Builder",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "3/4",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-147",
+      "name": "Leon, Grid Stabilizer",
+      "card_type": "Avatar",
+      "cost": "4P",
+      "action_resilience": "4/6",
+      "rules_text": "PP, Commit: draw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-148",
+      "name": "Grounded Signal",
+      "card_type": "Protocol",
+      "cost": "P",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nWhen this Attachment enters, if attached Avatar has Broadcast, this Attachment deals 2 damage to that Avatar and this Attachment gains \"attached Avatar loses Broadcast.\"",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-149",
+      "name": "Hashquake",
+      "card_type": "Operation",
+      "cost": "XP",
+      "action_resilience": "",
+      "rules_text": "Hashquake deals X damage to each Avatar without Broadcast and each player.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-150",
+      "name": "Route Misdirection",
+      "card_type": "Zap",
+      "cost": "P",
+      "action_resilience": "",
+      "rules_text": "Route Misdirection deals 2 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-151",
+      "name": "Essex, Thermal Operator",
+      "card_type": "Avatar",
+      "cost": "4P",
+      "action_resilience": "6/5",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-152",
+      "name": "Power Burst",
+      "card_type": "Operation",
+      "cost": "XP",
+      "action_resilience": "",
+      "rules_text": "Power Burst deals X damage divided evenly, rounded down, among any number of targets.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-153",
+      "name": "Overclock",
+      "card_type": "Protocol",
+      "cost": "P",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nP: attached Avatar gets +1 Action and +0 Resilience until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-154",
+      "name": "Signal Outage",
+      "card_type": "Operation",
+      "cost": "3P",
+      "action_resilience": "",
+      "rules_text": "Decommission target Firewall.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-155",
+      "name": "Process Fork",
+      "card_type": "Zap",
+      "cost": "1P",
+      "action_resilience": "",
+      "rules_text": "Process Fork deals 3 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-156",
+      "name": "Toni China, Hot-Air Relay",
+      "card_type": "Avatar",
+      "cost": "P",
+      "action_resilience": "1/1",
+      "rules_text": "P: This Avatar gains Broadcast until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-157",
+      "name": "MadMunky, Chaos Coordinator",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "4/4",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-158",
+      "name": "Rootzoll, Stone Sentinel",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "3/3",
+      "rules_text": "Broadcast (Ignores Firewall.)\nP: This Avatar gets +0 Action and +1 Resilience until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-159",
+      "name": "Leon, Shift Worker",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "4/3",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-160",
+      "name": "Bam, Heavy Lifter",
+      "card_type": "Avatar",
+      "cost": "3P",
+      "action_resilience": "4/5",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-161",
+      "name": "Essex, Bull Runner",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "3/4",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-162",
+      "name": "Toni China, Rough Miner",
+      "card_type": "Avatar",
+      "cost": "1P",
+      "action_resilience": "3/3",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-163",
+      "name": "Rootzoll, Crew Multiplier",
+      "card_type": "Avatar",
+      "cost": "3P",
+      "action_resilience": "4/4",
+      "rules_text": "Rootzoll, Crew Multiplier's Action and Resilience are each equal to the number of non-Firewall Avatars you control.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-164",
+      "name": "Grid Amplifier",
+      "card_type": "Protocol",
+      "cost": "2P",
+      "action_resilience": "",
+      "rules_text": "Whenever a player commits a Resource for Resource, that player generates 1 additional Resource of an affinity that Resource produced.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-165",
+      "name": "Hot Grid",
+      "card_type": "Protocol",
+      "cost": "3P",
+      "action_resilience": "",
+      "rules_text": "Power Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-166",
+      "name": "MadMunky, Meme Raider",
+      "card_type": "Avatar",
+      "cost": "P",
+      "action_resilience": "2/1",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-167",
+      "name": "Bam, Power Artillery",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "2/4",
+      "rules_text": "Commit: This Avatar deals 2 damage to any target and 3 damage to you.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-168",
+      "name": "Miner Rally",
+      "card_type": "Protocol",
+      "cost": "3P",
+      "action_resilience": "",
+      "rules_text": "Attacking Avatars you control get +1 Action and +0 Resilience.\nWhenever one or more Avatars you control attack, you may pay 1. If you do, draw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-169",
+      "name": "Idle Grid Penalty",
+      "card_type": "Protocol",
+      "cost": "1P",
+      "action_resilience": "",
+      "rules_text": "Power Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-170",
+      "name": "Split Route",
+      "card_type": "Protocol",
+      "cost": "1P",
+      "action_resilience": "",
+      "rules_text": "Power Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-171",
+      "name": "Timelock Invalidation",
+      "card_type": "Zap",
+      "cost": "P",
+      "action_resilience": "",
+      "rules_text": "Choose one —\n• decommission target Timelock Network card.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-172",
+      "name": "Leon, High Relay Rider",
+      "card_type": "Avatar",
+      "cost": "3P",
+      "action_resilience": "4/5",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-173",
+      "name": "Toni China, Multihead Miner",
+      "card_type": "Avatar",
+      "cost": "X1P",
+      "action_resilience": "2/1",
+      "rules_text": "Enters with X +1/+1 markers. Remove one to prevent 1 damage.\nP: prevent 1 damage this turn. PPP — Maintenance: add a +1/+1 marker.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-174",
+      "name": "Essex, Grid Rebooter",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "4/3",
+      "rules_text": "K: Reboot this Avatar.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-175",
+      "name": "Hardware Shatter",
+      "card_type": "Zap",
+      "cost": "1P",
+      "action_resilience": "",
+      "rules_text": "Decommission target Hardware.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-176",
+      "name": "MadMunky, Hashrate Dragon",
+      "card_type": "Avatar",
+      "cost": "5P",
+      "action_resilience": "6/6",
+      "rules_text": "Broadcast (Ignores Firewall.)\nP: This Avatar gets +1 Action and +0 Resilience until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-177",
+      "name": "Thermal Throttle",
+      "card_type": "Protocol",
+      "cost": "1P",
+      "action_resilience": "",
+      "rules_text": "Players can't unlock more than one Avatar during their unlock steps.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-178",
+      "name": "Bam, Launch Engineer",
+      "card_type": "Avatar",
+      "cost": "3P",
+      "action_resilience": "3/5",
+      "rules_text": "Commit: Target Avatar you control with Resilience less than this Avatar's Action gains Broadcast until end of turn. decommission that Avatar at the beginning of the next end step.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-179",
+      "name": "Resource Cut",
+      "card_type": "Operation",
+      "cost": "2P",
+      "action_resilience": "",
+      "rules_text": "Draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-180",
+      "name": "Firewall Tunnel",
+      "card_type": "Zap",
+      "cost": "P",
+      "action_resilience": "",
+      "rules_text": "Decommission target Firewall. It can't be Rebooted.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-181",
+      "name": "Rootzoll & Leon, Dual Operator",
+      "card_type": "Avatar",
+      "cost": "4P",
+      "action_resilience": "6/6",
+      "rules_text": "Overflow",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-182",
+      "name": "Essex, Resilient Operator",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "3/3",
+      "rules_text": "P: Reboot this Avatar.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-183",
+      "name": "Toni China, Thermal Firewall",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "0/6",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)\nP: This Avatar gets +1 Action and +0 Resilience until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-184",
+      "name": "Rootzoll, Stone Firewall",
+      "card_type": "Avatar",
+      "cost": "2P",
+      "action_resilience": "0/7",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-185",
+      "name": "Freedom Market",
+      "card_type": "Operation",
+      "cost": "4P",
+      "action_resilience": "",
+      "rules_text": "Each player discards their Wallet, then draws seven cards.",
+      "design_note": "cost floor 5"
+    },
+    {
+      "id": "E1-186",
+      "name": "Hashrate Aura",
+      "card_type": "Protocol",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-187",
+      "name": "Committed Growth",
+      "card_type": "Zap",
+      "cost": "B",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gains Overflow and gets +X/+0 until end of turn, where X is its Action. At the beginning of the next end step, decommission that Avatar if it attacked this turn.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-188",
+      "name": "Shillie, Multisource Scout",
+      "card_type": "Avatar",
+      "cost": "B",
+      "action_resilience": "0/2",
+      "rules_text": "Broadcast (Ignores Firewall.)\nCommit: generate 1 neutral Resources.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-189",
+      "name": "Obfuscated Formation",
+      "card_type": "Zap",
+      "cost": "B",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gets +3 Action and +3 Resilience until end of turn.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-190",
+      "name": "Human Hashrate",
+      "card_type": "Operation",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Until end of turn, any time you could activate a Resource ability, you may pay 1 Uptime. If you do, generate 1 neutral Resource.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-191",
+      "name": "Mtoshi, Lethal Courier",
+      "card_type": "Avatar",
+      "cost": "4B",
+      "action_resilience": "4/8",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-192",
+      "name": "Longy, Deep Node",
+      "card_type": "Avatar",
+      "cost": "5B",
+      "action_resilience": "8/5",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-193",
+      "name": "Tobo, First-Strike Archer",
+      "card_type": "Avatar",
+      "cost": "1B",
+      "action_resilience": "3/2",
+      "rules_text": "First Strike",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-194",
+      "name": "Fast Channel",
+      "card_type": "Protocol",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Bitcoin Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-195",
+      "name": "Quiet Block",
+      "card_type": "Zap",
+      "cost": "B",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gets +3 Action and +3 Resilience until end of turn.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-196",
+      "name": "Arbadacarba, Natural Hashrate",
+      "card_type": "Avatar",
+      "cost": "5B",
+      "action_resilience": "6/6",
+      "rules_text": "Overflow\nAt the beginning of your Maintenance, this Avatar deals 8 damage to you unless you pay BBBB.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-197",
+      "name": "BK, Feedback Grower",
+      "card_type": "Avatar",
+      "cost": "3B",
+      "action_resilience": "4/4",
+      "rules_text": "Whenever this Avatar is dealt damage, put a +1/+1 marker on it.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-198",
+      "name": "Longy, Resource Sovereign",
+      "card_type": "Avatar",
+      "cost": "5B",
+      "action_resilience": "7/7",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-199",
+      "name": "Number Go Up",
+      "card_type": "Zap",
+      "cost": "B",
+      "action_resilience": "",
+      "rules_text": "Target Avatar gets +3 Action and +3 Resilience until end of turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-200",
+      "name": "Shillie, Mesh Sentinel",
+      "card_type": "Avatar",
+      "cost": "3B",
+      "action_resilience": "3/6",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-201",
+      "name": "BK, Bear Market Builder",
+      "card_type": "Avatar",
+      "cost": "1B",
+      "action_resilience": "3/3",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-202",
+      "name": "Network Storm",
+      "card_type": "Operation",
+      "cost": "XB",
+      "action_resilience": "",
+      "rules_text": "Network Storm deals X damage to each Avatar with Broadcast and each player.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-203",
+      "name": "Resource Freeze",
+      "card_type": "Operation",
+      "cost": "2B",
+      "action_resilience": "",
+      "rules_text": "Target player gains 7 Uptime.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-204",
+      "name": "Instant Boot",
+      "card_type": "Protocol",
+      "cost": "B",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar may attack as though it did not have Boot Delay.\n0: unlock attached Avatar. Activate only during your turn and only once each turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-205",
+      "name": "Mtoshi, Rooted Node",
+      "card_type": "Avatar",
+      "cost": "4B",
+      "action_resilience": "4/7",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-206",
+      "name": "Migrating Workload",
+      "card_type": "Protocol",
+      "cost": "2B",
+      "action_resilience": "",
+      "rules_text": "Bitcoin Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-207",
+      "name": "Tobo, Resource Unlocker",
+      "card_type": "Avatar",
+      "cost": "2B",
+      "action_resilience": "4/4",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-208",
+      "name": "Keys Invalidation",
+      "card_type": "Protocol",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Bitcoin Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-209",
+      "name": "Bitcoin Rewrite",
+      "card_type": "Zap",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Target player gains 5 Uptime.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-210",
+      "name": "Living Hardware",
+      "card_type": "Protocol",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "aura kit effect"
+    },
+    {
+      "id": "E1-211",
+      "name": "Resource Awakening",
+      "card_type": "Protocol",
+      "cost": "3B",
+      "action_resilience": "",
+      "rules_text": "Bitcoin Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-212",
+      "name": "Arbadacarba, Grid Steward",
+      "card_type": "Avatar",
+      "cost": "B",
+      "action_resilience": "1/1",
+      "rules_text": "Commit: generate 1 Bitcoin Resource.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-213",
+      "name": "Attention Market",
+      "card_type": "Protocol",
+      "cost": "2B",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-214",
+      "name": "Topology Scan",
+      "card_type": "Zap",
+      "cost": "B",
+      "action_resilience": "",
+      "rules_text": "Look at the top three cards of target player's Stack, then put them back in any order. You may have that player shuffle.\nDraw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-215",
+      "name": "Reboot Protocol",
+      "card_type": "Protocol",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-216",
+      "name": "Recovery Phrase",
+      "card_type": "Operation",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Draw two cards.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-217",
+      "name": "Shillie, Tiny Broadcaster",
+      "card_type": "Avatar",
+      "cost": "B",
+      "action_resilience": "1/2",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-218",
+      "name": "Tobo, Bitcoin Backchanneler",
+      "card_type": "Avatar",
+      "cost": "B",
+      "action_resilience": "2/2",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-219",
+      "name": "Uptime Stream",
+      "card_type": "Operation",
+      "cost": "XB",
+      "action_resilience": "",
+      "rules_text": "Target player gains X Uptime.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-220",
+      "name": "Mtoshi, Finality Keeper",
+      "card_type": "Avatar",
+      "cost": "4B",
+      "action_resilience": "4/8",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-221",
+      "name": "BK, Mesh Pack",
+      "card_type": "Avatar",
+      "cost": "B",
+      "action_resilience": "2/2",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-222",
+      "name": "Protocol Reset",
+      "card_type": "Operation",
+      "cost": "2B",
+      "action_resilience": "",
+      "rules_text": "Decommission all Protocols.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-223",
+      "name": "Timelock Outage",
+      "card_type": "Operation",
+      "cost": "3B",
+      "action_resilience": "",
+      "rules_text": "Draw two cards.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-224",
+      "name": "Arbadacarba, Protocol Gardener",
+      "card_type": "Avatar",
+      "cost": "2B",
+      "action_resilience": "0/8",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-225",
+      "name": "Longy, Thorn Firewall",
+      "card_type": "Avatar",
+      "cost": "2B",
+      "action_resilience": "2/4",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)\nB: Reboot this Avatar.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-226",
+      "name": "Shillie, Cold Firewall",
+      "card_type": "Avatar",
+      "cost": "2B",
+      "action_resilience": "0/7",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-227",
+      "name": "Tobo, Wooden Firewall",
+      "card_type": "Avatar",
+      "cost": "B",
+      "action_resilience": "0/3",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-228",
+      "name": "Restless Client",
+      "card_type": "Protocol",
+      "cost": "2B",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAt the beginning of the Maintenance of attached Avatar's controller, this Attachment deals 1 damage to that player.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-229",
+      "name": "BK, Heavy Settler",
+      "card_type": "Avatar",
+      "cost": "3B",
+      "action_resilience": "4/5",
+      "rules_text": "Overflow",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-230",
+      "name": "Mesh Upgrade",
+      "card_type": "Protocol",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Attach to Avatar\nAttached Avatar gets +2 Action and +2 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; aura kit effect"
+    },
+    {
+      "id": "E1-231",
+      "name": "Yield Router",
+      "card_type": "Protocol",
+      "cost": "B",
+      "action_resilience": "",
+      "rules_text": "Whenever attached Resource is committed for Resource, its controller generates 1 additional Bitcoin Resource.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-232",
+      "name": "Entry Fee Device",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-233",
+      "name": "Basalt Battery",
+      "card_type": "Hardware",
+      "cost": "3",
+      "action_resilience": "",
+      "rules_text": "This Hardware doesn't unlock during your unlock step.\nCommit: generate 3 neutral Resources.\n3: unlock this Hardware.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-234",
+      "name": "Wallet Pressure",
+      "card_type": "Hardware",
+      "cost": "1",
+      "action_resilience": "",
+      "rules_text": "As this Hardware enters, choose an opponent.\nAt the beginning of the chosen player's Maintenance, this Hardware deals X damage to that player, where X is the number of cards in their Wallet minus 4.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-235",
+      "name": "Resource Prism",
+      "card_type": "Hardware",
+      "cost": "3",
+      "action_resilience": "",
+      "rules_text": "2, Commit: generate 1 neutral Resources.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-236",
+      "name": "Chaos Kernel",
+      "card_type": "Hardware",
+      "cost": "2",
+      "action_resilience": "",
+      "rules_text": "Toss module — Commit: toss Chaos Kernel from at least one card-height above the Network. Archive each non-proxy card it touches, then archive Chaos Kernel.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-237",
+      "name": "Cuddy, Clockwork Node",
+      "card_type": "Hardware Avatar",
+      "cost": "6",
+      "action_resilience": "0/13",
+      "rules_text": "X, Commit — Maintenance: refill up to X markers, to a maximum of seven.",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-238",
+      "name": "Damage Limiter",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "3, Commit: Prevent the next 2 damage that would be dealt to you this turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-239",
+      "name": "Uptime Clock",
+      "card_type": "Hardware",
+      "cost": "2",
+      "action_resilience": "",
+      "rules_text": "At the beginning of each player's Maintenance, this Hardware deals 1 damage to that player.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-240",
+      "name": "Timelock Receiver",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-241",
+      "name": "Resource Tombstone",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-242",
+      "name": "Resource Exit Sensor",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-243",
+      "name": "Wallet Scrubber",
+      "card_type": "Hardware",
+      "cost": "3",
+      "action_resilience": "",
+      "rules_text": "3, Commit: Target player discards a card. Activate only during your turn.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-244",
+      "name": "Damage Firewall",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-245",
+      "name": "Hashrate Gauntlet",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Power Avatars get +1 Action and +1 Resilience.\nWhenever a Power Resource is committed for Resource, its controller generates 1 additional Power Resource.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-246",
+      "name": "Public Wallet Viewer",
+      "card_type": "Hardware",
+      "cost": "1",
+      "action_resilience": "",
+      "rules_text": "Commit: Look at target player's Wallet.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-247",
+      "name": "Mesh Router",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-248",
+      "name": "Open Feed",
+      "card_type": "Hardware",
+      "cost": "2",
+      "action_resilience": "",
+      "rules_text": "At the beginning of each player's draw step, if this Hardware is unlocked, that player draws an additional card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-249",
+      "name": "Cold Storage Controller",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-250",
+      "name": "Identity Mask",
+      "card_type": "Hardware",
+      "cost": "2",
+      "action_resilience": "",
+      "rules_text": "X: deploy an Avatar from your Wallet face down as a 2/2 neutral Avatar. Turn it face up when it would deal or receive damage, or become committed. X must cover its deploy cost.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-251",
+      "name": "Power Receiver",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-252",
+      "name": "Signal Receiver",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-253",
+      "name": "Damage Router",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "1: The next time a source of your choice would deal damage to target Avatar this turn, that source deals that damage to you instead.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-254",
+      "name": "Hot Wallet Statue",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-255",
+      "name": "Genesis Archive",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-256",
+      "name": "FLX, Unstoppable Rig",
+      "card_type": "Hardware Avatar",
+      "cost": "4",
+      "action_resilience": "5/5",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "removed 1 line(s) Fast does not play"
+    },
+    {
+      "id": "E1-257",
+      "name": "Keyed Resource Bell",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-258",
+      "name": "Memory Palace",
+      "card_type": "Hardware",
+      "cost": "1",
+      "action_resilience": "",
+      "rules_text": "You have no maximum Wallet size.\nIf an effect causes you to discard a card, discard it, but you may put it on top of your Stack instead of into your Archive.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-259",
+      "name": "MHB, Living Firewall",
+      "card_type": "Hardware Avatar",
+      "cost": "4",
+      "action_resilience": "0/8",
+      "rules_text": "Firewall (Attacks must target this Avatar first.)\n1: Reboot this Avatar.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-260",
+      "name": "Boost Converter",
+      "card_type": "Hardware",
+      "cost": "1",
+      "action_resilience": "",
+      "rules_text": "Doesn't unlock normally. At Maintenance, pay 4 to unlock it. If committed at draw, it deals 1 damage to you. Commit: generate 3 neutral Resources.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-261",
+      "name": "Low-Power Mode",
+      "card_type": "Hardware",
+      "cost": "1",
+      "action_resilience": "",
+      "rules_text": "Avatars with Action 3 or greater don't unlock during their controllers' unlock steps.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-262",
+      "name": "Bitcoin Seed",
+      "card_type": "Hardware",
+      "cost": "0",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Bitcoin Resource.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-263",
+      "name": "Keys Shard",
+      "card_type": "Hardware",
+      "cost": "0",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Keys Resource.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-264",
+      "name": "Signal Beacon",
+      "card_type": "Hardware",
+      "cost": "0",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Signal Resource.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-265",
+      "name": "Power Cell",
+      "card_type": "Hardware",
+      "cost": "0",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Power Resource.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-266",
+      "name": "Timelock Crystal",
+      "card_type": "Hardware",
+      "cost": "0",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Timelock Resource.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-267",
+      "name": "Network Reset Disk",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "This Hardware enters committed.\n1, Commit: decommission all Hardware, Avatars, and Protocols.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-268",
+      "name": "Michael1011, Obsidian Node",
+      "card_type": "Hardware Avatar",
+      "cost": "6",
+      "action_resilience": "5/8",
+      "rules_text": "No special ability.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-269",
+      "name": "Fault Injector",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-270",
+      "name": "Genesis Ring",
+      "card_type": "Hardware",
+      "cost": "1",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-271",
+      "name": "Archive Listener",
+      "card_type": "Hardware",
+      "cost": "1",
+      "action_resilience": "",
+      "rules_text": "Whenever an Avatar is decommissioned, you may pay 2. If you do, draw a card.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-272",
+      "name": "Resource Converter",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-273",
+      "name": "Swarm Node",
+      "card_type": "Hardware",
+      "cost": "5",
+      "action_resilience": "",
+      "rules_text": "5, Commit: create a 1/1 neutral Insect Hardware Avatar proxy with Broadcast. Name it Swarm Drone.",
+      "design_note": "re-costed and re-statted for Fast"
+    },
+    {
+      "id": "E1-274",
+      "name": "Keys Receiver",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-275",
+      "name": "Timelock Vault",
+      "card_type": "Hardware",
+      "cost": "7",
+      "action_resilience": "",
+      "rules_text": "Timelock Vault enters committed. It does not unlock normally. You may skip a turn to unlock it. Commit: after this turn, take one additional turn.",
+      "design_note": "cost floor 7"
+    },
+    {
+      "id": "E1-276",
+      "name": "Difficulty Winter",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-277",
+      "name": "Bitcoin Receiver",
+      "card_type": "Hardware",
+      "cost": "4",
+      "action_resilience": "",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
+    },
+    {
+      "id": "E1-278",
+      "name": "Power–Keys Junction",
+      "card_type": "Hardware",
+      "cost": "3K",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "Junction → four-cost ramp Hardware."
+    },
+    {
+      "id": "E1-279",
+      "name": "Keys–Bitcoin Junction",
+      "card_type": "Hardware",
+      "cost": "3K",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "Junction → four-cost ramp Hardware."
+    },
+    {
+      "id": "E1-280",
+      "name": "Power–Signal Junction",
+      "card_type": "Hardware",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "Junction → four-cost ramp Hardware."
+    },
+    {
+      "id": "E1-281",
+      "name": "Bitcoin–Signal Junction",
+      "card_type": "Hardware",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "Junction → four-cost ramp Hardware."
+    },
+    {
+      "id": "E1-282",
+      "name": "Signal–Keys Junction",
+      "card_type": "Hardware",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "Junction → four-cost ramp Hardware."
+    },
+    {
+      "id": "E1-283",
+      "name": "Power–Bitcoin Junction",
+      "card_type": "Hardware",
+      "cost": "3P",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "Junction → four-cost ramp Hardware."
+    },
+    {
+      "id": "E1-284",
+      "name": "Bitcoin–Timelock Junction",
+      "card_type": "Hardware",
+      "cost": "3T",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "Junction → four-cost ramp Hardware."
+    },
+    {
+      "id": "E1-285",
+      "name": "Signal–Timelock Junction",
+      "card_type": "Hardware",
+      "cost": "3S",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "Junction → four-cost ramp Hardware."
+    },
+    {
+      "id": "E1-286",
+      "name": "Timelock–Keys Junction",
+      "card_type": "Hardware",
+      "cost": "3T",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 2 neutral Resources.",
+      "design_note": "Junction → four-cost ramp Hardware."
+    },
+    {
+      "id": "E1-287",
+      "name": "Signal Commons — Sunrise",
+      "card_type": "Hardware",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Signal Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    },
+    {
+      "id": "E1-288",
+      "name": "Signal Commons — Rooftop",
+      "card_type": "Hardware",
+      "cost": "1S",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Signal Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    },
+    {
+      "id": "E1-289",
+      "name": "Timelock Channel — Dawn",
+      "card_type": "Hardware",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Timelock Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    },
+    {
+      "id": "E1-290",
+      "name": "Timelock Channel — Midnight",
+      "card_type": "Hardware",
+      "cost": "1T",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Timelock Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    },
+    {
+      "id": "E1-291",
+      "name": "Key Vault — Workshop",
+      "card_type": "Hardware",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Keys Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    },
+    {
+      "id": "E1-292",
+      "name": "Key Vault — Cold Room",
+      "card_type": "Hardware",
+      "cost": "1K",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Keys Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    },
+    {
+      "id": "E1-293",
+      "name": "Power Plant — Solar",
+      "card_type": "Hardware",
+      "cost": "1P",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Power Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    },
+    {
+      "id": "E1-294",
+      "name": "Power Plant — Hydro",
+      "card_type": "Hardware",
+      "cost": "1P",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Power Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    },
+    {
+      "id": "E1-295",
+      "name": "Satoshi Orchard — Commons",
+      "card_type": "Hardware",
+      "cost": "1B",
+      "action_resilience": "",
+      "rules_text": "Commit: generate 1 Bitcoin Resource.",
+      "design_note": "Resource card → two-cost ramp Hardware."
+    }
+  ]
+}

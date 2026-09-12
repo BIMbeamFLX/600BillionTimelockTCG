@@ -42,14 +42,14 @@
    * first legal, still-unassigned defender on each. One blocker per attacker —
    * gang blocks are a judgement call this policy does not pretend to have. */
   function planBlocks(E, state, seat) {
-    const ctx = { state, ctx: E.resolveCtx({}) };
+    const ctx = { state, ctx: E.resolveCtx({}, state) };
     const attackers = (state.clash && state.clash.attackers) || [];
     const defenders = zoneOf(state, seat, "network").slice();
     const used = new Set();
     const blocks = {};
     const byThreat = attackers.slice().sort((a, b) => {
-      const sa = E.statsOf(state, E.resolveCtx({}), a) || { action: 0 };
-      const sb = E.statsOf(state, E.resolveCtx({}), b) || { action: 0 };
+      const sa = E.statsOf(state, E.resolveCtx({}, state), a) || { action: 0 };
+      const sb = E.statsOf(state, E.resolveCtx({}, state), b) || { action: 0 };
       return (sb.action || 0) - (sa.action || 0);
     });
     for (const attacker of byThreat) {
@@ -85,7 +85,7 @@
   /* Fast target tries for a card with exactly one target: objects and seats on
    * the side the card is meant for, biggest Avatar first, then the other side. */
   function targetTries(E, state, seat, card) {
-    const ctx = E.resolveCtx({});
+    const ctx = E.resolveCtx({}, state);
     const harmful = card.playOps.some((op) => HARMFUL_OPS.has(op.op));
     const sides = harmful ? [1 - seat, seat] : [seat, 1 - seat];
     const tries = [];
@@ -111,7 +111,7 @@
    * what it costs; otherwise the face. With a Firewall in the way and no
    * Broadcast, only a Firewall is on the list. */
   function planAttacks(E, state, seat, compiled) {
-    const ctx = E.resolveCtx({});
+    const ctx = E.resolveCtx({}, state);
     const env = { state, ctx };
     const opponent = 1 - seat;
     const safe = (fn, fallback) => {
@@ -198,7 +198,7 @@
     const awaiting = state.awaiting;
     if (awaiting && awaiting.seat === seat) {
       if (awaiting.kind === "attackers") {
-        const ctx = { state, ctx: E.resolveCtx({}) };
+        const ctx = { state, ctx: E.resolveCtx({}, state) };
         const eligible = zoneOf(state, seat, "network").filter((uid) => {
           try {
             return E.canAttack(ctx, uid);

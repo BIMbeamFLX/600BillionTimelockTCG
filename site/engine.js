@@ -850,17 +850,37 @@
 
   let defaultCatalog = null;
 
-  function setCatalog(cards) {
-    defaultCatalog = Array.isArray(cards) ? buildCatalog(cards) : cards;
-    return defaultCatalog;
+  /* A ruleset may bring its own card values: the same 295 ids and names, other
+   * costs, stats and text. setCatalog(cards, "F1.0") registers them for Fast
+   * games only; without one, every ruleset plays the default catalog. */
+  const rulesetCatalogs = Object.create(null);
+
+  function setCatalog(cards, ruleset) {
+    const catalog = Array.isArray(cards) ? buildCatalog(cards) : cards;
+    if (ruleset === undefined) {
+      defaultCatalog = catalog;
+      return defaultCatalog;
+    }
+    if (!profileIdOf(ruleset)) fail("SCHEMA", `unknown ruleset ${JSON.stringify(ruleset)}`);
+    rulesetCatalogs[ruleset] = catalog;
+    return catalog;
   }
 
   /* The catalog is injected, never stored in state: it keeps the state small
-   * and makes redaction a one-field operation (hide a card by omitting cardId). */
-  function resolveCtx(ctx) {
+   * and makes redaction a one-field operation (hide a card by omitting cardId).
+   * `source` is the state, view or game config in play: its ruleset picks that
+   * ruleset's own catalog when one is registered. */
+  function resolveCtx(ctx, source) {
     const given = ctx || {};
     let catalog = given.catalog || null;
     if (Array.isArray(catalog)) catalog = buildCatalog(catalog);
+    if (!catalog) {
+      const ruleset = source && typeof source.ruleset === "string" ? source.ruleset : null;
+      if (ruleset === "F1.0" && !rulesetCatalogs[ruleset] && root && Array.isArray(root.E1_CARDS_FAST)) {
+        setCatalog(root.E1_CARDS_FAST, ruleset);
+      }
+      if (ruleset && profileIdOf(ruleset) && rulesetCatalogs[ruleset]) catalog = rulesetCatalogs[ruleset];
+    }
     if (!catalog) {
       if (!defaultCatalog && root && Array.isArray(root.E1_CARDS)) setCatalog(root.E1_CARDS);
       catalog = defaultCatalog;
@@ -1654,7 +1674,11 @@
    * seat 0's deck is built (pool filtered in catalog order) and shuffled, then
    * seat 1's, then seat 0 draws its opening seven, then seat 1. Order of
    * consumption is part of the rules — change it and every seed changes. */
-  function buildDeckList(catalog, affinity, stream) {
+  /* Fast Stacks have no Resource cards to count: a curve of Avatars, spells
+   * and permanents instead. Classic keeps its 17/14/5/4 below, byte for byte. */
+  const FAST_DECK_QUOTAS = Object.freeze({ avatars: 20, spells: 12, permanents: 8 });
+
+  function buildDeckList(catalog, affinity, stream, profile) {
     const inAffinity = (card) =>
       affinity === "All" ||
       card.affinity.indexOf(affinity) >= 0 ||
@@ -1699,6 +1723,14 @@
       }
     };
 
+    if (profile && profile.resources === "pool") {
+      draw((c) => c.isAvatar, FAST_DECK_QUOTAS.avatars);
+      draw((c) => !c.isAvatar && (c.type === "Zap" || c.type === "Operation"), FAST_DECK_QUOTAS.spells);
+      draw((c) => !c.isAvatar && (c.type === "Hardware" || c.type === "Protocol"), FAST_DECK_QUOTAS.permanents);
+      draw((c) => !c.isResource, MIN_STACK - deck.length);
+      draw(() => true, MIN_STACK - deck.length);
+      return deck;
+    }
     draw((c) => c.isResource, 17);
     draw((c) => c.isAvatar, 14);
     draw((c) => c.type === "Zap" || c.type === "Operation", 5);
@@ -1735,8 +1767,8 @@
   }
 
   function createGame(config, ctx) {
-    const context = resolveCtx(ctx);
     const settings = config || {};
+    const context = resolveCtx(ctx, { ruleset: settings.ruleset || "E1.0" });
     const seatConfigs = settings.seats || [{ name: "Player 1" }, { name: "Player 2" }];
     if (seatConfigs.length !== 2) fail("SCHEMA", "the E1 Classic Profile is exactly two players");
     /* A ruleset nobody implements must not deal a game that silently plays by
@@ -1819,7 +1851,7 @@
       const stream = state.rng.hidden[seat];
       const deck = Array.isArray(seatConfig.deck) && seatConfig.deck.length
         ? seatConfig.deck.slice()
-        : buildDeckList(context.catalog, seatConfig.affinity || "All", stream);
+        : buildDeckList(context.catalog, seatConfig.affinity || "All", stream, profileOf(state));
       // An illegal decklist is the cheapest cheat there is; it never reaches
       // the table. Validate before a single object is minted.
       if (deck.length < MIN_STACK) fail("SCHEMA", `seat ${seat} Stack is ${deck.length}, minimum ${MIN_STACK}`);
@@ -5503,7 +5535,7 @@
       if (!Array.isArray(state.pendingTriggers[key])) state.pendingTriggers[key] = [];
     }
     const options = declarations || {};
-    const env = { state, ctx: resolveCtx(ctx), events: [] };
+    const env = { state, ctx: resolveCtx(ctx, source), events: [] };
     const requested = Array.isArray(options.attackers)
       ? options.attackers
       : state.clash.attackers || [];
@@ -5834,7 +5866,10 @@
       const card = cardOf(env.ctx, object.cardId);
       const ability = card.abilities[payload.abilityIndex];
       if (!ability || ability.kind !== "activated") fail("SCHEMA", "not an activated ability");
-      if (ability.resourceAbility) fail("SCHEMA", "use ACTIVATE_RESOURCE_ABILITY (§10.3)");
+      // Fast has no Resource actions: a generating ability is simply an ability, and ramp.
+      if (ability.resourceAbility && profileOf(state).resources !== "pool") {
+        fail("SCHEMA", "use ACTIVATE_RESOURCE_ABILITY (§10.3)");
+      }
       if (ability.requireCommitted && !object.committed) {
         fail("CANNOT_AFFORD", "only a committed object can use that ability");
       }
@@ -6750,7 +6785,12 @@
     player.poolMax = Math.min(FAST_POOL_CAP, (player.poolMax || 0) + 1);
     player.buffer = emptyBuffer();
     player.buffer.N = player.poolMax;
-    emit(env, "POOL", { seat, max: player.poolMax });
+    /* The second player's first two turns get one extra Resource each. Going
+     * first was worth 63% of games in the simulator with one bonus turn and 56%
+     * with two (scripts/sim.mjs, 300 games each). */
+    const bonus = env.state.turn.number <= 2 && seat !== env.state.turn.firstPlayer ? 1 : 0;
+    player.buffer.N += bonus;
+    emit(env, "POOL", { seat, max: player.poolMax, bonus });
   }
 
   function processDelayed(env, at) {
@@ -6890,7 +6930,7 @@
   function apply(state, action, ctx) {
     let context;
     try {
-      context = resolveCtx(ctx);
+      context = resolveCtx(ctx, state);
     } catch (error) {
       return { state, events: [], error: errorValue(error) };
     }
@@ -7276,7 +7316,7 @@
    * legal actions discloses the contents of a hidden hand. */
   function legalActions(source, seat, ctx) {
     const state = source;
-    const context = resolveCtx(ctx);
+    const context = resolveCtx(ctx, source);
     const out = [];
     const illegal = profileOf(state).illegal;
     const push = (type, payload) => {
