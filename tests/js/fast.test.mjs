@@ -573,17 +573,15 @@ test("a trigger raised while a card resolves is resolved in the same action", ()
 });
 
 test("bot games under Fast finish, and nothing waits on the Queue between actions", () => {
-  /* The NPC plays the same policy as the browser. Four pairings measured to
-   * finish on these seeds. Signal/Bitcoin is left out on purpose, for a reason
-   * that is not Fast's: it reaches a drawReplacement prompt the NPC cannot
-   * answer (it stalls in Classic too). */
+  /* The NPC plays the same policy as the browser. Five pairings, including
+   * Signal/Bitcoin, which reaches a drawReplacement prompt the NPC now answers. */
   const NPC = require(path.join(siteDir, "npc.js"));
   const compiled = {};
   const compile = (id) => {
     if (!compiled[id]) compiled[id] = E.compileCard(CARDS.find((c) => c.id === id));
     return compiled[id];
   };
-  for (const [i, a, b] of [[1, "Bitcoin", "Keys"], [2, "Timelock", "Power"], [3, "Power", "Signal"], [4, "Keys", "Timelock"]]) {
+  for (const [i, a, b] of [[0, "Signal", "Bitcoin"], [1, "Bitcoin", "Keys"], [2, "Timelock", "Power"], [3, "Power", "Signal"], [4, "Keys", "Timelock"]]) {
     let seed = 20260802 + i * 97;
     let state = null;
     for (let k = 0; k < 40 && !state; k++) {
