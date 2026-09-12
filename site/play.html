@@ -844,6 +844,15 @@ a { color: var(--orange-soft); }
     </div>
     <div class="startrow">
       <button class="btn" id="start">Start game</button>
+      <!-- Classic is Edition One as printed; Fast is the same cards on a pool,
+           with one Build window a turn and attacks straight at a target
+           (rules/600B-Timelock-TCG-Fast-F1.md). -->
+      <label for="rules" style="color:var(--muted);font-size:12px">Rules
+        <select id="rules" style="margin-left:6px;padding:6px 8px;color:var(--cream);background:var(--soot);border:1px solid var(--line)">
+          <option value="E1.0">Classic</option>
+          <option value="F1.0">Fast</option>
+        </select>
+      </label>
       <!-- The field takes a word as happily as a number now (site/play.js:
            seedFromInput), so it finally says so. It used to accept anything and
            silently deal seed 0 for everything that was not a plain integer. -->
@@ -1082,6 +1091,7 @@ a { color: var(--orange-soft); }
   <g id="arrowLines"></g>
 </svg>
 <script src="play-data.js"></script>
+<script src="play-data-fast.js"></script>
 <div id="coach" hidden>
   <b id="coachTitle"></b>
   <span id="coachText"></span>
@@ -1132,6 +1142,7 @@ a { color: var(--orange-soft); }
 <script src="face-geometry.js"></script>
 <!-- The precon library: curated Starter and Classic Stacks for the seat menus. -->
 <script src="precons.js"></script>
+<script src="precons-fast.js"></script>
 <script src="fx.js"></script>
 <!-- The transport. It opens no socket unless this page already holds a match or
      the player asks for one, so play.html stays a working offline hotseat. -->

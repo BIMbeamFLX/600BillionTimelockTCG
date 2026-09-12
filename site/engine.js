@@ -6108,7 +6108,10 @@
       emit(env, "ATTACK", {
         seat: action.seat,
         attacker: uid,
-        target: targetUid ? { kind: "object", uid: targetUid } : { kind: "seat", seat: defender },
+        cardId: state.objects[uid].cardId,
+        target: targetUid
+          ? { kind: "object", uid: targetUid, cardId: state.objects[targetUid].cardId }
+          : { kind: "seat", seat: defender },
       });
       raiseTriggers(env, "attackers-declared", { seat: action.seat, attackers: [uid] });
       resolveAttack(env, uid, targetUid, defender);
