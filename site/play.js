@@ -464,7 +464,12 @@
     const NET = ["youNetwork", "foeNetwork"];
     const HAND = ["youHand", "foeHand"];
     switch (event.t) {
-      case "TURN": return cue("turn:begin", { seat: event.seat, number: event.number });
+      case "TURN":
+        // `mine`: the bell for "your turn" rings for the player at this screen only.
+        return cue("turn:begin", {
+          seat: event.seat, number: event.number,
+          mine: Boolean(session.full) && session.role !== "spectator" && event.seat === uiSeat(session.full),
+        });
       case "PHASE": return cue("phase:enter", { phase: FX_PHASE[event.phase] || event.phase });
       // DRAW names the card it drew: the ghost then flies from the Stack
       // counter to THAT card instead of vaguely at the hand.
@@ -504,7 +509,11 @@
         return cue("avatar:decommission", { uid: event.uid }, { exit: NET, cardId: event.cardId });
       case "DAMAGE":
         return event.to === "seat"
-          ? cue("damage:player", { seat: event.seat, amount: event.amount })
+          ? cue("damage:player", {
+            seat: event.seat, amount: event.amount,
+            // The killing blow gets the biggest sound in the game.
+            lethal: Boolean(session.full && session.full.seats[event.seat] && session.full.seats[event.seat].uptime <= 0),
+          })
           : cue("damage:avatar", { uid: event.uid, amount: event.amount }, { el: true });
       case "UPTIME":
         // Uptime lost outside combat — Burn's interest, a card's own cost, a
@@ -549,7 +558,12 @@
       // to land on seat 0 whoever actually won. A draw has no winner at all.
       case "GAME_OVER": {
         const winners = event.winners || [];
-        return cue("game:win", { seat: winners.length === 1 ? winners[0] : null });
+        return cue("game:win", {
+          seat: winners.length === 1 ? winners[0] : null,
+          // A loss at this screen hears a loss, not the winner's fanfare.
+          mine: winners.length !== 1 || session.role === "spectator" || !session.full ? null
+            : winners[0] === uiSeat(session.full),
+        });
       }
       default: return undefined;
     }

@@ -1852,6 +1852,8 @@ async function createTable(opts) {
      * application/octet-stream and strict browsers (Safari especially) refuse
      * to play it. */
     ".mp4": "video/mp4",
+    // The rendered sound moments (scripts/build_fx_samples.py).
+    ".wav": "audio/wav",
   };
 
   /* THE PAGE AND THE REFEREE CAN LIVE ON DIFFERENT ORIGINS, and when they do the
