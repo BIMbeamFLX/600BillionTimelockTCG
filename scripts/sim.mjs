@@ -45,7 +45,7 @@ export function loadEngine({ fastCards = true } = {}) {
 
 /* One game. Returns its verdict and counters, never throws for a game that
  * goes wrong: a stall or a turn limit is a result the report has to show. */
-export function playGame(env, { profile, affinities, seed, firstPlayer = 0, maxActions = 4000, maxTurns = 60 }) {
+export function playGame(env, { profile, affinities, decks, seed, firstPlayer = 0, maxActions = 4000, maxTurns = 60 }) {
   const { E, NPC } = env;
   const compiled = env.compiledFor ? env.compiledFor[profile] : env.compiled;
   let state = null;
@@ -54,7 +54,7 @@ export function playGame(env, { profile, affinities, seed, firstPlayer = 0, maxA
     try {
       state = E.createGame({
         ruleset: RULESETS[profile],
-        seats: affinities.map((affinity, i) => ({ name: `Bot${i}`, affinity })),
+        seats: affinities.map((affinity, i) => Object.assign({ name: `Bot${i}`, affinity }, decks ? { deck: decks[i] } : {})),
         seeds: { public: s | 0, hidden: [(s ^ 0x5f3759df) | 0, (s + 7717) | 0] },
         firstPlayer,
       });
@@ -136,6 +136,33 @@ export function simulate(env, { profile, games, seed }) {
   };
 }
 
+/* Round robin of preconstructed Stacks: every pair plays `games` games, both
+ * seats taking turns going first. Reports each Stack's win rate. */
+export function simulatePrecons(env, { profile, precons, games, seed }) {
+  const names = Object.keys(precons);
+  const record = Object.fromEntries(names.map((name) => [name, { wins: 0, games: 0 }]));
+  const outcomes = {};
+  let n = 0;
+  for (let a = 0; a < names.length; a++) {
+    for (let b = a + 1; b < names.length; b++) {
+      for (let g = 0; g < games; g++) {
+        const pair = [names[a], names[b]];
+        const result = playGame(env, {
+          profile, seed: seed + n * 7919, firstPlayer: g % 2,
+          affinities: pair.map((name) => precons[name].affinity),
+          decks: pair.map((name) => precons[name].cards),
+        });
+        n += 1;
+        outcomes[result.outcome] = (outcomes[result.outcome] || 0) + 1;
+        if (result.outcome !== "win") continue;
+        for (const name of pair) record[name].games += 1;
+        record[pair[result.winner]].wins += 1;
+      }
+    }
+  }
+  return { profile, games: n, outcomes, stacks: Object.fromEntries(names.map((name) => [name, record[name].games ? record[name].wins / record[name].games : 0])) };
+}
+
 function format(report) {
   const pct = (x) => `${(100 * x).toFixed(1)}%`;
   const lines = [
@@ -152,7 +179,7 @@ function format(report) {
 }
 
 function parseArgs(argv) {
-  const args = { games: 10, profile: "both", seed: 20260912, json: null };
+  const args = { games: 10, profile: "both", seed: 20260912, json: null, precons: null };
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, "");
     if (key in args) args[key] = key === "games" || key === "seed" ? Number(argv[++i]) : argv[++i];
@@ -163,6 +190,13 @@ function parseArgs(argv) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = parseArgs(process.argv.slice(2));
   const env = loadEngine();
+  if (args.precons) {
+    const precons = require(path.join(siteDir, args.precons === "fast" ? "precons-fast.js" : "precons.js"));
+    const report = simulatePrecons(env, { profile: args.precons === "fast" ? "fast" : "classic", precons, games: args.games, seed: args.seed });
+    console.log(`== ${report.profile} precons — ${report.games} games ${JSON.stringify(report.outcomes)}`);
+    for (const [name, rate] of Object.entries(report.stacks)) console.log(`  ${name.padEnd(22)} ${(100 * rate).toFixed(1)}%`);
+    process.exit(0);
+  }
   const profiles = args.profile === "both" ? ["classic", "fast"] : [args.profile];
   const reports = profiles.map((profile) => simulate(env, { profile, games: args.games, seed: args.seed }));
   for (const report of reports) console.log(format(report) + "\n");

@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadEngine, playGame, simulate, AFFINITIES } from "../../scripts/sim.mjs";
+import { createRequire } from "node:module";
 
 const env = loadEngine();
 const { E, NPC, compiled } = env;
@@ -112,4 +113,19 @@ test("the drawReplacement prompt is answered", () => {
   const state = fastGame();
   state.awaiting = { kind: "drawReplacement", seat: 0 };
   assert.deepEqual(NPC.candidates(E, state, 0, compiled, {})[0], { type: "CHOOSE_DRAW", payload: { skip: false } });
+});
+
+test("every Fast precon is a legal Stack and plays to a verdict against the others", () => {
+  const precons = createRequire(import.meta.url)("../../site/precons-fast.js");
+  const names = Object.keys(precons);
+  assert.equal(names.length, 8);
+  for (let i = 0; i < names.length; i++) {
+    const pair = [names[i], names[(i + 1) % names.length]];
+    const result = playGame(env, {
+      profile: "fast", seed: 31 + i, firstPlayer: i % 2,
+      affinities: pair.map((name) => precons[name].affinity),
+      decks: pair.map((name) => precons[name].cards),
+    });
+    assert.equal(result.outcome, "win", `${pair.join(" vs ")}: ${JSON.stringify(result)}`);
+  }
 });
