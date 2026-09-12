@@ -1,8 +1,9 @@
 /* The Fast profile (ruleset "F1.0"), built one subsystem at a time.
  *
- * This file covers the turn machine only: Open, one Build phase, Close — no
- * Clash phase and no Build II. Priority, the Queue, Resources and attacking
- * still follow Classic here and get their own tests when they change. Classic
+ * Covered so far: the turn machine (Open, one Build phase, Close — no Clash
+ * phase and no Build II), and priority with the Queue (only the active player
+ * holds priority, only in Build, and nothing waits on the Queue). Resources and
+ * attacking still follow Classic here and get their own tests when they change. Classic
  * itself is guarded byte for byte in profile.test.mjs; nothing in this file may
  * be relaxed to make a Classic test pass, or the other way round. */
 import { test } from "node:test";
@@ -135,12 +136,12 @@ test("the Fast turn is Open, Build, Close", () => {
 });
 
 test("the Fast descriptor claims no rule the engine does not play yet", () => {
-  /* Only the turn machine is Fast so far. Each of these flips in the commit
-   * that implements it; a descriptor that ran ahead of the engine would be a
-   * lie a UI or a bot could act on. */
+  /* The turn machine, priority and the Queue are Fast so far. Each remaining
+   * field flips in the commit that implements it; a descriptor that ran ahead
+   * of the engine would be a lie a UI or a bot could act on. */
   const fast = E.PROFILES.fast;
-  assert.equal(fast.priority, "full");
-  assert.equal(fast.queue, "lifo");
+  assert.equal(fast.priority, "active");
+  assert.equal(fast.queue, "immediate");
   assert.equal(fast.resources, "cards");
   assert.equal(fast.burnsBuffers, true);
   assert.equal(fast.genericOnlyCosts, false);
@@ -196,8 +197,11 @@ test("every profile keeps the shape the turn machine relies on", () => {
 test("a Fast game starts where every game starts, with no new state", () => {
   const fast = E.createGame(config("F1.0"));
   const classic = E.createGame(config());
-  assert.equal(fast.turn.phase, "open");
-  assert.equal(fast.turn.number, 1);
+  // Unlock, Maintenance and Draw already ran: nothing in them asks for a pass,
+  // so a Fast game is dealt straight into its first player's Build window.
+  assert.deepEqual([fast.turn.number, fast.turn.active, fast.priority.seat, fast.priority.window],
+    [1, 0, 0, "build1:main"]);
+  assert.equal(classic.priority.window, "open:maintenance");
   // The turn machine adds no field. poolMax and the like arrive with the
   // subsystem that needs them, and only on Fast.
   assert.deepEqual(Object.keys(fast).sort(), Object.keys(classic).sort());
@@ -205,13 +209,15 @@ test("a Fast game starts where every game starts, with no new state", () => {
   assert.deepEqual(Object.keys(fast.seats[0]).sort(), Object.keys(classic.seats[0]).sort());
 });
 
-test("a Fast turn opens four priority windows and never a Clash or Build II", () => {
+test("a Fast turn opens one priority window, the active player's own Build phase", () => {
   const { state, events, windows, clashSteps } = passUntil(E.createGame(config("F1.0")), (s) => s.turn.number >= 4);
   assert.equal(state.turn.number, 4);
-  const perTurn = windows.filter((w) => w.turn === 1 && w.active === 0 && w.seat === 0).map((w) => w.window);
-  assert.deepEqual(perTurn, ["open:maintenance", "open:draw", "build1:main", "close:endStep"]);
+  assert.deepEqual(windows.slice(0, 6).map((w) => `${w.turn}:${w.seat}:${w.window}`), [
+    "1:0:build1:main", "1:1:build1:main", "2:0:build1:main", "2:1:build1:main", "3:0:build1:main", "3:1:build1:main",
+  ]);
   for (const w of windows) {
-    assert.ok(!w.window.startsWith("clash:") && !w.window.startsWith("build2:"), `opened ${w.window}`);
+    assert.equal(w.seat, w.active, "only the active player ever holds priority");
+    assert.equal(w.window, "build1:main", `no window outside Build: opened ${w.window}`);
   }
   const phases = new Set(events.filter((e) => e.t === "PHASE").map(phaseOf));
   assert.deepEqual([...phases].sort(), ["build1", "close"]);
@@ -225,13 +231,13 @@ test("a Fast turn opens four priority windows and never a Clash or Build II", ()
 test("Fast reaches turn four in fewer actions than Classic, with the same draws", () => {
   /* Measured on this seed with every window passed: Classic opens seven
    * windows a turn (Build I, Clash start and end, Build II among them) and
-   * Fast opens four. Pinned as numbers, so a later change that quietly adds a
+   * Fast opens one. Pinned as numbers, so a later change that quietly adds a
    * window back shows up here as a count, not as a feeling. */
   const stop = (s) => s.turn.number >= 4;
   const classic = passUntil(E.createGame(config()), stop);
   const fast = passUntil(E.createGame(config("F1.0")), stop);
   assert.equal(classic.actions.length, 48);
-  assert.equal(fast.actions.length, 30);
+  assert.equal(fast.actions.length, 12);
   const draws = (run) => run.events.filter((e) => e.t === "DRAW").length;
   assert.equal(draws(fast), draws(classic), "shortening the turn must not cost a draw");
   assert.equal(draws(fast), 6);
@@ -266,7 +272,14 @@ test("permanents can still be played during the Fast Build phase", () => {
     .find(({ result: attempt }) => !attempt.error);
   assert.ok(played, "some permanent in hand could be paid for and played");
   assert.notEqual(played.card.type, "Zap", "a Zap would prove nothing: it is instant speed");
-  assert.ok(played.result.events.some((e) => e.t === "QUEUED"), `${played.card.name} went on the Queue`);
+  // And under Fast it is already in play when the action returns: no pass,
+  // no second seat, no Queue left behind.
+  const kinds = played.result.events.map((e) => e.t);
+  assert.ok(kinds.indexOf("QUEUED") >= 0 && kinds.indexOf("ENTERS") > kinds.indexOf("QUEUED"),
+    `${played.card.name} was queued and resolved in one action: ${kinds.join(",")}`);
+  assert.equal(played.result.state.queue.length, 0);
+  assert.equal(played.result.state.priority.seat, 0, "the active player keeps priority to play on");
+  assert.equal(played.result.state.priority.window, "build1:main");
 });
 
 test("an unspent Buffer still burns when the Fast Build phase ends", () => {
@@ -284,7 +297,7 @@ test("an unspent Buffer still burns when the Fast Build phase ends", () => {
   const uptime = state.seats[0].uptime;
   assert.equal(Object.values(state.seats[0].buffer).reduce((a, b) => a + b, 0), 1, "one Resource generated");
 
-  const walk = passUntil(state, (s) => s.priority.window === "close:endStep");
+  const walk = passUntil(state, (s) => s.turn.active === 1);
   const burn = walk.events.find((e) => e.t === "BURN");
   assert.ok(burn, "leaving Build burned the Buffer");
   assert.deepEqual({ seat: burn.pub.seat, amount: burn.pub.amount, reason: burn.pub.reason },
@@ -371,31 +384,100 @@ test("a Fast game is deterministic, replays, and its transcript verifies", () =>
   assert.equal(verdict.headHash, E.hashState(first.state));
 });
 
-test("the same passes walk a Classic game into its Clash and a Fast game past it", () => {
-  /* Both games share their gameId here, so nothing but the turn can tell them
-   * apart. Apply one pass list to both, action by action, and find the first
-   * window where they part: it must be the pass that leaves Build I — Classic
-   * enters its Clash, Fast goes straight to the End step. */
-  const cfg = (ruleset) => Object.assign(config(ruleset), { gameId: "g_same_id_both" });
-  let fast = E.createGame(cfg("F1.0"));
-  let classic = E.createGame(cfg());
-  let parted = null;
-  for (let i = 0; i < 200 && !parted; i++) {
-    const seat = fast.priority.seat;
-    assert.notEqual(seat, null, "passes only: no declaration comes up before the turns part");
-    assert.equal(classic.priority.seat, seat, "until they part, the same seat holds priority in both");
-    const before = fast.priority.window;
-    const nextFast = act(fast, "PASS_PRIORITY", seat);
-    const nextClassic = act(classic, "PASS_PRIORITY", seat);
-    assert.equal(nextFast.error, null);
-    assert.equal(nextClassic.error, null);
-    fast = nextFast.state;
-    classic = nextClassic.state;
-    if (fast.priority.window !== classic.priority.window) {
-      parted = { before, fast: fast.priority.window, classic: classic.priority.window };
-    }
+test("one pass hands the turn to the opponent's Build phase", () => {
+  /* Classic, from the same deal, first asks for a pass at Maintenance and keeps
+   * the turn with seat 0 through six more windows. */
+  const classic = E.createGame(config());
+  assert.equal(classic.priority.window, "open:maintenance");
+
+  const fast = E.createGame(config("F1.0"));
+  assert.deepEqual([fast.priority.seat, fast.priority.window], [0, "build1:main"]);
+  // The one decision between the two windows is the hand limit: the first
+  // player drew to eight on turn one, and Cleanup asks which card goes.
+  const walk = passUntil(fast, (s) => s.turn.active === 1 && s.priority.seat !== null);
+  assert.deepEqual(walk.actions.map((a) => a.type), ["PASS_PRIORITY", "DISCARD_TO_LIMIT"]);
+  const next = walk.state;
+  assert.deepEqual([next.turn.number, next.turn.active, next.priority.seat, next.priority.window],
+    [1, 1, 1, "build1:main"]);
+  const kinds = walk.events.map((e) => e.t);
+  for (const expected of ["PHASE", "CLEANUP", "TURN", "DRAW"]) {
+    assert.ok(kinds.includes(expected), `the rest of the turn and the next opening ran: ${kinds.join(",")}`);
   }
-  assert.deepEqual(parted, { before: "build1:main", fast: "close:endStep", classic: "clash:start" });
+  // The non-active seat holds no priority: it cannot pass, play or activate.
+  const refused = act(next, "PASS_PRIORITY", 0);
+  assert.ok(refused.error, "seat 0 passing on seat 1's turn must be refused");
+});
+
+test("a Maintenance trigger resolves without asking anyone to pass", () => {
+  /* Uptime Clock: at the beginning of each player's Maintenance, 1 damage to
+   * that player. Maintenance opens no window under Fast, so the trigger must
+   * resolve inside the pass that reaches it. */
+  const state = E.createGame(config("F1.0"));
+  const clock = CARDS.find((card) => card.name === "Uptime Clock");
+  const uid = "o" + state.nextUid;
+  state.nextUid += 1;
+  state.objects[uid] = {
+    uid, cardId: clock.id, owner: 0, controller: 0, zone: "0:network", committed: false,
+    bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+    revealedTo: [], revealedUntil: null, token: false, entersSeq: state.seq, prevUid: null,
+  };
+  state.zones["0:network"].push(uid);
+  const uptime = state.seats[1].uptime;
+  const walk = passUntil(state, (s) => s.turn.active === 1 && s.priority.seat !== null);
+  // A pass and the hand-limit discard; no window for Maintenance in between.
+  assert.deepEqual(walk.actions.map((a) => a.type), ["PASS_PRIORITY", "DISCARD_TO_LIMIT"]);
+  assert.equal(walk.state.seats[1].uptime, uptime - 1, "seat 1 took the Maintenance damage");
+  assert.equal(walk.state.queue.length, 0, "and nothing was left waiting");
+  assert.deepEqual([walk.state.priority.seat, walk.state.priority.window], [1, "build1:main"]);
+});
+
+test("bot games under Fast finish, and nothing waits on the Queue between actions", () => {
+  /* The NPC plays the same policy as the browser. Three pairings measured to
+   * finish on these seeds. Two others are left out on purpose, for reasons that
+   * are not Fast's: Signal/Bitcoin reaches a drawReplacement prompt the NPC
+   * cannot answer (it stalls in Classic too), and Power/Signal meets Boost
+   * Converter, whose miscompiled cost lets the bot generate forever (also in
+   * Classic). */
+  const NPC = require(path.join(siteDir, "npc.js"));
+  const compiled = {};
+  const compile = (id) => {
+    if (!compiled[id]) compiled[id] = E.compileCard(CARDS.find((c) => c.id === id));
+    return compiled[id];
+  };
+  for (const [i, a, b] of [[1, "Bitcoin", "Keys"], [2, "Timelock", "Power"], [4, "Keys", "Timelock"]]) {
+    let seed = 20260802 + i * 97;
+    let state = null;
+    for (let k = 0; k < 40 && !state; k++) {
+      try {
+        state = E.createGame({ ruleset: "F1.0", seats: [{ name: "A", affinity: a }, { name: "B", affinity: b }],
+          seeds: { public: seed, hidden: [777, 888] }, firstPlayer: 0 });
+      } catch (error) {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      }
+    }
+    let steps = 0;
+    while (!state.result && steps < 1500) {
+      const seat = NPC.waitingSeat(state);
+      assert.notEqual(seat, null, `${a}/${b}: nobody to act at seq ${state.seq}`);
+      let next = null;
+      for (const move of NPC.candidates(E, state, seat, compile, { affinity: seat === 0 ? a : b })) {
+        const result = E.apply(state, { type: move.type, seat, seq: state.seq, at: "", payload: move.payload });
+        if (!result.error) {
+          next = result.state;
+          break;
+        }
+      }
+      assert.ok(next, `${a}/${b}: no accepted move at seq ${state.seq}, ${state.priority.window}`);
+      if (next.queue.length) {
+        assert.ok(next.pendingChoice || next.pendingManual || next.awaiting,
+          `${a}/${b}: the Queue held ${next.queue.length} with nothing to answer`);
+      }
+      if (next.priority.seat !== null) assert.equal(next.priority.seat, next.turn.active);
+      state = next;
+      steps += 1;
+    }
+    assert.ok(state.result, `${a}/${b}: no verdict after ${steps} actions (turn ${state.turn.number})`);
+  }
 });
 
 test("ribbonFor gives a Fast game its own ribbon and leaves TURN_RIBBON alone", () => {

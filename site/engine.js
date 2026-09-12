@@ -777,13 +777,17 @@
     phaseOrder: FAST_PHASE_ORDER,
     phaseSteps: FAST_PHASE_STEPS,
     ribbon: FAST_RIBBON,
-    /* Below this line Fast still plays Classic's rules, and says so. Each field
-     * flips in the commit that implements it — priority and the Queue, then
-     * Resources, then attacking — so the descriptor never claims a rule the
-     * engine does not play yet. Combat is "none" rather than "clash": with no
-     * Clash phase there is, for now, no way to attack at all. */
-    priority: "full",
-    queue: "lifo",
+    /* Only the active player ever holds priority, and only in their own Build
+     * phase: one window a turn. Nothing waits on the Queue — a card or ability
+     * resolves as soon as it is put there, and so does every trigger.
+     *
+     * Below that, Fast still plays Classic's rules, and says so. Each field
+     * flips in the commit that implements it — Resources, then attacking — so
+     * the descriptor never claims a rule the engine does not play yet. Combat
+     * is "none" rather than "clash": with no Clash phase there is, for now, no
+     * way to attack at all. */
+    priority: "active",
+    queue: "immediate",
     resources: "cards",
     combat: "none",
     burnsBuffers: true,
@@ -4635,7 +4639,28 @@
     // §9.1 / §9.5 no player receives priority during Unlock or Cleanup.
     if (step === "unlock") return false;
     if (step === "cleanup") return false;
+    // Fast: the active player's own Build phase is the one window in a turn.
+    // Maintenance, Draw and the End step still run their turn-based actions
+    // and triggers; nobody is asked to click through them.
+    if (profileOf(state).priority === "active") return step === "main";
     return true;
+  }
+
+  /* Fast resolves the Queue as soon as something is on it. Resolving can raise
+   * more triggers (collectTriggers puts them on top, so they resolve first,
+   * LIFO as ever — a "card-queued" trigger resolves before the card that caused
+   * it), a choice, a manual proposal, a trigger-order prompt or the end of the
+   * game; any of those stops the loop, and the action that answers it settles
+   * the rest. Bounded, so a card loop that retriggers itself cannot hang the
+   * referee: whatever is left waits for the next action. */
+  function settleQueue(env) {
+    const state = env.state;
+    for (let guard = 0; guard < 256; guard++) {
+      if (!state.queue.length || state.result || state.pendingChoice || state.pendingManual || state.awaiting) return;
+      resolveTopOfQueue(env);
+      stateChecks(env);
+      collectTriggers(env);
+    }
   }
 
   /* Turn-based actions for the step we just entered. Returns "skip" when the
@@ -4901,6 +4926,16 @@
       stateChecks(env);
       if (state.result) return;
       collectTriggers(env);
+      // Fast: a Maintenance or Draw trigger has no window to wait for, so it
+      // resolves here. Loop again only when settling made progress or stopped
+      // on something that must be answered; a Queue that could not be emptied
+      // falls through rather than spinning the guard.
+      if (profileOf(state).queue === "immediate" && state.queue.length && !state.awaiting) {
+        settleQueue(env);
+        if (!state.queue.length || state.result || state.pendingChoice || state.pendingManual || state.awaiting) {
+          continue;
+        }
+      }
       if (state.awaiting) {
         state.priority.seat = null;
         return;
@@ -4936,6 +4971,19 @@
    * the step), because the caller must then stop auto-passing. */
   function registerPass(env, seat) {
     const state = env.state;
+    if (profileOf(state).priority === "active") {
+      // Fast: nobody else holds priority, so the one pass closes the window.
+      state.priority.passed = [false, false];
+      if (state.queue.length) settleQueue(env);
+      if (state.pendingChoice || state.pendingManual || state.awaiting) {
+        state.priority.seat = null;
+        return true;
+      }
+      if (state.result) return true;
+      nextStep(env);
+      advanceUntilPriority(env);
+      return true;
+    }
     state.priority.passed[seat] = true;
     if (!state.priority.passed[0] || !state.priority.passed[1]) {
       state.priority.seat = 1 - seat;
@@ -6749,6 +6797,7 @@
 
       stateChecks(env);              // 8. to fixpoint
       collectTriggers(env);          // 9. non-active player's triggers on top
+      if (profileOf(draft).queue === "immediate") settleQueue(env); // 10. Fast: nothing waits
       recomputeResult(env);          // 11. including the simultaneous-loss draw
       if (!draft.result && !draft.pendingChoice && !draft.pendingManual && !draft.awaiting) {
         if (draft.priority.seat === null) advanceUntilPriority(env); // 12.
