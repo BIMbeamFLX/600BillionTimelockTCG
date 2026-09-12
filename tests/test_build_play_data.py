@@ -163,8 +163,7 @@ def test_every_e1_card_is_fully_authoritative():
         if ability["manual"]
     ]
 
-    # The engine has no way to skip a turn yet, so this one clause stays assisted.
-    assert manual == ["E1-275 You may skip a turn to unlock it."], "\n".join(manual)
+    assert manual == [], "manual abilities remain:\n" + "\n".join(manual)
 
 
 def test_sentences_before_a_cost_clause_are_their_own_lines():
@@ -188,6 +187,15 @@ def test_boost_converter_compiles_its_statics_and_a_real_commit_cost():
     assert draw["trigger"] == {"on": "draw-step", "whose": "you"}
     assert draw["ops"][0]["condition"] == {"sourceCommitted": True}
     assert commit["cost"] == "Commit"
+
+
+def test_timelock_vault_skips_a_turn_to_unlock_only_while_committed():
+    records = {record["name"]: record for record in playable_records(CARDS, FACE_FILES)}
+    skip = records["Timelock Vault"]["abilities"][2]
+
+    assert skip["requireCommitted"] is True
+    assert [op["op"] for op in skip["ops"]] == ["skipTurn", "unlockSelf"]
+    assert all(op["condition"] == {"sourceCommitted": True} for op in skip["ops"])
 
 
 def test_no_activated_ability_cost_contains_a_sentence():
