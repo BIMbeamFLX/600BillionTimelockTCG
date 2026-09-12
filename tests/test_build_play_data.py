@@ -10,6 +10,7 @@ from build_play_data import (
     parse_stats,
     playable_records,
     render_module,
+    split_leading_sentences,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -155,9 +156,49 @@ def test_every_card_compiles_and_keeps_its_face():
 
 def test_every_e1_card_is_fully_authoritative():
     records = playable_records(CARDS, FACE_FILES)
-    manual = [f"{record['id']} {record['name']}" for record in records if record["manual"]]
+    manual = [
+        f"{record['id']} {ability['text']}"
+        for record in records
+        for ability in record["abilities"]
+        if ability["manual"]
+    ]
 
-    assert manual == [], "manual cards remain:\n" + "\n".join(manual)
+    # The engine has no way to skip a turn yet, so this one clause stays assisted.
+    assert manual == ["E1-275 You may skip a turn to unlock it."], "\n".join(manual)
+
+
+def test_sentences_before_a_cost_clause_are_their_own_lines():
+    assert split_leading_sentences("Commit: generate 1 Power.") == ["Commit: generate 1 Power."]
+    assert split_leading_sentences("Doesn't unlock normally. Commit: generate 3.") == [
+        "Doesn't unlock normally.",
+        "Commit: generate 3.",
+    ]
+
+
+def test_boost_converter_compiles_its_statics_and_a_real_commit_cost():
+    records = {record["name"]: record for record in playable_records(CARDS, FACE_FILES)}
+    skip, pay, draw, commit = records["Boost Converter"]["abilities"]
+
+    assert skip["rule"] == {"name": "skipSelfUnlock"}
+    assert (pay["ops"], pay["timing"], pay["cost"]) == (
+        [{"op": "unlockSelf"}],
+        "maintenance",
+        "4 — Maintenance",
+    )
+    assert draw["trigger"] == {"on": "draw-step", "whose": "you"}
+    assert draw["ops"][0]["condition"] == {"sourceCommitted": True}
+    assert commit["cost"] == "Commit"
+
+
+def test_no_activated_ability_cost_contains_a_sentence():
+    offenders = [
+        f"{record['id']} {ability['cost']}"
+        for record in playable_records(CARDS, FACE_FILES)
+        for ability in record["abilities"]
+        if ability["kind"] == "activated" and "." in ability["cost"]
+    ]
+
+    assert offenders == []
 
 
 def test_avatars_expose_playable_stats():
