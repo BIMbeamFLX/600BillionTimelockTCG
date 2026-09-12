@@ -432,19 +432,17 @@ test("a Maintenance trigger resolves without asking anyone to pass", () => {
 });
 
 test("bot games under Fast finish, and nothing waits on the Queue between actions", () => {
-  /* The NPC plays the same policy as the browser. Three pairings measured to
-   * finish on these seeds. Two others are left out on purpose, for reasons that
-   * are not Fast's: Signal/Bitcoin reaches a drawReplacement prompt the NPC
-   * cannot answer (it stalls in Classic too), and Power/Signal meets Boost
-   * Converter, whose miscompiled cost lets the bot generate forever (also in
-   * Classic). */
+  /* The NPC plays the same policy as the browser. Four pairings measured to
+   * finish on these seeds. Signal/Bitcoin is left out on purpose, for a reason
+   * that is not Fast's: it reaches a drawReplacement prompt the NPC cannot
+   * answer (it stalls in Classic too). */
   const NPC = require(path.join(siteDir, "npc.js"));
   const compiled = {};
   const compile = (id) => {
     if (!compiled[id]) compiled[id] = E.compileCard(CARDS.find((c) => c.id === id));
     return compiled[id];
   };
-  for (const [i, a, b] of [[1, "Bitcoin", "Keys"], [2, "Timelock", "Power"], [4, "Keys", "Timelock"]]) {
+  for (const [i, a, b] of [[1, "Bitcoin", "Keys"], [2, "Timelock", "Power"], [3, "Power", "Signal"], [4, "Keys", "Timelock"]]) {
     let seed = 20260802 + i * 97;
     let state = null;
     for (let k = 0; k < 40 && !state; k++) {
