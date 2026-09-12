@@ -268,9 +268,17 @@
         // even if a cap is expressed in a way the loop above did not expect.
         push("CHOOSE_UNLOCK", { uids: required });
       }
-      // The engine names this prompt "drawReplacement"; "draw" is kept for old states.
-      if (awaiting.kind === "draw" || awaiting.kind === "drawReplacement") push("CHOOSE_DRAW", { skip: false });
-      /* Three prompts the policy used to leave unanswered, each a stall. */
+      /* The engine names this prompt `drawReplacement` (a controller of
+       * optionalDrawShield may skip the draw for an attack shield). Draw — a
+       * card is worth more than a turn of shelter — unless the Stack is empty,
+       * where drawing decks the bot out and the shield is free. "draw" is
+       * kept for old states. */
+      if (awaiting.kind === "draw" || awaiting.kind === "drawReplacement") {
+        const empty = zoneOf(state, seat, "stack").length === 0;
+        push("CHOOSE_DRAW", { skip: empty });
+        push("CHOOSE_DRAW", { skip: !empty });
+      }
+      /* Prompts the policy used to leave unanswered, each a stall. */
       if (awaiting.kind === "remotePlay") {
         const card = compiled(awaiting.cardId);
         const modes = card && card.playModes ? card.playModes.map((mode, index) => index) : [null];
@@ -283,12 +291,21 @@
           }
         }
       }
+      /* Sovereign damage: archive exactly `amount` non-proxy cards, cheapest
+       * first, Resources last (the economy rebuilds the board), and the
+       * Sovereign card itself last of all: archiving it is the loss. */
       if (awaiting.kind === "sovereignDamage") {
-        // The Sovereign card itself goes last: archiving it is the loss.
-        const own = zoneOf(state, seat, "network")
+        const weight = (uid) => {
+          const object = state.objects[uid];
+          const card = object.cardId ? compiled(object.cardId) : null;
+          const cost = card && card.costParsed ? card.costParsed : {};
+          const total = Object.keys(cost).reduce((sum, key) => sum + (key === "x" ? 0 : cost[key]), 0);
+          return (object.sovereign ? 1000 : 0) + (card && card.isResource ? 100 : 0) + total;
+        };
+        const eligible = zoneOf(state, seat, "network")
           .filter((uid) => state.objects[uid] && !state.objects[uid].token)
-          .sort((a, b) => Number(Boolean(state.objects[a].sovereign)) - Number(Boolean(state.objects[b].sovereign)));
-        push("CHOOSE_SOVEREIGN_ARCHIVE", { uids: own.slice(0, awaiting.amount) });
+          .sort((a, b) => weight(a) - weight(b));
+        push("CHOOSE_SOVEREIGN_ARCHIVE", { uids: eligible.slice(0, awaiting.amount) });
       }
       if (awaiting.kind === "tombstoneCleanup") {
         push("CHOOSE_TOMBSTONE_CLEANUP", { uids: awaiting.tasks.map((task) => task.options[0]) });
