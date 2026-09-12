@@ -795,6 +795,89 @@ test("legalActions runs on a redacted view and gives the same shape as on full s
   assert.equal(theirs.filter((a) => a.type === "PLAY_CARD").length, 0);
 });
 
+const CLASSIC_FIXED = () => ({
+  seats: [{ name: "P1", affinity: "Power" }, { name: "P2", affinity: "Signal" }],
+  seeds: { public: 12345, hidden: [777, 888] },
+  firstPlayer: 0,
+});
+const tryMove = (state, seat, move) =>
+  E.apply(state, { type: move.type, seat, seq: state.seq, at: "", payload: move.payload || {} });
+
+test("a Resource ability is offered as ACTIVATE_RESOURCE_ABILITY, and that is accepted", () => {
+  let state = E.createGame(CLASSIC_FIXED());
+  while (!(state.priority.seat === 0 && state.priority.window === "build1:main")) {
+    const r = tryMove(state, state.priority.seat, { type: "PASS_PRIORITY" });
+    assert.equal(r.error, null);
+    state = r.state;
+  }
+  const resource = E.legalActions(E.view(state, 0), 0).find((m) => m.type === "PLAY_RESOURCE");
+  assert.ok(resource, "the opening Wallet offers a Resource play");
+  const played = tryMove(state, 0, resource);
+  assert.equal(played.error, null);
+  const uid = played.events.find((e) => e.t === "ENTERS").pub.uid;
+  state = played.state;
+
+  const offers = E.legalActions(E.view(state, 0), 0).filter((m) => m.payload.uid === uid);
+  assert.ok(!offers.some((m) => m.type === "ACTIVATE_ABILITY"), "never the queued activation");
+  const offer = offers.find((m) => m.type === "ACTIVATE_RESOURCE_ABILITY");
+  assert.ok(offer, "the new Resource's generator is offered");
+  assert.equal(offer.payload.abilityIndex, 0);
+  const r = tryMove(state, 0, offer);
+  assert.equal(r.error, null);
+  assert.ok(r.events.some((e) => e.t === "GENERATE"));
+  assert.ok(!E.legalActions(E.view(r.state, 0), 0).some((m) => m.payload.uid === uid),
+    "a committed Resource is not offered again");
+});
+
+/* legalActions cannot know what a payment or a target will be, so those are
+ * the only refusals allowed. Anything else is a move it should not advertise. */
+const UNKNOWABLE = new Set(["CANNOT_AFFORD", "TARGET_COUNT", "ILLEGAL_TARGET"]);
+
+for (const [label, config] of [
+  ["Power vs Signal", CLASSIC_FIXED()],
+  ["Bitcoin vs Keys", Object.assign(CLASSIC_FIXED(), {
+    seats: [{ name: "P1", affinity: "Bitcoin" }, { name: "P2", affinity: "Keys" }],
+    seeds: { public: 4242, hidden: [11, 22] },
+    firstPlayer: 1,
+  })],
+]) {
+  test(`every move legalActions offers is accepted by apply (${label})`, () => {
+    let state = E.createGame(config);
+    const PREFER = ["PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "PLAY_CARD", "ACTIVATE_ABILITY"];
+    const accepted = new Set();
+    for (let step = 0; step < 150 && !state.result; step++) {
+      const seat = state.priority.seat;
+      if (seat === null) {
+        const aw = state.awaiting;
+        const reply = E.legalActions(state, aw.seat).filter((m) => m.type !== "CONCEDE")
+          .map((m) => tryMove(state, aw.seat, m)).find((r) => !r.error);
+        assert.ok(reply, `awaiting ${aw.kind} has an accepted default`);
+        state = reply.state;
+        continue;
+      }
+      const legal = E.legalActions(E.view(state, seat), seat).filter((m) => m.type !== "CONCEDE");
+      let next = null;
+      for (const move of legal) {
+        const r = tryMove(state, seat, move);
+        if (r.error) {
+          assert.ok(UNKNOWABLE.has(r.error.code),
+            `offered ${move.type} ${JSON.stringify(move.payload)} refused: ${r.error.code}`);
+          continue;
+        }
+        accepted.add(move.type);
+        if (PREFER.includes(move.type) &&
+            (!next || PREFER.indexOf(move.type) < PREFER.indexOf(next.type))) {
+          next = { type: move.type, state: r.state };
+        }
+      }
+      state = next ? next.state : tryMove(state, seat, { type: "PASS_PRIORITY" }).state;
+    }
+    for (const type of ["PASS_PRIORITY", "PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY"]) {
+      assert.ok(accepted.has(type), `the script exercised ${type}`);
+    }
+  });
+}
+
 // ------------------------------------------------------------------ replay
 
 test("replay of the action log reproduces the head hash exactly", () => {
