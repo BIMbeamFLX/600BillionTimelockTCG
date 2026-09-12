@@ -2,8 +2,9 @@
  *
  * Covered so far: the turn machine (Open, one Build phase, Close — no Clash
  * phase and no Build II), and priority with the Queue (only the active player
- * holds priority, only in Build, and nothing waits on the Queue). Resources and
- * attacking still follow Classic here and get their own tests when they change. Classic
+ * holds priority, only in Build, and nothing waits on the Queue), and Resources
+ * (a pool that grows by one a turn, costs paid as plain numbers, no burn).
+ * Attacking gets its own tests when it lands. Classic
  * itself is guarded byte for byte in profile.test.mjs; nothing in this file may
  * be relaxed to make a Classic test pass, or the other way round. */
 import { test } from "node:test";
@@ -136,16 +137,17 @@ test("the Fast turn is Open, Build, Close", () => {
 });
 
 test("the Fast descriptor claims no rule the engine does not play yet", () => {
-  /* The turn machine, priority and the Queue are Fast so far. Each remaining
-   * field flips in the commit that implements it; a descriptor that ran ahead
+  /* The turn machine, priority, the Queue and Resources are Fast so far.
+   * Combat flips in the commit that implements it; a descriptor that ran ahead
    * of the engine would be a lie a UI or a bot could act on. */
   const fast = E.PROFILES.fast;
   assert.equal(fast.priority, "active");
   assert.equal(fast.queue, "immediate");
-  assert.equal(fast.resources, "cards");
-  assert.equal(fast.burnsBuffers, true);
-  assert.equal(fast.genericOnlyCosts, false);
-  assert.deepEqual([...fast.illegal], []);
+  assert.equal(fast.resources, "pool");
+  assert.equal(fast.burnsBuffers, false);
+  assert.equal(fast.genericOnlyCosts, true);
+  assert.deepEqual([...fast.illegal], ["PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "ACTIVATE_UPTIME_RESOURCE"]);
+  assert.equal(E.FAST_POOL_CAP, 10);
   assert.equal(fast.combat, "none", "with no Clash phase there is no way to attack yet");
 });
 
@@ -202,11 +204,14 @@ test("a Fast game starts where every game starts, with no new state", () => {
   assert.deepEqual([fast.turn.number, fast.turn.active, fast.priority.seat, fast.priority.window],
     [1, 0, 0, "build1:main"]);
   assert.equal(classic.priority.window, "open:maintenance");
-  // The turn machine adds no field. poolMax and the like arrive with the
-  // subsystem that needs them, and only on Fast.
+  // One new field, and only on Fast: a seat's pool size, from its first Unlock.
   assert.deepEqual(Object.keys(fast).sort(), Object.keys(classic).sort());
   assert.deepEqual(Object.keys(fast.turn).sort(), Object.keys(classic.turn).sort());
-  assert.deepEqual(Object.keys(fast.seats[0]).sort(), Object.keys(classic.seats[0]).sort());
+  assert.deepEqual(Object.keys(fast.seats[0]).sort(), Object.keys(classic.seats[0]).concat("poolMax").sort());
+  assert.deepEqual(Object.keys(fast.seats[1]).sort(), Object.keys(classic.seats[1]).sort(),
+    "the second player has not unlocked yet");
+  assert.equal(E.view(fast, 1).seats[0].poolMax, 1, "the pool is public");
+  assert.equal("poolMax" in E.view(classic, 1).seats[0], false);
 });
 
 test("a Fast turn opens one priority window, the active player's own Build phase", () => {
@@ -245,25 +250,12 @@ test("Fast reaches turn four in fewer actions than Classic, with the same draws"
 
 test("permanents can still be played during the Fast Build phase", () => {
   /* The trap this phase name avoids: sorcery speed is checked against the
-   * names build1 and build2, for Resources (PLAY_RESOURCE) and for every
-   * Avatar, Hardware, Protocol and Operation (PLAY_CARD). Walk to the first
-   * Build window and play both the way a player would; WRONG_PHASE here means
-   * the Build phase was renamed out from under those checks. */
-  let { state } = passUntil(E.createGame(config("F1.0")),
-    (s) => s.priority.seat === 0 && s.priority.window === "build1:main");
-  const resource = E.legalActions(E.view(state, 0), 0).find((move) => move.type === "PLAY_RESOURCE");
-  assert.ok(resource, "the opening hand on this seed holds a Resource");
-  let result = act(state, "PLAY_RESOURCE", 0, resource.payload);
-  assert.equal(result.error, null, JSON.stringify(result.error));
-  const entered = result.events.find((e) => e.t === "ENTERS");
-  assert.ok(entered, "the Resource entered the Network");
-  state = result.state;
-
-  // Generate with it, then spend it on a permanent. Seed-dependent on purpose:
-  // this opening hand holds a one-cost Hardware (Bitcoin Receiver).
-  result = act(state, "ACTIVATE_RESOURCE_ABILITY", 0, { uid: entered.pub.uid, abilityIndex: 0 });
-  assert.equal(result.error, null, JSON.stringify(result.error));
-  state = result.state;
+   * names build1 and build2 for every Avatar, Hardware, Protocol and Operation
+   * (PLAY_CARD). WRONG_PHASE here means the Build phase was renamed out from
+   * under those checks. Seed-dependent on purpose: this opening hand holds a
+   * one-cost Hardware (Bitcoin Receiver), payable from a turn-one pool. */
+  const state = E.createGame(config("F1.0"));
+  assert.equal(state.seats[0].buffer.N, 1);
   const played = E.legalActions(E.view(state, 0), 0)
     .filter((move) => move.type === "PLAY_CARD")
     .map((move) => ({ move, card: CARDS.find((c) => c.id === state.objects[move.payload.uid].cardId) }))
@@ -280,30 +272,103 @@ test("permanents can still be played during the Fast Build phase", () => {
   assert.equal(played.result.state.queue.length, 0);
   assert.equal(played.result.state.priority.seat, 0, "the active player keeps priority to play on");
   assert.equal(played.result.state.priority.window, "build1:main");
+  assert.equal(played.result.state.seats[0].buffer.N, 0, "and the pool paid for it");
 });
 
-test("an unspent Buffer still burns when the Fast Build phase ends", () => {
-  /* The descriptor says burnsBuffers: true, and until the Resource commit it
-   * has to be true in play, not only on paper. Generate one Resource in Build,
-   * spend nothing, and pass into Close. */
-  let { state } = passUntil(E.createGame(config("F1.0")),
-    (s) => s.priority.seat === 0 && s.priority.window === "build1:main");
-  const resource = E.legalActions(E.view(state, 0), 0).find((move) => move.type === "PLAY_RESOURCE");
-  let result = act(state, "PLAY_RESOURCE", 0, resource.payload);
-  const entered = result.events.find((e) => e.t === "ENTERS");
-  result = act(result.state, "ACTIVATE_RESOURCE_ABILITY", 0, { uid: entered.pub.uid, abilityIndex: 0 });
-  assert.equal(result.error, null, JSON.stringify(result.error));
-  state = result.state;
-  const uptime = state.seats[0].uptime;
-  assert.equal(Object.values(state.seats[0].buffer).reduce((a, b) => a + b, 0), 1, "one Resource generated");
+test("the pool grows by one each own turn up to the cap, refills, and never burns", () => {
+  const seen = [[], []];
+  const start = E.createGame(config("F1.0"));
+  const uptime = start.seats.map((seat) => seat.uptime);
+  const record = (s) => {
+    if (s.priority.seat === null || s.priority.window !== "build1:main") return;
+    const seat = s.turn.active;
+    if (seen[seat].length >= s.turn.number) return;
+    seen[seat].push(s.seats[seat].buffer.N);
+    assert.equal(s.seats[seat].buffer.N, s.seats[seat].poolMax, "the Buffer is refilled to the pool");
+    assert.equal(Object.values(s.seats[seat].buffer).reduce((a, b) => a + b, 0), s.seats[seat].buffer.N);
+  };
+  record(start);
+  const walk = passUntil(start, (s) => {
+    record(s);
+    return s.turn.number > 13;
+  });
+  const expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10];
+  assert.deepEqual(seen[0].slice(0, 13), expected);
+  assert.deepEqual(seen[1].slice(0, 13), expected);
+  assert.equal(walk.events.filter((e) => e.t === "BURN").length, 0, "an unspent pool never burns");
+  // In a game of passes nothing else deals damage, so any Uptime lost was a burn.
+  assert.deepEqual(walk.state.seats.map((seat) => seat.uptime), uptime);
+});
 
-  const walk = passUntil(state, (s) => s.turn.active === 1);
-  const burn = walk.events.find((e) => e.t === "BURN");
-  assert.ok(burn, "leaving Build burned the Buffer");
-  assert.deepEqual({ seat: burn.pub.seat, amount: burn.pub.amount, reason: burn.pub.reason },
-    { seat: 0, amount: 1, reason: "end of phase" });
-  assert.equal(walk.state.seats[0].uptime, uptime - 1);
-  assert.equal(Object.values(walk.state.seats[0].buffer).reduce((a, b) => a + b, 0), 0);
+test("leftover Resources do not carry into the next turn", () => {
+  const { state } = passUntil(E.createGame(config("F1.0")),
+    (s) => s.turn.number === 3 && s.turn.active === 0 && s.priority.seat === 0);
+  state.seats[0].buffer.B = 4; // a generated symbol that went unspent
+  const walk = passUntil(state, (s) => s.turn.number === 4 && s.turn.active === 0 && s.priority.seat === 0);
+  assert.deepEqual(walk.state.seats[0].buffer, { P: 0, B: 0, K: 0, S: 0, T: 0, N: 4 });
+});
+
+test("a coloured cost is paid from the pool as a plain number, in Fast only", () => {
+  /* Put a card with a symbol in its cost straight into the hand, give the seat
+   * exactly as many neutral Resources as the cost adds up to, and play it. Under
+   * Classic the same state must refuse: N cannot pay a P. */
+  const SYMBOL_KEYS = ["P", "B", "K", "S", "T"];
+  const candidates = CARDS.map((card) => E.compileCard(card)).filter((card) => ["Avatar", "Protocol", "Operation"].includes(card.type) &&
+    card.costParsed && SYMBOL_KEYS.some((symbol) => card.costParsed[symbol]));
+  let checked = 0;
+  for (const card of candidates) {
+    const printed = JSON.stringify(card.costParsed);
+    const total = (card.costParsed.generic || 0) +
+      SYMBOL_KEYS.reduce((sum, symbol) => sum + (card.costParsed[symbol] || 0), 0);
+    const outcome = {};
+    for (const ruleset of ["F1.0", undefined]) {
+      const { state } = passUntil(E.createGame(config(ruleset)),
+        (s) => s.priority.seat === 0 && s.priority.window === "build1:main");
+      const uid = "o" + state.nextUid;
+      state.nextUid += 1;
+      state.objects[uid] = {
+        uid, cardId: card.id, owner: 0, controller: 0, zone: "0:wallet", committed: false,
+        bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+        revealedTo: [], revealedUntil: null, token: false, entersSeq: state.seq, prevUid: null,
+      };
+      state.zones["0:wallet"].push(uid);
+      state.seats[0].buffer = { P: 0, B: 0, K: 0, S: 0, T: 0, N: total };
+      outcome[ruleset || "E1.0"] = act(state, "PLAY_CARD", 0, { uid });
+      if (ruleset) outcome.stated = act(state, "PLAY_CARD", 0, { uid, payment: { P: 0, B: 0, K: 0, S: 0, T: 0, N: total } });
+    }
+    if (outcome["F1.0"].error) continue; // needs targets or a condition: not what this test is about
+    const paid = outcome["F1.0"].events.find((e) => e.t === "PAID");
+    assert.deepEqual(paid.pub.payment, { P: 0, B: 0, K: 0, S: 0, T: 0, N: total }, card.name);
+    assert.equal(outcome.stated.error, null, `${card.name}: a stated all-neutral payment verifies too`);
+    assert.equal(outcome["E1.0"].error && outcome["E1.0"].error.code, "CANNOT_AFFORD", `${card.name} under Classic`);
+    assert.equal(JSON.stringify(E.compileCard(CARDS.find((c) => c.id === card.id)).costParsed), printed, "the printed cost keeps its symbols");
+    checked += 1;
+    if (checked === 3) break;
+  }
+  assert.equal(checked, 3, "three coloured cards were played from a neutral pool");
+});
+
+test("the Resource actions are refused under Fast and never offered", () => {
+  const classic = passUntil(E.createGame(config()),
+    (s) => s.priority.seat === 0 && s.priority.window === "build1:main").state;
+  const fast = E.createGame(config("F1.0"));
+  const classicResource = E.legalActions(E.view(classic, 0), 0).find((move) => move.type === "PLAY_RESOURCE");
+  assert.ok(classicResource, "Classic offers a Resource from this hand");
+  const offered = E.legalActions(E.view(fast, 0), 0).map((move) => move.type);
+  assert.ok(offered.includes("PLAY_CARD") && offered.includes("PASS_PRIORITY"));
+  for (const type of ["PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "ACTIVATE_UPTIME_RESOURCE"]) {
+    assert.equal(offered.includes(type), false, `${type} is not offered`);
+  }
+  const resource = fast.zones["0:wallet"]
+    .find((uid) => CARDS.find((c) => c.id === fast.objects[uid].cardId).type === "Resource");
+  assert.ok(resource, "the Fast hand still holds a Resource card");
+  const refusals = [
+    act(fast, "PLAY_RESOURCE", 0, { uid: resource }),
+    act(fast, "ACTIVATE_RESOURCE_ABILITY", 0, { uid: resource, abilityIndex: 0 }),
+    act(fast, "ACTIVATE_UPTIME_RESOURCE", 0),
+  ];
+  assert.deepEqual(refusals.map((r) => r.error && r.error.code), ["WRONG_PROFILE", "WRONG_PROFILE", "WRONG_PROFILE"]);
+  assert.equal(act(classic, "PLAY_RESOURCE", 0, classicResource.payload).error, null);
 });
 
 test("end-of-turn effects still happen in a Fast turn", () => {

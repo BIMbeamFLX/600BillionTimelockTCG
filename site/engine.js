@@ -781,19 +781,26 @@
      * phase: one window a turn. Nothing waits on the Queue — a card or ability
      * resolves as soon as it is put there, and so does every trigger.
      *
-     * Below that, Fast still plays Classic's rules, and says so. Each field
-     * flips in the commit that implements it — Resources, then attacking — so
-     * the descriptor never claims a rule the engine does not play yet. Combat
-     * is "none" rather than "clash": with no Clash phase there is, for now, no
-     * way to attack at all. */
+     * Resources are a pool, not cards: at each Unlock the active player's pool
+     * grows by one up to FAST_POOL_CAP and the Buffer refills to it. Every cost
+     * is paid as a plain number, nothing burns, and the three Resource actions
+     * are refused. Resource cards stay in the Stacks until the Fast card data
+     * redesigns them.
+     *
+     * Attacking still follows no rule, and says so: combat is "none" rather
+     * than "clash", because with no Clash phase there is, for now, no way to
+     * attack at all. It flips in the commit that implements it. */
     priority: "active",
     queue: "immediate",
-    resources: "cards",
+    resources: "pool",
     combat: "none",
-    burnsBuffers: true,
-    genericOnlyCosts: false,
-    illegal: Object.freeze([]),
+    burnsBuffers: false,
+    genericOnlyCosts: true,
+    illegal: Object.freeze(["PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "ACTIVATE_UPTIME_RESOURCE"]),
   });
+
+  /* A starting value, to be settled by simulation (plan step 4), not by taste. */
+  const FAST_POOL_CAP = 10;
 
   const PROFILES = Object.freeze({ classic: CLASSIC_PROFILE, fast: FAST_PROFILE });
   const RULESET_PROFILE = Object.freeze({ "E1.0": "classic", "F1.0": "fast" });
@@ -1480,13 +1487,28 @@
     return payment;
   }
 
+  /* Fast pays every cost as one number: {P:1, B:2, generic:3} costs 6. A new
+   * object every time — the compiled catalog is shared by every match in the
+   * process, so rewriting costParsed in place would reprice the cards of every
+   * Classic game running beside a Fast one. */
+  function flattenCost(cost) {
+    if (!cost) return cost;
+    const flat = { generic: cost.generic || 0 };
+    for (const symbol of SYMBOLS) flat.generic += cost[symbol] || 0;
+    if (cost.x) flat.x = cost.x;
+    return flat;
+  }
+
+  const payableCost = (state, cost) => (profileOf(state).genericOnlyCosts ? flattenCost(cost) : cost);
+
   function convertersFor(state, ctx, seat) {
     return ruleEntries(state, ctx, "resourceConverter")
       .filter((entry) => entry.object.controller === seat)
       .map((entry) => ({ from: entry.rule.from, to: entry.rule.to }));
   }
 
-  function autoPaymentFor(env, seat, cost) {
+  function autoPaymentFor(env, seat, printedCost) {
+    const cost = payableCost(env.state, printedCost);
     const buffer = env.state.seats[seat].buffer;
     const converters = convertersFor(env.state, env.ctx, seat);
     if (!converters.length) return autoPayment(buffer, cost);
@@ -1517,7 +1539,8 @@
     return payment;
   }
 
-  function verifyPaymentFor(env, seat, cost, payment) {
+  function verifyPaymentFor(env, seat, printedCost, payment) {
+    const cost = payableCost(env.state, printedCost);
     const buffer = env.state.seats[seat].buffer;
     const converters = convertersFor(env.state, env.ctx, seat);
     if (!converters.length) return verifyPayment(buffer, cost, payment);
@@ -1587,6 +1610,7 @@
    * The Buffer empties for BOTH controllers at every phase boundary and at
    * Clash start and end. This is not damage and cannot be prevented. */
   function burnBuffers(env, reason) {
+    if (!profileOf(env.state).burnsBuffers) return; // Fast: an unspent pool is simply gone at the next refill
     for (const seat of [0, 1]) {
       const player = env.state.seats[seat];
       const total = bufferTotal(player.buffer);
@@ -2624,7 +2648,7 @@
         const buffer = state.seats[controller].buffer;
         const chosen = item.resume.acc["choice" + item.resume.opIndex];
         if (chosen === undefined) {
-          if (!canPay(buffer, op.cost)) return runNested(env, item, op.else || []);
+          if (!canPay(buffer, payableCost(state, op.cost))) return runNested(env, item, op.else || []);
           return raiseChoice(env, item, {
             kind: "mayPay",
             prompt: op.prompt || "Pay the optional cost?",
@@ -2638,7 +2662,7 @@
           });
         }
         const pick = Array.isArray(chosen) ? chosen[0] && chosen[0].value : chosen;
-        if (pick === "pay" && canPay(buffer, op.cost)) {
+        if (pick === "pay" && canPay(buffer, payableCost(state, op.cost))) {
           settleCost(env, controller, op.cost, null);
           return runNested(env, item, op.then || []);
         }
@@ -4681,6 +4705,7 @@
         state.effects = state.effects.filter(
           (effect) => !(effect.kind === "attackShield" && effect.controller === seat)
         );
+        if (profileOf(state).resources === "pool") refillPool(env, seat);
         const network = zoneArray(state, zoneKey(seat, "network"));
         for (const uid of network) state.objects[uid].bootDelay = false;
         if (ruleEntries(state, env.ctx, "skipUnlockSteps").length) {
@@ -6604,6 +6629,17 @@
     return settled;
   }
 
+  /* Fast §Resources: the active player's pool grows by one, up to the cap, and
+   * the Buffer is refilled to exactly that. Whatever was left over, generated
+   * symbols included, does not carry into the new turn. */
+  function refillPool(env, seat) {
+    const player = env.state.seats[seat];
+    player.poolMax = Math.min(FAST_POOL_CAP, (player.poolMax || 0) + 1);
+    player.buffer = emptyBuffer();
+    player.buffer.N = player.poolMax;
+    emit(env, "POOL", { seat, max: player.poolMax });
+  }
+
   function processDelayed(env, at) {
     const state = env.state;
     const ready = (state.delayed || []).filter((entry) => entry.at === at);
@@ -6755,6 +6791,9 @@
       }
 
       const payload = validateSchema(action); // 2. strict schema whitelist
+      if (profileOf(state).illegal.indexOf(action.type) >= 0) {
+        fail("WRONG_PROFILE", `${action.type} is not part of the ${profileOf(state).label} rules`);
+      }
 
       // 1. game over
       if (state.result && POST_GAME.indexOf(action.type) < 0) fail("GAME_OVER", "the game is over");
@@ -6937,6 +6976,8 @@
     pubkey: player.pubkey,
     uptime: player.uptime,
     buffer: cloneJson(player.buffer),
+    // Fast only: Classic seats have no pool, and their views keep their keys.
+    ...(player.poolMax !== undefined ? { poolMax: player.poolMax } : {}),
     deckCommit: player.deckCommit,
     conceded: player.conceded,
     deckedOut: player.deckedOut,
@@ -7124,7 +7165,10 @@
     const state = source;
     const context = resolveCtx(ctx);
     const out = [];
-    const push = (type, payload) => out.push({ type, seat, seq: state.seq, payload: payload || {} });
+    const illegal = profileOf(state).illegal;
+    const push = (type, payload) => {
+      if (illegal.indexOf(type) < 0) out.push({ type, seat, seq: state.seq, payload: payload || {} });
+    };
     if (!state || state.result) {
       if (state && !state.result) return out;
       return out;
@@ -7264,6 +7308,7 @@
     RULESET_PROFILE,
     profileOf,
     ribbonFor,
+    FAST_POOL_CAP,
     MIN_STACK,
     MAX_COPIES,
     copyLimit,
