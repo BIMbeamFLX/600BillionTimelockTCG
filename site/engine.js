@@ -703,6 +703,119 @@
     { phase: "close", step: "cleanup", label: "Cleanup" },
   ];
 
+  /* ----------------------------------------------------------- rules profiles
+   *
+   * A profile is the part of the rules that is not the same in every edition of
+   * this game: the shape of a turn, who holds priority, how a played card
+   * resolves, where Resources come from, and how combat is declared. Everything
+   * else is shared — the op interpreter, continuous effects, state checks,
+   * redaction, the manual layer — because a card that reads "deal 2 damage"
+   * means the same thing under any profile, and duplicating 1400 lines of
+   * interpreter to say so twice would be how the two drift apart.
+   *
+   * The profile is resolved from `state.ruleset`: a field createGame has always
+   * written, view has always carried and the referee has always persisted, and
+   * that nothing has ever read back. Keying on it costs NO new state field, so
+   * Classic's hashState, publicHash and prevHash do not move, every serialized
+   * log still replays, and a stored match resumes onto the same chain. It also
+   * puts the profile inside the hash and inside the deck commitment, so no peer
+   * can switch rules mid-match.
+   *
+   * Not on `ctx`: ctx is rebuilt from caller-supplied input on every apply()
+   * and is deliberately not part of the state, so a profile carried there would
+   * be client-chosen per action and droppable — previewClash would forecast
+   * under the wrong rules and say nothing about it. */
+  const CLASSIC_PROFILE = Object.freeze({
+    id: "classic",
+    ruleset: "E1.0",
+    label: "Classic",
+    phaseOrder: PHASE_ORDER,
+    phaseSteps: PHASE_STEPS,
+    ribbon: TURN_RIBBON,
+    priority: "full", // both seats hold priority in every step that grants it
+    queue: "lifo", // a played card waits on the Queue for both seats to pass
+    resources: "cards", // Resource cards, committed by hand, §12.1 burn
+    combat: "clash", // declare attackers, then blockers, then order and assign
+    burnsBuffers: true,
+    genericOnlyCosts: false,
+    illegal: Object.freeze([]),
+  });
+
+  /* The Fast profile's turn: Open, one Build phase, Close. No Clash phase and
+   * no Build II — attacking will be an action inside Build, not a phase.
+   *
+   * The Build phase keeps the name "build1" on purpose. "Your own main phase"
+   * is spelled `["build1", "build2"]` in PLAY_CARD, PLAY_RESOURCE and the
+   * opponent-before-attackers play window, and again in npc.js and play.js.
+   * A Fast phase named "main" would have made every Avatar, Hardware, Protocol
+   * and Operation unplayable under Fast while each of those checks still read
+   * correctly on its own. One meaning keeps one spelling; only the label moves.
+   *
+   * endStep stays: "at end of turn" triggers and the delayed end-step
+   * decommissions (processDelayed) live there, and a turn without that step
+   * would drop them without a sound. Cleanup stays for the hand limit and the
+   * removal of marked damage. */
+  const FAST_PHASE_ORDER = Object.freeze(["open", "build1", "close"]);
+  const FAST_PHASE_STEPS = Object.freeze({
+    open: Object.freeze(["unlock", "maintenance", "draw"]),
+    build1: Object.freeze(["main"]),
+    close: Object.freeze(["endStep", "cleanup"]),
+  });
+  const FAST_RIBBON = Object.freeze([
+    Object.freeze({ phase: "open", step: "unlock", label: "Unlock" }),
+    Object.freeze({ phase: "open", step: "maintenance", label: "Maintenance" }),
+    Object.freeze({ phase: "open", step: "draw", label: "Draw" }),
+    Object.freeze({ phase: "build1", step: "main", label: "Build" }),
+    Object.freeze({ phase: "close", step: "endStep", label: "End" }),
+    Object.freeze({ phase: "close", step: "cleanup", label: "Cleanup" }),
+  ]);
+
+  const FAST_PROFILE = Object.freeze({
+    id: "fast",
+    ruleset: "F1.0",
+    label: "Fast",
+    phaseOrder: FAST_PHASE_ORDER,
+    phaseSteps: FAST_PHASE_STEPS,
+    ribbon: FAST_RIBBON,
+    /* Below this line Fast still plays Classic's rules, and says so. Each field
+     * flips in the commit that implements it — priority and the Queue, then
+     * Resources, then attacking — so the descriptor never claims a rule the
+     * engine does not play yet. Combat is "none" rather than "clash": with no
+     * Clash phase there is, for now, no way to attack at all. */
+    priority: "full",
+    queue: "lifo",
+    resources: "cards",
+    combat: "none",
+    burnsBuffers: true,
+    genericOnlyCosts: false,
+    illegal: Object.freeze([]),
+  });
+
+  const PROFILES = Object.freeze({ classic: CLASSIC_PROFILE, fast: FAST_PROFILE });
+  const RULESET_PROFILE = Object.freeze({ "E1.0": "classic", "F1.0": "fast" });
+
+  /* The profile id a ruleset names, or null. Own keys and strings only: the
+   * table is an object literal, so a bare RULESET_PROFILE[name] answers
+   * "constructor", "toString" and "__proto__" from Object.prototype, and a key
+   * lookup coerces ["F1.0"] to "F1.0". Both got past the refusal in createGame,
+   * and the first left profileOf returning undefined — a game no action but a
+   * concession could move. */
+  const profileIdOf = (ruleset) =>
+    typeof ruleset === "string" && Object.prototype.hasOwnProperty.call(RULESET_PROFILE, ruleset)
+      ? RULESET_PROFILE[ruleset]
+      : null;
+
+  /* Accepts a state, a view, or anything with a `ruleset`. Falls back to
+   * Classic, which is what an old log with no ruleset field must resume as. */
+  function profileOf(source) {
+    return PROFILES[profileIdOf(source && source.ruleset) || "classic"];
+  }
+
+  /* The ribbon for a given game. TURN_RIBBON stays exported as a plain array
+   * because play.js reads it as data in three places; making *that* symbol
+   * profile-aware would throw at render time and take the table down. */
+  const ribbonFor = (source) => profileOf(source).ribbon;
+
   const DEFAULT_POLICY = {
     priority: "full",
     manualConsent: "ask",
@@ -1593,6 +1706,12 @@
     const settings = config || {};
     const seatConfigs = settings.seats || [{ name: "Player 1" }, { name: "Player 2" }];
     if (seatConfigs.length !== 2) fail("SCHEMA", "the E1 Classic Profile is exactly two players");
+    /* A ruleset nobody implements must not deal a game that silently plays by
+     * some other ruleset's rules. Absent still means Classic — that is what an
+     * old config and an old log are, and they have to keep resuming. */
+    if (settings.ruleset !== undefined && !profileIdOf(settings.ruleset)) {
+      fail("SCHEMA", `unknown ruleset ${JSON.stringify(settings.ruleset)}`);
+    }
     const seeds = settings.seeds || {};
     if (!Number.isInteger(seeds.public) || !Array.isArray(seeds.hidden) || seeds.hidden.length !== 2) {
       // The factory is pure: it takes every seed as an input and generates none.
@@ -1600,6 +1719,7 @@
     }
 
     const gameId = settings.gameId || "g_" + sha256hex(canonicalJSON(settings)).slice(0, 12);
+    const startProfile = profileOf({ ruleset: settings.ruleset || "E1.0" });
     const firstPlayer = settings.firstPlayer === 1 ? 1 : 0;
     const state = {
       v: 1,
@@ -1625,8 +1745,8 @@
         number: 1,
         active: firstPlayer,
         firstPlayer,
-        phase: "open",
-        step: "unlock",
+        phase: startProfile.phaseOrder[0],
+        step: startProfile.phaseSteps[startProfile.phaseOrder[0]][0],
         resourcePlays: { used: 0, allowed: 1 },
         repeatCleanup: false,
         damageTaken: [0, 0],
@@ -4496,7 +4616,10 @@
 
   // ------------------------------------------------------- the turn machine
 
-  const stepsOf = (phase) => PHASE_STEPS[phase];
+  /* The steps of the phase this game is in, under this game's profile. Takes
+   * the state, not a phase name: the same name can hold different steps in
+   * two profiles, and a bare lookup would silently use Classic's. */
+  const stepsOf = (state) => profileOf(state).phaseSteps[state.turn.phase];
 
   function grantsPriority(state) {
     const step = state.turn.step;
@@ -4679,8 +4802,9 @@
     if (state.extraTurns[endingSeat] > 0) state.extraTurns[endingSeat] -= 1;
     else state.turn.active = 1 - state.turn.active;
     if (state.turn.active === state.turn.firstPlayer) state.turn.number += 1;
-    state.turn.phase = "open";
-    state.turn.step = "unlock";
+    const profile = profileOf(state);
+    state.turn.phase = profile.phaseOrder[0];
+    state.turn.step = profile.phaseSteps[state.turn.phase][0];
     state.turn.resourcePlays = { used: 0, allowed: 1 };
     state.turn.repeatCleanup = false;
     state.turn.damageTaken = [0, 0];
@@ -4717,7 +4841,7 @@
   /* Buffers burn for BOTH seats at every phase boundary (§12.1). */
   function advanceOneStep(env) {
     const state = env.state;
-    const steps = stepsOf(state.turn.phase);
+    const steps = stepsOf(state);
     const index = steps.indexOf(state.turn.step);
     if (index + 1 < steps.length) {
       state.turn.step = steps[index + 1];
@@ -4733,16 +4857,16 @@
       return endTurn(env);
     }
     burnBuffers(env, "end of phase");
-    const phaseIndex = PHASE_ORDER.indexOf(state.turn.phase);
-    state.turn.phase = PHASE_ORDER[phaseIndex + 1];
-    state.turn.step = stepsOf(state.turn.phase)[0];
+    const order = profileOf(state).phaseOrder;
+    state.turn.phase = order[order.indexOf(state.turn.phase) + 1];
+    state.turn.step = stepsOf(state)[0];
     emit(env, "PHASE", { phase: state.turn.phase, seat: state.turn.active });
     return enterStep(env);
   }
 
   function skipRestOfPhase(env) {
     const state = env.state;
-    const steps = stepsOf(state.turn.phase);
+    const steps = stepsOf(state);
     state.turn.step = steps[steps.length - 1];
     return enterStep(env);
   }
@@ -7067,6 +7191,10 @@
     MANUAL_OPS,
     ACTION_KEYS,
     TURN_RIBBON,
+    PROFILES,
+    RULESET_PROFILE,
+    profileOf,
+    ribbonFor,
     MIN_STACK,
     MAX_COPIES,
     copyLimit,

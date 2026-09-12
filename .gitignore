@@ -38,3 +38,10 @@ art/world-plates/original/
 # repo. Ignore anything that starts life as one.
 *.db.*
 *.sqlite.*
+
+# A frozen copy of the Classic ruleset, taken before the Fast profile work began.
+# Git history already holds these bytes; the point of the copy is to have the old
+# engine, cards and rulebook readable side by side with the new ones while both
+# exist. Not committed — a second copy of the tree in the tree is weight with no
+# new information in it.
+archive/
