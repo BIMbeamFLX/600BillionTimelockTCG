@@ -285,8 +285,10 @@ test("the pool grows by one each own turn up to the cap, refills, and never burn
     if (s.priority.seat === null || s.priority.window !== "build1:main") return;
     const seat = s.turn.active;
     if (seen[seat].length >= s.turn.number) return;
-    seen[seat].push(s.seats[seat].buffer.N);
-    assert.equal(s.seats[seat].buffer.N, s.seats[seat].poolMax, "the Buffer is refilled to the pool");
+    seen[seat].push(s.seats[seat].poolMax);
+    // The second player's first two turns carry one bonus Resource.
+    const bonus = seat !== s.turn.firstPlayer && s.turn.number <= 2 ? 1 : 0;
+    assert.equal(s.seats[seat].buffer.N, s.seats[seat].poolMax + bonus, "the Buffer is refilled to the pool");
     assert.equal(Object.values(s.seats[seat].buffer).reduce((a, b) => a + b, 0), s.seats[seat].buffer.N);
   };
   record(start);
@@ -361,9 +363,16 @@ test("the Resource actions are refused under Fast and never offered", () => {
   for (const type of ["PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "ACTIVATE_UPTIME_RESOURCE"]) {
     assert.equal(offered.includes(type), false, `${type} is not offered`);
   }
-  const resource = fast.zones["0:wallet"]
-    .find((uid) => CARDS.find((c) => c.id === fast.objects[uid].cardId).type === "Resource");
-  assert.ok(resource, "the Fast hand still holds a Resource card");
+  // A Fast Stack is dealt without Resource cards; put one in the hand by hand.
+  assert.equal(fast.zones["0:wallet"].some((uid) => /Resource/.test(CARDS.find((c) => c.id === fast.objects[uid].cardId).type)), false);
+  const resource = "o" + fast.nextUid;
+  fast.nextUid += 1;
+  fast.objects[resource] = {
+    uid: resource, cardId: CARDS.find((c) => c.type === "Basic Resource").id, owner: 0, controller: 0, zone: "0:wallet",
+    committed: false, bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+    revealedTo: [0], revealedUntil: null, token: false, entersSeq: 0, prevUid: null,
+  };
+  fast.zones["0:wallet"].push(resource);
   const refusals = [
     act(fast, "PLAY_RESOURCE", 0, { uid: resource }),
     act(fast, "ACTIVATE_RESOURCE_ABILITY", 0, { uid: resource, abilityIndex: 0 }),

@@ -2051,7 +2051,35 @@ def playable_records(
     return records
 
 
-def render_module(records: list[dict[str, Any]]) -> str:
+def apply_fast_values(cards: list[dict[str, Any]], fast: dict[str, Any]) -> list[dict[str, Any]]:
+    """Overlay the Fast values from cards/e1-fast.json onto the Classic cards.
+
+    Identity, flavor, art and help come from Classic; cost, stats, type and
+    rules text from Fast. The help text is dropped because it explains the
+    Classic rules text, which a Fast card no longer prints.
+    """
+    by_id = {entry["id"]: entry for entry in fast["cards"]}
+    if set(by_id) != {card["id"] for card in cards}:
+        raise ValueError("cards/e1-fast.json must cover exactly the Classic card ids")
+    merged = []
+    for card in cards:
+        entry = by_id[card["id"]]
+        if entry["name"] != card["name"]:
+            raise ValueError(f"{card['id']}: the Fast name must stay {card['name']!r}")
+        merged.append(
+            dict(
+                card,
+                card_type=entry["card_type"],
+                cost=entry["cost"],
+                action_resilience=entry["action_resilience"],
+                rules_text=entry["rules_text"],
+                help_text="",
+            )
+        )
+    return merged
+
+
+def render_module(records: list[dict[str, Any]], global_name: str = "E1_CARDS") -> str:
     """Emit a plain script so the game also runs straight off the filesystem.
 
     The trailing CommonJS export lets `node --test` require the catalog without
@@ -2065,8 +2093,8 @@ def render_module(records: list[dict[str, Any]]) -> str:
         # globalThis, not window: in a browser they are the same object, so
         # existing `window.E1_CARDS` readers are unaffected, and under node
         # there is no DOM to shim.
-        f"globalThis.E1_CARDS = {data};\n"
-        'if (typeof module === "object" && module.exports) module.exports = globalThis.E1_CARDS;\n'
+        f"globalThis.{global_name} = {data};\n"
+        f'if (typeof module === "object" && module.exports) module.exports = globalThis.{global_name};\n'
     )
 
 
@@ -2122,6 +2150,13 @@ def main() -> None:
     )
     parser.add_argument("--out", type=Path, default=repo_root / "site" / "play-data.js")
     parser.add_argument("--audit-db", type=Path, default=repo_root / ".audit" / "e1-design.sqlite")
+    parser.add_argument(
+        "--fast",
+        type=Path,
+        nargs="?",
+        const=repo_root / "cards" / "e1-fast.json",
+        help="build the Fast (F1.0) catalog from these values into site/play-data-fast.js",
+    )
     args = parser.parse_args()
 
     cards = json.loads(args.cards.read_text(encoding="utf-8"))["cards"]
@@ -2129,6 +2164,15 @@ def main() -> None:
     face_files = {item["id"]: item["file"] for item in manifest["files"]}
     if len(cards) != 295:
         raise ValueError("the complete 295-card text lock is required")
+
+    if args.fast:
+        fast = json.loads(args.fast.read_text(encoding="utf-8"))
+        records = playable_records(apply_fast_values(cards, fast), face_files)
+        out = args.out if args.out != repo_root / "site" / "play-data.js" else repo_root / "site" / "play-data-fast.js"
+        out.write_text(render_module(records, "E1_CARDS_FAST"), encoding="utf-8")
+        scripted = sum(1 for record in records if not record["manual"])
+        print(f"wrote {out} with {len(records)} Fast cards ({scripted} auto-resolving)")
+        return
 
     records = playable_records(cards, face_files)
     record_site_decision(args.audit_db, records, args.out)

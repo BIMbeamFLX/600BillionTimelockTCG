@@ -22,21 +22,32 @@ const require = createRequire(import.meta.url);
 export const AFFINITIES = ["Power", "Bitcoin", "Keys", "Signal", "Timelock"];
 const RULESETS = { classic: "E1.0", fast: "F1.0" };
 
-export function loadEngine() {
+/* Classic cards for Classic games; the Fast values (site/play-data-fast.js)
+ * for Fast games, unless `fastCards: false` asks for Fast rules on Classic cards. */
+export function loadEngine({ fastCards = true } = {}) {
   const CARDS = require(path.join(siteDir, "play-data.js"));
   const E = require(path.join(siteDir, "engine.js"));
   const NPC = require(path.join(siteDir, "npc.js"));
   E.setCatalog(CARDS);
-  const byId = Object.fromEntries(CARDS.map((card) => [card.id, card]));
-  const cache = {};
-  const compiled = (id) => (cache[id] = cache[id] || E.compileCard(byId[id]));
-  return { E, NPC, compiled };
+  const lookup = (cards) => {
+    const byId = Object.fromEntries(cards.map((card) => [card.id, card]));
+    const cache = {};
+    return (id) => (cache[id] = cache[id] || E.compileCard(byId[id]));
+  };
+  const compiledFor = { classic: lookup(CARDS), fast: lookup(CARDS) };
+  if (fastCards) {
+    const FAST = require(path.join(siteDir, "play-data-fast.js"));
+    E.setCatalog(FAST, "F1.0");
+    compiledFor.fast = lookup(FAST);
+  }
+  return { E, NPC, compiled: compiledFor.classic, compiledFor };
 }
 
 /* One game. Returns its verdict and counters, never throws for a game that
  * goes wrong: a stall or a turn limit is a result the report has to show. */
 export function playGame(env, { profile, affinities, seed, firstPlayer = 0, maxActions = 4000, maxTurns = 60 }) {
-  const { E, NPC, compiled } = env;
+  const { E, NPC } = env;
+  const compiled = env.compiledFor ? env.compiledFor[profile] : env.compiled;
   let state = null;
   let s = seed >>> 0;
   for (let tries = 0; tries < 40 && !state; tries++) {
