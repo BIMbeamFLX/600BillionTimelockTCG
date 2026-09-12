@@ -5139,11 +5139,28 @@
     }
     const start = document.getElementById("start");
     start.disabled = true;
-    loadStackLibrary(() => { buildSeatMenus(); start.disabled = false; });
+    /* The rules a player last chose, or the ones a link asked for
+     * (play.html?rules=fast from the quick start). Set before the seat menus
+     * are built, because the precon shelf depends on it. */
     const rulesSelect = document.getElementById("rules");
+    const RULES_KEY = "600b:rules";
+    if (rulesSelect) {
+      let wanted = null;
+      try {
+        const asked = new URLSearchParams((globalThis.location && globalThis.location.search) || "").get("rules");
+        wanted = asked === "fast" ? "F1.0" : asked === "classic" ? "E1.0" : localStorage.getItem(RULES_KEY);
+      } catch (error) {
+        wanted = null; // storage is optional
+      }
+      if (wanted === "F1.0" || wanted === "E1.0") rulesSelect.value = wanted;
+    }
+    loadStackLibrary(() => { buildSeatMenus(); start.disabled = false; });
     if (rulesSelect && rulesSelect.addEventListener) {
       // The precon shelf differs per rules: rebuild the seat menus, keeping plain affinities.
-      rulesSelect.addEventListener("change", () => buildSeatMenus());
+      rulesSelect.addEventListener("change", () => {
+        try { localStorage.setItem(RULES_KEY, rulesSelect.value); } catch (error) { /* storage is optional */ }
+        buildSeatMenus();
+      });
     }
     start.addEventListener("click", startGame);    document.getElementById("continue").addEventListener("click", advance);
 
