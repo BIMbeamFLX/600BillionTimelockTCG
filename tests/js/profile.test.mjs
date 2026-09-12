@@ -35,7 +35,10 @@ const FIXED_CONFIG = () => ({
  * fixed preference order; otherwise answer the pending declaration with its
  * do-nothing default. No randomness, no wall clock and no card names — so the
  * script survives a reshuffle of the catalog, and only a rules change moves it. */
-const PREFER = ["PLAY_RESOURCE", "ACTIVATE_RESOURCE_ABILITY", "PLAY_CARD", "PASS_PRIORITY"];
+const PREFER = ["PLAY_RESOURCE", "PLAY_CARD", "PASS_PRIORITY"];
+/* ACTIVATE_RESOURCE_ABILITY used to sit in PREFER, but legalActions never
+ * offered it, so the pinned game below never activated one. It left the list
+ * when legalActions learned to offer it — the pinned bytes are that game. */
 
 function scriptedStep(state) {
   if (state.result) return null;
