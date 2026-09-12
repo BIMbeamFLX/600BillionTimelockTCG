@@ -794,11 +794,21 @@
   const PROFILES = Object.freeze({ classic: CLASSIC_PROFILE, fast: FAST_PROFILE });
   const RULESET_PROFILE = Object.freeze({ "E1.0": "classic", "F1.0": "fast" });
 
+  /* The profile id a ruleset names, or null. Own keys and strings only: the
+   * table is an object literal, so a bare RULESET_PROFILE[name] answers
+   * "constructor", "toString" and "__proto__" from Object.prototype, and a key
+   * lookup coerces ["F1.0"] to "F1.0". Both got past the refusal in createGame,
+   * and the first left profileOf returning undefined — a game no action but a
+   * concession could move. */
+  const profileIdOf = (ruleset) =>
+    typeof ruleset === "string" && Object.prototype.hasOwnProperty.call(RULESET_PROFILE, ruleset)
+      ? RULESET_PROFILE[ruleset]
+      : null;
+
   /* Accepts a state, a view, or anything with a `ruleset`. Falls back to
    * Classic, which is what an old log with no ruleset field must resume as. */
   function profileOf(source) {
-    const ruleset = source && source.ruleset;
-    return PROFILES[RULESET_PROFILE[ruleset] || "classic"];
+    return PROFILES[profileIdOf(source && source.ruleset) || "classic"];
   }
 
   /* The ribbon for a given game. TURN_RIBBON stays exported as a plain array
@@ -1699,7 +1709,7 @@
     /* A ruleset nobody implements must not deal a game that silently plays by
      * some other ruleset's rules. Absent still means Classic — that is what an
      * old config and an old log are, and they have to keep resuming. */
-    if (settings.ruleset !== undefined && !RULESET_PROFILE[settings.ruleset]) {
+    if (settings.ruleset !== undefined && !profileIdOf(settings.ruleset)) {
       fail("SCHEMA", `unknown ruleset ${JSON.stringify(settings.ruleset)}`);
     }
     const seeds = settings.seeds || {};

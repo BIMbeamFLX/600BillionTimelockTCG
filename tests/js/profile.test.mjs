@@ -147,11 +147,18 @@ test("the shape of Classic state and view is pinned", () => {
 });
 
 test("a config that names no ruleset deals a Classic game", () => {
-  const bare = FIXED_CONFIG();
-  delete bare.ruleset;
-  const state = E.createGame(bare);
-  assert.equal(state.ruleset, "E1.0");
-  assert.equal(E.hashState(state), PINNED.openHash, "the default must be Classic, byte for byte");
+  /* Two shapes of "no ruleset": the key absent, and the key present as
+   * undefined. The second cannot be hashed into a gameId (canonicalJSON refuses
+   * undefined, as it always has), so it is dealt with the id pinned — and must
+   * then come out as the same Classic bytes. */
+  const absent = E.createGame(FIXED_CONFIG());
+  assert.equal("ruleset" in FIXED_CONFIG(), false, "the fixture really omits the key");
+  assert.equal(absent.ruleset, "E1.0");
+  assert.equal(E.hashState(absent), PINNED.openHash, "the default must be Classic, byte for byte");
+
+  const undefinedKey = E.createGame(Object.assign(FIXED_CONFIG(), { ruleset: undefined, gameId: absent.gameId }));
+  assert.equal(undefinedKey.ruleset, "E1.0");
+  assert.equal(E.hashState(undefinedKey), PINNED.openHash);
 });
 
 test("TURN_RIBBON stays an array", () => {
@@ -179,6 +186,12 @@ test("the profile is resolved from state.ruleset, and defaults to Classic", () =
    * what those matches were played under. */
   assert.equal(E.profileOf({ ruleset: undefined }).id, "classic");
   assert.equal(E.profileOf({ ruleset: "garbage" }).id, "classic");
+  /* Names Object.prototype answers for, and values a key lookup would coerce.
+   * These once resolved to undefined, and a state carrying one could not take
+   * another step. */
+  for (const odd of ["constructor", "toString", "__proto__", "hasOwnProperty", ["F1.0"], ["E1.0"], 1, null]) {
+    assert.equal(E.profileOf({ ruleset: odd }).id, "classic", `profileOf(${JSON.stringify(odd)})`);
+  }
   assert.equal(E.profileOf({}).id, "classic");
   assert.equal(E.profileOf(null).id, "classic");
   /* A view carries ruleset too, so legalActions can resolve the profile from a
@@ -188,8 +201,13 @@ test("the profile is resolved from state.ruleset, and defaults to Classic", () =
 });
 
 test("a ruleset nobody implements is refused rather than played as Classic", () => {
-  assert.throws(() => E.createGame(Object.assign(FIXED_CONFIG(), { ruleset: "F9.9" })), /ruleset/);
-  assert.throws(() => E.createGame(Object.assign(FIXED_CONFIG(), { ruleset: "" })), /ruleset/);
+  const refused = ["F9.9", "", "e1.0", " E1.0", "constructor", "toString", "__proto__", "hasOwnProperty",
+    ["E1.0"], ["F1.0"], 1, null, {}];
+  for (const odd of refused) {
+    assert.throws(() => E.createGame(Object.assign(FIXED_CONFIG(), { ruleset: odd })),
+      (error) => error.code === "SCHEMA" && /ruleset/.test(error.message),
+      `createGame must refuse ruleset ${JSON.stringify(odd)} as a rules error, not a TypeError`);
+  }
   /* Explicitly naming the profile you are already getting is not an error, and
    * it changes nothing but the derived gameId — which is sha256 over the whole
    * config, so any new config key moves it. A referee that starts naming the
@@ -204,10 +222,36 @@ test("a ruleset nobody implements is refused rather than played as Classic", () 
 test("the Classic descriptor reproduces the constants it replaces", () => {
   const classic = E.PROFILES.classic;
   assert.equal(classic.ruleset, "E1.0");
-  assert.deepEqual(classic.phaseOrder, E.PHASE_ORDER);
-  assert.deepEqual(classic.phaseSteps, E.PHASE_STEPS);
-  assert.deepEqual(classic.ribbon, E.TURN_RIBBON);
+  /* Literals, not E.PHASE_ORDER: the descriptor holds those very objects, so
+   * comparing it with them could never fail. */
+  assert.deepEqual(classic.phaseOrder, ["open", "build1", "clash", "build2", "close"]);
+  assert.deepEqual(classic.phaseSteps, {
+    open: ["unlock", "maintenance", "draw"],
+    build1: ["main"],
+    clash: ["start", "attackers", "blockers", "order", "firstStrike", "damage", "end"],
+    build2: ["main"],
+    close: ["endStep", "cleanup"],
+  });
+  assert.deepEqual(classic.ribbon, [
+    { phase: "open", step: "unlock", label: "Unlock" },
+    { phase: "open", step: "maintenance", label: "Maintenance" },
+    { phase: "open", step: "draw", label: "Draw" },
+    { phase: "build1", step: "main", label: "Build I" },
+    { phase: "clash", step: null, label: "Clash" },
+    { phase: "build2", step: "main", label: "Build II" },
+    { phase: "close", step: "endStep", label: "End" },
+    { phase: "close", step: "cleanup", label: "Cleanup" },
+  ]);
+  // And the exports are still the descriptor's own objects, not copies that could drift.
+  assert.equal(classic.phaseOrder, E.PHASE_ORDER);
+  assert.equal(classic.phaseSteps, E.PHASE_STEPS);
+  assert.equal(classic.ribbon, E.TURN_RIBBON);
+  assert.equal(classic.priority, "full");
+  assert.equal(classic.queue, "lifo");
+  assert.equal(classic.resources, "cards");
+  assert.equal(classic.combat, "clash");
   assert.equal(classic.burnsBuffers, true);
+  assert.equal(classic.genericOnlyCosts, false);
   assert.deepEqual(classic.illegal, []);
   /* A descriptor that can be edited at runtime is a descriptor that can be
    * edited by one match and read by the next. */
