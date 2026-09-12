@@ -25,7 +25,7 @@
    * 0 · TOKENS                                                           *
    * ==================================================================== */
 
-  var VERSION = '1.1.0';
+  var VERSION = '1.2.0';
 
   /* Duration ladder — use only these. */
   var D = { xs: 70, sm: 120, md: 180, lg: 280, xl: 420, xxl: 900 };
@@ -77,7 +77,8 @@
     'ability:activate', 'target:request', 'target:choose',
     'clash:begin', 'clash:declareAttackers', 'clash:declareBlockers',
     'damage:player', 'damage:avatar', 'avatar:decommission',
-    'uptime:gain', 'manual:resolve', 'game:win'
+    'uptime:gain', 'manual:resolve', 'game:win',
+    'attack:strike'
   ]);
 
   var PHASE_PITCH = {
@@ -442,6 +443,69 @@
       g.setValueAtTime(Math.max(0.0001, g.value), t);
       g.linearRampToValueAtTime(1, t + (relMs || 500) / 1000);
     });
+  }
+
+  /* --- sample layer --------------------------------------------------- *
+   * The moments that carry a game's rhythm are rendered offline
+   * (scripts/build_fx_samples.py) with more layering than a browser can build
+   * per event. They are an upgrade, never a dependency: until a buffer has
+   * decoded, or when it never can (file://, offline, an old decoder), every cue
+   * plays its synthesised voice exactly as before. */
+  var SAMPLE_NAMES = ['slam', 'whoosh', 'hit', 'impact', 'shatter', 'lethal', 'turn', 'victory', 'defeat'];
+  var SAMPLES = {};
+  var samplesRequested = false;
+  var SCRIPT_SRC = (doc && doc.currentScript && doc.currentScript.src) || '';
+
+  function sampleBase() {
+    if (opts && typeof opts.samples === 'string') return opts.samples;
+    if (opts && opts.samples === false) return null;
+    if (!SCRIPT_SRC || !global.URL) return null;
+    var base = null;
+    guard(function () { base = new global.URL('fx/', SCRIPT_SRC).href; });
+    return base;
+  }
+
+  function loadSamples() {
+    if (samplesRequested || !ctx || typeof global.fetch !== 'function') return;
+    var base = sampleBase();
+    if (!base || /^file:/.test(base)) return;
+    samplesRequested = true;
+    SAMPLE_NAMES.forEach(function (name) {
+      guard(function () {
+        global.fetch(base + name + '.wav')
+          .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); })
+          .then(function (data) {
+            return new Promise(function (resolve, reject) {
+              var p = ctx.decodeAudioData(data, resolve, reject);
+              if (p && p.then) p.then(resolve, reject);
+            });
+          })
+          .then(function (buffer) { SAMPLES[name] = buffer; })
+          .catch(function (e) { warn('sample ' + name, e); });
+      });
+    });
+  }
+
+  /* o: { gain, rate, bus, send, slap, seat, t }. Returns false when the sample is
+     not there, so the caller can fall back to its synthesised voice. */
+  function sample(name, o) {
+    var buffer = SAMPLES[name];
+    if (!ready || !buffer) return false;
+    o = o || {};
+    return guard(function () {
+      var t0 = T0() + (o.t || 0);
+      var src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.playbackRate.value = (o.rate || 1) * cents(1, rnd(-12, 12));
+      var g = ctx.createGain();
+      g.gain.value = hGain(o.gain == null ? 0.6 : o.gain);
+      src.connect(g);
+      var busName = attachOut(g, { bus: o.bus || 'impact', seat: o.seat, send: o.send, slap: o.slap }, t0);
+      var end = t0 + buffer.duration / Math.max(0.25, src.playbackRate.value) + 0.05;
+      src.start(t0);
+      register(g, end, busName);
+      return true;
+    }) === true;
   }
 
   /* --- voice registry ------------------------------------------------- */
@@ -978,6 +1042,7 @@
       if (!masterGain) buildGraph();
       ready = true;
       applyMaster();
+      loadSamples();
       if (cfg.bed) startBed();
       return true;
     });
@@ -1058,6 +1123,8 @@
             filt: { type: 'lowpass', f: 3200 }, send: 0.18, t: p[1] });
     });
     clik({ f: 2200, q: 9, gain: 0.05, bus: 'ui' });
+    /* The table's own player hears a bell as well: this turn is yours. */
+    if (d && d.mine) sample('turn', { gain: 0.42, bus: 'game', send: 0.2, t: 0.12 });
   };
 
   SFX['phase:enter'] = function (d) {
@@ -1100,8 +1167,13 @@
     var affs = affList(d.affinity);
     var type = typeOf(d.cardType);
     var send = (type === 'Zap' || type === 'Operation') ? 0.34 : 0.20;
+    /* The rendered slam carries the crack, the body and the thump in one; the
+       type only tunes it — a heavy Avatar lands lower than a Protocol. */
+    var slamRate = { Avatar: 0.94, Hardware: 1.02, Protocol: 1.12, Operation: 1.18 }[type] || 1;
 
-    if (type === 'Zap') {
+    if (type !== 'Zap' && sample('slam', { gain: 0.62, rate: slamRate * seatMul(d.seat), seat: d.seat, send: 0.08 })) {
+      /* sample played: the synthesised slap and thock would double it */
+    } else if (type === 'Zap') {
       snap({ f: 9000, f2: 2600, dur: 0.020, gain: 0.14, seat: d.seat, send: send * 0.5, slap: 0.30 });
       osc({ wave: 'square', f: 1800 * s, f2: 300 * s, fTime: 0.045, dur: 0.115, attack: 0.0006, gain: 0.24,
             crushBits: 5, seat: d.seat, send: send, slap: 0.40, bus: 'impact' });
@@ -1344,6 +1416,14 @@
   SFX['damage:player'] = function (d) {
     var a = Math.max(0, d.amount | 0);
     var c8 = Math.min(a, 8), c6 = Math.min(a, 6);
+    if (d.lethal && sample('lethal', { gain: 0.95, seat: d.seat, send: 0.12 })) {
+      duck(0.7, 400, 900);
+      return;
+    }
+    if (sample('impact', { gain: Math.min(0.95, 0.52 + 0.06 * c8), rate: 1.06 - 0.02 * c6, seat: d.seat, send: 0.10 })) {
+      if (a >= 5) duck(0.88, 120, 200);
+      return;
+    }
     var send = Math.min(0.36, 0.18 + 0.03 * c6);
     /* The lowest, widest event in the book — it has to be unmistakable against
        a card play (128 Hz thock) or a turn change (Gs3 block) with your eyes
@@ -1368,6 +1448,13 @@
   SFX['damage:avatar'] = function (list) {
     var arr = Array.isArray(list) ? list : [list];
     var n = Math.min(5, arr.length);
+    var biggest = 0;
+    for (var b = 0; b < n; b++) biggest = Math.max(biggest, (arr[b] && arr[b].amount) | 0);
+    if (sample('hit', { gain: Math.min(0.85, 0.42 + 0.06 * Math.min(biggest, 6)) * (n > 1 ? 1.15 : 1),
+                        rate: 1.08 - 0.03 * Math.min(biggest, 5), send: 0.10 })) {
+      if (n > 1) sample('hit', { gain: 0.3, rate: 1.2, send: 0.1, t: 0.035 });
+      return;
+    }
     for (var i = 0; i < n; i++) {
       var d = arr[i] || {};
       var a = Math.max(0, d.amount | 0);
@@ -1383,6 +1470,7 @@
   };
 
   SFX['avatar:decommission'] = function () {
+    if (sample('shatter', { gain: 0.6, send: 0.16 })) return;
     /* a graceful shutdown, not a death — it did its job */
     snap({ f: 5000, f2: 900, dur: 0.022, gain: 0.10, send: 0.14 });
     osc({ wave: 'square', f: 220, dur: 0.385, attack: 0.0012, gain: 0.20,
@@ -1392,6 +1480,14 @@
          filt: { type: 'bandpass', f: 900, f2: 200, fTime: 0.28, q: 1.6 }, bus: 'game', send: 0.22 });
     /* the relay opening — the period at the end of the sentence */
     clik({ f: 1200, q: 14, gain: 0.09, bus: 'ui', t: 0.260 });
+  };
+
+  /* The lunge. The impact itself belongs to the damage it causes, which the
+     scheduler holds back to land on the end of this sound. */
+  SFX['attack:strike'] = function (d) {
+    if (sample('whoosh', { gain: 0.5, seat: d.seat, send: 0.06 })) return;
+    nz({ src: 'white', dur: 0.16, attack: 0.06, gain: 0.12,
+         filt: { type: 'bandpass', f: 500, f2: 3200, fTime: 0.15, q: 1.3 }, bus: 'game', seat: d.seat, send: 0.08 });
   };
 
   SFX['uptime:gain'] = function (d) {
@@ -1431,7 +1527,13 @@
     });
   };
 
-  SFX['game:win'] = function () {
+  SFX['game:win'] = function (d) {
+    /* A host that knows whose screen this is says so (`mine`); a loss then gets
+       its own falling line instead of somebody else's fanfare. */
+    if (sample(d && d.mine === false ? 'defeat' : 'victory', { gain: 0.8, bus: 'game', send: 0.2 })) {
+      endClash(); stopHoldTone(); duckBed(0.45, 600, 2000); stopPressure();
+      return;
+    }
     /* Positive, not triumphalist. The same sound plays for both seats. No loss sting. */
     var arp = [HZ.Cs4, HZ.E4, HZ.Gs4, HZ.B4, HZ.Cs5, HZ.Fs5];
     for (var i = 0; i < arp.length; i++) {
@@ -1914,13 +2016,15 @@
   }
 
   /* --- CHIP (information, not decoration — survives reduced motion) ------ */
-  function pChip(text, color, rect, rise, dur) {
+  function pChip(text, color, rect, rise, dur, size) {
     if (!rect) return;
     var n = take('chip');
     if (!n) return;
     n.textContent = String(text == null ? '' : text);
     n.style.color = color || PALETTE.gold;
     n.style.width = ''; n.style.height = '';
+    /* A number is read by its size before its digits: a 6 lands bigger than a 1. */
+    n.style.fontSize = size ? size + 'px' : '';
     n.style.left = (rect.left + rect.width / 2) + 'px';
     n.style.top = (rect.top - 4) + 'px';
     var total = dur || D.xl;
@@ -1931,17 +2035,65 @@
       total = 1200;
     } else {
       frames = [
-        { transform: 'translate(-50%,0)', opacity: 0 },
-        { transform: 'translate(-50%,-' + ((rise || 20) * 0.25).toFixed(1) + 'px)', opacity: 1, offset: 0.12 },
+        { transform: 'translate(-50%,0) scale(' + (size ? 1.6 : 1) + ')', opacity: 0 },
+        { transform: 'translate(-50%,-' + ((rise || 20) * 0.25).toFixed(1) + 'px) scale(1)', opacity: 1, offset: 0.12 },
         { transform: 'translate(-50%,-' + ((rise || 20) * 0.65).toFixed(1) + 'px)', opacity: 1, offset: 0.65 },
         { transform: 'translate(-50%,-' + (rise || 20) + 'px)', opacity: 0 }
       ];
     }
     var a = play(n, frames, {
       duration: total, easing: reduced() ? EASE.line : EASE.snap,
-      onDone: function () { give('chip', n); }
+      onDone: function () { n.style.fontSize = ''; give('chip', n); }
     }, true);
-    if (!a) give('chip', n);
+    if (!a) { n.style.fontSize = ''; give('chip', n); }
+  }
+
+  /* --- SHARDS: a card coming apart ----------------------------------------
+   * Ten squares thrown out of the rect along fixed angles (no Math.random in the
+   * geometry, so two deaths in one frame do not look like one). */
+  function pShards(rect, color, count) {
+    if (!rect || !rect.width || reduced()) return;
+    var n = Math.min(count || 10, 12);
+    for (var i = 0; i < n; i++) {
+      var g = take('glyph');
+      if (!g) break;
+      g.style.color = color || PALETTE.cream;
+      var angle = (i / n) * Math.PI * 2 + 0.3;
+      var reach = 38 + (i % 3) * 16;
+      place(g, rect, rect.width / 2 - 4, rect.height / 2 - 4, 8, 8);
+      (function (node, dx, dy, spin) {
+        var a = play(node, [
+          { transform: 'translate3d(0,0,0) rotate(0deg)', opacity: 1 },
+          { transform: 'translate3d(' + dx + 'px,' + dy + 'px,0) rotate(' + spin + 'deg)', opacity: 0 }
+        ], { duration: D.xl + 80, easing: EASE.drop, delay: i * 12, onDone: function () { give('glyph', node); } });
+        if (!a) give('glyph', node);
+      })(g, Math.cos(angle) * reach, Math.sin(angle) * reach + 14, (i % 2 ? 1 : -1) * 180);
+    }
+  }
+
+  /* --- LUNGE: an attacker's strike, with the hit-stop in it ----------------
+   * Out towards the target (fast, accelerating), a held beat at contact — the
+   * hit-stop, where the brain registers the blow — then back with a recoil. */
+  var STRIKE_MS = 150;
+  function pLunge(el, toRect) {
+    if (!el || !toRect) return;
+    var from = rectOf(el);
+    if (!from || !from.width) return;
+    if (reduced()) { pRing(el, PALETTE.danger, D.md); return; }
+    var dx = (toRect.left + toRect.width / 2) - (from.left + from.width / 2);
+    var dy = (toRect.top + toRect.height / 2) - (from.top + from.height / 2);
+    var k = 0.72;
+    var total = STRIKE_MS + 70 + 260;
+    play(el, [
+      { transform: 'translate3d(0,0,0) scale(1)', offset: 0, easing: 'cubic-bezier(.5,0,.9,.4)' },
+      { transform: 'translate3d(' + (dx * k).toFixed(1) + 'px,' + (dy * k).toFixed(1) + 'px,0) scale(1.08)',
+        offset: STRIKE_MS / total, easing: 'steps(1,end)' },
+      { transform: 'translate3d(' + (dx * k).toFixed(1) + 'px,' + (dy * k).toFixed(1) + 'px,0) scale(1.08)',
+        offset: (STRIKE_MS + 70) / total, easing: EASE.snap },
+      { transform: 'translate3d(' + (-dx * 0.04).toFixed(1) + 'px,' + (-dy * 0.04).toFixed(1) + 'px,0) scale(.98)',
+        offset: 0.9 },
+      { transform: 'translate3d(0,0,0) scale(1)', offset: 1 }
+    ], { duration: total, easing: EASE.line, composite: additiveFor(el) }, true);
   }
 
   /* --- GHOST flight (draw) ---------------------------------------------- */
@@ -2213,8 +2365,13 @@
       pRing(el, color, D.xl);
     }
     if (type === 'Avatar' && !reduced()) {
-      play(el, [{ transform: 'translate3d(0,2px,0)' }, { transform: 'none' }],
-        { duration: D.sm, easing: EASE.snap, delay: D.lg, composite: additiveFor(el) });
+      /* Weight on landing: a squash into the table and a small rebound, timed to
+         the end of the flight, where the slam sample lands. */
+      play(el, [
+        { transform: 'translate3d(0,3px,0) scale(1.06,.93)' },
+        { transform: 'translate3d(0,-1px,0) scale(.98,1.03)', offset: 0.55 },
+        { transform: 'none' }
+      ], { duration: D.md, easing: EASE.snap, delay: D.lg - 40, composite: additiveFor(el) });
     }
   };
 
@@ -2404,12 +2561,14 @@
   MOTION['damage:player'] = function (d) {
     var a = Math.max(0, d.amount | 0);
     var wrap = q('wrap');
-    if (wrap) pJitter(wrap, Math.min(7, 1 + Math.min(a, 6)));
+    /* The shake scales with the hit, and a killing blow shakes twice. */
+    if (wrap) pJitter(wrap, Math.min(9, 1 + Math.min(a, 6) + (d.lethal ? 3 : 0)));
+    if (wrap && d.lethal) global.setTimeout(function () { pJitter(wrap, 6); }, D.sm);
     var upt = seatEl('uptime', d.seat);
     var uptRect = upt ? rectOf(upt) : null;
     global.setTimeout(function () { if (upt) pRoll(upt, sideKey('uptime', d.seat)); }, D.sm);
     global.setTimeout(function () { if (upt) pDrain(upt, false); }, D.md);
-    if (uptRect) pChip('−' + a, PALETTE.danger, uptRect, 24, D.xl);
+    if (uptRect) pChip('−' + a, PALETTE.danger, uptRect, 30, D.xl + 200, Math.min(26, 13 + 2 * a));
   };
 
   /* Batched per scheduler frame: max 5 JITTERs, but CHIPs are NEVER batched. */
@@ -2421,7 +2580,9 @@
       if (i < 5) pJitter(el, 1.2);
       var stats = el.querySelector ? el.querySelector('.gstats') : null;
       if (stats) pHardCut(stats, false);
-      pChip('−' + Math.max(0, d.amount | 0), PALETTE.danger, rectOf(el), 20, D.lg);
+      var hit = Math.max(0, d.amount | 0);
+      pWipe(el, PALETTE.cream, D.sm, 0.5); // the flash of contact
+      pChip('−' + hit, PALETTE.danger, rectOf(el), 26, D.xl, Math.min(24, 12 + 2 * hit));
     });
   };
 
@@ -2430,12 +2591,26 @@
     if (!el) return;
     var c = cloneOf(el, d.rect);
     if (!c) return;
-    /* five quantized bands — a CRT losing sync, not a smooth fade */
-    var a = play(c, [{ opacity: 1 }, { opacity: 0 }],
-      { duration: D.xl, easing: 'steps(5,end)', onDone: function () { dropClone(c); } }, true);
-    play(c, [{ transform: 'translate3d(0,0,0)' }, { transform: 'translate3d(0,8px,0)' }],
-      { duration: D.xl, easing: EASE.drop });
+    /* It comes apart rather than fading: an overexposed flash, the colour
+       draining in five quantized bands — a CRT losing sync — and shards thrown
+       off the frame. */
+    var r = d.rect && d.rect.width ? d.rect : rectOf(el);
+    var a = play(c, [
+      { opacity: 1, filter: 'brightness(1) saturate(1)', transform: 'translate3d(0,0,0) scale(1)' },
+      { opacity: 1, filter: 'brightness(2.4) saturate(.4)', transform: 'translate3d(0,0,0) scale(1.05)', offset: 0.16 },
+      { opacity: 0, filter: 'brightness(1.2) saturate(0)', transform: 'translate3d(0,10px,0) scale(.9)' }
+    ], { duration: D.xl + 120, easing: 'steps(5,end)', onDone: function () { dropClone(c); } }, true);
+    pShards(r, PALETTE.cream, 10);
     if (!a) dropClone(c);
+  };
+
+  MOTION['attack:strike'] = function (d) {
+    var el = targetEl(d, null);
+    var target = d.targetUid != null ? cardByUid(d.targetUid) : seatEl('uptime', d.targetSeat);
+    var toRect = target ? rectOf(target) : null;
+    if (!el || !toRect) return;
+    pLunge(el, toRect);
+    global.setTimeout(function () { pRing(target, PALETTE.danger, D.md); }, reduced() ? 0 : STRIKE_MS);
   };
 
   MOTION['uptime:gain'] = function (d) {
@@ -2551,6 +2726,9 @@
       case 'uptime:gain': push(seatEl('uptime', d.seat)); break;
       case 'manual:resolve': push(q('prompt')); break;
       case 'game:win': if (d.seat != null) push(sideBlockOf(d.seat)); push(q('wrap')); break;
+      case 'attack:strike':
+        push(targetEl(d, null));
+        push(d.targetUid != null ? cardByUid(d.targetUid) : seatEl('uptime', d.targetSeat)); break;
     }
     return out;
   }
@@ -2579,8 +2757,20 @@
     });
 
     /* ---- WRITE PASS --------------------------------------------------- */
+    /* HIT-STOP. An attack and the damage it deals arrive in one batch, but a
+       blow that lands before the swing reads as nothing. The consequences are
+       held back until the lunge makes contact. */
+    var striking = !reduced() && batch.some(function (e) { return e.name === 'attack:strike'; });
+    var CONSEQUENCE = { 'damage:player': 1, 'damage:avatar': 1, 'avatar:decommission': 1, 'game:win': 1 };
+    var now = [], later = [];
+    batch.forEach(function (ev) { (striking && CONSEQUENCE[ev.name] ? later : now).push(ev); });
+    writeAll(now);
+    if (later.length) global.setTimeout(function () { rectCache = new Map(); writeAll(later); }, STRIKE_MS);
+  }
+
+  function writeAll(events) {
     var avatarHits = [];
-    batch.forEach(function (ev) {
+    events.forEach(function (ev) {
       if (ev.name === 'damage:avatar') { avatarHits.push(ev); return; }
       runOne(ev);
     });
@@ -3000,7 +3190,9 @@
     seatTranspose: SEAT_T,
     phasePitch: Object.freeze(Object.assign({}, PHASE_PITCH)),
     busGain: Object.freeze(Object.assign({}, BUS_GAIN)),
-    caps: Object.freeze({ voices: VOICE_CAP, animations: ANIM_CAP, crushCache: CRUSH_CAP })
+    caps: Object.freeze({ voices: VOICE_CAP, animations: ANIM_CAP, crushCache: CRUSH_CAP }),
+    samples: Object.freeze(SAMPLE_NAMES.slice()),
+    strikeMs: STRIKE_MS
   });
 
   var API = {
@@ -3036,6 +3228,7 @@
         motion: cfg.motion, motionActive: motionActive(), ready: ready,
         voices: voices.length, animations: animSet.size, animationsCapped: animNonEssential,
         activeSeat: activeSeat, bufferTotal: bufferTotal,
+        samples: SAMPLE_NAMES.filter(function (name) { return !!SAMPLES[name]; }),
         ctxState: ctx ? ctx.state : 'none', additive: ADDITIVE
       };
     },

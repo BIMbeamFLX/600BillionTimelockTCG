@@ -432,6 +432,19 @@ table.tok td.k { color: var(--cream); font-weight: 900; }
     ['damage:player', 'jitter scales with amount', function () {
       var p = P(); fx('damage:player', { seat: p.seat, amount: p.amount });
     }],
+    ['attack:strike', 'lunge, hit-stop, recoil', function () {
+      /* A Fast attack: one of your Avatars at one of theirs, with the damage in the
+         same frame — the scheduler holds the hit back until the lunge lands. */
+      var attacker = someCard('#youNetwork .gcard');
+      var target = someCard('#foeNetwork .gcard');
+      if (!attacker || !target) return;
+      fx('attack:strike', { seat: 0, uid: attacker.getAttribute('data-uid'), el: attacker,
+        targetUid: target.getAttribute('data-uid') });
+      fx('damage:avatar', { uid: target.getAttribute('data-uid'), amount: P().amount, el: target });
+    }],
+    ['damage:player (lethal)', 'the killing blow', function () {
+      fx('damage:player', { seat: 1, amount: P().amount, lethal: true });
+    }],
     ['damage:avatar', 'batched per frame', function () {
       var c = someCard();
       fx('damage:avatar', { uid: c && c.getAttribute('data-uid'), amount: P().amount, el: c });
@@ -446,7 +459,8 @@ table.tok td.k { color: var(--cream); font-weight: 900; }
     ['manual:resolve', 'a human decided', function () {
       var p = P(); fx('manual:resolve', { seat: p.seat, note: p.note });
     }],
-    ['game:win', 'no loss sting, ever', function () { fx('game:win', { seat: P().seat }); }]
+    ['game:win', 'victory at this screen', function () { fx('game:win', { seat: P().seat, mine: true }); }],
+    ['game:win (loss)', 'a falling line, not a sting', function () { fx('game:win', { seat: P().seat, mine: false }); }]
   ];
 
   var grid = $('#eventGrid');
@@ -457,7 +471,10 @@ table.tok td.k { color: var(--cream); font-weight: 900; }
     b.addEventListener('click', row[2]);
     grid.appendChild(b);
   });
-  if (BOOK.length !== FX.EVENTS.length) log('WARNING: button count ' + BOOK.length + ' != EVENTS ' + FX.EVENTS.length);
+  // Every event has a button; the extra rows audition variants (lethal, loss).
+  var booked = {};
+  BOOK.forEach(function (row) { booked[row[0].split(' ')[0]] = true; });
+  FX.EVENTS.forEach(function (name) { if (!booked[name]) log('WARNING: no button for ' + name); });
 
   document.querySelectorAll('[data-ev]').forEach(function (b) {
     b.addEventListener('click', function () {
