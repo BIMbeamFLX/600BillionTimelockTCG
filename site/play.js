@@ -1778,11 +1778,17 @@
     if (!picking) return false;
     const spec = currentPickSpec();
     if (!spec) return false;
+    return targetMatches(v, spec, uid);
+  };
+
+  /* Whether an object fits one target slot. The engine is the judge when the
+   * action lands; this only decides what glows. */
+  function targetMatches(v, spec, uid) {
     const object = v.objects[uid];
     if (!object || !object.cardId) return false;
     const card = compiled(object.cardId);
     if (spec.kind === "attack") {
-      return fastAttackTargets(v, uiSeat(session.full), picking.uid).avatars.indexOf(uid) >= 0;
+      return Boolean(picking) && fastAttackTargets(v, uiSeat(session.full), picking.uid).avatars.indexOf(uid) >= 0;
     }
     if (spec.kind === "seat" || spec.kind === "queue") return false;
     const zone = String(object.zone || "").split(":")[1];
@@ -1807,7 +1813,28 @@
       return E.keywordsOf(v, ctx, uid).indexOf(spec.kind.slice(8)) >= 0;
     }
     return true;
-  };
+  }
+
+  /* Fast: a card whose one target has nothing to hit does not glow. "Decommission
+   * target Firewall" with no Firewall on the table is not a play, it is a
+   * refusal waiting to happen. Classic keeps its glow as it was. */
+  function hasSomeTarget(v, spec) {
+    if (!spec) return true;
+    if (spec.kind === "seat" || spec.kind === "any" || spec.variable) return true;
+    if (spec.kind === "queue" || spec.kind === "queueOrPermanent") return v.queue.length > 0 || spec.kind !== "queue";
+    for (const seat of [0, 1]) {
+      for (const zone of spec.zone ? [spec.zone] : ["network"]) {
+        for (const uid of v.zones[`${seat}:${zone}`] || []) {
+          try {
+            if (targetMatches(v, spec, uid)) return true;
+          } catch (error) {
+            return true; // unsure: let the engine decide rather than hide a play
+          }
+        }
+      }
+    }
+    return false;
+  }
 
   /* A player can BE the target — Zap's "any target", Wallet Scramble's
    * "player". The engine accepts {kind:"seat"} for both (§11.2); the Queue
@@ -2126,6 +2153,9 @@
     if (card.type !== "Zap" && !sorcerySpeed) return false;
     for (const restriction of card.playRestrictions || []) {
       if (!PLAY_WINDOW[restriction.window](full.turn, seat)) return false;
+    }
+    if (isFast(v) && !card.playModes && card.playTargetSpec.length === 1 && !hasSomeTarget(v, card.playTargetSpec[0])) {
+      return false;
     }
     return canPayFor(v, v.seats[seat].buffer, card.costParsed);
   }

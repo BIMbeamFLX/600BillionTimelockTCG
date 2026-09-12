@@ -1768,7 +1768,9 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
             )
             continue
 
-        if card["name"] == "NC, Forced Signal":
+        # Name-keyed, so it must also be that card's Classic text: the Fast values
+        # print a different effect under the same name.
+        if card["name"] == "NC, Forced Signal" and "pre-attack" in line.lower():
             abilities.append(
                 {
                     "kind": "activated",
@@ -1794,7 +1796,9 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
             )
             continue
 
-        if card["name"] == "Route Misdirection":
+        # Name-keyed, so it must also be that card's Classic text: the Fast values
+        # print a different effect under the same name.
+        if card["name"] == "Route Misdirection" and "block" in line.lower():
             abilities.extend(
                 [
                     {
@@ -1816,7 +1820,9 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
             )
             continue
 
-        if card["name"] == "Obfuscated Formation":
+        # Name-keyed, so it must also be that card's Classic text: the Fast values
+        # print a different effect under the same name.
+        if card["name"] == "Obfuscated Formation" and "pile" in line.lower():
             abilities.extend(
                 [
                     {

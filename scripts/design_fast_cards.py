@@ -63,6 +63,10 @@ DEAD_LINE = [
     re.compile(r"Shielded from"),
     re.compile(r"as though it didn't have Firewall"),
     re.compile(r"\bBackchannel\b"),
+    # Windows a Fast turn never opens: nobody acts on the opponent's turn.
+    re.compile(r"before attackers|pre-attack|attacks? if able", re.IGNORECASE),
+    # A Resource being committed or played is a Resource card, which Fast has none of.
+    re.compile(r"\b(?:commits?|committed|plays?|played)\b[^.]*\bResource", re.IGNORECASE),
 ]
 # A line about Resource cards is dead; a line that generates Resources is ramp.
 RESOURCE_CARD = re.compile(r"\bResources?\b")
@@ -114,6 +118,20 @@ def keyword_line(line: str) -> str | None:
     return "\n".join(REMINDER[name] for name in names)
 
 
+def collapse_modes(lines: list[str]) -> list[str]:
+    """A "Choose one" with a single option left is just that option."""
+    if not lines or not lines[0].startswith("Choose one"):
+        return lines
+    bullets = [line for line in lines[1:] if line.startswith("•")]
+    if len(bullets) >= 2:
+        return lines
+    rest = [line for line in lines[1:] if not line.startswith("•")]
+    if not bullets:
+        return rest
+    option = bullets[0].lstrip("• ").strip()
+    return [option[0].upper() + option[1:] + ("" if option.endswith(".") else ".")] + rest
+
+
 def fast_lines(text: str) -> tuple[list[str], int]:
     """Rules text lines for Fast, and how many lines were removed as dead."""
     kept: list[str] = []
@@ -138,7 +156,7 @@ def fast_lines(text: str) -> tuple[list[str], int]:
             removed += 1
             continue
         kept.append(line)
-    return kept, removed
+    return collapse_modes(kept), removed
 
 
 # Each class kit: (minimum cost, text). Power burns, Bitcoin grows and draws,

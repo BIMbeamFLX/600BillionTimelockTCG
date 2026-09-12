@@ -14,10 +14,10 @@
       "id": "E1-001",
       "name": "Genesis Lotus",
       "card_type": "Hardware",
-      "cost": "0",
+      "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit and archive Genesis Lotus: generate 3 neutral Resources.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-002",
@@ -493,7 +493,7 @@
       "card_type": "Zap",
       "cost": "T",
       "action_resilience": "",
-      "rules_text": "Choose one —\n• decommission target Power Network card.",
+      "rules_text": "Decommission target Power Network card.",
       "design_note": "removed 1 line(s) Fast does not play"
     },
     {
@@ -743,10 +743,10 @@
       "id": "E1-082",
       "name": "Call to Relay",
       "card_type": "Zap",
-      "cost": "T",
+      "cost": "1T",
       "action_resilience": "",
-      "rules_text": "Play only during an opponent's turn before attackers.\nTheir Avatars attack if able. At end step, decommission non-Firewalls that didn't attack unless they entered or changed control this turn.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "Return target Avatar to its owner's Wallet.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-083",
@@ -1086,9 +1086,9 @@
       "name": "NC, Forced Signal",
       "card_type": "Avatar",
       "cost": "2K",
-      "action_resilience": "3/3",
-      "rules_text": "Commit — During an opponent's pre-attack step, target non-Firewall Avatar they've controlled all turn attacks if able. Decommission it at end step if it didn't.",
-      "design_note": "re-costed and re-statted for Fast"
+      "action_resilience": "4/4",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
     },
     {
       "id": "E1-121",
@@ -1483,8 +1483,8 @@
       "card_type": "Protocol",
       "cost": "2P",
       "action_resilience": "",
-      "rules_text": "Whenever a player commits a Resource for Resource, that player generates 1 additional Resource of an affinity that Resource produced.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "Power Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-165",
@@ -1546,7 +1546,7 @@
       "card_type": "Zap",
       "cost": "P",
       "action_resilience": "",
-      "rules_text": "Choose one —\n• decommission target Timelock Network card.",
+      "rules_text": "Decommission target Timelock Network card.",
       "design_note": "removed 1 line(s) Fast does not play"
     },
     {
@@ -1698,9 +1698,9 @@
       "name": "Shillie, Multisource Scout",
       "card_type": "Avatar",
       "cost": "B",
-      "action_resilience": "0/2",
-      "rules_text": "Broadcast (Ignores Firewall.)\nCommit: generate 1 neutral Resources.",
-      "design_note": "re-costed and re-statted for Fast"
+      "action_resilience": "0/4",
+      "rules_text": "Broadcast (Ignores Firewall.)",
+      "design_note": "removed 1 line(s) Fast does not play"
     },
     {
       "id": "E1-189",
@@ -1914,9 +1914,9 @@
       "name": "Arbadacarba, Grid Steward",
       "card_type": "Avatar",
       "cost": "B",
-      "action_resilience": "1/1",
-      "rules_text": "Commit: generate 1 Bitcoin Resource.",
-      "design_note": "re-costed and re-statted for Fast"
+      "action_resilience": "2/2",
+      "rules_text": "No special ability.",
+      "design_note": "removed 1 line(s) Fast does not play"
     },
     {
       "id": "E1-213",
@@ -2084,10 +2084,10 @@
       "id": "E1-231",
       "name": "Yield Router",
       "card_type": "Protocol",
-      "cost": "B",
+      "cost": "1B",
       "action_resilience": "",
-      "rules_text": "Whenever attached Resource is committed for Resource, its controller generates 1 additional Bitcoin Resource.",
-      "design_note": "removed 1 line(s) Fast does not play"
+      "rules_text": "Bitcoin Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 2 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-232",
@@ -2104,8 +2104,8 @@
       "card_type": "Hardware",
       "cost": "3",
       "action_resilience": "",
-      "rules_text": "This Hardware doesn't unlock during your unlock step.\nCommit: generate 3 neutral Resources.\n3: unlock this Hardware.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "This Hardware doesn't unlock during your unlock step.\n3: unlock this Hardware.",
+      "design_note": "removed 1 line(s) Fast does not play"
     },
     {
       "id": "E1-234",
@@ -2120,10 +2120,10 @@
       "id": "E1-235",
       "name": "Resource Prism",
       "card_type": "Hardware",
-      "cost": "3",
+      "cost": "4",
       "action_resilience": "",
-      "rules_text": "2, Commit: generate 1 neutral Resources.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-236",
@@ -2212,8 +2212,8 @@
       "card_type": "Hardware",
       "cost": "4",
       "action_resilience": "",
-      "rules_text": "Power Avatars get +1 Action and +1 Resilience.\nWhenever a Power Resource is committed for Resource, its controller generates 1 additional Power Resource.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "Power Avatars get +1 Action and +1 Resilience.",
+      "design_note": "removed 1 line(s) Fast does not play"
     },
     {
       "id": "E1-246",
@@ -2345,10 +2345,10 @@
       "id": "E1-260",
       "name": "Boost Converter",
       "card_type": "Hardware",
-      "cost": "1",
+      "cost": "4",
       "action_resilience": "",
-      "rules_text": "Doesn't unlock normally. At Maintenance, pay 4 to unlock it. If committed at draw, it deals 1 damage to you. Commit: generate 3 neutral Resources.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-261",
@@ -2363,46 +2363,46 @@
       "id": "E1-262",
       "name": "Bitcoin Seed",
       "card_type": "Hardware",
-      "cost": "0",
+      "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: generate 1 Bitcoin Resource.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-263",
       "name": "Keys Shard",
       "card_type": "Hardware",
-      "cost": "0",
+      "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: generate 1 Keys Resource.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-264",
       "name": "Signal Beacon",
       "card_type": "Hardware",
-      "cost": "0",
+      "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: generate 1 Signal Resource.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-265",
       "name": "Power Cell",
       "card_type": "Hardware",
-      "cost": "0",
+      "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: generate 1 Power Resource.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-266",
       "name": "Timelock Crystal",
       "card_type": "Hardware",
-      "cost": "0",
+      "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: generate 1 Timelock Resource.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-267",
@@ -2435,10 +2435,10 @@
       "id": "E1-270",
       "name": "Genesis Ring",
       "card_type": "Hardware",
-      "cost": "1",
+      "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: generate 2 neutral Resources.",
-      "design_note": "re-costed and re-statted for Fast"
+      "rules_text": "Commit: draw a card.",
+      "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-271",

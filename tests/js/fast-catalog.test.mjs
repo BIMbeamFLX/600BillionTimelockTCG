@@ -86,3 +86,30 @@ test("the Fast values keep every Classic card identity", () => {
     assert.equal(card.face, CLASSIC[i].face);
   });
 });
+
+test("no Fast card prints a mechanic a Fast turn can never reach", () => {
+  /* Fast has no Clash declarations, no opponent's-turn windows, no Resource
+   * cards and no Queue to wait on. A card whose play window, trigger, timing or
+   * mode list depends on one of those is dead in every Fast Stack. */
+  const deadWindows = new Set(["blockers", "clash-before-blockers", "opponent-before-attackers", "before-clash-damage"]);
+  const dead = [];
+  for (const raw of FAST) {
+    const card = E.compileCard(raw);
+    const why = [];
+    for (const restriction of card.playRestrictions || []) {
+      if (deadWindows.has(restriction.window)) why.push(`plays only in ${restriction.window}`);
+    }
+    if (card.playModes && card.playModes.length < 2) why.push("a choice of one");
+    for (const ability of card.abilities) {
+      if (ability.timing && /clash|attackers|blockers/.test(ability.timing)) why.push(`timing ${ability.timing}`);
+      if (ability.trigger && /resource-played|"what":"Resource"|blocks-non-firewall/.test(JSON.stringify(ability.trigger))) {
+        why.push(`trigger ${JSON.stringify(ability.trigger)}`);
+      }
+    }
+    for (const spec of card.playTargetSpec || []) {
+      if (/Resource|^queue$/.test(spec.kind)) why.push(`targets ${spec.kind}`);
+    }
+    if (why.length) dead.push(`${card.id} ${card.name}: ${why.join("; ")}`);
+  }
+  assert.deepEqual(dead, []);
+});
