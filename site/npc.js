@@ -158,7 +158,36 @@
         // even if a cap is expressed in a way the loop above did not expect.
         push("CHOOSE_UNLOCK", { uids: required });
       }
-      if (awaiting.kind === "draw") push("CHOOSE_DRAW", { skip: false });
+      /* THE NPC FROZE HERE TOO. The engine names this prompt `drawReplacement`
+       * (a controller of optionalDrawShield may skip the draw for an attack
+       * shield); the policy used to answer a `draw` kind the engine never sets.
+       * Draw — a card is worth more than a turn of shelter — unless the Stack
+       * is empty, where drawing decks the bot out and the shield is free. */
+      if (awaiting.kind === "drawReplacement") {
+        const empty = zoneOf(state, seat, "stack").length === 0;
+        push("CHOOSE_DRAW", { skip: empty });
+        push("CHOOSE_DRAW", { skip: !empty });
+      }
+      /* Sovereign damage: archive exactly `amount` non-proxy cards, cheapest
+       * first, Resources last — the economy is what rebuilds the board. */
+      if (awaiting.kind === "sovereignDamage") {
+        const weight = (uid) => {
+          const card = compiled(state.objects[uid].cardId);
+          const cost = card && card.costParsed ? card.costParsed : {};
+          const total = Object.keys(cost).reduce((sum, key) => sum + (key === "x" ? 0 : cost[key]), 0);
+          return (card && card.isResource ? 100 : 0) + total;
+        };
+        const eligible = zoneOf(state, seat, "network")
+          .filter((uid) => state.objects[uid] && !state.objects[uid].token)
+          .sort((a, b) => weight(a) - weight(b));
+        push("CHOOSE_SOVEREIGN_ARCHIVE", { uids: eligible.slice(0, awaiting.amount) });
+      }
+      /* Opponent's card chosen for us to play: play it untargeted. A card that
+       * needs targets is rejected by the engine; the bot does not guess. */
+      if (awaiting.kind === "remotePlay") push("REMOTE_PLAY_CARD", { targets: [] });
+      if (awaiting.kind === "tombstoneCleanup") {
+        push("CHOOSE_TOMBSTONE_CLEANUP", { uids: awaiting.tasks.map((task) => task.options[0]) });
+      }
       if (awaiting.kind === "triggers") {
         const waiting = state.pendingTriggers[String(seat)] || [];
         push("ORDER_TRIGGERS", { qids: waiting.map((t) => t.pendingId) });
