@@ -130,6 +130,20 @@ def _strip_reminder(line: str) -> str:
     return re.sub(r"\s*\([^)]*\)", "", line).strip()
 
 
+def split_leading_sentences(line: str) -> list[str]:
+    """Split sentences printed before a "Cost: effect" clause into their own lines.
+
+    Boost Converter prints its statics and its Commit ability on one line; read
+    whole, everything before the colon became the cost, the Commit was never
+    charged and the ability could be activated without limit.
+    """
+    cost, colon, effect = line.partition(":")
+    if not colon or not re.search(r"\.\s", cost):
+        return [line]
+    sentences = re.split(r"(?<=\.)\s+", cost.strip())
+    return [*sentences[:-1], f"{sentences[-1]}{colon}{effect}"]
+
+
 def _keyword_only_line(line: str) -> bool:
     """Return true when every clause is already represented in `keywords`."""
     fragments = [part.strip().rstrip(".") for part in re.split(r"[;,]", _strip_reminder(line))]
@@ -448,6 +462,10 @@ def parse_rule_static(line: str, card_name: str) -> dict[str, Any] | None:
         return {"name": "attachedIgnoreBootDelay", "grants": "ignoreBootDelay"}
     if re.fullmatch(r"This Hardware doesn't unlock during your unlock step", text, re.I):
         return {"name": "skipSelfUnlock"}
+    if re.fullmatch(r"(?:It )?(?:doesn't|does not) unlock normally", text, re.I):
+        return {"name": "skipSelfUnlock"}
+    if re.fullmatch(rf"{re.escape(card_name)} enters committed", text, re.I):
+        return {"name": "entersCommitted"}
     if re.fullmatch(r"You have no maximum Wallet size", text, re.I):
         return {"name": "noMaximumWallet"}
     if re.fullmatch(r"You may play any number of Resources on each of your turns", text, re.I):
@@ -1633,7 +1651,11 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
     """Split rules text into abilities, auto-scripting the ones we recognise."""
     abilities: list[dict[str, Any]] = []
     manual = False
-    lines = [_strip_reminder(raw) for raw in card["rules_text"].split("\n")]
+    lines = [
+        sentence
+        for raw in card["rules_text"].split("\n")
+        for sentence in split_leading_sentences(_strip_reminder(raw))
+    ]
     # "Choose one —" followed by bullet modes compiles to ONE modal ability;
     # it is scripted only when every mode's effect parses.
     if any(ln.startswith("Choose one") for ln in lines):
@@ -1695,33 +1717,36 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
             continue
 
         if card["name"] == "Longy, Resource Sovereign" and "While idle" in line:
-            abilities.extend(
-                [
-                    {
-                        "kind": "stat-static",
-                        "cost": "",
-                        "text": (
-                            "While idle, stats equal your Bitcoin Resources;"
-                            " while attacking, the defender's."
-                        ),
-                        "statCount": {"dynamicBitcoinController": True},
-                        "ops": None,
-                        "manual": False,
-                    },
-                    {
-                        "kind": "activated",
-                        "cost": "Commit",
-                        "text": "Commit: target Resource is Bitcoin while Longy remains.",
-                        "ops": [
-                            {
-                                "op": "setAffinityWhileSource",
-                                "affinity": "Bitcoin",
-                                "kind": "Resource",
-                            }
-                        ],
-                        "manual": False,
-                    },
-                ]
+            abilities.append(
+                {
+                    "kind": "stat-static",
+                    "cost": "",
+                    "text": (
+                        "While idle, stats equal your Bitcoin Resources;"
+                        " while attacking, the defender's."
+                    ),
+                    "statCount": {"dynamicBitcoinController": True},
+                    "ops": None,
+                    "manual": False,
+                }
+            )
+            continue
+
+        if card["name"] == "Longy, Resource Sovereign" and line.startswith("Commit: target"):
+            abilities.append(
+                {
+                    "kind": "activated",
+                    "cost": "Commit",
+                    "text": "Commit: target Resource is Bitcoin while Longy remains.",
+                    "ops": [
+                        {
+                            "op": "setAffinityWhileSource",
+                            "affinity": "Bitcoin",
+                            "kind": "Resource",
+                        }
+                    ],
+                    "manual": False,
+                }
             )
             continue
 
@@ -1810,6 +1835,43 @@ def parse_abilities(card: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
                         "manual": False,
                     },
                 ]
+            )
+            continue
+
+        pay_unlock = re.fullmatch(r"At Maintenance, pay ([0-9PBKST]+) to unlock it\.?", line, re.I)
+        if pay_unlock:
+            abilities.append(
+                {
+                    "kind": "activated",
+                    "cost": f"{pay_unlock.group(1)} — Maintenance",
+                    "text": line,
+                    "ops": [{"op": "unlockSelf"}],
+                    "timing": "maintenance",
+                    "manual": False,
+                }
+            )
+            continue
+
+        draw_damage = re.fullmatch(
+            r"If committed at draw, it deals (\d+) damage to you\.?", line, re.I
+        )
+        if draw_damage:
+            abilities.append(
+                {
+                    "kind": "triggered",
+                    "cost": "",
+                    "text": line,
+                    "trigger": {"on": "draw-step", "whose": "you"},
+                    "ops": [
+                        {
+                            "op": "damage",
+                            "amount": int(draw_damage.group(1)),
+                            "target": "controller",
+                            "condition": {"sourceCommitted": True},
+                        }
+                    ],
+                    "manual": False,
+                }
             )
             continue
 

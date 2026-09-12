@@ -10,7 +10,12 @@
  * These literals were taken on the unmodified engine at commit 2cfcd21, before
  * the Fast profile existed. If one fails, Classic moved. Do not update the
  * literal to make the test pass — find out what moved, and whether it was
- * meant to. */
+ * meant to.
+ *
+ * Re-pinned once on purpose: the Boost Converter / Timelock Vault compile fix
+ * changed the catalog, so catalogDigest (and the prevHash chain built on it)
+ * moved. Every state of the script, with those two fields stripped, was proved
+ * byte-identical across processes before and after. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -90,10 +95,10 @@ function runScript(state, actions) {
 }
 
 const PINNED = {
-  openHash: "6d9d2f0130efa7734e64e0e417271695cb22b280c283f6c31b41de38cc6b87d2",
-  openPublicHash: "c3a99d6377b5d576489e4e703df366e2fb1153e1ee1e1088dfbe057fb8739370",
-  afterHash: "a5058d522e9d5f140299415576bffb29f9fee0919e285551c20a616626cb31a8",
-  afterPublicHash: "5efdcd973a938c5a6d7d0c836d64cc6e2c7a2f18964d8a67036716df5d355be1",
+  openHash: "ee3466397d21e42ef6b18b10cd99dd8dc76cfbc28d71896dfde0a29942f5427d",
+  openPublicHash: "c02abe184e68f07324adb00a27cb491313b155635147320370cfb09c6dd2c88f",
+  afterHash: "ff10d03370a1f87a5e81c880c3c9bade09b906a739e6f15b544a809a6496c07f",
+  afterPublicHash: "3daa0cfddaeffa4efa859735f0d266ded439a3a4187350cf827ec03b1b17994a",
   afterSeq: 40,
   afterTurn: 3,
   afterPhase: "open",

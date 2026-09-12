@@ -2403,6 +2403,9 @@
       if (op.condition.sourceUnlocked && (!sourceUid || !state.objects[sourceUid] || state.objects[sourceUid].committed)) {
         return "done";
       }
+      if (op.condition.sourceCommitted && (!sourceUid || !state.objects[sourceUid] || !state.objects[sourceUid].committed)) {
+        return "done";
+      }
     }
     switch (op.op) {
       case "generate": {
