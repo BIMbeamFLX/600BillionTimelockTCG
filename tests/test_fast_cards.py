@@ -98,3 +98,18 @@ def test_a_fast_cost_is_one_number():
     for card in FAST["cards"]:
         assert re.fullmatch(r"X?\d*", card["cost"]), (card["id"], card["cost"])
         assert card["cost"] != "X" or "X" in card["rules_text"] or True
+
+
+def test_every_class_has_something_to_play_on_turn_one():
+    """Pool one on turn one: each class fields at least ONE_DROPS one-cost Avatars, statted on the budget."""
+    classic = {c["id"]: c for c in CLASSIC}
+    for affinity in design_fast_cards.SYMBOL:
+        ones = [
+            c for c in FAST["cards"]
+            if "Avatar" in c["card_type"] and (classic[c["id"]]["affinity"] or [None])[0] == affinity
+            and design_fast_cards.total_cost(c["cost"]) == 1
+        ]
+        assert len(ones) >= design_fast_cards.ONE_DROPS, (affinity, [c["name"] for c in ones])
+        for card in ones:
+            action, resilience = (int(n) for n in card["action_resilience"].split("/"))
+            assert action + resilience <= 5, (card["name"], card["action_resilience"])

@@ -311,10 +311,10 @@
       "id": "E1-034",
       "name": "Sat, Relay Rider",
       "card_type": "Avatar",
-      "cost": "2",
-      "action_resilience": "2/3",
+      "cost": "1",
+      "action_resilience": "1/2",
       "rules_text": "Broadcast (Ignores Firewall.)",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-035",
@@ -329,10 +329,10 @@
       "id": "E1-036",
       "name": "Morgs, Friendly Fork",
       "card_type": "Avatar",
-      "cost": "3",
-      "action_resilience": "4/3",
+      "cost": "1",
+      "action_resilience": "2/1",
       "rules_text": "No special ability.",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-037",
@@ -392,10 +392,10 @@
       "id": "E1-043",
       "name": "AJ, First Responder",
       "card_type": "Avatar",
-      "cost": "2",
-      "action_resilience": "2/2",
+      "cost": "1",
+      "action_resilience": "1/1",
       "rules_text": "Commit: Prevent the next 1 damage that would be dealt to any target this turn.",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-044",
@@ -608,10 +608,10 @@
       "id": "E1-067",
       "name": "Tal, Relay Captain",
       "card_type": "Avatar",
-      "cost": "2",
-      "action_resilience": "2/3",
+      "cost": "1",
+      "action_resilience": "1/2",
       "rules_text": "Broadcast (Ignores Firewall.)",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-068",
@@ -707,10 +707,10 @@
       "id": "E1-078",
       "name": "Michael1011, Debugger",
       "card_type": "Avatar",
-      "cost": "3",
-      "action_resilience": "3/3",
+      "cost": "1",
+      "action_resilience": "1/1",
       "rules_text": "Commit: This Avatar deals 1 damage to any target.",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-079",
@@ -842,19 +842,19 @@
       "id": "E1-093",
       "name": "Snick, Airgap Firewall",
       "card_type": "Avatar",
-      "cost": "3",
-      "action_resilience": "1/5",
+      "cost": "1",
+      "action_resilience": "0/2",
       "rules_text": "Firewall (Attacks must target this Avatar first.)\nBroadcast (Ignores Firewall.)",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-094",
       "name": "Tal, Liquid Firewall",
       "card_type": "Avatar",
-      "cost": "3",
-      "action_resilience": "0/6",
+      "cost": "1",
+      "action_resilience": "0/2",
       "rules_text": "Firewall (Attacks must target this Avatar first.)\nT: This Avatar gets +1 Action and +0 Resilience until end of turn.",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-095",
@@ -986,10 +986,10 @@
       "id": "E1-109",
       "name": "BlackCoffee, Reboot Crew",
       "card_type": "Avatar",
-      "cost": "2",
-      "action_resilience": "3/3",
+      "cost": "1",
+      "action_resilience": "2/2",
       "rules_text": "No special ability.",
-      "design_note": "removed 1 line(s) Fast does not play"
+      "design_note": "removed 1 line(s) Fast does not play; moved to cost 1 for turn one"
     },
     {
       "id": "E1-110",
@@ -1013,10 +1013,10 @@
       "id": "E1-112",
       "name": "Proton, Cold Signer",
       "card_type": "Avatar",
-      "cost": "3",
-      "action_resilience": "0/6",
+      "cost": "1",
+      "action_resilience": "0/2",
       "rules_text": "KK, Commit: draw a card.",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-113",
@@ -1085,10 +1085,10 @@
       "id": "E1-120",
       "name": "NC, Forced Signal",
       "card_type": "Avatar",
-      "cost": "3",
-      "action_resilience": "4/4",
+      "cost": "1",
+      "action_resilience": "2/2",
       "rules_text": "No special ability.",
-      "design_note": "removed 1 line(s) Fast does not play"
+      "design_note": "removed 1 line(s) Fast does not play; moved to cost 1 for turn one"
     },
     {
       "id": "E1-121",
@@ -1157,10 +1157,10 @@
       "id": "E1-128",
       "name": "NC, Offline Operator",
       "card_type": "Avatar",
-      "cost": "3",
-      "action_resilience": "4/3",
+      "cost": "1",
+      "action_resilience": "2/1",
       "rules_text": "No special ability.",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-129",
@@ -1418,10 +1418,10 @@
       "id": "E1-157",
       "name": "MadMunky, Chaos Coordinator",
       "card_type": "Avatar",
-      "cost": "3",
-      "action_resilience": "4/4",
+      "cost": "1",
+      "action_resilience": "2/2",
       "rules_text": "No special ability.",
-      "design_note": "removed 1 line(s) Fast does not play"
+      "design_note": "removed 1 line(s) Fast does not play; moved to cost 1 for turn one"
     },
     {
       "id": "E1-158",
@@ -1436,10 +1436,10 @@
       "id": "E1-159",
       "name": "Leon, Shift Worker",
       "card_type": "Avatar",
-      "cost": "3",
-      "action_resilience": "4/3",
+      "cost": "1",
+      "action_resilience": "2/1",
       "rules_text": "No special ability.",
-      "design_note": "re-costed and re-statted for Fast"
+      "design_note": "re-costed and re-statted for Fast; moved to cost 1 for turn one"
     },
     {
       "id": "E1-160",
@@ -1463,10 +1463,10 @@
       "id": "E1-162",
       "name": "Toni China, Rough Miner",
       "card_type": "Avatar",
-      "cost": "2",
-      "action_resilience": "3/3",
+      "cost": "1",
+      "action_resilience": "2/2",
       "rules_text": "No special ability.",
-      "design_note": "removed 1 line(s) Fast does not play"
+      "design_note": "removed 1 line(s) Fast does not play; moved to cost 1 for turn one"
     },
     {
       "id": "E1-163",
