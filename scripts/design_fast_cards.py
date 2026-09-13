@@ -23,6 +23,9 @@ The rules, in order:
    per ability line, keeping the card's own Action/Resilience ratio. Then each
    affinity's balance offset from the simulator is added.
 5. A cost is printed as one number. The class symbol stays off the cost.
+6. Turn one has something to play: every class fields at least ONE_DROPS
+   one-cost Avatars. Where Classic gave fewer, the cheapest, plainest Avatars
+   of the class move down to cost 1 and are re-statted on the budget.
 """
 
 from __future__ import annotations
@@ -48,6 +51,10 @@ REMINDER = {
     "Boot Delay": "Boot Delay",
     "Reboot": "Reboot",
 }
+
+# One-cost Avatars per class. Classic priced almost every Avatar at two or more,
+# so the first Fast turn (pool 1) was "nothing to play" in most games.
+ONE_DROPS = 5
 
 # Stat offsets per affinity for Avatars of cost 2 or more, set from simulator runs
 # (`node scripts/sim.mjs --profile fast`). Positive makes the class stronger.
@@ -279,8 +286,26 @@ def build() -> dict[str, Any]:
         "source": "cards/e1-cards.json",
         "generator": "scripts/design_fast_cards.py",
         "balance": BALANCE,
-        "cards": [design(card) for card in cards],
+        "cards": open_turn_one(cards, [design(card) for card in cards]),
     }
+
+
+def open_turn_one(classic: list[dict[str, Any]], designed: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Rule 6: each class gets ONE_DROPS one-cost Avatars, moving the plainest cheap ones down."""
+    by_id = {card["id"]: card for card in classic}
+    for affinity in SYMBOL:
+        avatars = [c for c in designed if "Avatar" in c["card_type"] and (by_id[c["id"]]["affinity"] or [None])[0] == affinity]
+        have = sum(1 for c in avatars if total_cost(c["cost"]) == 1)
+        candidates = [c for c in avatars if 2 <= total_cost(c["cost"]) <= 3 and "X" not in c["cost"]]
+        # Plainest first (fewest rules lines), then cheapest, then catalog order.
+        candidates.sort(key=lambda c: (len(c["rules_text"].splitlines()) if c["rules_text"] != "No special ability." else 0,
+                                       total_cost(c["cost"]), c["id"]))
+        for card in candidates[: max(0, ONE_DROPS - have)]:
+            lines, removed = fast_lines(by_id[card["id"]]["rules_text"])
+            card["cost"] = "1"
+            card["action_resilience"] = stats(by_id[card["id"]], 1, lines, removed)
+            card["design_note"] += "; moved to cost 1 for turn one"
+    return designed
 
 
 def main() -> None:

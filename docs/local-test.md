@@ -26,6 +26,7 @@ Play against the NPC at `play.html?rules=fast`. Note the seed from the setup for
 
 **A turn**
 - [ ] The game opens straight into your Build phase. The chip reads `Pool 1/1` and the button reads `End turn`.
+- [ ] Turn one is not dead: most opening hands hold a one-cost Avatar that glows.
 - [ ] Only cards you can pay for **and** have a target for glow.
 - [ ] A played card resolves at once. Nobody passes and the opponent does not respond.
 - [ ] End turn on turn one: you hold eight cards and the table asks which one to discard. Click it, press Discard. Nothing is thrown away unasked.
