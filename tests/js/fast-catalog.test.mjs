@@ -113,3 +113,31 @@ test("no Fast card prints a mechanic a Fast turn can never reach", () => {
   }
   assert.deepEqual(dead, []);
 });
+
+test("searching your own Stack shows you the cards you may pick", () => {
+  /* The choice used to list bare uids; the redacted view hid every option's
+   * card, and the table offered "Option 1 … Option 30". */
+  const search = FAST.find((card) => /Search your Stack for a card/.test(card.text) && !E.compileCard(card).playTargetSpec.length);
+  assert.ok(search, "a Fast card searches the Stack");
+  const state = E.createGame(config("F1.0"));
+  const uid = "o" + state.nextUid;
+  state.nextUid += 1;
+  state.objects[uid] = {
+    uid, cardId: search.id, owner: 0, controller: 0, zone: "0:wallet", committed: false,
+    bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+    revealedTo: [0], revealedUntil: null, token: false, entersSeq: 0, prevUid: null,
+  };
+  state.zones["0:wallet"].push(uid);
+  state.seats[0].buffer.N = 9;
+  const result = act(state, "PLAY_CARD", 0, { uid });
+  assert.equal(result.error, null, JSON.stringify(result.error));
+  const choice = result.state.pendingChoice;
+  assert.ok(choice && choice.kind === "search" && choice.seat === 0, "the search prompt is open for seat 0");
+  const view = E.view(result.state, 0);
+  for (const option of view.pendingChoice.options) {
+    assert.ok(view.objects[option.uid] && view.objects[option.uid].cardId, `${option.uid} is shown to the chooser`);
+  }
+  const foe = E.view(result.state, 1);
+  assert.ok(view.pendingChoice.options.some((option) => !(foe.objects[option.uid] && foe.objects[option.uid].cardId)),
+    "and stays hidden from the opponent");
+});
