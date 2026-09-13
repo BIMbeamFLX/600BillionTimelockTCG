@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build-rulebook.cjs",
+    "build:napplet": "python scripts/build_napplet.py",
     "recover:plebeian": "node scripts/recover-plebeian-cashu.mjs",
     "table": "node server/table.js",
     "local": "node scripts/local-test.mjs",

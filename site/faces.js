@@ -88,6 +88,27 @@
         cache = null; // a broken Cache API is a slow day, not a broken game
       }
     }
+    /* INSIDE A SHELL the bytes come through the resource NAP first: the host
+     * fetches from the mirrors it allows for this napplet and hands back a
+     * Blob. A plain fetch is still tried afterwards, because the resource
+     * domain being present does not mean it holds every face. The digest
+     * check below is the same for both — a host is a mirror like any other. */
+    const N = root.E1Napplet;
+    const viaShell = Boolean(N && N.resource && typeof N.resource.available === "function"
+      && N.resource.available() && typeof N.resource.bytes === "function");
+    for (const server of MIRRORS) {
+      if (!viaShell) break;
+      try {
+        const held = await N.resource.bytes(`${server}/${sha}`);
+        if (!held) continue;
+        const bytes = typeof held.arrayBuffer === "function" ? await held.arrayBuffer() : held;
+        if (!(await digestMatches(bytes, sha))) continue;
+        const type = held.type || "image/webp";
+        return { blob: new Blob([bytes], { type }), source: "blossom", server };
+      } catch (error) {
+        /* next mirror */
+      }
+    }
     for (const server of MIRRORS) {
       try {
         const response = await fetch(`${server}/${sha}`);
