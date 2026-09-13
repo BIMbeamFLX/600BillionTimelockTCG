@@ -14,9 +14,9 @@
       "id": "E1-001",
       "name": "Genesis Lotus",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "2",
       "action_resilience": "",
-      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "rules_text": "Commit: generate 1 neutral Resource.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2093,9 +2093,9 @@
       "id": "E1-232",
       "name": "Entry Fee Device",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "3",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "2, Commit: Target player discards a card. Activate only during your turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2120,9 +2120,9 @@
       "id": "E1-235",
       "name": "Resource Prism",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "1",
       "action_resilience": "",
-      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "rules_text": "Commit: Prevent the next 1 damage that would be dealt to any target this turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2165,27 +2165,27 @@
       "id": "E1-240",
       "name": "Timelock Receiver",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "1",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "Commit: Prevent the next 1 damage that would be dealt to any target this turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-241",
       "name": "Resource Tombstone",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "2",
       "action_resilience": "",
-      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "rules_text": "Commit: generate 1 neutral Resource.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-242",
       "name": "Resource Exit Sensor",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "3",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "2, Commit: Target player discards a card. Activate only during your turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2203,7 +2203,7 @@
       "card_type": "Hardware",
       "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2228,9 +2228,9 @@
       "id": "E1-247",
       "name": "Mesh Router",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "3",
       "action_resilience": "",
-      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "rules_text": "2, Commit: Target player discards a card. Activate only during your turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2264,18 +2264,18 @@
       "id": "E1-251",
       "name": "Power Receiver",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "2",
       "action_resilience": "",
-      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "rules_text": "Commit: generate 1 neutral Resource.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-252",
       "name": "Signal Receiver",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "3",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "2, Commit: Target player discards a card. Activate only during your turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2293,7 +2293,7 @@
       "card_type": "Hardware",
       "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2318,9 +2318,9 @@
       "id": "E1-257",
       "name": "Keyed Resource Bell",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "3",
       "action_resilience": "",
-      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "rules_text": "2, Commit: Target player discards a card. Activate only during your turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2345,9 +2345,9 @@
       "id": "E1-260",
       "name": "Boost Converter",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "1",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "Commit: Prevent the next 1 damage that would be dealt to any target this turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2363,9 +2363,9 @@
       "id": "E1-262",
       "name": "Bitcoin Seed",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "3",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "2, Commit: Target player discards a card. Activate only during your turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2374,7 +2374,7 @@
       "card_type": "Hardware",
       "cost": "4",
       "action_resilience": "",
-      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "rules_text": "Commit: draw a card.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2383,25 +2383,25 @@
       "card_type": "Hardware",
       "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-265",
       "name": "Power Cell",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "1",
       "action_resilience": "",
-      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "rules_text": "Commit: Prevent the next 1 damage that would be dealt to any target this turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-266",
       "name": "Timelock Crystal",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "2",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "Commit: generate 1 neutral Resource.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2435,9 +2435,9 @@
       "id": "E1-270",
       "name": "Genesis Ring",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "1",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "Commit: Prevent the next 1 damage that would be dealt to any target this turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2453,9 +2453,9 @@
       "id": "E1-272",
       "name": "Resource Converter",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "3",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "2, Commit: Target player discards a card. Activate only during your turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2473,7 +2473,7 @@
       "card_type": "Hardware",
       "cost": "4",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
@@ -2489,18 +2489,18 @@
       "id": "E1-276",
       "name": "Difficulty Winter",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "2",
       "action_resilience": "",
-      "rules_text": "Commit: draw a card.",
+      "rules_text": "Commit: generate 1 neutral Resource.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
       "id": "E1-277",
       "name": "Bitcoin Receiver",
       "card_type": "Hardware",
-      "cost": "4",
+      "cost": "3",
       "action_resilience": "",
-      "rules_text": "3, Commit: This Hardware deals 1 damage to any target.",
+      "rules_text": "2, Commit: Target player discards a card. Activate only during your turn.",
       "design_note": "removed 1 line(s) Fast does not play; class kit effect"
     },
     {
