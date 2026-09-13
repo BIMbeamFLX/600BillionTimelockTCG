@@ -80,6 +80,11 @@ DYNAMIC_ASSETS: tuple[DynamicAsset, ...] = (
         why="card faces: site/faces.js LOCAL fallback and site/play.js faceUrl()",
         optional=True,
     ),
+    DynamicAsset(
+        prefix="../art/site/portraits/",
+        pattern="art/site/portraits/*",
+        why="character portraits: site/portraits.js builds <slug>.webp and reads portraits.json",
+    ),
 )
 
 
@@ -228,10 +233,12 @@ def destination_for(path: str) -> str:
 def assert_safe_output(out: Path, tracked: set[str]) -> None:
     """Refuse to clear an output directory that is outside the repo or holds tracked files."""
     resolved = out.resolve()
-    if REPO not in resolved.parents:
-        raise SystemExit(f"refusing to write outside the repo: {resolved}")
+    # The root check must come first: the repo root is not among its own
+    # parents, so the outside-the-repo check would claim it with the wrong reason.
     if resolved == REPO:
         raise SystemExit("refusing to use the repo root as the publish directory")
+    if REPO not in resolved.parents:
+        raise SystemExit(f"refusing to write outside the repo: {resolved}")
     relative = resolved.relative_to(REPO).as_posix()
     clashes = sorted(p for p in tracked if p == relative or p.startswith(f"{relative}/"))
     if clashes:
@@ -320,12 +327,14 @@ def main(argv: list[str] | None = None) -> int:
         explain(problems)
         return 1
     out = (REPO / args.out).resolve()
+    # Guard --check too: report() prints `out` repo-relative, so an --out outside
+    # the repo must fail with the same message as a real run, not a traceback.
+    assert_safe_output(out, tracked)
     if args.check:
         total = sum((REPO / path).stat().st_size for path in paths)
         report(paths, out, total)
         print("\n--check: every referenced asset resolved. Nothing written.")
         return 0
-    assert_safe_output(out, tracked)
     if out.exists():
         # Idempotent by construction: a full rebuild cannot leave a file behind
         # from a previous run whose reference has since been deleted.
