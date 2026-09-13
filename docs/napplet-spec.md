@@ -178,3 +178,115 @@ hotseat remains extension-free.
   Revisit when NAP-VALUE ships or via companion service outside the napplet.
 - Matchmaking lobby, spectating, tournaments, INC/intent integration.
 - Stake Mode / Toss Legacy modules (rulebook §19) — off, as in the default profile.
+
+## The nappelin Hangar as the shell (fixed 2026-09-13)
+
+The napplet now ships into a concrete shell: the nappelin Hangar loads one self-contained
+`index.html` in a `sandbox="allow-scripts"` frame (opaque origin — `localStorage`, `sessionStorage`
+and `caches` throw at the point of access, `location.protocol` is `about:`), and injects a
+`window.napplet` prelude carrying ONLY the granted domains. Everything below is what
+`site/napplet.js` (`E1Napplet`) and `site/net.js` actually do against that shell; flagged gap 1
+above is closed by it.
+
+**`requires: [webrtc]` is superseded.** There is no WebRTC NAP and none is needed: the Table
+topology (amended 2026-08-15) plays over a referee socket, and inside the Hangar that socket is a
+*pipe the host opens on the napplet's behalf* — see "the table channel". The artifact declares
+`identity, outbox, resource, storage, intent` (`<meta name="napplet-requires">`); `table` is a
+host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
+
+### 3a. Identity and outbox — what the prelude really offers
+
+- `napplet.identity.getPublicKey(): Promise<string>` is the whole identity surface (empty string
+  when nobody is signed in). There is **no** `get()`, `request()` or `signEvent`.
+  `E1Napplet.identity.current()`/`login()` call it; `login()` rejects with "sign in to the shell
+  first" rather than prompting, because signing in is the Hangar's flow.
+- `E1Napplet.identity.sign(event)` has no shell path: it rejects with
+  `"the shell signs only through outbox.publish and table.sign"` unless a NIP-07 signer exists.
+- `napplet.outbox.publish(template)` takes an **unsigned** template; the host signs with its
+  identity and fans out to `wss://relay.nappelin.com` + damus/nos.lol/primal. It resolves the raw
+  result message — `error` on failure, never a rejection. `E1Napplet.outbox.publish` returns
+  `{ok, via:"shell", event}` (the signed event, from `msg.event || msg.result`) or
+  `{ok:false, via:"shell", error}`. `E1Napplet.outbox.query(filters)` → `msg.events || []`. On the
+  website the same calls sign with NIP-07 and use `E1Net.nostr`'s own fan-out.
+- **net.js consequence.** play.js keeps its `sign → publish → sendNostr` order. Inside a shell
+  `E1Net.nostr.sign()` of a kind 4600/31600 template therefore *publishes it through the outbox*
+  and returns the signed event (the referee still records it verbatim); `publish()` recognises an
+  event the host already fanned out and reports `{ok:true, accepted:["shell"], tried:1}` instead of
+  sending a second copy. A kind 9734 zap request cannot be signed in a shell at all.
+- The shell's pubkey is cached **in memory** by net.js (`savedPubkey()`); `localStorage` is never
+  named at a call site outside a try, because the getter itself throws in the sandbox.
+- Embed detection: `E1Napplet.embedded()` is `window.napplet` (object) OR `window.nappletContext`
+  OR `?embed=1`. `E1Napplet.escape()` posts `{type:"nappelin.escape"}` to `parent`; no-op on the
+  website. Under embed with no `theme` domain, `E1Napplet.NAPPELIN_THEME` (iron `#0f0c08`,
+  parchment `#ece3d0`, brass `#e7bf76`, …) is painted instead of the 600B fallback palette.
+- `tableUrl()` in a srcdoc frame: `?table=` → the seat's saved table → `globalThis.E1_TABLE_URL`
+  (a `wss?://` constant the build may inject) → the page origin → `wss://tcg.nappelin.com/ws`
+  when embedded → null.
+
+### 3b. The table channel (napplet ⇄ Hangar page, over `postMessage`)
+
+`E1Napplet.table.available()` is true when `napplet.table` exists, when
+`napplet.shell.supports("table")` is true, or simply when the page is embedded inside a parent
+window — the channel needs no prelude object. `E1Napplet.table.connect(url, handlers)` returns
+`{ send(text), close(), sign(event): Promise<signedEvent>, channel, via }` with handlers
+`{ onOpen(), onMessage(text), onClose({code, reason}), onError(message) }`. Without a host it is a
+real `WebSocket` and `sign` is NIP-07 — `site/net.js` sees one shape either way (`dial()`).
+
+| napplet → host | fields | host answers |
+| --- | --- | --- |
+| `table.open` | `id`, `url` (wss://…) | `table.open.result {id, ok:true, channel}` or `{id, ok:false, error}` |
+| `table.send` | `channel`, `data` (string) | nothing (unknown channel drops silently) |
+| `table.close` | `channel` | `table.closed {channel, code:1000, reason:"closed by napplet"}` |
+| `table.sign` | `id`, `channel`, `event` (unsigned kind 22242) | `table.sign.result {id, ok:true, event}` or `{id, ok:false, error}` |
+
+Host → napplet, unsolicited: `table.opened {channel}`, `table.message {channel, data}`,
+`table.closed {channel, code, reason}`. Every request carries a fresh `id` and replies are matched
+on it; the unsolicited three are matched on `channel`. The adapter listens **only** to
+`event.source === parent`; a `table.open` nobody answers within 8 s is reported through `onError`
+and `onClose({code:1006})` so a plain iframe never hangs.
+
+Host rules (nappelin `apps/hangar/src/table-channel.ts`): the `url` origin must be in the
+napplet's table allowlist (for `600b-timelock-tcg`: `wss://tcg.nappelin.com`,
+`wss://tcg.zapburg.com`, `ws://localhost:8777`, `ws://localhost:8790`, `ws://127.0.0.1:8777`);
+at most two channels per frame; `table.sign` signs with the host identity ONLY a kind 22242 with
+empty content and exactly `["relay", r]` + `["challenge", c]` where `c` is 64 lowercase hex and
+`new URL(r).host` equals the channel's host — anything else is
+`"the host signs only a table login for the table you opened"`, nobody signed in is
+`"sign in first"`. net.js keeps its own relay-host check on the challenge and it fires *first*:
+the two checks agree by construction, so a host refusal is only ever reached for a host-side
+reason (session closed, guest signed out), and surfaces as `AUTH_FAILED` through `onError`.
+
+Tests: `tests/js/net-shell.test.mjs` (a fake Hangar over real `ws` sockets to an in-process
+referee: open → host-signed AUTH → CREATE → STATE; refusals; foreign `event.source` ignored;
+the website path through the adapter), `tests/js/napplet.test.mjs` (the adapter over a fake parent).
+
+### 4. The inventory intent (bearlett → nappelin → game)
+
+"INC/intent integration" is no longer out of scope for one purpose: knowing what the player owns
+without a wallet in the frame. Bearlett (the collection napplet) stores a `nutft/inventory` and
+re-emits it on `napplet:collection/inventory`; nappelin answers the `collection` intent from that
+stored value for sender `600b-timelock-tcg` only.
+
+`E1Napplet.collection.inventory(edition = "600b-e1")` →
+`napplet.intent.invoke({archetype:"collection", action:"inventory",
+convention:"napplet:collection/inventory", payload:{edition}})` → `result.inventory`, validated,
+or `null` (nothing stored, another edition, no intent domain — never a throw).
+`E1Napplet.collection.available()` asks `intent.available("collection")`.
+`E1Napplet.collection.counts(inventory)` is the `asset_id → count` Map the Stack rules read.
+
+Payload `nutft/inventory` v1 — exactly these fields, nothing else:
+
+```json
+{ "v": 1, "kind": "nutft/inventory", "edition": "600b-e1", "collection_id": "600B-E1",
+  "catalog_uri": "https://…/nutft/catalog", "mint": "https://…", "at": 1757800000,
+  "cards": [ { "asset_id": "E1-001", "count": 2 } ] }
+```
+
+`cards` sorted by `asset_id` (strictly ascending, no duplicates), `count ≥ 1`, at most 4096
+entries, no proofs, no secrets, no pubkeys. `catalog_uri` is an https URL **or `""`** (bearlett
+emits the empty string while the wallet holds no cards); `mint` is https; both ≤ 2048 chars; `at`
+is floored unix seconds. The validator lives in `site/napplet.js` (`E1Napplet.collection.parse`).
+
+Readers: `site/deck.html` asks the collection first when `E1Napplet.has("intent")` and says
+"Cards from your Bearlett collection" under the mode buttons; `site/play.js`'s NutFT possession
+check takes the same branch. Both fall back to the page's own NutFT wallet on the website.

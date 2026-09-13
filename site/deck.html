@@ -541,6 +541,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   let verified = null;            // verified NutFT counts, once the wallet is read
   let unreadable = 0;             // tokens this mint cannot open at all — see the wallet read below
   let opened = 0;                 // proofs it DID open, however it then judged them
+  let source = "wallet";          // "wallet" (this page's NutFT wallet) or "bearlett" (the shell's collection)
   const MODE_KEY = "600b:deck-mode";
   /* `wish` is what the player asked for and `mode` is what is legal right now,
    * and they have to be two variables. They used to be one, and the single
@@ -1460,7 +1461,11 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       ? ` ${unreadable} token${unreadable === 1 ? "" : "s"} here cannot be opened by this mint — bought from a different mint, or minted before this one rotated its keyset — so ${unreadable === 1 ? "the card it holds is" : "the cards they hold are"} not in the OG pool.`
       : "";
 
-    ownershipNote.textContent = (mode === "og"
+    /* SOURCE HONESTY. Inside a shell the counts are Bearlett's inventory, not a
+     * wallet this page read — the player should know which one is speaking. */
+    const origin = source === "bearlett" ? "Cards from your Bearlett collection. " : "";
+
+    ownershipNote.textContent = origin + (mode === "og"
       ? `OG: ${proofs} verified unspent proof(s). Only cards you actually pulled can enter this Stack — Basic Resources aside, which stay free so a Stack is buildable.`
       : verified === null
         ? "Freestyle: the whole catalog is legal. Checking your wallet for an OG option…"
@@ -1490,7 +1495,35 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
   }
   applyMode(wish, { save: false });
 
-  globalThis.NutFTWallet.read().then(async (wallet) => {
+  /* WHO KNOWS WHAT THE PLAYER OWNS. Inside a shell that offers the intent
+   * domain, Bearlett's collection is asked first (E1Napplet.collection — counts
+   * only, validated in napplet.js); an answer replaces the wallet read. No
+   * answer, or no shell, and the page's own NutFT wallet is read as before. A
+   * missing wallet script is a fallback too, never a thrown page. */
+  const NAP = globalThis.E1Napplet;
+  const askCollection = NAP && typeof NAP.has === "function" && NAP.has("intent") && NAP.collection
+    ? NAP.collection.inventory("600b-e1").catch(() => null)
+    : Promise.resolve(null);
+  askCollection.then((inventory) => {
+    if (inventory) {
+      verified = NAP.collection.counts(inventory);
+      opened = inventory.cards.reduce((sum, card) => sum + card.count, 0);
+      unreadable = 0;
+      source = "bearlett";
+      walletReady = true;
+      applyMode(wish, { save: false });
+      return;
+    }
+    if (!globalThis.NutFTWallet) throw new Error("no wallet script on this page");
+    return verifyFromWallet();
+  }).catch((error) => {
+    verified = new Map();
+    walletReady = true;
+    applyMode("freestyle", { save: false });
+    ownershipNote.textContent = `Wallet verification failed, so Freestyle is active: ${error.message}`;
+  });
+
+  function verifyFromWallet() { return globalThis.NutFTWallet.read().then(async (wallet) => {
     if (!wallet.tokens.length) {
       verified = new Map();
       walletReady = true;
@@ -1522,7 +1555,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     walletReady = true;
     applyMode("freestyle", { save: false });
     ownershipNote.textContent = `Wallet verification failed, so Freestyle is active: ${error.message}`;
-  });
+  }); }
   /* The doors open only once the library is in hand, and they open either way:
    * a handoff still has to be consumed and cleared even if the library failed
    * to read, or it would sit there re-firing on every visit. */

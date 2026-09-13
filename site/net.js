@@ -12,9 +12,29 @@
  *
  * Nothing here opens a socket on its own. A page that has never joined a table
  * and carries no ?match/?table in its URL stays completely offline, which is
- * what keeps play.html playable from file:// with no server running. */
+ * what keeps play.html playable from file:// with no server running.
+ *
+ * INSIDE A NAPPLET SHELL the same file runs with a pipe instead of a network:
+ * the table socket, the login signature, the identity and the relay traffic all
+ * go through site/napplet.js (E1Napplet) when it is loaded, and every one of
+ * those seams falls back to exactly the website path when it is not. */
 (() => {
   "use strict";
+
+  /* The napplet adapter, when the page loaded it. `present` means a shell object
+   * is installed; the table channel can exist without one (a host page carries
+   * it), which is why the socket asks the adapter and identity asks `present`. */
+  const nap = () => globalThis.E1Napplet || null;
+  const inShell = () => Boolean(nap() && nap().present);
+  const shellIdentity = () => inShell() && typeof nap().has === "function" && nap().has("identity");
+  const shellOutbox = () => inShell() && typeof nap().has === "function" && nap().has("outbox");
+
+  /* `localStorage` and `sessionStorage` are GETTERS that throw in a sandboxed
+   * frame, at the point of access rather than on use — so they are only ever
+   * reached through here, never named at a call site outside a try. */
+  const storeOf = (name) => {
+    try { return globalThis[name] || null; } catch (err) { return null; }
+  };
 
   const WIRE = 1;
   const LS_PUBKEY = "600b:pubkey"; // the same key index.html's login writes
@@ -173,6 +193,7 @@
 
   const readJSON = (store, key) => {
     try {
+      if (!store) return null;
       const raw = store.getItem(key);
       return raw ? JSON.parse(raw) : null;
     } catch (err) {
@@ -180,15 +201,15 @@
     }
   };
   const writeJSON = (store, key, value) => {
-    try { store.setItem(key, JSON.stringify(value)); } catch (err) { /* private mode, quota */ }
+    try { if (store) store.setItem(key, JSON.stringify(value)); } catch (err) { /* private mode, quota */ }
   };
 
   function tabId() {
     try {
-      let id = sessionStorage.getItem(TAB_KEY);
+      let id = globalThis.sessionStorage.getItem(TAB_KEY);
       if (!id) {
         id = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-        sessionStorage.setItem(TAB_KEY, id);
+        globalThis.sessionStorage.setItem(TAB_KEY, id);
       }
       return id;
     } catch (err) {
@@ -196,12 +217,12 @@
     }
   }
 
-  const seatMap = () => readJSON(localStorage, LS_SEATS) || {};
+  const seatMap = () => readJSON(storeOf("localStorage"), LS_SEATS) || {};
   const seatKey = (v) => `${v.matchId}:${v.seat}`;
 
   function savedMatch() {
     // This tab's own session always wins: a reload is not a new player.
-    const mine = readJSON(sessionStorage, SS_MATCH);
+    const mine = readJSON(storeOf("sessionStorage"), SS_MATCH);
     if (mine && typeof mine.matchId === "string") return mine;
 
     /* No session in this tab. Anything in the seat map was left by a tab that is
@@ -211,7 +232,7 @@
     if (!entries.length) {
       // A seat saved by the previous single-key build, so an upgrade mid-match
       // does not quietly cost someone their table.
-      const legacy = readJSON(localStorage, "600b:match");
+      const legacy = readJSON(storeOf("localStorage"), "600b:match");
       return legacy && typeof legacy.matchId === "string" ? legacy : null;
     }
     entries.sort((a, b) => (Number(b.seenAt) || 0) - (Number(a.seenAt) || 0));
@@ -222,22 +243,22 @@
   }
 
   function saveMatch(value) {
-    writeJSON(sessionStorage, SS_MATCH, value);
+    writeJSON(storeOf("sessionStorage"), SS_MATCH, value);
     if (value && value.seat !== null && value.token) {
       const map = seatMap();
       map[seatKey(value)] = Object.assign({}, value, { tab: tabId(), seenAt: Date.now() });
-      writeJSON(localStorage, LS_SEATS, map);
+      writeJSON(storeOf("localStorage"), LS_SEATS, map);
     }
   }
 
   function forgetMatch() {
-    const mine = readJSON(sessionStorage, SS_MATCH);
-    try { sessionStorage.removeItem(SS_MATCH); } catch (err) { /* private mode */ }
+    const mine = readJSON(storeOf("sessionStorage"), SS_MATCH);
+    try { globalThis.sessionStorage.removeItem(SS_MATCH); } catch (err) { /* private mode */ }
     if (!mine || mine.seat === null) return;
     const map = seatMap();
     if (map[seatKey(mine)]) {
       delete map[seatKey(mine)];
-      writeJSON(localStorage, LS_SEATS, map);
+      writeJSON(storeOf("localStorage"), LS_SEATS, map);
     }
   }
 
@@ -257,7 +278,7 @@
     const entry = map[seatKey(s)];
     if (entry && entry.tab !== tabId()) return; // another tab owns this seat
     map[seatKey(s)] = Object.assign({}, entry || s, { tab: tabId(), seenAt: Date.now() });
-    writeJSON(localStorage, LS_SEATS, map);
+    writeJSON(storeOf("localStorage"), LS_SEATS, map);
   }, BEAT_MS);
   // Under node (the client tests) a bare interval would hold the process open.
   if (heartbeat && typeof heartbeat.unref === "function") heartbeat.unref();
@@ -275,8 +296,13 @@
     if (q) return /^wss?:\/\/[^\s]+$/i.test(q) ? q : null;
     const saved = savedMatch();
     if (saved && saved.table) return saved.table;
+    /* A napplet build may name its referee outright: a srcdoc frame has no
+     * origin to derive one from (`location.protocol` is about:/null there). */
+    const injected = globalThis.E1_TABLE_URL;
+    if (typeof injected === "string" && /^wss?:\/\/[^\s]+$/i.test(injected)) return injected;
     if (location.protocol === "https:") return `wss://${location.host}/ws`;
     if (location.protocol === "http:") return `ws://${location.host}/ws`;
+    if (nap() && typeof nap().embedded === "function" && nap().embedded()) return "wss://tcg.nappelin.com/ws";
     return null;
   }
 
@@ -333,7 +359,7 @@
     setStatus(net.attempt ? "reconnecting" : "connecting");
     let ws;
     try {
-      ws = new WebSocket(url);
+      ws = dial(url);
     } catch (err) {
       return retry();
     }
@@ -375,12 +401,21 @@
       retry();
     };
 
-    ws.onerror = () => { /* onclose always follows; nothing useful to add here */ };
+    ws.onerror = (err) => {
+      /* A socket error is followed by onclose and says nothing more. A HOST
+       * refusal (the shell would not open this table) is the one error with a
+       * reason worth showing; the shim carries it, a WebSocket never does. */
+      if (err && typeof err.message === "string" && err.message) {
+        H("onError", { code: "TABLE_REFUSED", message: err.message });
+      }
+    };
 
     async function answerAuth(msg) {
       const pubkey = savedPubkey();
-      if (!pubkey || !hasNip07() || !globalThis.nostr.signEvent) {
-        H("onError", { code: "NIP07_REQUIRED", message: "a NIP-07 signer is required for online play" });
+      /* The host signs the login for a table IT opened; the website asks NIP-07. */
+      const hostSigner = ws && typeof ws.sign === "function" ? ws.sign : null;
+      if (!pubkey || !(hostSigner || (hasNip07() && globalThis.nostr && globalThis.nostr.signEvent))) {
+        H("onError", { code: "NIP07_REQUIRED", message: "sign in before opening a remote table" });
         return;
       }
       if (!/^[0-9a-f]{64}$/.test(msg.challenge || "") || typeof msg.relay !== "string") {
@@ -410,12 +445,13 @@
         return;
       }
       try {
-        const event = await sign({
+        const login = {
           kind: KIND_AUTH,
           created_at: Math.floor(Date.now() / 1000),
           tags: [["relay", msg.relay], ["challenge", msg.challenge]],
           content: "",
-        });
+        };
+        const event = await (hostSigner ? hostSigner(login) : sign(login));
         if (!event || event.pubkey !== pubkey) throw new Error("the signer returned a different identity");
         raw({ t: "AUTH", v: WIRE, event });
       } catch (err) {
@@ -442,6 +478,30 @@
 
     ws.answerAuth = answerAuth;
     ws.acceptAuth = acceptAuth;
+  }
+
+  /* THE ONE PLACE A TABLE SOCKET IS MADE. Without the adapter it is exactly
+   * `new WebSocket(url)`. With it, E1Napplet.table.connect decides: a real
+   * socket on the website, or the host page's channel inside a shell — and the
+   * result is dressed as a WebSocket (readyState, send, close, on*) so that
+   * nothing else in this file knows the difference. `sign` exists only when a
+   * host carries the channel: that is who signs the NIP-42 login there. */
+  function dial(url) {
+    const N = nap();
+    if (!(N && N.table && typeof N.table.connect === "function")) return new WebSocket(url);
+    const sock = { readyState: 0, onopen: null, onmessage: null, onclose: null, onerror: null };
+    const hosted = N.table.available();
+    const conn = N.table.connect(url, {
+      onOpen() { sock.readyState = 1; if (sock.onopen) sock.onopen(); },
+      onMessage(text) { if (sock.onmessage) sock.onmessage({ data: text }); },
+      onClose(info) { sock.readyState = 3; if (sock.onclose) sock.onclose(info || {}); },
+      onError(message) { if (sock.onerror) sock.onerror({ message: String(message || "") }); },
+    });
+    sock.send = (text) => conn.send(text);
+    sock.close = (code, reason) => { sock.readyState = 2; conn.close(code, reason); };
+    if (hosted) sock.sign = (event) => conn.sign(event);
+    sock.connection = conn;
+    return sock;
   }
 
   /* Forever, no give-up state and no dialog: on stage the board stays on screen,
@@ -734,9 +794,23 @@
 
   // ------------------------------------------------------------------- nostr
 
-  const hasNip07 = () => Boolean(globalThis.nostr && globalThis.nostr.getPublicKey);
+  /* "Is there an identity to play online with?" — a NIP-07 extension on the
+   * website, the shell's signed-in key inside one. The name is historical. */
+  const hasNip07 = () => {
+    if (shellIdentity()) return nap().identity.source() !== "none";
+    return Boolean(globalThis.nostr && globalThis.nostr.getPublicKey);
+  };
+
+  /* The shell's pubkey lives in memory: `localStorage` throws in a sandboxed
+   * frame, and the key is the shell's to remember anyway. Warmed at load so a
+   * page that asks synchronously (start, create) finds it without a click. */
+  let shellPubkey = null;
+  if (shellIdentity()) {
+    nap().identity.current().then((key) => { if (key && !shellPubkey) shellPubkey = key; }, () => {});
+  }
 
   function savedPubkey() {
+    if (shellIdentity()) return shellPubkey;
     try {
       const v = localStorage.getItem(LS_PUBKEY);
       return /^[0-9a-f]{64}$/.test(v || "") ? v : null;
@@ -746,6 +820,10 @@
   }
 
   async function login() {
+    if (shellIdentity()) {
+      shellPubkey = await nap().identity.login(); // rejects when nobody is signed in to the shell
+      return shellPubkey;
+    }
     if (!hasNip07()) throw new Error("no NIP-07 extension — install Alby or nos2x to play online");
     const pubkey = await globalThis.nostr.getPublicKey();
     if (!/^[0-9a-f]{64}$/.test(pubkey || "")) throw new Error("the extension returned no usable pubkey");
@@ -754,11 +832,35 @@
   }
 
   function logout() {
+    shellPubkey = null;
     try { localStorage.removeItem(LS_PUBKEY); } catch (err) { /* private mode */ }
   }
 
+  /* Events the host signed on our behalf, by id, so publish() can recognise one
+   * it has already fanned out rather than asking the host a second time. */
+  const hostPublished = new Set();
+
   async function sign(unsigned) {
-    if (!hasNip07() || !globalThis.nostr.signEvent) throw new Error("no NIP-07 signer");
+    /* THE SHELL HAS NO GENERAL SIGNER. It signs an outbox template (and
+     * publishes it in the same breath) and a table login — nothing else. So a
+     * handshake or result event is signed BY PUBLISHING IT, and the signed
+     * event comes back for the referee's record; a zap request cannot be
+     * signed there at all, which is the honest answer for a sandbox with no
+     * wallet. Callers keep their sign → publish → sendNostr order untouched. */
+    if (shellOutbox() && unsigned
+        && (unsigned.kind === KIND_HANDSHAKE || unsigned.kind === KIND_RESULT)) {
+      const res = await nap().outbox.publish(unsigned);
+      if (!res.ok) throw new Error(String(res.error || "the shell declined to publish"));
+      const event = res.event;
+      if (!event || typeof event.id !== "string" || typeof event.sig !== "string") {
+        throw new Error("the shell published but returned no signed event");
+      }
+      hostPublished.add(event.id);
+      return event;
+    }
+    if (!hasNip07() || !globalThis.nostr || !globalThis.nostr.signEvent) {
+      throw new Error(inShell() ? "the shell signs only through outbox.publish and table.sign" : "no NIP-07 signer");
+    }
     return globalThis.nostr.signEvent(unsigned);
   }
 
@@ -776,6 +878,7 @@
   /* Open, EVENT, resolve on OK, close after 3 s regardless. Publishing is
    * fire-and-forget by design: a dead relay degrades the beat, never the match. */
   function publish(event) {
+    if (shellOutbox()) return publishThroughShell(event);
     const urls = relays();
     return new Promise((resolve) => {
       const accepted = [];
@@ -803,6 +906,18 @@
         } catch (err) { /* a bad relay URL is not fatal */ }
       }
     });
+  }
+
+  /* The shell's outbox: the host signs an UNSIGNED template and fans it out
+   * itself, so an event sign() already sent through it is reported as
+   * published rather than offered twice. Same result shape as the fan-out. */
+  async function publishThroughShell(event) {
+    if (event && typeof event.id === "string" && hostPublished.has(event.id)) {
+      hostPublished.delete(event.id);
+      return { ok: true, accepted: ["shell"], tried: 1, event };
+    }
+    const res = await nap().outbox.publish(event);
+    return { ok: Boolean(res.ok), accepted: res.ok ? ["shell"] : [], tried: 1, event: res.event || event, error: res.error };
   }
 
   // ---- the three signed moments, and nothing else -------------------------
@@ -1029,6 +1144,7 @@
    * a deadline — whichever comes first. Fire-and-forget in the same spirit as
    * publish(): a dead relay shortens the answer, it never fails the call. */
   function query(filter, ms) {
+    if (shellOutbox()) return nap().outbox.query(filter, ms);
     const urls = relays();
     const budget = Number.isFinite(ms) ? ms : PUBLISH_MS;
     return new Promise((resolve) => {
