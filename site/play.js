@@ -13,6 +13,16 @@
   "use strict";
 
   const E = globalThis.E1Engine;
+  /* Inside a nappelin frame (site/napplet.js decides). A sandboxed frame cannot
+   * navigate, so every door out of the table becomes the host's escape hatch. */
+  const embedded = () => {
+    const N = globalThis.E1Napplet;
+    return Boolean(N && typeof N.embedded === "function" && N.embedded());
+  };
+  const escapeFrame = () => {
+    const N = globalThis.E1Napplet;
+    if (N && typeof N.escape === "function") N.escape();
+  };
   let CARDS = globalThis.E1_CARDS || [];
   const SYMBOLS = ["P", "B", "K", "S", "T"];
   // The locked Plate icon per symbol — shown in the buffer pips so a resource
@@ -4712,7 +4722,9 @@
    * dropped first, so the lobby opens as a lobby and not as a resume prompt for
    * a match this player just walked away from. */
   function toLobby() {
+    if (embedded()) return escapeFrame();
     location.href = "matchmaking.html";
+    return undefined;
   }
 
   /* THE WAY BACK FROM A FINISHED LOCAL GAME. There was none: the closing screen
@@ -4839,6 +4851,26 @@
   let starting = false;
   const nutftDecks = () => nutftLibrary;
 
+  /* What the player's wallet holds, as asset id -> count. Inside a shell the
+   * Bearlett collection answers through the intent NAP; on the website the
+   * wallet script does, and a page built without it says so instead of dying
+   * on an undefined global. */
+  async function ownedCardCounts() {
+    const N = globalThis.E1Napplet;
+    const available = new Map();
+    if (N && N.collection && typeof N.collection.inventory === "function" && N.has && N.has("intent")) {
+      const inventory = await N.collection.inventory();
+      if (!inventory) throw new Error("no Bearlett collection is available in this shell");
+      for (const card of inventory.cards) available.set(card.asset_id, card.count);
+      return available;
+    }
+    const wallet = globalThis.NutFTWallet;
+    if (!wallet || typeof wallet.snapshot !== "function") throw new Error("the NutFT wallet is not loaded on this page");
+    const view = await wallet.snapshot(location.origin);
+    for (const item of view.owned) available.set(item.tag[2], (available.get(item.tag[2]) || 0) + 1);
+    return available;
+  }
+
   function verifyNutftSetup() {
     const marked = nutftDecks();
     const names = ["deckA", "deckB"].map((id) => document.getElementById(id).value).filter((value) => value.startsWith("custom:")).map((value) => value.slice(7));
@@ -4850,9 +4882,7 @@
             throw new Error(`${name} is marked NutFT but has no saved card list`);
           }
         }
-        const view = await globalThis.NutFTWallet.snapshot(location.origin);
-        const available = new Map();
-        for (const item of view.owned) available.set(item.tag[2], (available.get(item.tag[2]) || 0) + 1);
+        const available = await ownedCardCounts();
         const required = new Map();
         for (const name of names) if (marked[name]) for (const id of stackLibrary[name] || []) {
           if (CARD_BY_ID[id]?.type !== "Basic Resource") required.set(id, (required.get(id) || 0) + 1);
@@ -5341,6 +5371,19 @@
     });
 
     document.getElementById("cardCount").textContent = CARDS.length;
+
+    /* Under embed no link may navigate the frame: pages of the site hand the
+     * player back to the host, anything else is simply not followed. */
+    if (embedded()) {
+      document.addEventListener("click", (event) => {
+        const link = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+        if (!link) return;
+        const href = link.getAttribute("href") || "";
+        if (href.startsWith("#")) return;
+        event.preventDefault();
+        if (!/^[a-z][a-z0-9+.-]*:/i.test(href)) escapeFrame();
+      });
+    }
 
     initEndgame(); // before initNet, and unconditionally: see the note there.
 

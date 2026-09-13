@@ -13,6 +13,10 @@
      the five affinity Plate colours stay brand-fixed, because they are how a
      player reads the board and must match the printed cards. -->
 <script src="napplet.js"></script>
+<!-- Inside a nappelin frame (window.napplet, or ?embed=1 for a local preview)
+     the page wears the html.embedded rules at the end of the stylesheet. Set
+     before the first paint, so the chrome never flashes the website's. -->
+<script>if (globalThis.E1Napplet && typeof E1Napplet.embedded === "function" && E1Napplet.embedded()) document.documentElement.classList.add("embedded");</script>
 <script src="bugreport.js" defer></script>
 <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
 <style>
@@ -794,6 +798,31 @@ a { color: var(--orange-soft); }
   .kwlink { min-height: 34px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- embed mode: the page as a nappelin napplet ----------
+   The host paints its own chrome around a sandboxed srcdoc frame, so the site's
+   masthead, links and palette go and nappelin's tokens (iron, parchment, brass)
+   take over. The five affinity Plate colours stay: they are how a player reads
+   the board. napplet.js paints the same values when a shell theme is absent;
+   this block is the fallback that holds before it runs. */
+html.embedded {
+  --black: #0f0c08; --soot: #15110c; --panel: #1a150e; --panel-2: #1f1911;
+  --cream: #ece3d0; --muted: #c9b48a; --line: rgba(231,191,118,.28);
+  --orange: #e7bf76; --orange-soft: #c9973f; --gold: #e7bf76;
+  --purple: #c9973f; --purple-deep: #8f6a2a; --good: #6de8a6;
+}
+html.embedded * { border-radius: 0; }
+html.embedded .setup, html.embedded .panel, html.embedded .turnchip,
+html.embedded .ctxmenu, html.embedded #coach, html.embedded #cardDetail { box-shadow: none; }
+/* The masthead keeps only the turn and net chips. */
+html.embedded .masthead img, html.embedded .brand, html.embedded .skip { display: none; }
+html.embedded .navlinks { display: none; }
+/* A fixed layer in a short srcdoc frame paints over the host: anchor both
+   background layers to the stage instead. */
+html.embedded .stage::before { position: absolute; }
+html.embedded .stage::after { position: absolute; }
+/* Online play is not part of the napplet in this slice. */
+html.embedded #online { display: none; }
 </style>
 </head>
 <body>
