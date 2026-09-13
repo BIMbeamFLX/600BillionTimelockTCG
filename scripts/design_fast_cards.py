@@ -22,6 +22,7 @@ The rules, in order:
 4. Avatar stats follow one budget: Action + Resilience = 2 × cost + 1, minus one
    per ability line, keeping the card's own Action/Resilience ratio. Then each
    affinity's balance offset from the simulator is added.
+5. A cost is printed as one number. The class symbol stays off the cost.
 """
 
 from __future__ import annotations
@@ -86,13 +87,14 @@ def total_cost(cost: str) -> int:
 
 
 def printed_cost(amount: int, affinity: list[str]) -> str:
-    """Write a Fast cost with one class symbol, so the card still shows its class."""
-    if amount <= 0:
-        return "0"
-    symbol = SYMBOL.get(affinity[0]) if affinity else None
-    if not symbol:
-        return str(amount)
-    return (str(amount - 1) if amount > 1 else "") + symbol
+    """A Fast cost is one number. The class shows in the frame, never in the cost.
+
+    A first cut printed "1P" for two: Classic notation, which every Fast player
+    read as one. Nothing is lost by dropping the symbol; the affinity colours the
+    type band and decides which Stacks the card may join.
+    """
+    del affinity
+    return str(max(0, amount))
 
 
 def keyword_line(line: str) -> str | None:
@@ -261,7 +263,7 @@ def design(card: dict[str, Any]) -> dict[str, Any]:
             note.append(f"cost floor {floor}")
     printed = printed_cost(cost, affinity)
     if x:
-        printed = "X" + printed_cost(max(0, cost), affinity).lstrip("0")
+        printed = "X" + (printed_cost(cost, affinity) if cost > 0 else "")
     return {
         "id": card["id"], "name": card["name"], "card_type": kind, "cost": printed,
         "action_resilience": result_stats, "rules_text": text,

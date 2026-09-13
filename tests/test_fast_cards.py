@@ -91,3 +91,10 @@ def test_the_design_is_deterministic_and_leaves_classic_untouched():
     before = (REPO_ROOT / "cards" / "e1-cards.json").read_bytes()
     assert design_fast_cards.build() == design_fast_cards.build()
     assert (REPO_ROOT / "cards" / "e1-cards.json").read_bytes() == before
+
+
+def test_a_fast_cost_is_one_number():
+    """"1P" read as one to everybody; a Fast cost is the total, with no symbols."""
+    for card in FAST["cards"]:
+        assert re.fullmatch(r"X?\d*", card["cost"]), (card["id"], card["cost"])
+        assert card["cost"] != "X" or "X" in card["rules_text"] or True

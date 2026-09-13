@@ -1633,3 +1633,36 @@ test("a remote Fast view switches the table to the Fast card values", () => {
   assert.equal(stub.calls.filter((call) => call[0] === "act").length, 1);
   assert.equal(byId("continue").textContent, "End turn");
 });
+
+test("the hand-limit discard is the player's choice, and End turn waits for it", () => {
+  /* The first player draws to eight on turn one. Continue used to throw away
+   * the first card in hand without asking; now it waits until the player has
+   * clicked exactly the cards that go. */
+  globalThis.E1_CARDS_FAST = require(path.join(HERE, "..", "..", "site", "play-data-fast.js"));
+  globalThis.E1_PRECONS_FAST = require(path.join(HERE, "..", "..", "site", "precons-fast.js"));
+  const { byId, game } = loadPlay(netStub());
+  byId("rules").value = "F1.0";
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Keys";
+  byId("nameA").value = "A";
+  byId("nameB").value = "B";
+  byId("seed").value = "discard";
+  game.startGame();
+  assert.equal(game.state.zones["0:wallet"].length, 8, "the first player holds eight");
+  byId("endturn").click();
+  assert.equal(game.state.awaiting && game.state.awaiting.kind, "discard", "End turn stops at the discard");
+  assert.equal(game.state.zones["0:wallet"].length, 8, "nothing was thrown away unasked");
+  assert.equal(byId("continue").textContent, "Discard 0/1");
+  const seqBefore = game.state.seq;
+  byId("continue").click();
+  assert.equal(game.state.seq, seqBefore, "Continue without a pick does nothing");
+  assert.match(byId("prompt").textContent, /Choose 1 card to discard/);
+
+  const chosen = game.state.zones["0:wallet"][5];
+  latestUidNode(byId, "youHand", chosen).click();
+  assert.equal(byId("continue").textContent, "Discard 1/1");
+  byId("continue").click();
+  assert.equal(game.state.zones["0:wallet"].length, 7);
+  assert.equal(game.state.zones["0:wallet"].includes(chosen), false, "the chosen card left the hand");
+  assert.equal(game.state.objects[chosen], undefined, "and was archived under a new uid");
+});

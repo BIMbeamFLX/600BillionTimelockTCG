@@ -22,11 +22,13 @@ Play against the NPC at `play.html?rules=fast`. Note the seed from the setup for
 **Setup**
 - [ ] Rules says Fast, and the Stack menus list the Fast Starters and the three archetypes.
 - [ ] With the Fast faces built, a card in hand shows Fast cost and text, e.g. Satoshi Orchard is Hardware.
+- [ ] Every cost is one number, on the face and on the chip. No class symbol in the cost.
 
 **A turn**
 - [ ] The game opens straight into your Build phase. The chip reads `Pool 1/1` and the button reads `End turn`.
 - [ ] Only cards you can pay for **and** have a target for glow.
 - [ ] A played card resolves at once. Nobody passes and the opponent does not respond.
+- [ ] End turn on turn one: you hold eight cards and the table asks which one to discard. Click it, press Discard. Nothing is thrown away unasked.
 - [ ] End turn: the NPC plays its whole turn in a few seconds, and you are back in your Build with a pool one bigger.
 - [ ] The player going second gets +1 Resource on each of their first two turns (see the log line).
 
@@ -35,6 +37,7 @@ Play against the NPC at `play.html?rules=fast`. Note the seed from the setup for
 - [ ] Click it, then click an enemy Avatar or their name bar. Dragging it onto the target works too.
 - [ ] With an enemy Firewall on the table, only the Firewall is highlighted, unless the attacker has Broadcast.
 - [ ] The attacker lunges, the hit lands on contact, and damage numbers rise. A destroyed card breaks into shards.
+- [ ] An Avatar that has attacked is dimmed in place, not turned sideways. It glows again on your next turn.
 - [ ] First Strike hits first. Overflow carries extra damage to the player.
 
 **Sound** (click the page once to arm audio)

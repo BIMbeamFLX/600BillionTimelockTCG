@@ -626,7 +626,20 @@ a { color: var(--orange-soft); }
    not the corner one. Moving the chip to the card's left edge and spinning it
    back puts it upright, above the card, once the card's own +90° is applied. */
 .gcard.committed::before { left: -2px; top: 50%; transform: translate(-50%,-50%) rotate(-90deg); }
+/* FAST: an Avatar that has attacked is spent, not turned. The quarter turn is
+   the Classic tap; under Fast every attacker takes it every turn, so half the
+   board lay sideways and overlapping by turn four. Dimmed and desaturated in
+   place instead, chip upright, no elbow room needed. */
+.rules-fast .gcard.committed { transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)) scale(.94); filter: brightness(.58) saturate(.6); }
+.rules-fast .gcard.committed:hover { transform: rotate(calc(var(--rot, 0deg) * .35)) translateY(calc(var(--lift, 0px) - 14px)) scale(1.05); }
+.rules-fast .zone.arc .gcard.committed { margin: 0; }
+.rules-fast .gcard.committed::before { left: 50%; top: -2px; transform: translate(-50%,-50%); }
+.rules-fast .zone.netsplit .gcard.netres.committed:hover { transform: translateY(calc(var(--lift, 0px) - 6px)) scale(1.4); }
 
+/* A card picked for a choice the table is waiting on — the hand-limit discard,
+   a capped unlock — lifts and rings in danger red: it is about to go. */
+.gcard.selected { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.45), 0 0 18px rgba(255,77,61,.5); transform: rotate(calc(var(--rot, 0deg) * .35)) translateY(calc(var(--lift, 0px) - 22px)) scale(1.04); z-index: 4; }
+.gcard.selected::before { content: "DISCARD"; color: var(--danger); }
 .gcard.attacking { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.35); }
 .gcard.blocking { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(94,90,203,.4); }
 /* The attacker you picked to block: violet pulse until you name the blocker. */
@@ -809,11 +822,16 @@ a { color: var(--orange-soft); }
   <!-- ---------------- setup ---------------- -->
   <section class="setup" id="setup">
     <h1>Play <span>locally</span></h1>
-    <p>Two-player hotseat on one machine, with all <b id="cardCount">295</b> Edition One cards.
+    <p id="setupClassic">Two-player hotseat on one machine, with all <b id="cardCount">295</b> Edition One cards.
     Each seat gets a randomised 40-card Stack in the rulebook's recommended prototype shape.
     The engine runs the complete card pool, turn structure, Buffer and resource burn, costs,
     targeting, clash and state checks. Released play is fully scripted: no assisted cards and no
     free-form table edits.</p>
+    <!-- The same paragraph for the Fast rules; play.js shows one or the other. -->
+    <p id="setupFast" hidden>The same 295 cards with a modern turn: your Resource pool grows by one
+    every turn and refills by itself, you play and attack in one Build window, and an attack goes
+    straight at an Avatar or the opponent. No blocking, no Queue, no burn. A game runs about eight
+    turns. The one-page rules are in <a href="../rules/600B-Timelock-TCG-Fast-F1.md">Fast rules (F1.0)</a>.</p>
     <div class="seats">
       <div class="seat">
         <label for="nameA">Seat one</label>
