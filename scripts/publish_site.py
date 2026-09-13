@@ -325,12 +325,14 @@ def main(argv: list[str] | None = None) -> int:
         explain(problems)
         return 1
     out = (REPO / args.out).resolve()
+    # Guard --check too: report() prints `out` repo-relative, so an --out outside
+    # the repo must fail with the same message as a real run, not a traceback.
+    assert_safe_output(out, tracked)
     if args.check:
         total = sum((REPO / path).stat().st_size for path in paths)
         report(paths, out, total)
         print("\n--check: every referenced asset resolved. Nothing written.")
         return 0
-    assert_safe_output(out, tracked)
     if out.exists():
         # Idempotent by construction: a full rebuild cannot leave a file behind
         # from a previous run whose reference has since been deleted.
