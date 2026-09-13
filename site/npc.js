@@ -220,7 +220,14 @@
       }
       if (awaiting.kind === "damage") push("ASSIGN_COMBAT_DAMAGE", { assignment: null });
       if (awaiting.kind === "discard") {
-        const wallet = zoneOf(state, seat, "wallet");
+        // The dearest cards go: they are the ones furthest from being played.
+        const price = (uid) => {
+          const object = state.objects[uid];
+          const card = object && object.cardId ? compiled(object.cardId) : null;
+          const cost = card && card.costParsed ? card.costParsed : {};
+          return Object.entries(cost).reduce((sum, [key, n]) => sum + (key === "x" ? 0 : n), 0);
+        };
+        const wallet = zoneOf(state, seat, "wallet").slice().sort((a, b) => price(b) - price(a));
         const over = wallet.length - state.handLimit;
         push("DISCARD_TO_LIMIT", { uids: wallet.slice(0, Math.max(0, over)) });
       }
@@ -277,7 +284,10 @@
         }
       }
       if (awaiting.kind === "sovereignDamage") {
-        const own = zoneOf(state, seat, "network").filter((uid) => state.objects[uid] && !state.objects[uid].token);
+        // The Sovereign card itself goes last: archiving it is the loss.
+        const own = zoneOf(state, seat, "network")
+          .filter((uid) => state.objects[uid] && !state.objects[uid].token)
+          .sort((a, b) => Number(Boolean(state.objects[a].sovereign)) - Number(Boolean(state.objects[b].sovereign)));
         push("CHOOSE_SOVEREIGN_ARCHIVE", { uids: own.slice(0, awaiting.amount) });
       }
       if (awaiting.kind === "tombstoneCleanup") {

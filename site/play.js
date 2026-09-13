@@ -2899,6 +2899,10 @@
       turnchip.append(" · ", el("b", null, outcome));
     }
 
+    // The rules colour the board: Fast draws a spent attacker dimmed, not turned.
+    const table = document.getElementById("table");
+    if (table && table.classList) table.classList.toggle("rules-fast", isFast(v));
+
     const ribbon = document.getElementById("phases");
     ribbon.innerHTML = "";
     const ribbonSlots = E.ribbonFor ? E.ribbonFor(v) : E.TURN_RIBBON;
@@ -3039,10 +3043,15 @@
       },
     });
     renderZone("youHand", v, v.zones[`${seat}:wallet`], {
-      onClick: (uid, event) => beginPlay(v, seat, uid, pt(event)),
+      // Over the hand limit, a click picks the card to discard; otherwise it plays.
+      onClick: (uid, event) => {
+        if (toggleAwaitingSelection(v, seat, uid)) return;
+        beginPlay(v, seat, uid, pt(event));
+      },
       onContext: (uid, event) => openCardDetail(v, seat, uid, true, pt(event)),
       canPlay: (uid) => playGlow(v, seat, uid),
       arc: { mode: "fan", spread: 13, depth: 20 },
+      mark: (uid) => (discarding(v, seat) && awaitingSelection.indexOf(uid) >= 0 ? "selected" : ""),
     });
     renderQueueZone(v);
     renderTurnButton(v, seat);
@@ -3442,7 +3451,10 @@
       if (v.awaiting.kind === "blockers") return "Declare blocks";
       if (v.awaiting.kind === "order") return "Confirm order";
       if (v.awaiting.kind === "damage") return "Assign damage";
-      if (v.awaiting.kind === "discard") return "Discard";
+      if (v.awaiting.kind === "discard") {
+        const { over, chosen } = discardPick(v, seat);
+        return `Discard ${chosen.length}/${over}`;
+      }
       if (v.awaiting.kind === "unlock") return "Unlock chosen cards";
       if (v.awaiting.kind === "sovereignDamage") return `Archive ${v.awaiting.amount} cards`;
       if (v.awaiting.kind === "tombstoneCleanup") return "Remove Tombstone marks";
@@ -3560,6 +3572,16 @@
     render();
   }
 
+  const discarding = (v, seat) => Boolean(v.awaiting && v.awaiting.kind === "discard" && v.awaiting.seat === seat);
+  /* The cards picked for the hand-limit discard, dropped if a render moved on. */
+  const discardPick = (v, seat) => {
+    const wallet = v.zones[`${seat}:wallet`] || [];
+    return {
+      over: Math.max(0, wallet.length - v.handLimit),
+      chosen: awaitingSelection.filter((uid) => wallet.indexOf(uid) >= 0),
+    };
+  };
+
   function toggleAwaitingSelection(v, seat, uid) {
     const awaiting = v.awaiting;
     if (!awaiting || awaiting.seat !== seat) return false;
@@ -3578,6 +3600,10 @@
       const task = awaiting.tasks[awaitingSelection.length];
       allowed = Boolean(task && task.options.indexOf(uid) >= 0);
       maximum = awaiting.tasks.length;
+    } else if (awaiting.kind === "discard") {
+      const wallet = v.zones[`${seat}:wallet`] || [];
+      allowed = wallet.indexOf(uid) >= 0;
+      maximum = Math.max(0, wallet.length - v.handLimit);
     } else if (awaiting.kind === "unlock") {
       allowed = (awaiting.required || []).concat(awaiting.selectable || []).indexOf(uid) >= 0;
       maximum = (awaiting.required || []).length + Object.values(awaiting.caps || {})
@@ -3893,9 +3919,18 @@
         return void dispatch("ASSIGN_COMBAT_DAMAGE", seat, { assignment: null });
       }
       if (awaiting.kind === "discard") {
-        const wallet = full.zones[`${seat}:wallet`];
-        const over = wallet.length - full.handLimit;
-        return void dispatch("DISCARD_TO_LIMIT", seat, { uids: wallet.slice(0, over) });
+        /* THE PLAYER CHOOSES. Continue — and the End turn burst behind it — used
+         * to throw away the first cards in the hand without asking, and the
+         * first player draws to eight on turn one, so every game opened with a
+         * card lost unseen. The burst now stops here; the NPC answers through
+         * npc.js and is not affected. */
+        const { over, chosen } = discardPick(full, seat);
+        if (chosen.length !== over) {
+          session.notice = `Choose ${over} card${over === 1 ? "" : "s"} to discard: click ${over === 1 ? "it" : "them"} in your hand, then press Discard.`;
+          return void render();
+        }
+        awaitingSelection = [];
+        return void dispatch("DISCARD_TO_LIMIT", seat, { uids: chosen });
       }
       if (awaiting.kind === "triggers") {
         /* ORDER_TRIGGERS must name EVERY waiting pendingId. A full state carries
@@ -5161,11 +5196,21 @@
       }
       if (wanted === "F1.0" || wanted === "E1.0") rulesSelect.value = wanted;
     }
+    // The setup blurb describes the rules that are selected, not always Classic.
+    const describeRules = () => {
+      const fast = Boolean(rulesSelect && rulesSelect.value === "F1.0");
+      for (const [id, show] of [["setupClassic", !fast], ["setupFast", fast]]) {
+        const node = document.getElementById(id);
+        if (node) node.hidden = !show;
+      }
+    };
+    describeRules();
     loadStackLibrary(() => { buildSeatMenus(); start.disabled = false; });
     if (rulesSelect && rulesSelect.addEventListener) {
       // The precon shelf differs per rules: rebuild the seat menus, keeping plain affinities.
       rulesSelect.addEventListener("change", () => {
         try { localStorage.setItem(RULES_KEY, rulesSelect.value); } catch (error) { /* storage is optional */ }
+        describeRules();
         buildSeatMenus();
       });
     }

@@ -22,8 +22,9 @@ it causes, in the order they were raised.
 ## Resources
 
 - There are no Resource cards to play and nothing to tap. The pool does it.
-- Every cost is a plain number. The symbol on a card shows its class, not a colour
-  you must pay with: `2S` costs 3.
+- Every cost is one plain number. A card's class shows in its frame and decides
+  which Stacks it may join; it is never a colour you must pay with. (A Classic
+  card played under Fast rules costs its symbols and number added together.)
 - Resources you did not spend are gone at your next refill. They do not hurt you.
 - The player going second gets **one extra Resource on each of their first two turns**.
 - Some cards generate Resources (the Power Plants, the Junctions). That is ramp: the
