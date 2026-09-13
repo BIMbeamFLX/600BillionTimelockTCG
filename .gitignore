@@ -45,3 +45,8 @@ art/world-plates/original/
 # exist. Not committed — a second copy of the tree in the tree is weight with no
 # new information in it.
 archive/
+
+# Fast card faces are a local play-test build (scripts/build_fast_faces.py).
+# Publishing them means new Blossom blobs, a manifest and a blob map: later.
+art/cards/fast-web/
+site/fast-faces.js

@@ -7,6 +7,7 @@
     "build": "node scripts/build-rulebook.cjs",
     "recover:plebeian": "node scripts/recover-plebeian-cashu.mjs",
     "table": "node server/table.js",
+    "local": "node scripts/local-test.mjs",
     "test:js": "node --test tests/js/*.test.mjs"
   },
   "dependencies": {
