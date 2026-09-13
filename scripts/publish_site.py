@@ -233,10 +233,12 @@ def destination_for(path: str) -> str:
 def assert_safe_output(out: Path, tracked: set[str]) -> None:
     """Refuse to clear an output directory that is outside the repo or holds tracked files."""
     resolved = out.resolve()
-    if REPO not in resolved.parents:
-        raise SystemExit(f"refusing to write outside the repo: {resolved}")
+    # The root check must come first: the repo root is not among its own
+    # parents, so the outside-the-repo check would claim it with the wrong reason.
     if resolved == REPO:
         raise SystemExit("refusing to use the repo root as the publish directory")
+    if REPO not in resolved.parents:
+        raise SystemExit(f"refusing to write outside the repo: {resolved}")
     relative = resolved.relative_to(REPO).as_posix()
     clashes = sorted(p for p in tracked if p == relative or p.startswith(f"{relative}/"))
     if clashes:
