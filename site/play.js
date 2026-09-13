@@ -1234,7 +1234,8 @@
    * the tests, or a build without the blob map — every face is the repo file. */
   const FACES = globalThis.E1Faces || null;
   const setFace = (img, card, badgeHost) => {
-    if (FACES) FACES.setFace(img, card.face, badgeHost);
+    // A Fast game prints Fast values on its faces when the local build has them.
+    if (FACES) FACES.setFace(img, card.face, badgeHost, { fast: CARDS === globalThis.E1_CARDS_FAST });
     else img.src = faceUrl(card);
   };
 
@@ -1249,7 +1250,9 @@
   })();
   const artRect = (card) => {
     if (!GEO || !card || !card.face) return null;
-    const rect = GEO.faces[card.face];
+    // Fast faces lay the art out around their own text, so they carry their own rectangles.
+    const fast = CARDS === globalThis.E1_CARDS_FAST && FACES && FACES.fastEntry ? FACES.fastEntry(card.face) : null;
+    const rect = fast && fast.size[0] === GEO.size[0] && fast.size[1] === GEO.size[1] ? fast.rect : GEO.faces[card.face];
     return Array.isArray(rect) && rect.length === 4 && rect[2] > 0 && rect[3] > 0 ? rect : null;
   };
 
@@ -5136,6 +5139,10 @@
     const portraits = globalThis.E1Portraits;
     if (portraits && portraits.ready && typeof portraits.ready.then === "function") {
       portraits.ready.then(repaint, () => { /* no index, and the derived name stands */ });
+    }
+    // The local Fast faces arrive after the first paint; redraw so their art crops apply.
+    if (FACES && FACES.fastFaces && FACES.fastFaces.then) {
+      FACES.fastFaces.then((manifest) => { if (manifest && session.full) render(); });
     }
     const start = document.getElementById("start");
     start.disabled = true;

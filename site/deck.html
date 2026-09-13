@@ -692,7 +692,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
       const img = document.createElement("img");
       img.alt = c.name;
       img.loading = "lazy";
-      if (globalThis.E1Faces) E1Faces.setFace(img, c.face, tile);
+      if (globalThis.E1Faces) E1Faces.setFace(img, c.face, tile, { fast: RULES === "fast" });
       else img.src = "../art/cards/node-runner-web/" + encodeURIComponent(c.face);
       tile.append(img);
       if (pulls[id] > 1) {
@@ -830,7 +830,7 @@ select { min-height: 40px; padding: 8px; color: var(--cream); background: var(--
     tile.title = `${c.name} — ${idx.typeLine}\n${c.text || ""}`;
 
     const img = document.createElement("img");
-    if (globalThis.E1Faces) E1Faces.setFace(img, c.face, tile);
+    if (globalThis.E1Faces) E1Faces.setFace(img, c.face, tile, { fast: RULES === "fast" });
     else img.src = "../art/cards/node-runner-web/" + encodeURIComponent(c.face);
     img.alt = c.name;
     img.loading = "lazy";

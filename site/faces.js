@@ -150,8 +150,48 @@
     return "local file";
   }
 
-  /* Point an <img> at a face; when badgeHost is given, pin the source dot. */
-  function setFace(img, face, badgeHost) {
+  /* FAST FACES, A LOCAL TEST BUILD. scripts/build_fast_faces.py renders faces
+   * that print the Fast values into art/cards/fast-web and writes
+   * site/fast-faces.js. Neither is committed or published, so the manifest is
+   * only asked for where it can exist — a local table — and a Fast game uses a
+   * face only when the manifest names it. Everything else keeps the published
+   * Classic face. */
+  const local = (() => {
+    try {
+      return ["localhost", "127.0.0.1", "[::1]"].indexOf(root.location.hostname) >= 0;
+    } catch (error) {
+      return false;
+    }
+  })();
+  const fastFaces = new Promise((resolveFast) => {
+    if (root.E1_FAST_FACES !== undefined || !local || !root.document || !root.document.createElement) {
+      return resolveFast(root.E1_FAST_FACES || null);
+    }
+    const tag = root.document.createElement("script");
+    tag.src = "fast-faces.js";
+    tag.onload = () => resolveFast(root.E1_FAST_FACES || null);
+    tag.onerror = () => resolveFast(null);
+    (root.document.head || root.document.documentElement).append(tag);
+  });
+  const fastEntry = (face) => {
+    const manifest = root.E1_FAST_FACES;
+    return manifest && manifest.faces && manifest.faces[face]
+      ? { url: manifest.dir + encodeURIComponent(face), rect: manifest.faces[face], size: manifest.size }
+      : null;
+  };
+
+  /* Point an <img> at a face; when badgeHost is given, pin the source dot.
+   * options.fast: prefer the local Fast face, falling back to the Classic one. */
+  function setFace(img, face, badgeHost, options) {
+    if (options && options.fast) {
+      fastFaces.then(() => {
+        const entry = fastEntry(face);
+        if (!entry) return setFace(img, face, badgeHost);
+        img.onerror = () => { img.onerror = null; setFace(img, face, badgeHost); };
+        img.src = entry.url;
+      });
+      return;
+    }
     resolve(face).then((entry) => {
       img.src = entry.url;
       if (!badgeHost || !badgeHost.append || entry.source === "local") return;
@@ -162,5 +202,5 @@
     });
   }
 
-  root.E1Faces = { resolve, setFace, mode, mirrors: MIRRORS, blobs: BLOBS };
+  root.E1Faces = { resolve, setFace, fastEntry, fastFaces, mode, mirrors: MIRRORS, blobs: BLOBS };
 })(typeof globalThis !== "undefined" ? globalThis : this);
