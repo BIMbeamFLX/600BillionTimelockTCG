@@ -86,13 +86,16 @@ def add_head(html: str, source_sha: str) -> str:
         f'<script>window.E1_NAPPLET_BUILD = "{source_sha}";</script>\n'
         f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
     )
+    if "<head>\n" not in html:
+        raise SystemExit("play.html has no <head> line to extend")
     return html.replace("<head>\n", "<head>\n" + head, 1)
 
 
 def build_html(site: Path) -> str:
     """The self-contained page built from site/play.html."""
     source = (site / "play.html").read_bytes()
-    html = source.decode("utf-8")
+    # Git hands this file over with CRLF on Windows; the build must not care.
+    html = source.decode("utf-8").replace("\r\n", "\n")
     html = add_head(html, sha256_hex(source))
     html = strip_site_only(html)
     html = inline_assets(html, site)

@@ -9,6 +9,8 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SITE = REPO_ROOT / "site"
+CRLF = bytes([13, 10])
+LF = bytes([10])
 
 
 @pytest.fixture(scope="module")
@@ -109,3 +111,23 @@ def test_play_page_carries_the_embed_rules() -> None:
     assert "html.embedded .stage::after { position: absolute; }" in play
     assert "html.embedded * { border-radius: 0; }" in play
     assert 'classList.add("embedded")' in play
+
+
+def test_build_ignores_the_line_endings_git_chose(tmp_path: Path) -> None:
+    """A CRLF checkout of play.html still gets the head marker and the meta tag."""
+    site = tmp_path / "site"
+    site.mkdir()
+    for name in SITE.iterdir():
+        if name.is_file():
+            (site / name.name).write_bytes(name.read_bytes())
+    lf = (SITE / "play.html").read_bytes().replace(CRLF, LF)
+    (site / "play.html").write_bytes(lf.replace(LF, CRLF))
+    for relative in ("art/fonts", "art/site"):
+        (site.parent / relative).mkdir(parents=True, exist_ok=True)
+        for asset in (REPO_ROOT / relative).iterdir():
+            if asset.is_file():
+                (site.parent / relative / asset.name).write_bytes(asset.read_bytes())
+    page, _ = build_napplet.build(site, tmp_path / "out")
+    html = page.read_bytes().decode("utf-8")
+    assert '<meta name="napplet-requires"' in html
+    assert CRLF.decode() not in html
