@@ -80,6 +80,11 @@ DYNAMIC_ASSETS: tuple[DynamicAsset, ...] = (
         why="card faces: site/faces.js LOCAL fallback and site/play.js faceUrl()",
         optional=True,
     ),
+    DynamicAsset(
+        prefix="../art/site/portraits/",
+        pattern="art/site/portraits/*",
+        why="character portraits: site/portraits.js builds <slug>.webp and reads portraits.json",
+    ),
 )
 
 
