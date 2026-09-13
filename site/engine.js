@@ -3099,6 +3099,15 @@
         const picked = item.resume.acc[slot];
         const stack = zoneArray(state, zoneKey(controller, "stack"));
         if (!picked) {
+          /* The chooser looks through their own Stack, so the cards are shown
+           * to them — the same disclosure the opponent's-Wallet search makes.
+           * Without it the view redacted every option to a uid and the table
+           * offered "Option 1 … Option 30". The Stack is shuffled afterwards. */
+          for (const uid of stack) {
+            const object = state.objects[uid];
+            object.revealedTo = Array.from(new Set((object.revealedTo || []).concat(controller))).sort();
+            object.revealedUntil = { turn: state.turn.number, phase: state.turn.phase };
+          }
           return raiseChoice(env, item, {
             kind: "search", prompt: "Choose a card from your Stack",
             options: stack.map((uid) => ({ kind: "object", uid })), min: 1, max: 1, slot,
