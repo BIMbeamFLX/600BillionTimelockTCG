@@ -185,7 +185,15 @@ SPELL_KIT = {
                  (2, "Return target Avatar to its owner's Wallet."),
                  (1, "Target Avatar gains Broadcast until end of turn.")],
 }
-PERMANENT_KIT = [(4, "Commit: draw a card."), (4, "3, Commit: This Hardware deals 1 damage to any target.")]
+# Five price points, so textless Hardware does not pile up at one cost: the first
+# cut had two kit effects, both priced at four, and 32 neutral cards landed there.
+PERMANENT_KIT = [
+    (1, "Commit: Prevent the next 1 damage that would be dealt to any target this turn."),
+    (2, "Commit: generate 1 neutral Resource."),
+    (3, "2, Commit: Target player discards a card. Activate only during your turn."),
+    (4, "Commit: draw a card."),
+    (4, "3, Commit: This Hardware deals 1 damage to any target."),
+]
 
 
 def class_kit(card: dict[str, Any], cost: int) -> tuple[str, int]:
@@ -200,7 +208,7 @@ def class_kit(card: dict[str, Any], cost: int) -> tuple[str, int]:
         return f"{affinity} Avatars get +1 Action and +1 Resilience.", max(cost, 2)
     if card["card_type"] in ("Hardware", "Protocol"):
         floor, text = PERMANENT_KIT[number % len(PERMANENT_KIT)]
-        return text, max(cost, floor)
+        return text, floor  # the kit sets the price; the Classic number was for another game
     kit = SPELL_KIT.get(affinity, SPELL_KIT["Bitcoin"])
     floor, text = kit[number % len(kit)]
     cost = max(cost, floor)
