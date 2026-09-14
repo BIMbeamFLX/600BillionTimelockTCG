@@ -267,31 +267,62 @@ Run it on the box in a visible window. The unit on the box differs from the work
 copy (nappelin.com `deploy/EDGE-PROTECTION.md` A7/K5), so read before you write, and add
 to the list instead of replacing it.
 
-1. Read only: what runs now.
+1. Read only: where the two values live today. Never print a whole `EnvironmentFile`; it
+   may hold mint keys. Show only the two keys.
 
    ```bash
    systemctl cat tcg-table
-   systemctl show tcg-table -p Environment -p EnvironmentFiles -p ExecStart
+   systemctl show tcg-table -p EnvironmentFiles -p ExecStart
+   systemctl show tcg-table -p Environment      # Environment= lines only, NOT EnvironmentFile contents
+   sudo grep -E '^(TABLE_ORIGINS|PUBLIC_URL)=' <each file listed under EnvironmentFiles>
    curl -s https://tcg.nappelin.com/api/health
    ```
 
-2. Change the environment where step 1 showed it lives (an `EnvironmentFile`, or
-   `Environment=` lines in a drop-in; prefer `sudo systemctl edit tcg-table` for a drop-in).
-   Keep every origin already listed and append the Hangar's:
+2. Change the value where step 1 found it. systemd gives an `EnvironmentFile=` precedence
+   over `Environment=` lines, so a drop-in is silently ignored when the key also lives in a
+   file.
 
-   ```ini
-   Environment=TABLE_ORIGINS=<existing origins>,https://nappelin.com
-   Environment=PUBLIC_URL=wss://tcg.nappelin.com/ws
-   ```
+   a. **The key is in an `EnvironmentFile`:** edit that file (`sudoedit <file>`) and keep the
+      plain `KEY=value` form, without an `Environment=` prefix. Keep every origin already
+      listed and append the Hangar's:
+
+      ```ini
+      TABLE_ORIGINS=<existing origins>,https://nappelin.com
+      PUBLIC_URL=wss://tcg.nappelin.com/ws
+      ```
+
+   b. **The key is only in `Environment=` lines (or nowhere):** `sudo systemctl edit tcg-table`
+      and add a drop-in:
+
+      ```ini
+      [Service]
+      Environment=TABLE_ORIGINS=<existing origins>,https://nappelin.com
+      Environment=PUBLIC_URL=wss://tcg.nappelin.com/ws
+      ```
 
    `PUBLIC_URL` must be exactly that: the table's NIP-42 login names this host, and the
    Hangar signs a login only for the table host its napplet opened.
 
-3. Restart and check.
+3. Restart when it costs nothing. A restart drops every open socket, but no match is lost:
+   match state, seats and decks live in the SQLite `DB`, a restarted referee reloads them,
+   and every connected player's page reconnects with backoff and resumes its seat with its
+   token (covered by `tests/js/net.test.mjs`, "RESUME by token restores the exact seat and
+   view" and "the agreed wager survives a referee restart"). What is lost: players waiting in
+   quick match (the queue is in memory) must search again, and a player whose tab is closed
+   resumes from the lobby later. Prefer a moment when `/api/health` shows `"queued":0`; a
+   non-zero `"matches"` only means those players see a short reconnect.
 
    ```bash
+   curl -s https://tcg.nappelin.com/api/health
+   sudo systemctl daemon-reload            # only needed after `systemctl edit`
    sudo systemctl restart tcg-table
    systemctl is-active tcg-table
+   ```
+
+4. Check that the running process has the new values and the answers changed.
+
+   ```bash
+   sudo cat /proc/$(systemctl show -p MainPID --value tcg-table)/environ | tr '\0' '\n' | grep -E '^(TABLE_ORIGINS|PUBLIC_URL)='
    curl -s https://tcg.nappelin.com/api/health
    curl -s -D - -o /dev/null -H "Origin: https://nappelin.com" https://tcg.nappelin.com/v1/info | grep -i access-control
    curl -s -D - -o /dev/null -X OPTIONS \
@@ -301,12 +332,15 @@ to the list instead of replacing it.
      https://tcg.nappelin.com/v1/checkstate | grep -i access-control
    ```
 
-   Expect `access-control-allow-origin: https://nappelin.com` on both, and
-   `access-control-allow-methods: GET, POST, OPTIONS` on the preflight. `/api/health` must
-   still answer `{"ok":true,…}` and `https://tcg.nappelin.com/play.html` must still load.
+   Expect both keys with the new values in the process environment,
+   `access-control-allow-origin: https://nappelin.com` on both requests,
+   `access-control-allow-methods: GET, POST, OPTIONS` and
+   `access-control-allow-headers: content-type, authorization` on the preflight, max-age 600.
+   `/api/health` must still answer `{"ok":true,…}` and `https://tcg.nappelin.com/play.html`
+   must still load.
 
-4. Roll back by removing `https://nappelin.com` from `TABLE_ORIGINS` and restarting. Nothing
-   else changes: the list gates who may read, not what the mint stores.
+5. Roll back by removing `https://nappelin.com` from `TABLE_ORIGINS` in the same place and
+   restarting. Nothing else changes: the list gates who may read, not what the mint stores.
 
 `tcg-table-staging` on `:8778` takes the same change when the staging Hangar needs it.
 
