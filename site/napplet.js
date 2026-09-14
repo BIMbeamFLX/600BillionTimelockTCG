@@ -422,6 +422,50 @@
       }
       return [];
     },
+    /** Whether live subscriptions exist here. Only a shell outbox has them. */
+    canSubscribe: () => has("outbox") && typeof shell.outbox.subscribe === "function",
+    /**
+     * Live events matching `filters`, through the shell's outbox. `onEvent(event)` gets each
+     * event bare; `onClosed(reason)` hears a subscription the shell ended, or "unavailable"
+     * when there is no shell outbox (the website has none: site/net.js keeps its own relays).
+     * Returns `unsubscribe()`, which ends it quietly. Never throws.
+     */
+    subscribe(filters, onEvent, onClosed) {
+      let handle = null;
+      let open = true;
+      const end = (reason) => {
+        if (!open) return;
+        open = false;
+        call(onClosed, reason);
+      };
+      const endLater = (reason) => { Promise.resolve().then(() => end(reason)); };
+      const stop = () => {
+        try { if (handle && typeof handle.close === "function") handle.close(); } catch (err) { /* already closed */ }
+      };
+      const unsubscribe = () => {
+        if (!open) return;
+        open = false;
+        stop();
+      };
+      if (!outbox.canSubscribe()) {
+        endLater("unavailable");
+        return unsubscribe;
+      }
+      try {
+        /* The prelude's handle (NAP-OUTBOX): `on("event" | "closed", fn)` and `close()`. */
+        handle = shell.outbox.subscribe(Array.isArray(filters) ? filters : [filters]);
+        if (!handle || typeof handle.on !== "function") throw new Error("unavailable");
+        handle.on("event", (result) => {
+          const event = eventOf(result);
+          if (open && isObject(event)) call(onEvent, event);
+        });
+        handle.on("closed", (reason) => end(reason === undefined ? "closed" : String(reason)));
+      } catch (err) {
+        stop();
+        endLater(String((err && err.message) || "unavailable"));
+      }
+      return unsubscribe;
+    },
   };
 
   // ----------------------------------------------------------------- resource

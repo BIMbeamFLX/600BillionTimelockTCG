@@ -1116,6 +1116,16 @@
       });
       return () => {};
     }
+    const offer = (event) => {
+      const invite = parseInvite(event);
+      if (!invite || seen[invite.id]) return;
+      seen[invite.id] = true; // claimed before the await, so two relays cannot race it
+      S.verifyEvent(event).then(
+        (ok) => { if (ok) onInvite(invite); },
+        () => { /* an invite we cannot check is an invite we do not have */ }
+      );
+    };
+    if (inShell()) return subscribeInvitesThroughShell(filter, offer);
     for (const url of relays()) {
       try {
         const ws = new WebSocket(url);
@@ -1130,18 +1140,32 @@
           } catch (err) {
             return; // relays say all sorts of things
           }
-          const invite = parseInvite(event);
-          if (!invite || seen[invite.id]) return;
-          seen[invite.id] = true; // claimed before the await, so two relays cannot race it
-          S.verifyEvent(event).then(
-            (ok) => { if (ok) onInvite(invite); },
-            () => { /* an invite we cannot check is an invite we do not have */ }
-          );
+          offer(event);
         };
         ws.onerror = () => { /* one dead relay is not a failure */ };
       } catch (err) { /* nor is one bad URL */ }
     }
     return () => { for (const ws of sockets) { try { ws.close(); } catch (err) { /* gone */ } } };
+  }
+
+  /* INSIDE A SHELL THE INVITES COME THROUGH ITS OUTBOX, never over a socket of our
+   * own: a sandboxed frame has no network. The host verifies what its relays
+   * send, but the lobby renders an invite's pubkey as an identity and points our
+   * socket at its table, so every row is still parsed and verified here, exactly
+   * as off a relay. A shell that cannot subscribe, or that ends the subscription,
+   * is reported as INVITES_UNAVAILABLE and lists nothing: never a throw. */
+  function subscribeInvitesThroughShell(filter, offer) {
+    const N = nap();
+    const unavailable = (message) => H("onError", { code: "INVITES_UNAVAILABLE", message });
+    let canSubscribe = false;
+    try { canSubscribe = Boolean(N.outbox && N.outbox.canSubscribe && N.outbox.canSubscribe()); } catch (err) { canSubscribe = false; }
+    if (!canSubscribe) {
+      unavailable("this shell offers no relay subscription, so no invites are listed");
+      return () => {};
+    }
+    return N.outbox.subscribe([filter], offer, (reason) => {
+      unavailable(`the shell ended the invite subscription (${reason})`);
+    });
   }
 
   // ---- reading the record back off the relays -----------------------------

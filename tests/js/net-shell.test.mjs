@@ -361,6 +361,85 @@ test("relays that refuse a host-signed event do not unsign it", async () => {
   await assert.rejects(() => nobody.net.nostr.sign(template), /sign in first/, "a host that could not sign still refuses");
 });
 
+const STRANGER_SK = Uint8Array.from(createHash("sha256").update("test:stranger").digest());
+const inviteFrom = (net, sk, fields) => signEvent(net.nostr.inviteEvent(Object.assign({
+  matchId: "m_0123456789ab", code: "K7M2QF", table: "wss://tcg.nappelin.com/ws", name: "anna", affinity: "Signal",
+}, fields)), sk);
+/* A napplet frame has no sockets of its own: any raw WebSocket net.js made would be a bug. */
+function forbidRawSockets() {
+  const made = [];
+  globalThis.WebSocket = function (url) { made.push(url); throw new Error(`a raw socket to ${url}`); };
+  return made;
+}
+
+test("invites arrive through the shell's outbox subscription, each one verified here", async () => {
+  const bus = relayBus();
+  const outbox = kehtoOutbox(bus, HOST_SK);
+  const { net, log } = loadShell({ host: fakeHangar(), shell: shellWith({ outbox }) });
+  const raw = forbidRawSockets();
+  const early = inviteFrom(net, STRANGER_SK, { to: HOST_PUBKEY });
+  const forged = Object.assign({}, inviteFrom(net, STRANGER_SK, { to: HOST_PUBKEY, code: "ZZZZZZ", matchId: "m_ffffffffffff" }));
+  forged.content = forged.content.replace("ZZZZZZ", "YYYYYY"); // the signature no longer covers it
+  bus.publish(early);
+  bus.publish(forged);
+  bus.publish(signEvent({ kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["p", HOST_PUBKEY]], content: "hi" }, STRANGER_SK));
+
+  const got = [];
+  const unsubscribe = net.nostr.subscribeInvites(HOST_PUBKEY, (invite) => got.push(invite));
+  await waitFor(() => got.length === 1);
+  assert.equal(got[0].code, "K7M2QF");
+  assert.equal(got[0].pubkey, hex(schnorr.getPublicKey(STRANGER_SK)));
+  const [filter] = outbox.calls.subscribe[0];
+  assert.deepEqual([filter.kinds, filter["#t"], filter["#p"]], [[4600], ["invite"], [HOST_PUBKEY]]);
+
+  bus.publish(inviteFrom(net, STRANGER_SK, { to: HOST_PUBKEY, code: "Q2W3E4", matchId: "m_00000000000a" }));
+  await waitFor(() => got.length === 2);
+  assert.equal(got[1].code, "Q2W3E4", "a live invite is delivered too");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(got.some((invite) => invite.code === "YYYYYY" || invite.code === "ZZZZZZ"), false, "a forged row is never offered");
+
+  unsubscribe();
+  assert.equal(outbox.calls.close, 1, "unsubscribing closes the host's subscription");
+  bus.publish(inviteFrom(net, STRANGER_SK, { to: HOST_PUBKEY, code: "R5T6Y7", matchId: "m_00000000000b" }));
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(got.length, 2);
+  assert.deepEqual(raw, [], "no socket of its own");
+  assert.deepEqual(log.errors, []);
+});
+
+test("without a shell subscription invites are reported unavailable, never thrown", async () => {
+  const bus = relayBus();
+  const noOutbox = loadShell({ host: fakeHangar(), shell: shellWith() });
+  const raw = forbidRawSockets();
+  assert.equal(typeof noOutbox.net.nostr.subscribeInvites(HOST_PUBKEY, () => {}), "function");
+  assert.equal(noOutbox.log.errors[0].code, "INVITES_UNAVAILABLE");
+  assert.deepEqual(raw, [], "a shell without an outbox still gets no socket of its own");
+
+  const publishOnly = kehtoOutbox(bus, HOST_SK);
+  delete publishOnly.subscribe;
+  const older = loadShell({ host: fakeHangar(), shell: shellWith({ outbox: publishOnly }) });
+  older.net.nostr.subscribeInvites(HOST_PUBKEY, () => {});
+  assert.equal(older.log.errors[0].code, "INVITES_UNAVAILABLE");
+  assert.equal(older.N.outbox.canSubscribe(), false);
+
+  const ends = [];
+  const website = loadShell({ nostr: { getPublicKey: async () => HOST_PUBKEY } });
+  const off = website.N.outbox.subscribe([{ kinds: [4600] }], () => {}, (reason) => ends.push(reason));
+  assert.equal(typeof off, "function");
+  await waitFor(() => ends.length);
+  assert.deepEqual(ends, ["unavailable"], "the adapter reports it once, and asynchronously");
+
+  const outbox = kehtoOutbox(bus, HOST_SK);
+  const ended = loadShell({ host: fakeHangar(), shell: shellWith({ outbox }) });
+  const handles = [];
+  const subscribe = outbox.subscribe;
+  outbox.subscribe = (filters) => { const handle = subscribe(filters); handles.push(handle); return handle; };
+  ended.net.nostr.subscribeInvites(HOST_PUBKEY, () => {});
+  handles[0].end("relay list unavailable");
+  const report = await waitFor(() => ended.log.errors.find((e) => e.code === "INVITES_UNAVAILABLE"));
+  assert.match(report.message, /relay list unavailable/, "a subscription the shell ends says why");
+});
+
 test("tableUrl() in a srcdoc frame: the build constant, else nappelin's referee", () => {
   const host = fakeHangar();
   assert.equal(loadShell({ host, shell: shellWith() }).net.tableUrl(), "wss://tcg.nappelin.com/ws");
