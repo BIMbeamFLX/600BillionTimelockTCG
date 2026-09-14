@@ -1,0 +1,53 @@
+600B story cut — regeneration prompts (Imagine → Video, 6 seconds each)
+========================================================================
+
+Why regenerate: post-compositing the 600B mark onto moving AI footage fights
+the medium. These runs animate PRE-BRANDED stills (make them with
+`uv run python brand_stills.py` → stills-branded/), so the video model itself
+keeps the emblem glued to the prop. Attach the branded still, paste the
+prompt, 6 seconds, CAMERA ONLY, no Extend.
+
+Every prompt ends with the standing rule:
+"Keep the chest emblem exactly as shown in the reference image — it is part
+of the costume. No text anywhere else. No new characters."
+
+----------------------------------------------------------------
+PROLOG P1 (new footage, the narrator's opening — Satoshi is gone)
+Still: stills/01-world-bitcoin.png (unbranded, no characters)
+----------------------------------------------------------------
+Slow push through the dusk orchard of servers toward one empty workbench
+under a single warm lamp. A coat rack stands without a coat; a cold mug.
+The glowing glass cubes along the roots brighten one by one, keeping time.
+Golden hour, soot black, no people, no text. The absence is the subject.
+
+----------------------------------------------------------------
+PROLOG P2 (new footage — but he left us the timechain)
+Still: stills/07-next-block.jpg
+----------------------------------------------------------------
+Slow dolly along the line of glowing clock cubes as paper tape feeds from
+one into the next; gears turn, pendulums sway. Each cube lights the moment
+the tape reaches it — an unbroken chain into the distance. No people,
+no text.
+
+----------------------------------------------------------------
+C2 CHARGE (rebrand run — this shot lost its post-composited emblems)
+Still: stills-branded/C2-charge.jpg
+----------------------------------------------------------------
+The armored knight and the bear king charge side by side through dust and
+rubble, coats flying, fists pumping, both chest emblems glowing steady.
+Low tracking camera, debris kicked toward lens. Keep the chest emblem
+exactly as shown in the reference image — it is part of the costume.
+No text anywhere else. No new characters.
+
+----------------------------------------------------------------
+Optional re-runs for a cleaner brand (already tracked in post, regenerate
+only if you want the emblem native): A2, A3, A4, A5, C3 — use the matching
+file from stills-branded/ with each shot's ORIGINAL prompt from ../PROMPTS.txt
+plus the standing rule above.
+----------------------------------------------------------------
+
+After new clips land: drop them into clips/ under the same names, then
+  uv run python build_cut.py && uv run python place_takes.py \
+    && uv run python make_score.py && uv run python mix_vo.py
+and delete the shot's "discs" entry in cues.py — the emblem is in the
+picture now, no tracking needed.

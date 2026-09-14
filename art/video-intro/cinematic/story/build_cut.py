@@ -13,11 +13,13 @@ import json
 import subprocess
 from pathlib import Path
 
+from brand_discs import brand_segment
 from cues import SHOTS
 
 ROOT = Path(__file__).resolve().parent
 CLIPS = ROOT / "clips"
 TITLE_PNG = ROOT.parent / "09-title.png"
+END_PNG = ROOT.parent / "10-endcard.png"
 WORK = ROOT / "_work2"
 OUT = WORK / "cut.mp4"
 FPS = 24
@@ -43,26 +45,33 @@ def main() -> None:
         seg = WORK / f"seg-{index:02d}-{shot['id']}.mp4"
         if shot.get("still"):
             duration = float(shot["still"])
+            card = END_PNG if shot["clip"] == "10-endcard.png" else TITLE_PNG
             cmd = [
                 "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-                "-loop", "1", "-t", f"{duration}", "-i", str(TITLE_PNG),
+                "-loop", "1", "-t", f"{duration}", "-i", str(card),
                 "-vf", f"scale=1280:720,fps={FPS},format=yuv420p",
                 "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-an", str(seg),
             ]
         else:
-            src = CLIPS / shot["clip"]
+            src = (ROOT / shot["src"]) if shot.get("src") else (CLIPS / shot["clip"])
             head = float(shot.get("head", 0.0))
             speed = float(shot.get("speed", 1.0))
             source_len = probe_duration(src) - head
             duration = source_len / speed
             setpts = f"setpts={1 / speed:.6f}*PTS," if speed != 1.0 else ""
+            band = shot.get("portrait_band")
+            frame_fit = (
+                f"crop=848:477:0:{band},scale=1280:720" if band is not None else "scale=1280:720"
+            )
             cmd = [
                 "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
                 "-ss", f"{head}", "-i", str(src),
-                "-vf", f"{setpts}scale=1280:720,fps={FPS},format=yuv420p",
+                "-vf", f"{setpts}{frame_fit},fps={FPS},format=yuv420p",
                 "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-an", str(seg),
             ]
         subprocess.check_call(cmd)
+        if shot.get("discs"):
+            brand_segment(seg, shot["discs"], FPS)
         segments.append((shot["id"], seg, probe_duration(seg)))
 
     # Pass 2: chain with per-boundary xfade (0 = concat hard). Each xfade

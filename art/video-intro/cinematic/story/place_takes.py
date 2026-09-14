@@ -17,14 +17,22 @@ import json
 import subprocess
 from pathlib import Path
 
+import importlib
+import os
+
+_cue_set = os.environ.get("CUE_SET", "story")
+_cues = importlib.import_module("cues" if _cue_set == "story" else f"cues_{_cue_set}")
+SUFFIX = "" if _cue_set == "story" else f"-{_cue_set}"
 from cues import LINES, PAUSE
+LINES = _cues.LINES
+PAUSE = _cues.PAUSE
 from make_voices import take_path
 
 ROOT = Path(__file__).resolve().parent
 WORK = ROOT / "_work2"
 TIMELINE = WORK / "timeline.json"
-PLACED = WORK / "placed.json"
-CAPTIONS = WORK / "captions.ass"
+PLACED = WORK / f"placed{SUFFIX}.json"
+CAPTIONS = WORK / f"captions{SUFFIX}.ass"
 
 ASS_HEAD = """[Script Info]
 ScriptType: v4.00+
@@ -69,7 +77,8 @@ def main() -> None:
         length = probe_duration(take)
         gap = float(line.get("hold", line.get("pause", PAUSE)))
         into = float(line.get("into", 0.2 if cursor == 0.0 else 0.0))
-        start = max(shots[line["shot"]] + into, cursor + gap)
+        anchor = shots.get(line["shot"], title_start)
+        start = max(anchor + into, cursor + gap)
         end = start + length
         placed.append(
             {
@@ -91,15 +100,18 @@ def main() -> None:
             f"  (+{drift:5.2f} into shot)  {item['text']}"
         )
     print(f"speech ends {cursor:.2f}s; title at {title_start:.2f}s; clean tail {tail:.2f}s")
-    # The LAST line may bridge onto the title card -- the card reads PROTECT
-    # YOUR UPTIME while Michael says it; voice and type carry one message.
-    # Everything before it must clear the title, and nothing may touch the end.
-    if placed[-2]["end"] > title_start - 0.4:
-        raise SystemExit(
-            f"take {placed[-2]['index']} ends {placed[-2]['end']:.2f}, "
-            f"needs to clear the title at {title_start:.2f} -- tighten cues.py"
-        )
-    if cursor > total - 1.2:
+    # Lines marked over_title may ride the cards (voice and type carry one
+    # message there); everything else must clear the first card, and nothing
+    # may touch the end of the film.
+    for item, line in zip(placed, LINES):
+        if line.get("over_title"):
+            continue
+        if item["end"] > title_start - 0.4:
+            raise SystemExit(
+                f"take {item['index']} ends {item['end']:.2f}, needs to clear "
+                f"the title at {title_start:.2f} -- tighten cues.py"
+            )
+    if cursor > total - 0.8:
         raise SystemExit(
             f"the closing line runs to {cursor:.2f} of {total:.2f} -- tighten cues.py"
         )
