@@ -29,6 +29,7 @@
 
   /* Durations (ms). Cards tween, chrome cuts. */
   const D = { hover: 140, move: 240, enter: 200, sample: 1500, grace: 1000 };
+  const HOVER = { lift: 0.5, spread: 0.12 }; // world units: toward the camera; the fan's neighbours step aside
   const TEXTURE_LRU = 96;
   const PARALLAX_DEG = 1.2;
 
@@ -487,7 +488,8 @@
     const shadowTex = radialTexture(THREE, 128, "rgba(0,0,0,.55)", "rgba(0,0,0,0)");
     const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 1 });
     const cardGeo = roundedRectGeometry(THREE, L.CARD.width, L.CARD.height, L.CARD.radius);
-    const backMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.08 });
+    // The back texture is bright; a grey tint and a rougher surface keep the foe's fan from glowing white.
+    const backMat = new THREE.MeshStandardMaterial({ color: 0xb8b8b8, roughness: 0.7, metalness: 0.08 });
     const blankMat = new THREE.MeshStandardMaterial({ color: PALETTE.steel, roughness: 0.6, metalness: 0.2, emissive: PALETTE.brassDim, emissiveIntensity: 0.15 });
     if (o.back) textures.get(o.back).then((t) => { backMat.map = t; backMat.needsUpdate = true; markDirty(); }).catch(() => {});
 
@@ -771,7 +773,7 @@
       const pose = { position: entry.home.position.clone(), quaternion: entry.home.quaternion.clone(), scale: entry.home.scale };
       const toCamera = camera.position.clone().sub(entry.home.position).normalize();
       const hand = entry.zone === "youHand";
-      pose.position.addScaledVector(toCamera, hand ? 0.55 : 0.28).add(new THREE.Vector3(0, hand ? 0.22 : 0.16, 0));
+      pose.position.addScaledVector(toCamera, hand ? HOVER.lift : 0.28).add(new THREE.Vector3(0, hand ? 0.22 : 0.16, 0));
       // Straighten: drop the roll and, for flat cards, lift the near edge.
       const e = new THREE.Euler().setFromQuaternion(entry.home.quaternion, "YXZ");
       e.z = 0;
@@ -779,6 +781,21 @@
       pose.quaternion.setFromEuler(e);
       pose.scale = entry.home.scale * (hand ? 1.18 : entry.kind === "token" ? 1.08 : 1.35);
       return pose;
+    }
+    /* The hover spread: every other card of the own fan steps 0.12 units away
+       from the hovered one (to its side), so the lifted card never hides under
+       a neighbour. `apply` false moves them home again. */
+    function spreadFan(around, apply) {
+      if (!around || around.zone !== "youHand") return;
+      for (const entry of registry.values()) {
+        if (entry === around || entry.gone || entry.zone !== "youHand" || !entry.mesh) continue;
+        if (!apply) { moveTo(entry, entry.home, D.hover); continue; }
+        const side = entry.index < around.index ? -1 : entry.index > around.index ? 1 : 0;
+        if (!side) continue;
+        const pose = { position: entry.home.position.clone(), quaternion: entry.home.quaternion, scale: entry.home.scale };
+        pose.position.x += side * HOVER.spread;
+        moveTo(entry, pose, D.hover);
+      }
     }
 
     /* ==================================================================== *
@@ -1125,6 +1142,7 @@
           }
         }
         if (hovered && (hovered.gone || !registry.has(hovered.uid))) hovered = null;
+        else if (hovered && hovered.zone === "youHand") { moveTo(hovered, hoverPose(hovered), D.hover); spreadFan(hovered, true); }
         stats.syncMs = (root.performance ? root.performance.now() : Date.now()) - t0;
         markDirty();
         // The first sync renders synchronously so the hitboxes exist before play.js measures them.
@@ -1146,9 +1164,9 @@
         const next = uid == null ? null : registry.get(uid) || null;
         if (next && next.gone) return;
         if (hovered === next) return;
-        if (hovered && !hovered.gone) moveTo(hovered, hovered.home, D.hover);
+        if (hovered && !hovered.gone) { moveTo(hovered, hovered.home, D.hover); spreadFan(hovered, false); }
         hovered = next;
-        if (hovered) moveTo(hovered, hoverPose(hovered), D.hover);
+        if (hovered) { moveTo(hovered, hoverPose(hovered), D.hover); spreadFan(hovered, true); }
       },
       setState(uid, states) {
         if (disposed) return;

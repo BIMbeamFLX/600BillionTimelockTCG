@@ -73,6 +73,13 @@ test("hand fan: eight cards overlap by at most half a card, the middle card is t
   }
   const fan = L.arcSlots(7, "youHand");
   assert.ok(fan[3].y > fan[0].y && fan[3].y > fan[6].y, "edges drop away");
+  // depthBow: the middle slot is the nearest to the camera as well as the highest, so
+  // the middle cards no longer read smaller than the edges; monotonic toward the middle.
+  assert.ok(fan[3].z > fan[0].z && fan[3].z > fan[6].z, "the middle slot is the nearest (+z)");
+  assert.ok(Math.abs(fan[3].z - (L.ZONES.youHand.centre[2] + L.ZONES.youHand.depthBow)) < 1e-9, "middle = centre + depthBow");
+  for (let i = 1; i <= 3; i++) assert.ok(fan[i].z > fan[i - 1].z && fan[i].y > fan[i - 1].y, `slot ${i} is nearer and higher than ${i - 1}`);
+  for (let n = 2; n <= 9; n++) for (const s of L.arcSlots(n, "youHand")) assert.ok(s.z >= L.ZONES.youHand.centre[2] - 1e-9, `n=${n} never behind the centre`);
+  assert.equal(L.arcSlots(5, "foeHand")[2].z, L.ZONES.foeHand.centre[2], "a fan without depthBow keeps its z");
   assert.ok(fan[0].roll > 0 && fan[6].roll < 0 && fan[3].roll === 0, "the fan rolls outward");
   assert.ok(L.arcSlots(12, "youHand")[1].x - L.arcSlots(12, "youHand")[0].x < L.CARD.width, "past the chord the fan compresses");
 });

@@ -27,6 +27,8 @@
    * radius  : the circle every slot lies on (≤ 40, the arc law)
    * step    : centre-to-centre distance while the row still fits
    * maxChord: the row compresses past this width
+   * depthBow: fans only — how much nearer the camera (+z) the middle slot sits
+   *           than the widest fan's edges, so the high card is also the near one
    * pitch   : Euler X of the card plane; 0 upright facing +z, −90° flat face up
    * yawSpread: how far the outer slots turn to follow the arc (fraction of the
    *           arc angle); fanRoll: fans roll about their own normal instead
@@ -35,7 +37,7 @@
   const zone = (id, seat, def) => Object.freeze(Object.assign({ id, seat }, def));
   const ZONES = Object.freeze({
     youHand: zone("youHand", "you", {
-      centre: [0, 0.46, 5.7], axis: "y", bow: 1, radius: 8.5, step: 1.42, maxChord: 10.6,
+      centre: [0, 0.46, 5.7], axis: "y", bow: 1, radius: 8.5, step: 1.42, maxChord: 10.6, depthBow: 0.35,
       pitch: -42 * RAD, fanRoll: -1, yawSpread: 0, scale: 1.5, kind: "card",
     }),
     foeHand: zone("foeHand", "foe", {
@@ -101,8 +103,18 @@
       const angle = Math.asin(Math.max(-1, Math.min(1, x / R)));
       let y = cy;
       let z = cz;
-      if (Z.axis === "y") y = cy + Z.bow * -sag; // fan: the middle card is the high one when bow=+1
-      else z = cz + Z.bow * sag;
+      if (Z.axis === "y") {
+        y = cy + Z.bow * -sag; // fan: the middle card is the high one when bow=+1
+        // depthBow: the same sagitta, scaled so the widest fan's edges sit on the
+        // centre and the middle slot comes `depthBow` nearer the camera. The y-bow
+        // alone pushed the middle cards away from the camera, which made the
+        // biggest cards of the fan read as the smallest.
+        if (Z.depthBow) {
+          const halfMax = maxChord / 2;
+          const sagMax = R - Math.sqrt(Math.max(0, R * R - halfMax * halfMax));
+          z = cz + Z.depthBow * (1 - (sagMax > 0 ? sag / sagMax : 0));
+        }
+      } else z = cz + Z.bow * sag;
       out.push({
         x, y, z,
         yaw: (Z.yaw || 0) + angle * Z.yawSpread,
