@@ -12,13 +12,16 @@
  * pool), cleanup (pools; `dispose()` is idempotent) and the reduced-motion
  * equivalent (a cut to the end state, no particles, no shake).
  *
- * Motion book (1.1): strike = anticipation 70 ms → lunge to 85 % with
- * acceleration → contact at strikeMs (squash, white flash, shockwave, 40-sprite
- * burst, shake by damage, target recoil) → hit-stop → return with a 6 %
+ * Motion book (1.2): strike = anticipation 70 ms → lunge to 85 % with
+ * acceleration → contact at strikeMs (squash, a 40 ms white flash on the wall
+ * clock, shockwave, a 40-sprite burst spawned already spread 0.25–0.7 u along
+ * its own velocities, 30 % of it streaks, so the frozen frame is an impact
+ * star; shake by damage, target recoil) → hit-stop → return with a 6 %
  * overshoot; play = arc + flip through a lifted midpoint, slam 1.1 → 1, dust,
  * a token materialises; draw = rise, flip, slide; death = burn-out 90 ms, then
- * 24 shards + 16 sparks, done by 800 ms. Losses cued with a strike wait for
- * its contact.
+ * the card breaks into 24 pieces of its own face (each a crop of the face,
+ * back or art texture, ember rim) + 16 sparks, done by 800 ms. Losses cued
+ * with a strike wait for its contact.
  *
  * Time: a tween scheduler reads `arena.world.clock` (`elapsed` seconds, number
  * or function) and freezes for `hitStop(ms)` — the beat where the brain
@@ -33,7 +36,7 @@
    * 0 · TOKENS                                                           *
    * ==================================================================== */
 
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
 
   /* Durations (ms). Card tweens 160–320; chrome faster; only the shatter and
      the win push are allowed to be long, because they end something. */
@@ -65,6 +68,30 @@
   const SHAKE = Object.freeze({ base: 0.35, perPoint: 0.08, cap: 0.9 });
   const GRAVITY = -9.0; /* world units / s² — cards are light, the table is close */
 
+  /* The frozen frame of a strike: every burst sprite already sits this far out
+     along its own velocity, 30 % of them are 3:1 streaks, and each starts at
+     0.55 opacity (0.9 once the clock thaws). The white flash is the only
+     bright element and lives 40 ms of wall time, hit-stop or not. */
+  /* `cover`: the cap on the frozen burst's summed opacity × area (u²); the
+     v1.1 burst summed ~10 on one point.
+     `lift`: the star sits this far up the attacker's face toward its top
+     edge, so half of it is drawn against the table, not over the art. */
+  const BURST = Object.freeze({ near: 0.25, far: 0.7, streakEvery: 10, streaks: 3, stretch: 3,
+    frozenOpacity: 0.55, opacity: 0.9, riseMs: 40, lift: 0.8, cover: 1.0 });
+
+  /* A shard is a piece of the dying card: a crop of 0.2–0.35 of its face on
+     one of five outlines (3–5 corners), 0.3–0.55 u across, an ember rim at
+     emissive 0.35 cooling to 0. No face texture yet: steel, never cream. */
+  const SHARD = Object.freeze({ cropMin: 0.2, cropMax: 0.35, sizeMin: 0.3, sizeMax: 0.55, ember: 0.35,
+    rim: 0.8, cols: 4, rows: 6, steel: 0x2b2a33 });
+  const SHAPES = Object.freeze([
+    [0.04, 0.08, 0.96, 0.22, 0.42, 0.97],                     /* triangle        */
+    [0.0, 0.14, 0.86, 0.0, 1.0, 0.82, 0.18, 1.0],             /* irregular quad  */
+    [0.1, 0.0, 0.82, 0.08, 1.0, 0.6, 0.52, 1.0, 0.0, 0.72],   /* pentagon        */
+    [0.0, 0.0, 0.62, 0.12, 1.0, 1.0, 0.28, 0.86],             /* sliver          */
+    [0.22, 0.0, 1.0, 0.5, 0.0, 1.0]                           /* wedge           */
+  ]);
+
   /* Cues with no 3D motion: fx.js overlays and sounds cover them. */
   const NOOP = Object.freeze([
     'clash:begin', 'clash:declareAttackers', 'clash:declareBlockers', 'priority:pass',
@@ -78,6 +105,20 @@
 
   const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
   const isFn = (f) => typeof f === 'function';
+  /* Integer hash → [0, 1): repeatable "random" without Math.random or a table. */
+  function hash01(n) {
+    let x = Math.imul((n | 0) ^ 0x9e3779b9, 0x85ebca6b);
+    x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16;
+    return (x >>> 0) / 4294967296;
+  }
+  /* out = q · (x, y, z), without a Vector3.applyQuaternion. */
+  function rotateInto(out, x, y, z, q) {
+    const ix = q.w * x + q.y * z - q.z * y, iy = q.w * y + q.z * x - q.x * z;
+    const iz = q.w * z + q.x * y - q.y * x, iw = -q.x * x - q.y * y - q.z * z;
+    return out.set(ix * q.w - iw * q.x - iy * q.z + iz * q.y,
+      iy * q.w - iw * q.y - iz * q.x + ix * q.z,
+      iz * q.w - iw * q.z - ix * q.y + iy * q.x);
+  }
   function guard(fn) { try { return fn(); } catch (e) { return undefined; } }
 
   /* CSS cubic-bezier as a number → number function (Newton on the x curve). */
@@ -159,7 +200,7 @@
     }
 
     /* Scratch objects — the only vectors allocated after attach are none. */
-    const V = { a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3() };
+    const V = { a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3(), d: new THREE.Vector3() };
     const Q = { a: new THREE.Quaternion(), b: new THREE.Quaternion() };
     const AXIS = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0) };
     const Q_FLAT = new THREE.Quaternion().setFromAxisAngle(AXIS.x, -Math.PI / 2);
@@ -205,6 +246,12 @@
     function wallNow() {
       if (lastWall != null) return lastWall;
       return global.performance && isFn(global.performance.now) ? global.performance.now() : Date.now();
+    }
+    /* Wall time for effects that must not freeze (the white flash): R1's clock
+       remembers the last timestamp its loop advanced to; else update()'s. */
+    function wallMs() {
+      if (clock && typeof clock._last === 'number') return clock._last;
+      return wallNow();
     }
 
     function makePose() { return { p: new THREE.Vector3(), q: new THREE.Quaternion(), s: new THREE.Vector3(1, 1, 1) }; }
@@ -283,11 +330,12 @@
       else offset += clockMs() - freezeStartClock;
     }
     const isFrozen = () => frozen || clockFrozen();
-    const animating = () => !disposed && (activeTracks > 0 || liveParticles > 0 || isFrozen());
+    const animating = () => !disposed && (activeTracks > 0 || liveParticles > 0 || liveWhites > 0 || isFrozen());
 
     function update(wall) {
       if (disposed) return;
       lastWall = typeof wall === 'number' ? wall : wallNow();
+      stepWhites(wallMs());
       if (frozen) {
         if (lastWall >= freezeEndWall) thaw();
         else { requestRender(); schedule(); return; }
@@ -360,7 +408,7 @@
     }
 
     const GEO = {
-      shard: geometry('plane', 0.42, 0.5), /* readable from the camera's ~14 units */
+      shard: geometry('plane', 0.42, 0.5), /* fallback when THREE has no BufferGeometry */
       ring: geometry('ring', 0.62, 0.74, 40),
       shock: geometry('ring', 0.86, 1.0, 48), /* scale 1 = a one-unit radius */
       unit: geometry('plane', 1, 1),
@@ -379,16 +427,118 @@
       else if (parent && isFn(parent.remove)) guard(() => parent.remove(obj));
     }
 
-    /* Particles: sprites (dust, burst) and shard quads share one record shape;
+    /* Shard textures, made once: a 1×1 white placeholder so every shard
+       material is born with a `map` (swapping in a face texture at spawn
+       keeps the program), and a 32×1 rim ramp read through a second UV set
+       (0 inside, 1 on the outline) as the emissive map: the ember is a rim. */
+    const createdTextures = [];
+    function dataTexture(bytes, w, h, srgb) {
+      if (!THREE.DataTexture) return null;
+      const t = new THREE.DataTexture(bytes, w, h);
+      if (srgb && THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace;
+      if (THREE.LinearFilter != null) { t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; }
+      t.needsUpdate = true;
+      createdTextures.push(t);
+      return t;
+    }
+    /* Burst sprites: a hot dot and a tapered streak (64×16, long along x, so
+       a sprite scaled 3:1 and rotated to its velocity is a motion line, not a
+       stretched blob). userData.fill is the mean alpha: the coverage cap
+       counts light, not quads. */
+    function glowTexture(w, h, sx, sy) {
+      const px = new Uint8Array(w * h * 4);
+      let sum = 0;
+      for (let j = 0; j < h; j++) {
+        for (let i = 0; i < w; i++) {
+          const x = ((i + 0.5) / w) * 2 - 1, y = ((j + 0.5) / h) * 2 - 1;
+          const a = Math.exp(-(x * x) / (2 * sx * sx) - (y * y) / (2 * sy * sy));
+          const o = (j * w + i) * 4;
+          px[o] = px[o + 1] = px[o + 2] = 255; px[o + 3] = Math.round(255 * a);
+          sum += Math.round(255 * a) / 255;
+        }
+      }
+      const t = dataTexture(px, w, h, false);
+      if (t) { t.userData = t.userData || {}; t.userData.fill = sum / (w * h); }
+      return t;
+    }
+    const DOT_TEX = glowTexture(32, 32, 0.3, 0.3);
+    const STREAK_TEX = glowTexture(64, 16, 0.42, 0.24);
+    const PLACEHOLDER = dataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, true);
+    const RIM_TEX = (() => {
+      const px = new Uint8Array(32 * 4);
+      for (let i = 0; i < 32; i++) { const v = Math.round(255 * Math.pow(i / 31, 2)); px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = v; px[i * 4 + 3] = 255; }
+      const t = dataTexture(px, 32, 1, false);
+      if (t) t.channel = 1;
+      return t;
+    })();
+
+    /* One small geometry per pooled shard: centre, an inner ring at 80 % and
+       the outline (3–5 corners, jittered per slot). `tpl` keeps each vertex's
+       place in the shard's unit box — the UV template a spawn maps onto a
+       crop of the face, in place. */
+    function shardGeometry(slot) {
+      if (!THREE.BufferGeometry || !THREE.BufferAttribute) return null;
+      const shape = SHAPES[slot % SHAPES.length], k = shape.length / 2, count = 1 + 2 * k;
+      const tpl = new Float32Array(count * 2), pos = new Float32Array(count * 3), nrm = new Float32Array(count * 3);
+      const uv1 = new Float32Array(count * 2), index = [];
+      let cx = 0, cy = 0;
+      for (let j = 0; j < k; j++) {
+        const x = clamp01(shape[2 * j] + (hash01(slot * 31 + j * 7) - 0.5) * 0.12);
+        const y = clamp01(shape[2 * j + 1] + (hash01(slot * 57 + j * 11 + 3) - 0.5) * 0.12);
+        tpl[2 + 2 * k + 2 * j] = x; tpl[3 + 2 * k + 2 * j] = y;
+        cx += x / k; cy += y / k;
+      }
+      tpl[0] = cx; tpl[1] = cy;
+      for (let j = 0; j < k; j++) {
+        tpl[2 + 2 * j] = cx + (tpl[2 + 2 * k + 2 * j] - cx) * SHARD.rim;
+        tpl[3 + 2 * j] = cy + (tpl[3 + 2 * k + 2 * j] - cy) * SHARD.rim;
+        const a = 1 + j, b = 1 + (j + 1) % k, A = 1 + k + j, B = 1 + k + (j + 1) % k;
+        index.push(0, a, b, a, A, B, a, B, b);
+      }
+      for (let i = 0; i < count; i++) {
+        pos[i * 3] = tpl[i * 2] - 0.5; pos[i * 3 + 1] = tpl[i * 2 + 1] - 0.5; nrm[i * 3 + 2] = 1;
+        uv1[i * 2] = i > k ? 1 : 0; uv1[i * 2 + 1] = 0.5;
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(tpl.slice(), 2));
+      g.setAttribute('uv1', new THREE.BufferAttribute(uv1, 2));
+      g.setIndex(index);
+      created.geometries.push(g);
+      return { g, tpl };
+    }
+    function shardMaterial() {
+      if (!THREE.MeshStandardMaterial || !PLACEHOLDER) return meshMat(null, SHARD.steel, false);
+      const m = new THREE.MeshStandardMaterial({ color: SHARD.steel, map: PLACEHOLDER, emissive: COLOR.ember,
+        emissiveIntensity: 0, emissiveMap: RIM_TEX, roughness: 0.55, metalness: 0.12, transparent: true, opacity: 0 });
+      if (THREE.DoubleSide != null) m.side = THREE.DoubleSide;
+      created.materials.push(m);
+      return m;
+    }
+
+    /* Particles: sprites (dust, burst) and shard meshes share one record shape;
        position, spin, size and opacity are closed forms of the age. */
     function makeParticle(obj, kind) {
       return { obj: mount(obj), kind, base: kind, active: false, born: 0, life: 1, g: 0, spin: 0, s0: 1, s1: 1,
+        ay: 1, streak: false, tpl: null,
         p0: new THREE.Vector3(), v: new THREE.Vector3(), axis: new THREE.Vector3(0, 1, 0), q0: new THREE.Quaternion() };
     }
     const pools = { dust: [], burst: [], shards: [] };
     for (let i = 0; i < POOL.dust; i++) pools.dust.push(makeParticle(new THREE.Sprite(spriteMat(COLOR.dust, false)), 'dust'));
-    for (let i = 0; i < POOL.burst; i++) pools.burst.push(makeParticle(new THREE.Sprite(spriteMat(i % 3 ? COLOR.brass : COLOR.ember, true)), 'burst'));
-    for (let i = 0; i < POOL.shards; i++) pools.shards.push(makeParticle(new THREE.Mesh(GEO.shard, meshMat(mats.shard, COLOR.cream, false)), 'shard'));
+    /* The impact is drawn over the cards that meet in it: no depth test, late in the order. */
+    const overlay = (sprite) => { sprite.material.depthTest = false; sprite.renderOrder = 20; return sprite; };
+    for (let i = 0; i < POOL.burst; i++) {
+      const sprite = overlay(new THREE.Sprite(spriteMat(i % 3 ? COLOR.brass : COLOR.ember, true)));
+      if (DOT_TEX) sprite.material.map = DOT_TEX; /* born with a map: the streak swap keeps the program */
+      pools.burst.push(makeParticle(sprite, 'burst'));
+    }
+    for (let i = 0; i < POOL.shards; i++) {
+      const sg = shardGeometry(i);
+      const p = makeParticle(new THREE.Mesh(sg ? sg.g : GEO.shard, shardMaterial()), 'shard');
+      p.tpl = sg ? sg.tpl : null;
+      pools.shards.push(p);
+    }
     const ALL_POOLS = [pools.dust, pools.burst, pools.shards];
     let liveParticles = 0;
 
@@ -411,8 +561,34 @@
     function release(p) {
       if (!p.active) return;
       p.active = false; liveParticles--; p.kind = p.base;
+      p.streak = false; p.ay = 1;
       p.obj.visible = false;
-      if (p.obj.material) p.obj.material.opacity = 0;
+      const mat = p.obj.material;
+      if (mat) {
+        mat.opacity = 0;
+        if (typeof mat.rotation === 'number') mat.rotation = 0;
+        /* let go of the face texture; the placeholder keeps the program */
+        if (p.base === 'shard' && PLACEHOLDER && mat.map) { mat.map = PLACEHOLDER; mat.emissiveIntensity = 0; }
+      }
+    }
+    /* A streak lies along its velocity on screen: the angle of the projected
+       velocity becomes the sprite's rotation. Headless (no project()), 0. */
+    const SV = { a: new THREE.Vector3(), b: new THREE.Vector3() };
+    function streakAngle(pos, vx, vy, vz) {
+      const cam = world.camera;
+      if (!cam || !isFn(SV.a.project)) return 0;
+      SV.a.copy(pos).project(cam);
+      SV.b.copy(pos); SV.b.x += vx * 0.02; SV.b.y += vy * 0.02; SV.b.z += vz * 0.02;
+      SV.b.project(cam);
+      const aspect = typeof cam.aspect === 'number' ? cam.aspect : 1;
+      return Math.atan2(SV.b.y - SV.a.y, (SV.b.x - SV.a.x) * aspect);
+    }
+    function burstOpacity(p, age, k) {
+      /* held at 0.55 while the clock is frozen (age 0), up to 0.9 over the
+         first 40 ms after the thaw, then the square fade over the rest */
+      if (age < BURST.riseMs) return BURST.frozenOpacity + (BURST.opacity - BURST.frozenOpacity) * (age / BURST.riseMs);
+      const f = clamp01((age - BURST.riseMs) / Math.max(1, p.life - BURST.riseMs));
+      return BURST.opacity * (1 - f) * (1 - f);
     }
     function stepParticles() {
       for (let j = 0; j < ALL_POOLS.length; j++) {
@@ -424,14 +600,18 @@
           const o = p.obj;
           o.position.set(p.p0.x + p.v.x * s, Math.max(0.02, p.p0.y + p.v.y * s + 0.5 * p.g * s * s), p.p0.z + p.v.z * s);
           const sc = p.s0 + (p.s1 - p.s0) * k;
-          o.scale.set(sc, sc, sc);
+          if (p.streak) o.scale.set(sc * BURST.stretch, sc, 1);
+          else o.scale.set(sc, sc * p.ay, sc);
           if (p.kind === 'shard') {
             Q.a.setFromAxisAngle(p.axis, p.spin * s);
             o.quaternion.multiplyQuaternions(p.q0, Q.a);
           }
           const mat = o.material;
+          if (p.streak && mat) mat.rotation = streakAngle(o.position, p.v.x, p.v.y + p.g * s, p.v.z);
           if (mat) {
-            mat.opacity = p.kind === 'burst' ? (1 - k) * (1 - k) : p.kind === 'spark' ? (k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8) : 1 - k;
+            if (p.kind === 'shard') mat.emissiveIntensity = SHARD.ember * (1 - k);
+            mat.opacity = p.kind === 'burst' ? burstOpacity(p, age, k) : p.kind === 'spark' ? (k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8)
+              : p.kind === 'shard' ? 1 - k * k : 1 - k;
             /* burst sprites cool from brass to ember as they fly */
             if (p.kind === 'burst' && mat.color && isFn(mat.color.setRGB)) {
               mat.color.setRGB(BRASS_RGB[0] + (EMBER_RGB[0] - BRASS_RGB[0]) * k,
@@ -455,7 +635,7 @@
     for (let i = 0; i < POOL.ring; i++) quads.ring.push({ obj: flatMesh(GEO.ring, COLOR.brass, true), busy: false });
     for (let i = 0; i < POOL.shock; i++) quads.shock.push({ obj: flatMesh(GEO.shock, COLOR.brass, true), busy: false });
     /* The white contact flash is a sprite: it faces the camera from any seat. */
-    for (let i = 0; i < POOL.white; i++) quads.white.push({ obj: mount(new THREE.Sprite(spriteMat(COLOR.cream, true))), busy: false });
+    for (let i = 0; i < POOL.white; i++) quads.white.push({ obj: mount(overlay(new THREE.Sprite(spriteMat(COLOR.cream, true)))), busy: false, start: null });
     for (let i = 0; i < POOL.flash; i++) quads.flash.push({ obj: flatMesh(GEO.unit, COLOR.red, true), busy: false });
     for (let i = 0; i < POOL.decal; i++) {
       /* R1 ships a crack texture (materials.cracks); else paint one here. */
@@ -488,6 +668,36 @@
       for (let i = 0; i < list.length; i++) { list[i].obj.material.map = tex; list[i].obj.material.needsUpdate = true; }
     }
 
+    /* The white contact flash runs on wall time: it is 40 ms long inside a
+       150 ms hit-stop, so the frozen frame keeps the star and loses the blob. */
+    let liveWhites = 0;
+    function whiteFlash(x, y, z) {
+      const q = takeQuad(quads.white);
+      if (!q) return;
+      q.start = wallMs(); liveWhites++;
+      q.obj.position.set(x, y, z);
+      stepWhite(q, q.start);
+      schedule();
+    }
+    function stepWhite(q, now) {
+      const k = clamp01((now - q.start) / MS.white), o = q.obj;
+      if (k >= 1) { q.start = null; liveWhites--; giveQuad(q); return; }
+      const sc = 0.8 + 0.5 * k;
+      o.scale.set(sc, sc, 1);
+      if (o.material) o.material.opacity = 0.9 * (1 - EASE.drop(k));
+    }
+    function stepWhites(now) {
+      if (!liveWhites) return;
+      for (let i = 0; i < quads.white.length; i++) if (quads.white[i].start != null) stepWhite(quads.white[i], now);
+      for (let i = 0; i < lights.length; i++) {
+        const l = lights[i];
+        if (l.start == null) continue;
+        const k = clamp01((now - l.start) / l.dur);
+        if (k >= 1) { l.start = null; l.busy = false; l.obj.intensity = 0; liveWhites--; continue; }
+        l.obj.intensity = l.peak * (1 - EASE.drop(k));
+      }
+    }
+
     function takeQuad(list) {
       for (let i = 0; i < list.length; i++) if (!list[i].busy) { list[i].busy = true; list[i].obj.visible = true; return list[i]; }
       return null;
@@ -516,14 +726,23 @@
         const l = new THREE.PointLight(COLOR.brass, 0, 6);
         l.visible = true; l.intensity = 0;
         if (parent) guard(() => parent.add(l));
-        lights.push({ obj: l, busy: false });
+        lights.push({ obj: l, busy: false, start: null, peak: 0, dur: 1 });
       }
     }
-    function flashLight(x, y, z, peak, dur) {
-      const slot = lights.find((l) => !l.busy);
+    /* onWall: the contact light decays on wall time with the white flash, so
+       the hit-stop does not hold the slab at full glare for 150 ms. */
+    function flashLight(x, y, z, peak, dur, onWall) {
+      let slot = null;
+      for (let i = 0; i < lights.length; i++) if (!lights[i].busy) { slot = lights[i]; break; }
       if (!slot) return;
       slot.busy = true;
       slot.obj.position.set(x, y + 1.2, z);
+      if (onWall) {
+        slot.start = wallMs(); slot.peak = peak; slot.dur = dur; liveWhites++;
+        slot.obj.intensity = peak;
+        schedule();
+        return;
+      }
       startTrack(dur, EASE.drop, (k) => { slot.obj.intensity = peak * (1 - k); }, () => { slot.busy = false; slot.obj.intensity = 0; });
     }
 
@@ -713,19 +932,42 @@
     }
 
     /* Impact burst: 40 additive sprites, brass cooling to ember, thrown wide
-       along the strike direction. Contact, not damage: the number is fx.js's chip. */
+       along the strike direction. Contact, not damage: the number is fx.js's chip.
+       The hit-stop freezes the burst on the frame it spawns, so that frame is
+       drawn as a star: each sprite already 0.25–0.7 u out along its own
+       velocity (streaks further out), 3 in 10 stretched 3:1 along it, sizes
+       falling off by index so forty additive sprites never sum to a blob. */
+    const isStreak = (i) => i % BURST.streakEvery < BURST.streaks;
+    /* how far out a sprite starts (0..1 of near..far); dots near the core are small */
+    const burstSpread = (i, n) => ((i * 17) % n) / Math.max(1, n - 1);
+    const burstSize = (i, n) => (isStreak(i) ? 0.24 : 0.36 * (0.45 + 0.55 * burstSpread(i, n))) * (1 - 0.5 * (i / n));
+    const texFill = (t) => (t && t.userData && typeof t.userData.fill === 'number' ? t.userData.fill : 1);
     function burst(x, y, z, dir, want) {
       const n = budget(pools.burst, want);
+      /* the cap: summed opacity x area of the frozen frame, sizes scaled to fit */
+      let cover = 0;
+      for (let i = 0; i < n; i++) {
+        const sz = burstSize(i, n);
+        cover += BURST.frozenOpacity * sz * sz * (isStreak(i) ? BURST.stretch * texFill(STREAK_TEX) : texFill(DOT_TEX));
+      }
+      const fit = cover > BURST.cover ? Math.sqrt(BURST.cover / cover) : 1;
       for (let i = 0; i < n; i++) {
         const p = spawn(pools.burst);
         if (!p) break;
-        /* fast and wide: the sprites clear the contact point within 60 ms, so
-           forty additive sprites read as a spray, not as one white ball */
         const a = (i / n) * Math.PI * 2 + (i % 2) * 0.17, r = 4.5 + (i % 3) * 2.5;
-        p.life = MS.burst - (i % 4) * 40; p.g = -14; p.s0 = 0.42 + (i % 3) * 0.1; p.s1 = 0.06;
-        p.p0.set(x + Math.cos(a) * 0.35, y + 0.3 + (i % 2) * 0.15, z + Math.sin(a) * 0.35);
+        const streak = isStreak(i);
+        p.streak = streak;
+        p.life = MS.burst - (i % 4) * 40; p.g = -14;
+        p.s0 = burstSize(i, n) * fit; p.s1 = streak ? 0.04 : 0.05;
         p.v.set(Math.cos(a) * r + dir.x * 2.5, 2.5 + (i % 4) * 0.9, Math.sin(a) * r + dir.z * 2.5);
-        if (p.obj.material) tint(p.obj.material, COLOR.brass);
+        const spread = burstSpread(i, n);
+        const d = streak ? 0.45 + 0.25 * spread : BURST.near + (BURST.far - BURST.near) * spread;
+        p.p0.set(x, y, z).addScaledVector(p.v, d / (p.v.length() || 1));
+        const mat = p.obj.material;
+        if (mat) {
+          tint(mat, COLOR.brass); mat.opacity = BURST.frozenOpacity;
+          if (DOT_TEX && STREAK_TEX) mat.map = streak ? STREAK_TEX : DOT_TEX;
+        }
       }
     }
     /* Ember sparks: rising, from the burst pool, for a card that burns out. */
@@ -739,8 +981,26 @@
         p.life = MS.spark - (i % 3) * 120; p.g = 0.6; p.s0 = 0.22; p.s1 = 0.05;
         p.p0.set(x + Math.cos(a) * 0.45, y + 0.05 + (i % 2) * 0.2, z + Math.sin(a) * 0.45);
         p.v.set(Math.cos(a) * r, 1.4 + (i % 4) * 0.45, Math.sin(a) * r);
-        if (p.obj.material) tint(p.obj.material, COLOR.ember);
+        if (p.obj.material) { tint(p.obj.material, COLOR.ember); if (DOT_TEX) p.obj.material.map = DOT_TEX; }
       }
+    }
+
+    /* Where the star goes: up the attacker's face from the contact point,
+       toward its top edge (the face stands on the slab, so its lower half is
+       the table's). V.d, filled in place; also kept for stats(). */
+    const lastStar = { x: 0, y: 0, z: 0 };
+    function starCentre(uid, c) {
+      V.d.copy(c);
+      const e = entryOf(uid);
+      if (e && e.mesh.quaternion) {
+        const L = global.E1ArenaLayout;
+        const hgt = e.kind === 'token' ? (L && L.TOKEN ? L.TOKEN.height : 1.62) : (L && L.CARD ? L.CARD.height : 1.397);
+        const sc = typeof e.mesh.scale.y === 'number' ? e.mesh.scale.y : 1;
+        rotateInto(V.a, 0, hgt * 0.5 * BURST.lift * sc, 0.05, e.mesh.quaternion);
+        V.d.x += V.a.x; V.d.y = Math.max(0.05, V.d.y + V.a.y); V.d.z += V.a.z;
+      }
+      lastStar.x = V.d.x; lastStar.y = V.d.y; lastStar.z = V.d.z;
+      return V.d;
     }
 
     /* attack:strike — anticipation: 0.25 units back over 70 ms; lunge with
@@ -802,10 +1062,11 @@
         /* the timer's slot is free again: copy out before anything takes it */
         const c = V.c.copy(tr.a.p), dirAt = V.b.copy(tr.b.p), strength = tr.lift;
         squash(d.uid);
-        burst(c.x, c.y, c.z, dirAt, COUNT.burst);
-        pulseQuad(takeQuad(quads.white), c.x, c.y + 0.4, c.z, 0.9, 1.5, 0.9, MS.white, EASE.drop);
-        pulseQuad(takeQuad(quads.shock), c.x, 0.05, c.z, 0.4, 2.2, 0.9, MS.shock, EASE.snap);
-        flashLight(c.x, 0, c.z, 4, MS.light);
+        const star = starCentre(d.uid, c);
+        burst(star.x, star.y, star.z, dirAt, COUNT.burst);
+        whiteFlash(star.x, star.y, star.z);
+        pulseQuad(takeQuad(quads.shock), c.x, 0.05, c.z, 0.4, 2.2, 0.75, MS.shock, EASE.snap);
+        flashLight(c.x, 0, c.z, 4, MS.light, true);
         shake(strength, 180);
         if (d.targetUid != null) recoil(d.targetUid, dirAt);
         hitStop(MS.hitStop);
@@ -904,9 +1165,10 @@
 
     /* card:archive / avatar:decommission — burn-out first: the face flashes
        to ember over 90 ms (emissive on the card's own material; the mesh pops
-       4 %); then the mesh hides and 24 shard quads fly with gravity and spin
-       while 16 ember sparks rise; everything is freed by 800 ms. It comes
-       apart, it does not float away. Reduced: it is simply gone. */
+       4 %); then the mesh hides and 24 pieces of its own face (see shards())
+       fly with gravity and spin while 16 ember sparks rise; everything is
+       freed by 800 ms. It comes apart, it does not float away. Reduced: it is
+       simply gone. */
     function burnMaterial(e) {
       const part = e.parts && (e.parts.art || e.parts.front);
       const m = part && part.material;
@@ -930,22 +1192,92 @@
       }, () => {
         m.visible = false;
         if (mat) mat.emissiveIntensity = 0;
-        shards(m);
+        shards(m, e);
       }, d.uid);
     }
-    function shards(m) {
+    /* Where a shard's picture comes from: the part that shows the face (a
+       token's art window, a card's front — the back material on a face-down
+       card), the UV rectangle that part shows (a token's art crop) and its
+       size in the card's local units. Scratch; filled per shatter. */
+    const FACE = { map: null, color: 0xffffff, u0: 0, v0: 0, du: 1, dv: 1, w: 1, h: 1.397 };
+    function faceOf(e) {
+      const part = e.parts && (e.parts.art || e.parts.front);
+      const m = part && part.material;
+      const L = global.E1ArenaLayout;
+      const dims = e.kind === 'token' ? (L && L.TOKEN) || { width: 1.42, height: 1.62 } : (L && L.CARD) || { width: 1, height: 1.397 };
+      FACE.map = m && m.map && m.map !== PLACEHOLDER ? m.map : null;
+      FACE.color = FACE.map && m.color && isFn(m.color.getHex) ? m.color.getHex() : 0xffffff;
+      FACE.u0 = 0; FACE.v0 = 0; FACE.du = 1; FACE.dv = 1; FACE.w = dims.width; FACE.h = dims.height;
+      const attrs = part && part.geometry && part.geometry.attributes;
+      const uv = attrs && attrs.uv, pos = attrs && attrs.position;
+      if (uv && isFn(uv.getX) && uv.count > 0) {
+        let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+        for (let i = 0; i < uv.count; i++) {
+          const u = uv.getX(i), v = uv.getY(i);
+          if (u < a) a = u; if (u > c) c = u; if (v < b) b = v; if (v > d) d = v;
+        }
+        if (c > a && d > b) { FACE.u0 = clamp01(a); FACE.v0 = clamp01(b); FACE.du = clamp01(c) - FACE.u0; FACE.dv = clamp01(d) - FACE.v0; }
+      }
+      if (pos && isFn(pos.getX) && pos.count > 0) {
+        let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i), y = pos.getY(i);
+          if (x < a) a = x; if (x > c) c = x; if (y < b) b = y; if (y > d) d = y;
+        }
+        if (c > a && d > b) { FACE.w = c - a; FACE.h = d - b; }
+      }
+      return FACE;
+    }
+    /* Map a shard's UV template onto a rectangle of the texture, in place. */
+    function cropShard(p, u0, v0, du, dv) {
+      const g = p.obj.geometry, uv = g && g.attributes && g.attributes.uv, t = p.tpl;
+      if (!uv || !t || !isFn(uv.setXY)) return;
+      for (let j = 0; j < uv.count; j++) uv.setXY(j, u0 + t[2 * j] * du, v0 + t[2 * j + 1] * dv);
+      uv.needsUpdate = true;
+    }
+    let shatterSeed = 0;
+    /* The card comes apart into pieces of itself: a jittered 4 × 6 grid over
+       the face, each piece a 0.2–0.35 crop centred on its cell, starting where
+       that part of the card was (so frame 0 is still the card), thrown out
+       from the centre and up, spinning. */
+    function shards(m, e) {
       const n = budget(pools.shards, COUNT.shards);
       const x = m.position.x, y = Math.max(0.05, m.position.y), z = m.position.z;
+      const f = faceOf(e), sc = m.scale && typeof m.scale.x === 'number' ? m.scale.x : 1;
+      const cells = SHARD.cols * SHARD.rows, seed = (++shatterSeed) * 977;
       for (let i = 0; i < n; i++) {
         const p = spawn(pools.shards);
         if (!p) break;
-        const a = (i / n) * Math.PI * 2 + 0.3, r = 0.9 + (i % 3) * 0.6;
-        p.life = MS.shatter - (i % 3) * 60; p.g = GRAVITY; p.s0 = 1; p.s1 = 0.7; p.spin = (i % 2 ? 1 : -1) * (4 + (i % 3));
-        p.p0.set(x + Math.cos(a) * 0.32, y + 0.1 + (i % 4) * 0.1, z + Math.sin(a) * 0.32);
-        p.v.set(Math.cos(a) * r, 2.4 + (i % 3) * 0.6, Math.sin(a) * r);
-        p.axis.set(Math.cos(a + 1.2), 0.4, Math.sin(a + 1.2)).normalize();
+        const h = seed + i * 131;
+        /* 7 is coprime with 24: a cut shatter still spreads over the whole face */
+        const cell = (i * 7) % cells, col = cell % SHARD.cols, row = (cell / SHARD.cols) | 0;
+        const du = SHARD.cropMin + (SHARD.cropMax - SHARD.cropMin) * hash01(h + 1);
+        const dv = SHARD.cropMin + (SHARD.cropMax - SHARD.cropMin) * hash01(h + 2);
+        const uc = (col + 0.5 + (hash01(h + 3) - 0.5) * 0.6) / SHARD.cols, vc = (row + 0.5 + (hash01(h + 4) - 0.5) * 0.6) / SHARD.rows;
+        const u0 = Math.min(Math.max(0, uc - du / 2), 1 - du), v0 = Math.min(Math.max(0, vc - dv / 2), 1 - dv);
+        cropShard(p, f.u0 + u0 * f.du, f.v0 + v0 * f.dv, du * f.du, dv * f.dv);
+        const mat = p.obj.material;
+        if (mat) {
+          if (PLACEHOLDER && 'map' in mat) mat.map = f.map || PLACEHOLDER;
+          tint(mat, f.map ? f.color : SHARD.steel);
+          mat.emissiveIntensity = SHARD.ember;
+          mat.opacity = 1;
+        }
+        /* the piece keeps the picture's proportions; its longer side is 0.3–0.55 u */
+        const pw = du * f.w, ph = dv * f.h, size = SHARD.sizeMin + (SHARD.sizeMax - SHARD.sizeMin) * hash01(h + 5);
+        const k = size / Math.max(pw, ph);
+        p.s0 = pw * k; p.ay = ph / pw; p.s1 = p.s0 * 0.75;
+        /* where that part of the card was, in world space */
+        rotateInto(V.a, (u0 + du / 2 - 0.5) * f.w * sc, (v0 + dv / 2 - 0.5) * f.h * sc, 0.02, m.quaternion);
+        p.p0.set(x + V.a.x, Math.max(0.05, y + V.a.y), z + V.a.z);
+        let hx = V.a.x, hz = V.a.z;
+        const hl = Math.hypot(hx, hz);
+        if (hl < 1e-3) { const a = (i / n) * Math.PI * 2; hx = Math.cos(a); hz = Math.sin(a); } else { hx /= hl; hz /= hl; }
+        const speed = 0.9 + 1.5 * hash01(h + 6);
+        p.life = MS.shatter - (i % 3) * 60; p.g = GRAVITY; p.spin = (i % 2 ? 1 : -1) * (3.5 + 3 * hash01(h + 7));
+        p.v.set(hx * speed, 2.2 + 1.3 * hash01(h + 8), hz * speed);
+        p.axis.set(hz + (hash01(h + 9) - 0.5), 0.5, -hx + (hash01(h + 10) - 0.5)).normalize();
         p.q0.copy(m.quaternion);
-        p.obj.material.opacity = 1;
       }
       sparks(x, y, z, COUNT.sparks);
     }
@@ -1007,6 +1339,16 @@
 
     for (let i = 0; i < NOOP.length; i++) CUES[NOOP[i]] = null;
 
+    /* The first death would otherwise compile the shard program mid-shatter
+       (~140 ms on ANGLE). Last thing in attach: the program key counts the
+       scene's lights, and the fx's own two point lights are in it by now. */
+    guard(() => {
+      const r = world.renderer, cam = world.camera;
+      if (!r || !cam || !world.scene || !isFn(r.compileAsync)) return;
+      r.compileAsync(pools.shards[0].obj, cam, world.scene).catch(() => {});
+      r.compileAsync(pools.burst[0].obj, cam, world.scene).catch(() => {});
+    });
+
     /* ------------------------------------------------------------------ *
      * 2e · public surface                                                *
      * ------------------------------------------------------------------ */
@@ -1038,17 +1380,20 @@
       }
       liveParticles = 0;
       const singles = [sweep, edge, slabGlow].concat(quads.ring, quads.shock, quads.white, quads.flash, quads.decal);
-      for (let i = 0; i < singles.length; i++) { giveQuad(singles[i]); unmount(singles[i].obj); }
-      for (let i = 0; i < lights.length; i++) { lights[i].busy = false; lights[i].obj.intensity = 0; unmount(lights[i].obj); }
+      for (let i = 0; i < singles.length; i++) { singles[i].start = null; giveQuad(singles[i]); unmount(singles[i].obj); }
+      liveWhites = 0;
+      for (let i = 0; i < lights.length; i++) { lights[i].busy = false; lights[i].start = null; lights[i].obj.intensity = 0; unmount(lights[i].obj); }
       for (let i = 0; i < created.materials.length; i++) guard(() => created.materials[i].dispose && created.materials[i].dispose());
       for (let i = 0; i < created.geometries.length; i++) guard(() => created.geometries[i].dispose && created.geometries[i].dispose());
-      created.materials.length = 0; created.geometries.length = 0;
+      for (let i = 0; i < createdTextures.length; i++) guard(() => createdTextures[i].dispose && createdTextures[i].dispose());
+      created.materials.length = 0; created.geometries.length = 0; createdTextures.length = 0;
     }
 
     function stats() {
       let free = 0, total = 0;
       for (let j = 0; j < ALL_POOLS.length; j++) for (let i = 0; i < ALL_POOLS[j].length; i++) { total++; if (!ALL_POOLS[j][i].active) free++; }
-      return { tracks: activeTracks, particles: liveParticles, poolFree: free, poolTotal: total, frozen, time: T, disposed };
+      return { tracks: activeTracks, particles: liveParticles, poolFree: free, poolTotal: total, frozen, time: T, disposed,
+        star: [lastStar.x, lastStar.y, lastStar.z] };
     }
 
     return {
@@ -1067,5 +1412,5 @@
       frozen: false, time: 0, version: VERSION, cues: [] };
   }
 
-  global.E1Arena3DFx = Object.freeze({ attach, shim, VERSION, MS, COUNT, POOL, NOOP });
+  global.E1Arena3DFx = Object.freeze({ attach, shim, VERSION, MS, COUNT, POOL, NOOP, BURST, SHARD });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

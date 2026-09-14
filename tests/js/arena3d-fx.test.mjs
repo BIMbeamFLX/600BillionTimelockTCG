@@ -73,23 +73,59 @@ class Object3D {
   remove(o) { const i = this.children.indexOf(o); if (i >= 0) this.children.splice(i, 1); o.parent = null; return this; }
 }
 class Group extends Object3D {}
+/* Every geometry, material and texture ever constructed: the pools are built
+   at attach, so a cue must never move these counters. */
+const made = { geometry: 0, material: 0, texture: 0 };
+class Color {
+  constructor(hex = 0) { this.hex = hex; }
+  setHex(h) { this.hex = h; return this; }
+  getHex() { return this.hex; }
+}
 class Material {
-  constructor() { this.opacity = 1; this.transparent = false; this.color = { hex: 0, setHex(h) { this.hex = h; } }; this.disposed = false; }
+  constructor() { made.material++; this.opacity = 1; this.transparent = false; this.color = new Color(); this.disposed = false; this.version = 0; }
+  /* like THREE: needsUpdate = true bumps the version, which recompiles the program */
+  set needsUpdate(v) { if (v) this.version++; }
+  setValues(p = {}) {
+    for (const [k, v] of Object.entries(p)) {
+      if (this[k] instanceof Color && typeof v === "number") this[k].setHex(v); else this[k] = v;
+    }
+  }
   clone() { const m = new this.constructor(); m.color.hex = this.color.hex; return m; }
   dispose() { this.disposed = true; }
 }
-class SpriteMaterial extends Material { constructor() { super(); this.isSpriteMaterial = true; } }
+class SpriteMaterial extends Material { constructor() { super(); this.isSpriteMaterial = true; this.rotation = 0; } }
 class MeshBasicMaterial extends Material {}
-class Geometry { constructor() { this.disposed = false; } dispose() { this.disposed = true; } }
+class MeshStandardMaterial extends Material {
+  constructor(p) {
+    super();
+    this.isMeshStandardMaterial = true; this.map = null; this.emissive = new Color(); this.emissiveIntensity = 1; this.emissiveMap = null;
+    this.setValues(p);
+  }
+}
+class Texture { constructor() { made.texture++; this.channel = 0; this.disposed = false; } dispose() { this.disposed = true; } }
+class DataTexture extends Texture { constructor(data, width, height) { super(); this.image = { data, width, height }; } }
+class Geometry { constructor() { made.geometry++; this.disposed = false; } dispose() { this.disposed = true; } }
 class PlaneGeometry extends Geometry {}
 class RingGeometry extends Geometry {}
+class BufferAttribute {
+  constructor(array, itemSize) { this.array = array; this.itemSize = itemSize; this.count = array.length / itemSize; this.needsUpdate = false; }
+  getX(i) { return this.array[i * this.itemSize]; }
+  getY(i) { return this.array[i * this.itemSize + 1]; }
+  setXY(i, x, y) { this.array[i * this.itemSize] = x; this.array[i * this.itemSize + 1] = y; return this; }
+}
+class BufferGeometry extends Geometry {
+  constructor() { super(); this.attributes = {}; this.index = null; }
+  setAttribute(name, attr) { this.attributes[name] = attr; return this; }
+  setIndex(index) { this.index = index; return this; }
+}
 class Sprite extends Object3D { constructor(material) { super(); this.material = material; } }
 class Mesh extends Object3D { constructor(geometry, material) { super(); this.geometry = geometry; this.material = material; } }
 class PointLight extends Object3D { constructor(color, intensity, distance) { super(); this.color = color; this.intensity = intensity; this.distance = distance; } }
 
 const THREE = {
-  Vector3, Quaternion, Object3D, Group, Sprite, Mesh, SpriteMaterial, MeshBasicMaterial,
-  PlaneGeometry, RingGeometry, PointLight, AdditiveBlending: 2, DoubleSide: 2
+  Vector3, Quaternion, Object3D, Group, Sprite, Mesh, SpriteMaterial, MeshBasicMaterial, MeshStandardMaterial,
+  PlaneGeometry, RingGeometry, BufferGeometry, BufferAttribute, Texture, DataTexture, PointLight,
+  AdditiveBlending: 2, DoubleSide: 2, LinearFilter: 1006, SRGBColorSpace: "srgb"
 };
 
 /* ---------------------------------------------------------------------- *
@@ -335,6 +371,234 @@ test("shatter burns out for 90 ms, then hides the mesh and frees 24 shards + 16 
   assert.equal(h.fxGroup.children.filter((o) => o.visible && o.material).length, 0);
 });
 
+/* A token's art window: a plane whose UVs show only the art crop of the face. */
+function artPart(crop, map, w = 1.18, h = 1.38) {
+  const g = new BufferGeometry();
+  const [u0, v0, u1, v1] = crop;
+  g.setAttribute("position", new BufferAttribute(new Float32Array([-w / 2, -h / 2, 0, w / 2, -h / 2, 0, w / 2, h / 2, 0, -w / 2, h / 2, 0]), 3));
+  g.setAttribute("uv", new BufferAttribute(new Float32Array([u0, v0, u1, v0, u1, v1, u0, v1]), 2));
+  return new Mesh(g, new MeshStandardMaterial({ map, color: 0xffffff }));
+}
+function uvRect(mesh) {
+  const uv = mesh.geometry.attributes.uv;
+  let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+  for (let i = 0; i < uv.count; i++) {
+    a = Math.min(a, uv.getX(i)); c = Math.max(c, uv.getX(i)); b = Math.min(b, uv.getY(i)); d = Math.max(d, uv.getY(i));
+  }
+  return [a, b, c, d];
+}
+const liveShards = (h) => h.fxGroup.children.filter((o) => o.visible && o.geometry && o.geometry.attributes && o.geometry.attributes.uv);
+
+test("death shards are pieces of the dying card: each a distinct crop of its own art, an ember rim that cools", () => {
+  const h = fixture();
+  const face = new Texture();
+  const crop = [0.2, 0.1, 0.8, 0.7];
+  h.reg.get("T").parts = { art: artPart(crop, face) };
+  h.fx.cue("avatar:decommission", { uid: "T" });
+  h.step(90);
+  const up = liveShards(h);
+  assert.equal(up.length, h.FX.COUNT.shards, "24 shards, each with its own geometry");
+  assert.equal(new Set(up.map((o) => o.geometry)).size, 24, "no shared shard geometry");
+  const rects = up.map(uvRect);
+  assert.equal(new Set(rects.map((r) => r.map((v) => v.toFixed(4)).join())).size, 24, "every shard shows a different crop");
+  const cw = crop[2] - crop[0], ch = crop[3] - crop[1];
+  for (const [a, b, c, d] of rects) {
+    assert.ok(a >= crop[0] - 1e-6 && c <= crop[2] + 1e-6 && b >= crop[1] - 1e-6 && d <= crop[3] + 1e-6, "inside the token's art crop, so inside [0,1]");
+    const fu = (c - a) / cw, fv = (d - b) / ch;
+    assert.ok(fu > 0.14 && fu <= 0.35 + 1e-6 && fv > 0.14 && fv <= 0.35 + 1e-6, "a 0.2-0.35 piece of the face (" + fu.toFixed(3) + ", " + fv.toFixed(3) + ")");
+  }
+  const cu = rects.map(([a, , c]) => ((a + c) / 2 - crop[0]) / cw), cv = rects.map(([, b, , d]) => ((b + d) / 2 - crop[1]) / ch);
+  assert.ok(Math.min(...cu) < 0.3 && Math.max(...cu) > 0.7 && Math.min(...cv) < 0.3 && Math.max(...cv) > 0.7, "the pieces cover the whole face");
+  for (const o of up) {
+    const m = o.material;
+    assert.equal(m.map, face, "the real face texture, not the placeholder");
+    assert.equal(m.color.hex, 0xffffff, "the face's own tint");
+    assert.equal(m.emissive.hex, 0xff6a00, "ember");
+    assert.ok(Math.abs(m.emissiveIntensity - 0.35) < 1e-9, "the rim starts at 0.35");
+    assert.equal(m.emissiveMap && m.emissiveMap.channel, 1, "the ember is a rim: an emissive ramp on the second UV set");
+    assert.equal(m.side, 2, "double sided");
+    assert.equal(m.isMeshStandardMaterial, true, "lit by the slab");
+    assert.equal(m.version, 0, "swapping the map never flagged a recompile");
+    const size = Math.max(o.scale.x, o.scale.y);
+    assert.ok(size >= 0.3 - 1e-9 && size <= 0.55 + 1e-9, "0.3-0.55 u across (" + size.toFixed(3) + ")");
+    assert.ok(o.position.distanceTo(h.target.position) < 0.9, "frame 0 is still the card: the piece starts where it was");
+  }
+  h.step(350);
+  const mid = liveShards(h).map((o) => o.material.emissiveIntensity);
+  assert.ok(mid.length > 0 && mid.every((e) => e > 0 && e < 0.35), "the rim cools over the flight");
+  h.step(370); /* 810 ms after the cue */
+  assert.equal(h.fx.stats().particles, 0, "freed by 800 ms");
+  assert.equal(liveShards(h).length, 0);
+  for (const o of up) {
+    assert.notEqual(o.material.map, face, "a released shard lets go of the face texture");
+    assert.equal(o.material.emissiveIntensity, 0);
+  }
+});
+
+test("a face-down card breaks into pieces of its back; a face not loaded yet breaks into steel, never cream", () => {
+  const h = fixture();
+  const back = new Texture();
+  h.reg.get("T").parts = { front: new Mesh(new PlaneGeometry(), new MeshStandardMaterial({ map: back, color: 0xb8b8b8 })) };
+  h.reg.get("A").parts = { front: new Mesh(new PlaneGeometry(), new MeshStandardMaterial({ color: 0x3a3742 })) };
+  h.fx.cue("card:archive", { uid: "T" });
+  h.step(90);
+  let up = liveShards(h);
+  assert.equal(up.length, 24);
+  for (const o of up) {
+    assert.equal(o.material.map, back, "the back texture");
+    assert.equal(o.material.color.hex, 0xb8b8b8, "tinted like the back");
+    const [a, b, c, d] = uvRect(o);
+    assert.ok(a >= 0 && b >= 0 && c <= 1 && d <= 1);
+  }
+  h.step(800);
+  assert.equal(h.fx.stats().particles, 0);
+  h.fx.cue("avatar:decommission", { uid: "A" });
+  h.step(90);
+  up = liveShards(h);
+  assert.equal(up.length, 24);
+  for (const o of up) {
+    const m = o.material;
+    assert.ok(m.map && m.map !== back && m.map.image.width === 1 && m.map.image.height === 1, "the 1x1 placeholder, so the program is the same");
+    assert.equal(m.color.hex, 0x2b2a33, "steel-dark");
+    assert.notEqual(m.color.hex, 0xfff7ec, "never cream");
+  }
+});
+
+test("no cue creates a geometry, a material or a texture: everything is pooled at attach", () => {
+  const h = fixture();
+  const face = new Texture();
+  h.reg.get("T").parts = { art: artPart([0.1, 0.1, 0.9, 0.9], face) };
+  h.addCard("Q", "queue", 0, 0.86, 0.1, "queue");
+  h.addCard("H2", "youHand", 1, 0.42, 5.5);
+  const before = { ...made };
+  const versions = h.fxGroup.children.filter((o) => o.material).map((o) => o.material.version);
+  h.fx.cue("attack:strike", { seat: 0, uid: "A", targetUid: "T", amount: 3 });
+  h.fx.cue("damage:avatar", { uid: "T", amount: 3 });
+  h.fx.cue("card:play", { seat: 0, uid: "Q" });
+  h.fx.cue("card:draw", { seat: 0, uid: "H2" });
+  for (let t = 0; t < 600; t += 16) h.step(16);
+  h.fx.cue("avatar:decommission", { uid: "T" });
+  h.fx.cue("card:archive", { uid: "H" });
+  h.fx.cue("turn:begin", { seat: 1, mine: false });
+  for (let t = 0; t < 1200; t += 16) h.step(16);
+  assert.deepEqual({ ...made }, before, "constructor counts unchanged after attach");
+  assert.deepEqual(h.fxGroup.children.filter((o) => o.material).map((o) => o.material.version), versions, "no material was flagged for a recompile");
+  assert.equal(h.fx.stats().particles, 0);
+});
+
+test("the hit-stop frame is an impact star: a spread burst at 0.55, 30 % streaks along their velocity, a 40 ms flash", () => {
+  const h = fixture();
+  h.arena.world.camera = { aspect: 1 };
+  Vector3.prototype.project = function () { return this.set(this.x / 10, -this.z / 10, 0); }; /* straight down */
+  try {
+    h.fx.cue("attack:strike", { seat: 0, uid: "A", targetUid: "T", amount: 3 });
+    h.step(150);
+    assert.equal(h.fx.frozen, true);
+    /* the contact point is 85 % of the way; the star sits up the attacker's face from it */
+    const contact = new Vector3(1, 0.05, 1.95 - 0.85 * 3.9);
+    const c = new Vector3(...h.fx.stats().star);
+    assert.ok(Math.abs(c.x - contact.x) < 1e-9 && Math.abs(c.z - (contact.z + 0.05)) < 1e-9, "above the contact point");
+    assert.ok(Math.abs(c.y - (contact.y + 1.62 * 0.5 * h.FX.BURST.lift * h.attacker.scale.y)) < 1e-9, "toward the attacker's top edge (squashed face)");
+    const burst = () => h.fxGroup.children.filter((o) => o.visible && !o.geometry && o.material && o.material.color.hex === 0xf3c244);
+    const white = () => h.fxGroup.children.filter((o) => o.visible && !o.geometry && o.material && o.material.color.hex === 0xfff7ec);
+    const sprites = burst();
+    assert.equal(sprites.length, 40);
+    for (const s of sprites) {
+      const d = s.position.distanceTo(c);
+      assert.ok(d >= 0.25 - 1e-9 && d <= 0.7 + 1e-6, "spawned spread along its velocity: " + d.toFixed(3) + " u from contact");
+      assert.ok(Math.abs(s.material.opacity - 0.55) < 1e-9, "0.55 while frozen");
+    }
+    const streaks = sprites.filter((s) => Math.abs(s.scale.x / s.scale.y - 3) < 1e-6);
+    assert.equal(streaks.length, 12, "30 % of the burst are 3:1 streaks");
+    for (const s of streaks) {
+      const want = Math.atan2(-(s.position.z - c.z), s.position.x - c.x);
+      const diff = Math.abs(Math.atan2(Math.sin(s.material.rotation - want), Math.cos(s.material.rotation - want)));
+      assert.ok(diff < 1e-6, "a streak lies along its own velocity on screen");
+    }
+    const round = sprites.filter((x) => !streaks.includes(x));
+    for (const s of round) assert.equal(s.material.rotation, 0, "round sprites are not rotated");
+    assert.equal(white().length, 1, "one white flash at contact");
+    const flash = white()[0];
+    assert.ok(flash.position.distanceTo(c) < 1e-9, "the flash is the star's core");
+    assert.ok(sprites.every((s) => s.material.depthTest === false) && flash.material.depthTest === false, "the impact draws over the cards that meet in it");
+    /* light, not quads: opacity x area x the texture's mean alpha */
+    const fill = (m) => (m.map && m.map.userData && typeof m.map.userData.fill === "number" ? m.map.userData.fill : 1);
+    const flashCover = flash.material.opacity * flash.scale.x * flash.scale.y * fill(flash.material);
+    const cover = sprites.map((s) => s.material.opacity * s.scale.x * s.scale.y * fill(s.material));
+    const streakMap = streaks[0].material.map;
+    assert.ok(streakMap && streakMap.image.width > streakMap.image.height, "streaks wear a tapered line texture, long along x");
+    assert.ok(streaks.every((s) => s.material.map === streakMap), "every streak the same texture");
+    assert.ok(sprites.filter((x) => !streaks.includes(x)).every((s) => s.material.map && s.material.map !== streakMap), "round sprites a dot");
+    assert.ok(cover.reduce((a, b) => a + b, 0) <= h.FX.BURST.cover + 1e-9, "the burst's summed additive coverage is capped");
+    assert.ok(cover.every((v) => v < flashCover / 8), "no burst sprite competes with the white flash");
+    /* size falls off by index (and dots near the core are smaller): the later half is smaller */
+    const half = (list, from, to) => list.slice(from, to).reduce((sum, x) => sum + x.scale.x, 0) / (to - from);
+    assert.ok(half(round, 14, 28) < half(round, 0, 14) * 0.85, "sizes fall off by index");
+    assert.ok(half(streaks, 6, 12) < half(streaks, 0, 6) * 0.85, "streaks too");
+    const coreDots = round.filter((x) => x.position.distanceTo(c) < 0.4), outerDots = round.filter((x) => x.position.distanceTo(c) > 0.55);
+    assert.ok(coreDots.length && outerDots.length && half(coreDots, 0, coreDots.length) < half(outerDots, 0, outerDots.length), "dots near the core are smaller than the outer ones");
+    assert.ok(h.fxGroup.children.some((o) => o.visible && o.geometry instanceof RingGeometry), "the shock ring stays");
+
+    const light = () => Math.max(...h.fxGroup.children.filter((o) => o instanceof PointLight).map((l) => l.intensity));
+    assert.equal(light(), 4, "the contact light flashes");
+    const pos = () => burst().map((s) => [s.position.x, s.position.y, s.position.z]);
+    const frozenAt = pos();
+    h.step(50); /* wall 200: still frozen, the flash is over */
+    assert.equal(h.fx.frozen, true);
+    assert.ok(light() > 0 && light() < 3.6, "the light decays on wall time through the hit-stop (" + light().toFixed(2) + ")");
+    assert.equal(white().length, 0, "the white flash lives 40 ms of wall time, inside the hit-stop");
+    assert.deepEqual(pos(), frozenAt, "the star holds still");
+    assert.ok(burst().every((s) => Math.abs(s.material.opacity - 0.55) < 1e-9));
+    h.step(100); /* thaw */
+    assert.equal(h.fx.frozen, false);
+    assert.ok(light() > 0 && light() < 1.5, "still dimming at the thaw");
+    h.step(16);
+    assert.ok(burst().every((s) => s.material.opacity > 0.55 && s.material.opacity < 0.9), "rising on the thaw");
+    h.step(24);
+    assert.ok(burst().every((s) => Math.abs(s.material.opacity - 0.9) < 1e-9), "0.9 at 40 ms after the thaw");
+    assert.equal(light(), 0, "the light is out 180 ms after contact");
+    assert.ok(burst().every((s) => s.position.distanceTo(c) > 0.25), "and flying out");
+    h.step(420);
+    assert.equal(burst().length, 0, "the burst is gone by its old deadline");
+    h.step(400);
+    assert.equal(h.fx.stats().particles, 0);
+    assert.equal(h.fx.animating(), false);
+  } finally {
+    delete Vector3.prototype.project;
+  }
+});
+
+test("under R1's freezing clock the white flash still ends 40 ms after contact", () => {
+  const h = harness();
+  const clock = {
+    time: 0, delta: 0, frozenUntil: 0, _last: null,
+    freeze(ms) { this.frozenUntil = Math.max(this.frozenUntil, (this._last || 0) + ms); },
+    advance(now) {
+      const last = this._last == null ? now : this._last; this._last = now;
+      if (now < this.frozenUntil) { this.delta = 0; return 0; }
+      this.delta = (now - last) / 1000; this.time += this.delta; return this.delta;
+    }
+  };
+  h.arena.world.clock = clock;
+  const fx = h.FX.attach(h.arena);
+  h.addCard("A", "youNetwork", 1, 0.05, 1.95, "token"); h.addCard("T", "foeNetwork", 1, 0.05, -1.95, "token");
+  let now = 0;
+  const frame = (ms) => { now += ms; clock.advance(now); fx.tick(clock.delta, clock.time); };
+  frame(16);
+  fx.cue("attack:strike", { seat: 0, uid: "A", targetUid: "T" });
+  const white = () => h.fxGroup.children.filter((o) => o.visible && !o.geometry && o.material && o.material.color.hex === 0xfff7ec);
+  let contact = null;
+  for (let t = 0; t < 200 && contact == null; t += 16) { frame(16); if (fx.frozen) contact = now; }
+  assert.ok(contact != null, "contact froze the clock");
+  assert.equal(white().length, 1, "the flash is up at contact");
+  frame(48); /* 48 ms after contact, the clock is still frozen */
+  assert.equal(fx.frozen, true);
+  assert.equal(white().length, 0, "the flash is over while the clock is still frozen");
+  for (let t = 0; t < 1400; t += 16) frame(16);
+  assert.equal(fx.animating(), false);
+  fx.dispose();
+});
+
 test("card:play flies from the hand in an arc, flips from the fan's pitch, grows at the apex, slams, 18 dust sprites", () => {
   const h = fixture();
   h.addCard("Q", "queue", 0, 0.86, 0.1, "queue");
@@ -430,6 +694,7 @@ test("reduced motion cuts to the same final positions with zero particles and no
   run(full); run(cut);
   /* reduced: already at rest before any frame */
   assert.equal(cut.fx.stats().particles, 0);
+  assert.equal(cut.fxGroup.children.filter((o) => o.visible && o.material).length, 0, "no shard, burst sprite or flash is up");
   assert.equal(cut.calls.shake.length, 0);
   assert.equal(cut.calls.push.length, 0);
   assert.equal(cut.clock.pauses, 0);
