@@ -326,7 +326,6 @@ function stubElement(id) {
   const node = {
     id, hidden: false, textContent: "", value: "", className: "", innerHTML: "",
     disabled: false, dataset: {}, children: [], style, listeners: {}, attributes: {},
-    classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
     addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); },
     removeEventListener() {},
     setAttribute(name, value) { this.attributes[name] = String(value); },
@@ -351,6 +350,25 @@ function stubElement(id) {
       this._parent = null;
     },
     click() { for (const fn of this.listeners.click || []) fn({ preventDefault() {} }); },
+  };
+  /* Backed by className, the way a browser's is: play.js writes its state
+   * classes (targetable, canplay, committed ...) through classList and the 3D
+   * table reads them back off the node, so the stub has to keep them. */
+  const classes = () => String(node.className || "").split(/\s+/).filter(Boolean);
+  const write = (list) => { node.className = list.join(" "); };
+  node.classList = {
+    add(...names) {
+      const list = classes();
+      for (const name of names) if (name && list.indexOf(name) < 0) list.push(name);
+      write(list);
+    },
+    remove(...names) { write(classes().filter((name) => names.indexOf(name) < 0)); },
+    toggle(name, force) {
+      const on = force === undefined ? !this.contains(name) : Boolean(force);
+      if (on) this.add(name); else this.remove(name);
+      return on;
+    },
+    contains: (name) => classes().indexOf(name) >= 0,
   };
   return node;
 }
@@ -1499,11 +1517,9 @@ test("the Network's two rails are drawn, and cards stay direct children", () => 
   /* THE LOAD-BEARING ASSERTION. The rails are CSS `order` plus one break
    * element specifically so cards stay direct children; nesting them would make
    * every card invisible to this very helper — silently, since a missing node
-   * reads as "not played yet" rather than as a layout change. The rail CLASS
-   * itself cannot be checked here (this harness's classList is a no-op, so
-   * classList.add leaves className untouched); that was verified in a real
-   * browser instead, where the Resource carries `netres`. */
+   * reads as "not played yet" rather than as a layout change. */
   assert.ok(plant, "a Resource must be findable as a DIRECT child of the Network");
+  assert.match(plant.className, /(?:^|\s)netres(?:\s|$)/, "and it sits on the back rail");
   assert.equal(plant.dataset.uid, game.state.zones["0:network"][0], "and it is the card the engine put there");
   assert.ok(game.state.zones["0:network"].length >= 1);
 });
@@ -1678,4 +1694,271 @@ test("the hand-limit discard is the player's choice, and End turn waits for it",
   assert.equal(game.state.zones["0:wallet"].length, 7);
   assert.equal(game.state.zones["0:wallet"].includes(chosen), false, "the chosen card left the hand");
   assert.equal(game.state.objects[chosen], undefined, "and was archived under a new uid");
+});
+
+/* ------------------------------------------------------------- the 3D table
+ *
+ * site/arena3d.js is a WebGL scene and cannot run here. What CAN be pinned is
+ * the contract play.js keeps with it (docs/arena3d.md): the arena is created
+ * only when asked for, synced after every render with the card nodes bound by
+ * uid, told every cue fx.js gets in the same pass, told which cards glow, and
+ * dropped for the classic table the moment it cannot be built. A fake arena
+ * records those calls. */
+function fakeArena() {
+  const calls = { sync: [], setState: [], hover: [], cue: [], disposed: 0 };
+  return {
+    calls,
+    sync: (view, seat, bind) => calls.sync.push({ view, seat, bind }),
+    setState: (uid, state) => calls.setState.push({ uid, state }),
+    hover: (uid) => calls.hover.push(uid),
+    fx: { cue: (name, detail) => calls.cue.push({ name, detail }) },
+    dispose: () => { calls.disposed += 1; },
+    rectOf: () => null,
+  };
+}
+
+/* play.js under a fake E1Arena3D. `search` is the page's query string; the
+ * arena scripts answer supported() with yes, and create() is recorded (or made
+ * to throw). The stub document answers querySelectorAll with nothing, and the
+ * arena is bound through exactly that call -- so this walks the zones the way
+ * the real DOM would, gcard nodes only, `[data-uid]` honoured. */
+function loadPlayWith3D(t, search, options) {
+  const created = [];
+  const store = new Map(Object.entries((options && options.storage) || {}));
+  globalThis.localStorage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
+  };
+  globalThis.E1Arena3D = {
+    supported: () => true,
+    create: (opts) => {
+      if (options && options.createThrows) throw new Error("no WebGL2 context");
+      const arena = fakeArena();
+      arena.opts = opts;
+      created.push(arena);
+      return arena;
+    },
+  };
+  globalThis.THREE = { REVISION: "186" };
+  globalThis.location = { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/play.html", search };
+  t.after(() => { delete globalThis.E1Arena3D; delete globalThis.THREE; });
+  const loaded = loadPlay(netStub(), { emit() {}, get: () => ({ motionActive: "full" }) });
+  const zones = ["youHand", "youNetwork", "foeHand", "foeNetwork", "queue"];
+  globalThis.document.querySelectorAll = (selector) => {
+    const wanted = Array.from(String(selector).matchAll(/\.([\w-]+)/g), (m) => m[1]);
+    const out = [];
+    for (const id of zones) {
+      for (const kid of loaded.byId(id).children) {
+        if (!kid || typeof kid !== "object") continue;
+        const classes = String(kid.className || "").split(/\s+/);
+        if (classes.indexOf("gcard") < 0 || !wanted.every((name) => classes.indexOf(name) >= 0)) continue;
+        if (/data-uid/.test(selector) && !kid.dataset.uid) continue;
+        out.push(kid);
+      }
+    }
+    return out;
+  };
+  return Object.assign(loaded, { created, store });
+}
+
+const fire = (node, type, event) => { for (const fn of node.listeners[type] || []) fn(event || {}); };
+
+test("the 3D table is created on demand, synced every frame, told every cue and every glow", (t) => {
+  const { byId, game, created } = loadPlayWith3D(t, "?arena=3d");
+  assert.equal(created.length, 0, "no arena before there is a table to draw");
+  assert.equal(byId("arenaTable").value, "3d", "the controls say what the link asked for");
+  assert.equal(byId("arenaSetup").value, "3d");
+
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+  assert.ok(game.state, "the hotseat game must start");
+  assert.equal(created.length, 1, "one arena, mounted by the first render of the table");
+  const arena = created[0];
+  assert.equal(game.arena, arena, "E1_GAME.arena exposes it for the proof");
+  assert.equal(game.arenaMode, "3d");
+  assert.equal(arena.opts.host, byId("board"), "mounted on the board");
+  assert.equal(arena.opts.THREE, globalThis.THREE);
+  assert.equal(typeof arena.opts.faces.urlFor, "function");
+  assert.match(String(arena.opts.back), /600B-Timelock-card-back/, "the card back goes through the face path");
+  assert.equal(arena.opts.plates.Power, "../art/world-plates/power.png");
+  assert.equal(typeof arena.opts.reduced, "function");
+  assert.equal(typeof arena.opts.onLost, "function");
+  assert.equal(arena.opts.stats, false, "no diagnostics chip unless the link asks for one");
+  assert.equal(arena.opts.quality, "auto");
+  assert.match(byId("board").className, /(?:^|\s)arena3d(?:\s|$)/, "the board wears the 3D class");
+
+  /* urlFor answers with the repo file here (no E1Faces), for a card, an id or an object. */
+  const zap = globalThis.E1_CARDS.find((card) => card.name === "Zap");
+  assert.equal(arena.opts.faces.urlFor(zap), "../art/cards/node-runner-web/" + encodeURIComponent(zap.face));
+  assert.equal(arena.opts.faces.urlFor(zap.id), arena.opts.faces.urlFor({ cardId: zap.id }));
+  assert.equal(arena.opts.faces.urlFor(null), null);
+
+  assert.ok(arena.calls.sync.length >= 1, "synced after the first render");
+  let last = arena.calls.sync[arena.calls.sync.length - 1];
+  assert.equal(last.seat, 0);
+  assert.ok(last.bind.nodes instanceof Map, "nodes is a uid -> node map");
+  for (const uid of game.state.zones["0:wallet"]) {
+    assert.equal(last.bind.nodes.get(uid), latestUidNode(byId, "youHand", uid), `hand card ${uid} is bound`);
+  }
+  assert.equal(last.bind.foeHandCount, game.state.zones["1:wallet"].length);
+  assert.equal(typeof last.bind.marks, "function");
+
+  const lastCard = (zoneId, name) => {
+    const kids = byId(zoneId).children;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const img = kids[i].children && kids[i].children[0];
+      if (img && img.alt === name) return kids[i];
+    }
+    return null;
+  };
+
+  /* A play: the render that follows it syncs again, the new node is bound
+   * under the uid the engine minted, and the cue reaches arena.fx.cue with
+   * the detail fx.js got (uid and seat included). */
+  const syncsBefore = arena.calls.sync.length;
+  lastCard("youHand", "Power Plant — Hydro").click();
+  assert.ok(arena.calls.sync.length > syncsBefore, "sync follows the render after a play");
+  last = arena.calls.sync[arena.calls.sync.length - 1];
+  const plant = game.state.zones["0:network"][0];
+  assert.equal(last.bind.nodes.get(plant), latestUidNode(byId, "youNetwork", plant), "the played card's hitbox is bound");
+  const landed = arena.calls.cue.find((cue) => cue.name === "resource:play");
+  assert.ok(landed, "resource:play forwarded to arena.fx.cue");
+  assert.equal(landed.detail.uid, plant);
+  assert.equal(landed.detail.seat, 0);
+  const canplay = arena.calls.setState.find((call) => call.state.canplay === true);
+  assert.ok(canplay, "a playable card is lit through setState");
+
+  /* Hover and focus on a hitbox reach the arena; leaving it clears. */
+  const held = latestUidNode(byId, "youNetwork", plant);
+  fire(held, "mouseenter");
+  fire(held, "mouseleave");
+  fire(held, "focus");
+  fire(held, "blur");
+  assert.deepEqual(arena.calls.hover.slice(-4), [plant, null, plant, null]);
+
+  /* A target pick: the enemy Avatar Zap may hit is marked targetable on its
+   * node, and that class is what the arena is told. */
+  lastCard("youNetwork", "Power Plant — Hydro").click(); // bank 1 Power
+  assert.equal(game.state.seats[0].buffer.P, 1);
+  const foeAvatar = clientSeed(game.state, 1, "Cuddy, Signal Organizer");
+  arena.calls.setState.length = 0;
+  arena.calls.cue.length = 0;
+  lastCard("youHand", "Zap").click();
+  assert.match(latestUidNode(byId, "foeNetwork", foeAvatar).className, /(?:^|\s)targetable(?:\s|$)/);
+  const lit = arena.calls.setState.find((call) => call.uid === foeAvatar && call.state.targetable === true);
+  assert.ok(lit, "setState(targetable) during a target request");
+  const request = arena.calls.cue.find((cue) => cue.name === "target:request");
+  assert.ok(request, "the pick cue is forwarded too");
+  assert.ok(request.detail.uids.includes(foeAvatar), "naming the candidates it lit");
+
+  byId("foeBar").click();
+  const queued = arena.calls.cue.find((cue) => cue.name === "card:play");
+  assert.ok(queued, "card:play forwarded to arena.fx.cue when Zap is announced");
+  assert.equal(queued.detail.qid, game.state.queue[0].qid);
+  assert.equal(queued.detail.uid, `queue:${game.state.queue[0].qid}`, "named the way the arena registry names Queue items");
+  assert.equal(queued.detail.seat, 0);
+  assert.ok(arena.calls.cue.some((cue) => cue.name === "target:choose"));
+
+  /* Classic, chosen on the board: the arena is disposed, the class drops, the
+   * choice is saved, and no further sync reaches the dead arena. */
+  byId("arenaTable").value = "dom";
+  fire(byId("arenaTable"), "change");
+  assert.equal(arena.calls.disposed, 1, "the arena is disposed");
+  assert.equal(game.arena, null);
+  assert.equal(game.arenaMode, "dom");
+  assert.doesNotMatch(byId("board").className, /arena3d/);
+  assert.equal(byId("arenaSetup").value, "dom", "the setup select follows");
+  assert.equal(globalThis.localStorage.getItem("600b:arena"), "dom", "the choice is saved");
+  const syncsAfter = arena.calls.sync.length;
+  byId("continue").click();
+  assert.equal(arena.calls.sync.length, syncsAfter, "a disposed arena hears nothing");
+  assert.equal(created.length, 1, "and no second arena appears while Classic is chosen");
+});
+
+test("?arenastats=1 asks the 3D table for its diagnostics chip", (t) => {
+  const { byId, created } = loadPlayWith3D(t, "?rules=fast&arena=3d&assets=local&arenastats=1");
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+  assert.equal(created.length, 1);
+  assert.equal(created[0].opts.stats, true);
+});
+
+test("?arena=dom never creates an arena, whatever the saved choice", (t) => {
+  const { byId, game, created } = loadPlayWith3D(t, "?arena=dom", { storage: { "600b:arena": "3d" } });
+  assert.equal(byId("arenaTable").value, "dom");
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+  assert.ok(game.state);
+  byId("continue").click();
+  byId("continue").click();
+  assert.equal(created.length, 0, "the classic table asks for no arena");
+  assert.equal(game.arena, null);
+  assert.equal(game.arenaMode, "dom");
+  assert.doesNotMatch(byId("board").className, /arena3d/);
+});
+
+test("the saved table choice is honoured, through the shell's storage inside a napplet", async (t) => {
+  /* No link flag: the saved choice decides, read through E1Napplet.storage
+   * exactly like the Stack library. A shell answers asynchronously, and a
+   * game already on the table follows the late answer. */
+  let saved = "dom";
+  const writes = [];
+  globalThis.E1Napplet = {
+    storage: {
+      get: async (key) => (key === "600b:arena" ? saved : null),
+      set: async (key, value) => { writes.push([key, value]); return true; },
+      json: async () => ({}),
+    },
+  };
+  t.after(() => { delete globalThis.E1Napplet; });
+  const { byId, game, created } = loadPlayWith3D(t, "");
+  assert.equal(game.arenaMode, "3d", "before the shell answers, 3D is the default where it runs");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(game.arenaMode, "dom", "the shell's saved choice wins once it lands");
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+  assert.equal(created.length, 0);
+
+  byId("arenaSetup").value = "3d";
+  fire(byId("arenaSetup"), "change");
+  assert.equal(created.length, 1, "choosing 3D mid-game mounts the arena on the running table");
+  assert.deepEqual(writes, [["600b:arena", "3d"]], "and the choice goes to the shell's storage");
+  saved = "3d";
+});
+
+test("an arena that cannot be built falls back to the classic table with a notice", async (t) => {
+  const { byId, game } = loadPlayWith3D(t, "?arena=3d", { createThrows: true });
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+  assert.ok(game.state, "the game starts regardless");
+  assert.equal(game.arena, null);
+  assert.equal(game.arenaMode, "dom");
+  assert.doesNotMatch(byId("board").className, /arena3d/);
+  assert.match(byId("netNotice").textContent, /3D table unavailable here; showing the classic table/);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.match(byId("prompt").textContent, /3D table unavailable here/, "the table itself says so");
+  assert.equal(byId("arenaTable").value, "dom", "the select shows what is actually on screen");
+  /* Playing on is the classic table, and nothing tries the arena again on its own. */
+  const lastCard = (zoneId, name) => {
+    const kids = byId(zoneId).children;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const img = kids[i].children && kids[i].children[0];
+      if (img && img.alt === name) return kids[i];
+    }
+    return null;
+  };
+  lastCard("youHand", "Power Plant — Hydro").click();
+  assert.equal(game.state.zones["0:network"].length, 1);
+  assert.equal(game.arena, null);
 });
