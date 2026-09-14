@@ -65,10 +65,14 @@ const RATE_MAX_ACT = 150;
  * and no human comes close to it. */
 const RATE_MAX_REJECT = 400;
 const RATE_MAX_CONTROL = 30;
-/* The mint's HTTP budgets, per client per minute (MINT_WRITE_RATE_MAX and
- * MINT_QUOTE_RATE_MAX override them). See mintRouteLimit for what each counts. */
+/* The mint's HTTP budgets, per client per minute (MINT_WRITE_RATE_MAX,
+ * MINT_RECOVERY_RATE_MAX and MINT_QUOTE_RATE_MAX override them). See
+ * mintRouteLimit for what each counts. */
 const MINT_RATE_WINDOW_MS = 60_000;
 const MINT_WRITE_RATE_MAX = 20;
+/* Measured: a phrase recovery of a full-collection wallet peaks at 158 requests
+ * a minute (docs/deploy.md §5), so 240 leaves room for a client twice as fast. */
+const MINT_RECOVERY_RATE_MAX = 240;
 const MINT_QUOTE_RATE_MAX = 60;
 /* However many addresses arrive, no more buckets than this are kept. */
 const RATE_CLIENTS_MAX = 10_000;
@@ -118,16 +122,20 @@ function pruneAddressRates(rates, now, windowMs) {
 }
 
 /* WHICH MINT ROUTES COST SOMETHING, named by the mint's own path (any edition
- * prefix removed). Every POST signs, verifies or restores proofs — purchase,
- * booster, trade, possession, restore, checkstate — so a POST route added later
- * is limited without anyone remembering to list it. These GETs draw or reveal
- * a pack, check a signature or open an invoice. Everything else the mint serves
- * (info, keys, catalog, blob, state, supply) is a cheap read and never limited. */
+ * prefix removed). Restore and checkstate are how a wallet reads its own cards
+ * back — a phrase recovery sends them by the hundred — so they get a budget of
+ * their own instead of starving purchases, or being starved by them. Every
+ * other POST signs or spends proofs (purchase, booster, trade, possession), so
+ * a POST route added later is limited without anyone remembering to list it.
+ * These GETs draw or reveal a pack, check a signature or open an invoice.
+ * Everything else the mint serves (info, keys, catalog, blob, state, supply) is
+ * a cheap read and never limited. */
+const MINT_RECOVERY_PATHS = new Set(["/v1/restore", "/v1/checkstate"]);
 const MINT_QUOTE_PATHS = new Set([
   "/nutft/quote", "/nutft/reveal", "/nutft/eligibility", "/nutft/lnurlp/callback",
 ]);
 function mintRouteLimit(method, localPath) {
-  if (method === "POST") return "mint-write";
+  if (method === "POST") return MINT_RECOVERY_PATHS.has(localPath) ? "mint-recovery" : "mint-write";
   if (method === "GET" && MINT_QUOTE_PATHS.has(localPath)) return "mint-quote";
   return null;
 }
@@ -242,7 +250,8 @@ CREATE TABLE IF NOT EXISTS nostr_events (
  *   gNutftFunding?:object, gNutftFundingBackend?:string,
  *   gNutftSales?:string, gNutftPriceMsat?:number,
  *   gNutftOnePerKey?:boolean, walletBackupAllowlistPath?:string,
- *   mintWriteRateMax?:number|string, mintQuoteRateMax?:number|string,
+ *   mintWriteRateMax?:number|string, mintRecoveryRateMax?:number|string,
+ *   mintQuoteRateMax?:number|string,
  *   rateClock?:() => number}} opts
  */
 async function createTable(opts) {
@@ -303,10 +312,16 @@ async function createTable(opts) {
   /* ONE POLICY FOR BOTH MINTS, applied in serveHttp before either mint sees
    * the request, per client as clientAddress resolves it — so behind a proxy
    * it is per player only once TRUST_PROXY is right. The key is the limit and
-   * the client, which means E1 and G draw on the same two budgets. */
+   * the client, which means E1 and G draw on the same three budgets. */
   const mintLimits = {
     "mint-write": {
       max: mintBudget(options.mintWriteRateMax, MINT_WRITE_RATE_MAX, "MINT_WRITE_RATE_MAX"),
+      windowMs: MINT_RATE_WINDOW_MS,
+    },
+    "mint-recovery": {
+      max: mintBudget(
+        options.mintRecoveryRateMax, MINT_RECOVERY_RATE_MAX, "MINT_RECOVERY_RATE_MAX",
+      ),
       windowMs: MINT_RATE_WINDOW_MS,
     },
     "mint-quote": {
@@ -2305,10 +2320,12 @@ if (require.main === module) {
      * each real client keeps its own pre-auth rate bucket. Only turn this on when
      * a trusted proxy actually fronts the table; unset, X-Forwarded-For is ignored. */
     trustProxy: process.env.TRUST_PROXY,
-    /* Per-client budgets per minute for the mint's POSTs and for the GETs that
-     * draw or reveal a pack. Unset keeps 20 and 60; anything but a positive
-     * integer stops the referee at boot. */
+    /* Per-client budgets per minute for the mint's spending POSTs, for restore
+     * and checkstate, and for the GETs that draw or reveal a pack. Unset keeps
+     * the defaults above; anything but a positive integer stops the referee at
+     * boot. */
     mintWriteRateMax: process.env.MINT_WRITE_RATE_MAX,
+    mintRecoveryRateMax: process.env.MINT_RECOVERY_RATE_MAX,
     mintQuoteRateMax: process.env.MINT_QUOTE_RATE_MAX,
     publicHost: process.env.PUBLIC_HOST,
     /* Behind TLS set PUBLIC_URL=wss://your.host/ws — one variable, and the

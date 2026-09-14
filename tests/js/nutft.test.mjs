@@ -152,15 +152,7 @@ test("mint advertises and serves NUT-09 signature restore", async (t) => {
 
 test("NUT-13 recovery phrase restores deterministic unspent NutFT outputs", async (t) => {
   const catalogUri = "http://127.0.0.1/nutft/catalog";
-  /* The seed scan asks the mint a hundred counters at a time, and one pack's
-     counters are spread over thousands of slots, so restoring this single pack
-     sends about forty restore and checkstate POSTs. The default mint-write
-     budget (20 a minute) refuses that part-way (docs/deploy.md §5). This test
-     is about recovery, not the budget, so it lifts the budget. */
-  const table = await createTable({
-    port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri,
-    mintWriteRateMax: 1000,
-  });
+  const table = await createTable({ port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: catalogUri });
   t.after(() => table.close());
   const fetchImpl = (url, options) => fetch(url === catalogUri ? `${table.url}/nutft/catalog` : url, options);
   const wallet = await browserWallet(new Map(), fetchImpl);
