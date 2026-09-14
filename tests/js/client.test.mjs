@@ -2100,3 +2100,218 @@ test("a NutFT Stack loads the wallet script on demand and starts once its proofs
   assert.equal(walletTags(byId).length, 1, "one tag, however many asked");
   delete globalThis.NutFTWallet;
 });
+
+/* ---------------------------------------------------------------- my collection
+ *
+ * The setup form offers "My collection (n of 40 cards yours)" in both Stack
+ * menus when the player holds cards, and one plain line when they do not —
+ * inside the Hangar through the collection intent, with storage that throws the
+ * way an opaque origin's does, and on the website through a wallet that is only
+ * loaded when this device holds one. */
+const FAST_DATA = path.join(HERE, "..", "..", "site", "play-data-fast.js");
+const FAST_PRECONS = path.join(HERE, "..", "..", "site", "precons-fast.js");
+
+/* The freshest "My collection" option in a menu: the stub's innerHTML = "" keeps
+   old children, so a rebuilt menu is scanned from the end. */
+function collectionOption(byId, id) {
+  const kids = byId(id).children;
+  for (let index = kids.length - 1; index >= 0; index--) {
+    const option = (kids[index].children || []).find((child) => child && child.value === "collection");
+    if (option) return option;
+  }
+  return null;
+}
+
+/* Cards that sit in the same quota under both rules, picked by what they are. */
+function collectionFixture(counts) {
+  const fast = require(FAST_DATA);
+  const classic = Object.fromEntries(require(path.join(HERE, "..", "..", "site", "play-data.js")).map((card) => [card.id, card]));
+  const clean = (card) => !/\bStake\b/.test(card.text || "") && card.rarity !== "genesis" && card.rarity !== "basic"
+    && classic[card.id].type === card.type;
+  const power = (test) => fast.filter((card) => card.affinity.length === 1 && card.affinity[0] === "Power" && clean(card) && test(card));
+  const avatars = power((card) => card.type === "Avatar");
+  const spells = power((card) => card.type === "Zap" || card.type === "Operation");
+  const permanent = fast.find((card) => card.affinity[0] === "Neutral" && card.type === "Hardware" && clean(card));
+  const cards = [
+    ...avatars.slice(0, counts.avatars.length).map((card, index) => ({ asset_id: card.id, count: counts.avatars[index] })),
+    ...spells.slice(0, counts.spells.length).map((card, index) => ({ asset_id: card.id, count: counts.spells[index] })),
+    ...(counts.permanent ? [{ asset_id: permanent.id, count: counts.permanent }] : []),
+  ].sort((a, b) => (a.asset_id < b.asset_id ? -1 : 1));
+  return {
+    v: 1, kind: "nutft/inventory", edition: "600b-e1", collection_id: "600B-E1",
+    catalog_uri: "https://tcg.nappelin.com/nutft/catalog", mint: "https://tcg.nappelin.com", at: 1757900000, cards,
+  };
+}
+
+/* Just enough of a Hangar: the domains it grants, a signed-in key (or none) and
+   the collection intent's answer. */
+function hangar({ identity = "f".repeat(64), inventory = null, intent = true } = {}) {
+  const asked = [];
+  return {
+    asked,
+    present: true,
+    has: (domain) => (domain === "intent" ? intent : ["identity", "storage"].includes(domain)),
+    storage: { json: async () => ({}), get: async () => null, set: async () => true },
+    identity: { current: async () => identity },
+    collection: {
+      inventory: async (edition) => { asked.push(edition); return inventory; },
+      counts: (answer) => new Map(answer.cards.map((card) => [card.asset_id, card.count])),
+    },
+  };
+}
+
+/* An opaque origin: reading `localStorage` at all throws. */
+function opaqueStorage(t) {
+  const denied = () => { throw new Error("SecurityError: storage is not available in an opaque origin"); };
+  Object.defineProperty(globalThis, "localStorage", { get: denied, configurable: true });
+  Object.defineProperty(globalThis, "sessionStorage", { get: denied, configurable: true });
+  t.after(() => {
+    for (const name of ["localStorage", "sessionStorage"]) {
+      Object.defineProperty(globalThis, name, { value: undefined, writable: true, configurable: true });
+    }
+  });
+}
+
+const ownerCards = (state, seat) => Object.values(state.objects).filter((object) => object.owner === seat).map((object) => object.cardId).sort();
+const changeRules = (byId, value) => {
+  byId("rules").value = value;
+  for (const fn of byId("rules").listeners.change || []) fn();
+};
+
+test("inside the Hangar, My collection is in both Stack menus and deals a legal Fast game", async (t) => {
+  require(COLLECTION_JS);
+  globalThis.E1_CARDS_FAST = require(FAST_DATA);
+  globalThis.E1_PRECONS_FAST = require(FAST_PRECONS);
+  opaqueStorage(t);
+  const inventory = collectionFixture({ avatars: [2, 2, 2], spells: [2, 2], permanent: 2 });
+  const shell = hangar({ inventory });
+  globalThis.E1Napplet = shell;
+  let snapshots = 0;
+  globalThis.NutFTWallet = { snapshot: async () => { snapshots += 1; throw new Error("a collection Stack asks no wallet"); } };
+  t.after(() => { delete globalThis.E1Napplet; delete globalThis.NutFTWallet; });
+
+  const { byId, game } = loadPlay(netStub());
+  await waitFor(() => collectionOption(byId, "deckA") && collectionOption(byId, "deckB"), "My collection in both menus");
+  assert.deepEqual(shell.asked, ["600b-e1"], "the collection intent was asked once, for Edition One");
+  assert.equal(collectionOption(byId, "deckA").textContent, "My collection (12 of 40 cards yours)");
+  assert.equal(byId("collectionNote").hidden, false);
+  assert.equal(byId("collectionNote").textContent, "Your collection: 12 cards. “My collection” is in both Stack menus.");
+  assert.match(byId("collectionNote").className, /(?:^|\s)has-cards(?:\s|$)/);
+
+  changeRules(byId, "F1.0");
+  assert.equal(collectionOption(byId, "deckB").textContent, "My collection (12 of 40 cards yours)", "relabelled for Fast");
+  byId("deckA").value = "collection";
+  byId("deckB").value = "Signal";
+  byId("seed").value = "my-collection";
+  byId("start").click();
+  assert.ok(game.state, byId("prompt").textContent);
+  assert.equal(game.state.ruleset, "F1.0");
+  assert.equal(snapshots, 0, "no possession check: a collection Stack claims none");
+
+  const owned = new Map(inventory.cards.map((card) => [card.asset_id, card.count]));
+  const expected = globalThis.E1CollectionStack.buildCollectionStack(globalThis.E1_CARDS_FAST, owned, { profile: "F1.0", precons: globalThis.E1_PRECONS_FAST });
+  assert.deepEqual(ownerCards(game.state, 0), expected.ids.slice().sort(), "seat one plays exactly the collection Stack");
+  for (const card of inventory.cards) {
+    assert.ok(ownerCards(game.state, 0).filter((id) => id === card.asset_id).length >= card.count, `${card.asset_id} is in the Stack`);
+  }
+});
+
+test("My collection is counted under the rules chosen, and Classic deals it too", async (t) => {
+  require(COLLECTION_JS);
+  globalThis.E1_CARDS_FAST = require(FAST_DATA);
+  globalThis.E1_PRECONS_FAST = require(FAST_PRECONS);
+  opaqueStorage(t);
+  /* Sixteen Power Avatars: Fast takes up to twenty, Classic only fourteen. */
+  globalThis.E1Napplet = hangar({ inventory: collectionFixture({ avatars: [4, 4, 4, 4], spells: [] }) });
+  t.after(() => { delete globalThis.E1Napplet; });
+  const { byId, game } = loadPlay(netStub());
+  await waitFor(() => collectionOption(byId, "deckA"), "My collection");
+  assert.equal(collectionOption(byId, "deckA").textContent, "My collection (14 of 40 cards yours)", "Classic");
+  changeRules(byId, "F1.0");
+  assert.equal(collectionOption(byId, "deckA").textContent, "My collection (16 of 40 cards yours)", "Fast");
+  changeRules(byId, "E1.0");
+  byId("deckA").value = "Keys";
+  byId("deckB").value = "collection";
+  byId("seed").value = "classic-collection";
+  byId("start").click();
+  assert.ok(game.state, byId("prompt").textContent);
+  assert.equal(game.state.ruleset, "E1.0");
+  assert.equal(ownerCards(game.state, 1).length, 40, "seat two's collection Stack was dealt");
+});
+
+test("a guest and a member without cards each get the line that fits, and no option", async (t) => {
+  require(COLLECTION_JS);
+  opaqueStorage(t);
+  const member = "No cards in your collection yet. Cards from the shop on tcg.nappelin.com can be handed to your Bearlett collection.";
+  const noCards = () => Object.assign(collectionFixture({ avatars: [], spells: [] }), { cards: [] });
+  const cases = [
+    [hangar({ identity: "", inventory: null }), "Sign in to use your cards. You can play with a starter stack now."],
+    [hangar({ inventory: null }), member],
+    [hangar({ inventory: noCards() }), member],
+    [hangar({ identity: "", inventory: Object.assign(noCards(), { cards: [{ asset_id: "600B-E1-001", count: 2 }] }) }),
+      "Your collection holds 2 cards this edition does not know. You can play with a starter stack now."],
+    [hangar({ intent: false }), "No card collection is reachable in this shell. You can play with a starter stack now."],
+  ];
+  t.after(() => { delete globalThis.E1Napplet; });
+  for (const [shell, words] of cases) {
+    globalThis.E1Napplet = shell;
+    const { byId, game } = loadPlay(netStub());
+    await waitFor(() => byId("collectionNote").textContent === words, words);
+    assert.equal(byId("collectionNote").hidden, false);
+    assert.doesNotMatch(byId("collectionNote").className, /has-cards/);
+    assert.equal(collectionOption(byId, "deckA"), null, "nothing to offer, so no option");
+    byId("deckA").value = "Power";
+    byId("deckB").value = "Signal";
+    byId("start").click();
+    assert.ok(game.state, "a starter stack plays now");
+  }
+});
+
+test("a cold website table never loads the NutFT wallet, and signing in changes the line", async () => {
+  require(COLLECTION_JS);
+  delete globalThis.E1Napplet;
+  delete globalThis.NutFTWallet;
+  const storage = new Map();
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) };
+  globalThis.location = { origin: "https://tcg.nappelin.com", protocol: "https:", search: "" };
+  const stub = netStub();
+  stub.nostr.savedPubkey = () => null;
+  const { byId, fired } = loadPlay(stub);
+  await waitFor(() => byId("collectionNote").textContent === "Sign in to use your cards. You can play with a starter stack now.", "the guest line");
+  for (const fn of fired["e1:identity"] || []) fn({ detail: { pubkey: "a".repeat(64) } });
+  assert.equal(byId("collectionNote").textContent,
+    "No cards in your collection yet. Cards from the shop on tcg.nappelin.com can be handed to your Bearlett collection.");
+  for (const fn of fired["e1:identity"] || []) fn({ detail: { pubkey: null } });
+  assert.match(byId("collectionNote").textContent, /^Sign in to use your cards\./, "and signing out changes it back");
+  assert.equal(walletTags(byId).length, 0, "no wallet on this device, so no wallet script");
+  assert.equal(collectionOption(byId, "deckA"), null);
+  assert.equal([...storage.keys()].some((key) => /nutft/.test(key)), false, "nothing was written for the wallet");
+});
+
+test("a website wallet with cards is read when the table opens, and offered", async (t) => {
+  require(COLLECTION_JS);
+  delete globalThis.E1Napplet;
+  delete globalThis.NutFTWallet;
+  t.after(() => { delete globalThis.NutFTWallet; });
+  const storage = new Map([["600b:nutft-wallet", JSON.stringify({ privateKey: "k", pubkey: "p", tokens: ["cashuB1", "cashuB2"] })]]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.location = { origin: "https://tcg.nappelin.com", protocol: "https:", search: "" };
+  const { byId } = loadPlay(netStub());
+  await waitFor(() => walletTags(byId).length === 1, "the wallet script, loaded because a wallet is here");
+  const inventory = collectionFixture({ avatars: [3, 1], spells: [1], permanent: 0 });
+  const proofs = inventory.cards.flatMap((card) => Array.from({ length: card.count }, () => ({ tag: ["1", "600B-E1", card.asset_id] })));
+  const origins = [];
+  globalThis.NutFTWallet = {
+    read: async () => ({ tokens: ["cashuB1", "cashuB2"] }),
+    snapshot: async (origin) => {
+      origins.push(origin);
+      return { owned: [...proofs, { tag: ["1", "600B-E1", "E1-999"] }], spent: [], invalid: [], unreadable: [] };
+    },
+  };
+  for (const fn of walletTags(byId)[0].listeners.load || []) fn();
+  await waitFor(() => collectionOption(byId, "deckA"), "My collection from the wallet");
+  assert.deepEqual(origins, ["https://tcg.nappelin.com"], "this site's mint, asked once");
+  assert.equal(collectionOption(byId, "deckA").textContent, "My collection (5 of 40 cards yours)");
+  assert.equal(byId("collectionNote").textContent,
+    "Your collection: 5 cards. “My collection” is in both Stack menus. 1 more card is not part of this edition.");
+});

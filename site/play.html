@@ -166,6 +166,10 @@ select option, select optgroup { color: var(--parchment); background: var(--iron
 }
 .seat .seat-check input { accent-color: var(--brass); }
 .setup-note { margin: 2px 0 12px; color: var(--ink-quiet); font-size: 12px; }
+/* The collection line: a status in a well, not a call to action. The edge turns
+   brass when there are cards to play. */
+.collection-note { padding: 9px 11px; background: var(--well); border-left: 2px solid var(--brass-3); line-height: 1.6; }
+.collection-note.has-cards { color: var(--body-ink); border-left-color: var(--brass); }
 .startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
 .startrow label { display: inline-flex; align-items: center; gap: 6px; font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
 .startrow .tcg-field { padding: 6px 8px; letter-spacing: 0; text-transform: none; }
@@ -1016,6 +1020,10 @@ html.embedded #online { display: none; }
       Want your own 40? Build and save Stacks in the <a href="deck.html">Stack Builder</a> —
       they appear in both seat menus here.
     </div>
+    <!-- The player's own cards (site/collection-stack.js): how many, with "My collection"
+         in both Stack menus, or the one line that says why there is nothing to offer yet.
+         play.js fills it once the collection answers; hidden until then. -->
+    <div class="setup-note collection-note" id="collectionNote" role="status" aria-live="polite" hidden></div>
     <div class="startrow">
       <button class="btn tcg-btn tcg-btn--primary" id="start">Start game</button>
       <!-- Classic is Edition One as printed; Fast is the same cards on a pool,
