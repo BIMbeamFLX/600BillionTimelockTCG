@@ -21,10 +21,14 @@
 
   const VERSION = "1.0.0";
 
+  /* The world's own colours stay (lights, embers, shards, the slab). `ready` is
+   * the can-play / can-attack edge: Hypershell brass, because a playable
+   * highlight is chrome-like and the one green on the table is the side bar's
+   * verified-login dot. */
   const PALETTE = {
     orange: 0xf7931a, ember: 0xff6a00, gold: 0xf3c244, brass: 0xc9962e, brassDim: 0x6b5220,
     purple: 0x7447b8, violet: 0xb991e4, cream: 0xfff7ec, black: 0x09080b, soot: 0x111014,
-    iron: 0x2a2730, steel: 0x3a3742, danger: 0xff4d3d, good: 0x6ee7a8, ground: 0x0d0b10,
+    iron: 0x2a2730, steel: 0x3a3742, danger: 0xff4d3d, ready: 0xe7bf76, ground: 0x0d0b10,
   };
 
   /* Durations (ms). Cards tween, chrome cuts. */
@@ -531,7 +535,7 @@
       dust: new THREE.SpriteMaterial({ map: radialTexture(THREE, 64, "rgba(255,247,236,.9)", "rgba(255,247,236,0)"), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: PALETTE.gold }),
       ringTarget: new THREE.MeshBasicMaterial({ color: PALETTE.brass, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }),
       ringSelected: new THREE.MeshBasicMaterial({ color: PALETTE.ember, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide }),
-      glowGreen: new THREE.MeshBasicMaterial({ color: PALETTE.good, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false }),
+      glowReady: new THREE.MeshBasicMaterial({ color: PALETTE.ready, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false }),
       glowEmber: new THREE.MeshBasicMaterial({ color: PALETTE.ember, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
       cracks: new THREE.MeshBasicMaterial({ map: crackTexture(THREE), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }),
     };
@@ -755,8 +759,8 @@
       if (s.selected) ringFor(entry, materials.ringSelected);
       else if (s.targetable) ringFor(entry, materials.ringTarget);
       else if (entry.ring) entry.ring.visible = false;
-      // Edge glow behind the body: one green per screen — the glow, not a fill.
-      const glowMat = s.attacking ? materials.glowEmber : (s.canplay || s.canattack) ? materials.glowGreen : null;
+      // Edge glow behind the body: ember for an attacker, brass for what can play or attack — the glow, not a fill.
+      const glowMat = s.attacking ? materials.glowEmber : (s.canplay || s.canattack) ? materials.glowReady : null;
       if (glowMat) {
         if (!entry.glow) {
           entry.glow = new THREE.Mesh(entry.kind === "token" ? tokenGeos.glow : cardGlowGeo, glowMat);
@@ -1021,9 +1025,9 @@
       const chip = doc.createElement("div");
       chip.className = "arena3d-stats";
       chip.setAttribute("aria-hidden", "true");
-      chip.style.cssText = "position:fixed;left:calc(8px + env(safe-area-inset-left, 0px));bottom:calc(8px + env(safe-area-inset-bottom, 0px));"
-        + "z-index:1000;pointer-events:none;white-space:pre;padding:4px 7px;border:1px solid rgba(201,150,46,.55);"
-        + "background:rgba(9,8,11,.82);color:#fff7ec;font:11px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;";
+      chip.style.cssText = "position:fixed;left:calc(8px + var(--tcg-rail-left, 0px) + env(safe-area-inset-left, 0px));bottom:calc(8px + var(--tcg-rail-bottom, 0px) + env(safe-area-inset-bottom, 0px));"
+        + "z-index:1000;pointer-events:none;white-space:pre;padding:4px 7px;border:1px solid rgba(231,191,118,.25);"
+        + "background:#14100b;color:#ece3d0;font:400 11px/1.35 \"IBM Plex Mono\",ui-monospace,Consolas,monospace;";
       doc.body.appendChild(chip);
       return { chip, cpu: new Float32Array(STATS_FRAMES), gap: new Float32Array(STATS_FRAMES), n: 0, at: 0, timer: 0 };
     })() : null;

@@ -41,16 +41,21 @@
   /* Shared stagger constants. Audio and motion read the SAME numbers. */
   var STAG = { draw: 55, generate: 42, clash: 46, burn: 80, uptime: 70, win: 95 };
 
+  /* Chrome is Hypershell, the game world is 600 Billion. Anything anchored to the
+   * page's chrome — the stage, the phase ribbon, the prompt, the HUD's uptime and
+   * Buffer, target rings — speaks brass on iron, and rust for a loss. The card
+   * world keeps ember for contact and attack, cream for matter and the flash,
+   * teal for a block (the colour of the block arrow) and the five Plates.
+   * Never green: on the table the one green is the side bar's login dot. */
   var PALETTE = {
-    orange: '#f7931a', ember: '#ff6a00', gold: '#f3c244',
-    purple: '#7447b8', violet: '#5e5acb', cream: '#fff7ec',
-    black: '#09080b', muted: '#c7bbcc',
-    danger: '#ff4d3d', good: '#6ee7a8'
+    brass: '#e7bf76', brass2: '#c9973f', brass3: '#8f6a2a',
+    parchment: '#ece3d0', iron: '#0f0c08', rust: '#d06b45',
+    ember: '#ff6a00', cream: '#fff7ec', teal: '#17bebb'
   };
 
   /* Locked E1 "Plate" palette, remapped by RESOURCE (build_card_set.AFFINITY_ACCENT):
    * old-Bitcoin's hex is new-Power's, and Keys/Signal swapped hexes. */
-  var AFF_COLOR = { P: '#f3c244', B: '#f7931a', K: '#fff7ec', S: '#7447b8', T: '#17bebb', N: '#c7bbcc' };
+  var AFF_COLOR = { P: '#f3c244', B: '#f7931a', K: '#fff7ec', S: '#7447b8', T: '#17bebb', N: '#8a8f98' };
   var AFF_NAME = { P: 'Power', B: 'Bitcoin', K: 'Keys', S: 'Signal', T: 'Timelock', N: 'Neutral' };
 
   /* C# Dorian grid. A4 = 440, equal temperament. Every sustained pitch lives here. */
@@ -1622,35 +1627,38 @@
     '#fx-layer .fx-n{position:absolute;pointer-events:none;contain:layout paint;display:none;',
     'box-sizing:border-box;border-radius:0}',
     '.fx-ring{border:2px solid currentColor}',
-    '.fx-chip{font:900 11px/1 ui-monospace,"JetBrains Mono",monospace;letter-spacing:.08em;',
-    'text-transform:uppercase;padding:2px 6px;background:#09080b;border:1px solid currentColor;',
+    '.fx-chip{font:600 11px/1 "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.08em;',
+    'text-transform:uppercase;padding:2px 6px;background:#0f0c08;border:1px solid currentColor;',
     'color:inherit;white-space:nowrap}',
     '.fx-bar{background:currentColor;height:2px;transform-origin:left center}',
     '.fx-wipe{background:currentColor;height:2px;opacity:.55}',
     '.fx-glyph{width:8px;height:8px;background:currentColor}',
-    '.fx-ghost{border:2px solid currentColor;background:rgba(9,8,11,.72)}',
+    '.fx-ghost{border:2px solid currentColor;background:rgba(15,12,8,.72)}',
     '.fx-clone{overflow:hidden}',
-    '.fx-roll{overflow:hidden;background:#09080b;color:inherit;',
-    'font:900 inherit/1 inherit;display:none}',
+    '.fx-roll{overflow:hidden;background:#0f0c08;color:inherit;',
+    'font:600 inherit/1 inherit;display:none}',
     '.fx-rollin{display:block}',
     '.fx-rollrow{display:block;text-align:center}',
-    /* --- controls (own namespace, no host selectors touched) --- */
+    /* --- controls (own namespace, no host selectors touched) ---
+       Hypershell: iron ground, a hairline, brass controls, a tracked mono label. */
     '.fxbar{position:fixed;display:flex;align-items:center;gap:8px;padding:6px 8px;',
-    'background:rgba(17,16,20,.92);border:1px solid rgba(185,145,228,.28);border-radius:0;',
-    'color:#fff7ec;font:11px/1 ui-monospace,"JetBrains Mono",monospace;z-index:60}',
+    'background:#0f0c08;border:1px solid rgba(231,191,118,.14);border-radius:0;',
+    'color:#ece3d0;font:400 11px/1 "IBM Plex Mono",ui-monospace,Consolas,monospace;z-index:60}',
     '.fxbar button{width:34px;height:34px;display:grid;place-items:center;padding:0;cursor:pointer;',
-    'background:transparent;border:1px solid rgba(185,145,228,.28);border-radius:0;color:#f7931a}',
-    '.fxbar button[aria-pressed="true"]{color:#c7bbcc;border-color:rgba(199,187,204,.4)}',
+    'background:transparent;border:1px solid #c9973f;border-radius:0;color:#e7bf76}',
+    '.fxbar button:hover{color:#ece3d0;border-color:#ece3d0}',
+    '.fxbar button[aria-pressed="true"]{color:#8f6a2a;border-color:rgba(143,106,42,.5)}',
     '.fxbar input[type=range]{-webkit-appearance:none;appearance:none;width:92px;height:2px;',
-    'background:#7447b8;border:0;outline-offset:3px}',
+    'background:#8f6a2a;border:0;outline-offset:3px}',
     '.fxbar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;',
-    'background:#f7931a;border-radius:0;border:0;cursor:pointer}',
-    '.fxbar input[type=range]::-moz-range-thumb{width:10px;height:10px;background:#f7931a;',
+    'background:#e7bf76;border-radius:0;border:0;cursor:pointer}',
+    '.fxbar input[type=range]::-moz-range-thumb{width:10px;height:10px;background:#e7bf76;',
     'border-radius:0;border:0;cursor:pointer}',
-    '.fxbar select{background:#111014;color:#fff7ec;border:1px solid rgba(185,145,228,.28);',
-    'border-radius:0;padding:4px 6px;font:11px/1 ui-monospace,monospace}',
-    '.fxbar .fxlab{font:900 10px/1 Anton600,Impact,sans-serif;letter-spacing:.14em;',
-    'text-transform:uppercase;color:#b991e4}',
+    '.fxbar select{background:rgba(231,191,118,.05);color:#ece3d0;border:1px solid rgba(143,106,42,.6);',
+    'border-radius:0;padding:4px 6px;font:400 11px/1 "IBM Plex Mono",ui-monospace,Consolas,monospace}',
+    '.fxbar select option{background:#14100b;color:#ece3d0}',
+    '.fxbar .fxlab{font:500 10px/1 "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.22em;',
+    'text-transform:uppercase;color:#c9973f}',
     '.fx-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;',
     'clip:rect(0 0 0 0);white-space:nowrap;border:0}',
     /* One-time hail. Three hard steps, no fade — the same quantized vocabulary
@@ -1658,8 +1666,8 @@
        reader gets the aria-live sentence and a still control. */
     '@media (prefers-reduced-motion:no-preference){',
     '.fxbar-hail{animation:fxHail 560ms steps(2,end) 3}}',
-    '@keyframes fxHail{from{border-color:rgba(185,145,228,.28)}',
-    'to{border-color:#f7931a}}'
+    '@keyframes fxHail{from{border-color:rgba(231,191,118,.14)}',
+    'to{border-color:#e7bf76}}'
   ].join('');
 
   /* --- pools ---------------------------------------------------------- */
@@ -1804,7 +1812,7 @@
     if (!r || !r.height) return;
     var n = take('wipe');
     if (!n) return;
-    n.style.color = color || PALETTE.gold;
+    n.style.color = color || PALETTE.brass;
     n.style.opacity = lowTransparency() ? '1' : String(alpha == null ? 0.55 : alpha);
     if (lowTransparency()) n.style.height = '1px';
     place(n, r, 0, 0, r.width, lowTransparency() ? 1 : 2);
@@ -1823,7 +1831,7 @@
     if (!el) return;
     if (reduced()) {
       /* motion translated into colour */
-      play(el, [{ borderColor: PALETTE.danger }, { borderColor: PALETTE.danger }],
+      play(el, [{ borderColor: PALETTE.rust }, { borderColor: PALETTE.rust }],
         { duration: D.sm, easing: 'steps(1,end)' }, true);
       return;
     }
@@ -1890,7 +1898,7 @@
     rows[0].textContent = prev;
     rows[1].textContent = now;
     n.style.color = getComputedish(el);
-    n.style.font = '900 ' + Math.max(11, Math.round(r.height * 0.8)) + 'px/1 ui-monospace, monospace';
+    n.style.font = '600 ' + Math.max(11, Math.round(r.height * 0.8)) + 'px/1 "IBM Plex Mono", ui-monospace, monospace';
     place(n, r, 0, 0, Math.max(r.width, 14), r.height);
     n.firstChild.style.transform = 'translate3d(0,0,0)';
     var a = play(n.firstChild, [
@@ -1902,7 +1910,7 @@
   function getComputedish(el) {
     var c = '';
     guard(function () { c = global.getComputedStyle ? global.getComputedStyle(el).color : ''; });
-    return c || PALETTE.orange;
+    return c || PALETTE.brass;
   }
 
   /* --- P7b · FLIGHT (FLIP) ---------------------------------------------- *
@@ -1938,7 +1946,7 @@
     if (!r || !r.width) return;
     var n = take('bar');
     if (!n) return;
-    n.style.color = gain ? PALETTE.good : PALETTE.danger;
+    n.style.color = gain ? PALETTE.brass : PALETTE.rust;
     place(n, r, 0, r.height, r.width, 2);
     var frames = gain
       ? [{ transform: 'scaleX(0)', opacity: 1 }, { transform: 'scaleX(1)', opacity: 1, offset: 0.75 }, { transform: 'scaleX(1)', opacity: 0 }]
@@ -1958,7 +1966,7 @@
     if (!r || !r.width) return null;
     var n = take('ring');
     if (!n) return null;
-    n.style.color = color || PALETTE.orange;
+    n.style.color = color || PALETTE.brass;
     place(n, r, -2, -2, r.width + 4, r.height + 4);
     if (reduced()) {
       n.style.borderWidth = '1px';
@@ -1982,7 +1990,7 @@
     if (!r || !r.width) return;
     var n = take('ring');
     if (!n) return;
-    n.style.color = color || PALETTE.good;
+    n.style.color = color || PALETTE.brass;
     place(n, r, -2, -2, r.width + 4, r.height + 4);
     if (reduced()) {
       n.style.borderWidth = '1px'; n.style.opacity = '1';
@@ -2012,7 +2020,7 @@
     for (var i = 0; i < n; i++) {
       var g = take('glyph');
       if (!g) break;
-      g.style.color = color || PALETTE.danger;
+      g.style.color = color || PALETTE.rust;
       var dx = (rect.width > 16 ? Math.random() * (rect.width - 8) : 0);
       place(g, rect, dx, rect.height * 0.2, 8, 8);
       made.push(g);
@@ -2032,7 +2040,7 @@
     var n = take('chip');
     if (!n) return;
     n.textContent = String(text == null ? '' : text);
-    n.style.color = color || PALETTE.gold;
+    n.style.color = color || PALETTE.brass;
     n.style.width = ''; n.style.height = '';
     /* A number is read by its size before its digits: a 6 lands bigger than a 1. */
     n.style.fontSize = size ? size + 'px' : '';
@@ -2090,7 +2098,7 @@
     if (!el || !toRect) return;
     var from = rectOf(el);
     if (!from || !from.width) return;
-    if (reduced()) { pRing(el, PALETTE.danger, D.md); return; }
+    if (reduced()) { pRing(el, PALETTE.ember, D.md); return; }
     var dx = (toRect.left + toRect.width / 2) - (from.left + from.width / 2);
     var dy = (toRect.top + toRect.height / 2) - (from.top + from.height / 2);
     var k = 0.72;
@@ -2112,7 +2120,7 @@
     if (!fromRect || !toRect || reduced()) return;
     var n = take('ghost');
     if (!n) return;
-    n.style.color = color || PALETTE.orange;
+    n.style.color = color || PALETTE.brass2;
     var w = Math.max(12, toRect.width || 40), h = Math.max(16, toRect.height || 56);
     n.style.left = '0px'; n.style.top = '0px';
     n.style.width = w + 'px'; n.style.height = h + 'px';
@@ -2235,7 +2243,7 @@
   var MOTION = {};
 
   MOTION['game:start'] = function () {
-    pWipe(q('stage'), PALETTE.gold, D.xxl, 0.55);
+    pWipe(q('stage'), PALETTE.brass, D.xxl, 0.55);
     var table = q('table'); if (table) pHardCut(table, false);
     var setup = q('setup');
     if (setup) play(setup, [{ opacity: 1 }, { opacity: 0 }], { duration: D.sm, easing: EASE.line });
@@ -2256,7 +2264,7 @@
      and the turnchip's colour flash still carry the information. */
   MOTION['turn:begin'] = function (d) {
     var side = sideBlockOf(d.seat);
-    if (side) { pRing(side, PALETTE.orange, D.xl); pWipe(side, PALETTE.orange, D.xl, 0.45); }
+    if (side) { pRing(side, PALETTE.brass, D.xl); pWipe(side, PALETTE.brass, D.xl, 0.45); }
     var tc = q('turnchip');
     if (tc) { pJitter(tc, 2); pRoll(tc, 'turnchip'); }
   };
@@ -2270,7 +2278,7 @@
     /* inner FX bar — the chip's own box never moves, so zero layout */
     var n = take('bar');
     if (n) {
-      n.style.color = PALETTE.gold;
+      n.style.color = PALETTE.brass;
       place(n, r, 0, r.height - 2, r.width, 2);
       var a = play(n, [
         { transform: 'scaleX(0)', opacity: 1 },
@@ -2288,7 +2296,7 @@
     if (!r || !r.width || reduced()) return;
     var n = take('bar');
     if (!n) return;
-    n.style.color = PALETTE.ember;
+    n.style.color = PALETTE.brass2;
     place(n, r, 0, r.height, r.width, 2);
     var frames;
     if (playheadRect && playheadRect.width) {
@@ -2329,8 +2337,8 @@
     cards.forEach(function (card, i) {
       var toRect = rectOf(card);
       global.setTimeout(function () {
-        pGhost(fromRect, toRect, PALETTE.orange);
-        global.setTimeout(function () { pWipe(card, PALETTE.gold, D.lg, 0.55); pStepIn(card); }, reduced() ? 0 : D.lg);
+        pGhost(fromRect, toRect, PALETTE.brass2);
+        global.setTimeout(function () { pWipe(card, PALETTE.brass, D.lg, 0.55); pStepIn(card); }, reduced() ? 0 : D.lg);
       }, i * STAG.draw);
     });
     if (!cards.length && hand) pStepIn(hand);
@@ -2467,7 +2475,7 @@
     var uptRect = upt ? rectOf(upt) : null;
 
     if (strip) pJitter(strip, 2);
-    if (stripRect) pGlyphRain(stripRect, PALETTE.danger, Math.min(amount, 8));
+    if (stripRect) pGlyphRain(stripRect, PALETTE.rust, Math.min(amount, 8));
 
     /* pips disintegrate in steps, in reverse order, each in its OWN affinity
        colour — that keeps it reading as WASTE, not damage. */
@@ -2483,10 +2491,10 @@
     global.setTimeout(function () {
       if (upt) {
         pRoll(upt, sideKey('uptime', d.seat));
-        play(upt, [{ borderColor: PALETTE.danger }, { borderColor: PALETTE.danger }],
+        play(upt, [{ borderColor: PALETTE.rust }, { borderColor: PALETTE.rust }],
           { duration: D.xl, easing: 'steps(2,end)' });
       }
-      if (uptRect) pChip('BURN −' + amount + ' UPTIME', PALETTE.danger, uptRect, 26, D.xxl);
+      if (uptRect) pChip('BURN −' + amount + ' UPTIME', PALETTE.rust, uptRect, 26, D.xxl);
     }, D.md);
 
     global.setTimeout(function () { if (upt) pDrain(upt, false); }, 300);
@@ -2497,7 +2505,7 @@
   MOTION['ability:activate'] = function (d) {
     var el = targetEl(d, 'network');
     if (!el) return;
-    pRing(el, PALETTE.gold, D.lg);
+    pRing(el, PALETTE.brass, D.lg);
     pJitter(el, 1.2);
   };
 
@@ -2508,7 +2516,7 @@
       var nl = (root || doc).querySelectorAll('.gcard.targetable');
       for (var i = 0; i < nl.length; i++) list.push(nl[i]);
     });
-    list.slice(0, 16).forEach(function (el, i) { pRingLoop(el, PALETTE.good, i * 90); });
+    list.slice(0, 16).forEach(function (el, i) { pRingLoop(el, PALETTE.brass, i * 90); });
     var p = q('prompt');
     if (p && !reduced()) {
       play(p, [{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }],
@@ -2519,11 +2527,11 @@
   MOTION['target:choose'] = function (d) {
     clearLoopRings();
     var el = d && d.el && d.el.nodeType === 1 ? d.el : null;
-    if (el) pRing(el, PALETTE.good, D.lg);
+    if (el) pRing(el, PALETTE.brass, D.lg);
   };
 
   MOTION['clash:begin'] = function () {
-    pWipe(q('layout'), PALETTE.ember, D.xl, 0.35);
+    pWipe(q('layout'), PALETTE.brass, D.xl, 0.35);
     var you = sideBlockOf(activeSeat), foe = sideBlockOf(1 - activeSeat);
     if (you) pRackSlide(you, -14, false);
     if (foe) pRackSlide(foe, 14, false);
@@ -2538,14 +2546,14 @@
       for (var i = 0; i < nl.length; i++) list.push(nl[i]);
     });
     list.slice(0, 8).forEach(function (el, i) {
-      global.setTimeout(function () { pCommit(el); pRing(el, PALETTE.danger, D.xl); }, i * STAG.clash);
+      global.setTimeout(function () { pCommit(el); pRing(el, PALETTE.ember, D.xl); }, i * STAG.clash);
     });
     var foe = sideBlockOf(1 - activeSeat);
     if (foe) global.setTimeout(function () { pJitter(foe, 2); }, 300);
     var board = q('board');
     if (board) {
       var r = rectOf(board);
-      pChip(count + ' ATTACKING', PALETTE.danger, { left: r.left, top: r.top, width: r.width, height: 0 }, 14, D.xl);
+      pChip(count + ' ATTACKING', PALETTE.ember, { left: r.left, top: r.top, width: r.width, height: 0 }, 14, D.xl);
     }
   };
 
@@ -2555,7 +2563,7 @@
     if (count === 0) {
       if (board) {
         var r0 = rectOf(board);
-        pChip('UNBLOCKED', PALETTE.gold, { left: r0.left, top: r0.top, width: r0.width, height: 0 }, 18, D.xl);
+        pChip('UNBLOCKED', PALETTE.brass, { left: r0.left, top: r0.top, width: r0.width, height: 0 }, 18, D.xl);
       }
       return;
     }
@@ -2573,7 +2581,7 @@
           play(el, [{ transform: 'translate3d(0,-5px,0)' }, { transform: 'translate3d(0,0,0)' }],
             { duration: D.md, easing: EASE.mech, delay: D.sm, composite: additiveFor(el) });
         }
-        pRing(el, PALETTE.violet, D.xl);
+        pRing(el, PALETTE.teal, D.xl);
       }, i * STAG.clash);
     });
   };
@@ -2588,7 +2596,7 @@
     var uptRect = upt ? rectOf(upt) : null;
     global.setTimeout(function () { if (upt) pRoll(upt, sideKey('uptime', d.seat)); }, D.sm);
     global.setTimeout(function () { if (upt) pDrain(upt, false); }, D.md);
-    if (uptRect) pChip('−' + a, PALETTE.danger, uptRect, 30, D.xl + 200, Math.min(26, 13 + 2 * a));
+    if (uptRect) pChip('−' + a, PALETTE.rust, uptRect, 30, D.xl + 200, Math.min(26, 13 + 2 * a));
   };
 
   /* Batched per scheduler frame: max 5 JITTERs, but CHIPs are NEVER batched. */
@@ -2602,7 +2610,7 @@
       if (stats) pHardCut(stats, false);
       var hit = Math.max(0, d.amount | 0);
       pWipe(el, PALETTE.cream, D.sm, 0.5); // the flash of contact
-      pChip('−' + hit, PALETTE.danger, rectOf(el), 26, D.xl, Math.min(24, 12 + 2 * hit));
+      pChip('−' + hit, PALETTE.rust, rectOf(el), 26, D.xl, Math.min(24, 12 + 2 * hit));
     });
   };
 
@@ -2631,7 +2639,7 @@
     var toRect = target ? rectOf(target) : null;
     if (!el || !toRect) return;
     if (cardMotion()) pLunge(el, toRect); /* else the arena lunges; the contact ring stays */
-    global.setTimeout(function () { pRing(target, PALETTE.danger, D.md); }, reduced() ? 0 : STRIKE_MS);
+    global.setTimeout(function () { pRing(target, PALETTE.ember, D.md); }, reduced() ? 0 : STRIKE_MS);
   };
 
   MOTION['uptime:gain'] = function (d) {
@@ -2639,17 +2647,17 @@
     var upt = seatEl('uptime', d.seat);
     if (!upt) return;
     var r = rectOf(upt);
-    pRing(upt, PALETTE.good, D.xl);
+    pRing(upt, PALETTE.brass, D.xl);
     pRoll(upt, sideKey('uptime', d.seat));
     pDrain(upt, true);
-    pChip('+' + a, PALETTE.good, r, 26, D.xl);
+    pChip('+' + a, PALETTE.brass, r, 26, D.xl);
     if (reduced()) return;
     var n = Math.min(a, 4);
     for (var i = 0; i < n; i++) {
       (function (idx) {
         var g = take('glyph');
         if (!g) return;
-        g.style.color = PALETTE.good;
+        g.style.color = PALETTE.brass;
         place(g, r, 6 + idx * 10, r.height * 0.4, 8, 8);
         var an = play(g, [
           { transform: 'translate3d(0,0,0)', opacity: 1 },
@@ -2665,8 +2673,8 @@
     var p = q('prompt');
     if (p) {
       pRackSlide(p, -14, false);
-      pWipe(p, PALETTE.gold, D.lg, 0.55);
-      pChip(String(d.note == null ? 'RESOLVED' : d.note).slice(0, 24), PALETTE.gold, rectOf(p), 14, D.xxl);
+      pWipe(p, PALETTE.brass, D.lg, 0.55);
+      pChip(String(d.note == null ? 'RESOLVED' : d.note).slice(0, 24), PALETTE.brass, rectOf(p), 14, D.xxl);
     }
   };
 
@@ -2674,22 +2682,22 @@
     /* A draw has no winner, and normSeat() would answer "seat 0" — which would
        hand the win wipe to a player who did not win. No seat, no side wipe. */
     var side = d.seat == null ? null : sideBlockOf(d.seat);
-    if (side) pWipe(side, PALETTE.gold, D.xxl, 0.55);
+    if (side) pWipe(side, PALETTE.brass, D.xxl, 0.55);
     var host = q('wrap') || doc.body;
     if (!host) return;
     var r = rectOf(host);
     var n = take('ghost');
     if (!n) return;
-    n.style.color = PALETTE.gold;
+    n.style.color = PALETTE.brass;
     n.style.left = '0'; n.style.top = '0';
     n.style.width = '100%'; n.style.height = '100%';
-    n.style.background = lowTransparency() ? PALETTE.black : 'rgba(9,8,11,.86)';
+    n.style.background = lowTransparency() ? PALETTE.iron : 'rgba(15,12,8,.86)';
     var a = play(n, [
       { opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 1, offset: 0.85 }, { opacity: 0 }
     ], { duration: 2400, easing: EASE.snap, onDone: function () { n.style.background = ''; give('ghost', n); } }, true);
     if (!a) { n.style.background = ''; give('ghost', n); }
     /* the terminal prints the result and holds it — no confetti, no particles */
-    pChip('NETWORK HOLDS', PALETTE.gold, { left: r.left, top: r.top + r.height * 0.4, width: r.width, height: 0 }, 0, 1400);
+    pChip('NETWORK HOLDS', PALETTE.brass, { left: r.left, top: r.top + r.height * 0.4, width: r.width, height: 0 }, 0, 1400);
   };
 
   /* ==================================================================== *
@@ -2966,8 +2974,8 @@
        at while it renders as muted. The introduction is worth making either
        way; only the second half of the sentence changes. */
     announce(cfg.muted
-      ? 'Sound is off. Press M to unmute, or use the sound control in the table controls.'
-      : 'Sound is on. Press M to mute, or use the sound control in the table controls.');
+      ? 'Sound is off. Press M to unmute, or open Music.'
+      : 'Sound is on. Press M to mute, or open Music.');
     if (!controlEl) return;
     guard(function () {
       controlEl.classList.add('fxbar-hail');
@@ -3152,16 +3160,16 @@
   var PRIMS = {
     stepIn: function (el) { pStepIn(el); },
     hardCut: function (el, o) { pHardCut(el, o && o.out); },
-    wipe: function (el, o) { pWipe(el, (o && o.color) || PALETTE.gold, (o && o.duration) || D.lg, o && o.alpha); },
+    wipe: function (el, o) { pWipe(el, (o && o.color) || PALETTE.brass, (o && o.duration) || D.lg, o && o.alpha); },
     jitter: function (el, o) { pJitter(el, (o && o.amp) || 2); },
     rackSlide: function (el, o) { pRackSlide(el, o && o.dx, o && o.out); },
     commit: function (el, o) { pCommit(el, o && o.angle); },
     flight: function (el, o) { pFlight(el, o && o.dx, o && o.dy); },
     roll: function (el, o) { pRoll(el, (o && o.key) || 'debug'); },
     drain: function (el, o) { pDrain(el, !!(o && o.gain)); },
-    ring: function (el, o) { pRing(el, (o && o.color) || PALETTE.orange, (o && o.duration) || D.xl); },
-    glyphRain: function (el, o) { pGlyphRain(rectOf(el), (o && o.color) || PALETTE.danger, (o && o.count) || 6); },
-    chip: function (el, o) { pChip((o && o.text) || 'CHIP', (o && o.color) || PALETTE.gold, rectOf(el), (o && o.rise) || 20, (o && o.duration) || D.xl); }
+    ring: function (el, o) { pRing(el, (o && o.color) || PALETTE.brass, (o && o.duration) || D.xl); },
+    glyphRain: function (el, o) { pGlyphRain(rectOf(el), (o && o.color) || PALETTE.rust, (o && o.count) || 6); },
+    chip: function (el, o) { pChip((o && o.text) || 'CHIP', (o && o.color) || PALETTE.brass, rectOf(el), (o && o.rise) || 20, (o && o.duration) || D.xl); }
   };
 
   function anim(name, el, o) {

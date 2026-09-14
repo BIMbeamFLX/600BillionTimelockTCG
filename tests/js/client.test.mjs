@@ -412,7 +412,7 @@ function loadPlay(netStub, fxStub) {
   else delete globalThis.E1FX;
   new Function(PLAY_JS)();
   for (const fn of fired.DOMContentLoaded || []) fn();
-  return { byId, game: globalThis.window.E1_GAME || globalThis.E1_GAME };
+  return { byId, fired, game: globalThis.window.E1_GAME || globalThis.E1_GAME };
 }
 
 /* A transport stub that records what play.js asks of it and hands back the
@@ -539,7 +539,37 @@ function loadLobby(netStub) {
   globalThis.E1Net = netStub;
   new Function(fs.readFileSync(path.join(HERE, "..", "..", "site", "matchmaking.js"), "utf8"))();
   for (const fn of fired.DOMContentLoaded || []) fn();
-  return { byId, nav };
+  return { byId, nav, fired };
+}
+
+/* A stand-in for the side bar (site/rail.js): an Account panel that opens. */
+function barStub() {
+  const opened = [];
+  return {
+    opened,
+    slot: (name) => (name === "account" ? {} : null),
+    open(name) { opened.push(name); return true; },
+  };
+}
+
+/* Loads a page with the bar drawn, a signer that records its use, and a window
+   that records the e1:auth the page sends. Cleans the globals up after. */
+function withBar(t, load, stubExtra) {
+  const bar = barStub();
+  globalThis.E1Rail = bar;
+  t.after(() => { delete globalThis.E1Rail; });
+  const signer = { logins: 0, key: "a".repeat(64) };
+  const stub = netStub(stubExtra);
+  stub.nostr.login = async () => { signer.logins += 1; return signer.key; };
+  stub.nostr.savedPubkey = () => signer.key;
+  const page = load(stub);
+  const auth = [];
+  globalThis.window.dispatchEvent = (event) => { if (event.type === "e1:auth") auth.push(event.detail.ok); };
+  const identity = (pubkey) => {
+    signer.key = pubkey;
+    for (const fn of page.fired["e1:identity"] || []) fn({ detail: { pubkey } });
+  };
+  return { ...page, bar, signer, stub, auth, identity };
 }
 
 /* THIS BEHAVIOUR MOVED, IT DID NOT GO AWAY. The host panel and the share-link
@@ -642,6 +672,57 @@ test("a relay invite shows and acknowledges its stake before joining", () => {
   const join = stub.calls.find((call) => call[0] === "join");
   assert.equal(join[1].stake, 750, "the join did not echo the amount the guest accepted");
 });
+
+for (const [where, load] of [["lobby", loadLobby], ["table", loadPlay]]) {
+  test(`the ${where} signs in through the side bar's Account panel when the bar is drawn`, (t) => {
+    const { byId, bar, signer } = withBar(t, load);
+    signer.key = null;
+    byId("nostrLogin").click();
+    assert.deepEqual(bar.opened, ["account"], "the button opens the bar's one sign-in door");
+    assert.equal(signer.logins, 0, "the page must not open a second signer of its own");
+  });
+
+  test(`the ${where} leaves signing out to the bar, and hears it`, (t) => {
+    const { byId, auth, identity } = withBar(t, load);
+    assert.equal(byId("nostrLogout").hidden, true, "no second Sign out while the bar has one");
+    assert.equal(byId("nostrWho").hidden, false, "who is signed in still shows here");
+
+    identity(null);
+    assert.equal(byId("nostrWho").hidden, true);
+    assert.equal(byId("nostrLogin").hidden, false);
+    assert.deepEqual(auth, [false], "a signed-out page never keeps the verified dot");
+  });
+
+  test(`the ${where} resumes a pending seat when the bar signs in, once`, (t) => {
+    const resumed = [];
+    const { byId, identity } = withBar(t, load, {
+      session: { matchId: "m_0123456789ab", seat: 0, token: null },
+      resume() { resumed.push(true); return true; },
+    });
+    identity("a".repeat(64));
+    assert.deepEqual(resumed, [], "the bar's load-time word names the key already drawn");
+
+    identity(null);
+    identity("b".repeat(64));
+    assert.deepEqual(resumed, [true], "a sign-in in the bar reopens the seat");
+    assert.equal(byId("nostrLogin").hidden, true);
+  });
+
+  test(`inside a napplet the ${where}'s own button still signs in`, async (t) => {
+    // Embedded, the bar stays on the page but inert: no slot, and open() refuses.
+    globalThis.E1Rail = { slot: () => null, open: () => false };
+    t.after(() => { delete globalThis.E1Rail; });
+    const stub = netStub();
+    let logins = 0;
+    let key = null;
+    stub.nostr.savedPubkey = () => key;
+    stub.nostr.login = async () => { logins += 1; key = "a".repeat(64); return key; };
+    const { byId } = load(stub);
+    byId("nostrLogin").click();
+    await waitFor(() => logins === 1 && byId("nostrLogin").hidden, "the page's own sign-in");
+    assert.equal(byId("nostrLogout").hidden, false, "without a bar, Sign out stays on the page");
+  });
+}
 
 test("the table sends a player back to the lobby, it does not host one", () => {
   const stub = netStub();

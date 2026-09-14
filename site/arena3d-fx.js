@@ -7,9 +7,10 @@
  * Every effect here answers the same eight questions: trigger (a cue name from
  * fx.js's EVENTS list), owner (the card mesh or the slab), duration, gameplay
  * meaning, colour (brass = the table speaking, ember = contact, red = loss,
- * cream/dust = matter; never green — the one green per screen is R1's
- * can-play glow), spawn cap (`arena.world.quality.particleCap`, shared by every
- * pool), cleanup (pools; `dispose()` is idempotent) and the reduced-motion
+ * cream/dust = matter; never green — the can-play glow is brass too, and the
+ * one green on the table is the side bar's verified-login dot), spawn cap
+ * (`arena.world.quality.particleCap`, shared by every pool), cleanup (pools;
+ * `dispose()` is idempotent) and the reduced-motion
  * equivalent (a cut to the end state, no particles, no shake).
  *
  * Motion book (1.2): strike = anticipation 70 ms → lunge to 85 % with

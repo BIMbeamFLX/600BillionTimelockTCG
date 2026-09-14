@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#09080b">
+<meta name="theme-color" content="#0f0c08">
 <meta name="description" content="Play the 600B Timelock TCG Edition One locally: two-player hotseat with all 295 cards.">
 <title>600B Timelock TCG — Play</title>
 <!-- The napplet seam, before the palette below, so a shell-themed panel does
@@ -13,6 +13,9 @@
      the five affinity Plate colours stay brand-fixed, because they are how a
      player reads the board and must match the printed cards. -->
 <script src="napplet.js"></script>
+<!-- The side bar (Account, Music, Wallet, Chat, Share). Not deferred: it reads
+     E1Napplet above and does nothing inside a shell, whose own bar replaces it. -->
+<script src="rail.js"></script>
 <!-- The napplet build ships the hero once, as window.E1_BACKDROP_URL at the top of
      <head>; the stage wears it through --hero before the first paint. The website
      has no such URL and keeps the file fallback in the .stage::before rule. -->
@@ -24,20 +27,54 @@
 <script src="bugreport.js" defer></script>
 <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
 <style>
+/* CHROME IS HYPERSHELL, THE GAME WORLD IS 600 BILLION. The page frame, the setup
+   form, the HUD, every panel, button, chip, notice and dialog speak nappelin's
+   Brass Terminal: iron ground, brass voice, square corners, no shadow and no
+   glow. The card faces, the 600B wordmark, the five affinity Plates, the board's
+   circuit art and the impact effects stay 600 Billion. Green is not used on this
+   page at all: the one green on the table is the side bar's verified-login dot. */
 @font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+/* Hypershell type, self-hosted from art/fonts (OFL). The napplet build turns each
+   url("../art/fonts/…") into a data URL, exactly as it does Anton's. */
+@font-face { font-family: "Josefin Sans"; src: url("../art/fonts/josefin-sans-var.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../art/fonts/plex-mono-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../art/fonts/plex-mono-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../art/fonts/plex-mono-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
 :root {
-  --orange: #ff6a00; --orange-soft: #f7931a; --gold: #f3c244;
-  --purple: #b991e4; --purple-deep: #7447b8; --violet: #17bebb;
-  --black: #09080b; --soot: #111014; --panel: #19151f; --panel-2: #1f1a27;
-  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
-  --danger: #ff4d3d; --good: #6ee7a8;
-  --card-w: clamp(64px, 6.4vw, 104px);
+/* Hypershell core — fixed palette, no additions */
+--iron: #0f0c08;  --brass: #e7bf76;  --brass-2: #c9973f;  --brass-3: #8f6a2a;
+--parchment: #ece3d0;  --signal: #6de8a6;           /* SIGNAL IS GREEN NOW */
+/* derived surfaces */
+--panel: rgba(231,191,118,.03);  --well: rgba(231,191,118,.05);  --hairline: rgba(231,191,118,.14);
+--emphasis: rgba(231,191,118,.25);  --divider: rgba(231,191,118,.12);  --body-ink: rgba(236,227,208,.82);
+--ink-quiet: rgba(236,227,208,.62);                /* secondary paragraphs (derived, not a hue) */
+--rust: #d06b45;                                    /* danger / critical (nappelin legacy alias) */
+/* solid equivalents for things that cannot be translucent (dialogs, sticky bars, 3D clear colour) */
+--iron-850: #14100b;  --iron-800: #191410;  --iron-750: #201a13;
+/* type */
+--headline: "Josefin Sans", Georgia, sans-serif;   /* headings, uppercase, track .12–.14em, 600/700 */
+--mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;   /* body 400 13px/1.75, labels 500, controls 600 */
+/* motion */
+--t-fast: 160ms;  --t: 200ms;  --t-slow: 240ms;  --ease: cubic-bezier(.2,.8,.25,1);
+/* geometry */
+--r: 0;
+
+/* 600 Billion brand layer */
+--display: Anton600, Impact, sans-serif;           /* ONLY: the TIMELOCK TCG wordmark, 600B hero titles, card names inside the game world */
+--ember: #ff6a00;                                   /* ONLY inside the game world (effects, arena, attack/impact cues). Never on chrome */
+--aff-power: #f3c244;  --aff-bitcoin: #f7931a;  --aff-keys: #fff7ec;  --aff-signal: #7447b8;
+--aff-timelock: #17bebb;  --aff-neutral: #8a8f98;   /* Plate colours: cards, pips, affinity chips, board accents */
 }
+:root { --card-w: clamp(64px, 6.4vw, 104px); }
 * { box-sizing: border-box; margin: 0; }
-html { color-scheme: dark; background: var(--black); }
-body { min-height: 100vh; color: var(--cream); font: 14px/1.45 Arial, sans-serif; }
+html { color-scheme: dark; background: var(--iron); }
+/* Plex Mono at 13px for everything that is not a heading. The table is dense, so
+   the base leading is 1.5 and the paragraphs that are read as prose take 1.75. */
+body { min-height: 100vh; color: var(--parchment); font: 400 13px/1.5 var(--mono); }
 button, select, input { font: inherit; }
-a { color: var(--orange-soft); }
+b, strong { font-weight: 600; }
+a { color: var(--brass); }
+a:hover { color: var(--parchment); }
 
 .stage { position: relative; min-height: 100vh; }
 .stage::before {
@@ -48,90 +85,141 @@ a { color: var(--orange-soft); }
 }
 .stage::after {
   content: ""; position: fixed; inset: 0; z-index: 0;
-  background: radial-gradient(ellipse at 50% 42%, rgba(9,8,11,.4) 0%, rgba(9,8,11,.9) 62%, rgba(9,8,11,.98) 100%);
+  background: radial-gradient(ellipse at 50% 42%, rgba(15,12,8,.4) 0%, rgba(15,12,8,.9) 62%, rgba(15,12,8,.98) 100%);
 }
 .wrap { position: relative; z-index: 1; max-width: 1680px; margin: 0 auto; padding: 12px clamp(10px, 2vw, 24px) 24px; }
 
-.masthead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; }
+.masthead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--divider); }
 .masthead img { width: 40px; height: 40px; }
-.brand strong { display: block; font: 16px/1 Anton600, Impact, sans-serif; letter-spacing: .03em; }
-.brand span { color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+/* The wordmark is the brand layer: Anton, and nothing else on the bar is. */
+.brand strong { display: block; font: 16px/1 var(--display); letter-spacing: .03em; color: var(--parchment); }
+.brand span { font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
 .navlinks { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
-.navlink { padding: 8px 11px; color: var(--cream); border: 1px solid var(--purple-deep); text-decoration: none; font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
-.navlink:hover { border-color: var(--orange); }
-.turnchip { padding: 7px 12px; background: rgba(17,16,20,.85); border: 1px solid var(--line); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
-.turnchip b { color: var(--orange); }
+.navlink {
+  padding: 8px 11px; color: var(--brass); border: 1px solid var(--hairline); text-decoration: none;
+  font: 600 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  transition: color var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.navlink:hover { color: var(--parchment); border-color: var(--parchment); }
+
+/* ---------- Hypershell components (tcg- prefix, swapped for the napplet base later) ---------- */
+/* Chip: a square dot and a tracked label. The dot idles in brass-3 and lights in
+   brass; it is never green here. */
+.tcg-chip, .chip, .turnchip, .hud .cando {
+  display: inline-block; padding: 6px 10px;
+  font: 500 10px/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--brass-2); background: var(--iron); border: 1px solid var(--emphasis);
+}
+.tcg-chip::before, .chip::before, .turnchip::before, .hud .cando::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; background: var(--brass-3);
+}
+.turnchip { color: var(--parchment); }
+.turnchip b { color: var(--brass); }
+.netchip { color: var(--brass); }
+.netchip::before { background: var(--brass); }
+.netchip.stale { color: var(--ink-quiet); }
+.netchip.stale::before { background: var(--brass-3); }
+
+/* Label: overlines and captions. Brass-2 rather than brass-3 where the words name
+   a field or a zone a player has to read — brass-3 is 3.96:1 on iron, and these
+   are 10px. */
+.tcg-label { font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
+
+/* Field: inputs and selects. */
+.tcg-field, .seat input:not([type="checkbox"]), .seat select, .controls .tablepick select, .mreason {
+  font: 400 12px/1.3 var(--mono); color: var(--parchment); background: var(--well);
+  border: 1px solid rgba(143,106,42,.6); border-radius: 0; caret-color: var(--brass);
+  transition: border-color var(--t) var(--ease);
+}
+.tcg-field:focus, .seat input:not([type="checkbox"]):focus, .seat select:focus,
+.controls .tablepick select:focus, .mreason:focus { border-color: var(--brass); }
+.tcg-field::placeholder, .seat input::placeholder, .mreason::placeholder { color: var(--brass-3); }
+select option, select optgroup { color: var(--parchment); background: var(--iron-850); }
+
+/* Button: secondary is the outline; .btn without .ghost is the primary fill. */
+.tcg-btn, .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 12px 22px; cursor: pointer; text-decoration: none; border-radius: 0;
+  font: 600 11px/1.2 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--brass); background: transparent; border: 1px solid var(--brass-2);
+  transition: color var(--t) var(--ease), background-color var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.tcg-btn--primary, .btn:not(.ghost) { color: var(--iron); background: var(--brass); border-color: var(--brass); }
+.tcg-btn:hover:not(:disabled):not([aria-disabled="true"]),
+.btn:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--parchment); border-color: var(--parchment); }
+.tcg-btn--primary:hover:not(:disabled):not([aria-disabled="true"]),
+.btn:not(.ghost):hover:not(:disabled):not([aria-disabled="true"]) { color: var(--iron); background: var(--parchment); border-color: var(--parchment); }
 
 /* ---------- setup ---------- */
-.setup { max-width: 720px; margin: 6vh auto; padding: 28px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
-.setup h1 { font: clamp(34px, 5vw, 58px)/.95 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 10px; }
-.setup h1 span { color: var(--orange); }
-.setup p { color: var(--muted); margin-bottom: 20px; }
+.setup { max-width: 720px; margin: 6vh auto; padding: 28px; background: var(--iron-850); border: 1px solid var(--emphasis); }
+.setup h1 { font: 700 clamp(26px, 4.6vw, 34px)/1.25 var(--headline); letter-spacing: .13em; text-transform: uppercase; color: var(--parchment); margin-bottom: 10px; }
+.setup h1 span { color: var(--brass); }
+.setup p { color: var(--ink-quiet); line-height: 1.75; margin-bottom: 20px; }
+.setup p b { color: var(--parchment); }
 .seats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.seat { padding: 14px; background: var(--panel); border: 1px solid var(--line); }
-.seat label { display: block; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
-.seat input, .seat select { width: 100%; min-height: 40px; margin-bottom: 12px; padding: 8px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
-.startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
-.btn { padding: 12px 18px; color: var(--black); background: var(--orange); border: 0; cursor: pointer; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
-.btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
-.btn.rug { margin-top: 10px; padding: 6px 10px; font-size: 11px; color: rgba(255,77,61,.75); border-color: rgba(255,77,61,.3); }
-.btn.rug:hover { color: #ff4d3d; border-color: #ff4d3d; background: transparent; }
-
-/* Hearthstone affordances: what you CAN do glows, and the turn button tells
-   you when the turn is spent. */
-@keyframes canplayPulse {
-  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 0 10px rgba(243,194,68,.55); }
-  50% { box-shadow: 0 0 0 2px var(--gold), 0 0 20px rgba(243,194,68,.9); }
+.seat { padding: 14px; background: var(--panel); border: 1px solid var(--hairline); }
+.seat label { display: block; font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); margin-bottom: 6px; }
+.seat input:not([type="checkbox"]), .seat select { width: 100%; min-height: 40px; margin-bottom: 12px; padding: 8px 10px; }
+.seat .seat-check {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer;
+  font: 400 12px/1.5 var(--mono); letter-spacing: 0; text-transform: none; color: var(--ink-quiet);
 }
+.seat .seat-check input { accent-color: var(--brass); }
+.setup-note { margin: 2px 0 12px; color: var(--ink-quiet); font-size: 12px; }
+.startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+.startrow label { display: inline-flex; align-items: center; gap: 6px; font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
+.startrow .tcg-field { padding: 6px 8px; letter-spacing: 0; text-transform: none; }
+#seed { width: 130px; }
+.hint { color: var(--ink-quiet); font-size: 11.5px; }
+.btn.rug { margin-top: 10px; padding: 6px 10px; font-size: 10px; color: var(--rust); border-color: rgba(208,107,69,.5); }
+.btn.rug:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--rust); border-color: var(--rust); background: transparent; }
+
+/* Hearthstone affordances: what you CAN do is ringed, and the turn button tells
+   you when the turn is spent. */
 /* THE RESTING STATE LIVES ON THE CLASS, NOT IN THE KEYFRAME. These three cues
    carried their entire appearance inside the animation, and the reduced-motion
    block below kills `animation` outright — so a player who asks their operating
    system to calm motion down was shown a board with NO indication of what could
-   be played and none of what could attack. The pulse is decoration; the ring is
-   information, and information does not get to disappear. */
-.gcard.canplay { box-shadow: 0 0 0 2px var(--gold), 0 0 10px rgba(243,194,68,.55); animation: canplayPulse 1.6s ease-in-out infinite; }
-.gcard.canact { box-shadow: 0 0 0 2px var(--violet), 0 0 12px rgba(23,190,187,.6); }
+   be played and none of what could attack. The blink is decoration; the ring is
+   information, and information does not get to disappear.
+   THE RING IS THE CARD'S OWN 2px BORDER, not a glow and not the outline: the
+   outline stays free for the keyboard focus ring, so a focused playable card
+   wears both. A state that must shout blinks in steps, never breathes. */
+@keyframes ringBlink { 50% { border-color: var(--parchment); } }
+@keyframes outlineBlink { 50% { outline-color: var(--parchment); } }
+.gcard.canplay { border-color: var(--brass); }
+.gcard.canact { border-color: var(--brass); border-style: dashed; }
 /* Eligible attackers during the attackers step — the loudest cue on the board. */
-@keyframes canattackPulse {
-  0%, 100% { box-shadow: 0 0 0 3px var(--orange), 0 0 12px rgba(255,106,0,.6); }
-  50% { box-shadow: 0 0 0 3px var(--orange), 0 0 24px rgba(255,106,0,1); }
-}
-.gcard.canattack { box-shadow: 0 0 0 3px var(--orange), 0 0 12px rgba(255,106,0,.6); animation: canattackPulse 1.1s ease-in-out infinite; }
-.gcard.meshed { box-shadow: 0 0 0 3px var(--purple), 0 0 22px rgba(185,145,228,.65); }
+.gcard.canattack { border-color: var(--brass); animation: ringBlink 1.1s steps(1, end) infinite; }
+.gcard.meshed { border-color: var(--parchment); }
 
-/* The pointer menu wears the card frame and opens where the mouse already is. */
-@keyframes windowIn { from { opacity: 0; transform: translate(-50%,-50%) scale(.94); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
-@keyframes windowInAt { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+/* The pointer menu wears the card frame's corner pads and opens where the mouse already is. */
+@keyframes windowIn { from { opacity: 0; transform: translate(-50%, calc(-50% + 4px)); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@keyframes windowInAt { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .ctxmenu {
   position: fixed; z-index: 70; left: 50%; top: 50%; transform: translate(-50%, -50%);
   min-width: 240px; padding: 0 6px 6px;
-  background: rgba(19,17,24,.94); backdrop-filter: blur(8px);
-  border: 1px solid rgba(185,145,228,.4); outline: 1px solid rgba(255,106,0,.28); outline-offset: 3px;
-  box-shadow: 0 18px 50px rgba(0,0,0,.75);
-  animation: windowIn .13s ease-out;
+  background: var(--iron-850); border: 1px solid var(--emphasis);
+  animation: windowIn var(--t-fast) var(--ease);
 }
-.ctxmenu.at-pointer { transform: none; animation: windowInAt .13s ease-out; }
-.ctxmenu::before, .ctxmenu::after { content: ""; position: absolute; width: 9px; height: 9px; border: 1px solid var(--purple); background: var(--orange); }
-.ctxmenu::before { top: -5px; left: -5px; } .ctxmenu::after { bottom: -5px; right: -5px; }
-.ctxtitle { margin: 0 -6px 5px; padding: 6px 12px 7px; background: #262330; color: #cfd6dd; font: 400 10px Anton600, Impact, sans-serif; letter-spacing: .22em; text-transform: uppercase; }
+.ctxmenu.at-pointer { transform: none; animation: windowInAt var(--t-fast) var(--ease); }
+.ctxmenu::before, .ctxmenu::after { content: ""; position: absolute; width: 7px; height: 7px; background: var(--brass-2); }
+.ctxmenu::before { top: -4px; left: -4px; } .ctxmenu::after { bottom: -4px; right: -4px; }
+.ctxtitle { margin: 0 -6px 5px; padding: 7px 12px; background: var(--iron-800); border-bottom: 1px solid var(--divider); color: var(--brass-2); font: 500 10px/1.3 var(--mono); letter-spacing: .22em; text-transform: uppercase; }
 .ctxmenu button {
   display: block; width: 100%; padding: 8px 10px; text-align: left; cursor: pointer;
-  color: var(--cream); background: transparent; border: 0; font: 13px Arial, sans-serif;
+  color: var(--parchment); background: transparent; border: 0; border-left: 2px solid transparent; font: 400 13px/1.4 var(--mono);
 }
-.ctxmenu button:hover:not(:disabled) { background: rgba(255,106,0,.14); color: var(--gold); box-shadow: inset 2px 0 0 var(--orange); }
-.ctxmenu button:disabled { color: var(--muted); opacity: .45; cursor: default; }
-@keyframes turnReady {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(243,194,68,.0); }
-  50% { box-shadow: 0 0 0 6px rgba(243,194,68,.35); }
-}
-#endturn.ready { color: var(--black); background: var(--gold); border-color: var(--gold); animation: turnReady 1.8s ease-in-out infinite; }
+.ctxmenu button:hover:not(:disabled) { background: var(--well); color: var(--brass); border-left-color: var(--brass); }
+.ctxmenu button:disabled { color: var(--brass-3); cursor: default; }
+#endturn.ready { color: var(--iron); background: var(--brass); border-color: var(--brass); }
 /* "Their turn…" is NOT a disabled control — it stays clickable, because in
    hotseat the same button ends both seats' turns — so the 1.4.3 exemption for
    inactive components does not apply to it. `opacity:.45` put its label at
    4.01:1 and its border at 1.24:1. Quiet is a colour choice, not a transparency
-   one: --muted reads 8:1 and the border, at just over half strength, clears the
-   3:1 floor for a non-text boundary while still looking switched off. */
-#endturn.foeturn { color: var(--muted); border-color: rgba(199,187,204,.55); }
+   one: --ink-quiet reads 6.2:1 on iron and the --brass-3 border, at 3.96:1,
+   clears the 3:1 floor for a non-text boundary while still looking switched off. */
+#endturn.foeturn { color: var(--ink-quiet); border-color: var(--brass-3); }
 
 /* THE MOVE IS THE BOT'S. Continue and End turn used to stay live through the
    whole NPC turn, and pressing them faster than its 550 ms timer starved it of
@@ -140,88 +228,84 @@ a { color: var(--orange-soft); }
    several times a turn and a properly disabled control drops a player's focus
    to the body each time; the button stays reachable, stays announced, and
    play.js refuses the click. Being reachable, it is NOT an inactive component,
-   so this is the same colour treatment .foeturn earned: --muted at 8:1 and a
-   border just over half strength, well clear of the 3:1 non-text floor. */
+   so this is the same colour treatment .foeturn earned: --ink-quiet at 6.2:1
+   and a --brass-3 border, clear of the 3:1 non-text floor. */
 .controls .btn[aria-disabled="true"] {
-  color: var(--muted); background: transparent;
-  border: 1px solid rgba(199,187,204,.55); cursor: progress;
+  color: var(--ink-quiet); background: transparent;
+  border: 1px solid var(--brass-3); cursor: progress;
 }
-.controls .btn[aria-disabled="true"]:hover { background: transparent; }
 
 /* The coach: one bubble, one highlighted target, first game only. */
-.coach-target { position: relative; z-index: 61; outline: 3px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
+.coach-target { position: relative; z-index: 61; outline: 2px solid var(--brass); outline-offset: 4px; }
 #coach {
   position: fixed; z-index: 62; max-width: 320px; padding: 14px 16px;
-  background: var(--panel); border: 1px solid var(--gold); color: var(--cream);
-  font-size: 13.5px; line-height: 1.5; box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  background: var(--iron-850); border: 1px solid var(--brass); color: var(--parchment);
+  font-size: 13px; line-height: 1.6;
 }
-#coach b { display: block; color: var(--gold); font: 400 13px Anton600, Impact, sans-serif; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+#coach b { display: block; color: var(--brass); font: 600 13px/1.3 var(--headline); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; }
 #coach .row { display: flex; gap: 8px; margin-top: 10px; }
-#coach button { padding: 6px 12px; cursor: pointer; font: 700 11px Arial; letter-spacing: .06em; text-transform: uppercase; }
-#coach .next { color: var(--black); background: var(--gold); border: 0; }
-/* NOT `.skip`: that name belongs to the site-wide skip-to-content link, which
-   parks itself at left:-9999px until focused — and this button inherited that
-   and walked straight off the screen, leaving the tour with no way out. Two
-   different meanings of "skip" cannot share one class. */
-#coach .skipstep { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+/* The two buttons wear .tcg-btn; the bubble only makes them smaller. The skip
+   one is `.skipstep`, NOT `.skip`: that name belongs to the site-wide
+   skip-to-content link, which parks itself at left:-9999px until focused — and
+   this button inherited that and walked straight off the screen, leaving the
+   tour with no way out. Two different meanings of "skip" cannot share one class. */
+#coach button { padding: 8px 14px; font-size: 10px; }
 
 /* Card window: right-click explains the card in its own frame — double line,
    corner pads, type banner — and hangs at the mouse that asked. */
 #cardDetail {
   position: fixed; padding: 0; max-width: 720px; width: min(94vw, 720px);
-  color: var(--cream); background: rgba(15,13,19,.96); backdrop-filter: blur(10px);
-  border: 1px solid rgba(185,145,228,.42); outline: 1px solid rgba(255,106,0,.26); outline-offset: 4px;
-  box-shadow: 0 22px 70px rgba(0,0,0,.8);
+  color: var(--parchment); background: var(--iron-850);
+  border: 1px solid var(--emphasis); outline: 1px solid var(--hairline); outline-offset: 4px;
 }
-#cardDetail[open] { animation: windowInAt .15s ease-out; }
-#cardDetail::backdrop { background: rgba(9,8,11,.66); backdrop-filter: blur(4px); }
+/* No pointer (keyboard, a small screen) means centred: the UA's `margin: auto`
+   does that, and this sheet's `* { margin: 0 }` had taken it away. */
+#cardDetail:not(.at-pointer) { margin: auto; }
+#cardDetail[open] { animation: windowInAt var(--t-fast) var(--ease); }
+#cardDetail::backdrop { background: rgba(15,12,8,.72); }
 #cardDetail .wrap { display: grid; grid-template-columns: 250px 1fr; gap: 18px; padding: 16px 18px 14px; }
-#cardDetail img.face { width: 100%; border: 1px solid var(--line); }
-#cardDetail h3 { margin: 0 0 6px; font: 24px/1.05 Anton600, Impact, sans-serif; letter-spacing: .03em; text-transform: uppercase; text-shadow: 1px 1px 0 rgba(255,106,0,.5), -1px -1px 0 rgba(116,71,184,.5); }
-#cardDetail .meta { display: inline-block; padding: 3px 10px 4px; margin-bottom: 12px; background: #262330; color: #cfd6dd; font: 10px/1.3 Anton600, Impact, sans-serif; letter-spacing: .2em; text-transform: uppercase; }
-#cardDetail .rules { font-size: 14px; line-height: 1.5; margin-bottom: 10px; white-space: pre-line; }
-#cardDetail .flavor { color: var(--muted); font: italic 400 12.5px/1.5 ui-monospace, Consolas, monospace; margin-bottom: 12px; }
-#cardDetail .flavor:not(:empty)::before { content: "// "; color: var(--orange-soft); font-style: normal; }
-#cardDetail .cd-foot { display: flex; justify-content: space-between; margin: 0 18px; padding: 8px 0 10px; border-top: 1px solid rgba(185,145,228,.3); font: 10px/1 Anton600, Impact, sans-serif; letter-spacing: .2em; color: var(--cream); opacity: .7; }
-#cardDetail .cd-blossom { margin-top: 10px; font: 11px/1.6 ui-monospace, Consolas, monospace; color: var(--muted); }
-#cardDetail .cd-blossom a { color: var(--orange-soft); text-decoration: none; }
-#cardDetail .cd-blossom a:hover { text-decoration: underline; }
-#cardDetail .cd-blossom .sha { color: var(--purple); }
-#cardDetail .cdpad { position: absolute; width: 10px; height: 10px; border: 1px solid var(--purple); background: var(--orange); }
-#cardDetail .cdpad.tl { top: -5px; left: -5px; } #cardDetail .cdpad.tr { top: -5px; right: -5px; }
-#cardDetail .cdpad.bl { bottom: -5px; left: -5px; } #cardDetail .cdpad.br { bottom: -5px; right: -5px; }
-#cardDetail .help { padding: 12px 14px; background: var(--soot); border-left: 3px solid var(--gold); font-size: 13.5px; line-height: 1.55; margin-bottom: 14px; }
-#cardDetail .help b { display: block; color: var(--gold); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 5px; }
+#cardDetail img.face { width: 100%; border: 1px solid var(--hairline); }
+/* The card's name is the game world's, so it keeps the 600B display face. */
+#cardDetail h3 { margin: 0 0 6px; font: 24px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--parchment); }
+#cardDetail .meta { display: inline-block; padding: 3px 10px 4px; margin-bottom: 12px; background: var(--iron-750); border: 1px solid var(--hairline); color: var(--brass-2); font: 500 10px/1.3 var(--mono); letter-spacing: .2em; text-transform: uppercase; }
+#cardDetail .rules { font-size: 13px; line-height: 1.6; margin-bottom: 10px; white-space: pre-line; }
+#cardDetail .flavor { color: var(--ink-quiet); font: italic 400 12.5px/1.5 var(--mono); margin-bottom: 12px; }
+#cardDetail .flavor:not(:empty)::before { content: "// "; color: var(--brass-2); font-style: normal; }
+#cardDetail .cd-foot { display: flex; justify-content: space-between; margin: 0 18px; padding: 8px 0 10px; border-top: 1px solid var(--divider); font: 500 10px/1 var(--mono); letter-spacing: .2em; color: var(--brass-2); }
+#cardDetail .cd-blossom { margin-top: 10px; font: 400 11px/1.6 var(--mono); color: var(--ink-quiet); }
+#cardDetail .cd-blossom a { color: var(--brass); text-decoration: none; }
+#cardDetail .cd-blossom a:hover { color: var(--parchment); text-decoration: underline; }
+#cardDetail .cd-blossom .sha { color: var(--brass-2); }
+#cardDetail .cdpad { position: absolute; width: 7px; height: 7px; background: var(--brass-2); }
+#cardDetail .cdpad.tl { top: -4px; left: -4px; } #cardDetail .cdpad.tr { top: -4px; right: -4px; }
+#cardDetail .cdpad.bl { bottom: -4px; left: -4px; } #cardDetail .cdpad.br { bottom: -4px; right: -4px; }
+#cardDetail .help { padding: 12px 14px; background: var(--well); border-left: 2px solid var(--brass); font-size: 13px; line-height: 1.6; margin-bottom: 14px; }
+#cardDetail .help b { display: block; color: var(--brass); font: 500 10px/1.3 var(--mono); letter-spacing: .22em; text-transform: uppercase; margin-bottom: 5px; }
 #cardDetail .row { display: flex; gap: 10px; }
+#cardDetail .cd-tip { margin-top: 10px; color: var(--ink-quiet); font-size: 11.5px; }
 @media (max-width: 620px) { #cardDetail .wrap { grid-template-columns: 1fr; } #cardDetail img.face { max-width: 250px; margin: 0 auto; } }
-.btn:hover:not(:disabled) { background: var(--gold); }
-.btn.ghost:hover:not(:disabled) { background: var(--panel-2); }
+/* A chosen option (and a formed Mesh) is switched on: a machine-brass fill. */
+.btn.active, #meshGroup.active { color: var(--iron); background: var(--brass-2); border-color: var(--brass-2); }
+.btn.active:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--iron); background: var(--parchment); border-color: var(--parchment); }
 /* A DISABLED BUTTON MUST LOOK DISABLED. These carried full ember, a pointer
    cursor and a gold hover while disabled=true, so the biggest control on the
    page invited a click and answered with nothing — no message, no console
    error, enabled and disabled pixel-identical. The hover rules are guarded
    too, because lighting up under the cursor is the strongest promise a
    control can make. */
-.btn:disabled, .btn[aria-disabled="true"] {
-  opacity: .45; cursor: not-allowed; filter: none;
+.tcg-btn:disabled, .btn:disabled, .tcg-btn[aria-disabled="true"], .btn[aria-disabled="true"] {
+  color: var(--brass-3); background: transparent; border-color: rgba(143,106,42,.5); cursor: not-allowed;
 }
 
-/* ---------- lobby ---------- */
-.online { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); }
-.online h2 { font: clamp(22px, 3vw, 34px)/1 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 8px; }
-.online h2 span { color: var(--purple); }
-.online p { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+/* ---------- the online door ---------- */
+.online { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--divider); }
+.online h2 { font: 700 20px/1.2 var(--headline); letter-spacing: .14em; text-transform: uppercase; color: var(--parchment); margin-bottom: 8px; }
+.online h2 span { color: var(--brass); }
+.online p { color: var(--ink-quiet); font-size: 13px; line-height: 1.75; margin-bottom: 14px; }
 .netid { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.joinrow { display: flex; gap: 6px; margin-bottom: 12px; }
-.joinrow input { flex: 1; min-width: 0; margin-bottom: 0 !important; text-transform: uppercase; letter-spacing: .18em; font-weight: 900; }
-.hostpanel { margin-top: 16px; padding: 14px; background: var(--soot); border: 1px solid var(--orange); }
-.tablecode { font: clamp(30px, 6vw, 54px)/1 Anton600, Impact, sans-serif; letter-spacing: .16em; color: var(--orange); }
-.netlist { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
-.netrow { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; background: var(--soot); border: 1px solid var(--line); font-size: 12px; }
-.netrow .btn { padding: 6px 10px; font-size: 12px; }
-.netline { color: var(--muted); font-size: 12px; padding: 2px 0; word-break: break-word; }
-.netchip { color: var(--good); border-color: var(--good); }
-.netchip.stale { color: var(--gold); border-color: var(--gold); }
+/* These chips carry an npub and a socket URL: copied letter for letter, so never uppercased. */
+.netid .chip { text-transform: none; letter-spacing: .02em; }
+.netline { color: var(--ink-quiet); font-size: 12px; padding: 2px 0; word-break: break-word; }
 #netInfo { display: flex; flex-direction: column; gap: 2px; }
 
 /* THIS PAGE DOES NOT LOAD 600b.css, so it does not get the shared guard — and
@@ -238,8 +322,8 @@ a { color: var(--orange-soft); }
  * 600b.css on purpose — two spellings of "visually hidden" is how they drift. */
 .skip {
   position: absolute; left: -9999px; top: 0; z-index: 100;
-  padding: 10px 16px; background: var(--orange); color: var(--black);
-  font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase;
+  padding: 10px 16px; background: var(--brass); color: var(--iron);
+  font: 600 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
 }
 .skip:focus { left: 8px; top: 8px; }
 .visually-hidden {
@@ -248,56 +332,48 @@ a { color: var(--orange-soft); }
 }
 /* A visible focus ring everywhere, because the board is now fully keyboard
  * operable and the UA default is invisible against this palette. */
-:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-
-/* ---------- matchmaking ---------- */
-.resumecard { margin-top: 14px; padding: 10px 12px; background: var(--soot); border: 1px solid var(--orange); }
-.resumerow { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; padding: 6px 0; font-size: 12px; }
-.resumerow + .resumerow { border-top: 1px solid var(--line); }
-.resumewho { color: var(--cream); }
-.resumewho b { color: var(--orange); }
-.findrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
-.stakelabel { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-.stakelabel input { width: 92px; padding: 6px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
-.stakenote { color: var(--muted); font-size: 11.5px; margin-top: 8px; max-width: 68ch; line-height: 1.5; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
 /* ---------- the closing beat ---------- */
 /* A <dialog> is display:none until open, so the layout goes on [open]; the
-   element also carries a UA border and max-width that have to go. */
+   element also carries a UA border and max-width that have to go — and a UA
+   fit-content size, which with this sheet's `margin: 0` parked the whole
+   closing screen, squeezed, in the top-left corner. It fills the viewport. */
 .endgame { border: 0; padding: 0; max-width: none; max-height: none; }
-.endgame[open] { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 18px; background: rgba(9,8,11,.86); overflow: auto; }
-.endgame::backdrop { background: rgba(9,8,11,.86); }
-.endcard { position: relative; width: min(560px, 100%); padding: 26px 24px 18px; background: var(--panel); border: 1px solid var(--line); text-align: center; }
-.endcard .pad { position: absolute; width: 9px; height: 9px; border: 2px solid var(--purple-deep); }
+.endgame[open] { position: fixed; inset: 0; width: auto; height: auto; z-index: 60; display: grid; place-items: center; padding: 18px; background: rgba(15,12,8,.86); overflow: auto; }
+.endgame::backdrop { background: rgba(15,12,8,.86); }
+.endcard { position: relative; width: min(560px, 100%); padding: 26px 24px 18px; color: var(--parchment); background: var(--iron-850); border: 1px solid var(--emphasis); text-align: center; }
+.endcard .pad { position: absolute; width: 9px; height: 9px; border: 2px solid var(--brass-3); }
 .endcard .pad.tl { top: 7px; left: 7px; border-right: 0; border-bottom: 0; }
 .endcard .pad.tr { top: 7px; right: 7px; border-left: 0; border-bottom: 0; }
 .endcard .pad.bl { bottom: 7px; left: 7px; border-right: 0; border-top: 0; }
 .endcard .pad.br { bottom: 7px; right: 7px; border-left: 0; border-top: 0; }
-.endeyebrow { font: 10px/1.3 Anton600, Impact, sans-serif; letter-spacing: .26em; text-transform: uppercase; color: var(--purple); }
-.endverdict { font: clamp(38px, 9vw, 66px)/1 Anton600, Impact, sans-serif; letter-spacing: .04em; margin: 6px 0 2px; color: var(--cream); }
-.endverdict.won { color: var(--good); }
-.endverdict.lost { color: var(--danger); }
-.endverdict.drew { color: var(--gold); }
-.endreason { color: var(--muted); font-size: 13px; }
+.endeyebrow { font: 500 10px/1.3 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
+/* The verdict is the match's hero title: the 600B display face. A win is brass,
+   not green — a verified result is a brass seal on this table. */
+.endverdict { font: clamp(38px, 9vw, 66px)/1 var(--display); letter-spacing: .04em; margin: 6px 0 2px; color: var(--parchment); }
+.endverdict.won { color: var(--brass); }
+.endverdict.lost { color: var(--rust); }
+.endverdict.drew { color: var(--brass-2); }
+.endreason { color: var(--ink-quiet); font-size: 13px; }
 .endstats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 18px 0 4px; }
-.endstat { min-width: 66px; padding: 7px 10px 6px; background: var(--soot); border: 1px solid var(--line); }
-.endstat b { display: block; font: 22px/1 Anton600, Impact, sans-serif; color: var(--cream); }
-.endstat span { font-size: 7.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--orange); }
-.endverify { margin-top: 14px; padding: 9px 11px; background: var(--soot); border-left: 2px solid var(--good); text-align: left; color: var(--muted); font-size: 11.5px; line-height: 1.55; }
-.endverify.bad { border-left-color: var(--danger); color: var(--danger); }
-.endstake { margin-top: 12px; padding: 11px 12px; background: var(--soot); border: 1px solid var(--gold); text-align: left; font-size: 12px; line-height: 1.5; }
-.endstake h4 { margin: 0 0 4px; font: 12px/1.3 Anton600, Impact, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
-.endstake .invoice { display: block; margin-top: 8px; padding: 7px 8px; background: var(--black); border: 1px solid var(--line); color: var(--muted); font: 10px/1.4 ui-monospace, Consolas, monospace; word-break: break-all; max-height: 84px; overflow: auto; }
-.endstake .qr { display: block; margin: 10px auto 0; width: min(196px, 60%); background: var(--cream); padding: 7px; }
+.endstat { min-width: 66px; padding: 7px 10px 6px; background: var(--iron-800); border: 1px solid var(--hairline); }
+.endstat b { display: block; font: 600 22px/1 var(--mono); color: var(--parchment); }
+.endstat span { font: 500 8px/1.4 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--brass-2); }
+.endverify { margin-top: 14px; padding: 9px 11px; background: var(--well); border-left: 2px solid var(--brass); text-align: left; color: var(--ink-quiet); font-size: 11.5px; line-height: 1.6; }
+.endverify.bad { border-left-color: var(--rust); color: var(--rust); }
+.endstake { margin-top: 12px; padding: 11px 12px; background: var(--well); border: 1px solid var(--brass-2); text-align: left; font-size: 12px; line-height: 1.6; }
+.endstake h4 { margin: 0 0 4px; font: 600 12px/1.3 var(--headline); letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+.endstake .invoice { display: block; margin-top: 8px; padding: 7px 8px; background: var(--iron); border: 1px solid var(--hairline); color: var(--ink-quiet); font: 400 10px/1.4 var(--mono); word-break: break-all; max-height: 84px; overflow: auto; }
+.endstake .qr { display: block; margin: 10px auto 0; width: min(196px, 60%); background: var(--parchment); padding: 7px; }
 .endrow { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
-.endnote { color: var(--muted); font-size: 11.5px; margin-top: 10px; min-height: 16px; }
-/* --purple-deep on --panel is 2.86:1. It is 9px text on the screen that closes
-   a match, so it is exactly the size that needs the ratio most. --purple is the
-   same family at 7:1, and is already what .endeyebrow uses two lines above. */
-.endcard .terminal-line { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font: 9px/1.3 ui-monospace, Consolas, monospace; letter-spacing: .22em; color: var(--purple); }
+.endnote { color: var(--ink-quiet); font-size: 11.5px; margin-top: 10px; min-height: 16px; }
+/* 9px text on the screen that closes a match is exactly the size that needs the
+   ratio most: --brass-2 is 7.4:1 on iron, where --brass-3 would be under 4. */
+.endcard .terminal-line { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--divider); font: 500 9px/1.3 var(--mono); letter-spacing: .22em; color: var(--brass-2); }
 @media (prefers-reduced-motion: no-preference) {
-  .endgame[open] .endcard { animation: endrise .26s cubic-bezier(.2,.7,.3,1) both; }
-  @keyframes endrise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .endgame[open] .endcard { animation: endrise var(--t-slow) var(--ease) both; }
+  @keyframes endrise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 }
 
 /* ---------- table ----------
@@ -306,28 +382,33 @@ a { color: var(--orange-soft); }
    type-banner chips for zone names — and no straight ranks. Networks and
    hands sit on arcs; the straight line is godless. */
 .phases { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
-.phase { padding: 5px 10px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); background: rgba(24,22,30,.85); border: 1px solid var(--line); font-family: Anton600, Impact, sans-serif; }
-.phase.active { color: var(--black); background: var(--orange); border-color: var(--orange); }
-.phase.done { color: var(--purple); }
+.phase { padding: 5px 10px; font: 500 10px/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-quiet); background: var(--iron); border: 1px solid var(--hairline); }
+.phase.active { color: var(--iron); background: var(--brass); border-color: var(--brass); }
+.phase.done { color: var(--brass-2); }
 
 /* The HUD: one line that answers "where are we, what can I do". */
 /* These two rows sit OUTSIDE .board, so they read straight against the world
-   plate, whose brightest region measures #57554f once dimmed — putting ember,
-   gold, muted and violet text under 4.5:1 as the page scrolls. The board itself
-   already carries a scrim; these needed their own. */
-.hud, .masthead { background: rgba(9,8,11,.85); }
+   plate, whose brightest region measures #57554f once dimmed — putting text
+   under 4.5:1 as the page scrolls. The board itself already carries a scrim;
+   these needed their own, and it is solid iron. */
+.hud, .masthead { background: var(--iron); }
 .hud { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 8px; }
-.hud-phase { padding: 6px 14px; background: var(--orange); color: var(--black); font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
-.hud-who { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--cream); }
+.hud-phase { padding: 6px 14px; background: var(--brass); color: var(--iron); font: 700 13px/1.1 var(--headline); letter-spacing: .14em; text-transform: uppercase; }
+.hud-who { font: 600 13px/1.1 var(--headline); letter-spacing: .12em; text-transform: uppercase; color: var(--parchment); }
 .hud-can { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-.hud .cando { padding: 4px 9px 5px; border: 1px solid var(--gold); color: var(--gold); font-size: 11px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; background: color-mix(in srgb, var(--gold) 12%, transparent); }
-.hud .cando.attack { border-color: var(--orange); color: var(--orange); background: color-mix(in srgb, var(--orange) 12%, transparent); animation: canattackPulse 1.6s ease-in-out infinite; }
-.hud .cando.quiet { border-color: var(--line); color: var(--muted); background: transparent; animation: none; }
+.hud .cando { padding: 4px 9px 5px; color: var(--brass); border-color: var(--brass-2); }
+.hud .cando::before { background: var(--brass); }
+.hud .cando.attack { color: var(--iron); background: var(--brass); border-color: var(--brass); }
+.hud .cando.attack::before { background: var(--iron); }
+.hud .cando.quiet { color: var(--ink-quiet); border-color: var(--hairline); background: var(--iron); }
+.hud .cando.quiet::before { background: var(--brass-3); }
 
-.prompt { padding: 10px 12px; margin-bottom: 10px; background: rgba(17,16,20,.84); backdrop-filter: blur(7px); border-left: 4px solid var(--purple-deep); font-weight: 700; }
-.prompt.target { border-left-color: var(--orange); }
-.prompt.manual { border-left-color: var(--gold); color: var(--gold); }
-.prompt.good { border-left-color: var(--good); color: var(--good); }
+/* The instruction line and every notice: a status line with a 2px edge. */
+.prompt { padding: 10px 12px; margin-bottom: 10px; background: var(--iron-850); border-left: 2px solid var(--brass-3); font-weight: 500; color: var(--parchment); }
+.prompt.target { border-left-color: var(--brass); }
+.prompt.manual { border-left-color: var(--brass-2); color: var(--brass); }
+.prompt.good { border-left-color: var(--brass); color: var(--brass); }
+.prompt.bad { border-left-color: var(--rust); color: var(--rust); }
 
 .layout { display: grid; grid-template-columns: 1fr 300px; gap: 14px; align-items: start; }
 
@@ -335,13 +416,13 @@ a { color: var(--orange-soft); }
    faint circuit traces running up both margins — the card, blown up to a table. */
 .board {
   position: relative; display: flex; flex-direction: column; gap: 6px;
-  padding: 14px 16px 10px; background: rgba(9,8,11,.58);
-  border: 1px solid rgba(185,145,228,.4); outline: 1px solid rgba(255,106,0,.22); outline-offset: 5px;
+  padding: 14px 16px 10px; background: rgba(15,12,8,.58);
+  border: 1px solid var(--emphasis); outline: 1px solid var(--hairline); outline-offset: 5px;
 }
 .board::before, .board::after {
   content: ""; position: absolute; top: 8px; bottom: 8px; width: 30px; z-index: 0; pointer-events: none; opacity: .5;
   background:
-    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="220" viewBox="0 0 30 220"><g fill="none" stroke="%23f7931a" stroke-width="1.4"><path d="M15 6v38h-8v30"/><path d="M7 96v26h10v34"/><path d="M15 178v36"/></g><g fill="%23f7931a"><circle cx="15" cy="6" r="2.4"/><circle cx="7" cy="74" r="2.4"/><circle cx="7" cy="96" r="2.4"/><circle cx="17" cy="156" r="2.4"/><circle cx="15" cy="214" r="2.4"/></g><g fill="none" stroke="%23b991e4" stroke-width="1"><rect x="10" y="52" width="9" height="9"/><rect x="12" y="132" width="8" height="8"/></g></svg>') repeat-y center / 30px 220px;
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="220" viewBox="0 0 30 220"><g fill="none" stroke="%23c9973f" stroke-width="1.4"><path d="M15 6v38h-8v30"/><path d="M7 96v26h10v34"/><path d="M15 178v36"/></g><g fill="%23c9973f"><circle cx="15" cy="6" r="2.4"/><circle cx="7" cy="74" r="2.4"/><circle cx="7" cy="96" r="2.4"/><circle cx="17" cy="156" r="2.4"/><circle cx="15" cy="214" r="2.4"/></g><g fill="none" stroke="%238f6a2a" stroke-width="1"><rect x="10" y="52" width="9" height="9"/><rect x="12" y="132" width="8" height="8"/></g></svg>') repeat-y center / 30px 220px;
 }
 .board::before { left: 3px; }
 .board::after { right: 3px; transform: scaleX(-1); }
@@ -391,48 +472,47 @@ a { color: var(--orange-soft); }
 
 /* The table itself: a soft pool of light at the centre line, brightest where
    the two networks meet, falling off toward both players. */
-/* A lit table rather than one flat fill: a light well over the clash lane in
-   the middle, falling off to a cold far edge and a warmer near edge, with the
-   inset shadows pulling both horizons down. This is what the depth falls on. */
+/* A lit table rather than one flat fill: a brass light well over the clash lane
+   in the middle, falling off to a dark far edge and a dark near edge. The
+   horizons are drawn into the ramp itself, so the frame carries no shadow. */
 .board {
   background-image:
-    radial-gradient(120% 60% at 50% 50%, rgba(247,147,26,.11) 0%, rgba(9,8,11,0) 58%),
-    linear-gradient(180deg, rgba(23,20,30,.86) 0%, rgba(9,8,11,.42) 46%, rgba(9,8,11,.42) 54%, rgba(14,11,18,.74) 100%);
-  box-shadow: inset 0 40px 70px -50px rgba(0,0,0,.95), inset 0 -40px 70px -50px rgba(0,0,0,.95);
+    radial-gradient(120% 60% at 50% 50%, rgba(231,191,118,.08) 0%, rgba(15,12,8,0) 58%),
+    linear-gradient(180deg, rgba(20,16,11,.94) 0%, rgba(15,12,8,.42) 46%, rgba(15,12,8,.42) 54%, rgba(20,16,11,.84) 100%);
 }
-/* PCB corner pads, like the frame corners of every card face. */
-.bcorner { position: absolute; width: 12px; height: 12px; border: 1px solid var(--purple); background: rgba(9,8,11,.9); z-index: 2; pointer-events: none; }
-.bcorner::after { content: ""; position: absolute; inset: 3px; background: var(--orange); opacity: .8; }
+/* PCB corner pads, like the frame corners of every card face: an ember core,
+   which is the card's own, set in a brass pad. */
+.bcorner { position: absolute; width: 12px; height: 12px; border: 1px solid var(--brass-2); background: var(--iron); z-index: 2; pointer-events: none; }
+.bcorner::after { content: ""; position: absolute; inset: 3px; background: var(--ember); opacity: .8; }
 .bcorner.tl { top: -6px; left: -6px; } .bcorner.tr { top: -6px; right: -6px; }
 .bcorner.bl { bottom: -6px; left: -6px; } .bcorner.br { bottom: -6px; right: -6px; }
 
 .side { padding: 2px 26px; }
 .playerbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0; }
-.playerbar .name { font: 18px/1 Anton600, Impact, sans-serif; letter-spacing: .04em; text-shadow: 1px 1px 0 rgba(255,106,0,.55), -1px -1px 0 rgba(116,71,184,.55); }
-/* The number wears the same chip square as a card's cost and ACT/RES. */
+.playerbar .name { font: 700 16px/1 var(--headline); letter-spacing: .12em; text-transform: uppercase; color: var(--parchment); }
+/* The number wears the same chip square as a card's cost and ACT/RES — square
+   all the way in, the dial included. */
 .uptime {
-  --uptime-ratio: 100%; --uptime-color: var(--good);
+  --uptime-ratio: 100%; --uptime-color: var(--brass);
   display: grid; grid-template-columns: 42px minmax(54px, 74px); grid-template-rows: auto auto;
   align-items: center; column-gap: 7px; min-width: 108px; padding: 4px 7px 5px 4px;
-  background: rgba(9,8,11,.92); border: 1px solid color-mix(in srgb, var(--uptime-color) 65%, var(--line));
-  box-shadow: inset 0 0 0 1px rgba(255,247,236,.08), 0 0 14px color-mix(in srgb, var(--uptime-color) 18%, transparent);
-  line-height: 1; transition: border-color .18s ease, box-shadow .18s ease;
+  background: var(--iron); border: 1px solid color-mix(in srgb, var(--uptime-color) 65%, var(--hairline));
+  line-height: 1; transition: border-color var(--t) var(--ease);
 }
 .uptime-core {
   grid-row: 1 / 3; width: 38px; height: 38px; display: grid; place-items: center; position: relative;
-  border-radius: 50%; background: conic-gradient(var(--uptime-color) var(--uptime-ratio), rgba(255,247,236,.1) 0);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--uptime-color) 28%, transparent);
+  background: conic-gradient(var(--uptime-color) var(--uptime-ratio), rgba(236,227,208,.1) 0);
 }
-.uptime-core::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--black); }
-.uptime b { position: relative; z-index: 1; color: var(--cream); font: 20px/1 Anton600, Impact, sans-serif; }
-.uptime-gauge { height: 7px; overflow: hidden; border: 1px solid var(--line); background: rgba(255,247,236,.06); }
-.uptime-gauge i { display: block; width: var(--uptime-ratio); height: 100%; background: var(--uptime-color); box-shadow: 0 0 8px var(--uptime-color); transition: width .28s steps(6,end); }
-.uptime-status { color: var(--uptime-color); font: 8px/1.1 ui-monospace, Consolas, monospace; font-weight: 900; letter-spacing: .15em; }
-.uptime.low { --uptime-color: var(--gold); }
-.uptime.critical { --uptime-color: var(--danger); animation: uptimeCritical 1.1s steps(2,end) infinite; }
-.uptime.offline { --uptime-color: var(--danger); filter: grayscale(.35); }
-.uptime.boosted { --uptime-color: var(--purple); }
-@keyframes uptimeCritical { 50% { box-shadow: inset 0 0 0 1px rgba(255,247,236,.08), 0 0 22px rgba(255,77,61,.5); } }
+.uptime-core::after { content: ""; position: absolute; inset: 4px; background: var(--iron); }
+.uptime b { position: relative; z-index: 1; color: var(--parchment); font: 600 18px/1 var(--mono); }
+.uptime-gauge { height: 7px; overflow: hidden; border: 1px solid var(--hairline); background: rgba(236,227,208,.06); }
+.uptime-gauge i { display: block; width: var(--uptime-ratio); height: 100%; background: var(--uptime-color); transition: width .28s steps(6,end); }
+.uptime-status { color: var(--uptime-color); font: 600 8px/1.1 var(--mono); letter-spacing: .15em; }
+.uptime.low { --uptime-color: var(--brass-2); }
+.uptime.critical { --uptime-color: var(--rust); animation: uptimeCritical 1.1s steps(1,end) infinite; }
+.uptime.offline { --uptime-color: var(--rust); filter: grayscale(.35); }
+.uptime.boosted { --uptime-color: var(--parchment); }
+@keyframes uptimeCritical { 50% { border-color: var(--parchment); } }
 
 /* Every structured engine event leaves one short readable beat. The existing
    target-bound FX supplies particles and damage numbers; this ribbon guarantees
@@ -455,28 +535,27 @@ a { color: var(--orange-soft); }
 /* Anything with no seat — phase markers, system lines — sits quietly bottom
    right, out of both the board and the two player lanes. */
 .action-fx .action-burst.seat-none { right: 14px; bottom: 6px; left: auto; }
+/* A notice cuts in and out; it does not float. */
 .action-burst {
-  max-width: min(680px, 90vw); padding: 7px 14px; color: var(--cream); background: rgba(9,8,11,.93);
-  border: 1px solid var(--purple); box-shadow: 0 0 18px rgba(116,71,184,.32);
-  font: 11px/1.25 ui-monospace, Consolas, monospace; letter-spacing: .04em; text-align: center;
-  animation: actionBeat 1.35s cubic-bezier(.2,0,0,1) forwards;
+  max-width: min(680px, 90vw); padding: 7px 14px; color: var(--parchment); background: var(--iron);
+  border: 1px solid var(--emphasis);
+  font: 500 11px/1.25 var(--mono); letter-spacing: .04em; text-align: center;
+  animation: actionBeat 1.35s linear forwards;
 }
-.action-burst.impact { color: var(--danger); border-color: var(--danger); box-shadow: 0 0 24px rgba(255,77,61,.42); }
-.action-burst.gain { color: var(--good); border-color: var(--good); }
-.action-burst.action { color: var(--gold); border-color: var(--gold); }
+.action-burst.impact { color: var(--rust); border-color: var(--rust); }
+.action-burst.gain { color: var(--brass); border-color: var(--brass); }
+.action-burst.action { color: var(--brass); border-color: var(--brass-2); }
 .action-burst.reduced { animation: none; opacity: 1; transform: none; }
-#meshGroup.active { color: var(--black); background: var(--purple); border-color: var(--purple); }
 @keyframes actionBeat {
-  0% { opacity: 0; transform: translateY(10px) scale(.96); }
-  12%,70% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-12px) scale(.98); }
+  0% { opacity: 0; }
+  12%, 82% { opacity: 1; }
+  100% { opacity: 0; }
 }
 /* The chosen Avatar, shown while picking a seat. Same square cut as the bar. */
 .avatar-preview {
   width: 100%; max-width: 132px; aspect-ratio: 744/1039; object-fit: cover;
   object-position: 50% 22%; margin-top: 8px;
-  border: 1px solid var(--line-strong); background: var(--soot);
-  box-shadow: 0 3px 0 rgba(9,8,11,.85), 0 12px 22px -12px rgba(0,0,0,.9);
+  border: 1px solid var(--emphasis); background: var(--iron-800);
 }
 
 /* The seat's own face, from its signature-verified kind-0. Square, with a PCB
@@ -487,38 +566,37 @@ a { color: var(--orange-soft); }
   /* Bigger than a chip: the portrait is the anchor the announcements hang off,
      so it has to read as the player rather than decorate the bar. */
   flex: 0 0 auto; width: 64px; height: 64px; object-fit: cover;
-  border: 1px solid var(--line-strong); background: var(--soot);
-  box-shadow: 0 3px 0 rgba(9,8,11,.85), 0 10px 18px -10px rgba(0,0,0,.9);
+  border: 1px solid var(--emphasis); background: var(--iron-800);
 }
-.playerbar.seat-target .portrait { border-color: var(--orange); }
+.playerbar.seat-target .portrait { border-color: var(--brass); }
 
 /* Kampfansage: the announcement wears the face of whoever made the move. */
 .action-burst { display: inline-flex; align-items: center; gap: 8px; }
 .action-burst .shout {
   flex: 0 0 auto; width: 26px; height: 26px; object-fit: cover;
-  border: 1px solid currentColor; background: var(--soot);
+  border: 1px solid currentColor; background: var(--iron-800);
 }
 
-.counts { color: var(--muted); font-size: 11px; font-family: ui-monospace, Consolas, monospace; letter-spacing: .04em; }
+.counts { color: var(--ink-quiet); font: 400 11px/1.3 var(--mono); letter-spacing: .04em; }
 .buffer { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
-.pip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; background: var(--soot); border: 1px solid var(--line); }
+.pip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font: 600 11px/1.3 var(--mono); letter-spacing: .06em; color: var(--parchment); background: var(--iron); border: 1px solid var(--hairline); }
 .pip img { width: 13px; height: 13px; }
 /* Locked E1 "Plate" palette, remapped by resource — Keys is white, Signal violet.
    Each pip keeps a dark tint of its own hue as the background, so a resource
-   reads by field colour as well as by icon. */
-.pip-P { border-color: var(--gold); color: var(--gold); background: color-mix(in srgb, var(--gold) 20%, var(--soot)); }
-.pip-B { border-color: var(--orange-soft); color: var(--orange-soft); background: color-mix(in srgb, var(--orange-soft) 20%, var(--soot)); }
-.pip-K { border-color: var(--cream); color: var(--cream); background: color-mix(in srgb, var(--cream) 20%, var(--soot)); }
-.pip-S { border-color: var(--purple-deep); color: var(--purple); background: color-mix(in srgb, var(--purple-deep) 26%, var(--soot)); }
-.pip-T { border-color: var(--violet); color: var(--violet); background: color-mix(in srgb, var(--violet) 20%, var(--soot)); }
+   reads by field colour as well as by icon. Signal's plate is too dark to be
+   text, so its number is the plate lifted toward Keys' white. */
+.pip-P { border-color: var(--aff-power); color: var(--aff-power); background: color-mix(in srgb, var(--aff-power) 20%, var(--iron)); }
+.pip-B { border-color: var(--aff-bitcoin); color: var(--aff-bitcoin); background: color-mix(in srgb, var(--aff-bitcoin) 20%, var(--iron)); }
+.pip-K { border-color: var(--aff-keys); color: var(--aff-keys); background: color-mix(in srgb, var(--aff-keys) 20%, var(--iron)); }
+.pip-S { border-color: var(--aff-signal); color: color-mix(in srgb, var(--aff-signal) 55%, var(--aff-keys)); background: color-mix(in srgb, var(--aff-signal) 26%, var(--iron)); }
+.pip-T { border-color: var(--aff-timelock); color: var(--aff-timelock); background: color-mix(in srgb, var(--aff-timelock) 20%, var(--iron)); }
 
-.zlabel { font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--purple); margin-bottom: 5px; }
-/* Zone names wear the card's type banner: a steel chip, spaced capitals. */
-.zonechip { display: inline-block; margin: 2px 0 0; padding: 3px 12px 4px; background: #262330; color: #cfd6dd; font: 10px/1.3 Anton600, Impact, sans-serif; letter-spacing: .24em; text-transform: uppercase; }
+.zlabel { font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); margin-bottom: 5px; }
+/* Zone names wear the card's type banner: an iron chip, spaced capitals. */
+.zonechip { display: inline-block; margin: 2px 0 0; padding: 3px 12px 4px; background: var(--iron-800); border: 1px solid var(--hairline); color: var(--brass-2); font: 500 10px/1.3 var(--mono); letter-spacing: .24em; text-transform: uppercase; }
 /* The Queue is the clash lane between the two Networks: centred, in flight. */
-.zone.queue { justify-content: center; cursor: pointer; border: 1px dashed rgba(243,194,68,.6); background: rgba(243,194,68,.07); animation: queueWait 2s ease-in-out infinite; min-height: calc(var(--card-w) * 1.15); }
-.zone.queue:hover { border-color: var(--gold); }
-@keyframes queueWait { 0%,100% { background: rgba(243,194,68,.05); } 50% { background: rgba(243,194,68,.12); } }
+.zone.queue { justify-content: center; cursor: pointer; border: 1px dashed rgba(231,191,118,.5); background: var(--well); min-height: calc(var(--card-w) * 1.15); }
+.zone.queue:hover { border-color: var(--brass); }
 #queueWrap { text-align: center; margin: 2px 0; }
 .zone { display: flex; gap: 6px; flex-wrap: wrap; min-height: calc(var(--card-w) * 1.42); padding: 8px 6px; }
 
@@ -528,19 +606,20 @@ a { color: var(--orange-soft); }
    press on an image with its own callout and a selection magnifier, both of
    which would eat the gesture before the card window ever opened. */
 /* The face carries the ground shadow, not .gcard: every state ring
-   (canplay/canact/canattack/meshed) owns .gcard's box-shadow, and a drop-shadow
+   (canplay/canact/canattack/meshed) owns .gcard's border, and a drop-shadow
    filter would be replaced by .gcard.committed's brightness filter. A hard 3px
    edge plus a soft falloff is what reads as "object on a table" instead of
-   "picture printed on the board". */
+   "picture printed on the board". This is the card world's physical shadow, not
+   chrome: no state ring glows. */
 .gcard img, .gcard .gart, .gcard.facedown {
-  box-shadow: 0 3px 0 rgba(9,8,11,.85), 0 14px 22px -10px rgba(0,0,0,.95), 0 3px 6px rgba(0,0,0,.5);
+  box-shadow: 0 3px 0 rgba(15,12,8,.85), 0 14px 22px -10px rgba(0,0,0,.95), 0 3px 6px rgba(0,0,0,.5);
 }
 .gcard:hover img, .gcard:hover .gart {
-  box-shadow: 0 3px 0 rgba(9,8,11,.85), 0 28px 40px -14px rgba(0,0,0,1), 0 6px 10px rgba(0,0,0,.6);
+  box-shadow: 0 3px 0 rgba(15,12,8,.85), 0 28px 40px -14px rgba(0,0,0,1), 0 6px 10px rgba(0,0,0,.6);
 }
 .gcard { position: relative; width: var(--card-w); cursor: pointer; border: 2px solid transparent; transition: transform .14s ease, border-color .12s ease; transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)); -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 .gcard img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; }
-.gcard:hover { transform: rotate(calc(var(--rot, 0deg) * .35)) translateY(calc(var(--lift, 0px) - 14px)) scale(1.05); border-color: var(--orange-soft); z-index: 5; }
+.gcard:hover { transform: rotate(calc(var(--rot, 0deg) * .35)) translateY(calc(var(--lift, 0px) - 14px)) scale(1.05); border-color: var(--brass); z-index: 5; }
 .gcard.committed { transform: rotate(calc(var(--rot, 0deg) + 90deg)) translateY(var(--lift, 0px)) scale(.94); filter: brightness(.72); }
 .gcard.committed:hover { transform: rotate(90deg) translateY(calc(var(--lift, 0px) - 8px)) scale(.98); }
 .zone.arc { flex-wrap: nowrap; justify-content: center; overflow: visible; }
@@ -567,22 +646,22 @@ a { color: var(--orange-soft); }
    zone breathes a little less, so a split Network is ~1.6x a single row and
    the single-column breakpoint still fits the board. */
 .zone.netsplit { flex-wrap: wrap; align-content: center; row-gap: 2px; padding: 5px 6px; overflow: visible; }
-/* THE OPACITY WAS THE WHOLE PROBLEM. --purple on the board's own composited
-   background is 7.7:1; at .7 it blends toward the world plate showing through
-   the board scrim and measures 3.57:1 — a caption that names which rail you are
-   looking at, under the 4.5 floor. Full strength is 5.7:1 against the plate's
-   brightest region. The trace keeps its own faintness in its own gradient, so
-   the line stays a hint and the words stay readable. */
+/* THE OPACITY WAS THE WHOLE PROBLEM. At .7 the caption blended toward the world
+   plate showing through the board scrim and fell under the 4.5 floor — a
+   caption that names which rail you are looking at. It stays at full strength
+   (--brass-2 carries the luminance the old violet did, 7.4:1 on iron); the
+   trace keeps its own faintness in its own gradient, so the line stays a hint
+   and the words stay readable. */
 .zone.netsplit .netcut {
   flex: 0 0 100%; align-self: center; display: flex; align-items: center; gap: 8px;
   height: 12px; overflow: visible; pointer-events: none;
-  font: 9px/1 Anton600, Impact, sans-serif; letter-spacing: .22em; text-transform: uppercase;
-  color: var(--purple);
+  font: 500 9px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase;
+  color: var(--brass-2);
 }
 /* A trace running off the caption, not a ruled line. */
 .zone.netsplit .netcut::after {
   content: ""; flex: 1 1 auto; height: 1px;
-  background: linear-gradient(90deg, rgba(185,145,228,.3), rgba(185,145,228,0));
+  background: linear-gradient(90deg, rgba(231,191,118,.3), rgba(231,191,118,0));
 }
 /* The back rail is support, not bodies: smaller, so two rows cost far less
    than two card heights. It opens up properly on hover. */
@@ -591,7 +670,7 @@ a { color: var(--orange-soft); }
 .zone.netsplit .gcard.netres.committed:hover { transform: rotate(90deg) translateY(calc(var(--lift, 0px) - 6px)) scale(1.4); }
 /* What this one pays in, read live from the engine: the card's terminal
    footer, table-sized. */
-.netaff { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; gap: 2px; padding: 2px 0 3px; background: rgba(9,8,11,.82); border-top: 1px solid rgba(185,145,228,.28); pointer-events: none; }
+.netaff { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; gap: 2px; padding: 2px 0 3px; background: rgba(15,12,8,.82); border-top: 1px solid var(--hairline); pointer-events: none; }
 /* Each plate keeps its own field colour — the same .pip-* hooks the buffer
    uses, so a resource reads by hue as well as by icon. */
 .netaff i { display: block; width: 13px; height: 13px; padding: 1px; border-width: 1px; border-style: solid; }
@@ -607,29 +686,30 @@ a { color: var(--orange-soft); }
   .zone.fan .gcard { margin: 0 calc(var(--card-w) * -0.05); }
 }
 /* ---------- the clash states, said in something other than colour ----------
-   SC 1.4.1: red border = attacking, teal = blocking, green glow = may block,
-   dimmed = may not, purple = meshed. Five meanings, one channel, and about one
-   player in twelve cannot separate the first two. Only .willdie had a shape.
-   So every combat state also wears a chip on the card's top edge — the same
-   steel type-banner the zone names use, shrunk to card scale — with a glyph
-   AND a word, so the state survives colour blindness, a greyscale screen and a
-   photograph of the table. It is a class, never a keyframe: reduced motion
-   removes animation, and a state that lives in an animation is a state a
-   calmed-down player never sees. */
+   SC 1.4.1: ember border = attacking, teal = blocking, brass = may block,
+   dimmed = may not, a parchment ring = meshed. Five meanings, one channel, and
+   about one player in twelve cannot separate the first two. Only .willdie had a
+   shape. So every combat state also wears a chip on the card's top edge — an
+   iron type-banner chip, shrunk to card scale — with a glyph AND a word, so the
+   state survives colour blindness, a greyscale screen and a photograph of the
+   table. It is a class, never a keyframe: reduced motion removes animation, and
+   a state that lives in an animation is a state a calmed-down player never sees.
+   Attack and block are the clash's own cues, so they keep the colours of the
+   clash arrows drawn over the table (ember, teal); everything else is brass. */
 .gcard.attacking::before, .gcard.blocking::before, .gcard.canblock::before,
 .gcard.cantblock::before, .gcard.meshed::before {
   position: absolute; left: 50%; top: -7px; transform: translateX(-50%); z-index: 4;
   padding: 1px 4px 2px; white-space: nowrap; pointer-events: none;
-  background: #09080b; border: 1px solid currentColor;
-  font: 900 7.5px/1 ui-monospace, Consolas, monospace; letter-spacing: .08em;
+  background: var(--iron); border: 1px solid currentColor;
+  font: 600 7.5px/1 var(--mono); letter-spacing: .08em;
 }
 /* Order is precedence: a meshed attacker says MESH, because the mesh is the
    thing that changes how the fight resolves. */
-.gcard.attacking::before { content: "▲ ATK"; color: var(--danger); }
-.gcard.blocking::before  { content: "▼ BLK"; color: var(--violet); }
-.gcard.canblock::before  { content: "✓ BLK"; color: var(--good); }
-.gcard.cantblock::before { content: "✕ BLK"; color: var(--muted); }
-.gcard.meshed::before    { content: "⬢ MESH"; color: var(--purple); }
+.gcard.attacking::before { content: "▲ ATK"; color: var(--ember); }
+.gcard.blocking::before  { content: "▼ BLK"; color: var(--aff-timelock); }
+.gcard.canblock::before  { content: "✓ BLK"; color: var(--brass); }
+.gcard.cantblock::before { content: "✕ BLK"; color: var(--ink-quiet); }
+.gcard.meshed::before    { content: "⬢ MESH"; color: var(--parchment); }
 /* A committed card is turned a quarter turn, and the chip turns with it — an
    attacker is committed the moment it is declared, so this is the COMMON case,
    not the corner one. Moving the chip to the card's left edge and spinning it
@@ -646,57 +726,58 @@ a { color: var(--orange-soft); }
 .rules-fast .zone.netsplit .gcard.netres.committed:hover { transform: translateY(calc(var(--lift, 0px) - 6px)) scale(1.4); }
 
 /* A card picked for a choice the table is waiting on — the hand-limit discard,
-   a capped unlock — lifts and rings in danger red: it is about to go. */
-.gcard.selected { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.45), 0 0 18px rgba(255,77,61,.5); transform: rotate(calc(var(--rot, 0deg) * .35)) translateY(calc(var(--lift, 0px) - 22px)) scale(1.04); z-index: 4; }
-.gcard.selected::before { content: "DISCARD"; color: var(--danger); }
-.gcard.attacking { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(255,77,61,.35); }
-.gcard.blocking { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(94,90,203,.4); }
-/* The attacker you picked to block: violet pulse until you name the blocker. */
-@keyframes blockpickPulse { 0%,100% { box-shadow: 0 0 0 3px var(--violet), 0 0 10px rgba(23,190,187,.5); } 50% { box-shadow: 0 0 0 3px var(--violet), 0 0 22px rgba(23,190,187,.95); } }
-.gcard.blockpick { box-shadow: 0 0 0 3px var(--violet), 0 0 10px rgba(23,190,187,.5); animation: blockpickPulse 1s ease-in-out infinite; }
+   a capped unlock — lifts and rings in rust: it is about to go. */
+.gcard.selected { border-color: var(--rust); transform: rotate(calc(var(--rot, 0deg) * .35)) translateY(calc(var(--lift, 0px) - 22px)) scale(1.04); z-index: 4; }
+.gcard.selected::before { content: "DISCARD"; color: var(--rust); }
+.gcard.attacking { border-color: var(--ember); }
+.gcard.blocking { border-color: var(--aff-timelock); }
+/* The attacker you picked to block: a teal ring that blinks until you name the blocker. */
+@keyframes blockpickBlink { 50% { border-color: var(--parchment); } }
+.gcard.blockpick { border-color: var(--aff-timelock); animation: blockpickBlink 1s steps(1, end) infinite; }
 /* A clash step is open: these cards are pulled, not scrolled past. */
 #youNetwork.draggable .gcard { touch-action: none; cursor: grab; }
 #youNetwork.draggable .gcard:active { cursor: grabbing; }
 /* An attacker nobody is answering yet — the thing to click next. */
-.gcard.needsblock { outline: 2px dashed rgba(255,77,61,.7); outline-offset: 2px; }
+.gcard.needsblock { outline: 2px dashed rgba(208,107,69,.8); outline-offset: 2px; }
 /* Once an attacker is picked: who may legally answer it, and who may not.
    The refusal used to be `opacity:.38` on the whole card, which also took the
    "✕ BLK" chip down with it — opacity groups its children — leaving the one
    readable explanation at 38% over a live background. The dimming now lands on
    the ART, where it belongs, and the label stays at full strength. */
-.gcard.canblock { box-shadow: 0 0 0 2px var(--good), 0 0 14px rgba(110,231,168,.5); }
+.gcard.canblock { border-color: var(--brass); }
 .gcard.cantblock { opacity: .62; }
 .gcard.cantblock img { filter: grayscale(.85) brightness(.6); }
-/* This one does not come back from the clash. */
+/* This one does not come back from the clash. The stroke, not a shadow, keeps
+   the mark readable over any art. */
 .gcard.willdie::after {
   content: "✖"; position: absolute; inset: 0; display: grid; place-items: center;
-  color: var(--danger); font-size: calc(var(--card-w) * .5); font-weight: 900;
-  text-shadow: 0 0 12px rgba(9,8,11,.95); pointer-events: none;
+  color: var(--rust); font-size: calc(var(--card-w) * .5); font-weight: 600;
+  -webkit-text-stroke: 2px var(--iron); pointer-events: none;
 }
 .gcard.willdie img { filter: grayscale(.55) brightness(.62); }
 
 /* The clash preview strip: the arithmetic, before you commit to it. */
-.clashstrip { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: -4px 0 10px; padding: 8px 12px; background: rgba(17,16,20,.86); border-left: 4px solid var(--danger); }
-.clashstrip span { padding: 3px 9px 4px; font: 11px/1.4 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; border: 1px solid transparent; }
-.cs-label { color: var(--muted); letter-spacing: .18em !important; }
-.cs-hit { color: var(--danger); border-color: var(--danger) !important; background: rgba(255,77,61,.12); }
-.cs-lethal { color: var(--black); background: var(--danger); }
-.cs-kill { color: var(--good); border-color: var(--good) !important; background: rgba(110,231,168,.1); }
-.cs-loss { color: var(--gold); border-color: var(--gold) !important; background: rgba(243,194,68,.1); }
-.cs-none { color: var(--muted); border-color: var(--line) !important; }
-.gcard.targetable { border-color: var(--good); box-shadow: 0 0 0 3px rgba(110,231,168,.45); animation: pulse 1s infinite alternate; }
-@keyframes pulse { to { box-shadow: 0 0 0 6px rgba(110,231,168,.2); } }
-/* The player as a target: same green pulse as a targetable card, on the bar. */
-.playerbar.seat-target { cursor: pointer; outline: 2px solid var(--good); outline-offset: 2px; animation: pulse 1s infinite alternate; border-radius: 4px; }
-.playerbar.seat-target .name { color: var(--good); }
-.gcard.facedown { aspect-ratio: 5/7; background: linear-gradient(150deg, #1a1420, #0b0a0e); border: 1px solid var(--line); }
-.gstats { position: absolute; right: 3px; bottom: 3px; padding: 1px 5px; background: rgba(9,8,11,.9); border: 1px solid var(--orange); font-size: 11px; font-weight: 900; }
-.gstats.hurt { color: var(--danger); border-color: var(--danger); }
-.gmanual { position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; display: grid; place-items: center; background: var(--gold); color: var(--black); font-size: 11px; font-weight: 900; }
-/* Where the face came from: ember = fresh from a Blossom mirror, violet = local cache. */
-.gsrc { position: absolute; left: 4px; bottom: 4px; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(9,8,11,.85); pointer-events: none; }
-.gsrc-blossom { background: var(--orange-soft); box-shadow: 0 0 6px rgba(247,147,26,.8); }
-.gsrc-cache { background: var(--purple); box-shadow: 0 0 5px rgba(185,145,228,.7); }
+.clashstrip { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: -4px 0 10px; padding: 8px 12px; background: var(--iron-850); border-left: 2px solid var(--rust); }
+.clashstrip span { padding: 3px 9px 4px; font: 600 10px/1.4 var(--mono); letter-spacing: .12em; text-transform: uppercase; border: 1px solid transparent; }
+.cs-label { color: var(--brass-2); font-weight: 500 !important; letter-spacing: .22em !important; }
+.cs-hit { color: var(--rust); border-color: var(--rust) !important; }
+.cs-lethal { color: var(--iron); background: var(--rust); }
+.cs-kill { color: var(--brass); border-color: var(--brass) !important; }
+.cs-loss { color: var(--parchment); border-color: var(--rust) !important; }
+.cs-none { color: var(--ink-quiet); border-color: var(--hairline) !important; }
+.gcard.targetable { border-color: var(--brass); animation: ringBlink 1s steps(1, end) infinite; }
+/* The player as a target: the same brass ring as a targetable card, on the bar. */
+.playerbar.seat-target { cursor: pointer; outline: 2px solid var(--brass); outline-offset: 2px; animation: outlineBlink 1s steps(1, end) infinite; }
+.playerbar.seat-target .name { color: var(--brass); }
+.gcard.facedown { aspect-ratio: 5/7; background: var(--iron-800); border: 1px solid var(--hairline); }
+/* Chip squares for numbers, in the card frame's language. */
+.gstats { position: absolute; right: 3px; bottom: 3px; padding: 1px 5px; background: rgba(15,12,8,.9); border: 1px solid var(--brass-2); color: var(--parchment); font: 600 11px/1.4 var(--mono); }
+.gstats.hurt { color: var(--rust); border-color: var(--rust); }
+.gmanual { position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; display: grid; place-items: center; background: var(--brass); color: var(--iron); font: 600 11px/1 var(--mono); }
+/* Where the face came from: brass = fresh from a Blossom mirror, brass-3 = local cache. */
+.gsrc { position: absolute; left: 4px; bottom: 4px; width: 9px; height: 9px; border: 1px solid rgba(15,12,8,.85); pointer-events: none; }
+.gsrc-blossom { background: var(--brass); }
+.gsrc-cache { background: var(--brass-3); }
 
 /* ---------- the art-tile ----------
    With face-geometry.js on the page a table card is only its picture: the tile
@@ -712,7 +793,7 @@ a { color: var(--orange-soft); }
    as one lane instead of a ragged top edge. */
 .gcard.arttile { align-self: center; }
 /* The cost chip wears the Stack Builder's .cv idiom at board scale. */
-.gcost { position: absolute; right: 3px; top: 3px; min-width: 18px; padding: 1px 5px; text-align: center; background: rgba(9,8,11,.9); border: 1px solid var(--line); color: var(--cream); font-size: 11px; font-weight: 900; }
+.gcost { position: absolute; right: 3px; top: 3px; min-width: 18px; padding: 1px 5px; text-align: center; background: rgba(15,12,8,.9); border: 1px solid var(--hairline); color: var(--parchment); font: 600 11px/1.4 var(--mono); }
 /* The stats pair splits into the tile's bottom corners: ACT left, RES right —
    the reading every card game taught, and the titles say it in words. */
 .gstats.gact { right: auto; left: 3px; }
@@ -729,14 +810,16 @@ a { color: var(--orange-soft); }
    numbers stay DOM, crisp, on top of the canvas. */
 .board > canvas.arena3d { display: none; position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
 .board.arena3d > canvas.arena3d { display: block; }
-/* The hero behind the board is the arena's job now; around the board it stays. */
-.board.arena3d { background-image: none; background-color: var(--black); box-shadow: none; }
+/* The hero behind the board is the arena's job now; around the board it stays.
+   Under the canvas the board is one solid surface: iron-850. */
+.board.arena3d { background-image: none; background-color: var(--iron-850); }
 .board.arena3d::before, .board.arena3d::after { display: none; }
 .board.arena3d .side, .board.arena3d .zone, .board.arena3d #queueWrap { position: static; }
 /* The DOM's own depth and arcs are switched off: the arena owns the layout. */
 .board.arena3d .zone.foehand, .board.arena3d #foeNetwork, .board.arena3d .zone.queue, .board.arena3d #youNetwork { transform: none; }
 .board.arena3d .zone { min-height: calc(var(--card-w) * 1.7); background: none; border: none; animation: none; }
 .board.arena3d .netcut { display: none; }
+/* A hitbox wears no ring of its own: the arena draws every state on the mesh. */
 .board.arena3d .gcard, .board.arena3d .gcard:hover, .board.arena3d .gcard.committed, .board.arena3d .gcard.committed:hover,
 .board.arena3d .gcard.selected, .board.arena3d .zone.fan .gcard, .board.arena3d .zone.fan .gcard:hover,
 .board.arena3d .zone.netsplit .gcard.netres:hover, .board.arena3d .zone.netsplit .gcard.netres.committed:hover {
@@ -745,9 +828,9 @@ a { color: var(--orange-soft); }
 }
 .board.arena3d .gcard.facedown { background: none; border-color: transparent; }
 .board.arena3d .gcard > img, .board.arena3d .gcard > .gart { visibility: hidden; }
-.board.arena3d .gcard:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.controls .tablepick { margin-left: auto; color: var(--muted); font-size: 12px; }
-.controls .tablepick select { margin-left: 6px; padding: 6px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
+.board.arena3d .gcard:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.controls .tablepick { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
+.controls .tablepick select { padding: 6px 8px; letter-spacing: 0; text-transform: none; }
 /* Hitboxes sit at 2; the chrome above them at 20. The own hand is the one exception: the arena
    stacks its hitboxes from 21 by depth (arena3d.js HAND_Z), because on a phone the projected fan
    lands under the DOM playerbar and a tap on a card must reach the card. The buttons, and a
@@ -755,10 +838,9 @@ a { color: var(--orange-soft); }
 .board.arena3d .controls, .board.arena3d .playerbar, .board.arena3d .zonechip, .board.arena3d .tfooter { position: relative; z-index: 20; }
 .board.arena3d .controls, .board.arena3d .playerbar.seat-target { z-index: 50; }
 .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 4px 2px; }
-.chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
-/* The card face's bottom line, table-sized. */
-.tfooter { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(185,145,228,.3); font: 11px/1 Anton600, Impact, sans-serif; letter-spacing: .2em; color: var(--cream); opacity: .75; }
-.tfooter span { color: var(--muted); letter-spacing: .14em; }
+/* The card face's bottom line, table-sized: a terminal readout. */
+.tfooter { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--divider); font: 500 10px/1 var(--mono); letter-spacing: .2em; color: var(--brass-2); }
+.tfooter span { color: var(--ink-quiet); letter-spacing: .14em; }
 /* The affinity plates: the stage wears seat one's world. */
 .stage.plate-Bitcoin::before { background-image: url("../art/world-plates/bitcoin.png"); }
 .stage.plate-Keys::before { background-image: url("../art/world-plates/keys.png"); }
@@ -767,31 +849,42 @@ a { color: var(--orange-soft); }
 
 /* ---------- right rail ---------- */
 .rail { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 10px; }
-.panel { padding: 10px; background: rgba(17,16,20,.86); backdrop-filter: blur(7px); border: 1px solid var(--line); }
-.panel h3 { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); margin-bottom: 8px; }
-.panel summary { font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); cursor: pointer; }
+/* Panels sit over the world plate, so their ground is solid iron rather than the
+   3% brass wash a panel wears on a plain iron page. */
+.panel { padding: 10px; background: var(--iron-850); border: 1px solid var(--hairline); }
+.panel h3, .panel summary { font: 600 13px/1.2 var(--headline); letter-spacing: .12em; text-transform: uppercase; color: var(--parchment); }
+.panel h3 { margin-bottom: 8px; }
+.panel summary { cursor: pointer; }
+.panel-note { margin: 6px 0 0; color: var(--ink-quiet); font-size: 11.5px; line-height: 1.6; }
+.quiet { color: var(--ink-quiet); font-size: 12px; }
 #inspector { display: flex; gap: 10px; }
-#inspector img { width: 108px; aspect-ratio: 5/7; object-fit: cover; border: 1px solid var(--line); }
+#inspector img { width: 108px; aspect-ratio: 5/7; object-fit: cover; border: 1px solid var(--hairline); }
 .ibody { flex: 1; min-width: 0; }
-.imeta { color: var(--muted); font-size: 11px; margin: 4px 0 6px; }
-.itext { font-size: 12px; white-space: pre-line; }
-.imanualnote { margin-top: 6px; color: var(--gold); font-size: 11px; }
+/* The card's name in the reader: the game world's display face, as on the card window. */
+.ibody strong { display: block; font: 16px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--parchment); }
+.imeta { color: var(--ink-quiet); font-size: 11px; margin: 4px 0 6px; }
+.itext { font-size: 12px; line-height: 1.6; white-space: pre-line; }
+.imanualnote { margin-top: 6px; color: var(--brass-2); font-size: 11px; }
 .iacts { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
-.iacts button { padding: 6px 8px; text-align: left; color: var(--black); background: var(--orange-soft); border: 0; cursor: pointer; font-size: 11px; font-weight: 700; }
-.iacts button.ghost { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+/* Ability text is read, so these keep sentence case; the look is the button's. */
+.iacts button, #manualPending button {
+  padding: 6px 8px; text-align: left; cursor: pointer; border-radius: 0;
+  color: var(--iron); background: var(--brass); border: 1px solid var(--brass);
+  font: 600 11px/1.35 var(--mono); transition: background-color var(--t) var(--ease), border-color var(--t) var(--ease), color var(--t) var(--ease);
+}
+.iacts button:hover, #manualPending button:hover { background: var(--parchment); border-color: var(--parchment); }
+.iacts button.ghost, #manualPending button.ghost { color: var(--brass); background: transparent; border-color: var(--brass-2); }
+.iacts button.ghost:hover, #manualPending button.ghost:hover { color: var(--parchment); background: transparent; border-color: var(--parchment); }
 .manualgrid { display: flex; gap: 4px; flex-wrap: wrap; }
-.manualgrid button { padding: 5px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); cursor: pointer; font-size: 11px; font-weight: 700; }
-.manualgrid button:hover { border-color: var(--orange); }
-.prompt.bad { border-left-color: var(--danger); color: var(--danger); }
-.gboot { position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; display: grid; place-items: center; background: var(--violet); color: var(--black); font-size: 10px; font-weight: 900; }
+.manualgrid button { padding: 5px 8px; color: var(--brass); background: transparent; border: 1px solid var(--brass-2); border-radius: 0; cursor: pointer; font: 600 11px/1.35 var(--mono); }
+.manualgrid button:hover { color: var(--parchment); border-color: var(--parchment); }
+.gboot { position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; display: grid; place-items: center; background: var(--brass-2); color: var(--iron); font: 600 10px/1 var(--mono); }
 #manualPending { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
-.mtitle { font-weight: 900; letter-spacing: .04em; text-transform: uppercase; font-size: 11px; color: var(--gold); }
-.mtext { color: var(--cream); }
-.mdiff { color: var(--muted); font-family: ui-monospace, monospace; font-size: 11px; word-break: break-word; }
-.mopen { padding: 6px; background: var(--soot); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
-#manualPending button { padding: 5px 8px; color: var(--black); background: var(--orange-soft); border: 0; cursor: pointer; font-size: 11px; font-weight: 700; }
-#manualPending button.ghost { color: var(--muted); background: transparent; border: 1px solid var(--line); }
-.mreason { width: 100%; padding: 5px 7px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); font-size: 11px; }
+.mtitle { font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass); }
+.mtext { color: var(--parchment); }
+.mdiff { color: var(--ink-quiet); font: 400 11px/1.5 var(--mono); word-break: break-word; }
+.mopen { padding: 6px; background: var(--iron-800); border: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 5px; }
+.mreason { width: 100%; padding: 5px 7px; font-size: 11px; }
 /* ---------- keyword help ----------
    The table names rules it never explains: Boot Delay governs the first turn of
    every Avatar and appeared nowhere but a ⏻ badge, and the blocking refusal
@@ -800,27 +893,27 @@ a { color: var(--orange-soft); }
    words appear — a button, because a finger has no hover and this codebase's
    rule is that nothing lives behind a gesture the device does not have. */
 .kwlist { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 44vh; overflow-y: auto; }
-.kwitem { padding: 7px 8px; background: var(--soot); border-left: 2px solid var(--line); font-size: 12px; line-height: 1.5; }
-.kwitem.on { border-left-color: var(--gold); background: var(--panel-2); }
-.kwitem b { display: block; color: var(--gold); font: 400 11px Anton600, Impact, sans-serif; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 3px; }
-.kwitem p { margin: 0; color: var(--cream); }
+.kwitem { padding: 7px 8px; background: var(--iron-800); border-left: 2px solid var(--hairline); font-size: 12px; line-height: 1.6; }
+.kwitem.on { border-left-color: var(--brass); background: var(--iron-750); }
+.kwitem b { display: block; color: var(--brass); font: 600 12px/1.3 var(--headline); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 3px; }
+.kwitem p { margin: 0; color: var(--parchment); }
 .kwitem a { display: inline-block; margin-top: 4px; font-size: 11px; }
-.kwnote { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.5; }
+.kwnote { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--divider); color: var(--ink-quiet); font-size: 11px; line-height: 1.6; }
 .kwrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 #promptKeywords { margin: -6px 0 10px; }
-.kwcap { color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.kwcap { font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
 .kwlink {
-  padding: 5px 9px 6px; cursor: pointer; color: var(--gold); background: transparent;
-  border: 1px dashed var(--gold); font: 700 10.5px/1.2 Arial, sans-serif; letter-spacing: .04em;
+  padding: 5px 9px 6px; cursor: pointer; color: var(--brass); background: transparent;
+  border: 1px dashed var(--brass-2); border-radius: 0; font: 600 10.5px/1.2 var(--mono); letter-spacing: .04em;
 }
-.kwlink:hover, .kwlink:focus-visible { color: var(--black); background: var(--gold); }
+.kwlink:hover, .kwlink:focus-visible { color: var(--iron); background: var(--brass); border-color: var(--brass); }
 
 #log { max-height: 300px; overflow-y: auto; font-size: 11px; }
-.logline { padding: 3px 0; border-bottom: 1px solid rgba(185,145,228,.12); color: var(--muted); }
-.logline.good { color: var(--good); }
-.logline.warn { color: var(--gold); }
-.logline.bad { color: var(--danger); }
-.logline.manual { color: var(--purple); }
+.logline { padding: 3px 0; border-bottom: 1px solid var(--divider); color: var(--ink-quiet); }
+.logline.good { color: var(--brass); }
+.logline.warn { color: var(--brass-2); }
+.logline.bad { color: var(--rust); }
+.logline.manual { color: var(--parchment); }
 
 @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .rail { position: static; } .seats { grid-template-columns: 1fr; } }
 /* On a phone the rail stops sitting beside the board and stacks under it. The
@@ -839,20 +932,15 @@ a { color: var(--orange-soft); }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
 /* ---------- embed mode: the page as a nappelin napplet ----------
-   The host paints its own chrome around a sandboxed srcdoc frame, so the site's
-   masthead, links and palette go and nappelin's tokens (iron, parchment, brass)
-   take over. The five affinity Plate colours stay: they are how a player reads
-   the board. napplet.js paints the same values when a shell theme is absent;
-   this block is the fallback that holds before it runs. */
-html.embedded {
-  --black: #0f0c08; --soot: #15110c; --panel: #1a150e; --panel-2: #1f1911;
-  --cream: #ece3d0; --muted: #c9b48a; --line: rgba(231,191,118,.28);
-  --orange: #e7bf76; --orange-soft: #c9973f; --gold: #e7bf76;
-  --purple: #c9973f; --purple-deep: #8f6a2a; --good: #6de8a6;
-}
+   The host paints its own chrome around a sandboxed srcdoc frame, and the
+   Hangar's bay draws the title, back and close — so the site's logo, wordmark
+   and links go, and no second title strip is drawn in here. The turn and net
+   chips stay: they are game content. The palette above IS nappelin's Hypershell
+   core, so there is nothing left to re-point; napplet.js repaints those core
+   tokens from the shell's theme, and the five affinity Plate colours stay,
+   because they are how a player reads the board. No green inside the frame:
+   the side bar that owns the one green dot is the shell's there. */
 html.embedded * { border-radius: 0; }
-html.embedded .setup, html.embedded .panel, html.embedded .turnchip,
-html.embedded .ctxmenu, html.embedded #coach, html.embedded #cardDetail { box-shadow: none; }
 /* The masthead keeps only the turn and net chips. */
 html.embedded .masthead img, html.embedded .brand, html.embedded .skip { display: none; }
 html.embedded .navlinks { display: none; }
@@ -918,23 +1006,23 @@ html.embedded #online { display: none; }
         <img class="avatar-preview" id="avatarPreviewB" alt="" hidden>
         <label for="deckB">Stack affinity</label>
         <select id="deckB"></select>
-        <label for="npcB" style="display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--muted);font-size:12px;cursor:pointer">
-          <input id="npcB" type="checkbox" style="accent-color:var(--orange)">
+        <label for="npcB" class="seat-check">
+          <input id="npcB" type="checkbox">
           NPC opponent — seat two plays itself
         </label>
       </div>
     </div>
-    <div style="margin:2px 0 12px;color:var(--muted);font-size:12px">
+    <div class="setup-note">
       Want your own 40? Build and save Stacks in the <a href="deck.html">Stack Builder</a> —
       they appear in both seat menus here.
     </div>
     <div class="startrow">
-      <button class="btn" id="start">Start game</button>
+      <button class="btn tcg-btn tcg-btn--primary" id="start">Start game</button>
       <!-- Classic is Edition One as printed; Fast is the same cards on a pool,
            with one Build window a turn and attacks straight at a target
            (rules/600B-Timelock-TCG-Fast-F1.md). -->
-      <label for="rules" style="color:var(--muted);font-size:12px">Rules
-        <select id="rules" style="margin-left:6px;padding:6px 8px;color:var(--cream);background:var(--soot);border:1px solid var(--line)">
+      <label for="rules">Rules
+        <select id="rules" class="tcg-field">
           <option value="E1.0">Classic</option>
           <option value="F1.0">Fast</option>
         </select>
@@ -942,8 +1030,8 @@ html.embedded #online { display: none; }
       <!-- The same choice as #arenaTable on the board: the WebGL table or the classic
            DOM one. play.js keeps the two in step and hides the 3D option where WebGL2
            is unavailable (docs/arena3d.md). -->
-      <label for="arenaSetup" style="color:var(--muted);font-size:12px">Table
-        <select id="arenaSetup" style="margin-left:6px;padding:6px 8px;color:var(--cream);background:var(--soot);border:1px solid var(--line)">
+      <label for="arenaSetup">Table
+        <select id="arenaSetup" class="tcg-field">
           <option value="3d">3D</option>
           <option value="dom">Classic</option>
         </select>
@@ -951,10 +1039,10 @@ html.embedded #online { display: none; }
       <!-- The field takes a word as happily as a number now (site/play.js:
            seedFromInput), so it finally says so. It used to accept anything and
            silently deal seed 0 for everything that was not a plain integer. -->
-      <label for="seed" style="color:var(--muted);font-size:12px">Seed
-        <input id="seed" style="width:130px;margin-left:6px;padding:6px 8px;color:var(--cream);background:var(--soot);border:1px solid var(--line)" placeholder="word or number" autocomplete="off" aria-describedby="seedHint">
+      <label for="seed">Seed
+        <input id="seed" class="tcg-field" placeholder="word or number" autocomplete="off" aria-describedby="seedHint">
       </label>
-      <span id="seedHint" style="color:var(--muted);font-size:11.5px">Any word or number deals the same game every time. Blank deals a new one.</span>
+      <span id="seedHint" class="hint">Any word or number deals the same game every time. Blank deals a new one.</span>
     </div>
 
     <!-- ---------------- the online door ----------------
@@ -971,14 +1059,14 @@ html.embedded #online { display: none; }
       online seat; local hotseat still works without an extension.</p>
 
       <div class="netid">
-        <button class="btn ghost" id="nostrLogin">Sign in with nostr</button>
-        <span class="chip" id="nostrWho" hidden></span>
-        <button class="btn ghost" id="nostrLogout" hidden>Sign out</button>
-        <span class="chip" id="netTable"></span>
+        <button class="btn ghost tcg-btn" id="nostrLogin">Sign in with nostr</button>
+        <span class="chip tcg-chip" id="nostrWho" hidden></span>
+        <button class="btn ghost tcg-btn" id="nostrLogout" hidden>Sign out</button>
+        <span class="chip tcg-chip" id="netTable"></span>
       </div>
 
       <div class="startrow">
-        <a class="btn" href="matchmaking.html">Find an opponent →</a>
+        <a class="btn tcg-btn tcg-btn--primary" href="matchmaking.html">Find an opponent →</a>
       </div>
 
       <div class="prompt" id="netNotice" hidden></div>
@@ -1077,19 +1165,21 @@ html.embedded #online { display: none; }
                back on reload-only: the exact dead end the closing screen was
                added to remove. Same handler, on the board, for as long as the
                result stands. -->
-          <button class="btn" id="playAgain" hidden>New game</button>
-          <button class="btn" id="continue">Continue</button>
-          <button class="btn ghost" id="quickClash" hidden>Send all</button>
-          <button class="btn ghost" id="meshGroup" hidden>Form Mesh</button>
-          <button class="btn ghost" id="endturn">End turn</button>
-          <button class="btn ghost" id="cancelTarget">Cancel targeting</button>
-          <button class="btn ghost" id="clearManual">Clear notice</button>
+          <button class="btn tcg-btn tcg-btn--primary" id="playAgain" hidden>New game</button>
+          <button class="btn tcg-btn tcg-btn--primary" id="continue">Continue</button>
+          <button class="btn ghost tcg-btn" id="quickClash" hidden>Send all</button>
+          <button class="btn ghost tcg-btn" id="meshGroup" hidden>Form Mesh</button>
+          <button class="btn ghost tcg-btn" id="endturn">End turn</button>
+          <button class="btn ghost tcg-btn" id="cancelTarget">Cancel targeting</button>
+          <button class="btn ghost tcg-btn" id="clearManual">Clear notice</button>
           <label class="tablepick" for="arenaTable">Table
             <select id="arenaTable">
               <option value="3d">3D</option>
               <option value="dom">Classic</option>
             </select>
           </label>
+          <!-- The sound control's fallback home. With the side bar on the page it
+               lives in the bar's Music panel and this stays hidden (play.js init). -->
           <span id="fxControl"></span>
         </div>
 
@@ -1110,11 +1200,11 @@ html.embedded #online { display: none; }
         <div class="panel" id="cardPanel">
           <h3>Card</h3>
           <!-- Not "Hover a card": half the people reading this have no hover. -->
-          <div id="inspector"><span style="color:var(--muted);font-size:12px">Point at a card, or hold one to open it.</span></div>
+          <div id="inspector"><span class="quiet">Point at a card, or hold one to open it.</span></div>
         </div>
         <details class="panel" id="keywordPanel">
           <summary>Keywords</summary>
-          <p style="margin:6px 0 0;color:var(--muted);font-size:11.5px">
+          <p class="panel-note">
             The words this table uses. Every card window lists the ones on that card,
             and wherever the game names a keyword it is a button that opens it here.
           </p>
@@ -1123,7 +1213,7 @@ html.embedded #online { display: none; }
         </details>
         <details class="panel">
           <summary>Match controls</summary>
-          <button class="btn ghost rug" id="rugpull"
+          <button class="btn ghost rug tcg-btn" id="rugpull"
             title="End the game by walking away — the win goes to the player who did not rugpull.">Rugpull</button>
         </details>
         <div class="panel" id="manualPanel" hidden>
@@ -1171,17 +1261,18 @@ html.embedded #online { display: none; }
     <div class="endstake" id="endStake" hidden></div>
 
     <div class="endrow">
-      <button class="btn" id="endPublish" hidden>Sign and publish the result</button>
-      <button class="btn ghost" id="endRematch" hidden>Find another opponent</button>
+      <button class="btn tcg-btn tcg-btn--primary" id="endPublish" hidden>Sign and publish the result</button>
+      <button class="btn ghost tcg-btn" id="endRematch" hidden>Find another opponent</button>
       <!-- This button has only ever closed the dialog; it was labelled for a
            journey it does not take. The board underneath is worth looking at. -->
-      <button class="btn ghost" id="endClose">Look at the final board</button>
+      <button class="btn ghost tcg-btn" id="endClose">Look at the final board</button>
     </div>
     <div class="endnote" id="endNote"></div>
     <div class="terminal-line">TIMELOCK_TCG :: 600B</div>
   </div>
 </dialog>
-<!-- Clash arrows: attacks and blocks drawn as lines over the table. -->
+<!-- Clash arrows: attacks and blocks drawn as lines over the table. They are the
+     clash's own cues, so they keep the game world's ember and teal. -->
 <svg id="arrows" aria-hidden="true"
   style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:40">
   <defs>
@@ -1200,8 +1291,8 @@ html.embedded #online { display: none; }
   <b id="coachTitle"></b>
   <span id="coachText"></span>
   <div class="row">
-    <button class="next" id="coachNext">Next</button>
-    <button class="skipstep" id="coachSkip">Skip tour</button>
+    <button class="next tcg-btn tcg-btn--primary" id="coachNext">Next</button>
+    <button class="skipstep tcg-btn" id="coachSkip">Skip tour</button>
   </div>
 </div>
 
@@ -1223,11 +1314,11 @@ html.embedded #online { display: none; }
         style="margin-bottom:12px" hidden></div>
       <div class="row" id="cdActs" style="flex-wrap:wrap;margin-bottom:10px"></div>
       <div class="row">
-        <button class="btn" id="cdPlay">Play card</button>
-        <button class="btn ghost" id="cdClose">Close</button>
+        <button class="btn tcg-btn tcg-btn--primary" id="cdPlay">Play card</button>
+        <button class="btn ghost tcg-btn" id="cdClose">Close</button>
       </div>
       <div class="cd-blossom" id="cdBlossom"></div>
-      <div style="margin-top:10px;color:var(--muted);font-size:11.5px">
+      <div class="cd-tip">
         Tip: click or tap a card in your Wallet to play it without this popup.
       </div>
     </div>
