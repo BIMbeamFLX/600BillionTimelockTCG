@@ -5262,7 +5262,15 @@
       for (const card of inventory.cards) available.set(card.asset_id, card.count);
       return available;
     }
-    const wallet = globalThis.NutFTWallet;
+    /* The wallet script is not on this page until something needs it
+     * (site/collection-stack.js loadWallet), and a device that holds no wallet
+     * holds no cards: nothing is loaded to be told so, and a cold table stays cold. */
+    let wallet = globalThis.NutFTWallet;
+    const CS = globalThis.E1CollectionStack;
+    if (!wallet && CS) {
+      if (!CS.walletExists()) return available;
+      wallet = await CS.loadWallet({ document });
+    }
     if (!wallet || typeof wallet.snapshot !== "function") throw new Error("the NutFT wallet is not loaded on this page");
     const view = await wallet.snapshot(location.origin);
     for (const item of view.owned) available.set(item.tag[2], (available.get(item.tag[2]) || 0) + 1);

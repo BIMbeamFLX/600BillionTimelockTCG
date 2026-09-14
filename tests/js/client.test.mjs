@@ -2043,3 +2043,60 @@ test("an arena that cannot be built falls back to the classic table with a notic
   assert.equal(game.state.zones["0:network"].length, 1);
   assert.equal(game.arena, null);
 });
+
+/* ------------------------------------------------------- the NutFT wallet door
+ *
+ * play.html carries no nutft-wallet.js tag any more: site/collection-stack.js
+ * loads it when this device holds a wallet and something asks. The possession
+ * gate above keeps its word through that door — it still refuses a NutFT Stack
+ * it cannot verify, and it still verifies one it can. */
+const COLLECTION_JS = path.join(HERE, "..", "..", "site", "collection-stack.js");
+const walletTags = (byId) => byId("body").children.filter((node) => node && /nutft-wallet\.js$/.test(String(node.src || "")));
+
+test("a NutFT Stack on a device with no wallet is refused without loading one", async () => {
+  require(COLLECTION_JS);
+  delete globalThis.NutFTWallet;
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-004")] };
+  const storage = new Map([["600b:decks", JSON.stringify(saved)], ["600b:nutft-decks", JSON.stringify({ Owned: true })]]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.location = { origin: "http://table.test" };
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "custom:Owned";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  await waitFor(() => /needs 3, wallet controls 0/.test(byId("prompt").textContent), "the possession failure prompt");
+  assert.equal(game.state, null);
+  assert.equal(walletTags(byId).length, 0, "no wallet, no wallet script");
+});
+
+test("a NutFT Stack loads the wallet script on demand and starts once its proofs check out", async () => {
+  require(COLLECTION_JS);
+  delete globalThis.NutFTWallet;
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-004")] };
+  const storage = new Map([
+    ["600b:decks", JSON.stringify(saved)],
+    ["600b:nutft-decks", JSON.stringify({ Owned: true })],
+    ["600b:nutft-wallet", JSON.stringify({ privateKey: "k", pubkey: "p", tokens: ["cashuB1"] })],
+  ]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.location = { origin: "http://table.test" };
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "custom:Owned";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  await waitFor(() => walletTags(byId).length === 1, "the wallet script tag");
+  assert.equal(byId("start").disabled, true, "Start waits for the check");
+  const origins = [];
+  globalThis.NutFTWallet = {
+    read: async () => ({ tokens: ["cashuB1"] }),
+    snapshot: async (origin) => {
+      origins.push(origin);
+      return { owned: Array.from({ length: 3 }, () => ({ tag: ["1", "600B-E1", "E1-004"] })), spent: [], invalid: [], unreadable: [] };
+    },
+  };
+  for (const tag of walletTags(byId)) for (const fn of tag.listeners.load || []) fn();
+  await waitFor(() => game.state, "the verified Stack to start");
+  assert.ok(origins.includes("http://table.test"), "the snapshot asked this site's mint");
+  assert.equal(walletTags(byId).length, 1, "one tag, however many asked");
+  delete globalThis.NutFTWallet;
+});

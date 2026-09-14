@@ -1338,6 +1338,8 @@ html.embedded #online { display: none; }
 <!-- The precon library: curated Starter and Classic Stacks for the seat menus. -->
 <script src="precons.js"></script>
 <script src="precons-fast.js"></script>
+<!-- The player's own cards as a Stack, and the lazy door to the NutFT wallet. -->
+<script src="collection-stack.js"></script>
 <script src="fx.js"></script>
 <!-- The transport. It opens no socket unless this page already holds a match or
      the player asks for one, so play.html stays a working offline hotseat. -->
@@ -1349,7 +1351,8 @@ html.embedded #online { display: none; }
 <!-- Only for the settlement screen: a bolt11 invoice the loser can scan with
      the phone in their hand. play.js degrades to copy-and-paste without it. -->
 <script src="qr.js"></script>
-<script src="nutft-wallet.js"></script>
+<!-- No nutft-wallet.js tag: collection-stack.js loads it when this device holds a
+     wallet and something asks for it, so a table with no wallet never fetches it. -->
 <!-- BEFORE play.js, because play.js asks for globalThis.E1Portraits at load
      and degrades to the card face when it is absent. Without this tag the
      resolver was dead code: five call sites, every one falling through to
