@@ -252,6 +252,64 @@ and port are deployment facts, so a deployment must state them.** Set
 
 ---
 
+## 5a · Alpha: let the Nappelin Hangar reach the table and the mint
+
+The TCG runs inside the Hangar at `https://nappelin.com/hangar/` as a sandboxed napplet.
+The Hangar page opens the table socket for it (the `table.*` channel) and carries the
+Bearlett collection's mint requests (its NutFT service), so the browser sends
+`Origin: https://nappelin.com` to `tcg.nappelin.com`. The referee and the mint answer
+that origin only if it is in `TABLE_ORIGINS`. With it listed, the mint's JSON carries
+`access-control-allow-origin: https://nappelin.com`, and a preflight on `/v1/*`,
+`/nutft/*` and `/blossom/*` allows `GET, POST, OPTIONS` with `content-type, authorization`
+for 600 seconds. Every other path stays `GET, OPTIONS`; unlisted origins get nothing.
+
+Run it on the box in a visible window. The unit on the box differs from the workshop
+copy (nappelin.com `deploy/EDGE-PROTECTION.md` A7/K5), so read before you write, and add
+to the list instead of replacing it.
+
+1. Read only: what runs now.
+
+   ```bash
+   systemctl cat tcg-table
+   systemctl show tcg-table -p Environment -p EnvironmentFiles -p ExecStart
+   curl -s https://tcg.nappelin.com/api/health
+   ```
+
+2. Change the environment where step 1 showed it lives (an `EnvironmentFile`, or
+   `Environment=` lines in a drop-in; prefer `sudo systemctl edit tcg-table` for a drop-in).
+   Keep every origin already listed and append the Hangar's:
+
+   ```ini
+   Environment=TABLE_ORIGINS=<existing origins>,https://nappelin.com
+   Environment=PUBLIC_URL=wss://tcg.nappelin.com/ws
+   ```
+
+   `PUBLIC_URL` must be exactly that: the table's NIP-42 login names this host, and the
+   Hangar signs a login only for the table host its napplet opened.
+
+3. Restart and check.
+
+   ```bash
+   sudo systemctl restart tcg-table
+   systemctl is-active tcg-table
+   curl -s https://tcg.nappelin.com/api/health
+   curl -s -D - -o /dev/null -H "Origin: https://nappelin.com" https://tcg.nappelin.com/v1/info | grep -i access-control
+   curl -s -D - -o /dev/null -X OPTIONS \
+     -H "Origin: https://nappelin.com" \
+     -H "Access-Control-Request-Method: POST" \
+     -H "Access-Control-Request-Headers: content-type" \
+     https://tcg.nappelin.com/v1/checkstate | grep -i access-control
+   ```
+
+   Expect `access-control-allow-origin: https://nappelin.com` on both, and
+   `access-control-allow-methods: GET, POST, OPTIONS` on the preflight. `/api/health` must
+   still answer `{"ok":true,…}` and `https://tcg.nappelin.com/play.html` must still load.
+
+4. Roll back by removing `https://nappelin.com` from `TABLE_ORIGINS` and restarting. Nothing
+   else changes: the list gates who may read, not what the mint stores.
+
+`tcg-table-staging` on `:8778` takes the same change when the staging Hangar needs it.
+
 ## 6 · How the static site and the referee fit together
 
 **Be blunt about this: a static-only deploy is hotseat and NPC only.**
