@@ -72,6 +72,8 @@ const MINT_WRITE_RATE_MAX = 20;
 const MINT_QUOTE_RATE_MAX = 60;
 /* However many addresses arrive, no more buckets than this are kept. */
 const RATE_CLIENTS_MAX = 10_000;
+/* A client refused by any rate limit is logged at most once in this long. */
+const RATE_LOG_MS = 60_000;
 const MAX_PAYLOAD = 64 * 1024;
 const MINT_ATTEMPTS = 40;
 const KIND_HANDSHAKE = 4600;
@@ -302,20 +304,33 @@ async function createTable(opts) {
    * the request, per client as clientAddress resolves it — so behind a proxy
    * it is per player only once TRUST_PROXY is right. The key is the limit and
    * the client, which means E1 and G draw on the same two budgets. */
-  const mintRates = createRateLimiter({
-    clock: rateClock,
-    maxKeys: RATE_CLIENTS_MAX,
-    limits: {
-      "mint-write": {
-        max: mintBudget(options.mintWriteRateMax, MINT_WRITE_RATE_MAX, "MINT_WRITE_RATE_MAX"),
-        windowMs: MINT_RATE_WINDOW_MS,
-      },
-      "mint-quote": {
-        max: mintBudget(options.mintQuoteRateMax, MINT_QUOTE_RATE_MAX, "MINT_QUOTE_RATE_MAX"),
-        windowMs: MINT_RATE_WINDOW_MS,
-      },
+  const mintLimits = {
+    "mint-write": {
+      max: mintBudget(options.mintWriteRateMax, MINT_WRITE_RATE_MAX, "MINT_WRITE_RATE_MAX"),
+      windowMs: MINT_RATE_WINDOW_MS,
     },
+    "mint-quote": {
+      max: mintBudget(options.mintQuoteRateMax, MINT_QUOTE_RATE_MAX, "MINT_QUOTE_RATE_MAX"),
+      windowMs: MINT_RATE_WINDOW_MS,
+    },
+  };
+  const mintRates = createRateLimiter({
+    limits: mintLimits, clock: rateClock, maxKeys: RATE_CLIENTS_MAX,
   });
+  /* A RUSH SHOULD SHOW IN journalctl WITHOUT DROWNING IT. The first refusal a
+   * client earns from the pre-auth socket budgets or the mint budgets writes
+   * one line; every later one from that client stays quiet for a minute,
+   * whichever limit it hits. The line holds the limit and the client as
+   * clientAddress resolved it — never a token, a path, a query or a body. */
+  const rateLogged = new Map(); // client -> [when its line was written]
+  const noteRateLimited = (limit, client, rule) => {
+    const now = rateClock();
+    const last = rateLogged.get(client);
+    if (last && now - last[0] < RATE_LOG_MS) return;
+    if (!last && rateLogged.size >= RATE_CLIENTS_MAX) return;
+    rateLogged.set(client, [now]);
+    console.warn(`[table] rate limited: ${limit} for ${client} (${rule})`);
+  };
   /* WHO IS BEHIND THE PROXY. The pre-auth rate buckets key on the TCP peer,
    * because a connection has not proved an identity yet. In the prescribed
    * deployment that peer is a reverse proxy on loopback, so every player shares
@@ -1094,16 +1109,18 @@ async function createTable(opts) {
    * address is only the fallback for traffic that has not authenticated yet,
    * which is where a shared bucket is actually the correct answer. */
   const budgetKey = (conn) => (conn.pubkey ? `k:${conn.pubkey}` : `a:${conn.address}`);
-  const addressOk = (rates, conn, max) => {
+  const addressOk = (rates, conn, max, limit) => {
     const now = Date.now();
     const key = budgetKey(conn);
     const hits = (rates.get(key) || []).filter((timestamp) => now - timestamp < RATE_WINDOW_MS);
     hits.push(now);
     rates.set(key, hits);
-    return hits.length <= max;
+    if (hits.length <= max) return true;
+    noteRateLimited(limit, conn.address, `${max} per ${RATE_WINDOW_MS / 1000}s`);
+    return false;
   };
-  const controlOk = (conn) => addressOk(controlRates, conn, controlMax);
-  const authOk = (conn) => addressOk(authRates, conn, Math.max(5, controlMax));
+  const controlOk = (conn) => addressOk(controlRates, conn, controlMax, "ws-control");
+  const authOk = (conn) => addressOk(authRates, conn, Math.max(5, controlMax), "ws-auth");
 
   function kick(conn, why) {
     fail(conn.ws, "RATE_LIMITED", why);
@@ -1887,6 +1904,7 @@ async function createTable(opts) {
     pruneAddressRates(controlRates, Date.now(), RATE_WINDOW_MS);
     pruneAddressRates(authRates, Date.now(), RATE_WINDOW_MS);
     mintRates.prune();
+    pruneAddressRates(rateLogged, rateClock(), RATE_LOG_MS);
     for (const ws of wss.clients) {
       if (ws.isAlive === false) {
         try { ws.terminate(); } catch (err) { /* already gone */ }
@@ -1963,8 +1981,10 @@ async function createTable(opts) {
   function mintLimited(req, res, localPath) {
     const limit = mintRouteLimit(req.method, localPath);
     if (!limit) return false;
-    const verdict = mintRates.take(limit, clientAddress(req));
+    const client = clientAddress(req);
+    const verdict = mintRates.take(limit, client);
     if (verdict.ok) return false;
+    noteRateLimited(limit, client, `${mintLimits[limit].max} per ${MINT_RATE_WINDOW_MS / 1000}s`);
     const body = JSON.stringify({ error: "rate limited", retry_after: verdict.retryAfter });
     res.writeHead(429, {
       "content-type": "application/json; charset=utf-8",

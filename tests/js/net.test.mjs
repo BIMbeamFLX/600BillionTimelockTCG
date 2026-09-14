@@ -1377,6 +1377,45 @@ test("a peer that is not on the proxy list stays untrusted in either form", asyn
   assert.equal(JSON.parse(health.body).client, "127.0.0.1", "the forwarded header is ignored");
 });
 
+test("a rush against the pre-auth budgets logs one line per client per minute", async (t) => {
+  /* What a launch spike looks like in journalctl when every arrival shares one
+   * address: the AUTH budget refuses first and one line says so. Later
+   * refusals from that address, auth or control, stay quiet for a minute. */
+  const lines = [];
+  t.mock.method(console, "warn", (...args) => { lines.push(args.join(" ")); });
+  const logged = () => lines.filter((line) => line.includes("rate limited"));
+  let now = 0;
+  const table = await boot(t, "rl-log.db", { controlMax: 1, rateClock: () => now });
+
+  const authed = [];
+  const codes = [];
+  for (let i = 0; i < 7; i++) {
+    const c = await Client.open(table.wsUrl, { identity: `rush-${i}`, skipAuth: true });
+    t.after(() => c.close());
+    const challenge = await c.type("AUTH");
+    c.send({ t: "AUTH", event: signedAuth(challenge, c.privateKey) });
+    const reply = await c.next((m) => m.t === "AUTH_OK" || m.t === "ERROR");
+    codes.push(reply.code || reply.t);
+    if (reply.t === "AUTH_OK") authed.push(c);
+  }
+  assert.deepEqual(codes.slice(5), ["RATE_LIMITED", "RATE_LIMITED"], JSON.stringify(codes));
+  assert.deepEqual(logged(), ["[table] rate limited: ws-auth for 127.0.0.1 (5 per 10s)"],
+    "two refusals, one line, and no pubkey, challenge or token in it");
+
+  authed[0].send({ t: "UNQUEUE" });
+  authed[0].send({ t: "UNQUEUE" });
+  assert.equal((await authed[0].type("ERROR")).code, "RATE_LIMITED");
+  assert.equal(logged().length, 1, "another limit, same client, same minute: quiet");
+
+  now += 60_000;
+  authed[1].send({ t: "UNQUEUE" });
+  authed[1].send({ t: "UNQUEUE" });
+  assert.equal((await authed[1].type("ERROR")).code, "RATE_LIMITED");
+  assert.deepEqual(logged().slice(1), [
+    "[table] rate limited: ws-control for 127.0.0.1 (1 per 10s)",
+  ], "a minute later the client is logged again");
+});
+
 test("unseated ACT messages cannot bypass the address budget", async (t) => {
   const table = await boot(t, "t28.db", { controlMax: 1 });
   const client = await table.client();

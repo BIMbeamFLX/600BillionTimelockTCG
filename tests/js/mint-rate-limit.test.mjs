@@ -175,6 +175,33 @@ test("the E1 and G mints share one policy and one budget per client", async (t) 
   assert.equal((await call(table, "GET", "/g/nutft/state")).status, 200, "a G read is still free");
 });
 
+test("a refused client is logged once a minute, by limit and address and nothing it sent",
+  async (t) => {
+    const lines = [];
+    t.mock.method(console, "warn", (...args) => { lines.push(args.join(" ")); });
+    const logged = () => lines.filter((line) => line.includes("rate limited"));
+    const table = await boot(t, { trustProxy: "loopback" });
+    const alice = { "x-forwarded-for": "198.51.100.1", authorization: "Nostr dG9rZW4tc2VjcmV0" };
+
+    for (let i = 0; i < 25; i++) {
+      await post(table, "/nutft/purchase", { purchase_id: "body-secret" }, alice);
+    }
+    for (let i = 0; i < 65; i++) {
+      await call(table, "GET", "/nutft/reveal?payment_hash=query-secret", { headers: alice });
+    }
+    assert.deepEqual(logged(), ["[table] rate limited: mint-write for 198.51.100.1 (20 per 60s)"],
+      "71 refusals across two limits make one line, with no path, query, body or token in it");
+
+    for (let i = 0; i < 21; i++) await write(table, { "x-forwarded-for": "198.51.100.2" });
+    assert.deepEqual(logged().slice(1), [
+      "[table] rate limited: mint-write for 198.51.100.2 (20 per 60s)",
+    ], "another client gets its own line");
+
+    table.wait(60_000);
+    for (let i = 0; i < 21; i++) await write(table, alice);
+    assert.equal(logged().length, 3, "a minute later alice can be logged again");
+  });
+
 test("a mint budget that is not a positive integer stops the referee at boot", async () => {
   for (const bad of ["0", "-5", "ten", "2.5"]) {
     await assert.rejects(
