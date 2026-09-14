@@ -48,7 +48,7 @@ const FRAMES = new Set();
 function fakeHangar({ sk = HOST_SK, allow = () => true } = {}) {
   const channels = new Map();
   const owners = new Map();
-  const host = { signRequests: 0, channels, frames: [] };
+  const host = { signRequests: 0, channels, frames: [], sent: [] };
   let n = 0;
   host.openFrame = () => {
     const listeners = [];
@@ -78,7 +78,14 @@ function fakeHangar({ sk = HOST_SK, allow = () => true } = {}) {
       ws.on("error", () => {});
       return answer({ type: "table.open.result", id: msg.id, ok: true, channel });
     }
-    if (msg.type === "table.send") { const ws = channels.get(msg.channel); if (ws && ws.readyState === 1) ws.send(msg.data); return; }
+    if (msg.type === "table.send") {
+      host.sent.push(msg.data);
+      // Test hook: a referee that answers something itself (`reply(text)`) instead of the real one.
+      if (host.answerFor && host.answerFor(JSON.parse(msg.data), (data) => answer({ type: "table.message", channel: msg.channel, data: JSON.stringify(data) }))) return;
+      const ws = channels.get(msg.channel);
+      if (ws && ws.readyState === 1) ws.send(msg.data);
+      return;
+    }
     if (msg.type === "table.close") { const ws = channels.get(msg.channel); if (ws) ws.close(1000, "closed by napplet"); return; }
     if (msg.type === "table.sign") {
       host.signRequests += 1;
@@ -664,6 +671,84 @@ test("a storage that refuses every access costs the lobby nothing: create, join 
   assert.deepEqual([...a.sockets, ...b.sockets, ...again.sockets], []);
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(rejections, [], "no storage failure escaped as a rejection");
+});
+
+// ------------------------------------------------------ the table list, inside a shell
+
+const sentOf = (host, type) => host.sent.filter((data) => JSON.parse(data).t === type).length;
+
+test("inside a shell tables() signs in a lobby socket and reads TABLES there, never HTTP", async (t) => {
+  const table = await referee(t, "l1.db");
+  const alice = hangarTab(t, "alice");
+  const bob = hangarTab(t, "bob");
+  const a = alice.open();
+  a.net.create({ name: "alice", affinity: "Power", pubkey: alice.pubkey, table: table.wsUrl });
+  const open = await waitFor(() => a.log.states[0]);
+
+  const b = bob.open({ scope: { E1_TABLE_URL: table.wsUrl } });
+  await b.started.restoring;
+  assert.equal(bob.host.channels.size, 0, "a lobby that has not asked for anything opens nothing");
+  const rows = await b.net.tables();
+  assert.deepEqual(rows.map((row) => row.code), [open.code]);
+  assert.deepEqual(rows, await (await fetch(`${table.url}/api/tables`)).json(), "the rows the website reads");
+  assert.deepEqual(b.sockets, [], "and no fetch of its own");
+  assert.deepEqual([b.net.status, bob.host.signRequests], ["live", 1]);
+  assert.deepEqual(b.log.active, [[]], "the lobby socket hears AUTH_OK.active");
+
+  const [first, second] = await Promise.all([b.net.tables(), b.net.tables()]);
+  assert.deepEqual(first, second);
+  assert.equal(sentOf(bob.host, "TABLES"), 2, "two lists asked for at once share one TABLES");
+
+  b.net.join({ code: rows[0].code, name: "bob", affinity: "Signal", pubkey: bob.pubkey });
+  const seated = await waitFor(() => b.log.states.find((s) => s.seat === 1));
+  assert.equal(seated.status, "playing");
+  assert.equal(bob.host.signRequests, 1, "the join rides the lobby socket, with no second login");
+  assert.deepEqual(await b.net.tables(), [], "a full table is listed no more");
+});
+
+test("a table list that cannot be had rejects with a code and keeps the socket", async (t) => {
+  const table = await referee(t, "l2.db");
+  const nobody = hangarTab(t, "nobody", { sk: null }); // nobody signed in at the Hangar
+  const n = nobody.open({ scope: { E1_TABLE_URL: table.wsUrl } });
+  await n.started.restoring;
+  await assert.rejects(() => n.net.tables(), (err) => err.code === "NIP07_REQUIRED");
+  assert.equal(n.log.errors[0].code, "NIP07_REQUIRED", "and the page hears why");
+  assert.equal(nobody.host.channels.size, 0);
+
+  const eager = hangarTab(t, "eager");
+  const e = eager.open({ scope: { E1_TABLE_URL: table.wsUrl } });
+  // Asked the moment the frame loads, before the shell's identity has answered: it waits for it.
+  for (let i = 0; i < 10; i++) await e.net.tables();
+  await assert.rejects(() => e.net.tables(), (err) => err.code === "RATE_LIMITED");
+  assert.equal(e.net.status, "live", "a lobby that refreshed too eagerly keeps its socket");
+
+  const older = hangarTab(t, "older");
+  older.host.answerFor = (msg, reply) => msg.t === "TABLES" && (reply({ t: "ERROR", v: 1, code: "BAD_MESSAGE", message: "unknown message TABLES" }), true);
+  const o = older.open({ scope: { E1_TABLE_URL: table.wsUrl } });
+  await assert.rejects(() => o.net.tables(), (err) => err.code === "BAD_MESSAGE", "a referee that predates TABLES says so");
+});
+
+test("on the website tables() reads /api/tables until a signed-in socket is open, then asks that", async (t) => {
+  const table = await referee(t, "l3.db");
+  const sk = keyOf("website");
+  const pubkey = hex(schnorr.getPublicKey(sk));
+  const { net, log } = loadShell({
+    nostr: { getPublicKey: async () => pubkey, signEvent: async (e) => signEvent(e, sk) },
+    location: { protocol: "http:", host: `127.0.0.1:${table.port}`, href: `${table.url}/play.html`, search: "" },
+  });
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: () => pubkey, setItem() {}, removeItem() {} } });
+  const fetched = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (url, init) => { fetched.push(String(url)); return realFetch(url, init); };
+  t.after(() => { globalThis.fetch = realFetch; });
+
+  assert.deepEqual(await net.tables(), []);
+  assert.deepEqual(fetched, [`${table.url}/api/tables`]);
+  net.create({ name: "felix", affinity: "Power", pubkey, table: table.wsUrl });
+  const open = await waitFor(() => log.states[0]);
+  assert.deepEqual((await net.tables()).map((row) => row.code), [open.code]);
+  assert.equal(fetched.length, 1, "the live socket is asked instead of HTTP");
+  net.leave();
 });
 
 test("tableUrl() in a srcdoc frame: the build constant, else nappelin's referee", () => {

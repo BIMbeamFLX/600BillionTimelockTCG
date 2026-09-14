@@ -163,9 +163,14 @@
      * This is what makes a cleared browser recoverable: the seat credential is
      * gone, the seat is not, and signing in is what finds it. */
     active: [],
+    /* A TABLES request waiting for its answer. Every tables() call made in the
+     * meantime waits on the same one, so a lobby cannot spend its allowance
+     * twice on one list. */
+    tables: null,     // {waiters: [{resolve, reject, timer}], asked}
   };
 
   const H = (name, arg) => {
+    if (name === "onError" && net.tables && endsTableList(arg)) settleTables(null, arg);
     const fn = net.handlers[name];
     if (typeof fn === "function") {
       try { fn(arg); } catch (err) { console.error(`E1Net.${name}`, err); }
@@ -462,6 +467,7 @@
     };
 
     ws.onclose = (ev) => {
+      if (net.ws === ws || !net.ws) settleTables(null, { code: "TABLE_CLOSED", message: "the table closed before it sent its list" });
       net.ws = null;
       net.authenticated = false;
       /* 4009 SUPERSEDED: another connection legitimately claimed this seat.
@@ -544,6 +550,7 @@
       setStatus("live");
       H("onActive", net.active.slice());
       sendIntent();
+      askTables(); // a list asked for while this socket was still signing in
     }
 
     ws.answerAuth = answerAuth;
@@ -613,6 +620,7 @@
       }
       case "OVER": return H("onOver", msg);
       case "NOSTR": return H("onNostr", msg);
+      case "TABLES": return settleTables(Array.isArray(msg.tables) ? msg.tables : []);
       case "ERROR": return onError(msg);
       default: return undefined;
     }
@@ -865,9 +873,101 @@
     return true;
   }
 
+  /* A SOCKET FOR THE LOBBY, with no table in it yet: it signs in, hears
+   * AUTH_OK.active and answers TABLES. Opened only when asked, never on load,
+   * and not reopened when it drops — with no session and no intent, retry()
+   * lets it go idle. A create, join, queue or rejoin afterwards rides on it. */
+  function connect(opts) {
+    if (net.ws && (net.ws.readyState === 0 || net.ws.readyState === 1)) return true;
+    if (!savedPubkey()) {
+      /* The shell's identity answers asynchronously: a lobby that asks the moment
+       * it loads waits for that first answer instead of being told to sign in. */
+      if (!shellPubkeyAsked) {
+        shellPubkeyKnown.then(() => connect(opts));
+        return true;
+      }
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in before opening a remote table" });
+      return false;
+    }
+    const url = (opts && opts.table) || net.url || tableUrl();
+    if (!url) {
+      H("onError", { code: "NO_TABLE", message: "no table server for this page — open it over http, or pass ?table=" });
+      return false;
+    }
+    net.url = url;
+    net.attempt = 0;
+    open();
+    return true;
+  }
+
+  const live = () => Boolean(net.ws && net.ws.readyState === 1 && net.authenticated);
+
+  /* A page whose table socket a HOST carries (site/napplet.js, "the table
+   * channel") has no network of its own: no HTTP to the referee, no relays. */
+  const hostCarried = () => {
+    try {
+      const N = nap();
+      return Boolean(N && N.table && typeof N.table.available === "function" && N.table.available());
+    } catch (err) {
+      return false;
+    }
+  };
+
+  /* The errors that end a table list still waiting: the socket could not open
+   * or sign in, the referee refused the list, or it is too old to know TABLES. */
+  const TABLE_LIST_ENDERS = ["NIP07_REQUIRED", "AUTH_FAILED", "IDENTITY_MISMATCH", "RATE_LIMITED", "NO_TABLE", "TABLE_REFUSED"];
+  function endsTableList(error) {
+    if (!error) return false;
+    if (TABLE_LIST_ENDERS.indexOf(error.code) >= 0) return true;
+    return error.code === "BAD_MESSAGE" && /TABLES/.test(String(error.message || ""));
+  }
+
+  function settleTables(rows, error) {
+    const pending = net.tables;
+    if (!pending) return;
+    net.tables = null;
+    for (const waiter of pending.waiters) {
+      clearTimeout(waiter.timer);
+      if (error) waiter.reject(Object.assign(new Error(String(error.message || error.code)), { code: error.code }));
+      else waiter.resolve(rows.slice());
+    }
+  }
+
+  function askTables() {
+    if (net.tables && !net.tables.asked) net.tables.asked = raw({ t: "TABLES", v: WIRE });
+  }
+
+  /* THE OPEN-TABLE LIST. An open, signed-in socket is asked first (TABLES), so
+   * a player already connected needs nothing more. Without one, the website
+   * reads /api/tables, the relay-free join path; a page whose socket a host
+   * carries cannot, so it opens a lobby socket (connect) and asks there. Both
+   * answer the same rows. A socket list that cannot be had rejects with an
+   * Error carrying `code` (NIP07_REQUIRED, RATE_LIMITED, TABLE_CLOSED, TIMEOUT…),
+   * and never hangs past TABLES_MS. */
+  const TABLES_MS = 15000;
+  function tables() {
+    if (!live() && !hostCarried()) return tablesOverHttp();
+    return new Promise((resolve, reject) => {
+      if (!net.tables) net.tables = { waiters: [], asked: false };
+      const waiter = { resolve, reject, timer: null };
+      net.tables.waiters.push(waiter);
+      waiter.timer = setTimeout(() => {
+        const pending = net.tables;
+        if (pending && pending.waiters.indexOf(waiter) >= 0) {
+          pending.waiters.splice(pending.waiters.indexOf(waiter), 1);
+          if (!pending.waiters.length) net.tables = null;
+        }
+        reject(Object.assign(new Error("the table did not send its list in time"), { code: "TIMEOUT" }));
+      }, TABLES_MS);
+      if (waiter.timer && typeof waiter.timer.unref === "function") waiter.timer.unref();
+      if (live()) askTables();
+      else connect(); // a refusal to connect is reported, and ends this list through H
+    });
+  }
+
   /* The relay-free join path. If every relay dies on stage, players still see
    * and join open tables. */
-  async function tables() {
+  async function tablesOverHttp() {
     const origin = httpOrigin(net.url || tableUrl());
     if (!origin) return [];
     const res = await fetch(origin + "/api/tables", { cache: "no-store" });
@@ -888,10 +988,12 @@
    * frame, and the key is the shell's to remember anyway. Warmed at load so a
    * page that asks synchronously (start, create) finds it without a click. */
   let shellPubkey = null;
+  let shellPubkeyAsked = !shellIdentity(); // nothing to wait for outside a shell
   const shellPubkeyKnown = shellIdentity()
     ? Promise.resolve()
       .then(() => nap().identity.current())
       .then((key) => { if (key && !shellPubkey) shellPubkey = key; }, () => {})
+      .then(() => { shellPubkeyAsked = true; })
     : Promise.resolve();
 
   /* A RELOADED FRAME COMES BACK TO ITS SEAT. The mirror and the shell's identity
@@ -1536,7 +1638,7 @@
     KIND_HANDSHAKE,
     KIND_RESULT,
     KIND_ZAP_REQUEST,
-    start, create, join, act, sendNostr, leave, resume, tables,
+    start, create, join, act, sendNostr, leave, resume, tables, connect,
     queue, unqueue, rejoin,
     tableUrl, publicTable, publicTableIsLocal,
     savedMatch, saveMatch,
