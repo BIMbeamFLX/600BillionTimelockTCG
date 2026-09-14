@@ -218,8 +218,23 @@ location /api/ {
 }
 ```
 
-`X-Forwarded-For` is deliberately **not** trusted by the referee — it treats the
-TCP peer as authoritative. Do not assume forwarded headers reach rate limiting.
+**`TRUST_PROXY` behind the Docker Caddy.** The referee ignores `X-Forwarded-For`
+unless the TCP peer is listed in `TRUST_PROXY`, and even then it takes only the
+rightmost hop, the address that proxy itself saw. `gw-caddy` reaches the referee
+from one container address, so until that address is listed every player shares
+each per-client budget (the pre-auth socket budget and the mint budgets, §5) and
+a launch rush locks people out. Find it on the box with the site open in a
+browser: `sudo ss -tnp '( sport = :8777 )'` lists the connections to the referee,
+and the peer address without its port is Caddy. List it in both spellings,
+`TRUST_PROXY=<peer>,::ffff:<peer>`: Node reports an IPv4 peer as `::ffff:<peer>`
+on a dual-stack socket, and although the referee now matches either form, older
+builds compared the strings exactly. Then verify from outside with
+`curl https://<host>/api/health`: `client` must be your own public address, and
+the container address means the list does not match yet. Recreating the
+container (a new `gw-caddy`, not a restart) can give it a different address and
+pool everyone again, so repeat the check after every recreate. While the list is
+wrong, the `rate limited:` lines in `journalctl -u tcg-table` name the container
+address instead of players' addresses.
 
 ---
 
@@ -240,6 +255,32 @@ Read at startup in `server/table.js` (bottom of file). The referee binds
 | `RATE_MAX` | built-in | Message rate cap. Exists for headless soak runs; leave unset so the default protects the table. |
 | `CONTROL_RATE_MAX` | built-in | Control-message rate cap. Same advice. |
 | `MAX_PAYLOAD` | built-in | Max WebSocket frame size. Same advice. |
+| `TRUST_PROXY` | *(none)* | Proxies whose `X-Forwarded-For` is believed: `loopback`, or a comma-separated list of peer IPs (an IPv4 entry also matches its `::ffff:` form). Behind Docker Caddy it must name the Caddy container (§4); unset, everyone behind the proxy shares every per-client budget. |
+| `MINT_WRITE_RATE_MAX` | `20` | Writes per client per minute, shared by the E1 and G mints: every mint `POST` (purchase, booster, trade, possession, restore, checkstate). A positive integer, or startup throws. |
+| `MINT_QUOTE_RATE_MAX` | `60` | The same for the mint `GET`s that do work: quote, reveal, eligibility and the LNURL callback. Info, keys, catalog, blob, state and supply are never limited. |
+
+### The mint budgets
+
+Both mints share one policy, checked before either mint does any work. A client,
+as `/api/health` reports it in `client`, spends from a bucket of
+`MINT_WRITE_RATE_MAX` writes that refills continuously over a minute (at the
+default, one write back every 3 s), and likewise for `MINT_QUOTE_RATE_MAX`. A
+refusal is `429` with `{"error":"rate limited","retry_after":<seconds>}` and a
+matching `Retry-After` header. The first refusal a client earns on any limit,
+socket or mint, writes one line such as
+`[table] rate limited: mint-write for 203.0.113.9 (20 per 60s)`; further
+refusals from that client stay quiet for a minute.
+
+Two situations outgrow the defaults; raise the budgets before either arises:
+
+- **Phrase recovery.** The wallet's NUT-13 seed scan sends dozens of restore and
+  checkstate `POST`s even for a wallet holding a single pack, and gives up at the
+  first `429`. At the default of 20 a restore is refused part-way.
+- **Many buyers on one address.** A venue wifi or a carrier NAT is one client,
+  so a room buying at once shares one budget, and so does everyone behind the
+  proxy while `TRUST_PROXY` is wrong. The wallet treats a `429` as a final
+  refusal and drops a pending booster claim that has no committed purchase, so
+  verify `TRUST_PROXY` (§4) before these limits face paying buyers.
 
 ### Why `PUBLIC_URL` is the one that matters
 
