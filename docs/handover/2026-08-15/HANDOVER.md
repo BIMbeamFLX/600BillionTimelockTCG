@@ -1,120 +1,121 @@
-# Technisches Handover — 2026-08-15
+# Technical handover — 2026-08-15
 
-## Ergebnis dieses Arbeitsstands
+## Result of this state of work
 
-Ausgangspunkt ist `main` auf `5fb20f4` (PR #10). Gearbeitet wird auf
-`feature/remote-reliability`; die bereits lokalen Commits `9f9e790` und `d966dc2` tragen
-Referee-Härtung und den ersten Handover-Stand. Dieser Durchgang wurde nicht deployed und
-nicht gepusht.
+The starting point is `main` at `5fb20f4` (PR #10). Work is done on
+`feature/remote-reliability`; the commits `9f9e790` and `d966dc2`, already made locally,
+carry the referee hardening and the first version of the handover. This pass was neither
+deployed nor pushed.
 
-Der Stand kann heute:
+As of today, this state can:
 
-- Hotseat, NPC und vollständige Zwei-Client-Matches über denselben deterministischen
-  Engine-Kern spielen;
-- alle 295 Edition-One-Karten automatisch auflösen: 295 gescriptet, 0 assisted;
-- alle 11 Precons und den vollständigen Kartenpool in Casual und künftig Ranked verwenden;
-- Mesh-Gruppen bilden, gemeinsam blockieren und gegnerischen Schaden über einen
-  deterministischen legalen Standard routen;
-- Clash-Vorschauen direkt durch eine Engine-Simulation erzeugen — die UI enthält keine
-  zweite Schadensrechnung mehr;
-- jede strukturierte Spielaktion als kurzen, semantisch gefärbten Impuls darstellen;
-- Uptime als Kreis- und Balkenmeter mit Prozentfüllung, Farbstufe, Status und statischem
-  Reduced-Motion-Fallback darstellen;
-- Online-Sitze ausschließlich nach einer frischen NIP-07/NIP-42-Signatur vergeben und die
-  Identität bei Create, Join und Resume an den Sitz binden;
-- Fog of War serverseitig erzwingen, Aktionen in SQLite persistieren und die komplette
-  Hashkette aus dem Transcript reproduzieren;
-- 297 content-adressierte Release-WebPs lokal und über die bestehenden Blossom-Mirrors laden.
+- play hotseat, NPC and complete two-client matches via the same deterministic
+  engine core;
+- resolve all 295 Edition One cards automatically: 295 scripted, 0 assisted;
+- use all 11 precons and the complete card pool in Casual and future Ranked;
+- form Mesh groups, block together and route opposing damage via a
+  deterministic legal default;
+- generate clash previews directly from an engine simulation — the UI no longer contains
+  a second damage calculation;
+- show every structured game action as a short, semantically colored pulse;
+- show Uptime as circular and bar meters with percentage fill, color level, status and a
+  static reduced-motion fallback;
+- assign online seats only after a fresh NIP-07/NIP-42 signature and bind the
+  identity to the seat on Create, Join and Resume;
+- enforce fog of war on the server, persist actions in SQLite and reproduce the complete
+  hash chain from the transcript;
+- load 297 content-addressed release WebPs locally and via the existing Blossom mirrors.
 
-Released Local und Remote verwenden `policy.freeform = "deny"`. Die alten Manual-APIs bleiben
-nur als getestete Abwärtskompatibilitäts- und Sicherheitsgrenze im Engine-Code; keine
-veröffentlichte Karte benötigt sie.
+Released Local and Remote use `policy.freeform = "deny"`. The old manual APIs remain in the
+engine code only as a tested backward-compatibility and security boundary; no
+published card needs them.
 
-## Verifikation
+## Verification
 
-| Gate | Ergebnis |
+| Gate | Result |
 | --- | --- |
-| `npm run test:js` | 182/182 grün |
-| `uv run pytest -q` | 108/108 grün |
-| `npm run build` | grün |
-| Ruff auf allen versionierten Python-Dateien | grün; 49 Dateien formatiert |
-| Kartencompiler | 295 Karten, 295 auto-resolving, 0 assisted |
-| Galeriecompiler | 296 Bild-/Textkarten |
-| HTTP-Smoke | alle 12 HTML-Seiten sowie `/api/health` und `/api/tables` erfolgreich |
-| Out-of-process-Match | 380 Aktionen, 210 Transcript-Einträge, reguläres Ende in Turn 7 |
-| Browser-Abnahme | Zap 20 → 17, Meter 100 % → 85 %, Treffer sichtbar, Reduced Motion statisch, keine Console-Fehler |
+| `npm run test:js` | 182/182 green |
+| `uv run pytest -q` | 108/108 green |
+| `npm run build` | green |
+| Ruff on all version-controlled Python files | green; 49 files formatted |
+| Card compiler | 295 cards, 295 auto-resolving, 0 assisted |
+| Gallery compiler | 296 image/text cards |
+| HTTP smoke test | all 12 HTML pages as well as `/api/health` and `/api/tables` successful |
+| Out-of-process match | 380 actions, 210 transcript entries, regular end on turn 7 |
+| Browser acceptance check | Zap 20 → 17, meter 100 % → 85 %, hit visible, reduced motion static, no console errors |
 
-Der Zwei-Client-Lauf bestätigte unterschiedliche Sitz-Views, serverseitiges Fog of War,
-Engine-Rejections, SQLite-Persistenz, Replay, Public-/State-/Entry-Hashes, eine lückenlose
-Hashkette, Manipulationserkennung und identische Ergebnisbytes für beide Signaturen.
+The two-client run confirmed distinct seat views, server-side fog of war,
+engine rejections, SQLite persistence, replay, public/state/entry hashes, an unbroken
+hash chain, tamper detection and identical result bytes for both signatures.
 
-Die NIP-42-Tests prüfen den kanonischen Event-Hash, BIP-340-Schnorr-Signatur, Kind `22242`,
-leeren Inhalt, exakte Relay-/Challenge-Tags, Zeitfenster und Einmaligkeit der Challenge.
-Bare Pubkey-Claims, Replays und Identitätswechsel werden abgewiesen. Offene Tabellen aus der
-Zeit vor dem verpflichtenden NIP-07-Login werden weder gelistet noch joinbar gemacht.
+The NIP-42 tests check the canonical event hash, BIP-340 Schnorr signature, kind `22242`,
+empty content, exact relay/challenge tags, time window and one-time use of the challenge.
+Bare pubkey claims, replays and identity switches are rejected. Open tables from the time
+before the mandatory NIP-07 login are neither listed nor made joinable.
 
-Der normale Root-Aufruf `uv run ruff check .` sieht zusätzlich den ungetrackten,
-nicht zu diesem Arbeitsstand gehörenden Ordner `art/video-intro/` und meldet dort sechs
-Lint-Befunde sowie eine Formatabweichung. Der Ordner wurde bewusst weder geändert noch
-committet; alle versionierten Python-Dateien bestehen Ruff.
+The normal root invocation `uv run ruff check .` also sees the untracked folder
+`art/video-intro/`, which does not belong to this state of work, and reports six
+lint findings and one formatting deviation there. The folder was deliberately neither
+changed nor committed; all version-controlled Python files pass Ruff.
 
-## Architektur
+## Architecture
 
-`site/engine.js` ist die Regelwahrheit. `site/play.js` rendert Hotseat und Remote-Spiel,
-übersetzt Engine-Ereignisse in lesbare Aktionsimpulse und sammelt nur noch nicht abgesendete
-Spielerabsichten. `site/net.js` führt den NIP-42-Handshake und transportiert danach Aktionen.
-`server/table.js` besitzt den vollständigen Zustand, sendet pro Sitz eine redigierte View und
-schreibt akzeptierte Aktionen vor dem Broadcast nach SQLite. `site/fx.js` liefert die gepoolten,
-begrenzten Audio-/VFX-Cues; wichtige Treffer und Uptime-Änderungen verdrängen bei schnellen
-Ereignisketten gewöhnliche Pass-/Phasenmeldungen, nicht umgekehrt.
+`site/engine.js` is the source of truth for the rules. `site/play.js` renders hotseat and
+remote play, translates engine events into readable action pulses and collects only player
+intents that have not yet been submitted. `site/net.js` performs the NIP-42 handshake and
+then transports actions. `server/table.js` owns the complete state, sends a redacted view
+per seat and writes accepted actions to SQLite before the broadcast. `site/fx.js` provides
+the pooled, limited audio/VFX cues; in fast chains of events, important hits and Uptime
+changes displace ordinary pass/phase messages, not the other way around.
 
-Ein nsite kann weiterhin nur die statischen Dateien veröffentlichen. Public Unranked und
-Ranked brauchen den Node-Referee hinter TLS. Same-Origin für Website, `/ws` und `/api/*` bleibt
-die kleinste robuste öffentliche Topologie.
+An nsite can still only publish the static files. Public Unranked and
+Ranked need the Node referee behind TLS. Same-origin for the website, `/ws` and `/api/*`
+remains the smallest robust public topology.
 
-## Kartenbilder und Aufräumen
+## Card images and cleanup
 
-`art/cards/final/` war die ersetzte JPEG-Generation und ist im aktuellen Arbeitsstand gelöscht.
-Aktiv bleibt ausschließlich `art/cards/node-runner-web/`: 297 getrackte WebPs plus Manifest,
-41.8 MB, alle 297 lokalen SHA-256-Prüfungen grün. Der Release-Satz ist bereits durch Commit
-`3c50d45` auf `origin/main` und `public/main` in GitHub gesichert; die Blossom-Adressen bleiben
-die ausliefernden Mirrors.
+`art/cards/final/` was the superseded JPEG generation and has been deleted in the current
+state of work. Only `art/cards/node-runner-web/` remains active: 297 tracked WebPs plus a
+manifest, 41.8 MB, all 297 local SHA-256 checks green. The release set is already backed up
+in GitHub by commit `3c50d45` on `origin/main` and `public/main`; the Blossom addresses
+remain the serving mirrors.
 
-## Ranked-Regel
+## Ranked rule
 
-Es gibt keinen künstlich kleineren „Certified“-Pool mehr: Casual und Ranked dürfen alle 295
-Karten verwenden, weil der gesamte Katalog gescriptet ist. Ranked ergänzt später Identitäts-,
-Matchmaking-, Zeit-, Ergebnis- und Ladder-Regeln, aber keine zweite Kartenregelmaschine.
+There is no longer an artificially smaller "Certified" pool: Casual and Ranked may use all 295
+cards because the entire catalog is scripted. Ranked will later add identity,
+matchmaking, time, result and ladder rules, but no second card rules engine.
 
-## Nächste Vertical Slices
+## Next vertical slices
 
-### Slice 1 — Public Unranked ausliefern
+### Slice 1 — Ship Public Unranked
 
-- Same-Origin-TLS-Proxy und vollständige externe `wss://`-URL versionieren.
-- Origin-Port sperren und Proxy-Hop-Vertrauen exakt konfigurieren.
-- Zwei echte Geräte: NIP-07-Login, Create, Join, Resume und vollständiges Match.
-- Akzeptanz: keine Gäste, kein Mixed Content, Health/API/Socket unter einer HTTPS-Origin.
+- Put the same-origin TLS proxy and the complete external `wss://` URL under version control.
+- Block the origin port and configure proxy hop trust precisely.
+- Two real devices: NIP-07 login, Create, Join, Resume and a complete match.
+- Acceptance: no guests, no mixed content, health/API/socket under one HTTPS origin.
 
-### Slice 2 — Kampfentscheidungen vollständig sichtbar machen
+### Slice 2 — Make combat decisions fully visible
 
-- Mehrfachblocker-Reihenfolge sichtbar und änderbar machen.
-- Mesh-Schadensrouting als bewusste Spielerentscheidung anbieten; der heutige automatische
-  Standard bleibt der sichere Fallback.
-- Undo für noch nicht abgesendete Angreifer-/Blocker-/Routing-Deklarationen.
-- Akzeptanz: Maus und Touch, eine atomare Netzwerkaktion pro Deklaration, Engine validiert alles.
+- Make the multiple-blocker order visible and changeable.
+- Offer Mesh damage routing as a deliberate player decision; today's automatic
+  default remains the safe fallback.
+- Undo for attacker/blocker/routing declarations that have not yet been submitted.
+- Acceptance: mouse and touch, one atomic network action per declaration, the engine
+  validates everything.
 
-### Slice 3 — Verifizierte Ergebnisse
+### Slice 3 — Verified results
 
-- Invite-, Accept- und Result-Event-IDs/Signaturen serverseitig prüfen.
-- Beide verifizierten Resultate mit der Sitzidentität verbinden.
-- Authority-Key republished nur bestätigte Matches für Ranked.
+- Check invite, accept and result event IDs/signatures on the server.
+- Link both verified results to the seat identity.
+- The authority key republishes only confirmed matches for Ranked.
 
-### Slice 4 — Ranked spielbar machen
+### Slice 4 — Make Ranked playable
 
-- Matchmaking, Rundenzeit, Disconnect-/Forfeit-Regeln und Deck-Commitment.
-- Rating/Ladder erst nach verifiziertem Ergebnis aktualisieren.
-- Replay-/Dispute-Ansicht für Turnierbetrieb.
+- Matchmaking, round time, disconnect/forfeit rules and deck commitment.
+- Update rating/ladder only after a verified result.
+- Replay/dispute view for tournament play.
 
-### Slice 5 — Bezahlter Mint
+### Slice 5 — Paid mint
 
-- LNURL-Ziel konfigurieren, Zahlung Ende-zu-Ende testen und Fehler-/Refund-Pfade belegen.
+- Configure the LNURL target, test payment end to end and demonstrate the error/refund paths.

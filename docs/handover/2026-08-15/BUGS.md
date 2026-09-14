@@ -1,89 +1,90 @@
-# Bestätigte Restpunkte — 2026-08-15
+# Confirmed remaining issues — 2026-08-15
 
-> **Nachtrag, später am 2026-08-15.** Dieses Dokument ist der Stand eines
-> Zeitpunkts und wird nicht rückwirkend umgeschrieben. Seither erledigt:
+> **Postscript, later on 2026-08-15.** This document is the state as of one
+> point in time and is not rewritten retroactively. Done since then:
 >
-> - **B-01 teilweise** — die eigentliche Ursache ist behoben: `publicTableUrl()`
->   kodierte `ws://` und den gebundenen Port fest, wodurch hinter TLS jede
->   veröffentlichte Einladung sowohl als Mixed Content blockiert als auch auf
->   einen unerreichbaren Port gerichtet war — lautlos. `PUBLIC_URL` benennt beides
->   jetzt explizit. Deployment und externer Test stehen weiterhin aus (`docs/deploy.md`).
-> - **B-02 erledigt** — Invite-, Accept- und Result-Events werden vor dem Speichern
->   geprüft: Event-Id aus den eigenen Bytes neu berechnet, BIP-340-Signatur
->   verifiziert, Ablehnung statt Zeile. `sig_checked` ist `1`. Die damalige
->   Begründung war überholt: `@noble/curves` war für den NIP-42-Login längst
->   Abhängigkeit.
-> - **B-05 unverändert und weiterhin richtig so** — der Shop sagt jetzt offen,
->   dass bezahlte Packs nicht live sind, statt einen Knopf anzubieten, der nichts tut.
+> - **B-01 partially** — the underlying cause is fixed: `publicTableUrl()`
+>   hard-coded `ws://` and the bound port, which meant that behind TLS every
+>   published invite was both blocked as mixed content and aimed at
+>   an unreachable port — silently. `PUBLIC_URL` now names both
+>   explicitly. Deployment and an external test are still pending (`docs/deploy.md`).
+> - **B-02 done** — invite, accept and result events are checked before they are
+>   stored: event ID recomputed from its own bytes, BIP-340 signature
+>   verified, rejection instead of a row. `sig_checked` is `1`. The reasoning at
+>   the time was outdated: `@noble/curves` had long been a dependency for the
+>   NIP-42 login.
+> - **B-05 unchanged and still rightly so** — the shop now says openly
+>   that paid packs are not live, instead of offering a button that does nothing.
 >
-> B-03 (Mesh-Routing ohne freie Spielerwahl) und B-04 (Blocker-Reihenfolge und
-> Undo) sind unverändert offen.
+> B-03 (Mesh routing without free player choice) and B-04 (blocker order and
+> undo) remain open, unchanged.
 
-Dieses Dokument enthält nur lokal belegte Restpunkte. Behobene frühere Befunde — assisted
-Karten, doppelte Clash-Mathematik, wirkungsloses Mesh, bare Pubkey-Claims, Reconnect-/Rate-
-Limit-Bypässe und der undefinierte Attack-Glow-Farbwert — stehen nicht mehr als offene Bugs hier.
+This document contains only remaining issues confirmed locally. Earlier findings that have
+been fixed — assisted cards, duplicated clash math, ineffective Mesh, bare pubkey claims,
+reconnect/rate-limit bypasses and the undefined attack-glow color value — are no longer
+listed here as open bugs.
 
-## Übersicht
+## Overview
 
-| ID | Schwere | Befund | Ziel betroffen |
+| ID | Severity | Finding | Affected target |
 | --- | --- | --- | --- |
-| B-01 | P1 hoch | Öffentliches TLS-/Proxy-Deployment ist nicht konfiguriert oder extern getestet | Public Unranked |
-| B-02 | P1 hoch | Invite-, Accept- und Result-Signaturen werden noch nicht serverseitig geprüft | Ranked |
-| B-03 | P2 mittel | Mesh-Schadensrouting nutzt einen legalen automatischen Standard, aber noch keine freie Spieleraufteilung | Kampf-UX |
-| B-04 | P2 mittel | Mehrfachblocker-Reihenfolge und Undo sind noch nicht sichtbar bedienbar | Kampf-UX |
-| B-05 | P2 mittel | Der bezahlte Mint hat keine konfigurierte LNURL | Shop |
+| B-01 | P1 high | Public TLS/proxy deployment is not configured or externally tested | Public Unranked |
+| B-02 | P1 high | Invite, accept and result signatures are not yet checked on the server | Ranked |
+| B-03 | P2 medium | Mesh damage routing uses a legal automatic default, but no free allocation by the player yet | Combat UX |
+| B-04 | P2 medium | Multiple-blocker order and undo cannot yet be operated through visible controls | Combat UX |
+| B-05 | P2 medium | The paid mint has no configured LNURL | Shop |
 
-## B-01 — Public Unranked braucht die reale Zieltopologie
+## B-01 — Public Unranked needs the real target topology
 
-**Dateien:** `server/table.js`, `site/net.js`
+**Files:** `server/table.js`, `site/net.js`
 
-Der Referee liefert lokal Website, API und Socket gemeinsam aus. Hinter HTTPS erzeugt
-`PUBLIC_HOST` allein aber noch keine vollständige externe `wss://`-Advertise-URL. Ein statisches
-nsite stellt `/ws` und `/api/*` nicht bereit. Reverse Proxy, Origin-Firewall, Proxy-Hop-Vertrauen
-und zwei echte Geräte wurden in diesem Durchgang bewusst nicht deployed oder geprüft.
+Locally, the referee serves the website, API and socket together. Behind HTTPS, however,
+`PUBLIC_HOST` alone does not yet produce a complete external `wss://` advertised URL. A static
+nsite does not provide `/ws` or `/api/*`. The reverse proxy, origin firewall, proxy hop trust
+and two real devices were deliberately not deployed or checked in this pass.
 
-## B-02 — Login ist verifiziert, gespeicherte Nostr-Ergebnisse noch nicht
+## B-02 — Login is verified, stored Nostr results are not yet
 
-**Dateien:** `server/table.js`, `docs/net-protocol.md`
+**Files:** `server/table.js`, `docs/net-protocol.md`
 
-Der NIP-42-Login wird vollständig kryptografisch geprüft. Invite-, Accept- und Kind-31600-
-Result-Events werden dagegen weiterhin mit `sig_checked = 0` gespeichert. Sitzbindung verhindert
-eine fremde Zuschreibung innerhalb der Verbindung, reicht aber nicht als Ranked-Autorität.
+The NIP-42 login is fully verified cryptographically. Invite, accept and kind 31600
+result events, by contrast, are still stored with `sig_checked = 0`. Seat binding prevents
+attribution to someone else within the connection, but is not sufficient as a Ranked authority.
 
-## B-03 — Mesh-Routing ist legal, aber noch automatisch
+## B-03 — Mesh routing is legal, but still automatic
 
-**Dateien:** `site/engine.js`, `site/play.js`
+**Files:** `site/engine.js`, `site/play.js`
 
-Mesh-Gruppen können im UI gebildet werden; ein Block trifft die ganze Gruppe. Die Engine routet
-gegnerischen Schaden deterministisch auf ein legales Opfer und verhindert dadurch Stillstand.
-Das Regelbuch erlaubt dem Mesh-Controller jedoch eine freie Verteilung. Diese strategische Wahl
-braucht noch eine sichtbare, atomare Routing-Oberfläche.
+Mesh groups can be formed in the UI; a block hits the whole group. The engine routes
+opposing damage deterministically to a legal victim and thereby prevents a standstill.
+The rulebook, however, allows the Mesh controller a free distribution. This strategic choice
+still needs a visible, atomic routing interface.
 
-## B-04 — Kampfdeklarationen brauchen den letzten Bedien-Slice
+## B-04 — Combat declarations need the final controls slice
 
-**Dateien:** `site/play.js`, `site/play.html`
+**Files:** `site/play.js`, `site/play.html`
 
-Angreifen und Blocken funktionieren per Klick/Drag, legale Ziele und Engine-Vorschau sind
-sichtbar. Bei mehreren Blockern wird die aktuelle Reihenfolge automatisch übernommen; eine
-sichtbare Umsortierung und Undo vor dem Absenden fehlen noch.
+Attacking and blocking work via click/drag; legal targets and the engine preview are
+visible. With multiple blockers, the current order is adopted automatically; visible
+reordering and undo before submitting are still missing.
 
-## B-05 — Paid Mint ist absichtlich aus
+## B-05 — Paid Mint is intentionally off
 
-**Datei:** `site/shop.js`
+**File:** `site/shop.js`
 
-`MINT_URL` ist nicht gesetzt. Demo-Packs funktionieren, ein echter LNURL-/Lightning-Zahlungslauf
-wurde nicht durchgeführt.
+`MINT_URL` is not set. Demo packs work; a real LNURL/Lightning payment run
+was not carried out.
 
-## Nicht verifiziert
+## Not verified
 
-- kein öffentliches Deployment, kein TLS-/Reverse-Proxy- und kein Cross-Origin-Test;
-- kein Zwei-Geräte-LAN-Test und kein echter NIP-07-Lauf mit zwei Browser-Extensions;
-- keine serverseitige Prüfung gespeicherter Invite-/Accept-/Result-Signaturen;
-- kein physisches Mobile-/Touch-Gerät; Desktop und Reduced-Motion wurden im echten Browser geprüft;
-- keine vollständige visuelle Abnahme aller 295 Karten und jeder möglichen Spielphase;
-- keine systematische Accessibility- oder Performance-Messung;
-- kein Ranked-Matchmaking, keine Ladder und kein LNURL-Zahlungslauf.
+- no public deployment, no TLS/reverse proxy test and no cross-origin test;
+- no two-device LAN test and no real NIP-07 run with two browser extensions;
+- no server-side check of stored invite/accept/result signatures;
+- no physical mobile/touch device; desktop and reduced motion were checked in a real browser;
+- no complete visual acceptance check of all 295 cards and every possible game phase;
+- no systematic accessibility or performance measurement;
+- no Ranked matchmaking, no ladder and no LNURL payment run.
 
-Der ungetrackte Nutzerordner `art/video-intro/` wurde nicht verändert. Sein aktueller Python-WIP
-verhindert lediglich, dass ein undifferenzierter Ruff-Root-Scan grün ist; die versionierten
-Python-Dateien bestehen Lint und Format vollständig.
+The untracked user folder `art/video-intro/` was not changed. Its current Python WIP
+merely prevents a blanket Ruff root scan from being green; the version-controlled
+Python files fully pass lint and formatting.
