@@ -393,26 +393,48 @@ Why so strict:
   `asset_binding` for good. A different value after a restart damages card provenance, and
   no backup repairs cards already handed out.
 - `deploy-tcg.ps1 -Install` runs `deploy/install-tcg.sh` on the box, and that script
-  **installs the uploaded unit file over `/etc/systemd/system/tcg-table.service`**. For this
-  deploy: never pass `-Install`, never run `install-tcg.sh`. Both live in the HetzerDeploy
-  workshop, not in this repository.
+  **installs the uploaded unit file over `/etc/systemd/system/tcg-table.service`**. This deploy
+  never passes `-Install`, never runs `install-tcg.sh`, and does not upload either file. Both
+  live in the HetzerDeploy workshop, not in this repository.
+- `deploy-tcg.ps1` copies from a **working tree** (`robocopy /MIR`), so untracked, ignored or
+  modified files ship with it. The release is therefore staged from a clean clone at the
+  exact commit.
+- `deploy-tcg.ps1` uploads with a password login (`PubkeyAuthentication=no`). The box uses the
+  YubiKey key (`id_ed25519_sk`), so the upload here is a single `scp` with that key.
 
-Run everything in a visible window, one SSH session at a time.
+Run everything in a visible window, one SSH session at a time. The referee is stopped for
+a few minutes (9.4 to 9.6).
 
-### 9.1 · On Windows: the commit and the tests
+### 9.1 · On Windows: one clean release at one commit
+
+Find any asset the site may need that git does not carry, in exactly the paths the payload
+takes from the repository:
 
 ```powershell
-git -C G:\Github\TCG600nap switch main
-git -C G:\Github\TCG600nap pull --ff-only
-git -C G:\Github\TCG600nap log -1 --format="%H %s"
-cd G:\Github\TCG600nap
-npm ci
-npm run test:js
-.\.venv\Scripts\python.exe -m pytest -q tests/
+git -C G:\Github\TCG600nap status --porcelain --untracked-files=all --ignored -- `
+  site cards rules art/brand art/fonts art/resources art/rulebook art/site art/world-plates `
+  art/cards/node-runner-web art/cards/promos server package.json package-lock.json
 ```
 
-Write the commit hash down; it names this release. Do not continue unless both suites are
-green.
+Expected hits, all local-only: `site/fast-faces.js`, `art/world-plates/original/`,
+`server/matches.db*`. Any other `??` or `!!` line is an asset outside git: commit it, or stop.
+
+Then clone the commit into a release directory and test it there:
+
+```powershell
+$SHA = git -C G:\Github\TCG600nap rev-parse origin/main
+$REL = "G:\projekte\tcg-release-$($SHA.Substring(0,12))"
+git clone --no-local G:\Github\TCG600nap $REL
+git -C $REL checkout --detach $SHA
+cd $REL
+npm ci
+npm run test:js
+uv run --frozen pytest -q
+```
+
+Write `$SHA` down; it names this release. The JS suite must be green. In a clean clone the
+Python tests that read gitignored `art/**/manifest.json` files cannot pass; every other
+Python test must.
 
 ### 9.2 · On the box, read only: what runs now
 
@@ -429,66 +451,90 @@ sudo cat /proc/$(systemctl show -p MainPID --value tcg-table)/environ | tr '\0' 
   | tee /home/deploy/tcg-env-before.txt
 curl -s https://tcg.nappelin.com/api/health
 curl -s https://tcg.nappelin.com/v1/info | grep -o '"catalog_uri":"[^"]*"'
+curl -s https://tcg.nappelin.com/g/v1/info | grep -o '"catalog_uri":"[^"]*"'
 ```
 
 `/home/deploy/tcg-env-before.txt` holds six public values (URLs and paths), no secrets.
 
-### 9.3 · On the box: back up the release and both databases
-
-The E1 mint keeps its state in the match database (`DB`, `/home/deploy/tcg-data/matches.db`
-on the box); the Edition G mint has its own (`G_NUTFT_DB`, `/home/deploy/tcg-data/g-mint.db`).
-Take consistent copies while the referee runs; SQLite's online backup is safe for that.
-
-```bash
-STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-mkdir -p /home/deploy/tcg-backups
-tar -C /home/deploy/bimCVP/infra/site-root --exclude='tcg600/node_modules' \
-  -czf "/home/deploy/tcg-backups/tcg600-$STAMP.tgz" tcg600
-for DBFILE in /home/deploy/tcg-data/matches.db /home/deploy/tcg-data/g-mint.db; do
-  [ -f "$DBFILE" ] || continue
-  OUT="/home/deploy/tcg-backups/$(basename "$DBFILE" .db)-$STAMP.db"
-  if command -v sqlite3 >/dev/null; then
-    sqlite3 "$DBFILE" ".backup '$OUT'"
-  else
-    node -e 'const {DatabaseSync}=require("node:sqlite"); const db=new DatabaseSync(process.argv[1]); db.prepare("VACUUM INTO ?").run(process.argv[2]);' "$DBFILE" "$OUT"
-  fi
-done
-ls -la /home/deploy/tcg-backups | tail -5
-echo "$STAMP"
-```
-
-Write `$STAMP` down; the rollback names it.
-
-### 9.4 · On Windows: upload code and site, without installing
+### 9.3 · On Windows: stage the payload without the unit
 
 ```powershell
 cd G:\projekte\HetzerDeploy
-.\deploy-tcg.ps1 -SshTarget deploy@178.105.93.78
+.\deploy-tcg.ps1 -StageOnly -RepoDir $REL
+Remove-Item -Recurse -Force .\site\tcg600\deploy
+Get-ChildItem .\site\tcg600 | Select-Object Name
 ```
 
-No `-Install`. The script refreshes its local payload from `G:\Github\TCG600nap` (site, cards,
-rules, the shipped `art/` folders, `server/*.js`, `package.json`, `package-lock.json`) and
-copies it over the webroot. It also uploads `deploy/tcg-table.service` and
-`deploy/install-tcg.sh` into the webroot; leave them unused. The upload overwrites and adds
-files; it deletes nothing.
+The staged payload is site, cards, rules, the shipped `art/` folders, `server/*.js`,
+`package.json` and `package-lock.json`, taken from the clean clone. Removing `deploy\` keeps the
+unit and the installer on this machine.
 
-### 9.5 · On the box: dependencies and restart
+### 9.4 · On the box: stop, then back up both databases
+
+Stop only when nobody is waiting in quick match (`"queued":0`). Matches, seats and decks
+survive: they reload from `DB` on start, and open pages reconnect and resume with their seat
+tokens.
+
+```bash
+curl -s https://tcg.nappelin.com/api/health
+sudo systemctl stop tcg-table
+```
+
+The E1 mint keeps its state in `DB`; the Edition G mint in `G_NUTFT_DB`. The paths come from
+9.2, a missing file stops the step, and every copy is checked before anything continues.
+
+```bash
+set -euo pipefail
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+BACKUPS=/home/deploy/tcg-backups
+mkdir -p "$BACKUPS"
+tar -C /home/deploy/bimCVP/infra/site-root --exclude='tcg600/node_modules' \
+  -czf "$BACKUPS/tcg600-$STAMP.tgz" tcg600
+for KEY in DB G_NUTFT_DB; do
+  DBFILE=$(grep -E "^$KEY=" /home/deploy/tcg-env-before.txt | cut -d= -f2-)
+  [ -n "$DBFILE" ] || { echo "no $KEY in tcg-env-before.txt"; exit 1; }
+  [ -f "$DBFILE" ] || { echo "missing database $DBFILE"; exit 1; }
+  OUT="$BACKUPS/$(basename "$DBFILE" .db)-$STAMP.db"
+  node -e '
+    const { DatabaseSync } = require("node:sqlite");
+    new DatabaseSync(process.argv[1]).prepare("VACUUM INTO ?").run(process.argv[2]);
+    const check = new DatabaseSync(process.argv[2]).prepare("PRAGMA integrity_check").get();
+    const verdict = Object.values(check)[0];
+    if (verdict !== "ok") { console.error("integrity_check:", verdict); process.exit(1); }
+    console.log("ok", process.argv[2]);
+  ' "$DBFILE" "$OUT"
+done
+ls -la "$BACKUPS" | tail -5
+echo "STAMP=$STAMP"
+```
+
+Write `STAMP` down; the rollback names it. The node form needs no `sqlite3` CLI; the box
+already runs Node 22.5 or newer for `node:sqlite`.
+
+### 9.5 · On Windows: upload with the key
+
+```powershell
+scp -i $HOME\.ssh\id_ed25519_sk -o IdentitiesOnly=yes -r `
+  G:\projekte\HetzerDeploy\site\tcg600\* `
+  deploy@178.105.93.78:/home/deploy/bimCVP/infra/site-root/tcg600/
+```
+
+One touch. The upload overwrites and adds files; it deletes nothing.
+
+### 9.6 · On the box: dependencies and start
 
 ```bash
 cd /home/deploy/bimCVP/infra/site-root/tcg600
-mv deploy/install-tcg.sh deploy/install-tcg.sh.do-not-run
+[ -f deploy/install-tcg.sh ] && mv deploy/install-tcg.sh deploy/install-tcg.sh.do-not-run
 npm ci --omit=dev
-curl -s https://tcg.nappelin.com/api/health
-sudo systemctl restart tcg-table
+sudo systemctl start tcg-table
 systemctl is-active tcg-table
 ```
 
-Rename the installer so nobody runs it against this release by habit. Restart when
-`/api/health` shows `"queued":0`. No `daemon-reload`: the unit did not change. A restart drops
-open sockets but no match: matches, seats and decks reload from `DB`, and connected pages
-reconnect and resume with their seat tokens. Players waiting in quick match must search again.
+The rename fences an installer left from an earlier deploy. No `daemon-reload`: the unit did
+not change.
 
-### 9.6 · On the box: prove nothing but the code changed
+### 9.7 · On the box: prove nothing but the code changed
 
 ```bash
 sudo cat /proc/$(systemctl show -p MainPID --value tcg-table)/environ | tr '\0' '\n' \
@@ -501,7 +547,7 @@ curl -s https://tcg.nappelin.com/g/v1/info | grep -o '"catalog_uri":"[^"]*"'
 curl -s -o /dev/null -w "%{http_code} play.html\n" https://tcg.nappelin.com/play.html
 curl -s -o /dev/null -w "%{http_code} arena3d.js\n" https://tcg.nappelin.com/arena3d.js
 curl -s -o /dev/null -w "%{http_code} three.js\n" https://tcg.nappelin.com/vendor/three.js
-journalctl -u tcg-table -n 20 --no-pager
+sudo journalctl -u tcg-table -n 20 --no-pager
 ```
 
 Stop and roll back if `diff` prints anything, if either `catalog_uri` differs from 9.2, or if
@@ -509,14 +555,14 @@ the service is not active. `arena3d.js` and `vendor/three.js` answering 200 prov
 site is served. Then open `https://tcg.nappelin.com/play.html` in a browser: a hotseat game
 reaches turn 2 on the 3D table and on `?arena=dom`.
 
-If §5a (the Hangar origin) is applied in the same window, do it after 9.6 with its own
-before/after check, so each change is proven on its own.
+If §5a (the Hangar origin) is applied in the same window, do it after 9.7 with its own
+before and after check, so each change is proven on its own.
 
-### 9.7 · Rollback
+### 9.8 · Rollback
 
 ```bash
 sudo systemctl stop tcg-table
-STAMP=<the value from 9.3>
+STAMP=<the value from 9.4>
 cd /home/deploy/bimCVP/infra/site-root
 mv tcg600 "tcg600-failed-$(date -u +%Y%m%dT%H%M%SZ)"
 tar -xzf "/home/deploy/tcg-backups/tcg600-$STAMP.tgz"
@@ -525,11 +571,19 @@ sudo systemctl start tcg-table
 systemctl is-active tcg-table
 ```
 
-Restore a database copy **only** if the new code damaged it. A copy from 9.3 loses every
-match and every mint operation since then, and a mint rolled back behind cards it already
-issued can issue them twice. If it is needed, stop the service first, copy
-`/home/deploy/tcg-backups/matches-$STAMP.db` over `/home/deploy/tcg-data/matches.db`, remove
-its `-wal` and `-shm` sidecars in the same step, and decide it with the mint's state in view.
+A code-only rollback is safe on the database the new code has already opened. Between the
+2026-08-20 build (`bc589b0`) and `main`, `server/nutft-mint.js` only adds tables
+(`nutft_buyers`, `nutft_wallet_backup_buyers`, `nutft_signatures`, `nutft_purchases`,
+`nutft_supply`) and one nullable column (`nutft_invoices.buyer`); the old code writes
+`nutft_invoices` with an explicit column list, and the `matches` table is unchanged. After a
+rollback the old mint simply does not serve purchases, signatures and supply records the new
+code wrote in between; they stay in the database for the next deploy.
 
-`tcg-table-staging` (`:8778`, `tcg600-staging`, `deploy-tcg.ps1 -Staging`) takes the same
-steps with its own paths.
+**Do not restore a database copy because of the schema.** Restore one only if the new code
+damaged data: a copy from 9.4 loses every match and every mint operation since then, and a
+mint rolled back behind cards it already issued can issue them twice. If it is needed, stop
+the service first, copy the backup over the path from 9.2 (`DB` or `G_NUTFT_DB`), remove its
+`-wal` and `-shm` sidecars in the same step, and decide it with the mint's state in view.
+
+`tcg-table-staging` (`:8778`, `tcg600-staging`, `deploy-tcg.ps1 -Staging -StageOnly`) takes the
+same steps with its own paths.
