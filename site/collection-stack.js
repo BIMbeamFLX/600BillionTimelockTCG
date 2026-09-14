@@ -297,9 +297,12 @@
 
   /* THE STACK BUILDER'S WALLET READ, lifted from site/deck.html unchanged: an
      empty wallet is answered without asking the mint, otherwise the snapshot's
-     unspent proofs are counted by the asset id in their nutft tag. `opened` is
-     every proof the mint could read (owned, spent or rejected) and `unreadable`
-     the tokens it could not open at all — deck.html's notes tell those apart. */
+     unspent proofs are counted by the asset id in their nutft tag.
+     The two other numbers are two different silences. snapshot() does not
+     throw on a token this mint cannot open, so a wallet full of them arrives as
+     zero owned cards: `unreadable` says how many. And "nothing could be read"
+     must not be said over spent or rejected proofs — the mint did read those
+     and has an opinion — so `opened` counts owned, spent and invalid alike. */
   async function readWallet(wallet, origin) {
     const state = await wallet.read();
     if (!state.tokens.length) return { source: "wallet", counts: new Map(), opened: 0, unreadable: 0 };
