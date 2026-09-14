@@ -1374,7 +1374,7 @@
       /* This mint's invoices carry the mainnet lnbc prefix, so a real wallet
          will happily try to pay one. Say so above the string, not below it. */
       warn = document.createElement("div");
-      warn.style.cssText = "margin-top:4px;color:var(--gold);font-size:12px";
+      warn.style.cssText = "margin-top:4px;color:var(--brass);font-size:12px";
       warn.textContent = "It pays itself in a few seconds — do not scan it with a real wallet.";
     }
     const QR = root.E1QR;
@@ -1391,12 +1391,12 @@
     }
 
     const body = document.createElement("div");
-    body.style.cssText = "margin-top:6px;word-break:break-all;font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--muted)";
+    body.style.cssText = "margin-top:6px;word-break:break-all;font:11px/1.5 var(--mono);color:var(--ink-quiet)";
     body.textContent = invoice.paymentRequest;
     const row = document.createElement("div");
     row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:8px";
     const copy = document.createElement("button");
-    copy.className = "btn btn--small";
+    copy.className = "tcg-btn tcg-btn--primary btn--small";
     copy.type = "button";
     copy.textContent = "Copy invoice";
     copy.addEventListener("click", async () => {
@@ -1404,12 +1404,12 @@
       if (!copy.textContent.startsWith("Copied")) selectNode(body);
     });
     const open = document.createElement("a");
-    open.className = "btn btn--small btn--ghost";
+    open.className = "tcg-btn btn--small";
     open.href = `lightning:${invoice.paymentRequest}`;
     open.textContent = "Open in wallet";
     row.append(copy, open);
     const wait = document.createElement("div");
-    wait.style.cssText = "margin-top:8px;color:var(--muted);font-size:12px";
+    wait.style.cssText = "margin-top:8px;color:var(--ink-quiet);font-size:12px";
     wait.textContent = "Waiting for payment… the cards appear as soon as the mint confirms it.";
     note.append(head);
     if (warn) note.append(warn);
