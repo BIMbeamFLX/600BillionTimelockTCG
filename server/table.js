@@ -1698,6 +1698,42 @@ async function createTable(opts) {
     broadcast(rec, () => ({ t: "NOSTR", v: WIRE, role: "result", agreement, events }));
   }
 
+  // ------------------------------------------------------------ tables in
+
+  /* THE OPEN-TABLE LIST, OVER THE SOCKET. A napplet inside the Hangar has no
+   * HTTP to this origin: its frame is sandboxed and its only pipe is the table
+   * channel the host holds. So the lobby asks here for exactly what /api/tables
+   * serves, row for row (tests/js/net.test.mjs compares the two): open tables
+   * with a signed-in host, never a seat token, never a match already playing.
+   * Signed-in connections only, and metered per connection on top of the
+   * control budget. Past that meter the list is refused and the socket stays
+   * open, because a lobby that refreshes too eagerly must not lose a seat. */
+  const TABLES_MAX = 10;
+  function openTableList() {
+    return q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
+      const rec = matches.get(r.match_id);
+      const host = rec && rec.conns[0];
+      return {
+        matchId: r.match_id,
+        code: r.code,
+        name: r.seat0_name,
+        pubkey: r.seat0_pubkey,
+        affinity: r.seat0_affinity,
+        createdAt: r.created_at,
+        stake: Number.isInteger(r.stake) ? r.stake : 0,
+        hostOnline: Boolean(host && host.readyState === 1),
+      };
+    });
+  }
+  function handleTables(conn, msg) {
+    if (!authenticatedPubkey(conn, msg)) return;
+    if (!conn.tablesRate) conn.tablesRate = [[]];
+    if (!meter(conn.tablesRate, 0, TABLES_MAX)) {
+      return fail(conn.ws, "RATE_LIMITED", "too many table lists; wait a few seconds");
+    }
+    send(conn.ws, { t: "TABLES", v: WIRE, tables: openTableList() });
+  }
+
   // ------------------------------------------------------------------ sockets
 
   function detach(conn) {
@@ -1791,6 +1827,7 @@ async function createTable(opts) {
           case "UNQUEUE": return handleUnqueue(conn);
           case "LEAVE": return handleLeave(conn);
           case "NOSTR": return handleNostr(conn, msg);
+          case "TABLES": return handleTables(conn, msg);
           default: return fail(ws, "BAD_MESSAGE", `unknown message ${msg.t}`);
         }
       } catch (err) {

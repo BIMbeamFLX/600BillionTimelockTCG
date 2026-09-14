@@ -82,7 +82,7 @@ two pongs (30 s) is terminated and the seat marked offline. This is the only rel
 notice a slept laptop, whose TCP connection dies silently and would otherwise look alive
 forever.
 
-### 2.1 Client → server (9 types)
+### 2.1 Client → server (10 types)
 
 **`AUTH`** — answer the connection's one-use NIP-42 challenge with a NIP-07 signature.
 The client sends no table intent before `AUTH_OK`.
@@ -191,6 +191,18 @@ own bytes and verifies the BIP-340 signature before any row exists; either check
 not the sender's own seat key, and `role:"result"` before `status = 'over'`. On an accepted
 `role:"result"` the server recomputes agreement and broadcasts `NOSTR` to both.
 
+**`TABLES`** — ask for the open-table list over the socket.
+```json
+{"t":"TABLES","v":1}
+```
+Replies `TABLES` (§2.2) with exactly the rows `GET /api/tables` serves (§2.6): same fields, same
+filter, same order. It exists for a client that has a socket and no HTTP to the referee — a
+napplet inside the nappelin Hangar, whose sandboxed frame reaches the table only through the
+host's table channel. Unauthenticated → `ERROR{NIP07_REQUIRED}`. Each connection may ask 10
+times per 10 s window; past that the list is `ERROR{RATE_LIMITED}` and the socket **stays open**,
+because a lobby that refreshes too eagerly must not lose a seat for it. Every `TABLES` also
+counts against the control budget (§2.5), which does close.
+
 ### 2.1a `stake` — the one field that means money
 
 `CREATE`, `JOIN` and `QUEUE` all accept it, and the rules are identical everywhere:
@@ -210,7 +222,7 @@ not the sender's own seat key, and `role:"result"` before `status = 'over'`. On 
 **The referee never holds, escrows, moves or refunds a single sat.** It records a number two
 identities agreed on, and that is the entire extent of its involvement. Settlement is §6.7.
 
-### 2.2 Server → client (10 types)
+### 2.2 Server → client (11 types)
 
 **`AUTH`** — sent immediately after the WebSocket opens.
 ```json
@@ -370,6 +382,16 @@ run `E.verifyMatch` itself.
 ```
 Sent to **both** seats, so a client must match on content rather than on "the next NOSTR".
 
+**`TABLES`** — the answer to `TABLES`, to the asking connection only.
+```json
+{"t":"TABLES","v":1,
+ "tables":[{"matchId":"m_7f3a91c2","code":"K7M2QF","name":"felix","pubkey":"<64-hex>",
+            "affinity":"Power","createdAt":"2026-08-15T18:24:02.117Z","stake":0,"hostOnline":true}]}
+```
+The rows are `GET /api/tables`' rows (§2.6), row for row: `status = 'open'`, a host with a
+NIP-07 pubkey, newest first, at most 50. No seat token and no match already playing is ever in
+it. `tests/js/net.test.mjs` compares the two answers so they cannot drift apart.
+
 **`ERROR`** — fatal for the attempted operation.
 ```json
 {"t":"ERROR","v":1,"code":"…","message":"…"}
@@ -423,8 +445,9 @@ clients with the same source address, such as players behind one NAT or reverse 
 |---|---|---|
 | `RATE_MAX` | 150 | **accepted** actions only, metered *after* `E.apply` agrees |
 | `RATE_MAX_REJECT` | 400 | rejected actions — the runaway-loop guard, nothing more |
-| `CONTROL_RATE_MAX` | 30 | control (`CREATE` `JOIN` `RESUME` `QUEUE` `UNQUEUE` `LEAVE` `NOSTR`), malformed, and unseated action messages per client address, retained across reconnects |
+| `CONTROL_RATE_MAX` | 30 | control (`CREATE` `JOIN` `RESUME` `QUEUE` `UNQUEUE` `LEAVE` `NOSTR` `TABLES`), malformed, and unseated action messages per client address, retained across reconnects |
 | — (auth) | `max(5, CONTROL_RATE_MAX)` | the **first** `AUTH` of a connection, per address, so a signature-guessing loop cannot buy attempts by reconnecting |
+| — (tables) | 10 | `TABLES` per **connection**; exceeding it is `ERROR{RATE_LIMITED}` without a close (§2.1) |
 
 The auth budget has no environment variable of its own on purpose: it is a floor, not a knob.
 The first `AUTH` on a connection is metered there instead of against the control budget,
@@ -465,7 +488,8 @@ GET /api/match/:matchId    → while status ≠ 'over':
 ```
 
 `/api/tables` is the **relay-free join path**: if every relay dies on stage, players still see
-and join tables. Paths resolving outside the allowed roots are `403`, never read.
+and join tables. A client with a socket and no HTTP (a napplet in the Hangar) reads the same rows
+with `TABLES` (§2.1). Paths resolving outside the allowed roots are `403`, never read.
 
 `health.queued` is the queue depth, so the lobby can say "2 players searching" *before* anyone
 commits to waiting rather than only after. `tables[].hostOnline` says whether anyone is

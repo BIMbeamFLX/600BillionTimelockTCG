@@ -1706,6 +1706,77 @@ test("/api/tables says whether the host is actually sitting there", async (t) =>
   assert.equal(cold[0].hostOnline, false, "a code whose host closed the tab must say so");
 });
 
+// ------------------------------------------------ the table list, over the socket
+
+test("TABLES over the socket answers exactly what /api/tables serves", async (t) => {
+  /* A napplet in the Hangar has no HTTP to the referee, only the table channel.
+   * Its lobby must see the same rows a website lobby reads over HTTP: open
+   * tables with a signed-in host, and nothing that is already playing. */
+  const table = await boot(t, "tb1.db");
+  const host = await table.client({ identity: "host" });
+  host.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: host.pubkey, stake: 2100 });
+  const open = await host.type("STATE");
+  const { a } = await twoSeats(table); // a second table, already playing
+  const legacy = await table.client({ identity: "legacy" });
+  legacy.send({ t: "CREATE", name: "old", affinity: "Keys", pubkey: legacy.pubkey });
+  const old = await legacy.type("STATE");
+  table.db.prepare("UPDATE matches SET seat0_pubkey=NULL WHERE match_id=?").run(old.matchId);
+
+  const lobby = await table.client({ identity: "lobby" });
+  lobby.send({ t: "TABLES" });
+  const listed = await lobby.type("TABLES");
+  const http = await (await fetch(`${table.url}/api/tables`)).json();
+  assert.deepEqual(listed.tables, http, "the socket and HTTP must never drift apart");
+  assert.deepEqual(listed.tables.map((row) => row.code), [open.code]);
+  assert.deepEqual(Object.keys(listed.tables[0]).sort(),
+    ["affinity", "code", "createdAt", "hostOnline", "matchId", "name", "pubkey", "stake"]);
+  assert.equal(listed.tables[0].stake, 2100);
+  assert.equal(listed.tables[0].hostOnline, true);
+  const wire = JSON.stringify(listed);
+  for (const token of [host.token, a.token]) assert.equal(wire.includes(token), false, "a seat token was listed");
+  assert.equal(listed.tables.some((row) => row.matchId === a.matchId), false, "a table already playing was listed");
+});
+
+test("TABLES is for a signed-in connection only", async (t) => {
+  const table = await boot(t, "tb2.db");
+  const anonymous = await table.client({ skipAuth: true });
+  anonymous.send({ t: "TABLES" });
+  assert.equal((await anonymous.type("ERROR")).code, "NIP07_REQUIRED");
+  assert.equal(anonymous.inbox.some((m) => m.t === "TABLES"), false);
+});
+
+test("TABLES is metered per connection, and a refused list keeps the socket open", async (t) => {
+  const table = await boot(t, "tb3.db");
+  const lobby = await table.client({ identity: "lobby" });
+  for (let i = 0; i < 10; i++) {
+    lobby.send({ t: "TABLES" });
+    assert.ok(Array.isArray((await lobby.type("TABLES")).tables));
+  }
+  lobby.send({ t: "TABLES" });
+  const refused = await lobby.type("ERROR");
+  assert.equal(refused.code, "RATE_LIMITED");
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(lobby.ws.readyState, WebSocket.OPEN, "a lobby that refreshed too eagerly keeps its socket");
+
+  // The allowance belongs to the connection: the same identity on a second socket has its own.
+  const second = await table.client({ identity: "lobby" });
+  second.send({ t: "TABLES" });
+  assert.ok(Array.isArray((await second.type("TABLES")).tables));
+});
+
+test("TABLES still counts against the control budget, which closes", async (t) => {
+  const table = await boot(t, "tb4.db", { controlMax: 2 });
+  const lobby = await table.client();
+  lobby.send({ t: "TABLES" });
+  await lobby.type("TABLES");
+  lobby.send({ t: "TABLES" });
+  await lobby.type("TABLES");
+  const closed = new Promise((resolve) => lobby.ws.once("close", (code) => resolve(code)));
+  lobby.send({ t: "TABLES" });
+  assert.equal((await lobby.type("ERROR")).code, "RATE_LIMITED");
+  assert.equal(await closed, 4029);
+});
+
 // ------------------------------------------------------- serving the site
 
 /** A raw request, because fetch() transparently decodes and hides the encoding. */
