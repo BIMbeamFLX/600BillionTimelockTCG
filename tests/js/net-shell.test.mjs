@@ -40,21 +40,38 @@ function signEvent(template, sk) {
 }
 
 /* The host side of the channel, §3b: allowlist, one ws per channel, the five
- * sign rules. `sk === null` models nobody signed in at the Hangar. */
+ * sign rules. `sk === null` models nobody signed in at the Hangar. A host holds
+ * frames: `host.frame`/`parent`/`deliver` are the first one's, `openFrame()`
+ * makes the next, and `frame.kill()` is the iframe being removed — nothing
+ * reaches it any more, nothing it sends arrives, and its tables are closed. */
+const FRAMES = new Set();
 function fakeHangar({ sk = HOST_SK, allow = () => true } = {}) {
-  const listeners = [];
   const channels = new Map();
-  const host = { signRequests: 0, channels, frame: null, parent: null, deliver: null };
+  const owners = new Map();
+  const host = { signRequests: 0, channels, frames: [] };
   let n = 0;
-  host.frame = { addEventListener: (type, fn) => { if (type === "message") listeners.push(fn); } };
-  host.deliver = (data, source = host.parent) => { for (const fn of listeners) fn({ source, data }); };
-  const answer = (msg) => host.deliver(msg);
-  function handle(msg) {
+  host.openFrame = () => {
+    const listeners = [];
+    const frame = { dead: false };
+    frame.window = { addEventListener: (type, fn) => { if (type === "message") listeners.push(fn); } };
+    frame.deliver = (data, source = frame.parent) => { if (!frame.dead) for (const fn of listeners) fn({ source, data }); };
+    frame.parent = { postMessage: (msg) => queueMicrotask(() => { if (!frame.dead) handle(msg, frame); }) };
+    frame.kill = () => {
+      frame.dead = true;
+      for (const [channel, ws] of channels) if (owners.get(channel) === frame) ws.close(1000, "session closed");
+    };
+    host.frames.push(frame);
+    FRAMES.add(frame);
+    return frame;
+  };
+  function handle(msg, frame) {
+    const answer = (reply) => frame.deliver(reply);
     if (msg.type === "table.open") {
       if (!allow(msg.url)) return answer({ type: "table.open.result", id: msg.id, ok: false, error: "table origin not allowed" });
       const channel = `c${++n}`;
       const ws = new WebSocket(msg.url);
       channels.set(channel, ws);
+      owners.set(channel, frame);
       ws.on("open", () => answer({ type: "table.opened", channel }));
       ws.on("message", (raw) => answer({ type: "table.message", channel, data: String(raw) }));
       ws.on("close", (code, reason) => { channels.delete(channel); answer({ type: "table.closed", channel, code, reason: String(reason) }); });
@@ -79,7 +96,10 @@ function fakeHangar({ sk = HOST_SK, allow = () => true } = {}) {
       return answer({ type: "table.sign.result", id: msg.id, ok: true, event: signEvent(e, sk) });
     }
   }
-  host.parent = { postMessage: (msg) => queueMicrotask(() => handle(msg)) };
+  const first = host.openFrame();
+  host.frame = first.window;
+  host.parent = first.parent;
+  host.deliver = first.deliver;
   host.close = () => { for (const ws of channels.values()) { try { ws.close(); } catch (err) { /* gone */ } } };
   return host;
 }
@@ -122,7 +142,12 @@ async function waitFor(check, ms = 5000) {
 
 async function referee(t, name, extra) {
   const table = await createTable(Object.assign({ port: 0, dbPath: tmpDb(name), host: "127.0.0.1", publicHost: "127.0.0.1", rateMax: 1000000 }, extra || {}));
-  t.after(() => table.close());
+  t.after(async () => {
+    // Frames go first: a frame that saw its table close would keep dialling a referee that is gone.
+    for (const frame of FRAMES) frame.kill();
+    FRAMES.clear();
+    await table.close();
+  });
   return table;
 }
 
@@ -204,6 +229,85 @@ function kehtoOutbox(bus, sk, { refuse = null, alive = () => true } = {}) {
     },
   };
 }
+
+/* One napplet frame in a scope of its own: its own `window`, `parent`, `location` and
+ * prelude, and a srcdoc sandbox's storage getters, which throw. Two frames can then play
+ * each other in one process, which a single globalThis cannot hold. Globals the scope
+ * does not name (setTimeout, URL, JSON) are the real ones. `sockets` lists every raw
+ * WebSocket or fetch the frame tried: a napplet has neither, so it must stay empty. */
+function loadFrame(frame, napplet, extra) {
+  const scope = {};
+  const sandboxed = (name) => ({ configurable: true, get() { throw new Error(`SecurityError: ${name} is not available in a sandboxed frame`); } });
+  for (const name of ["localStorage", "sessionStorage", "caches"]) Object.defineProperty(scope, name, sandboxed(name));
+  const navigator = Object.defineProperty({}, "locks", sandboxed("navigator.locks"));
+  const sockets = [];
+  const values = Object.assign({
+    globalThis: scope,
+    window: frame.window,
+    parent: frame.parent,
+    napplet,
+    navigator,
+    location: { protocol: "about:", host: "", href: "about:srcdoc", search: "" },
+    WebSocket: function RawSocket(url) { sockets.push(String(url)); throw new Error("a napplet frame has no sockets of its own"); },
+    fetch: async (url) => { sockets.push(String(url)); throw new Error("a napplet frame has no network of its own"); },
+    E1Schnorr: globalThis.E1Schnorr,
+  }, extra || {});
+  for (const [name, value] of Object.entries(values)) {
+    Object.defineProperty(scope, name, { configurable: true, writable: true, value });
+  }
+  new Function("scope", `with (scope) {\n${NAPPLET_JS}\n;\n${NET_JS}\n}`)(scope);
+  return { scope, net: scope.E1Net, N: scope.E1Napplet, sockets };
+}
+
+const keyOf = (label) => Uint8Array.from(createHash("sha256").update(`test:hangar:${label}`).digest());
+
+/* A Hangar tab: one signed-in identity, one app store and one table channel, holding
+ * frames that come and go the way a napplet is closed and opened again. `open()` starts
+ * a frame the way play.js does (E1Net.start with handlers) and tracks its latest view. */
+function hangarTab(t, label, { bus = relayBus(), sk = keyOf(label), storage = new Map() } = {}) {
+  const host = fakeHangar({ sk });
+  t.after(() => host.close());
+  const tab = { label, host, bus, sk, pubkey: sk ? hex(schnorr.getPublicKey(sk)) : "", storage, clients: [] };
+  tab.open = ({ storageApi, scope } = {}) => {
+    const frame = tab.clients.length ? host.openFrame() : host.frames[0];
+    const alive = () => !frame.dead;
+    // The prelude answers asynchronously; a removed frame's questions are never answered.
+    const later = (fn) => (alive() ? new Promise((resolve) => setTimeout(() => resolve(fn()), 1)) : new Promise(() => {}));
+    const outbox = kehtoOutbox(bus, sk, { alive });
+    const napplet = {
+      shell: { ready() {}, supports: () => false },
+      identity: { getPublicKey: () => later(() => tab.pubkey) },
+      storage: storageApi || {
+        getItem: (key) => later(() => (storage.has(key) ? storage.get(key) : null)),
+        setItem: (key, value) => later(() => { storage.set(key, String(value)); }),
+        removeItem: (key) => later(() => { storage.delete(key); }),
+        keys: () => later(() => [...storage.keys()]),
+      },
+      outbox,
+    };
+    const client = Object.assign(loadFrame(frame, napplet, scope), { tab, frame, outbox, view: null });
+    const log = { errors: [], states: [], frames: [], overs: [], rejects: [], peers: [], active: [], queued: [] };
+    client.log = log;
+    client.handlers = {
+      onError: (e) => log.errors.push(e),
+      onState: (s) => { log.states.push(s); if (s.view) client.view = s.view; },
+      onFrame: (f) => { log.frames.push(f); client.view = f.view; },
+      onReject: (r) => { log.rejects.push(r); if (r.view) client.view = r.view; },
+      onOver: (o) => log.overs.push(o),
+      onPeer: (p) => log.peers.push(p),
+      onActive: (a) => log.active.push(a),
+      onQueued: (q) => log.queued.push(q),
+    };
+    client.started = client.net.start(client.handlers);
+    tab.clients.push(client);
+    return client;
+  };
+  tab.mirror = () => JSON.parse(storage.get("600b:seats") || "{}");
+  return tab;
+}
+
+/* Every access throws: a shell storage domain that is there but refuses everything. */
+const refusingStorage = () => new Proxy({}, { get(target, name) { throw new Error(`storage refused ${String(name)}`); } });
 
 test("a napplet opens, logs in and creates a table through the host channel", async (t) => {
   const table = await referee(t, "s1.db");
@@ -438,6 +542,128 @@ test("without a shell subscription invites are reported unavailable, never throw
   handles[0].end("relay list unavailable");
   const report = await waitFor(() => ended.log.errors.find((e) => e.code === "INVITES_UNAVAILABLE"));
   assert.match(report.message, /relay list unavailable/, "a subscription the shell ends says why");
+});
+
+// --------------------------------------------------------- the seat inside a shell
+
+const unhandled = (t) => {
+  const seen = [];
+  const note = (reason) => seen.push(reason);
+  process.on("unhandledRejection", note);
+  t.after(() => process.off("unhandledRejection", note));
+  return seen;
+};
+
+test("inside a shell the seat lives in memory, mirrored to the shell's storage under its identity", async (t) => {
+  const table = await referee(t, "m1.db");
+  const alice = hangarTab(t, "alice");
+  const a = alice.open();
+  assert.equal(a.started.resuming, false);
+  assert.deepEqual(await a.started.restoring, { resuming: false }, "nothing mirrored, nothing to resume");
+
+  assert.ok(a.net.create({ name: "alice", affinity: "Power", pubkey: alice.pubkey, table: table.wsUrl }));
+  const open = await waitFor(() => a.log.states[0]);
+  assert.equal(open.seat, 0);
+  const key = `${open.matchId}:0`;
+  const entry = await waitFor(() => alice.mirror()[key]);
+  assert.deepEqual(
+    [entry.matchId, entry.seat, entry.token, entry.table, entry.code, entry.pubkey],
+    [open.matchId, 0, open.token, table.wsUrl, open.code, alice.pubkey],
+  );
+  assert.equal(a.net.savedMatch().token, open.token, "memory answers at once; the mirror is only for a reload");
+  assert.deepEqual(a.sockets, [], "no socket and no fetch of its own");
+
+  a.net.leave();
+  await waitFor(() => !alice.mirror()[key]);
+  assert.equal(a.net.savedMatch(), null, "leaving forgets the seat in both places");
+  assert.deepEqual(a.log.errors, []);
+});
+
+test("a reloaded frame finds its seat in the mirror and takes it back", async (t) => {
+  const table = await referee(t, "m2.db");
+  const bus = relayBus();
+  const alice = hangarTab(t, "alice", { bus });
+  const bob = hangarTab(t, "bob", { bus });
+  const a = alice.open();
+  const b = bob.open();
+  a.net.create({ name: "alice", affinity: "Power", pubkey: alice.pubkey, table: table.wsUrl });
+  const open = await waitFor(() => a.log.states[0]);
+  b.net.join({ code: open.code, name: "bob", affinity: "Signal", pubkey: bob.pubkey, table: table.wsUrl });
+  const seated = await waitFor(() => b.log.states.find((s) => s.seat === 1 && s.status === "playing"));
+  await waitFor(() => bob.mirror()[`${seated.matchId}:1`]);
+
+  b.frame.kill(); // the Hangar closes the napplet, or the page reloads
+  await waitFor(() => a.log.peers.some((p) => p.seat === 1 && p.online === false));
+  const again = bob.open();
+  assert.equal(again.started.resuming, false, "the mirror answers later than start() returns");
+  const resumed = await again.started.restoring;
+  assert.deepEqual([resumed.resuming, resumed.matchId, resumed.seat], [true, seated.matchId, 1]);
+  const back = await waitFor(() => again.log.states.find((s) => s.matchId === seated.matchId));
+  assert.deepEqual([back.seat, back.status, back.role, back.downgraded], [1, "playing", "seat", false]);
+  assert.ok(back.view, "the whole view comes back with the seat");
+  await waitFor(() => a.log.peers.some((p) => p.seat === 1 && p.online === true));
+  assert.equal(bob.host.signRequests, 2, "one host-signed login per frame");
+  assert.deepEqual(again.sockets, []);
+});
+
+test("a frame signed in as someone else never resumes a mirrored seat", async (t) => {
+  const table = await referee(t, "m3.db");
+  const storage = new Map();
+  const alice = hangarTab(t, "alice", { storage });
+  const a = alice.open();
+  a.net.create({ name: "alice", affinity: "Power", pubkey: alice.pubkey, table: table.wsUrl });
+  const open = await waitFor(() => a.log.states[0]);
+  const mirror = await waitFor(() => (alice.mirror()[`${open.matchId}:0`] ? alice.mirror() : null));
+  a.frame.kill();
+  // Junk beside the real entry is ignored, never resumed.
+  mirror.junk = { matchId: "m_000000000000", seat: 0, token: 7 };
+  mirror["m_111111111111:1"] = { matchId: "m_111111111111", seat: 1, token: "t", pubkey: "not a key", seenAt: Date.now() + 1000 };
+  storage.set("600b:seats", JSON.stringify(mirror));
+
+  const guest = hangarTab(t, "guest", { storage }); // one app store, a different Hangar guest key
+  const g = guest.open();
+  assert.deepEqual(await g.started.restoring, { resuming: false });
+  assert.equal(g.net.savedMatch(), null);
+  assert.equal(guest.host.channels.size, 0, "no table is opened for a seat that is not this identity's");
+
+  const back = alice.open();
+  assert.equal((await back.started.restoring).resuming, true, "while alice, reopened, is back at her table");
+  await waitFor(() => back.log.states.find((s) => s.matchId === open.matchId && s.seat === 0));
+});
+
+test("a storage that refuses every access costs the lobby nothing: create, join and resume", async (t) => {
+  const table = await referee(t, "m4.db");
+  const rejections = unhandled(t);
+  const bus = relayBus();
+  const alice = hangarTab(t, "alice", { bus });
+  const bob = hangarTab(t, "bob", { bus });
+  const a = alice.open({ storageApi: refusingStorage() });
+  const b = bob.open({ storageApi: refusingStorage() });
+
+  a.net.create({ name: "alice", affinity: "Power", pubkey: alice.pubkey, table: table.wsUrl });
+  const open = await waitFor(() => a.log.states[0]);
+  b.net.join({ code: open.code, name: "bob", affinity: "Signal", pubkey: bob.pubkey, table: table.wsUrl });
+  const seated = await waitFor(() => b.log.states.find((s) => s.seat === 1 && s.status === "playing"));
+  assert.equal(b.net.savedMatch().token, seated.token, "the credential is held in memory");
+
+  // The socket drops: the frame resumes from memory, token and all.
+  for (const ws of bob.host.channels.values()) ws.close();
+  const resumed = await waitFor(() => b.log.states.find((s) => s !== seated && s.seat === 1), 8000);
+  assert.deepEqual([resumed.matchId, resumed.downgraded], [seated.matchId, false]);
+
+  // The frame reloads: nothing could be mirrored, so the identity finds the seat again.
+  b.frame.kill();
+  const again = bob.open({ storageApi: refusingStorage() });
+  assert.deepEqual(await again.started.restoring, { resuming: false });
+  assert.ok(again.net.rejoin(seated.matchId, table.wsUrl));
+  const back = await waitFor(() => again.log.states.find((s) => s.matchId === seated.matchId && s.seat === 1));
+  assert.equal(back.status, "playing");
+  assert.equal(again.log.active[0][0].matchId, seated.matchId, "AUTH_OK.active names the seat the reload lost");
+
+  assert.deepEqual([...a.log.errors, ...b.log.errors, ...again.log.errors], []);
+  assert.deepEqual([...a.sockets, ...b.sockets, ...again.sockets], []);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(rejections, [], "no storage failure escaped as a rejection");
 });
 
 test("tableUrl() in a srcdoc frame: the build constant, else nappelin's referee", () => {

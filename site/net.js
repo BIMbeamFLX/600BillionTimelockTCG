@@ -28,6 +28,11 @@
   const inShell = () => Boolean(nap() && nap().present);
   const shellIdentity = () => inShell() && typeof nap().has === "function" && nap().has("identity");
   const shellOutbox = () => inShell() && typeof nap().has === "function" && nap().has("outbox");
+  /* Embedded in a shell, or previewed as if (`?embed=1`): the page lives by the
+   * shell's rules, which E1Napplet.embedded() answers for every page. */
+  const embeddedPage = () => {
+    try { return Boolean(nap() && typeof nap().embedded === "function" && nap().embedded()); } catch (err) { return false; }
+  };
 
   /* `localStorage` and `sessionStorage` are GETTERS that throw in a sandboxed
    * frame, at the point of access rather than on use — so they are only ever
@@ -220,7 +225,58 @@
   const seatMap = () => readJSON(storeOf("localStorage"), LS_SEATS) || {};
   const seatKey = (v) => `${v.matchId}:${v.seat}`;
 
+  /* INSIDE A SHELL THE SEAT LIVES IN MEMORY, MIRRORED. A sandboxed frame has an
+   * opaque origin: localStorage, sessionStorage, caches and navigator.locks all
+   * throw there, so neither store above exists. The seat is kept in this
+   * frame's memory, which covers everything but a reload, and copied to the
+   * shell's own storage (E1Napplet.storage: async, per app, 512 KB) under the
+   * website's key and map shape, each entry stamped with the pubkey that holds
+   * it. A reloaded frame restores the newest entry of the identity signed in
+   * NOW, so a Hangar guest never resumes another key's seat.
+   *
+   * The mirror is a convenience, not the record: a write that fails costs a
+   * reload its auto-resume and nothing more, because AUTH_OK.active still names
+   * every seat an identity holds. Two Hangar tabs share one app store, so each
+   * write re-reads and merges, leaves entries it did not write alone, and
+   * prunes its own beyond MIRROR_MAX. */
+  const MIRROR_MAX = 8;
+  const mirrored = embeddedPage() && Boolean(nap().storage);
+  const memory = { session: null, touched: false, restored: !mirrored, writes: Promise.resolve() };
+
+  const mirrorEntry = (v) => Boolean(v) && typeof v === "object" && typeof v.matchId === "string"
+    && (v.seat === 0 || v.seat === 1) && typeof v.token === "string" && /^[0-9a-f]{64}$/.test(v.pubkey || "");
+  const newestFirst = (a, b) => (Number(b.seenAt) || 0) - (Number(a.seenAt) || 0);
+
+  function mirrorRead() {
+    return Promise.resolve()
+      .then(() => nap().storage.json(LS_SEATS, {}))
+      .then((map) => (map && typeof map === "object" && !Array.isArray(map) ? map : {}), () => ({}));
+  }
+
+  function mirrorWrite(change) {
+    memory.writes = memory.writes
+      .then(mirrorRead)
+      .then((map) => nap().storage.set(LS_SEATS, JSON.stringify(change(map))))
+      .catch(() => { /* refused or over budget: memory still holds the seat */ });
+  }
+
+  function mirrorSave(value) {
+    const pubkey = savedPubkey();
+    if (!pubkey || value.seat === null || !value.token) return;
+    const entry = {
+      matchId: value.matchId, seat: value.seat, token: value.token,
+      table: value.table || null, code: value.code || null, pubkey, seenAt: Date.now(),
+    };
+    mirrorWrite((map) => {
+      map[seatKey(entry)] = entry;
+      const mine = Object.values(map).filter(mirrorEntry).sort(newestFirst);
+      for (const stale of mine.slice(MIRROR_MAX)) delete map[seatKey(stale)];
+      return map;
+    });
+  }
+
   function savedMatch() {
+    if (mirrored) return memory.session ? Object.assign({}, memory.session) : null;
     // This tab's own session always wins: a reload is not a new player.
     const mine = readJSON(storeOf("sessionStorage"), SS_MATCH);
     if (mine && typeof mine.matchId === "string") return mine;
@@ -243,6 +299,12 @@
   }
 
   function saveMatch(value) {
+    if (mirrored) {
+      memory.touched = true;
+      memory.session = value ? Object.assign({}, value) : null;
+      if (value) mirrorSave(value);
+      return;
+    }
     writeJSON(storeOf("sessionStorage"), SS_MATCH, value);
     if (value && value.seat !== null && value.token) {
       const map = seatMap();
@@ -252,6 +314,13 @@
   }
 
   function forgetMatch() {
+    if (mirrored) {
+      const held = memory.session;
+      memory.touched = true;
+      memory.session = null;
+      if (held && held.seat !== null) mirrorWrite((map) => { delete map[seatKey(held)]; return map; });
+      return;
+    }
     const mine = readJSON(storeOf("sessionStorage"), SS_MATCH);
     try { globalThis.sessionStorage.removeItem(SS_MATCH); } catch (err) { /* private mode */ }
     if (!mine || mine.seat === null) return;
@@ -272,6 +341,7 @@
    * existing entry, whoever lost that race would vanish from storage for good.
    * Restoring it makes the map converge no matter who writes last. */
   const heartbeat = setInterval(() => {
+    if (mirrored) return; // one frame, one seat: nobody to tell apart
     const s = net.session;
     if (!s || s.seat === null || !s.token) return;
     const map = seatMap();
@@ -587,6 +657,19 @@
 
   function start(handlers) {
     net.handlers = handlers || {};
+    /* A shell's seat store answers asynchronously (see `restoring`). Until it has,
+     * there is nothing to resume yet: say so, and resume when it answers — unless
+     * the page has chosen something else by then, which wins. */
+    if (!memory.restored) {
+      return {
+        resuming: false,
+        restoring: restoring.then(() => (net.session || net.intent ? { resuming: false } : resumeSaved())),
+      };
+    }
+    return resumeSaved();
+  }
+
+  function resumeSaved() {
     const saved = savedMatch();
     const fromUrl = param("match");
     if (fromUrl) {
@@ -805,9 +888,31 @@
    * frame, and the key is the shell's to remember anyway. Warmed at load so a
    * page that asks synchronously (start, create) finds it without a click. */
   let shellPubkey = null;
-  if (shellIdentity()) {
-    nap().identity.current().then((key) => { if (key && !shellPubkey) shellPubkey = key; }, () => {});
-  }
+  const shellPubkeyKnown = shellIdentity()
+    ? Promise.resolve()
+      .then(() => nap().identity.current())
+      .then((key) => { if (key && !shellPubkey) shellPubkey = key; }, () => {})
+    : Promise.resolve();
+
+  /* A RELOADED FRAME COMES BACK TO ITS SEAT. The mirror and the shell's identity
+   * both answer asynchronously: once both have, the newest mirrored seat of the
+   * identity signed in now becomes this frame's session, and start() — which may
+   * have run already and returned `restoring` — resumes it. Anything the page
+   * chose meanwhile (create, join, queue, rejoin, leave) wins over the mirror. */
+  const restoring = mirrored
+    ? Promise.all([shellPubkeyKnown, mirrorRead()]).then(([, map]) => {
+      const pubkey = savedPubkey();
+      const newest = Object.values(map)
+        .filter((entry) => mirrorEntry(entry) && entry.pubkey === pubkey)
+        .sort(newestFirst)[0];
+      if (newest && !memory.touched && !net.session && !net.intent) {
+        memory.session = {
+          matchId: newest.matchId, seat: newest.seat, token: newest.token,
+          table: newest.table || null, code: newest.code || null,
+        };
+      }
+    }).catch(() => { /* nothing to restore is an answer too */ }).then(() => { memory.restored = true; })
+    : Promise.resolve();
 
   function savedPubkey() {
     if (shellIdentity()) return shellPubkey;
