@@ -1327,6 +1327,25 @@ test("a trusted proxy reads its own hop, so a prepended X-Forwarded-For cannot f
     `a shared proxy hop is one auth bucket regardless of forged leftmost — got ${JSON.stringify(codes)}`);
 });
 
+test("/api/health names the caller every budget sees, and a forged header cannot change it", async (t) => {
+  /* The one-curl check for a proxied deployment. With no trusted proxy,
+   * X-Forwarded-For is attacker input and the TCP peer is the answer. */
+  const table = await boot(t, "h-client-a.db");
+  const health = await rawGet(`${table.url}/api/health`, { "x-forwarded-for": "198.51.100.23" });
+  assert.equal(health.status, 200);
+  assert.equal(JSON.parse(health.body).client, "127.0.0.1", "an untrusted peer is its own address");
+  assert.equal(health.headers["cache-control"], "no-store", "an echoed address is never cached for someone else");
+});
+
+test("behind a trusted proxy /api/health names the hop the proxy observed", async (t) => {
+  const table = await boot(t, "h-client-b.db", { trustProxy: "loopback" });
+  const proxied = await rawGet(`${table.url}/api/health`, { "x-forwarded-for": "10.0.0.9, 203.0.113.9" });
+  assert.equal(JSON.parse(proxied.body).client, "203.0.113.9",
+    "the rightmost hop, never the leftmost value a client can pre-inject");
+  const direct = await rawGet(`${table.url}/api/health`);
+  assert.equal(JSON.parse(direct.body).client, "127.0.0.1", "with no forwarded hop, the peer itself");
+});
+
 test("unseated ACT messages cannot bypass the address budget", async (t) => {
   const table = await boot(t, "t28.db", { controlMax: 1 });
   const client = await table.client();

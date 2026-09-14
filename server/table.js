@@ -1921,6 +1921,9 @@ async function createTable(opts) {
     }
 
     if (pathname === "/api/health") {
+      /* It echoes the caller's own address, so no shared cache may keep it and
+       * hand one visitor's address to the next. */
+      res.setHeader("cache-control", "no-store");
       return reply(200, {
         ok: true,
         matches: matches.size,
@@ -1928,6 +1931,12 @@ async function createTable(opts) {
         // waiting, rather than only after they have joined the queue.
         queued: queue.length,
         uptime: Math.round((Date.now() - startedAt) / 1000),
+        /* WHO THE REFEREE THINKS IS ASKING — the key every per-client budget
+         * uses. Behind a proxy this turns "is TRUST_PROXY right?" into one
+         * curl: the caller's public address means yes, the proxy's own
+         * address means every player shares one budget. It reveals nothing
+         * but the caller's own address. */
+        client: clientAddress(req),
       });
     }
     if (pathname === "/api/tables") {
