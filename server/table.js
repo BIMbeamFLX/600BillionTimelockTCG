@@ -90,6 +90,15 @@ function makeCode() {
 const isHex64 = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
 const isHex128 = (v) => typeof v === "string" && /^[0-9a-f]{128}$/.test(v);
 
+/* ONE SPELLING PER IPv4 ADDRESS. A dual-stack socket reports an IPv4 peer as
+ * `::ffff:172.17.0.1`, an IPv4 socket as `172.17.0.1`, and an operator writes
+ * whichever `ss` printed. An exact comparison called the same proxy a
+ * stranger, so every player behind it shared one budget. */
+function unmappedAddress(address) {
+  const value = String(address).trim().toLowerCase();
+  return /^::ffff:\d{1,3}(\.\d{1,3}){3}$/.test(value) ? value.slice("::ffff:".length) : value;
+}
+
 function pruneAddressRates(rates, now, windowMs) {
   for (const [address, timestamps] of rates) {
     const active = timestamps.filter((timestamp) => now - timestamp < windowMs);
@@ -260,17 +269,18 @@ async function createTable(opts) {
    * hop — the address the trusted proxy itself observed, which a client cannot
    * forge by pre-injecting the header. Unset (the default) ignores XFF entirely.
    *   trustProxy: "loopback"  → trust 127.0.0.1/::1 as the proxy (the nappelin case)
-   *   trustProxy: ["10.0.0.2"] → trust these exact peer IPs */
+   *   trustProxy: ["10.0.0.2"] → trust these peer IPs; an IPv4 entry also matches
+   *                             its ::ffff: form, and a ::ffff: entry its IPv4 form */
   const trustProxy = (() => {
     const raw = options.trustProxy;
     if (!raw) return { mode: "none", set: new Set() };
-    if (Array.isArray(raw)) return { mode: "list", set: new Set(raw.map(String)) };
+    if (Array.isArray(raw)) return { mode: "list", set: new Set(raw.map(unmappedAddress)) };
     const token = String(raw).trim().toLowerCase();
     if (token === "loopback" || token === "true" || token === "1" || token === "yes") {
       return { mode: "loopback", set: new Set() };
     }
     // A bare string may still be a comma-list of IPs.
-    const list = token.split(",").map((s) => s.trim()).filter(Boolean);
+    const list = token.split(",").map(unmappedAddress).filter(Boolean);
     return list.length ? { mode: "list", set: new Set(list) } : { mode: "none", set: new Set() };
   })();
   const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
@@ -278,7 +288,7 @@ async function createTable(opts) {
     const peer = req.socket.remoteAddress || "unknown";
     const trusted =
       trustProxy.mode === "loopback" ? LOOPBACK.has(peer)
-      : trustProxy.mode === "list" ? trustProxy.set.has(peer)
+      : trustProxy.mode === "list" ? trustProxy.set.has(unmappedAddress(peer))
       : false;
     if (!trusted) return peer;
     const forwarded = req.headers["x-forwarded-for"];

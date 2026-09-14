@@ -1346,6 +1346,37 @@ test("behind a trusted proxy /api/health names the hop the proxy observed", asyn
   assert.equal(JSON.parse(direct.body).client, "127.0.0.1", "with no forwarded hop, the peer itself");
 });
 
+/* THE DOCKER-CADDY BUG. Node reports an IPv4 peer as a.b.c.d on an IPv4
+ * listener and as ::ffff:a.b.c.d on a dual-stack one, and an operator lists
+ * whichever form `ss` printed. An exact string match called the proxy a
+ * stranger, and every player behind it shared one budget. */
+test("a ::ffff: proxy entry trusts the peer an IPv4 listener reports", async (t) => {
+  const table = await boot(t, "tp-mapped-entry.db", { trustProxy: "::FFFF:127.0.0.1" });
+  const health = await rawGet(`${table.url}/api/health`, { "x-forwarded-for": "198.51.100.7" });
+  assert.equal(JSON.parse(health.body).client, "198.51.100.7");
+});
+
+test("an IPv4 proxy entry trusts the ::ffff: peer a dual-stack listener reports", async (t) => {
+  let table;
+  try {
+    table = await boot(t, "tp-ipv4-entry.db", { host: "::", trustProxy: ["127.0.0.1"] });
+  } catch (err) {
+    if (err.code === "EAFNOSUPPORT" || err.code === "EADDRNOTAVAIL") return t.skip("no IPv6 on this host");
+    throw err;
+  }
+  const health = `http://127.0.0.1:${table.port}/api/health`;
+  const direct = await rawGet(health);
+  assert.equal(JSON.parse(direct.body).client, "::ffff:127.0.0.1", "the peer really arrives in mapped form");
+  const proxied = await rawGet(health, { "x-forwarded-for": "198.51.100.8" });
+  assert.equal(JSON.parse(proxied.body).client, "198.51.100.8");
+});
+
+test("a peer that is not on the proxy list stays untrusted in either form", async (t) => {
+  const table = await boot(t, "tp-stranger.db", { trustProxy: "10.9.8.7, ::ffff:10.9.8.6" });
+  const health = await rawGet(`${table.url}/api/health`, { "x-forwarded-for": "198.51.100.9" });
+  assert.equal(JSON.parse(health.body).client, "127.0.0.1", "the forwarded header is ignored");
+});
+
 test("unseated ACT messages cannot bypass the address budget", async (t) => {
   const table = await boot(t, "t28.db", { controlMax: 1 });
   const client = await table.client();
