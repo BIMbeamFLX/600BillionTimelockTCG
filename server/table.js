@@ -33,6 +33,7 @@ const { WebSocketServer } = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
 const { createNutftMint } = require("./nutft-mint.js");
 const { createRelayWalletAllowlist } = require("./relay-wallet-allowlist.js");
+const { createRateLimiter } = require("./rate-limit.js");
 
 const REPO = path.resolve(__dirname, "..");
 const E = require(path.join(REPO, "site", "engine.js"));
@@ -64,6 +65,13 @@ const RATE_MAX_ACT = 150;
  * and no human comes close to it. */
 const RATE_MAX_REJECT = 400;
 const RATE_MAX_CONTROL = 30;
+/* The mint's HTTP budgets, per client per minute (MINT_WRITE_RATE_MAX and
+ * MINT_QUOTE_RATE_MAX override them). See mintRouteLimit for what each counts. */
+const MINT_RATE_WINDOW_MS = 60_000;
+const MINT_WRITE_RATE_MAX = 20;
+const MINT_QUOTE_RATE_MAX = 60;
+/* However many addresses arrive, no more buckets than this are kept. */
+const RATE_CLIENTS_MAX = 10_000;
 const MAX_PAYLOAD = 64 * 1024;
 const MINT_ATTEMPTS = 40;
 const KIND_HANDSHAKE = 4600;
@@ -105,6 +113,21 @@ function pruneAddressRates(rates, now, windowMs) {
     if (active.length) rates.set(address, active);
     else rates.delete(address);
   }
+}
+
+/* WHICH MINT ROUTES COST SOMETHING, named by the mint's own path (any edition
+ * prefix removed). Every POST signs, verifies or restores proofs — purchase,
+ * booster, trade, possession, restore, checkstate — so a POST route added later
+ * is limited without anyone remembering to list it. These GETs draw or reveal
+ * a pack, check a signature or open an invoice. Everything else the mint serves
+ * (info, keys, catalog, blob, state, supply) is a cheap read and never limited. */
+const MINT_QUOTE_PATHS = new Set([
+  "/nutft/quote", "/nutft/reveal", "/nutft/eligibility", "/nutft/lnurlp/callback",
+]);
+function mintRouteLimit(method, localPath) {
+  if (method === "POST") return "mint-write";
+  if (method === "GET" && MINT_QUOTE_PATHS.has(localPath)) return "mint-quote";
+  return null;
 }
 
 function hostnameFromHostHeader(header) {
@@ -216,7 +239,9 @@ CREATE TABLE IF NOT EXISTS nostr_events (
  *   gNutftCensusPath?:string, gNutftCatalogUri?:string,
  *   gNutftFunding?:object, gNutftFundingBackend?:string,
  *   gNutftSales?:string, gNutftPriceMsat?:number,
- *   gNutftOnePerKey?:boolean, walletBackupAllowlistPath?:string}} opts
+ *   gNutftOnePerKey?:boolean, walletBackupAllowlistPath?:string,
+ *   mintWriteRateMax?:number|string, mintQuoteRateMax?:number|string,
+ *   rateClock?:() => number}} opts
  */
 async function createTable(opts) {
   const options = opts || {};
@@ -258,6 +283,39 @@ async function createTable(opts) {
   const controlMax = Number.isInteger(options.controlMax)
     ? options.controlMax
     : RATE_MAX_CONTROL;
+  /* The mint budgets come from the environment as text, and a typo must stop
+   * the referee at boot rather than quietly leave the default in charge. */
+  const mintBudget = (value, fallback, name) => {
+    if (value === undefined || value === null || value === "") return fallback;
+    const max = Number(value);
+    if (!Number.isInteger(max) || max < 1) {
+      throw new Error(`${name} must be a positive integer: ${value}`);
+    }
+    return max;
+  };
+  /* Monotonic, so a wall-clock step can neither strand nor free a client;
+   * injectable, so a test can let a minute pass without waiting one. */
+  const rateClock = typeof options.rateClock === "function"
+    ? options.rateClock
+    : () => performance.now();
+  /* ONE POLICY FOR BOTH MINTS, applied in serveHttp before either mint sees
+   * the request, per client as clientAddress resolves it — so behind a proxy
+   * it is per player only once TRUST_PROXY is right. The key is the limit and
+   * the client, which means E1 and G draw on the same two budgets. */
+  const mintRates = createRateLimiter({
+    clock: rateClock,
+    maxKeys: RATE_CLIENTS_MAX,
+    limits: {
+      "mint-write": {
+        max: mintBudget(options.mintWriteRateMax, MINT_WRITE_RATE_MAX, "MINT_WRITE_RATE_MAX"),
+        windowMs: MINT_RATE_WINDOW_MS,
+      },
+      "mint-quote": {
+        max: mintBudget(options.mintQuoteRateMax, MINT_QUOTE_RATE_MAX, "MINT_QUOTE_RATE_MAX"),
+        windowMs: MINT_RATE_WINDOW_MS,
+      },
+    },
+  });
   /* WHO IS BEHIND THE PROXY. The pre-auth rate buckets key on the TCP peer,
    * because a connection has not proved an identity yet. In the prescribed
    * deployment that peer is a reverse proxy on loopback, so every player shares
@@ -1828,6 +1886,7 @@ async function createTable(opts) {
   const heartbeat = setInterval(() => {
     pruneAddressRates(controlRates, Date.now(), RATE_WINDOW_MS);
     pruneAddressRates(authRates, Date.now(), RATE_WINDOW_MS);
+    mintRates.prune();
     for (const ws of wss.clients) {
       if (ws.isAlive === false) {
         try { ws.terminate(); } catch (err) { /* already gone */ }
@@ -1897,6 +1956,26 @@ async function createTable(opts) {
     res.end(body);
   }
 
+  /* A MINT ROUTE OVER ITS BUDGET is answered here, before the mint does any
+   * work, with how long to wait. The headers are the ones the mint's own JSON
+   * answers carry: those send no CORS headers, so neither does the refusal,
+   * and a page that could not read the route's answer cannot read its 429. */
+  function mintLimited(req, res, localPath) {
+    const limit = mintRouteLimit(req.method, localPath);
+    if (!limit) return false;
+    const verdict = mintRates.take(limit, clientAddress(req));
+    if (verdict.ok) return false;
+    const body = JSON.stringify({ error: "rate limited", retry_after: verdict.retryAfter });
+    res.writeHead(429, {
+      "content-type": "application/json; charset=utf-8",
+      "content-length": Buffer.byteLength(body),
+      "cache-control": "no-store",
+      "retry-after": String(verdict.retryAfter),
+    });
+    res.end(body);
+    return true;
+  }
+
   async function serveHttp(req, res) {
     /* Every JSON answer carries this request's CORS verdict, so no call site can
      * forget it and quietly break a cross-origin lobby. */
@@ -1924,9 +2003,12 @@ async function createTable(opts) {
 
     if (pathname.startsWith("/g/v1/") || pathname.startsWith("/g/nutft/") || pathname.startsWith("/g/blossom/")) {
       if (!gNutft) return reply(404, { error: "not found" });
+      // The mint routes on url.pathname, so the limit is decided on the same string.
+      if (mintLimited(req, res, url.pathname.slice("/g".length))) return;
       return gNutft.handle(req, res, url);
     }
     if (pathname.startsWith("/v1/") || pathname.startsWith("/nutft/") || pathname.startsWith("/blossom/")) {
+      if (mintLimited(req, res, url.pathname)) return;
       return nutft.handle(req, res, url);
     }
 
@@ -2203,6 +2285,11 @@ if (require.main === module) {
      * each real client keeps its own pre-auth rate bucket. Only turn this on when
      * a trusted proxy actually fronts the table; unset, X-Forwarded-For is ignored. */
     trustProxy: process.env.TRUST_PROXY,
+    /* Per-client budgets per minute for the mint's POSTs and for the GETs that
+     * draw or reveal a pack. Unset keeps 20 and 60; anything but a positive
+     * integer stops the referee at boot. */
+    mintWriteRateMax: process.env.MINT_WRITE_RATE_MAX,
+    mintQuoteRateMax: process.env.MINT_QUOTE_RATE_MAX,
     publicHost: process.env.PUBLIC_HOST,
     /* Behind TLS set PUBLIC_URL=wss://your.host/ws — one variable, and the
      * scheme and port stop being guesses. PUBLIC_HOST alone still covers a LAN
