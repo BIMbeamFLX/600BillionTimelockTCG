@@ -730,13 +730,7 @@ test("a table list that cannot be had rejects with a code and keeps the socket",
 
 test("on the website tables() reads /api/tables until a signed-in socket is open, then asks that", async (t) => {
   const table = await referee(t, "l3.db");
-  const sk = keyOf("website");
-  const pubkey = hex(schnorr.getPublicKey(sk));
-  const { net, log } = loadShell({
-    nostr: { getPublicKey: async () => pubkey, signEvent: async (e) => signEvent(e, sk) },
-    location: { protocol: "http:", host: `127.0.0.1:${table.port}`, href: `${table.url}/play.html`, search: "" },
-  });
-  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: () => pubkey, setItem() {}, removeItem() {} } });
+  const { net, log, pubkey } = websitePage(table, "website");
   const fetched = [];
   const realFetch = globalThis.fetch;
   globalThis.fetch = (url, init) => { fetched.push(String(url)); return realFetch(url, init); };
@@ -749,6 +743,71 @@ test("on the website tables() reads /api/tables until a signed-in socket is open
   assert.deepEqual((await net.tables()).map((row) => row.code), [open.code]);
   assert.equal(fetched.length, 1, "the live socket is asked instead of HTTP");
   net.leave();
+});
+
+// ---------------------------------------------------------- no stakes inside a shell
+
+const sentMessage = (host, type) => {
+  const data = host.sent.find((text) => JSON.parse(text).t === type);
+  return data ? JSON.parse(data) : null;
+};
+
+/* A website page at the referee's own origin, signed in with NIP-07. */
+function websitePage(table, label) {
+  const sk = keyOf(label);
+  const pubkey = hex(schnorr.getPublicKey(sk));
+  const page = loadShell({
+    nostr: { getPublicKey: async () => pubkey, signEvent: async (e) => signEvent(e, sk) },
+    location: { protocol: "http:", host: `127.0.0.1:${table.port}`, href: `${table.url}/play.html`, search: "" },
+  });
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: () => pubkey, setItem() {}, removeItem() {} } });
+  return Object.assign(page, { pubkey });
+}
+
+test("inside a shell every table is a friendly, whatever stake the lobby passes", async (t) => {
+  const table = await referee(t, "k1.db");
+  const alice = hangarTab(t, "alice");
+  const a = alice.open();
+  assert.equal(a.net.stakesAllowed(), false);
+  a.net.create({ name: "alice", affinity: "Power", pubkey: alice.pubkey, table: table.wsUrl, stake: 2100 });
+  const open = await waitFor(() => a.log.states[0]);
+  assert.equal(open.stake, 0);
+  assert.equal(sentMessage(alice.host, "CREATE").stake, 0, "CREATE carries stake 0");
+  a.net.leave();
+
+  const bob = hangarTab(t, "bob");
+  const carol = hangarTab(t, "carol");
+  const b = bob.open();
+  const c = carol.open();
+  b.net.queue({ name: "bob", affinity: "Power", pubkey: bob.pubkey, table: table.wsUrl, stake: 500 });
+  c.net.queue({ name: "carol", affinity: "Signal", pubkey: carol.pubkey, table: table.wsUrl });
+  const dealt = await waitFor(() => b.log.states.find((s) => s.status === "playing"));
+  assert.equal(dealt.stake, 0);
+  assert.equal(sentMessage(bob.host, "QUEUE").stake, 0, "QUEUE waits for a friendly");
+});
+
+test("a staked table refuses an embedded join with STAKE_MISMATCH and seats nobody", async (t) => {
+  const table = await referee(t, "k2.db");
+  const site = websitePage(table, "website-host");
+  assert.equal(site.net.stakesAllowed(), true, "the website still plays for sats");
+  site.net.create({ name: "host", affinity: "Power", pubkey: site.pubkey, table: table.wsUrl, stake: 2100 });
+  const staked = await waitFor(() => site.log.states[0]);
+  assert.equal(staked.stake, 2100);
+
+  const guest = hangarTab(t, "guest");
+  const g = guest.open();
+  // Even a lobby that passes the number it was shown joins with an explicit 0 from the embed.
+  g.net.join({ code: staked.code, name: "guest", affinity: "Signal", pubkey: guest.pubkey, table: table.wsUrl, stake: 2100 });
+  const refused = await waitFor(() => g.log.errors.find((e) => e.code === "STAKE_MISMATCH"));
+  assert.match(refused.message, /2100 sats/);
+  assert.equal(sentMessage(guest.host, "JOIN").stake, 0);
+  assert.equal(g.log.states.length, 0, "the guest is never seated");
+  assert.equal(g.net.session, null);
+  const row = table.db.prepare("SELECT status, seat1_pubkey FROM matches WHERE match_id=?").get(staked.matchId);
+  assert.deepEqual([row.status, row.seat1_pubkey], ["open", null]);
+  const listed = await (await fetch(`${table.url}/api/tables`)).json();
+  assert.deepEqual(listed.map((entry) => [entry.code, entry.stake]), [[staked.code, 2100]], "still open, still for sats");
+  site.net.leave();
 });
 
 test("tableUrl() in a srcdoc frame: the build constant, else nappelin's referee", () => {

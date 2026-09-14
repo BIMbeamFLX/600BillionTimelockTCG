@@ -128,6 +128,14 @@
     return Number.isFinite(sats) && sats > 0 ? sats : 0;
   };
 
+  /* NO STAKES INSIDE A SHELL. A table code handed round a guild's game night must
+   * grant a seat and nothing else, so an embedded page creates and queues for a
+   * friendly whatever it was asked, and joins with an explicit stake of 0 — which
+   * a table that plays for sats refuses with STAKE_MISMATCH instead of binding the
+   * guest to its number. The lobby asks stakesAllowed() to hide the stake field. */
+  const stakesAllowed = () => !embeddedPage();
+  const stakeOf = (value) => (stakesAllowed() ? satsOf(value) : 0);
+
   /* Accepts either form and returns hex, or null. */
   const toHexPubkey = (value) => {
     const v = String(value || "").trim();
@@ -714,7 +722,7 @@
       ...rulesetOf(opts),
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
-      stake: satsOf(opts.stake),
+      stake: stakeOf(opts.stake),
       deck: deckOf(opts.deck),
       pubkey,
     };
@@ -751,8 +759,9 @@
       affinity: opts.affinity || "All",
       /* Sent as an ACKNOWLEDGEMENT of the wager we were shown, not a request.
        * The referee refuses the join if the table's number has moved, so a
-       * shared link can never bind someone to a stake they never saw. */
-      stake: satsOf(opts.stake),
+       * shared link can never bind someone to a stake they never saw. Inside a
+       * shell that acknowledgement is always 0 (stakeOf). */
+      stake: stakeOf(opts.stake),
       deck: deckOf(opts.deck),
       pubkey,
     };
@@ -781,7 +790,7 @@
       affinity: (opts && opts.affinity) || "All",
       /* The referee pairs on this, so it is a filter and not a preference: a
        * friendly waits for a friendly, and 500 sats waits for 500 sats. */
-      stake: satsOf(opts && opts.stake),
+      stake: stakeOf(opts && opts.stake),
       /* Paired on too: a Stack somebody built waits for another built Stack. */
       deck: deckOf(opts && opts.deck),
       pubkey,
@@ -1639,7 +1648,7 @@
     KIND_RESULT,
     KIND_ZAP_REQUEST,
     start, create, join, act, sendNostr, leave, resume, tables, connect,
-    queue, unqueue, rejoin,
+    queue, unqueue, rejoin, stakesAllowed,
     tableUrl, publicTable, publicTableIsLocal,
     savedMatch, saveMatch,
     get status() { return net.status; },
