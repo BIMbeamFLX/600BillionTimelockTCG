@@ -88,6 +88,22 @@ no packets. `arena.env.stats()` and `arena.env.inspect()` are the console's view
 `tests/js/arena3d-env.test.mjs` pins the counts, the respawn, the packets on their
 polylines, reduced mode, dispose and the tint.
 
+## The motion book (arena3d-fx.js v1.1)
+
+| Cue | Motion |
+| --- | --- |
+| `attack:strike` | pull back 0.25 u over 70 ms, lunge to 85 % of the distance with acceleration, contact at `strikeMs` (150 ms): squash 1.12 × 0.9, white flash 40 ms, shock ring 0.4 → 2.2 u over 260 ms, 40 brass-to-ember sprites, shake 0.35 + 0.08 per damage (cap 0.9), target recoil 0.45 u; hit-stop; return over 260 ms with a 6 % overshoot |
+| `card:play` / `resource:play` | arc flight from the fan pose, flip through a lifted midpoint, 1.06 at the apex, slam 1.1 → 1, 18 dust sprites, slab light; a token materialises (frame 0.7 → 1, brass ring 0.6 → 1.3, 220 ms) |
+| `card:draw` | rise off the stack, flip face up for the own seat, slide into the fan, 300 ms; the fan re-spaces over 240 ms |
+| `card:archive` / `avatar:decommission` | burn out to ember over 90 ms, then 24 shards and 16 rising sparks, done by 800 ms |
+| `damage:player` / `damage:avatar` | wait for the strike's contact when cued with one, then flash |
+
+The hand fan carries a `depthBow` so the middle card is the highest and the nearest; hover
+lifts a card 0.5 u toward the camera and spreads its neighbours 0.12 u. Two traps are pinned
+by tests: a cue refreshes the scheduler time from the clock (the idle loop ticks at half
+rate, which put the contact up to 30 ms ahead of the sound), and an `after()` callback copies
+its track's values out before it starts a new track, because its own slot is already free.
+
 ## Adding a cue
 
 1. `play.js` `fx(event)` translates a rules event into one of the `fx.js` `EVENTS` names

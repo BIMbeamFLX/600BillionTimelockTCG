@@ -12,6 +12,14 @@
  * pool), cleanup (pools; `dispose()` is idempotent) and the reduced-motion
  * equivalent (a cut to the end state, no particles, no shake).
  *
+ * Motion book (1.1): strike = anticipation 70 ms → lunge to 85 % with
+ * acceleration → contact at strikeMs (squash, white flash, shockwave, 40-sprite
+ * burst, shake by damage, target recoil) → hit-stop → return with a 6 %
+ * overshoot; play = arc + flip through a lifted midpoint, slam 1.1 → 1, dust,
+ * a token materialises; draw = rise, flip, slide; death = burn-out 90 ms, then
+ * 24 shards + 16 sparks, done by 800 ms. Losses cued with a strike wait for
+ * its contact.
+ *
  * Time: a tween scheduler reads `arena.world.clock` (`elapsed` seconds, number
  * or function) and freezes for `hitStop(ms)` — the beat where the brain
  * registers the blow. Cards tween (snap curve, 160–320 ms); chrome cuts.
@@ -25,28 +33,36 @@
    * 0 · TOKENS                                                           *
    * ==================================================================== */
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
 
   /* Durations (ms). Card tweens 160–320; chrome faster; only the shatter and
      the win push are allowed to be long, because they end something. */
   const MS = Object.freeze({
-    draw: 260, play: 320, slam: 90, lungeOut: 110, hitStop: 150, recoil: 90,
-    recoilBack: 160, ret: 220, flash: 120, crack: 600, shatter: 700, sweep: 400,
-    pulse: 280, softPulse: 360, win: 900, dust: 420, burst: 380, light: 180,
-    edge: 220, lethalShake: 320, lethalPush: 600
+    draw: 300, play: 340, slam: 90, antic: 70, hitStop: 150, squash: 60, recoil: 90,
+    recoilBack: 180, ret: 260, flash: 120, white: 40, shock: 260, crack: 600,
+    burnout: 90, shatter: 710, sweep: 400, pulse: 280, softPulse: 360, win: 900,
+    dust: 420, burst: 420, spark: 700, light: 180, edge: 220, lethalShake: 320,
+    lethalPush: 600, materialise: 220
   });
 
   const COLOR = Object.freeze({
     brass: 0xf3c244, ember: 0xff6a00, cream: 0xfff7ec, dust: 0xc7bbcc, red: 0xff4d3d
   });
+  /* brass → ember, as components: a burst sprite cools per frame without a Color. */
+  const BRASS_RGB = Object.freeze([0.953, 0.761, 0.267]);
+  const EMBER_RGB = Object.freeze([1.0, 0.416, 0.0]);
 
-  /* Sprites per spawn, and pool sizes (two overlapping bursts fit; anything
-     beyond that is cut by the shared particle cap, never by an allocation). */
-  const COUNT = Object.freeze({ dust: 12, burst: 24, shards: 18 });
-  const POOL = Object.freeze({ dust: 24, burst: 48, shards: 36, ring: 6, flash: 4, decal: 4, light: 2, tracks: 64 });
+  /* Sprites per spawn, and pool sizes: two overlapping strikes (2 × 40 burst)
+     plus two shatters (2 × 24 shards, 2 × 16 sparks from the burst pool) fit;
+     anything beyond that is cut by the shared particle cap, never by an
+     allocation. */
+  const COUNT = Object.freeze({ dust: 18, burst: 40, shards: 24, sparks: 16 });
+  const POOL = Object.freeze({ dust: 36, burst: 112, shards: 48, ring: 8, shock: 2, white: 2, flash: 4, decal: 4, light: 2, tracks: 96 });
 
-  const LUNGE_FRACTION = 0.4;
-  const RECOIL_UNITS = 0.3;
+  const ANTIC_UNITS = 0.25;    /* the pull-back before the lunge            */
+  const LUNGE_FRACTION = 0.85; /* how far the attacker travels to contact   */
+  const RECOIL_UNITS = 0.45;
+  const SHAKE = Object.freeze({ base: 0.35, perPoint: 0.08, cap: 0.9 });
   const GRAVITY = -9.0; /* world units / s² — cards are light, the table is close */
 
   /* Cues with no 3D motion: fx.js overlays and sounds cover them. */
@@ -86,6 +102,7 @@
 
   const EASE = Object.freeze({
     snap: bezier(0.2, 0.8, 0.25, 1),   /* arrivals: fast out, hard stop      */
+    back: bezier(0.3, 1.45, 0.55, 1),  /* the return: snap with 6 % overshoot */
     accel: bezier(0.5, 0, 0.9, 0.4),   /* the lunge out: gathering speed     */
     drop: bezier(0.4, 0, 1, 1),        /* losses: no landing                 */
     line: (k) => k,                    /* sweeps and lights: machines do not ease */
@@ -147,6 +164,15 @@
     const AXIS = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0) };
     const Q_FLAT = new THREE.Quaternion().setFromAxisAngle(AXIS.x, -Math.PI / 2);
     const Q_FLIP = new THREE.Quaternion().setFromAxisAngle(AXIS.y, Math.PI);
+    /* The fan's pitch (a played card starts leaning like the hand it left) and
+       the lifted midpoint of the flip: the card faces the camera at the apex. */
+    const handPitch = (name, fallback) => {
+      const z = global.E1ArenaLayout && global.E1ArenaLayout.ZONES && global.E1ArenaLayout.ZONES[name];
+      return z && typeof z.pitch === 'number' ? z.pitch : fallback;
+    };
+    const Q_HAND = { you: new THREE.Quaternion().setFromAxisAngle(AXIS.x, handPitch('youHand', -42 * Math.PI / 180)),
+      foe: new THREE.Quaternion().setFromAxisAngle(AXIS.x, handPitch('foeHand', -34 * Math.PI / 180)) };
+    const Q_LIFT = new THREE.Quaternion().setFromAxisAngle(AXIS.x, 0.4);
 
     /* ------------------------------------------------------------------ *
      * 2a · scheduler: tracks, timers, hit-stop                           *
@@ -334,8 +360,9 @@
     }
 
     const GEO = {
-      shard: geometry('plane', 0.32, 0.38), /* readable from the camera's ~14 units */
+      shard: geometry('plane', 0.42, 0.5), /* readable from the camera's ~14 units */
       ring: geometry('ring', 0.62, 0.74, 40),
+      shock: geometry('ring', 0.86, 1.0, 48), /* scale 1 = a one-unit radius */
       unit: geometry('plane', 1, 1),
       sweep: geometry('plane', board.width + 2, 0.5),
       edge: geometry('plane', board.width, 0.6)
@@ -355,7 +382,7 @@
     /* Particles: sprites (dust, burst) and shard quads share one record shape;
        position, spin, size and opacity are closed forms of the age. */
     function makeParticle(obj, kind) {
-      return { obj: mount(obj), kind, active: false, born: 0, life: 1, g: 0, spin: 0, s0: 1, s1: 1,
+      return { obj: mount(obj), kind, base: kind, active: false, born: 0, life: 1, g: 0, spin: 0, s0: 1, s1: 1,
         p0: new THREE.Vector3(), v: new THREE.Vector3(), axis: new THREE.Vector3(0, 1, 0), q0: new THREE.Quaternion() };
     }
     const pools = { dust: [], burst: [], shards: [] };
@@ -383,7 +410,7 @@
     }
     function release(p) {
       if (!p.active) return;
-      p.active = false; liveParticles--;
+      p.active = false; liveParticles--; p.kind = p.base;
       p.obj.visible = false;
       if (p.obj.material) p.obj.material.opacity = 0;
     }
@@ -402,7 +429,16 @@
             Q.a.setFromAxisAngle(p.axis, p.spin * s);
             o.quaternion.multiplyQuaternions(p.q0, Q.a);
           }
-          if (o.material) o.material.opacity = p.kind === 'burst' ? (1 - k) * (1 - k) : 1 - k;
+          const mat = o.material;
+          if (mat) {
+            mat.opacity = p.kind === 'burst' ? (1 - k) * (1 - k) : p.kind === 'spark' ? (k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8) : 1 - k;
+            /* burst sprites cool from brass to ember as they fly */
+            if (p.kind === 'burst' && mat.color && isFn(mat.color.setRGB)) {
+              mat.color.setRGB(BRASS_RGB[0] + (EMBER_RGB[0] - BRASS_RGB[0]) * k,
+                BRASS_RGB[1] + (EMBER_RGB[1] - BRASS_RGB[1]) * k,
+                BRASS_RGB[2] + (EMBER_RGB[2] - BRASS_RGB[2]) * k);
+            }
+          }
           if (k >= 1) release(p);
         }
       }
@@ -415,8 +451,11 @@
       m.quaternion.copy(Q_FLAT);
       return mount(m);
     }
-    const quads = { ring: [], flash: [], decal: [] };
+    const quads = { ring: [], shock: [], white: [], flash: [], decal: [] };
     for (let i = 0; i < POOL.ring; i++) quads.ring.push({ obj: flatMesh(GEO.ring, COLOR.brass, true), busy: false });
+    for (let i = 0; i < POOL.shock; i++) quads.shock.push({ obj: flatMesh(GEO.shock, COLOR.brass, true), busy: false });
+    /* The white contact flash is a sprite: it faces the camera from any seat. */
+    for (let i = 0; i < POOL.white; i++) quads.white.push({ obj: mount(new THREE.Sprite(spriteMat(COLOR.cream, true))), busy: false });
     for (let i = 0; i < POOL.flash; i++) quads.flash.push({ obj: flatMesh(GEO.unit, COLOR.red, true), busy: false });
     for (let i = 0; i < POOL.decal; i++) {
       /* R1 ships a crack texture (materials.cracks); else paint one here. */
@@ -533,15 +572,16 @@
       return out.copy(fallback);
     }
 
-    /* Pose tween a → b for a mesh. `lift` bends the path into an arc. */
-    function tweenPose(uid, e, dur, ease, lift, fill, done) {
+    /* Pose tween a → b for a mesh. `lift` bends the path into an arc; `shape`
+       (k, track, mesh) replaces the plain lerp for a cue with its own law. */
+    function tweenPose(uid, e, dur, ease, lift, fill, done, shape) {
       const mesh = e.mesh;
       const tr = startTrack(dur, ease, null, done, uid, mesh);
       if (!tr) { settle(uid, e); return null; }
       if (e.tween) e.tween = null; /* the arena's own move tween yields to the cue */
       fill(tr.a, tr.b);
       tr.lift = lift || 0;
-      tr.step = (k, t) => {
+      tr.step = shape ? (k, t) => shape(k, t, mesh) : (k, t) => {
         mesh.position.lerpVectors(t.a.p, t.b.p, k);
         if (t.lift) mesh.position.y += t.lift * 4 * k * (1 - k);
         mesh.quaternion.slerpQuaternions(t.a.q, t.b.q, k);
@@ -549,6 +589,13 @@
       };
       tr.step(0, tr);
       return tr;
+    }
+    /* A flip that passes through a lifted midpoint: a → (mid · lift) → b. */
+    function flipThrough(q, a, b, k) {
+      Q.b.slerpQuaternions(a, b, 0.5).multiply(Q_LIFT);
+      if (k < 0.5) q.slerpQuaternions(a, Q.b, k * 2);
+      else q.slerpQuaternions(Q.b, b, k * 2 - 1);
+      return q;
     }
     /* Return to home from wherever the mesh is right now. */
     function homeward(uid, dur, ease) {
@@ -559,13 +606,24 @@
         homeOf(e, b);
       });
     }
-    /* Slam: scale 1.08 → 1 over 90 ms, then the card is at rest. */
+    /* Slam: scale 1.1 → 1 over 90 ms, then the card is at rest. */
     function slam(uid, e) {
       tweenPose(uid, e, MS.slam, EASE.snap, 0, (a, b) => {
         homeOf(e, a); homeOf(e, b);
-        a.s.multiplyScalar(1.08);
+        a.s.multiplyScalar(1.1);
       });
       return e.mesh;
+    }
+    /* A token materialises: its brass frame grows 0.7 → 1 while a brass ring
+       flashes 0.6 → 1.3 around it, 220 ms. The token was not there; now it is. */
+    function materialise(uid, e) {
+      const m = e.mesh;
+      pulseQuad(takeQuad(quads.ring), m.position.x, Math.max(0.02, m.position.y) + 0.03, m.position.z, 0.6, 1.3, 0.9, MS.materialise, EASE.snap, uid);
+      const frame = e.parts && e.parts.frame;
+      if (!frame || !frame.scale) return;
+      frame.scale.set(0.7, 0.7, 1);
+      startTrack(MS.materialise, EASE.back, (k) => { const s = 0.7 + 0.3 * k; frame.scale.set(s, s, 1); },
+        () => { frame.scale.set(1, 1, 1); }, uid);
     }
 
     /* ------------------------------------------------------------------ *
@@ -574,7 +632,9 @@
 
     const CUES = {};
 
-    /* card:draw — deck stack → hand slot, 260 ms; own cards flip to face.
+    /* card:draw — deck stack → hand slot, 300 ms: the card rises off the
+       stack (the arc peaks early), flips face-up on the way for the own seat
+       (the flip lives in k 0.15–0.75), and slides into the fan on the snap.
        Meaning: a new option arrived. Brass-free: nothing to celebrate yet. */
     CUES['card:draw'] = (d) => {
       const e = entryOf(d.uid);
@@ -582,16 +642,28 @@
       if (reduced()) return settle(d.uid, e);
       cutUid(d.uid);
       const own = isOwn(e, d.seat);
-      tweenPose(d.uid, e, MS.draw, EASE.snap, 0.5, (a, b) => {
+      tweenPose(d.uid, e, MS.draw, EASE.line, 0.8, (a, b) => {
         homeOf(e, a); homeOf(e, b);
         zoneAnchor(own ? 'youDeck' : 'foeDeck', a.p, V.a.set(board.width / 2 - 1.2, 0.3, own ? halfDepth - 1.4 : -halfDepth + 1.4));
+        a.q.copy(Q_FLAT);
         if (own) a.q.multiply(Q_FLIP);
         a.s.multiplyScalar(0.9);
+      }, null, (k, t, mesh) => {
+        /* k is time: the path snaps, the flip keeps its own window */
+        const kp = EASE.snap(k);
+        mesh.position.lerpVectors(t.a.p, t.b.p, kp);
+        const rise = Math.sqrt(kp); /* off the stack first, then across */
+        mesh.position.y += t.lift * 4 * rise * (1 - rise);
+        mesh.quaternion.slerpQuaternions(t.a.q, t.b.q, clamp01((k - 0.2) / 0.5));
+        mesh.scale.lerpVectors(t.a.s, t.b.s, kp);
       });
     };
 
-    /* card:play — hand → queue/network: arc flight 320 ms, slam, dust ring
-       (12), brass light on the slab. resource:play is the same flight, flat. */
+    /* card:play — hand → queue/network: arc flight 340 ms from the fan's pose
+       (the hand's pitch) flipping through a lifted midpoint to the slot's
+       pose, 1.06 bigger at the apex, then the slam (1.1 → 1), a dust ring
+       (18) and the brass light on the slab. A token materialises on landing.
+       resource:play is the same flight, flat, no light. */
     function flight(d, opts) {
       const uid = d.uid != null ? d.uid : d.qid;
       const e = entryOf(uid);
@@ -599,16 +671,28 @@
       if (reduced()) return settle(uid, e);
       cutUid(uid);
       const own = isOwn(e, d.seat);
-      tweenPose(uid, e, MS.play, EASE.snap, 1.1, (a, b) => {
+      tweenPose(uid, e, MS.play, EASE.line, 1.2, (a, b) => {
         homeOf(e, a); homeOf(e, b);
         zoneAnchor(own ? 'youHand' : 'foeHand', a.p, V.a.set(b.p.x * 0.4, 0.9, own ? halfDepth - 0.6 : -halfDepth + 0.6));
-        a.s.multiplyScalar(1.08);
+        a.p.x = b.p.x * 0.5;
+        a.q.copy(own ? Q_HAND.you : Q_HAND.foe);
+        if (!own) a.q.multiply(Q_FLIP);
+        b.s.multiplyScalar(1.1);
       }, () => {
         const landed = entryOf(uid);
         if (!landed) return;
         const m = slam(uid, landed);
         dustRing(m.position.x, m.position.z, COUNT.dust);
-        if (opts.flash) flashLight(m.position.x, 0, m.position.z, 2.2, MS.light);
+        if (opts.flash) flashLight(m.position.x, 0, m.position.z, 2.6, MS.light);
+        if (landed.kind === 'token') materialise(uid, landed);
+      }, (k, t, mesh) => {
+        /* k is time: the path snaps; the arc, the flip and the apex growth
+           are symmetric in time, so the apex sits at the middle of the flight */
+        const kp = EASE.snap(k), arc = 4 * k * (1 - k);
+        mesh.position.lerpVectors(t.a.p, t.b.p, kp);
+        mesh.position.y += t.lift * arc;
+        flipThrough(mesh.quaternion, t.a.q, t.b.q, k);
+        mesh.scale.lerpVectors(t.a.s, t.b.s, kp).multiplyScalar(1 + 0.06 * arc);
       });
     }
     CUES['card:play'] = (d) => flight(d, { flash: true });
@@ -628,23 +712,63 @@
       }
     }
 
-    /* Impact burst: 24 additive sprites, brass → ember, thrown along the
-       strike direction. Contact, not damage: the number is fx.js's chip. */
+    /* Impact burst: 40 additive sprites, brass cooling to ember, thrown wide
+       along the strike direction. Contact, not damage: the number is fx.js's chip. */
     function burst(x, y, z, dir, want) {
       const n = budget(pools.burst, want);
       for (let i = 0; i < n; i++) {
         const p = spawn(pools.burst);
         if (!p) break;
-        const a = (i / n) * Math.PI * 2, r = 0.9 + (i % 3) * 0.6;
-        p.life = MS.burst; p.g = -3; p.s0 = 0.5; p.s1 = 0.1;
-        p.p0.set(x, y + 0.25, z);
-        p.v.set(Math.cos(a) * r + dir.x * 1.2, 1.2 + (i % 4) * 0.35, Math.sin(a) * r + dir.z * 1.2);
+        /* fast and wide: the sprites clear the contact point within 60 ms, so
+           forty additive sprites read as a spray, not as one white ball */
+        const a = (i / n) * Math.PI * 2 + (i % 2) * 0.17, r = 4.5 + (i % 3) * 2.5;
+        p.life = MS.burst - (i % 4) * 40; p.g = -14; p.s0 = 0.42 + (i % 3) * 0.1; p.s1 = 0.06;
+        p.p0.set(x + Math.cos(a) * 0.35, y + 0.3 + (i % 2) * 0.15, z + Math.sin(a) * 0.35);
+        p.v.set(Math.cos(a) * r + dir.x * 2.5, 2.5 + (i % 4) * 0.9, Math.sin(a) * r + dir.z * 2.5);
+        if (p.obj.material) tint(p.obj.material, COLOR.brass);
+      }
+    }
+    /* Ember sparks: rising, from the burst pool, for a card that burns out. */
+    function sparks(x, y, z, want) {
+      const n = budget(pools.burst, want);
+      for (let i = 0; i < n; i++) {
+        const p = spawn(pools.burst);
+        if (!p) break;
+        p.kind = 'spark';
+        const a = (i / n) * Math.PI * 2 + 0.5, r = 0.15 + (i % 3) * 0.25;
+        p.life = MS.spark - (i % 3) * 120; p.g = 0.6; p.s0 = 0.22; p.s1 = 0.05;
+        p.p0.set(x + Math.cos(a) * 0.45, y + 0.05 + (i % 2) * 0.2, z + Math.sin(a) * 0.45);
+        p.v.set(Math.cos(a) * r, 1.4 + (i % 4) * 0.45, Math.sin(a) * r);
+        if (p.obj.material) tint(p.obj.material, COLOR.ember);
       }
     }
 
-    /* attack:strike — lunge 40 % of the way in 110 ms, contact at strikeMs,
-       hit-stop, burst, shake, recoil, return 220 ms. The hit-stop is the beat
-       the brain uses to register the blow; the sound already sits there. */
+    /* attack:strike — anticipation: 0.25 units back over 70 ms; lunge with
+       acceleration to 85 % of the way, contact at strikeMs (150); squash
+       (x 1.12 / y 0.9), white flash, shockwave ring, 40-sprite burst, shake
+       scaled by damage, target recoil + flash, hit-stop; return with a 6 %
+       overshoot over 260 ms. The hit-stop is the beat the brain uses to
+       register the blow; the sound already sits there. */
+    const anticK = clamp01(MS.antic / strikeMs); /* the pull-back's share of the run-up */
+    function strikeShape(k, t, mesh) {
+      /* t.a = home, t.b = contact pose. V.c is the strike axis; the cue's own
+         scratch is V.a, live while step(0) runs inside tweenPose. */
+      V.c.subVectors(t.b.p, t.a.p).normalize();
+      if (k < anticK) {
+        const j = EASE.snap(k / anticK);
+        mesh.position.copy(t.a.p).addScaledVector(V.c, -ANTIC_UNITS * j);
+        mesh.position.y += 0.05 * j;
+        mesh.quaternion.copy(t.a.q);
+        mesh.scale.copy(t.a.s).multiplyScalar(1 - 0.04 * j);
+        return;
+      }
+      const j = EASE.accel((k - anticK) / (1 - anticK));
+      mesh.position.copy(t.a.p).addScaledVector(V.c, -ANTIC_UNITS * (1 - j));
+      mesh.position.lerp(t.b.p, j);
+      mesh.position.y += 0.12 * 4 * j * (1 - j);
+      mesh.quaternion.copy(t.a.q);
+      mesh.scale.copy(t.a.s).multiplyScalar(0.96 + 0.12 * j);
+    }
     CUES['attack:strike'] = (d) => {
       const e = entryOf(d.uid);
       if (!e) return;
@@ -652,51 +776,84 @@
       cutUid(d.uid);
       const target = d.targetUid != null ? entryOf(d.targetUid) : null;
       const own = isOwn(e, d.seat);
-      /* contact point: the target token, or the defending seat's edge */
+      /* contact point: the target token, or the near edge of the defending side */
       const from = homeOf(e, SCRATCH.a).p;
       const to = target ? homeOf(target, SCRATCH.b).p
-        : SCRATCH.b.p.set(from.x * 0.5, from.y, own ? -halfDepth + 0.8 : halfDepth - 0.8);
+        : SCRATCH.b.p.set(from.x * 0.5, from.y, own ? -halfDepth + 1.0 : halfDepth - 1.0);
       const dir = V.a.copy(to).sub(from);
       const dist = dir.length() || 1;
       dir.multiplyScalar(1 / dist);
+      /* damage: the cue's amount, else the attacker's Action (the card's power) */
+      const power = e.card && e.card.action != null ? Number(e.card.action) : 0;
+      const amount = Math.max(0, Number(d.amount) || power || 0);
+      const strength = Math.min(SHAKE.cap, SHAKE.base + SHAKE.perPoint * amount);
+      lastStrikeAt = T;
 
-      /* out: home → 40 % of the way, scale 1.08, arriving at lungeOut and
-         holding until contact */
-      tweenPose(d.uid, e, MS.lungeOut, EASE.accel, 0.15, (a, b) => {
+      /* home → 85 % of the way over strikeMs: pull back, then accelerate in */
+      tweenPose(d.uid, e, strikeMs, EASE.line, 0, (a, b) => {
         homeOf(e, a); homeOf(e, b);
         b.p.copy(a.p).addScaledVector(dir, dist * LUNGE_FRACTION);
-        b.p.y += 0.12;
         b.s.multiplyScalar(1.08);
-      });
+      }, null, strikeShape);
       /* The contact timer keeps its own copy of the geometry: `a.p` = contact
-         point, `b.p` = direction, `lift` = strength. Scratch is shared. */
+         point, `b.p` = direction, `lift` = shake strength. Scratch is shared. */
       const tm = after(strikeMs, (tr) => {
         if (disposed || !tr) return;
         /* the timer's slot is free again: copy out before anything takes it */
-        const c = V.c.copy(tr.a.p), dirAt = V.b.copy(tr.b.p);
+        const c = V.c.copy(tr.a.p), dirAt = V.b.copy(tr.b.p), strength = tr.lift;
+        squash(d.uid);
         burst(c.x, c.y, c.z, dirAt, COUNT.burst);
-        flashLight(c.x, 0, c.z, 3, MS.light);
-        shake(tr.lift, 180);
+        pulseQuad(takeQuad(quads.white), c.x, c.y + 0.4, c.z, 0.9, 1.5, 0.9, MS.white, EASE.drop);
+        pulseQuad(takeQuad(quads.shock), c.x, 0.05, c.z, 0.4, 2.2, 0.9, MS.shock, EASE.snap);
+        flashLight(c.x, 0, c.z, 4, MS.light);
+        shake(strength, 180);
         if (d.targetUid != null) recoil(d.targetUid, dirAt);
         hitStop(MS.hitStop);
-        after(0, () => homeward(d.uid, MS.ret, EASE.snap), d.uid);
       }, d.uid);
       if (tm) {
         tm.a.p.copy(from).addScaledVector(dir, dist * LUNGE_FRACTION);
         tm.b.p.copy(dir);
-        tm.lift = target ? 0.35 : 0.55;
+        tm.lift = strength;
       }
     };
 
-    /* The target gives 0.3 units along the blow, then returns. */
+    /* fx.js cues the loss (damage:player / damage:avatar) together with the
+       strike, and shows its chip at strikeMs. Here the loss waits for the
+       contact too: a red edge before the blow lands would answer a question
+       the table has not asked yet. The timer freezes with the hit-stop, so
+       the loss shows the moment the clock resumes. */
+    let lastStrikeAt = -Infinity;
+    function afterContact(fn) {
+      const wait = strikeMs - (T - lastStrikeAt);
+      if (wait > 0 && wait <= strikeMs) after(wait, () => fn());
+      else fn();
+    }
+
+    /* Contact squash: x 1.12 / y 0.9 of the lunge scale, relaxing over 60 ms
+       (after the hit-stop, which holds the squashed frame), then the return
+       with the overshoot. */
+    function squash(uid) {
+      const e = entryOf(uid);
+      if (!e) return;
+      tweenPose(uid, e, MS.squash, EASE.snap, 0, (a, b) => {
+        a.p.copy(e.mesh.position); a.q.copy(e.mesh.quaternion); a.s.copy(e.mesh.scale);
+        b.p.copy(a.p); b.q.copy(a.q); b.s.copy(a.s);
+        a.s.x *= 1.12; a.s.y *= 0.9;
+      }, () => homeward(uid, MS.ret, EASE.back));
+    }
+
+    /* The target gives 0.45 units along the blow and flashes, then returns. */
     function recoil(uid, dir) {
       const t = entryOf(uid);
       if (!t) return;
       cutUid(uid);
+      const m = t.mesh;
+      pulseQuad(takeQuad(quads.flash), m.position.x, Math.max(0.02, m.position.y) + 0.05, m.position.z, 1.3, 1.6, 0.7, MS.flash, EASE.drop, uid);
       tweenPose(uid, t, MS.recoil, EASE.snap, 0, (a, b) => {
         homeOf(t, a); homeOf(t, b);
         b.p.addScaledVector(dir, RECOIL_UNITS);
-      }, () => homeward(uid, MS.recoilBack, EASE.snap));
+        b.p.y += 0.06;
+      }, () => homeward(uid, MS.recoilBack, EASE.back));
     }
 
     function shake(strength, ms) {
@@ -721,14 +878,15 @@
       pulseQuad(takeQuad(quads.flash), m.position.x, Math.max(0.02, m.position.y) + 0.05, m.position.z, 1.2, 1.5, 0.85, MS.flash, EASE.drop);
       pulseQuad(takeQuad(quads.decal), m.position.x, Math.max(0.02, m.position.y) + 0.04, m.position.z, 1.3, 1.3, 0.9, MS.crack, EASE.line);
     }
-    CUES['damage:avatar'] = (d) => {
+    CUES['damage:avatar'] = (d) => afterContact(() => {
       const list = Array.isArray(d) ? d : [d];
       for (let i = 0; i < list.length && i < POOL.flash; i++) damageAvatar(list[i] || {});
-    };
+    });
 
     /* damage:player — the seat's edge flashes red; lethal adds a heavier
        shake and a slow push. Strength grows with the hit, capped. */
-    CUES['damage:player'] = (d) => {
+    CUES['damage:player'] = (d) => afterContact(() => damagePlayer(d));
+    function damagePlayer(d) {
       if (reduced()) return;
       const amount = Math.max(0, d.amount | 0);
       const own = d.seat == null ? true : d.seat === ownSeat;
@@ -742,31 +900,54 @@
       }
       if (d.lethal) { shake(1, MS.lethalShake); push(0.03, MS.lethalPush); }
       else if (amount > 0) shake(Math.min(0.8, 0.15 + amount * 0.1), 160);
-    };
+    }
 
-    /* card:archive / avatar:decommission — the mesh hides at 0 ms; 18 shard
-       quads with gravity and spin fade over 700 ms. It comes apart, it does
-       not float away. Reduced: it is simply gone. */
+    /* card:archive / avatar:decommission — burn-out first: the face flashes
+       to ember over 90 ms (emissive on the card's own material; the mesh pops
+       4 %); then the mesh hides and 24 shard quads fly with gravity and spin
+       while 16 ember sparks rise; everything is freed by 800 ms. It comes
+       apart, it does not float away. Reduced: it is simply gone. */
+    function burnMaterial(e) {
+      const part = e.parts && (e.parts.art || e.parts.front);
+      const m = part && part.material;
+      if (!m || m === world.backMat || !m.emissive || !isFn(m.emissive.setHex)) return null;
+      return m;
+    }
     function shatter(d) {
       const e = entryOf(d.uid, true);
       if (!e) return;
       cutUid(d.uid);
       const m = e.mesh;
-      m.visible = false;
-      if (reduced()) return;
+      if (reduced()) { m.visible = false; return; }
+      m.visible = true;
+      const mat = burnMaterial(e);
+      if (mat) { mat.emissive.setHex(COLOR.ember); mat.emissiveIntensity = 0; }
+      homeOf(e, SCRATCH.a);
+      const s0 = SCRATCH.a.s.x;
+      startTrack(MS.burnout, EASE.line, (k) => {
+        if (mat) mat.emissiveIntensity = 2.4 * k;
+        m.scale.set(s0 * (1 + 0.04 * k), s0 * (1 + 0.04 * k), s0 * (1 + 0.04 * k));
+      }, () => {
+        m.visible = false;
+        if (mat) mat.emissiveIntensity = 0;
+        shards(m);
+      }, d.uid);
+    }
+    function shards(m) {
       const n = budget(pools.shards, COUNT.shards);
       const x = m.position.x, y = Math.max(0.05, m.position.y), z = m.position.z;
       for (let i = 0; i < n; i++) {
         const p = spawn(pools.shards);
         if (!p) break;
-        const a = (i / n) * Math.PI * 2 + 0.3, r = 0.8 + (i % 3) * 0.5;
-        p.life = MS.shatter; p.g = GRAVITY; p.s0 = 1; p.s1 = 0.7; p.spin = (i % 2 ? 1 : -1) * (4 + (i % 3));
-        p.p0.set(x + Math.cos(a) * 0.3, y + 0.1 + (i % 4) * 0.08, z + Math.sin(a) * 0.3);
-        p.v.set(Math.cos(a) * r, 2.2 + (i % 3) * 0.5, Math.sin(a) * r);
+        const a = (i / n) * Math.PI * 2 + 0.3, r = 0.9 + (i % 3) * 0.6;
+        p.life = MS.shatter - (i % 3) * 60; p.g = GRAVITY; p.s0 = 1; p.s1 = 0.7; p.spin = (i % 2 ? 1 : -1) * (4 + (i % 3));
+        p.p0.set(x + Math.cos(a) * 0.32, y + 0.1 + (i % 4) * 0.1, z + Math.sin(a) * 0.32);
+        p.v.set(Math.cos(a) * r, 2.4 + (i % 3) * 0.6, Math.sin(a) * r);
         p.axis.set(Math.cos(a + 1.2), 0.4, Math.sin(a + 1.2)).normalize();
         p.q0.copy(m.quaternion);
         p.obj.material.opacity = 1;
       }
+      sparks(x, y, z, COUNT.sparks);
     }
     CUES['card:archive'] = shatter;
     CUES['avatar:decommission'] = shatter;
@@ -834,6 +1015,10 @@
       if (disposed) return false;
       const fn = CUES[name];
       if (!fn) return false;
+      /* The arena's idle loop ticks the fx at half rate, so T may lag the
+         clock by a frame or two: a cue starts from the clock's now, or the
+         contact would land early against the sound fx.js plays at strikeMs. */
+      if (!isFrozen()) T = Math.max(T, clockMs() - offset);
       guard(() => fn(detail || {}));
       return true;
     }
@@ -852,7 +1037,7 @@
         for (let i = 0; i < ALL_POOLS[j].length; i++) { release(ALL_POOLS[j][i]); unmount(ALL_POOLS[j][i].obj); }
       }
       liveParticles = 0;
-      const singles = [sweep, edge, slabGlow].concat(quads.ring, quads.flash, quads.decal);
+      const singles = [sweep, edge, slabGlow].concat(quads.ring, quads.shock, quads.white, quads.flash, quads.decal);
       for (let i = 0; i < singles.length; i++) { giveQuad(singles[i]); unmount(singles[i].obj); }
       for (let i = 0; i < lights.length; i++) { lights[i].busy = false; lights[i].obj.intensity = 0; unmount(lights[i].obj); }
       for (let i = 0; i < created.materials.length; i++) guard(() => created.materials[i].dispose && created.materials[i].dispose());

@@ -32,6 +32,8 @@ class Vector3 {
   multiplyScalar(s) { return this.set(this.x * s, this.y * s, this.z * s); }
   addScaledVector(v, s) { return this.set(this.x + v.x * s, this.y + v.y * s, this.z + v.z * s); }
   lerpVectors(a, b, k) { return this.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k); }
+  lerp(v, k) { return this.lerpVectors(this, v, k); }
+  subVectors(a, b) { return this.set(a.x - b.x, a.y - b.y, a.z - b.z); }
   length() { return Math.hypot(this.x, this.y, this.z); }
   normalize() { const l = this.length() || 1; return this.multiplyScalar(1 / l); }
   distanceTo(v) { return Math.hypot(this.x - v.x, this.y - v.y, this.z - v.z); }
@@ -162,25 +164,33 @@ test("exposes attach, a no-op shim, and the cue table; unknown and no-op cues re
   assert.doesNotThrow(() => shim.dispose());
 });
 
-test("attack:strike — lunge out, contact at 150 ms, hit-stop freezes the clock, recoil, return", () => {
+test("attack:strike — anticipation, lunge to 85 %, contact at 150 ms, squash, hit-stop, recoil, return with overshoot", () => {
   const h = fixture();
   const home = h.at(h.attacker), tHome = h.at(h.target);
-  assert.equal(h.fx.cue("attack:strike", { seat: 0, uid: "A", targetSeat: null, targetUid: "T" }), true);
+  assert.equal(h.fx.cue("attack:strike", { seat: 0, uid: "A", targetSeat: null, targetUid: "T", amount: 2 }), true);
   h.step(0);
   assert.ok(h.near(h.at(h.attacker), home), "at 0 ms the attacker has not moved");
 
-  h.step(110);
-  /* 40 % of the way toward the target (same x; z from 1.95 toward -1.95 = 3.9 units) */
-  assert.ok(Math.abs(h.attacker.position.z - (1.95 - 0.4 * 3.9)) < 1e-6, "lunge reaches 40 % at 110 ms");
-  assert.ok(h.attacker.scale.x > 1.07, "the lunge scales up");
+  h.step(70); /* anticipation peak: 0.25 units away from the target (+z) */
+  assert.ok(Math.abs(h.attacker.position.z - (1.95 + 0.25)) < 1e-6, "pulled back 0.25 units at 70 ms");
+  assert.ok(h.attacker.scale.x < 1, "and gathers itself (scale < 1)");
+
+  h.step(40); /* 110 ms: on the way in, past home already */
+  assert.ok(h.attacker.position.z < 1.95, "lunging toward the target");
+  assert.ok(h.attacker.position.z > 1.95 - 0.85 * 3.9, "not there yet");
   assert.equal(h.fx.stats().particles, 0, "nothing in the air before contact");
   assert.equal(h.clock.pauses, 0);
 
-  h.step(40); /* t = 150: contact */
-  assert.equal(h.fx.stats().particles, h.FX.COUNT.burst, "24 burst sprites at contact");
+  h.step(40); /* t = 150: contact at 85 % of the way (z from 1.95 toward -1.95 = 3.9 units) */
+  assert.ok(Math.abs(h.attacker.position.z - (1.95 - 0.85 * 3.9)) < 1e-6, "contact at 85 % of the distance");
+  assert.equal(h.fx.stats().particles, h.FX.COUNT.burst, "40 burst sprites at contact");
   assert.equal(h.calls.shake.length, 1, "one camera shake");
+  assert.ok(Math.abs(h.calls.shake[0][0] - (0.35 + 0.08 * 2)) < 1e-9, "shake = 0.35 + 0.08 per point of damage");
   assert.equal(h.clock.pauses, 1, "hit-stop pauses the arena clock");
   assert.equal(h.fx.frozen, true);
+  assert.ok(Math.abs(h.attacker.scale.x / h.attacker.scale.y - 1.12 / 0.9) < 1e-6, "squashed on contact: x 1.12 / y 0.9");
+  const visible = () => h.fxGroup.children.filter((o) => o.visible && o.material && o.geometry).length;
+  assert.ok(visible() >= 2, "a shockwave ring and the target's flash are up");
   const atContact = h.at(h.attacker);
 
   h.step(50); /* frozen: the clock did not advance, nothing moved */
@@ -193,12 +203,17 @@ test("attack:strike — lunge out, contact at 150 ms, hit-stop freezes the clock
   assert.equal(h.fx.frozen, false);
   assert.equal(h.clock.resumes, 1);
 
-  h.step(16); /* the return and the recoil start */
+  h.step(16); /* the squash relaxes and the recoil starts */
   h.step(74); /* recoil peak at 90 ms after the thaw */
-  assert.ok(Math.abs(h.target.position.z - (-1.95 - 0.3)) < 1e-6, "target recoils 0.3 units along the blow");
+  assert.ok(Math.abs(h.target.position.z - (-1.95 - 0.45)) < 1e-6, "target recoils 0.45 units along the blow");
+  assert.ok(Math.abs(h.attacker.scale.x - h.attacker.scale.y) < 1e-6, "the squash has relaxed after 60 ms");
 
-  h.step(200);
-  assert.ok(h.near(h.at(h.attacker), home), "attacker is home 220 ms after the return began");
+  /* the return: 260 ms with a 6 % overshoot past home, then settled */
+  let overshoot = 0;
+  for (let t = 0; t < 260; t += 10) { h.step(10); overshoot = Math.max(overshoot, h.attacker.position.z - 1.95); }
+  assert.ok(overshoot > 0.05 && overshoot < 0.5, "the return overshoots home a little (" + overshoot.toFixed(3) + ")");
+  h.step(20);
+  assert.ok(h.near(h.at(h.attacker), home), "attacker is home after the return");
   h.step(200);
   assert.ok(h.near(h.at(h.target), tHome), "target is home again");
   assert.equal(h.fx.isAnimating("A"), false);
@@ -206,22 +221,72 @@ test("attack:strike — lunge out, contact at 150 ms, hit-stop freezes the clock
   h.step(400);
   assert.equal(h.fx.stats().particles, 0, "the burst is gone");
   assert.equal(h.fx.stats().tracks, 0);
+  assert.equal(visible(), 0, "ring, flash and shockwave returned to their pools");
+});
+
+test("a cue starts from the clock's now, not from the last frame the fx saw", () => {
+  /* the arena's idle loop ticks the fx at half rate: the clock is ahead of T */
+  const h = fixture();
+  h.step(16);
+  h.clock.advance(40); /* two frames the fx never saw */
+  h.fx.cue("attack:strike", { seat: 0, uid: "A", targetUid: "T" });
+  h.step(134); /* 134 ms after the cue: no contact yet */
+  assert.equal(h.fx.stats().particles, 0, "no contact before 150 ms after the cue");
+  assert.equal(h.fx.frozen, false);
+  h.step(16); /* 150 */
+  assert.equal(h.fx.stats().particles, h.FX.COUNT.burst, "contact exactly 150 ms after the cue");
+});
+
+test("a loss cued together with a strike waits for the contact (and the hit-stop) before it shows", () => {
+  const h = fixture();
+  const bars = () => h.fxGroup.children.filter((o) => o.visible && o.material && o.geometry && o.material.color.hex === 0xff4d3d).length;
+  h.fx.cue("attack:strike", { seat: 0, uid: "A", targetSeat: 1, amount: 3 });
+  h.fx.cue("damage:player", { seat: 1, amount: 3 });
+  h.step(16);
+  assert.equal(bars(), 0, "no red edge before the blow lands");
+  assert.equal(h.calls.shake.length, 0);
+  h.step(134); /* 150: contact — the deferred loss fires in the same frame, then the clock freezes */
+  assert.ok(bars() >= 1, "the edge flashes at contact");
+  assert.equal(h.calls.shake.length, 2, "the strike's shake and the loss's shake");
+  const late = fixture();
+  late.fx.cue("damage:player", { seat: 1, amount: 3 });
+  late.step(0);
+  assert.equal(late.fxGroup.children.filter((o) => o.visible && o.material && o.geometry).length, 1, "with no strike in flight the loss shows at once");
+});
+
+test("burst count 40 respects the particle cap; two strikes fit the pools without a cut", () => {
+  const h = fixture({ cap: 360 });
+  h.addCard("B", "youNetwork", -1, 0.05, 1.95, "token");
+  h.addCard("U", "foeNetwork", -1, 0.05, -1.95, "token");
+  h.fx.cue("attack:strike", { seat: 0, uid: "A", targetUid: "T" });
+  h.fx.cue("attack:strike", { seat: 0, uid: "B", targetUid: "U" });
+  h.step(150);
+  assert.equal(h.fx.stats().particles, 2 * h.FX.COUNT.burst, "two full bursts in the air");
+  assert.ok(h.FX.POOL.burst >= 2 * h.FX.COUNT.burst + 2 * h.FX.COUNT.sparks, "pool: two strikes plus two shatters' sparks");
+  assert.ok(h.FX.POOL.shards >= 2 * h.FX.COUNT.shards, "pool: two shatters");
+  const low = fixture({ cap: 30 });
+  low.fx.cue("attack:strike", { seat: 0, uid: "A", targetUid: "T" });
+  low.step(150);
+  assert.equal(low.fx.stats().particles, 30, "the cap cuts the burst, never an allocation");
 });
 
 test("attack:strike on a seat lunges toward the defending edge and shakes harder", () => {
   const h = fixture();
-  h.fx.cue("attack:strike", { seat: 0, uid: "A", targetSeat: 1, targetUid: null });
+  h.fx.cue("attack:strike", { seat: 0, uid: "A", targetSeat: 1, targetUid: null, amount: 9 });
   h.step(110);
   assert.ok(h.attacker.position.z < 1.95, "moved toward the foe edge (-z)");
   h.step(40);
+  assert.ok(h.attacker.position.z < -2.5, "lands at the near edge of the foe side");
   assert.equal(h.calls.shake.length, 1);
-  assert.ok(h.calls.shake[0][0] > 0.4, "a blow on the player shakes more than one on a token");
+  assert.equal(h.calls.shake[0][0], 0.9, "the shake caps at 0.9");
+  assert.equal(h.fx.stats().particles, h.FX.COUNT.burst, "the same burst as on a token");
 });
 
 test("particles never exceed the tier's particleCap, across overlapping effects", () => {
   const h = fixture({ cap: 10 });
   h.addCard("B", "youNetwork", -1, 0.05, 1.95, "token");
-  h.fx.cue("card:archive", { uid: "B" });          /* wants 18 shards */
+  h.fx.cue("card:archive", { uid: "B" });          /* wants 24 shards + 16 sparks after the 90 ms burn-out */
+  h.step(90);
   assert.equal(h.fx.stats().particles, 10);
   h.fx.cue("attack:strike", { seat: 0, uid: "A", targetUid: "T" });
   let peak = 0, seen = 0;
@@ -237,55 +302,101 @@ test("particles never exceed the tier's particleCap, across overlapping effects"
   assert.equal(h.fx.stats().particles, 0, "everything returned to the pools");
 });
 
-test("shatter hides the mesh at 0 ms and frees its 18 shards after 700 ms", () => {
+test("shatter burns out for 90 ms, then hides the mesh and frees 24 shards + 16 sparks by 800 ms", () => {
   const h = fixture({ materials: { glow: new MeshBasicMaterial(), shard: new MeshBasicMaterial(), dust: new SpriteMaterial() } });
   const before = h.fx.stats().poolFree;
+  const mat = h.target.material;
+  mat.emissive = { hex: 0, setHex(x) { this.hex = x; } };
+  h.reg.get("T").parts = { front: h.target };
   h.fx.cue("avatar:decommission", { uid: "T" });
-  assert.equal(h.target.visible, false, "the mesh is gone before the first frame");
-  assert.equal(h.fx.stats().particles, h.FX.COUNT.shards);
+  assert.equal(h.target.visible, true, "the mesh is still there for the burn-out");
+  assert.equal(h.fx.stats().particles, 0);
+  h.step(45);
+  assert.equal(mat.emissive.hex, 0xff6a00, "the face glows ember");
+  assert.ok(mat.emissiveIntensity > 0.5, "and the glow climbs");
+  assert.ok(h.target.scale.x > 1, "the mesh pops a little");
+  h.step(45); /* 90 ms: the burn-out ends */
+  assert.equal(h.target.visible, false, "the mesh is gone");
+  assert.equal(h.fx.stats().particles, h.FX.COUNT.shards + h.FX.COUNT.sparks, "24 shards + 16 sparks");
   h.step(16);
   const shards = h.fxGroup.children.filter((o) => o.visible && o.geometry);
-  assert.equal(shards.length, 18);
-  const y0 = shards[0].position.y;
+  assert.equal(shards.length, 24);
+  const sparks = h.fxGroup.children.filter((o) => o.visible && !o.geometry && o.material);
+  assert.equal(sparks.length, 16);
+  const y0 = shards[0].position.y, sy0 = sparks[0].position.y;
   h.step(300);
-  assert.notEqual(shards[0].position.y, y0, "shards fall");
+  assert.ok(shards[0].position.y !== y0, "shards fall");
+  assert.ok(sparks[0].position.y > sy0, "sparks rise");
   assert.ok(shards[0].material.opacity < 1 && shards[0].material.opacity > 0, "shards fade");
   assert.ok(shards[0].quaternion.w !== 1, "shards spin");
-  h.step(400); /* 716 ms */
-  assert.equal(h.fx.stats().particles, 0);
+  h.step(400); /* 806 ms after the cue */
+  assert.equal(h.fx.stats().particles, 0, "everything freed by 800 ms");
   assert.equal(h.fx.stats().poolFree, before);
-  assert.equal(h.fxGroup.children.filter((o) => o.visible && o.geometry && o !== undefined).length, 0);
+  assert.equal(h.fxGroup.children.filter((o) => o.visible && o.material).length, 0);
 });
 
-test("card:play flies from the hand in an arc, slams, and kicks up 12 dust sprites", () => {
+test("card:play flies from the hand in an arc, flips from the fan's pitch, grows at the apex, slams, 18 dust sprites", () => {
   const h = fixture();
   h.addCard("Q", "queue", 0, 0.86, 0.1, "queue");
   const home = h.at(h.reg.get("Q").mesh);
   h.fx.cue("card:play", { seat: 0, uid: "Q", cardType: "Avatar" });
   h.step(0);
-  const start = h.at(h.reg.get("Q").mesh);
+  const q = h.reg.get("Q").mesh;
+  const start = h.at(q);
   assert.ok(!h.near(start, home), "starts away from the slot");
   assert.ok(start[2] > home[2], "starts on the own side (+z)");
-  h.step(160);
-  assert.ok(h.reg.get("Q").mesh.position.y > home[1], "the arc lifts the card mid-flight");
-  h.step(160); /* 320 ms: landed, slam begins */
-  assert.ok(h.reg.get("Q").mesh.scale.x > 1.05, "slam starts at 1.08");
+  assert.ok(q.quaternion.x < -0.3, "starts leaning like the fan (pitch -42 deg)");
+  h.step(170); /* the apex */
+  assert.ok(q.position.y > home[1] + 0.8, "the arc lifts the card mid-flight");
+  assert.ok(q.scale.x > 1.1 && q.scale.x < 1.2, "grows 1.06 over the flight scale at the apex");
+  assert.ok(q.quaternion.x > -0.3, "mid-flip, lifted toward the camera");
+  h.step(170); /* 340 ms: landed, slam begins */
+  assert.ok(Math.abs(q.scale.x - 1.1) < 1e-6, "slam starts at 1.1");
+  assert.ok(Math.abs(q.quaternion.w - 1) < 1e-6, "flat in the slot's pose");
   assert.equal(h.fx.stats().particles, h.FX.COUNT.dust);
+  assert.equal(h.FX.COUNT.dust, 18);
   h.step(90);
-  assert.ok(h.near(h.at(h.reg.get("Q").mesh), home));
-  assert.ok(Math.abs(h.reg.get("Q").mesh.scale.x - 1) < 1e-6);
+  assert.ok(h.near(h.at(q), home));
+  assert.ok(Math.abs(q.scale.x - 1) < 1e-6);
   h.step(500);
   assert.equal(h.fx.stats().particles, 0);
 });
 
-test("card:draw starts at the deck, flipped for the own seat, and lands home after 260 ms", () => {
+test("card:play of a token materialises it: frame 0.7 to 1 with a brass ring, 220 ms", () => {
+  const h = fixture();
+  const tok = h.addCard("N", "youNetwork", -1.8, 0.05, 1.95, "token");
+  const frame = new Mesh(new PlaneGeometry(), new MeshBasicMaterial());
+  h.reg.get("N").parts = { frame, body: frame };
+  h.fx.cue("card:play", { seat: 0, uid: "N", cardType: "Avatar" });
+  h.step(340); /* landed */
+  const rings = () => h.fxGroup.children.filter((o) => o.visible && o.geometry instanceof RingGeometry);
+  assert.equal(rings().length, 1, "one brass ring flash on landing");
+  assert.ok(Math.abs(frame.scale.x - 0.7) < 1e-6, "the frame starts at 0.7");
+  const r0 = rings()[0].scale.x;
+  assert.ok(Math.abs(r0 - 0.6) < 1e-6, "the ring starts at 0.6");
+  h.step(110);
+  assert.ok(frame.scale.x > 0.75 && frame.scale.x < 1.08, "the frame grows");
+  assert.ok(rings()[0].scale.x > r0, "the ring grows");
+  h.step(120); /* 230 ms after landing */
+  assert.equal(rings().length, 0, "ring gone after 220 ms");
+  assert.ok(Math.abs(frame.scale.x - 1) < 1e-6, "frame settles at 1");
+  assert.ok(h.near(h.at(tok), [-1.8, 0.05, 1.95]));
+});
+
+test("card:draw rises off the deck face down, flips on the way for the own seat, and slides home after 300 ms", () => {
   const h = fixture();
   const home = h.at(h.hand);
   h.fx.cue("card:draw", { seat: 0, uid: "H", count: 1 });
   h.step(0);
   assert.ok(h.hand.position.x > 4, "starts at the deck stack on the right");
-  assert.ok(Math.abs(h.hand.quaternion.w) < 1e-6, "face down: flipped 180° at the start");
-  h.step(260);
+  assert.ok(Math.abs(h.hand.quaternion.w) < 1e-6, "face down on the stack: flat and flipped");
+  const y0 = h.hand.position.y;
+  h.step(30);
+  assert.ok(h.hand.position.y > y0 + 0.15, "rises off the stack first");
+  assert.ok(Math.abs(h.hand.quaternion.w) < 1e-3, "still face down while rising");
+  h.step(120); /* 150 ms: mid-flip */
+  assert.ok(Math.abs(h.hand.quaternion.w) > 0.1 && Math.abs(h.hand.quaternion.w) < 0.99, "flipping on the way");
+  h.step(150);
   assert.ok(h.near(h.at(h.hand), home));
   assert.ok(Math.abs(h.hand.quaternion.w - 1) < 1e-6, "face up at home");
 });
@@ -393,9 +504,13 @@ test("in a browser the fx arm their own frame loop, for tracks and for track-les
   try {
     assert.equal(queue.length, 0, "idle: no frame requested");
     h.fx.cue("card:archive", { uid: "H" });
-    assert.equal(queue.length, 1, "a shatter (particles, no track) requests a frame");
+    assert.equal(queue.length, 1, "a shatter requests a frame");
     queue.shift()(16);
-    assert.equal(queue.length, 1, "live particles keep the loop going");
+    assert.equal(queue.length, 1, "the burn-out keeps the loop going");
+    h.clock.advance(100);
+    queue.shift()(116);
+    assert.equal(h.fx.stats().particles, 40, "shards and sparks in the air after the burn-out");
+    assert.equal(queue.length, 1, "live particles (no track) keep the loop going");
     h.fx.cue("ability:activate", { uid: "A" });
     assert.equal(queue.length, 1, "one pending frame at a time, never two");
     h.clock.advance(900);
@@ -443,7 +558,7 @@ test("driven by R1's loop: tick(delta, time), a freezable clock, animating() and
   for (let t = 0; t < 160; t += 16) frame(16);
   assert.ok(clock.frozenUntil > now, "contact froze R1's clock via clock.freeze(150)");
   assert.equal(fx.frozen, true);
-  assert.equal(fx.stats().particles, 24);
+  assert.equal(fx.stats().particles, 40);
   const timeAtContact = clock.time, pose = h.at(A);
   frame(50);
   assert.equal(clock.time, timeAtContact, "the arena clock stands still");
@@ -459,7 +574,8 @@ test("driven by R1's loop: tick(delta, time), a freezable clock, animating() and
   fx.cue("card:play", { seat: 1, uid: "T" });
   assert.equal(fx.stats().tracks, 0, "no flight for a departed card");
   fx.cue("avatar:decommission", { uid: "T" });
-  assert.equal(fx.stats().particles, 18, "a departed card still shatters from where it stood");
+  for (let t = 0; t < 96; t += 16) frame(16);
+  assert.equal(fx.stats().particles, 40, "a departed card still shatters from where it stood");
   fx.dispose();
 });
 
