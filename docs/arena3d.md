@@ -1,10 +1,11 @@
 # Arena 3D — the WebGL table
 
 `site/play.html?arena=3d` draws the table as a three.js scene; `?arena=dom` is the classic
-DOM table, which stays a first-class fallback. Four scripts, all optional, load before
+DOM table, which stays a first-class fallback. Five scripts, all optional, load before
 `play.js`: `site/vendor/three.js` (r0.186, `globalThis.THREE`), `site/arena3d-layout.js`
-(`E1ArenaLayout`, pure, node-testable), `site/arena3d.js` (`E1Arena3D`, the scene) and
-`site/arena3d-fx.js` (`E1Arena3DFx`, the motion book). The rules engine is untouched.
+(`E1ArenaLayout`, pure, node-testable), `site/arena3d.js` (`E1Arena3D`, the scene),
+`site/arena3d-fx.js` (`E1Arena3DFx`, the motion book) and `site/arena3d-env.js`
+(`E1Arena3DEnv`, the room around the table). The rules engine is untouched.
 
 ## How it works
 
@@ -64,6 +65,29 @@ URL of the current frame. Reduced motion (the `fx.js` toggle or the media query,
 through `opts.reduced`) keeps hover (instant), drops the parallax, and every effect in
 `arena3d-fx.js` cuts to its end state.
 
+## The environment
+
+`arena3d-env.js` is attached by `create()` as `arena.env = E1Arena3DEnv.attach(arena,
+{ backdrop, affinity, reduced })` (a still shim when the script is missing). Five layers,
+none of them touching a card: a **cyclorama** (a 34-unit cylinder segment behind the far
+edge wearing `opts.backdrop` — play.js passes `../art/site/hero-play.webp`, or
+`window.E1_BACKDROP_URL`, the data URL the napplet build emits in `<head>` — dimmed to
+45 %, tinted with the Plate colour of the affinity, black at the bottom, following the
+pointer parallax at 30 %); three additive **fog** sheets drifting behind the slab (none in
+tier `low`); **embers** as one `THREE.Points` cloud rising through the void (240 / 120 /
+40 per tier, respawning at the bottom, buffers updated in place); brass **packets**
+running the slab's PCB traces (`world.traces`, exported by `drawPlayfield`; 8 / 6 / 4 per
+tier, one per trace, 1.2 units/s); and **breathing** — the world plate and the queue glow
+±12 % over 4.5 s, the key light ±3 % on a slow noise. `setPlate(affinity)` also calls
+`env.setAffinity`, `quality(tier)` forwards, `dispose` disposes it.
+
+The loop: `env.animating()` is true while the tab is visible and motion is not reduced;
+when only the environment moves the arena skips every other rAF (~30 fps), and a hidden
+tab stops the loop. Reduced motion draws the cyclorama, fog and embers once, static, with
+no packets. `arena.env.stats()` and `arena.env.inspect()` are the console's view of it.
+`tests/js/arena3d-env.test.mjs` pins the counts, the respawn, the packets on their
+polylines, reduced mode, dispose and the tint.
+
 ## Adding a cue
 
 1. `play.js` `fx(event)` translates a rules event into one of the `fx.js` `EVENTS` names
@@ -81,7 +105,7 @@ through `opts.reduced`) keeps hover (instant), drops the parallax, and every eff
 ## Running the proof
 
 ```sh
-npm run test:js                              # client + arena3d-layout + arena3d-fx tests
+npm run test:js                              # client + arena3d-layout + arena3d-fx + arena3d-env tests
 ./.venv/Scripts/python.exe -m pytest -q tests/   # includes the napplet build (< 3 MB)
 npm run local                                # then open play.html?rules=fast&arena=3d
 ```
@@ -92,6 +116,7 @@ screenshot; `E1_GAME.arena.world.quality` the tier. Frame time during an attack 
 stay under 8 ms on desktop at DPR 1.5; a 375×812 mobile emulation must land on `low`
 and still play. `?arena=dom` on the same URL is the classic table for comparison.
 
-The napplet build (`npm run build:napplet`) inlines `vendor/three.js` and the three
-arena scripts like every other `<script src>`; inside the shell the world plates are
+The napplet build (`npm run build:napplet`) inlines `vendor/three.js` and the four
+arena scripts like every other `<script src>`, and emits the hero as
+`window.E1_BACKDROP_URL` for the cyclorama; inside the shell the world plates are
 not shipped, so `plates` is empty there and the arena draws without one.

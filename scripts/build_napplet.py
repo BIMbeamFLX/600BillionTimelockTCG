@@ -5,7 +5,8 @@ Writes dist/napplet/600b-timelock-tcg/index.html and its .nip5a-manifest.json (k
 Every `<script src>` is inlined -- vendor/three.js and the arena3d-*.js scripts of the
 3D table included (docs/arena3d.md; three.js carries no `</script` and no `<!--`, but
 the escaping below covers them anyway) -- the Anton font and the hero image become data
-URLs, the wallet/QR/bug-report scripts are left out, card faces keep loading by hash.
+URLs (the hero twice: the stage CSS and window.E1_BACKDROP_URL for the 3D cyclorama), the
+wallet/QR/bug-report scripts are left out, card faces keep loading by hash.
 """
 
 from __future__ import annotations
@@ -37,6 +38,8 @@ DATA_URL_ASSETS = {
     "../art/fonts/Anton-Regular.ttf": "font/ttf",
     "../art/site/hero-play.webp": "image/webp",
 }
+# The hero also reaches the 3D table's cyclorama as window.E1_BACKDROP_URL (site/arena3d-env.js).
+BACKDROP = "../art/site/hero-play.webp"
 
 SCRIPT_TAG = re.compile(r'<script src="([^"]+)"[^>]*>\s*</script>\n?')
 LOGO_TAG = re.compile(r'[ \t]*<img src="\.\./art/brand/[^"]+"[^>]*>\n?')
@@ -82,11 +85,18 @@ def strip_site_only(html: str) -> str:
     return PLATE_RULE.sub("", LOGO_TAG.sub("", html))
 
 
-def add_head(html: str, source_sha: str) -> str:
-    """Insert the build marker and the napplet-requires meta at the top of <head>."""
+def backdrop_data_url(site: Path) -> str:
+    """The hero image as a data URL, the same bytes the stage CSS inlines."""
+    data = base64.b64encode((site / BACKDROP).read_bytes()).decode("ascii")
+    return f"data:{DATA_URL_ASSETS[BACKDROP]};base64,{data}"
+
+
+def add_head(html: str, source_sha: str, backdrop: str = "") -> str:
+    """Insert the build marker, the backdrop URL and the requires meta at the top of <head>."""
     head = (
         f'<script>window.E1_NAPPLET_BUILD = "{source_sha}";</script>\n'
-        f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
+        + (f'<script>window.E1_BACKDROP_URL = "{backdrop}";</script>\n' if backdrop else "")
+        + f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
     )
     if "<head>\n" not in html:
         raise SystemExit("play.html has no <head> line to extend")
@@ -98,7 +108,7 @@ def build_html(site: Path) -> str:
     source = (site / "play.html").read_bytes()
     # Git hands this file over with CRLF on Windows; the build must not care.
     html = source.decode("utf-8").replace("\r\n", "\n")
-    html = add_head(html, sha256_hex(source))
+    html = add_head(html, sha256_hex(source), backdrop_data_url(site))
     html = strip_site_only(html)
     html = inline_assets(html, site)
     html = inline_scripts(html, site)

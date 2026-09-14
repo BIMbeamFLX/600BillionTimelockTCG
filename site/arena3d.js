@@ -8,6 +8,7 @@
  * only through E1ArenaLayout.planSync, and it never plays audio.
  *
  * Exposed as globalThis.E1Arena3D: { supported(), create(opts), VERSION }.
+ * `opts.backdrop` is the cyclorama image arena3d-env.js hangs behind the table.
  * Every public method of an arena tolerates being called before a texture has
  * resolved and after dispose().
  */
@@ -298,6 +299,8 @@
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
+    // The trace polylines in world units (slab top, y = 0): arena3d-env.js runs packets along them.
+    texture.userData.traces = runs.map((run) => run.map(([px, py]) => ({ x: px / S - L.BOARD.width / 2, z: py / S - L.BOARD.depth / 2 })));
     return texture;
   }
 
@@ -918,6 +921,7 @@
     const sample = { frameMs: [], until: 0, active: o.quality === "auto" || !o.quality };
     let dirty = true;
     let rafId = 0;
+    let envSkip = false;
     let qualityNow = L.quality({ isMobile: isMobile(), dpr: root.devicePixelRatio || 1, reduced: reduced() });
     if (o.quality && o.quality !== "auto") qualityNow = L.quality({ frameMs: [o.quality === "high" ? 4 : o.quality === "mid" ? 12 : 30], dpr: root.devicePixelRatio || 1, reduced: reduced() });
 
@@ -979,10 +983,18 @@
       if (sample.active && t < sample.until) animating = true;
       const fxAnimating = Boolean(arena.fx && typeof arena.fx.animating === "function" && arena.fx.animating());
       animating = fxAnimating || animating;
+      const envAnimating = Boolean(arena.env && typeof arena.env.animating === "function" && arena.env.animating());
+      // The environment alone runs at ~30 fps: every other rAF is skipped when nothing else moves.
+      if (envAnimating && !animating && !dirty) {
+        envSkip = !envSkip;
+        if (envSkip) { reapGone(); requestFrame(); return; }
+      }
+      animating = envAnimating || animating;
       if (dirty || animating) {
         dirty = false;
         applyCamera();
         followShadows();
+        if (arena.env && typeof arena.env.tick === "function") guard(() => arena.env.tick(clock.delta, clock.time));
         if (arena.fx && typeof arena.fx.tick === "function") guard(() => arena.fx.tick(clock.delta, clock.time));
         renderer.render(scene, camera);
         projectAll();
@@ -1008,6 +1020,7 @@
       // Materials compiled with shadows need a recompile when the map toggles.
       scene.traverse((obj) => { if (obj.material) (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => { m.needsUpdate = true; }); });
       world.quality = q;
+      if (arena.env && typeof arena.env.quality === "function") guard(() => arena.env.quality(q.tier));
       markDirty();
     }
     function settleQuality() {
@@ -1056,11 +1069,13 @@
       scene, renderer, THREE, clock, camera, group: groups, materials, layout: L,
       quality: qualityNow, stats, viewport: viewport(), textures,
       dirty: markDirty, requestFrame, cardById, faceUrl, artCrop, cardGeo, tokenGeos, backMat,
+      // For arena3d-env.js: the panel and glow it breathes, the light it flickers, the traces and the parallax it follows.
+      plate, glow: glowDisc, lights: { key, rim, glow: glowLight }, parallax, traces: playfield.userData.traces || [],
     };
 
     const arena = {
       VERSION,
-      registry, world, camera: cam, fx: null,
+      registry, world, camera: cam, fx: null, env: null,
       /* Diff the scene against the view; bind hitboxes; idempotent. */
       sync(view, seat, extra) {
         if (disposed || lost) return;
@@ -1145,6 +1160,7 @@
       },
       setPlate(affinity) {
         if (disposed) return;
+        if (arena.env && typeof arena.env.setAffinity === "function") guard(() => arena.env.setAffinity(affinity));
         const url = o.plates && affinity ? o.plates[affinity] || o.plates[String(affinity).toLowerCase()] : null;
         if (!url) { plateMat.opacity = 0; markDirty(); return; }
         textures.get(url).then((t) => {
@@ -1175,6 +1191,7 @@
         host.removeEventListener("pointerleave", onPointerLeave);
         canvas.removeEventListener("webglcontextlost", onContextLost);
         if (arena.fx && typeof arena.fx.dispose === "function") guard(() => arena.fx.dispose());
+        if (arena.env && typeof arena.env.dispose === "function") guard(() => arena.env.dispose());
         for (const entry of Array.from(registry.values())) destroyEntry(entry);
         for (const geo of artGeoCache.values()) geo.dispose();
         cardGeo.dispose(); cardGlowGeo.dispose(); ringGeo.dispose();
@@ -1194,6 +1211,11 @@
     arena.fx = root.E1Arena3DFx && typeof root.E1Arena3DFx.attach === "function"
       ? guard(() => root.E1Arena3DFx.attach(arena), null) || shim
       : shim;
+    /* The environment: the room around the table, or a shim that stands still. */
+    const envShim = { tick() {}, animating: () => false, setAffinity() {}, quality() {}, dispose() {} };
+    arena.env = root.E1Arena3DEnv && typeof root.E1Arena3DEnv.attach === "function"
+      ? guard(() => root.E1Arena3DEnv.attach(arena, { backdrop: o.backdrop, affinity: o.affinity, reduced }), null) || envShim
+      : envShim;
 
     mode = "landscape";
     resize();

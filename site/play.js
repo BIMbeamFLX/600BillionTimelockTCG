@@ -1017,6 +1017,12 @@
     return reducedMotion();
   };
 
+  /* The cyclorama image behind the table: the napplet build inlines it as a data URL. */
+  function arenaBackdrop() {
+    const inlined = globalThis.E1_BACKDROP_URL;
+    return typeof inlined === "string" && inlined ? inlined : "../art/site/hero-play.webp";
+  }
+
   function arenaPlates() {
     if (embedded()) return {}; // the napplet carries no site art
     const plates = {};
@@ -1055,6 +1061,7 @@
         geometry: GEO,
         back: arena.back,
         plates: arenaPlates(),
+        backdrop: arenaBackdrop(),
         affinity: arena.affinity,
         portraits: globalThis.E1Portraits || null,
         reduced: arenaReduced,

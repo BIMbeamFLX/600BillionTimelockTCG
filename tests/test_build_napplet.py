@@ -1,5 +1,6 @@
 """The napplet build: one self-contained page and the manifest that pins it."""
 
+import base64
 import hashlib
 import re
 from pathlib import Path
@@ -63,13 +64,20 @@ def test_page_carries_the_3d_table(artifact: tuple[bytes, dict]) -> None:
     html = artifact[0].decode("utf-8")
     version = (SITE / "vendor" / "three.version").read_text(encoding="utf-8").strip()
 
-    for name in ("vendor/three.js", "arena3d-layout.js", "arena3d.js", "arena3d-fx.js"):
+    scripts = ("vendor/three.js", "arena3d-layout.js", "arena3d.js")
+    scripts += ("arena3d-fx.js", "arena3d-env.js")
+    for name in scripts:
         assert f'src="{name}"' not in html
     assert f"three.js r{version}" in html
     assert "var THREE=" in html
     assert "REVISION" in html
-    for name in ("E1ArenaLayout", "E1Arena3D", "E1Arena3DFx"):
+    for name in ("E1ArenaLayout", "E1Arena3D", "E1Arena3DFx", "E1Arena3DEnv"):
         assert name in html
+    # The cyclorama backdrop travels as the same bytes the stage CSS inlines.
+    hero = (REPO_ROOT / "art" / "site" / "hero-play.webp").read_bytes()
+    data_url = "data:image/webp;base64," + base64.b64encode(hero).decode("ascii")
+    assert f'<script>window.E1_BACKDROP_URL = "{data_url}";</script>' in html
+    assert html.count(data_url) == 2
     assert ".board.arena3d > canvas.arena3d { display: block; }" in html
     assert 'id="arenaTable"' in html
 
