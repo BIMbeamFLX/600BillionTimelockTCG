@@ -13,6 +13,10 @@
      the five affinity Plate colours stay brand-fixed, because they are how a
      player reads the board and must match the printed cards. -->
 <script src="napplet.js"></script>
+<!-- The napplet build ships the hero once, as window.E1_BACKDROP_URL at the top of
+     <head>; the stage wears it through --hero before the first paint. The website
+     has no such URL and keeps the file fallback in the .stage::before rule. -->
+<script>if (typeof window.E1_BACKDROP_URL === "string" && window.E1_BACKDROP_URL) document.documentElement.style.setProperty("--hero", "url(\"" + window.E1_BACKDROP_URL + "\")");</script>
 <!-- Inside a nappelin frame (window.napplet, or ?embed=1 for a local preview)
      the page wears the html.embedded rules at the end of the stylesheet. Set
      before the first paint, so the chrome never flashes the website's. -->
@@ -38,7 +42,8 @@ a { color: var(--orange-soft); }
 .stage { position: relative; min-height: 100vh; }
 .stage::before {
   content: ""; position: fixed; inset: 0; z-index: 0;
-  background: url("../art/site/hero-play.webp") center / cover no-repeat;
+  background: center / cover no-repeat;
+  background-image: var(--hero, url("../art/site/hero-play.webp"));
   filter: saturate(.9) brightness(.55);
 }
 .stage::after {
@@ -743,7 +748,12 @@ a { color: var(--orange-soft); }
 .board.arena3d .gcard:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .controls .tablepick { margin-left: auto; color: var(--muted); font-size: 12px; }
 .controls .tablepick select { margin-left: 6px; padding: 6px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
-.board.arena3d .controls, .board.arena3d .playerbar, .board.arena3d .zonechip, .board.arena3d .tfooter { position: relative; z-index: 3; }
+/* Hitboxes sit at 2; the chrome above them at 20. The own hand is the one exception: the arena
+   stacks its hitboxes from 21 by depth (arena3d.js HAND_Z), because on a phone the projected fan
+   lands under the DOM playerbar and a tap on a card must reach the card. The buttons, and a
+   playerbar that is a target right now, stay above the hand. */
+.board.arena3d .controls, .board.arena3d .playerbar, .board.arena3d .zonechip, .board.arena3d .tfooter { position: relative; z-index: 20; }
+.board.arena3d .controls, .board.arena3d .playerbar.seat-target { z-index: 50; }
 .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 4px 2px; }
 .chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
 /* The card face's bottom line, table-sized. */

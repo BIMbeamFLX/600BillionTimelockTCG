@@ -28,7 +28,10 @@
   };
 
   /* Durations (ms). Cards tween, chrome cuts. */
-  const D = { hover: 140, move: 240, enter: 200, sample: 1500, grace: 1000 };
+  // restore: how long a lost context may take to come back before the classic table takes over;
+  // touchQuiet: how long after a finger lifts the compatibility mouseenter/focus may not hover.
+  const D = { hover: 140, move: 240, enter: 200, sample: 1500, grace: 1000, restore: 2500, touchQuiet: 700, statsEvery: 500 };
+  const STATS_FRAMES = 120;
   const HOVER = { lift: 0.5, spread: 0.12 }; // world units: toward the camera; the fan's neighbours step aside
   const TEXTURE_LRU = 96;
   const PARALLAX_DEG = 1.2;
@@ -83,6 +86,9 @@
     const small = Math.min(root.screen.width, root.screen.height) < 900;
     return Boolean((touch || coarse) && small);
   }, false);
+  const coarsePointer = () => guard(() => Boolean(root.matchMedia && root.matchMedia("(pointer: coarse)").matches), false);
+  // The screen's short side in CSS px: the same device in either orientation.
+  const screenShort = () => guard(() => Math.min(root.screen.width, root.screen.height) || 0, 0);
 
   /* A rounded rectangle Shape, centred, with UVs remapped to [u0,v0]-[u1,v1]. */
   function roundedRectShape(THREE, w, h, r) {
@@ -349,6 +355,7 @@
         evict();
         return entry.promise;
       },
+      forEach(fn) { for (const e of map.values()) if (e.texture) fn(e.texture); },
       retain(url) { const e = map.get(url); if (e) e.inUse += 1; },
       release(url) { const e = map.get(url); if (e) e.inUse = Math.max(0, e.inUse - 1); },
       dispose() { for (const e of map.values()) if (e.texture) e.texture.dispose(); map.clear(); },
@@ -644,11 +651,20 @@
     }
 
     const eulerTmp = new THREE.Euler();
+    const normalTmp = new THREE.Vector3();
+    const FAN_LAYER = 0.01; // world units along the card normal between neighbours of a held fan
     function homeFromSlot(entry, slot) {
       const yaw = slot.yaw + (entry.committed && entry.kind === "card" && /Resources/.test(entry.zone) ? Math.PI / 2 : 0);
       entry.home.position.set(slot.x, slot.y, slot.z);
       entry.home.quaternion.setFromEuler(eulerTmp.set(slot.pitch, yaw, slot.roll, "YXZ"));
       entry.home.scale = slot.scale;
+      /* The two middle cards of an even fan sit on the same plane (the arc is
+         symmetric), and z-fought where they overlap. A hair along the normal,
+         right over left, gives every neighbour its own depth. */
+      if (/Hand$/.test(entry.zone) && entry.count > 1) {
+        normalTmp.set(0, 0, 1).applyQuaternion(entry.home.quaternion);
+        entry.home.position.addScaledVector(normalTmp, (entry.index - (entry.count - 1) / 2) * FAN_LAYER);
+      }
     }
 
     /* Put a mesh at a pose: instantly, or as a tween the tick advances. */
@@ -874,6 +890,7 @@
 
     function onPointerMove(event) {
       if (reduced() || disposed) return;
+      if (event.pointerType === "touch") return; // a finger dragging a card is not looking around
       const rect = host.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       parallax.tx = clamp(((event.clientX - rect.left) / rect.width - 0.5) * -2, -1, 1);
@@ -881,8 +898,25 @@
       requestFrame();
     }
     function onPointerLeave() { parallax.tx = 0; parallax.ty = 0; requestFrame(); }
+    /* A FINGER HAS NO HOVER. A tap fires pointerup and THEN the compatibility
+       mouseenter and focus on the hitbox, and nothing ever sends the matching
+       leave: the tapped card stayed lifted and its neighbours spread until the
+       next tap somewhere else. So a lifting finger clears the hover, and for a
+       moment after it hover(uid) is ignored. */
+    const touch = { down: false, quietUntil: 0 };
+    const nowMs = () => (root.performance ? root.performance.now() : Date.now());
+    function onPointerDown(event) { if (event.pointerType === "touch") touch.down = true; }
+    function onPointerUp(event) {
+      if (event.pointerType !== "touch" || disposed) return;
+      touch.down = false;
+      touch.quietUntil = nowMs() + D.touchQuiet;
+      arena.hover(null);
+    }
     host.addEventListener("pointermove", onPointerMove, { passive: true });
     host.addEventListener("pointerleave", onPointerLeave, { passive: true });
+    host.addEventListener("pointerdown", onPointerDown, { passive: true, capture: true });
+    host.addEventListener("pointerup", onPointerUp, { passive: true, capture: true });
+    host.addEventListener("pointercancel", onPointerUp, { passive: true, capture: true });
 
     /* ==================================================================== *
      * 8 · PROJECTION → HITBOXES                                             *
@@ -911,8 +945,29 @@
       return L.projectRect(ndcTmp, vp);
     }
 
+    /* THE HITBOX ON TOP IS THE CARD ON TOP. Every hitbox had the same z-index,
+       so where two fan cards overlap the later DOM node won -- the right-hand
+       one -- while the fan draws the card nearer the middle in front. On the
+       right half of the fan a tap on the visible card played its neighbour.
+       The own hand's hitboxes are stacked by distance to the camera instead,
+       from HAND_Z: above play.html's board chrome (20), below its buttons and a
+       playerbar that is a target (50). */
+    const HAND_Z = 21;
+    const handOrder = [];
+    function stackHand() {
+      handOrder.length = 0;
+      for (const entry of registry.values()) if (!entry.gone && entry.zone === "youHand" && entry.node && entry.node.style) handOrder.push(entry);
+      for (const entry of handOrder) entry.depth = entry.mesh.position.distanceToSquared(camera.position);
+      handOrder.sort((a, b) => b.depth - a.depth || a.index - b.index);
+      for (let i = 0; i < handOrder.length; i++) {
+        const z = String(HAND_Z + i);
+        if (handOrder[i].node.style.zIndex !== z) handOrder[i].node.style.zIndex = z;
+      }
+    }
+
     function projectAll() {
       const vp = viewport();
+      let handMoved = false;
       for (const entry of registry.values()) {
         if (entry.gone) continue;
         const rect = projectEntry(entry, vp);
@@ -927,7 +982,9 @@
         node.style.top = rect.top + "px";
         node.style.width = rect.width + "px";
         node.style.height = rect.height + "px";
+        if (entry.zone === "youHand") handMoved = true;
       }
+      if (handMoved) stackHand();
     }
 
     /* ==================================================================== *
@@ -935,18 +992,68 @@
      * ==================================================================== */
 
     const stats = { frameMs: 0, lastFrameMs: 0, frames: 0, syncMs: 0, drawCalls: 0 };
-    const sample = { frameMs: [], until: 0, active: o.quality === "auto" || !o.quality };
+    // gapMs: rAF time between rendered frames. A phone's GPU work lands after render()
+    // returns, so its sample is the larger of the two; a desktop keeps the CPU time.
+    const sample = { frameMs: [], gapMs: [], until: 0, active: o.quality === "auto" || !o.quality };
     let dirty = true;
     let rafId = 0;
     let envSkip = false;
-    let qualityNow = L.quality({ isMobile: isMobile(), dpr: root.devicePixelRatio || 1, reduced: reduced() });
-    if (o.quality && o.quality !== "auto") qualityNow = L.quality({ frameMs: [o.quality === "high" ? 4 : o.quality === "mid" ? 12 : 30], dpr: root.devicePixelRatio || 1, reduced: reduced() });
+    let lastRenderAt = 0;
+    let hidden = Boolean(doc && doc.visibilityState === "hidden");
+    const phoneLike = () => isMobile() || coarsePointer();
+    const device = (extra) => Object.assign({
+      isMobile: isMobile(), coarse: coarsePointer(), width: screenShort(), dpr: root.devicePixelRatio || 1, reduced: reduced(),
+    }, extra);
+    const forcedTier = o.quality && o.quality !== "auto" ? String(o.quality) : null;
+    let qualityNow = L.quality(device(forcedTier ? { tier: forcedTier } : null));
 
     function markDirty() { dirty = true; requestFrame(); }
     function requestFrame() {
-      if (rafId || disposed || lost) return;
+      if (rafId || disposed || lost || hidden) return;
       rafId = root.requestAnimationFrame ? root.requestAnimationFrame(tick) : setTimeout(() => tick(Date.now()), 16);
     }
+
+    /* ---- ?arenastats=1: the diagnostics chip --------------------------- *
+     * Off by default and then free: no chip, no buffers, no timer. On, the
+     * last STATS_FRAMES rendered frames go into two ring buffers and a fixed
+     * chip reads them twice a second. */
+    const statsChip = o.stats && doc && doc.body ? (() => {
+      const chip = doc.createElement("div");
+      chip.className = "arena3d-stats";
+      chip.setAttribute("aria-hidden", "true");
+      chip.style.cssText = "position:fixed;left:calc(8px + env(safe-area-inset-left, 0px));bottom:calc(8px + env(safe-area-inset-bottom, 0px));"
+        + "z-index:1000;pointer-events:none;white-space:pre;padding:4px 7px;border:1px solid rgba(201,150,46,.55);"
+        + "background:rgba(9,8,11,.82);color:#fff7ec;font:11px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;";
+      doc.body.appendChild(chip);
+      return { chip, cpu: new Float32Array(STATS_FRAMES), gap: new Float32Array(STATS_FRAMES), n: 0, at: 0, timer: 0 };
+    })() : null;
+    function percentiles(buffer, count) {
+      const list = Array.from(buffer.subarray(0, Math.min(count, STATS_FRAMES))).sort((a, b) => a - b);
+      if (!list.length) return [0, 0];
+      const at = (p) => list[Math.min(list.length - 1, Math.floor(list.length * p))];
+      return [at(0.5), at(0.9)];
+    }
+    function readStats() {
+      const cpu = statsChip ? percentiles(statsChip.cpu, statsChip.n) : [0, 0];
+      const gap = statsChip ? percentiles(statsChip.gap, statsChip.n) : [0, 0];
+      const fxStats = arena.fx && typeof arena.fx.stats === "function" ? guard(() => arena.fx.stats(), null) : null;
+      return {
+        tier: qualityNow.tier, dpr: renderer.getPixelRatio(), shadows: qualityNow.shadows,
+        cpuP50: cpu[0], cpuP90: cpu[1], gapP50: gap[0], gapP90: gap[1], samples: statsChip ? Math.min(statsChip.n, STATS_FRAMES) : 0,
+        drawCalls: stats.drawCalls, particles: fxStats ? fxStats.particles : 0, lost, hidden,
+      };
+    }
+    function paintStats() {
+      if (!statsChip || disposed) return;
+      const s = readStats();
+      const f = (v) => v.toFixed(1);
+      const state = s.lost ? "  CONTEXT LOST" : s.hidden ? "  paused" : "";
+      statsChip.chip.textContent = `${s.tier} · dpr ${s.dpr} · ${s.shadows ? "shadows" : "no shadows"}${state}\n`
+        + `frame p50 ${f(s.cpuP50)} p90 ${f(s.cpuP90)} ms\n`
+        + `gap   p50 ${f(s.gapP50)} p90 ${f(s.gapP90)} ms\n`
+        + `calls ${s.drawCalls} · particles ${s.particles}`;
+    }
+    if (statsChip) statsChip.timer = setInterval(paintStats, D.statsEvery);
 
     function advanceTweens() {
       let animating = false;
@@ -1016,12 +1123,21 @@
         renderer.render(scene, camera);
         projectAll();
         const ms = (root.performance ? root.performance.now() : Date.now()) - t0;
+        const gap = lastRenderAt && t > lastRenderAt ? Math.min(t - lastRenderAt, 250) : ms;
+        lastRenderAt = t;
         stats.lastFrameMs = ms;
         stats.frameMs = stats.frames ? stats.frameMs * 0.8 + ms * 0.2 : ms;
         stats.frames += 1;
         stats.drawCalls = renderer.info.render.calls;
+        if (statsChip) {
+          statsChip.cpu[statsChip.at] = ms;
+          statsChip.gap[statsChip.at] = gap;
+          statsChip.at = (statsChip.at + 1) % STATS_FRAMES;
+          statsChip.n += 1;
+        }
         if (sample.active) {
           sample.frameMs.push(ms);
+          sample.gapMs.push(gap);
           if (t >= sample.until) settleQuality();
         }
       }
@@ -1029,30 +1145,42 @@
       if (animating || dirty) requestFrame();
     }
 
+    const eachMaterial = (fn) => scene.traverse((obj) => {
+      if (obj.material) (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach(fn);
+    });
+    /* A tier change at runtime, no remount: pixel ratio, shadow map, the env's
+       embers and fog, and the fx particle cap (arena3d-fx.js reads world.quality). */
     function applyQuality(q) {
+      const shadowsChanged = !qualityNow || qualityNow.shadows !== q.shadows || renderer.shadowMap.enabled !== q.shadows;
       qualityNow = q;
-      renderer.setPixelRatio(q.dpr);
+      if (renderer.getPixelRatio() !== q.dpr) renderer.setPixelRatio(q.dpr);
       renderer.shadowMap.enabled = q.shadows;
       key.castShadow = q.shadows;
       // Materials compiled with shadows need a recompile when the map toggles.
-      scene.traverse((obj) => { if (obj.material) (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => { m.needsUpdate = true; }); });
+      if (shadowsChanged) eachMaterial((m) => { m.needsUpdate = true; });
       world.quality = q;
       if (arena.env && typeof arena.env.quality === "function") guard(() => arena.env.quality(q.tier));
+      for (const entry of registry.values()) entry.lastRect = null;
       markDirty();
     }
     function settleQuality() {
       sample.active = false;
       // The first frames compile shaders; a sample too short to see past them says nothing.
-      const frames = sample.frameMs.slice(3);
+      const phone = phoneLike();
+      const frames = sample.frameMs.map((ms, i) => (phone ? Math.max(ms, sample.gapMs[i] || 0) : ms)).slice(3);
       sample.frameMs = [];
+      sample.gapMs = [];
       if (frames.length < 8) return;
-      const q = L.quality({ frameMs: frames, dpr: root.devicePixelRatio || 1, isMobile: isMobile(), reduced: reduced() });
+      const q = L.quality(device({ frameMs: frames }));
       if (q.tier !== qualityNow.tier || q.dpr !== qualityNow.dpr) applyQuality(q);
     }
 
     function resize() {
       if (disposed) return;
       const vp = viewport();
+      // The window moved to a screen of another density: same tier, new cap.
+      const again = L.quality(device({ tier: qualityNow.tier }));
+      if (again.dpr !== renderer.getPixelRatio()) applyQuality(again);
       renderer.setSize(vp.width, vp.height, false);
       const nextMode = frameCamera();
       if (nextMode !== mode) {
@@ -1069,14 +1197,86 @@
       observer.observe(host);
     } else root.addEventListener("resize", resize);
 
+    function cancelFrame() {
+      if (rafId && root.cancelAnimationFrame) root.cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+
+    /* A LOST CONTEXT IS USUALLY A PAUSE, NOT A DEATH. A phone drops the GPU
+       context when the tab goes to the background under memory pressure and
+       hands it back on return. preventDefault() is what allows the restore; the
+       arena then waits D.restore for it. Restored: three.js has re-created its
+       GL state, so every texture and material is flagged for upload and compile
+       again and the table repaints. Not restored in time, or the rebuild
+       throws: onLost, and play.js falls back to the classic table. */
+    let lostTimer = 0;
+    function giveUp() {
+      if (lostTimer) { clearTimeout(lostTimer); lostTimer = 0; }
+      if (disposed) return;
+      lost = true;
+      cancelFrame();
+      if (typeof o.onLost === "function") guard(() => o.onLost());
+    }
     function onContextLost(event) {
       if (event && event.preventDefault) event.preventDefault();
       lost = true;
-      if (rafId && root.cancelAnimationFrame) root.cancelAnimationFrame(rafId);
-      rafId = 0;
-      if (typeof o.onLost === "function") guard(() => o.onLost());
+      cancelFrame();
+      if (lostTimer) clearTimeout(lostTimer);
+      lostTimer = setTimeout(giveUp, D.restore);
+      paintStats();
+    }
+    function rebuildAfterRestore() {
+      const gl = renderer.getContext();
+      if (!gl || (typeof gl.isContextLost === "function" && gl.isContextLost())) throw new Error("arena3d: context still lost");
+      const flag = (texture) => { if (texture && texture.isTexture) texture.needsUpdate = true; };
+      eachMaterial((m) => {
+        m.needsUpdate = true;
+        for (const slot of ["map", "alphaMap", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap"]) flag(m[slot]);
+      });
+      textures.forEach(flag);
+      renderer.shadowMap.needsUpdate = true;
+      renderer.setPixelRatio(qualityNow.dpr);
+      const vp = viewport();
+      renderer.setSize(vp.width, vp.height, false);
+      for (const entry of registry.values()) entry.lastRect = null;
+    }
+    function onContextRestored() {
+      if (disposed || !lost) return;
+      if (lostTimer) { clearTimeout(lostTimer); lostTimer = 0; }
+      let ok = false;
+      try {
+        rebuildAfterRestore();
+        ok = true;
+      } catch (error) {
+        ok = false;
+      }
+      if (!ok) return void giveUp();
+      lost = false;
+      lastRenderAt = 0;
+      stats.restores = (stats.restores || 0) + 1;
+      markDirty();
     }
     canvas.addEventListener("webglcontextlost", onContextLost, false);
+    canvas.addEventListener("webglcontextrestored", onContextRestored, false);
+
+    /* A hidden tab draws nothing: the loop stops and markDirty() only notes it.
+       Back in view, the clock skips the gap, a running quality sample starts
+       over (its frames measured a throttled tab), and one frame repaints. */
+    function onVisibility() {
+      const nowHidden = doc.visibilityState === "hidden";
+      if (nowHidden === hidden) return;
+      hidden = nowHidden;
+      if (hidden) { cancelFrame(); paintStats(); return; }
+      clock._last = null;
+      lastRenderAt = 0;
+      if (sample.active) {
+        sample.frameMs = [];
+        sample.gapMs = [];
+        sample.until = (root.performance ? root.performance.now() : Date.now()) + D.sample;
+      }
+      markDirty();
+    }
+    if (doc && doc.addEventListener) doc.addEventListener("visibilitychange", onVisibility);
 
     /* ==================================================================== *
      * 10 · THE ARENA                                                        *
@@ -1161,6 +1361,8 @@
       },
       hover(uid) {
         if (disposed) return;
+        // The compatibility mouseenter/focus of a tap: a finger is down or just lifted.
+        if (uid != null && (touch.down || nowMs() < touch.quietUntil)) return;
         const next = uid == null ? null : registry.get(uid) || null;
         if (next && next.gone) return;
         if (hovered === next) return;
@@ -1191,10 +1393,12 @@
         if (disposed) return qualityNow;
         if (!tier) return qualityNow;
         sample.active = false;
-        const forced = L.quality({ frameMs: [tier === "high" ? 4 : tier === "mid" ? 12 : 30], dpr: root.devicePixelRatio || 1, isMobile: false, reduced: reduced() });
+        const forced = L.quality(device({ tier: String(tier) }));
         applyQuality(forced);
         return forced;
       },
+      /* The numbers the ?arenastats=1 chip shows, for the console and the proof. */
+      stats: readStats,
       snapshot() {
         if (disposed || lost) return "";
         return guard(() => { applyCamera(); renderer.render(scene, camera); return canvas.toDataURL("image/png"); }, "");
@@ -1202,12 +1406,21 @@
       dispose() {
         if (disposed) return;
         disposed = true;
-        if (rafId && root.cancelAnimationFrame) root.cancelAnimationFrame(rafId);
-        rafId = 0;
+        cancelFrame();
+        if (lostTimer) { clearTimeout(lostTimer); lostTimer = 0; }
+        if (statsChip) {
+          clearInterval(statsChip.timer);
+          if (statsChip.chip.parentNode) statsChip.chip.parentNode.removeChild(statsChip.chip);
+        }
         if (observer) observer.disconnect(); else root.removeEventListener("resize", resize);
         host.removeEventListener("pointermove", onPointerMove);
         host.removeEventListener("pointerleave", onPointerLeave);
+        host.removeEventListener("pointerdown", onPointerDown, true);
+        host.removeEventListener("pointerup", onPointerUp, true);
+        host.removeEventListener("pointercancel", onPointerUp, true);
         canvas.removeEventListener("webglcontextlost", onContextLost);
+        canvas.removeEventListener("webglcontextrestored", onContextRestored);
+        if (doc && doc.removeEventListener) doc.removeEventListener("visibilitychange", onVisibility);
         if (arena.fx && typeof arena.fx.dispose === "function") guard(() => arena.fx.dispose());
         if (arena.env && typeof arena.env.dispose === "function") guard(() => arena.env.dispose());
         for (const entry of Array.from(registry.values())) destroyEntry(entry);
@@ -1236,6 +1449,7 @@
       : envShim;
 
     mode = "landscape";
+    applyQuality(qualityNow); // the starting tier's pixel ratio and shadow map, before the first frame
     resize();
     if (sample.active) {
       sample.until = (root.performance ? root.performance.now() : Date.now()) + D.sample;

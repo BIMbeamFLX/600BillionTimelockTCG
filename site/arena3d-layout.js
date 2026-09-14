@@ -33,12 +33,21 @@
    * yawSpread: how far the outer slots turn to follow the arc (fraction of the
    *           arc angle); fanRoll: fans roll about their own normal instead
    * kind    : what the arena builds by default for this zone
+   * portrait: what a tall viewport changes for this zone ({ chordScale, scale,
+   *           fanRoll }); zones without it only narrow by the default 0.72
    */
   const zone = (id, seat, def) => Object.freeze(Object.assign({ id, seat }, def));
   const ZONES = Object.freeze({
     youHand: zone("youHand", "you", {
       centre: [0, 0.46, 5.7], axis: "y", bow: 1, radius: 8.5, step: 1.42, maxChord: 10.6, depthBow: 0.35,
       pitch: -42 * RAD, fanRoll: -1, yawSpread: 0, scale: 1.5, kind: "card",
+      /* A phone (docs/arena3d.md, "Portrait"): the camera is width-bound, so the
+         hand is the one row that grows. Measured at 375x812 and 390x844 (board
+         355 and 370 px wide): 1..10 cards, every card >= 64 px wide and >= 8 px
+         inside the board. The roll mostly goes, because a rolled card's bounding
+         box is what ran off the edges; the chord still keeps any card from
+         hiding more than half of its neighbour. */
+      portrait: Object.freeze({ chordScale: 0.74, scale: 2.1, fanRoll: -0.3 }),
     }),
     foeHand: zone("foeHand", "foe", {
       centre: [0, 0.5, -4.95], axis: "y", bow: -1, radius: 6.5, step: 0.62, maxChord: 5.8,
@@ -75,7 +84,8 @@
 
   /* ---- arcSlots ---------------------------------------------------------
    * n slots of `zone`, world space. mode: "landscape" (default) | "portrait"
-   * (a narrower row for a tall viewport) | { chordScale }. Slot i carries
+   * (a narrower row for a tall viewport, plus the zone's own `portrait`
+   * overrides) | { chordScale }. Slot i carries
    * x,y,z, yaw/pitch/roll (radians, applied as Euler XYZ order Y·X·Z in the
    * arena), scale, and t ∈ [−1,1] across the row.
    */
@@ -83,11 +93,14 @@
     const Z = zoneOf(zoneRef);
     const count = Math.max(0, Math.floor(Number(n) || 0));
     if (!Z || !count) return [];
-    const chordScale = mode && typeof mode === "object" ? Number(mode.chordScale) || 1 : mode === "portrait" ? 0.72 : 1;
+    const P = mode === "portrait" && Z.portrait ? Z.portrait : {};
+    const chordScale = mode && typeof mode === "object" ? Number(mode.chordScale) || 1 : mode === "portrait" ? P.chordScale || 0.72 : 1;
+    const scale = P.scale || Z.scale;
+    const fanRoll = P.fanRoll !== undefined ? P.fanRoll : Z.fanRoll || 0;
     const [cx, cy, cz] = Z.centre;
     if (Z.stack || count === 1) {
       return [{
-        x: cx, y: cy, z: cz, yaw: Z.yaw || 0, pitch: Z.pitch, roll: 0, scale: Z.scale, t: 0, index: 0, angle: 0,
+        x: cx, y: cy, z: cz, yaw: Z.yaw || 0, pitch: Z.pitch, roll: 0, scale, t: 0, index: 0, angle: 0,
       }];
     }
     const R = Z.radius;
@@ -119,8 +132,8 @@
         x, y, z,
         yaw: (Z.yaw || 0) + angle * Z.yawSpread,
         pitch: Z.pitch,
-        roll: angle * (Z.fanRoll || 0),
-        scale: Z.scale,
+        roll: angle * fanRoll,
+        scale,
         t, index: i, angle,
       });
     }
@@ -225,27 +238,52 @@
   }
 
   /* ---- quality ----------------------------------------------------------
-   * sample = { frameMs: number[], dpr, isMobile, reduced }. The tier is the
-   * 75th percentile of the sampled frames; a phone never sits above mid; the
-   * DPR cap is 2 / 1.5 / 1; shadows only high and mid. Reduced motion lowers
-   * the particle cap — the cut-to-end-state is the fx layer's rule.
+   * sample = { frameMs: number[], dpr, isMobile, coarse, width, reduced, tier }.
+   *
+   * Where a table STARTS: a desktop at high; a phone (isMobile, or a coarse
+   * primary pointer) at mid; a small, dense screen (dpr ≥ 2.5 and a short
+   * side ≤ 480 CSS px — `width`) at low, because it pays 6–9 device pixels
+   * per CSS pixel before a single shadow. After the sample the tier is the
+   * 75th percentile frame (≤ 9 ms high, ≤ 17 ms mid, else low), and a sample
+   * only ever LOWERS the start: a frame measured at a cheap tier says nothing
+   * about the dear one. `tier` forces one (arena.quality("low")).
+   *
+   *   high  DPR ≤ 2    shadows  particles 360  embers 240  fog
+   *   mid   DPR ≤ 1.5  shadows  particles 180  embers 120  fog
+   *   low   DPR 1      —        particles 48   embers 40   —
+   *
+   * Reduced motion lowers the particle cap — the cut-to-end-state is the fx
+   * layer's rule. arena3d-env.js owns the ember and fog counts; the numbers
+   * here are the same ones, pinned against it by tests/js/arena3d-env.test.mjs.
    */
-  const CAPS = { high: { dpr: 2, particleCap: 360 }, mid: { dpr: 1.5, particleCap: 180 }, low: { dpr: 1, particleCap: 48 } };
+  const TIERS = ["low", "mid", "high"];
+  const CAPS = {
+    high: { dpr: 2, particleCap: 360, embers: 240, fog: true },
+    mid: { dpr: 1.5, particleCap: 180, embers: 120, fog: true },
+    low: { dpr: 1, particleCap: 48, embers: 40, fog: false },
+  };
+  function startTier(s) {
+    const dpr = Number(s.dpr) || 1;
+    const width = Number(s.width) || 0;
+    if (dpr >= 2.5 && width > 0 && width <= 480) return "low";
+    return s.isMobile || s.coarse ? "mid" : "high";
+  }
   function quality(sample) {
     const s = sample || {};
     const frames = (Array.isArray(s.frameMs) ? s.frameMs : []).filter((v) => Number.isFinite(v) && v >= 0).sort((a, b) => a - b);
-    let tier;
-    if (!frames.length) tier = s.isMobile ? "mid" : "high";
-    else {
+    let tier = startTier(s);
+    if (CAPS[s.tier]) tier = s.tier;
+    else if (frames.length) {
       const p75 = frames[Math.min(frames.length - 1, Math.floor(frames.length * 0.75))];
-      tier = p75 <= 9 ? "high" : p75 <= 17 ? "mid" : "low";
+      const measured = p75 <= 9 ? "high" : p75 <= 17 ? "mid" : "low";
+      if (TIERS.indexOf(measured) < TIERS.indexOf(tier)) tier = measured;
     }
-    if (s.isMobile && tier === "high") tier = "mid";
     const cap = CAPS[tier];
     const dpr = Math.max(1, Math.min(Number(s.dpr) || 1, cap.dpr));
     return {
       tier, dpr, shadows: tier !== "low",
       particleCap: s.reduced ? Math.min(cap.particleCap, 24) : cap.particleCap,
+      embers: cap.embers, fog: cap.fog,
     };
   }
 

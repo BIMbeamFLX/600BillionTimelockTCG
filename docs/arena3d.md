@@ -57,13 +57,34 @@ the running table.
 
 ## Quality tiers
 
-`arena3d-layout.js` `quality(sample)` picks a tier after a 1.5 s frame-time sample:
-`high` (DPR cap 2, shadows), `mid` (DPR 1.5, shadows), `low` (DPR 1, no shadows, smaller
-particle cap). The arena renders only when dirty or animating — no idle 60 fps loop.
-`arena.quality("high"|"mid"|"low")` forces a tier; `arena.snapshot()` returns a PNG data
-URL of the current frame. Reduced motion (the `fx.js` toggle or the media query, read
+`arena3d-layout.js` `quality(sample)` owns the table:
+
+| tier | DPR cap | shadows | fx particle cap | env embers | fog |
+| --- | --- | --- | --- | --- | --- |
+| `high` | 2 | yes | 360 | 240 | yes |
+| `mid` | 1.5 | yes | 180 | 120 | yes |
+| `low` | 1 | no | 48 | 40 | no |
+
+Where a table starts:
+
+- A desktop starts at `high`.
+- A phone starts at `mid`. A phone is `isMobile()` (touch and a short screen side under 900 px) or a coarse primary pointer.
+- A small, dense screen starts at `low`: `devicePixelRatio >= 2.5` and a screen short side of 480 CSS px or less. That covers most current phones in either orientation.
+
+After a 1.5 s sample the tier is the 75th-percentile frame: 9 ms or less is `high`, 17 ms or less is `mid`, anything slower is `low`. A sample only ever lowers the starting tier, because a frame measured at a cheap tier says nothing about a dearer one. A phone's sample frame is the larger of the CPU time and the rAF gap, because its GPU work lands after `render()` returns. A desktop keeps the CPU time.
+
+The arena renders only when dirty or animating, with no idle 60 fps loop. `arena.quality("high"|"mid"|"low")` forces a tier. A tier change applies at runtime without a remount: renderer pixel ratio, shadow map (materials recompile only when shadows toggle), `env.quality(tier)`, and `world.quality`, which `arena3d-fx.js` reads for its particle cap. A resize onto a screen of another density re-caps the DPR within the same tier. `arena.snapshot()` returns a PNG data URL of the current frame. Reduced motion (the `fx.js` toggle or the media query, read
 through `opts.reduced`) keeps hover (instant), drops the parallax, and every effect in
 `arena3d-fx.js` cuts to its end state.
+
+## Phones
+
+- **Portrait.** `cameraFor` is width-bound in portrait, so the own hand is the one row that grows. `ZONES.youHand.portrait` is `{ chordScale: 0.74, scale: 2.1, fanRoll: -0.3 }`. The other rows only narrow by the default 0.72. The roll mostly goes, because a rolled card's bounding box is what ran off the sides. Measured in the emulator (board 355 × 891 at 375 × 812, 370 × 853 at 390 × 844, 8 cards): the narrowest card is 70 px and 73 px wide, at least 19 px and 21 px inside each side. `tests/js/arena3d-layout.test.mjs` pins every hand card of 1 to 10 cards at 64 px wide or more and 8 px or more inside the board, and keeps the no-card-hides-half-its-neighbour law. Its pure projection matches three.js to the pixel.
+- **Fan depth.** Both hands nudge each card 0.01 u along its normal, right over left. The two middle cards of an even fan used to share a plane and z-fought. The own hand's hitboxes are stacked by distance to the camera from `z-index: 21` (`HAND_Z`). All hitboxes used to share z-index 2, so the right-hand DOM node won every overlap, and on the right half of the fan a tap played the neighbour of the card you saw. `play.html` keeps the board chrome at 20 and the buttons and a playerbar that is a target at 50. On a phone the DOM playerbar sits over the projected fan, and a tap on a card must reach the card.
+- **Touch.** A tap on a hitbox is a click, as before. Press-and-hold (420 ms) opens the card window, and the click after it is swallowed. A finger has no hover: a tap sends `pointerup` and then the compatibility `mouseenter` and `focus`, and nothing sends the leave. The arena clears the hover on a touch `pointerup` and ignores `hover(uid)` while a finger is down and for 700 ms after it lifts. Touch moves do not drive the parallax. A mouse is unchanged.
+- **Lost context.** On `webglcontextlost` the arena calls `preventDefault()`, which lets the browser restore the context, stops drawing and waits 2.5 s. On `webglcontextrestored` it flags every material and texture for recompile and upload (the texture cache included), resets size and pixel ratio, and repaints. `stats.restores` counts these. If the context is not back in time, or the rebuild throws, it calls `onLost`, and play.js shows the classic table.
+- **Hidden tab.** On `visibilitychange` to hidden the loop stops, and `markDirty()` only notes the change. Back in view, the clock skips the gap, a running quality sample starts over, and one frame repaints. `arena.tick()` still renders when called by hand, for the proof.
+- **Diagnostics.** `?arenastats=1` (play.js passes `stats: true`) adds a fixed chip at the bottom left: 11 px mono, z-index 1000, clear of the safe area. It shows the tier, DPR, shadows, the p50 and p90 of CPU frame time and of the rAF gap over the last 120 rendered frames, draw calls and live fx particles. It updates twice a second and shows `CONTEXT LOST` or `paused` when either applies. With the flag off there is no chip, no buffer and no timer. `arena.stats()` returns the same numbers. The phone walkthrough is in `docs/local-test.md` under "On your phone" (`npm run local -- --lan`).
 
 ## The environment
 
@@ -129,10 +150,14 @@ npm run local                                # then open play.html?rules=fast&ar
 In the browser: start an NPC game — cards in a fan, tokens on the arcs, an attack with
 lunge, hit-stop and shake, a death shatter, a win. `E1_GAME.arena.snapshot()` gives the
 screenshot; `E1_GAME.arena.world.quality` the tier. Frame time during an attack should
-stay under 8 ms on desktop at DPR 1.5; a 375×812 mobile emulation must land on `low`
-and still play. `?arena=dom` on the same URL is the classic table for comparison.
+stay under 8 ms on desktop at DPR 1.5. A 375×812 mobile emulation (DPR 2, coarse pointer)
+starts at `mid` and must still play. A tap and a hold on the projected hand hitboxes are
+the same gesture as on the classic table. The Browser pane throttles rAF, so step
+`E1_GAME.arena.tick()` by hand before a snapshot. `?arena=dom` on the same URL is the
+classic table for comparison.
 
 The napplet build (`npm run build:napplet`) inlines `vendor/three.js` and the four
-arena scripts like every other `<script src>`, and emits the hero as
-`window.E1_BACKDROP_URL` for the cyclorama; inside the shell the world plates are
-not shipped, so `plates` is empty there and the arena draws without one.
+arena scripts like every other `<script src>`, with their comments stripped (not three.js).
+It emits the hero once, as `window.E1_BACKDROP_URL`, for the cyclorama and the stage's
+`--hero` (docs/napplet-build.md). Inside the shell the world plates are not shipped, so
+`plates` is empty there and the arena draws without one.

@@ -214,15 +214,43 @@ test("quality: tiers by the 75th percentile frame, mobile caps at mid, dpr caps 
   const fast = Array.from({ length: 40 }, () => 6);
   const okay = Array.from({ length: 40 }, () => 13);
   const slow = Array.from({ length: 40 }, (_, i) => (i < 8 ? 5 : 30));
-  assert.deepEqual(L.quality({ frameMs: fast, dpr: 3 }), { tier: "high", dpr: 2, shadows: true, particleCap: 360 });
-  assert.deepEqual(L.quality({ frameMs: okay, dpr: 2 }), { tier: "mid", dpr: 1.5, shadows: true, particleCap: 180 });
-  assert.deepEqual(L.quality({ frameMs: slow, dpr: 2 }), { tier: "low", dpr: 1, shadows: false, particleCap: 48 });
+  assert.deepEqual(L.quality({ frameMs: fast, dpr: 3 }), { tier: "high", dpr: 2, shadows: true, particleCap: 360, embers: 240, fog: true });
+  assert.deepEqual(L.quality({ frameMs: okay, dpr: 2 }), { tier: "mid", dpr: 1.5, shadows: true, particleCap: 180, embers: 120, fog: true });
+  assert.deepEqual(L.quality({ frameMs: slow, dpr: 2 }), { tier: "low", dpr: 1, shadows: false, particleCap: 48, embers: 40, fog: false });
   assert.equal(L.quality({ frameMs: fast, dpr: 3, isMobile: true }).tier, "mid");
   assert.equal(L.quality({ frameMs: fast, dpr: 3, isMobile: true }).dpr, 1.5);
   assert.equal(L.quality({ frameMs: fast, dpr: 1, reduced: true }).particleCap, 24);
   assert.equal(L.quality({}).tier, "high");
   assert.equal(L.quality({ isMobile: true }).tier, "mid");
   assert.equal(L.quality({ frameMs: [NaN, -1, 4], dpr: 0.5 }).dpr, 1);
+});
+
+test("quality: phones start at mid (DPR 1.5), drop to low past 17 ms, never climb; small dense screens start low", () => {
+  const smooth = Array.from({ length: 40 }, () => 16.7); // a 60 Hz phone keeping up
+  const janky = Array.from({ length: 40 }, (_, i) => (i < 8 ? 16.7 : 33.4)); // p75 on the dropped frames
+  const fast = Array.from({ length: 40 }, () => 6);
+
+  // The start, before any sample: a coarse pointer alone is enough to be a phone.
+  assert.deepEqual(L.quality({ isMobile: true, dpr: 2, width: 412 }), { tier: "mid", dpr: 1.5, shadows: true, particleCap: 180, embers: 120, fog: true });
+  assert.equal(L.quality({ coarse: true, dpr: 2, width: 390 }).tier, "mid");
+  assert.equal(L.quality({ coarse: true, dpr: 2, width: 390 }).dpr, 1.5);
+  // The sample: at or under 17 ms the phone stays mid; past it, low.
+  assert.equal(L.quality({ coarse: true, dpr: 2, width: 390, frameMs: smooth }).tier, "mid");
+  assert.deepEqual(L.quality({ coarse: true, dpr: 2, width: 390, frameMs: janky }), { tier: "low", dpr: 1, shadows: false, particleCap: 48, embers: 40, fog: false });
+  assert.equal(L.quality({ coarse: true, dpr: 2, frameMs: fast }).tier, "mid", "a phone never climbs to high");
+
+  // The hard rule: DPR ≥ 2.5 on a short side ≤ 480 px starts low, and a fast sample does not lift it.
+  assert.equal(L.quality({ isMobile: true, dpr: 3, width: 375 }).tier, "low");
+  assert.equal(L.quality({ isMobile: true, dpr: 2.5, width: 480 }).tier, "low");
+  assert.equal(L.quality({ dpr: 3, width: 375 }).tier, "low", "the screen decides, whatever the pointer says");
+  assert.equal(L.quality({ isMobile: true, dpr: 3, width: 375, frameMs: fast }).tier, "low");
+  assert.equal(L.quality({ isMobile: true, dpr: 2.4, width: 375 }).tier, "mid", "just under the density line");
+  assert.equal(L.quality({ isMobile: true, dpr: 3, width: 481 }).tier, "mid", "just over the size line");
+
+  // A forced tier wins over everything, and the desktop path is unchanged.
+  assert.equal(L.quality({ tier: "high", isMobile: true, dpr: 3, width: 375 }).tier, "high");
+  assert.equal(L.quality({ tier: "nonsense", dpr: 1 }).tier, "high");
+  assert.equal(L.quality({ dpr: 2, width: 1440, frameMs: fast }).tier, "high");
 });
 
 /* ---- projectRect --------------------------------------------------------- */
@@ -258,4 +286,54 @@ test("cameraFor: fov 42, tilt 36° landscape / 48° portrait, and every zone lan
   const ys = ["youHand", "youResources", "youNetwork", "queue", "foeNetwork", "foeResources", "foeHand"]
     .map((id) => project(Object.values(L.arcSlots(1, id)[0]).slice(0, 3))[1]);
   for (let i = 1; i < ys.length; i++) assert.ok(ys[i] > ys[i - 1] + 0.04, `rows collide at ${i}`);
+});
+
+/* ---- portrait: the hand on a phone -----------------------------------------
+ * The card rectangle the arena projects for its hitbox, without THREE: the four
+ * corners of a width x height card, scaled, rotated as Euler YXZ (pitch, yaw,
+ * roll -- Ry * Rx * Rz), moved to the slot and projected with cameraFor's own
+ * camera. The boards are what play.html lays out at 375x812 and 390x844 (355
+ * and 370 px wide; the height follows the page, so two are pinned). */
+function cardRect(slot, cam, W, H) {
+  const project = L.projector(cam.position, cam.target, cam.fov, W / H, 0.5, 120);
+  const [sx, cx] = [Math.sin(slot.pitch), Math.cos(slot.pitch)];
+  const [sy, cy] = [Math.sin(slot.yaw), Math.cos(slot.yaw)];
+  const [sz, cz] = [Math.sin(slot.roll), Math.cos(slot.roll)];
+  const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => {
+    let x = (u * L.CARD.width * slot.scale) / 2, y = (v * L.CARD.height * slot.scale) / 2, z = 0;
+    [x, y] = [x * cz - y * sz, x * sz + y * cz]; // roll about z
+    [y, z] = [y * cx - z * sx, y * sx + z * cx]; // pitch about x
+    [x, z] = [x * cy + z * sy, -x * sy + z * cy]; // yaw about y
+    return project([slot.x + x, slot.y + y, slot.z + z]);
+  });
+  return L.projectRect(corners, { width: W, height: H });
+}
+
+test("portrait: on a 375 and a 390 phone every hand card is at least 64 px wide and 8 px inside the board", () => {
+  for (const [W, H] of [[355, 891], [355, 600], [370, 844], [370, 620]]) {
+    const cam = L.cameraFor(W / H);
+    assert.equal(cam.mode, "portrait");
+    for (let n = 1; n <= 10; n++) {
+      for (const slot of L.arcSlots(n, "youHand", cam.mode)) {
+        const r = cardRect(slot, cam, W, H);
+        const where = `${W}x${H} n=${n} card ${slot.index}`;
+        assert.ok(r.width >= 64, `${where} is ${r.width} px wide`);
+        assert.ok(r.left >= 8 && r.left + r.width <= W - 8, `${where} runs off the side (${r.left}..${r.left + r.width})`);
+        assert.ok(r.top >= 8 && r.top + r.height <= H - 8, `${where} runs off the top or bottom`);
+      }
+    }
+  }
+  // Still a fan: an arc that rolls outward a little, and no card hides more than half of its neighbour.
+  for (let n = 2; n <= 8; n++) {
+    const slots = L.arcSlots(n, "youHand", "portrait");
+    for (let i = 1; i < n; i++) {
+      const gap = Math.hypot(slots[i].x - slots[i - 1].x, slots[i].y - slots[i - 1].y);
+      assert.ok(gap >= L.CARD.width * slots[i].scale * 0.5 - 1e-9, `portrait n=${n} cards ${i - 1},${i} hide each other`);
+    }
+  }
+  const fan = L.arcSlots(7, "youHand", "portrait");
+  assert.ok(fan[3].y > fan[0].y && fan[0].roll > 0 && fan[6].roll < 0);
+  assert.ok(fan[0].scale > L.arcSlots(7, "youHand")[0].scale, "the portrait hand is the bigger one");
+  // Only the hand has portrait overrides; every other row just narrows.
+  assert.equal(L.arcSlots(3, "youNetwork", "portrait")[0].scale, L.ZONES.youNetwork.scale);
 });

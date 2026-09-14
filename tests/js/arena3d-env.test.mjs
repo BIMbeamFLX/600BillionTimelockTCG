@@ -160,6 +160,18 @@ test("particle counts per tier: 240/120/40 embers, fog 3/3/0, packets 8/6/4 capp
   assert.equal(ten.env.stats().packets, 8, "eight packets when the traces allow");
 });
 
+test("the env's ember and fog counts are the ones the layout's tier table documents", async () => {
+  const { createRequire } = await import("node:module");
+  const L = createRequire(import.meta.url)(path.join(REPO, "site", "arena3d-layout.js"));
+  const h = harness({ tier: "high" });
+  for (const tier of ["high", "mid", "low"]) {
+    h.env.quality(tier);
+    const q = L.quality({ tier });
+    assert.equal(h.env.stats().embers, q.embers, `${tier} embers`);
+    assert.equal(h.env.stats().fog > 0, q.fog, `${tier} fog`);
+  }
+});
+
 test("embers rise, respawn at the bottom and never leave the buffer", () => {
   const h = harness();
   const { emberPositions, emberCount } = h.env.inspect();

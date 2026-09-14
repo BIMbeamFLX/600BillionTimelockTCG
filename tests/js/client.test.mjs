@@ -1786,6 +1786,8 @@ test("the 3D table is created on demand, synced every frame, told every cue and 
   assert.equal(arena.opts.plates.Power, "../art/world-plates/power.png");
   assert.equal(typeof arena.opts.reduced, "function");
   assert.equal(typeof arena.opts.onLost, "function");
+  assert.equal(arena.opts.stats, false, "no diagnostics chip unless the link asks for one");
+  assert.equal(arena.opts.quality, "auto");
   assert.match(byId("board").className, /(?:^|\s)arena3d(?:\s|$)/, "the board wears the 3D class");
 
   /* urlFor answers with the repo file here (no E1Faces), for a card, an id or an object. */
@@ -1874,6 +1876,16 @@ test("the 3D table is created on demand, synced every frame, told every cue and 
   byId("continue").click();
   assert.equal(arena.calls.sync.length, syncsAfter, "a disposed arena hears nothing");
   assert.equal(created.length, 1, "and no second arena appears while Classic is chosen");
+});
+
+test("?arenastats=1 asks the 3D table for its diagnostics chip", (t) => {
+  const { byId, created } = loadPlayWith3D(t, "?rules=fast&arena=3d&assets=local&arenastats=1");
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+  assert.equal(created.length, 1);
+  assert.equal(created[0].opts.stats, true);
 });
 
 test("?arena=dom never creates an arena, whatever the saved choice", (t) => {

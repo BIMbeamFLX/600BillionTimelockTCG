@@ -937,6 +937,16 @@
     return wanted === "3d" && arenaSupported() ? "3d" : "dom";
   }
 
+  /* ?arenastats=1: the 3D table's diagnostics chip (tier, DPR, frame times,
+   * draw calls, live particles) -- for a phone test, never saved. */
+  function arenaStatsWanted() {
+    try {
+      return new URLSearchParams((globalThis.location && globalThis.location.search) || "").get("arenastats") === "1";
+    } catch (error) {
+      return false;
+    }
+  }
+
   /* The saved choice: the shell's storage inside a napplet, localStorage on
    * the site -- the same two doors the Stack library uses. */
   function loadArenaPref(done) {
@@ -1066,6 +1076,7 @@
         portraits: globalThis.E1Portraits || null,
         reduced: arenaReduced,
         quality: "auto",
+        stats: arenaStatsWanted(),
         onReady: () => { if (arena.instance && arena.instance === created && session.full) syncArena(); },
         onLost: () => loseArena(),
       });
