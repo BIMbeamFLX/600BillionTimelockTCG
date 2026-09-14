@@ -267,9 +267,12 @@
   /* Strict cost grammar. play.js:379-382 scraped any capital letter out of the
    * cost string, so an assisted ability whose "cost" is really a fragment of
    * prose ("Other Zombies have \"K") charged the player a Keys Resource. A cost
-   * we cannot parse confidently charges nothing and is flagged instead. */
+   * we cannot parse confidently is flagged, and activation refuses it. */
   function parseAbilityCost(cost, cardName) {
-    const result = { costParsed: null, commit: false, archiveSelf: false, strictCost: true };
+    const result = {
+      costParsed: null, commit: false, archiveSelf: false, strictCost: true,
+      removeCounter: null, module: null,
+    };
     const raw = String(cost || "").trim();
     if (!raw) return result;
     const parsed = { generic: 0 };
@@ -287,6 +290,16 @@
         continue;
       }
       if (/^Maintenance$/i.test(token)) continue;
+      const module = /^(Toss|Stake) module$/i.exec(token); // a gate, not a payment
+      if (module) {
+        result.module = module[1].toLowerCase();
+        continue;
+      }
+      const marker = /^Remove an? ([\w+/-]+) marker from this (?:Avatar|Hardware|Protocol)$/i.exec(token);
+      if (marker) {
+        result.removeCounter = marker[1];
+        continue;
+      }
       if (/^X$/i.test(token)) continue; // X is chosen at announce, not printed here
       if (/^\d+$/.test(token)) {
         parsed.generic += Number(token);
@@ -299,7 +312,7 @@
         continue;
       }
       result.strictCost = false;
-      return result; // prose: charge nothing, let the manual layer handle it
+      return result; // prose: payAbilityCost refuses a non-manual ability with this cost
     }
     if (sawSymbol) result.costParsed = parsed;
     return result;
@@ -555,6 +568,8 @@
         commit: ability.commit !== undefined ? ability.commit : cost.commit,
         archiveSelf: cost.archiveSelf,
         strictCost: cost.strictCost,
+        removeCounter: cost.removeCounter,
+        module: cost.module,
         resourceAbility:
           ability.resourceAbility !== undefined
             ? ability.resourceAbility
@@ -6765,7 +6780,25 @@
     return settled;
   }
 
+  /* Why this ability cannot be activated from `object` right now, as [code,
+   * message], or null. Shared by payAbilityCost and legalActions. */
+  function abilityCostRefusal(state, object, ability) {
+    // A cost we could not parse would otherwise be free (E1-260 Boost Converter).
+    if (!ability.manual && ability.strictCost === false) {
+      return ["SCHEMA", "this ability's cost cannot be charged"];
+    }
+    if (ability.module && !(state.modules && state.modules[ability.module])) {
+      return ["MODULE_REQUIRED", `this ability needs the ${ability.module} module`];
+    }
+    if (ability.removeCounter && !((object.counters || {})[ability.removeCounter] > 0)) {
+      return ["CANNOT_AFFORD", `no ${ability.removeCounter} marker to remove`];
+    }
+    return null;
+  }
+
   function payAbilityCost(env, seat, object, ability, payment, produced, x) {
+    const refusal = abilityCostRefusal(env.state, object, ability);
+    if (refusal) fail(refusal[0], refusal[1]);
     if (ability.commit) {
       // §19.4 an ability with Commit is usable once per Unlock.
       if (object.committed) fail("CANNOT_AFFORD", "that object is already committed");
@@ -6778,6 +6811,7 @@
       addGeneric(costWithX(ability.costParsed, x), abilityTax(env.state, env.ctx, card)),
       payment
     );
+    if (ability.removeCounter) object.counters[ability.removeCounter] -= 1;
     if (ability.commit) {
       revealMasked(env, object.uid, "commit");
       object.committed = true;
@@ -7416,6 +7450,7 @@
           if (ability.kind !== "activated") return;
           // §19.4 a Commit ability is spent until the next Unlock.
           if (ability.commit && (object.committed || object.bootDelay)) return;
+          if (abilityCostRefusal(state, object, ability)) return;
           if (!ability.resourceAbility) {
             push("ACTIVATE_ABILITY", { uid, abilityIndex });
             return;
