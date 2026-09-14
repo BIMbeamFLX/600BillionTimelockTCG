@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
@@ -42,15 +44,21 @@ def test_canonical_number_is_exactly_four_rows() -> None:
     assert "".join(CANONICAL_LINES).count("0") == 11
 
 
+FINAL_MANIFEST = REPO_ROOT / "art" / "generated" / "prompts-v2-final-1920x2400" / "manifest.json"
+
+
+@pytest.mark.skipif(
+    not FINAL_MANIFEST.exists(),
+    reason=(
+        "needs the gitignored art/generated/prompts-v2-final-1920x2400/manifest.json, "
+        "which a clean clone does not have"
+    ),
+)
 def test_final_manifest_uses_no_legacy_overlay_sources() -> None:
     """No released artwork may resolve to the historical deterministic overlay batch."""
     import json
 
-    manifest = json.loads(
-        (
-            REPO_ROOT / "art" / "generated" / "prompts-v2-final-1920x2400" / "manifest.json"
-        ).read_text(encoding="utf-8")
-    )
+    manifest = json.loads(FINAL_MANIFEST.read_text(encoding="utf-8"))
 
     assert all(
         "prompts-v2-sacred-number-v3" not in item["source_file"] for item in manifest["files"]
