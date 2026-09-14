@@ -810,6 +810,58 @@ test("a staked table refuses an embedded join with STAKE_MISMATCH and seats nobo
   site.net.leave();
 });
 
+// ------------------------------------------------------------ the launch code
+
+test("the code a frame was launched with is read once, checked again, and never throws", () => {
+  const host = fakeHangar();
+  const launched = (context) => loadFrame(host.openFrame(), shellWith(), context === undefined ? {} : { nappletContext: context });
+
+  const frozen = launched(Object.freeze({ args: Object.freeze({ code: "K7M2QF" }) }));
+  assert.equal(frozen.net.launchCode(), "K7M2QF");
+  assert.equal(frozen.net.launchCode(), null, "a second read hands over nothing");
+
+  assert.equal(launched(undefined).net.launchCode(), null, "no launch context");
+  assert.equal(launched(Object.freeze({ target: { pubkey: HOST_PUBKEY } })).net.launchCode(), null, "a context without args");
+  for (const code of ["k7m2qf", "K7M2Q0", "K7M2QI", "K7M2QFX", " K7M2QF", 123456, null, ["K7M2QF"]]) {
+    assert.equal(launched({ args: { code } }).net.launchCode(), null, `untrusted ${JSON.stringify(code)}`);
+  }
+
+  const throwingArgs = launched(Object.defineProperty({}, "args", { get() { throw new Error("no args for you"); } }));
+  assert.equal(throwingArgs.net.launchCode(), null);
+  const throwingCode = launched({ args: Object.defineProperty({}, "code", { get() { throw new Error("no code"); } }) });
+  assert.equal(throwingCode.net.launchCode(), null);
+  const throwingContext = launched(undefined);
+  Object.defineProperty(throwingContext.scope, "nappletContext", { configurable: true, get() { throw new Error("SecurityError"); } });
+  assert.equal(throwingContext.net.launchCode(), null);
+});
+
+test("on the website a ?code= is read once and taken out of the address bar, valid or not", (t) => {
+  const replaced = [];
+  globalThis.history = { state: { board: 1 }, replaceState: (state, title, url) => replaced.push([state, url]) };
+  t.after(() => { delete globalThis.history; });
+  const at = (query) => ({
+    protocol: "https:", host: "tcg.nappelin.com", search: query,
+    href: `https://tcg.nappelin.com/matchmaking.html${query}#lobby`,
+  });
+
+  const shared = loadShell({ location: at("?match=m_0123456789ab&code=K7M2QF&rules=F1.0") });
+  assert.deepEqual(replaced, [[{ board: 1 }, "/matchmaking.html?match=m_0123456789ab&rules=F1.0#lobby"]]);
+  assert.equal(shared.net.session.code, "K7M2QF", "the shared link's session still knows its code");
+  assert.equal(shared.net.launchCode(), "K7M2QF");
+  assert.equal(shared.net.launchCode(), null);
+  shared.net.start({});
+  assert.equal(replaced.length, 1, "read once: a second start() does not rewrite the address again");
+
+  replaced.length = 0;
+  const junk = loadShell({ location: at("?code=nope") });
+  assert.deepEqual(replaced.map(([, url]) => url), ["/matchmaking.html#lobby"], "an invalid code leaves the address too");
+  assert.equal(junk.net.launchCode(), null);
+
+  replaced.length = 0;
+  loadShell({ location: at("?rules=F1.0") });
+  assert.deepEqual(replaced, [], "an address without a code is left alone");
+});
+
 test("tableUrl() in a srcdoc frame: the build constant, else nappelin's referee", () => {
   const host = fakeHangar();
   assert.equal(loadShell({ host, shell: shellWith() }).net.tableUrl(), "wss://tcg.nappelin.com/ws");

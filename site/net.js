@@ -189,6 +189,45 @@
     try { return new URLSearchParams(location.search).get(name); } catch (err) { return null; }
   };
 
+  /* A TABLE CODE IS AN INVITATION: read once, never kept in an address. Inside
+   * the Hangar the shell hands it over as a launch argument
+   * (window.nappletContext.args.code, nappelin #105) and owns the URL. On the
+   * website a share link carries ?code=, which leaves the address bar the first
+   * time this page reads it, valid or not, so neither history nor a copied link
+   * keeps it. Both are untrusted and checked against the code alphabet. */
+  const TABLE_CODE = /^[A-HJ-NP-Z2-9]{6}$/;
+  const tableCode = (value) => (typeof value === "string" && TABLE_CODE.test(value) ? value : null);
+
+  let addressCode; // undefined until the address has been read
+  function takeAddressCode() {
+    if (addressCode !== undefined) return addressCode;
+    addressCode = tableCode(param("code"));
+    try {
+      const url = new URL(location.href);
+      if (url.searchParams.has("code")) {
+        url.searchParams.delete("code");
+        history.replaceState(history.state, "", url.pathname + url.search + url.hash);
+      }
+    } catch (err) { /* no address to rewrite: a sandboxed frame, a test */ }
+    return addressCode;
+  }
+
+  /* The code this page was opened with — the shell's launch argument, else the
+   * address's — handed out ONCE; every later call answers null. */
+  let launchCodeRead = false;
+  function launchCode() {
+    if (launchCodeRead) return null;
+    launchCodeRead = true;
+    let given = null;
+    try {
+      const context = globalThis.nappletContext;
+      given = context && context.args ? context.args.code : null;
+    } catch (err) {
+      given = null; // a getter that throws hands over nothing
+    }
+    return tableCode(given) || takeAddressCode();
+  }
+
   /* A seat credential is the TAB's, not the browser's — but localStorage is
    * shared by every tab of an origin, and one key held one record. Playing both
    * sides on one machine therefore broke twice over: the second tab resumed on
@@ -673,6 +712,7 @@
 
   function start(handlers) {
     net.handlers = handlers || {};
+    takeAddressCode(); // out of the address bar, whatever else this page does
     /* A shell's seat store answers asynchronously (see `restoring`). Until it has,
      * there is nothing to resume yet: say so, and resume when it answers — unless
      * the page has chosen something else by then, which wins. */
@@ -692,7 +732,7 @@
       // A shared link beats a stale local session for the same page.
       net.session = saved && saved.matchId === fromUrl
         ? saved
-        : { matchId: fromUrl, seat: null, token: null, table: tableUrl(), code: param("code") || null };
+        : { matchId: fromUrl, seat: null, token: null, table: tableUrl(), code: takeAddressCode() };
     } else if (saved) {
       net.session = saved;
     }
@@ -1648,7 +1688,7 @@
     KIND_RESULT,
     KIND_ZAP_REQUEST,
     start, create, join, act, sendNostr, leave, resume, tables, connect,
-    queue, unqueue, rejoin, stakesAllowed,
+    queue, unqueue, rejoin, stakesAllowed, launchCode,
     tableUrl, publicTable, publicTableIsLocal,
     savedMatch, saveMatch,
     get status() { return net.status; },
