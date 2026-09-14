@@ -514,7 +514,7 @@
       case "ARCHIVED":
         return cue("card:archive", { uid: event.uid }, { exit: [...NET, "queue", ...HAND], cardId: event.cardId });
       case "INVALIDATED":
-        return cue("card:archive", { uid: event.qid }, { exit: ["queue"], cardId: event.cardId });
+        return cue("card:archive", { uid: event.qid, qid: event.qid }, { exit: ["queue"], cardId: event.cardId });
       case "DECOMMISSIONED":
         return cue("avatar:decommission", { uid: event.uid }, { exit: NET, cardId: event.cardId });
       case "DAMAGE":
@@ -753,9 +753,10 @@
     fxSnapshot();
     render();
     fxIndex();
-    fxTurns();
+    // On the 3D table the arena turns, flies and lunges the cards itself.
+    if (!arena.instance) fxTurns();
     fxFlush();
-    fxFlight();
+    if (!arena.instance) fxFlight();
   }
 
   /* EVERY OTHER CARD ON THE TABLE MOVED TOO, AND ALL OF THEM TELEPORTED.
@@ -841,11 +842,13 @@
      * permanent, the permanent that was archived. */
     const gone = fxBefore.filter((entry) => !entry.uid || !fxLive.has(entry.uid));
     for (const entry of cues) {
+      const detail = fxBind(entry, gone);
       try {
-        FX.emit(entry.name, fxBind(entry, gone));
+        FX.emit(entry.name, detail);
       } catch (error) {
         void error; // sound and motion are never load-bearing
       }
+      arenaCue(entry.name, detail);
     }
     if (typeof FX.anim !== "function") return;
     for (const item of prims) {
@@ -878,6 +881,330 @@
     } catch (error) {
       void error;
     }
+    arenaCue(open ? "target:request" : "target:choose", open ? { uids: arenaTargetables() } : {});
+  }
+
+  // ------------------------------------------------------------ 3D table
+
+  /* The WebGL table (docs/arena3d.md). play.js keeps rendering the DOM exactly
+   * as before; with an arena mounted the .gcard nodes become invisible HITBOXES
+   * that site/arena3d.js positions from the projected meshes every frame, so
+   * every listener, rect reader and test above works unchanged. Everything in
+   * here is guarded: E1Arena3D may be missing (the test DOM, a build without
+   * the scripts), supported() may say no, create() may throw, the context may
+   * be lost -- each of those is the classic table, never a broken one. */
+  const ARENA_KEY = "600b:arena";
+  const ARENA_NOTICE = "3D table unavailable here; showing the classic table.";
+  const ARENA_BACK = "600B-Timelock-card-back.webp"; // in the blob map like every face
+  const ARENA_AFFINITIES = ["Power", "Bitcoin", "Keys", "Signal", "Timelock"];
+  /* The states the arena draws (rings, glows, dim), read off the classes
+   * render() writes so a pick or a declared attacker has one source of truth. */
+  const ARENA_STATES = ["selected", "targetable", "canplay", "canattack", "committed", "attacking", "willdie"];
+  /* The DOM says more than the arena draws; these fold the extra classes onto
+   * the seven states the same way arena3d.js does when it reads the marks. */
+  const ARENA_MARK_ALIAS = { canact: "canplay", needsblock: "targetable", canblock: "targetable", blockpick: "selected", meshed: "attacking" };
+  const arena = {
+    mode: "dom",      // "3d" | "dom": the resolved choice (resolveArenaMode)
+    instance: null,   // the live E1Arena3D, or null on the classic table
+    lost: false,      // the context went away: classic until the player asks again
+    back: null,       // the card back url once the face resolver answered
+    pending: false,   // a mount waiting on that answer
+    affinity: null,   // the world plate of the game on the table (startGame)
+  };
+
+  const arenaSupported = () => {
+    const A = globalThis.E1Arena3D;
+    if (!A || typeof A.supported !== "function" || typeof A.create !== "function") return false;
+    try {
+      return Boolean(A.supported());
+    } catch (error) {
+      return false;
+    }
+  };
+
+  /* ?arena=3d|dom wins for this page load; then the saved choice; then 3d
+   * wherever it runs and the player has not asked for reduced motion. */
+  function resolveArenaMode(saved) {
+    let asked = null;
+    try {
+      asked = new URLSearchParams((globalThis.location && globalThis.location.search) || "").get("arena");
+    } catch (error) {
+      asked = null;
+    }
+    const wanted = asked === "3d" || asked === "dom" ? asked
+      : saved === "3d" || saved === "dom" ? saved
+        : arenaSupported() && !reducedMotion() ? "3d" : "dom";
+    return wanted === "3d" && arenaSupported() ? "3d" : "dom";
+  }
+
+  /* The saved choice: the shell's storage inside a napplet, localStorage on
+   * the site -- the same two doors the Stack library uses. */
+  function loadArenaPref(done) {
+    const N = globalThis.E1Napplet;
+    if (N && N.storage && typeof N.storage.get === "function") {
+      N.storage.get(ARENA_KEY).then((value) => done(value), () => done(null));
+      return;
+    }
+    let value = null;
+    try { value = localStorage.getItem(ARENA_KEY); } catch (error) { value = null; }
+    done(value);
+  }
+
+  function saveArenaPref(mode) {
+    const N = globalThis.E1Napplet;
+    if (N && N.storage && typeof N.storage.set === "function") {
+      N.storage.set(ARENA_KEY, mode).catch(() => { /* storage is optional */ });
+      return;
+    }
+    try { localStorage.setItem(ARENA_KEY, mode); } catch (error) { /* storage is optional */ }
+  }
+
+  /* Both selects say the same thing, and the choice is only offered where 3D runs. */
+  function renderArenaSelects() {
+    for (const id of ["arenaSetup", "arenaTable"]) {
+      const select = document.getElementById(id);
+      if (!select) continue;
+      select.value = arena.mode;
+      const box = select.parentNode || select;
+      box.hidden = !arenaSupported();
+    }
+  }
+
+  function setArenaMode(mode, options) {
+    const next = mode === "3d" && arenaSupported() ? "3d" : "dom";
+    if (options && options.save) saveArenaPref(next);
+    if (next === "3d") arena.lost = false;
+    arena.mode = next;
+    renderArenaSelects();
+    if (next === "dom") unmountArena();
+    if (session.full) render(); // mounts on the way when a game is on the table
+  }
+
+  const arenaBoard = () => document.getElementById("board");
+
+  /* The same URL setFace() would put on the <img>: the local Fast face when the
+   * game is Fast and the local manifest names it, else the Blossom-resolved
+   * Classic face, else the repo file. Takes a catalog card, a cardId, or an
+   * object carrying one, so the arena can ask with whatever it holds. */
+  function arenaFaceUrl(subject) {
+    const card = !subject ? null
+      : typeof subject === "string" ? CARD_BY_ID[subject]
+        : subject.face ? subject
+          : subject.cardId ? CARD_BY_ID[subject.cardId] : null;
+    if (!card || !card.face) return null;
+    if (!FACES) return faceUrl(card);
+    const classic = () => FACES.resolve(card.face).then((entry) => entry.url);
+    if (CARDS === globalThis.E1_CARDS_FAST && FACES.fastFaces && typeof FACES.fastFaces.then === "function") {
+      return FACES.fastFaces.then(() => {
+        const entry = FACES.fastEntry ? FACES.fastEntry(card.face) : null;
+        return entry ? entry.url : classic();
+      });
+    }
+    return classic();
+  }
+
+  /* fx.js already knows whether motion is reduced (its own toggle or the media
+   * query); the arena asks the same question so the two never disagree. */
+  const arenaReduced = () => {
+    const FX = globalThis.E1FX;
+    if (FX && typeof FX.get === "function") {
+      try {
+        return FX.get().motionActive === "reduced";
+      } catch (error) {
+        void error;
+      }
+    }
+    return reducedMotion();
+  };
+
+  function arenaPlates() {
+    if (embedded()) return {}; // the napplet carries no site art
+    const plates = {};
+    for (const name of ARENA_AFFINITIES) plates[name] = `../art/world-plates/${name.toLowerCase()}.png`;
+    return plates;
+  }
+
+  /* Idempotent: called from syncArena() while the mode is 3d and nothing is
+   * mounted. The card back goes through the same face path as every face (it
+   * is in the blob map), and the first mount waits for that answer. */
+  function mountArena() {
+    if (arena.instance || arena.lost || arena.pending || arena.mode !== "3d") return;
+    const host = arenaBoard();
+    if (!host || !arenaSupported()) return;
+    if (arena.back === null) {
+      const local = faceUrl({ face: ARENA_BACK });
+      const back = FACES ? FACES.resolve(ARENA_BACK) : local;
+      if (back && typeof back.then === "function") {
+        arena.pending = true;
+        back.then((entry) => (entry && entry.url) || local, () => local).then((url) => {
+          arena.back = url;
+          arena.pending = false;
+          if (session.full) render();
+        });
+        return;
+      }
+      arena.back = back;
+    }
+    let created = null;
+    try {
+      created = globalThis.E1Arena3D.create({
+        host,
+        THREE: globalThis.THREE || null,
+        faces: { urlFor: arenaFaceUrl },
+        cards: CARDS,
+        geometry: GEO,
+        back: arena.back,
+        plates: arenaPlates(),
+        affinity: arena.affinity,
+        portraits: globalThis.E1Portraits || null,
+        reduced: arenaReduced,
+        quality: "auto",
+        onReady: () => { if (arena.instance && arena.instance === created && session.full) syncArena(); },
+        onLost: () => loseArena(),
+      });
+    } catch (error) {
+      created = null;
+    }
+    if (!created) return void loseArena();
+    arena.instance = created;
+    if (host.classList && host.classList.add) host.classList.add("arena3d");
+  }
+
+  function unmountArena() {
+    const live = arena.instance;
+    arena.instance = null;
+    const host = arenaBoard();
+    if (host && host.classList && host.classList.remove) host.classList.remove("arena3d");
+    if (live && typeof live.dispose === "function") {
+      try {
+        live.dispose();
+      } catch (error) {
+        void error;
+      }
+    }
+  }
+
+  /* create() threw, supported() lied, or the context was lost: the classic
+   * table, a line saying so, and no second attempt until the player asks. The
+   * repaint is deferred because this can fire from inside render() itself. */
+  function loseArena() {
+    arena.lost = true;
+    arena.mode = "dom";
+    unmountArena();
+    renderArenaSelects();
+    netNotice(ARENA_NOTICE, "warn");
+    if (!session.full) return;
+    session.notice = ARENA_NOTICE;
+    const timer = setTimeout(render, 0);
+    if (timer && typeof timer.unref === "function") timer.unref();
+  }
+
+  const classesOf = (node) => String((node && node.className) || "").split(/\s+/).filter(Boolean);
+
+  /* After every render(): bind this frame's hitboxes and states to the scene.
+   * Foe hand shells carry no uid, so they get a synthetic one; Queue nodes
+   * carry their qid, which is the name the cues use for them. */
+  function syncArena() {
+    if (arena.mode === "3d" && !arena.instance) mountArena();
+    const live = arena.instance;
+    if (!live || !session.full || typeof document.querySelectorAll !== "function") return;
+    const v = viewNow();
+    const seat = uiSeat(session.full);
+    let cards = [];
+    try {
+      cards = document.querySelectorAll(".gcard");
+    } catch (error) {
+      return;
+    }
+    /* The Queue nodes carry no uid in the DOM (renderQueueZone) and the arena
+     * names them `queue:<qid>` (arena3d-layout.js); renderQueueZone draws one
+     * node per item with a cardId, in order, which pairs them here. */
+    const queued = (v.queue || []).filter((item) => item.cardId);
+    const queueNodes = [];
+    const nodes = new Map();
+    let shells = 0;
+    for (const node of cards) {
+      if (!node) continue;
+      const data = node.dataset || (node.dataset = {});
+      const zone = node.parentNode && node.parentNode.id ? node.parentNode.id : "";
+      if (!data.uid) {
+        if (zone === "foeHand") data.uid = `foe-hand-${shells++}`;
+        else if (zone === "queue") { queueNodes.push(node); continue; }
+        else continue;
+      }
+      nodes.set(String(data.uid), node);
+    }
+    const queue = queued.map((item, index) => {
+      const node = queueNodes[index] || null;
+      if (node) nodes.set(`queue:${item.qid}`, node);
+      return { qid: item.qid, cardId: item.cardId, controller: item.controller, node };
+    });
+    const foeWallet = v.zones[`${1 - seat}:wallet`];
+    const foeHandCount = Array.isArray(foeWallet) ? foeWallet.length : (foeWallet && foeWallet.n) | 0;
+    const marks = (uid) => classesOf(nodes.get(String(uid)));
+    try {
+      live.sync(v, seat, { nodes, marks, foeHandCount, queue });
+    } catch (error) {
+      void error; // the picture is never load-bearing
+    }
+    syncStates(nodes);
+  }
+
+  function syncStates(nodes) {
+    const live = arena.instance;
+    if (!live || typeof live.setState !== "function") return;
+    for (const [uid, node] of nodes) {
+      const classes = classesOf(node).map((name) => ARENA_MARK_ALIAS[name] || name);
+      const state = {};
+      for (const name of ARENA_STATES) state[name] = classes.indexOf(name) >= 0;
+      try {
+        live.setState(uid, state);
+      } catch (error) {
+        void error;
+      }
+    }
+  }
+
+  const arenaHover = (uid) => {
+    const live = arena.instance;
+    if (!live || typeof live.hover !== "function") return;
+    try {
+      live.hover(uid == null ? null : String(uid));
+    } catch (error) {
+      void error;
+    }
+  };
+
+  /* Every cue fx.js gets, the arena gets too, with the same detail object --
+   * uid, targetUid, seat, targetSeat, amount, lethal as fx() wrote them plus
+   * the el/rect fxBind() added. Forwarded from the same fxFlush() pass. */
+  const arenaCue = (name, detail) => {
+    const live = arena.instance;
+    if (!live || !live.fx || typeof live.fx.cue !== "function") return;
+    let d = detail || {};
+    /* A cue about a Queue item names it by qid (fx.js finds the node by card);
+     * the arena registry names it `queue:<qid>`, so the arena's copy says so. */
+    if (d.qid != null && (d.uid == null || d.uid === d.qid)) d = Object.assign({}, d, { uid: `queue:${d.qid}` });
+    try {
+      live.fx.cue(name, d);
+    } catch (error) {
+      void error;
+    }
+  };
+
+  /* The pick cue for the arena carries the candidates: the nodes render()
+   * just marked targetable, by uid, so the rings land without a second scan. */
+  function arenaTargetables() {
+    if (typeof document.querySelectorAll !== "function") return [];
+    let lit = [];
+    try {
+      lit = document.querySelectorAll(".gcard.targetable");
+    } catch (error) {
+      return [];
+    }
+    const uids = [];
+    for (const node of lit) if (node && node.dataset && node.dataset.uid) uids.push(node.dataset.uid);
+    return uids;
   }
 
   // ---------------------------------------------------------- log wording
@@ -2068,7 +2395,8 @@
         cardHold = { timer, x: event.clientX, y: event.clientY };
       });
     }
-    node.addEventListener("mouseenter", () => showInspector(v, uid));
+    node.addEventListener("mouseenter", () => { showInspector(v, uid); arenaHover(uid); });
+    node.addEventListener("mouseleave", () => arenaHover(null)); // the 3D table lifts the hovered card
 
     /* THE GAME WAS UNPLAYABLE WITHOUT A MOUSE. A card was a bare <div> with
      * click, contextmenu, pointerdown and mouseenter — no tabindex, no role, no
@@ -2084,7 +2412,8 @@
      * keyboard — and the reader is the half a new player needs most. */
     node.tabIndex = 0;
     node.setAttribute("role", "button");
-    node.addEventListener("focus", () => showInspector(v, uid));
+    node.addEventListener("focus", () => { showInspector(v, uid); arenaHover(uid); });
+    node.addEventListener("blur", () => arenaHover(null));
     node.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -3129,6 +3458,7 @@
     drawClashArrows();
     fxUptimeRoll();
     fxPickState();
+    syncArena();
   }
 
   /* Last, deliberately: the numeral is measured where the FINISHED frame puts
@@ -5001,9 +5331,17 @@
     }
     /* The stage wears seat one's world plate — the board opens onto the
      * affinity it is about to play. (The test DOM has no querySelector.) */
+    arena.affinity = prefAffinity(config.seats[0]);
+    if (arena.instance && typeof arena.instance.setPlate === "function") {
+      try {
+        arena.instance.setPlate(arena.affinity);
+      } catch (error) {
+        void error;
+      }
+    }
     if (document.querySelector) {
       const stage = document.querySelector(".stage");
-      if (stage) stage.className = `stage plate-${prefAffinity(config.seats[0])}`;
+      if (stage) stage.className = `stage plate-${arena.affinity}`;
     }
     session.log = [];
     session.events = [];
@@ -5190,6 +5528,10 @@
            * this every seat-anchored cue lands on the wrong half of the board
            * for the entire NPC turn. */
           sideOf: (seat) => (session.full && uiSeat(session.full) === seat ? "you" : "foe"),
+          /* With the 3D table mounted the arena flies, lunges and shatters the
+           * cards; fx.js keeps sound, hit-stop and the overlays, but moving the
+           * invisible hitboxes as well would double every motion. */
+          cardMotion: () => !arena.instance,
         });
       } catch (error) {
         void error; // sound is never load-bearing
@@ -5225,6 +5567,18 @@
         wanted = null; // storage is optional
       }
       if (wanted === "F1.0" || wanted === "E1.0") rulesSelect.value = wanted;
+    }
+    /* The table: 3D where it runs, unless the link, the saved choice or reduced
+     * motion say otherwise (docs/arena3d.md). The saved choice may arrive late
+     * from a shell's storage; a game already on the table follows it. */
+    arena.mode = resolveArenaMode(null);
+    renderArenaSelects();
+    loadArenaPref((saved) => setArenaMode(resolveArenaMode(saved)));
+    for (const id of ["arenaSetup", "arenaTable"]) {
+      const select = document.getElementById(id);
+      if (select && select.addEventListener) {
+        select.addEventListener("change", () => setArenaMode(select.value, { save: true }));
+      }
     }
     // The setup blurb describes the rules that are selected, not always Classic.
     const describeRules = () => {
@@ -5419,6 +5773,10 @@
     preview: () => (session.full ? previewClash(viewNow()) : null),
     startGame,
     dispatch,
+    /* The 3D table, for the proof (arena.snapshot()) and the console. */
+    get arena() { return arena.instance; },
+    get arenaMode() { return arena.mode; },
+    setArenaMode: (mode) => setArenaMode(mode, { save: false }),
     /* The closing screen, drivable without playing a match out. Exposed for the
      * same reason `preview` is: the alternative to checking it is hoping. */
     showEndgame,

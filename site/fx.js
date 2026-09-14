@@ -1604,6 +1604,17 @@
     return (mqMotion && mqMotion.matches) ? 'reduced' : 'full';
   }
   function reduced() { return motionActive() === 'reduced'; }
+  /* opts.cardMotion === false (or a function answering false): the host moves
+     the cards itself -- the WebGL table (docs/arena3d.md) -- so the motion book
+     skips flights, lunges, slams and shatters ON THE CARD NODE and keeps every
+     sound, the hit-stop timing, the chips and the rings, which are anchored to
+     the same nodes either way. A function, because the table can switch mid
+     game; the answer is read per cue. */
+  function cardMotion() {
+    var c = opts.cardMotion;
+    if (typeof c === 'function') { var r = true; guard(function () { r = c(); }); return r !== false; }
+    return c !== false;
+  }
   function lowTransparency() { return !!(mqTransparency && mqTransparency.matches); }
 
   var CSS = [
@@ -2304,6 +2315,7 @@
   };
 
   MOTION['card:draw'] = function (d) {
+    if (!cardMotion()) return; /* the arena flies the card from its deck stack */
     var hand = seatEl('hand', d.seat);
     var counts = seatEl('counts', d.seat);
     var n = Math.min(5, Math.max(1, d.count || 1));
@@ -2334,16 +2346,21 @@
     var el = targetEl(d, 'network');
     if (!el) return;
     var dest = rectOf(el);
+    var motion = cardMotion();
 
     if (type === 'Zap') {
-      play(el, [{ opacity: 0 }, { opacity: 1 }], { duration: reduced() ? 1 : D.md, easing: EASE.snap });
-      pHardCut(el, false);
+      if (motion) {
+        play(el, [{ opacity: 0 }, { opacity: 1 }], { duration: reduced() ? 1 : D.md, easing: EASE.snap });
+        pHardCut(el, false);
+      }
       pRing(el, PALETTE.cream, D.md);
       return;
     }
 
     var origin = d.rect || (d.from && d.from.nodeType === 1 ? rectOf(d.from) : d.from);
-    if (origin && origin.width && !reduced()) {
+    if (!motion) {
+      /* the arena's arc flight and slam; the ring below still marks the landing */
+    } else if (origin && origin.width && !reduced()) {
       /* FLIP: invert to the origin, play to identity */
       var dx = origin.left - dest.left, dy = origin.top - dest.top;
       play(el, [
@@ -2364,7 +2381,7 @@
     } else {
       pRing(el, color, D.xl);
     }
-    if (type === 'Avatar' && !reduced()) {
+    if (type === 'Avatar' && motion && !reduced()) {
       /* Weight on landing: a squash into the table and a small rebound, timed to
          the end of the flight, where the slam sample lands. */
       play(el, [
@@ -2376,6 +2393,7 @@
   };
 
   MOTION['card:archive'] = function (d) {
+    if (!cardMotion()) return; /* the arena shatters the mesh */
     var el = targetEl(d, null);
     if (!el) return;
     var c = cloneOf(el, d.rect);
@@ -2392,7 +2410,9 @@
     var aff = affOf(d.affinity);
     var color = AFF_COLOR[aff] || AFF_COLOR.N;
     var el = d.el && d.el.nodeType === 1 ? d.el : null;
-    if (el) {
+    if (el && !cardMotion()) {
+      pRing(el, color, D.xl); /* the arena lays the card flat; the ring marks it */
+    } else if (el) {
       /* Same flight as a spell: the land drop CAME from the Wallet, and a card
          that simply appears in the Network reads as a board that redrew itself
          rather than a play that was made. */
@@ -2587,6 +2607,7 @@
   };
 
   MOTION['avatar:decommission'] = function (d) {
+    if (!cardMotion()) return; /* the arena shatters the token */
     var el = targetEl(d, null);
     if (!el) return;
     var c = cloneOf(el, d.rect);
@@ -2609,7 +2630,7 @@
     var target = d.targetUid != null ? cardByUid(d.targetUid) : seatEl('uptime', d.targetSeat);
     var toRect = target ? rectOf(target) : null;
     if (!el || !toRect) return;
-    pLunge(el, toRect);
+    if (cardMotion()) pLunge(el, toRect); /* else the arena lunges; the contact ring stays */
     global.setTimeout(function () { pRing(target, PALETTE.danger, D.md); }, reduced() ? 0 : STRIKE_MS);
   };
 

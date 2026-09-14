@@ -58,6 +58,22 @@ def test_page_leaves_the_website_only_scripts_out(artifact: tuple[bytes, dict]) 
     assert "600B-logo-primary.png" not in html
 
 
+def test_page_carries_the_3d_table(artifact: tuple[bytes, dict]) -> None:
+    """three.js and the three arena scripts are inlined like every other script."""
+    html = artifact[0].decode("utf-8")
+    version = (SITE / "vendor" / "three.version").read_text(encoding="utf-8").strip()
+
+    for name in ("vendor/three.js", "arena3d-layout.js", "arena3d.js", "arena3d-fx.js"):
+        assert f'src="{name}"' not in html
+    assert f"three.js r{version}" in html
+    assert "var THREE=" in html
+    assert "REVISION" in html
+    for name in ("E1ArenaLayout", "E1Arena3D", "E1Arena3DFx"):
+        assert name in html
+    assert ".board.arena3d > canvas.arena3d { display: block; }" in html
+    assert 'id="arenaTable"' in html
+
+
 def test_page_stays_under_the_size_limit(artifact: tuple[bytes, dict]) -> None:
     """The host pins one file; three megabytes is the ceiling."""
     assert len(artifact[0]) < 3 * 1024 * 1024
@@ -120,6 +136,11 @@ def test_build_ignores_the_line_endings_git_chose(tmp_path: Path) -> None:
     for name in SITE.iterdir():
         if name.is_file():
             (site / name.name).write_bytes(name.read_bytes())
+    # vendor/three.js is the one script that lives in a subdirectory.
+    (site / "vendor").mkdir()
+    for name in (SITE / "vendor").iterdir():
+        if name.is_file():
+            (site / "vendor" / name.name).write_bytes(name.read_bytes())
     lf = (SITE / "play.html").read_bytes().replace(CRLF, LF)
     (site / "play.html").write_bytes(lf.replace(LF, CRLF))
     for relative in ("art/fonts", "art/site"):

@@ -2,8 +2,10 @@
 
 Run with the repo venv active: `python scripts/build_napplet.py` (or `npm run build:napplet`).
 Writes dist/napplet/600b-timelock-tcg/index.html and its .nip5a-manifest.json (kind 35129).
-Every `<script src>` is inlined, the Anton font and the hero image become data URLs,
-the wallet/QR/bug-report scripts are left out, card faces keep loading by hash.
+Every `<script src>` is inlined -- vendor/three.js and the arena3d-*.js scripts of the
+3D table included (docs/arena3d.md; three.js carries no `</script` and no `<!--`, but
+the escaping below covers them anyway) -- the Anton font and the hero image become data
+URLs, the wallet/QR/bug-report scripts are left out, card faces keep loading by hash.
 """
 
 from __future__ import annotations

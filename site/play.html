@@ -715,6 +715,35 @@ a { color: var(--orange-soft); }
 .gcard.arttile .gboot { top: 22px; }
 .gstats.gact ~ .gsrc { bottom: 22px; }
 
+/* ------------------------------------------------------------- the 3D table
+   docs/arena3d.md. The render keeps building the same .gcard nodes; with the
+   arena mounted (.board.arena3d) each one becomes an invisible HITBOX that the
+   arena positions every frame from its mesh's projected corners. Click, drag,
+   keyboard, screen readers, the clash arrows and every getBoundingClientRect in
+   fx.js keep working on the same nodes. Only the face picture is hidden: the
+   numbers stay DOM, crisp, on top of the canvas. */
+.board > canvas.arena3d { display: none; position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
+.board.arena3d > canvas.arena3d { display: block; }
+/* The hero behind the board is the arena's job now; around the board it stays. */
+.board.arena3d { background-image: none; background-color: var(--black); box-shadow: none; }
+.board.arena3d::before, .board.arena3d::after { display: none; }
+.board.arena3d .side, .board.arena3d .zone, .board.arena3d #queueWrap { position: static; }
+/* The DOM's own depth and arcs are switched off: the arena owns the layout. */
+.board.arena3d .zone.foehand, .board.arena3d #foeNetwork, .board.arena3d .zone.queue, .board.arena3d #youNetwork { transform: none; }
+.board.arena3d .zone { min-height: calc(var(--card-w) * 1.7); background: none; border: none; animation: none; }
+.board.arena3d .netcut { display: none; }
+.board.arena3d .gcard, .board.arena3d .gcard:hover, .board.arena3d .gcard.committed, .board.arena3d .gcard.committed:hover,
+.board.arena3d .gcard.selected, .board.arena3d .zone.fan .gcard, .board.arena3d .zone.fan .gcard:hover,
+.board.arena3d .zone.netsplit .gcard.netres:hover, .board.arena3d .zone.netsplit .gcard.netres.committed:hover {
+  position: absolute; margin: 0; width: auto; transform: none; transition: none; filter: none;
+  box-shadow: none; animation: none; border-color: transparent; background: none; z-index: 2;
+}
+.board.arena3d .gcard.facedown { background: none; border-color: transparent; }
+.board.arena3d .gcard > img, .board.arena3d .gcard > .gart { visibility: hidden; }
+.board.arena3d .gcard:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.controls .tablepick { margin-left: auto; color: var(--muted); font-size: 12px; }
+.controls .tablepick select { margin-left: 6px; padding: 6px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
+.board.arena3d .controls, .board.arena3d .playerbar, .board.arena3d .zonechip, .board.arena3d .tfooter { position: relative; z-index: 3; }
 .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 4px 2px; }
 .chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
 /* The card face's bottom line, table-sized. */
@@ -900,6 +929,15 @@ html.embedded #online { display: none; }
           <option value="F1.0">Fast</option>
         </select>
       </label>
+      <!-- The same choice as #arenaTable on the board: the WebGL table or the classic
+           DOM one. play.js keeps the two in step and hides the 3D option where WebGL2
+           is unavailable (docs/arena3d.md). -->
+      <label for="arenaSetup" style="color:var(--muted);font-size:12px">Table
+        <select id="arenaSetup" style="margin-left:6px;padding:6px 8px;color:var(--cream);background:var(--soot);border:1px solid var(--line)">
+          <option value="3d">3D</option>
+          <option value="dom">Classic</option>
+        </select>
+      </label>
       <!-- The field takes a word as happily as a number now (site/play.js:
            seedFromInput), so it finally says so. It used to accept anything and
            silently deal seed 0 for everything that was not a plain integer. -->
@@ -967,7 +1005,10 @@ html.embedded #online { display: none; }
     <div id="choiceRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
 
     <div class="layout">
-      <div class="board">
+      <!-- id: the 3D table mounts here (play.js mountArena inserts arena3d.js's
+           canvas.arena3d as the first child, behind the zones; the .gcard nodes
+           above it become invisible hitboxes the arena positions every frame). -->
+      <div class="board" id="board">
         <span class="bcorner tl"></span><span class="bcorner tr"></span>
         <span class="bcorner bl"></span><span class="bcorner br"></span>
 
@@ -1033,6 +1074,12 @@ html.embedded #online { display: none; }
           <button class="btn ghost" id="endturn">End turn</button>
           <button class="btn ghost" id="cancelTarget">Cancel targeting</button>
           <button class="btn ghost" id="clearManual">Clear notice</button>
+          <label class="tablepick" for="arenaTable">Table
+            <select id="arenaTable">
+              <option value="3d">3D</option>
+              <option value="dom">Classic</option>
+            </select>
+          </label>
           <span id="fxControl"></span>
         </div>
 
@@ -1208,6 +1255,13 @@ html.embedded #online { display: none; }
      null, and the portraits simply never appeared -- nothing broken, nothing
      working either. -->
 <script src="portraits.js"></script>
+<!-- The WebGL table (docs/arena3d.md): three.js, the pure layout, the scene, the
+     motion book. Every one is optional -- play.js keeps the classic DOM table when
+     any of them is missing, when WebGL2 is unavailable, or under ?arena=dom. -->
+<script src="vendor/three.js"></script>
+<script src="arena3d-layout.js"></script>
+<script src="arena3d.js"></script>
+<script src="arena3d-fx.js"></script>
 <script src="play.js"></script>
 </body>
 </html>
