@@ -20,6 +20,8 @@ const require = createRequire(import.meta.url);
 const { createTable } = require("../../server/table.js");
 const WebSocket = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
+// The real verifier: invites, starts and profiles are believed only once it says so.
+require("../../site/schnorr.js");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const NET_JS = fs.readFileSync(path.join(HERE, "..", "..", "site", "net.js"), "utf8");
@@ -122,6 +124,85 @@ async function referee(t, name, extra) {
   const table = await createTable(Object.assign({ port: 0, dbPath: tmpDb(name), host: "127.0.0.1", publicHost: "127.0.0.1", rateMax: 1000000 }, extra || {}));
   t.after(() => table.close());
   return table;
+}
+
+/* The relays behind the fake Hangars: one event log, so a tab that publishes and a
+ * tab that subscribes meet the way two Hangars meet on relay.nappelin.com. */
+function relayBus() {
+  const events = [];
+  const subscriptions = new Set();
+  const matches = (filter, event) => {
+    if (filter.ids && !filter.ids.includes(event.id)) return false;
+    if (filter.kinds && !filter.kinds.includes(event.kind)) return false;
+    if (filter.authors && !filter.authors.includes(event.pubkey)) return false;
+    if (filter.since && event.created_at < filter.since) return false;
+    for (const [key, wanted] of Object.entries(filter)) {
+      if (key[0] === "#" && !event.tags.some((tag) => tag[0] === key.slice(1) && wanted.includes(tag[1]))) return false;
+    }
+    return true;
+  };
+  const any = (filters, event) => filters.some((filter) => matches(filter, event));
+  return {
+    events,
+    subscriptions,
+    publish(event) {
+      events.push(event);
+      for (const sub of subscriptions) if (any(sub.filters, event)) sub.push(event);
+    },
+    query: (filters) => events.filter((event) => any(filters, event)),
+    subscribe(filters, push) {
+      const sub = { filters, push };
+      subscriptions.add(sub);
+      for (const event of events) if (any(filters, event)) push(event);
+      return () => subscriptions.delete(sub);
+    },
+  };
+}
+
+/* The Hangar's outbox as a napplet sees it: the Kehto 0.20 prelude over the relay-pool
+ * router that nappelin's host.ts builds (its relay lists are an empty Map). A publish is
+ * signed first and refused with "relay list unavailable" unless it names allowed relays
+ * with `toOutbox: false`; query and subscription results are `{ event, sidecar }`;
+ * `subscribe(filters)` returns a handle with `on("event" | "closed")` and `close()`. */
+const HANGAR_RELAYS = ["wss://relay.nappelin.com", "wss://relay.bimcvp.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
+function kehtoOutbox(bus, sk, { refuse = null, alive = () => true } = {}) {
+  const calls = { publish: [], query: [], subscribe: [], close: 0 };
+  const hint = (event) => ({ event, sidecar: { relayHints: [HANGAR_RELAYS[0]] } });
+  const reply = (value) => (alive() ? new Promise((resolve) => setTimeout(() => resolve(value), 1)) : new Promise(() => {}));
+  return {
+    calls,
+    publish(template, options) {
+      calls.publish.push({ template, options });
+      if (!sk) return reply({ type: "outbox.publish.result", id: "p", ok: false, error: "sign in first" });
+      const event = signEvent(template, sk);
+      const relays = ((options && options.relays) || []).filter((url) => HANGAR_RELAYS.includes(url));
+      if (!options || options.toOutbox !== false || !relays.length) {
+        return reply({ type: "outbox.publish.result", id: "p", ok: false, event, eventId: event.id, error: "relay list unavailable" });
+      }
+      if (refuse) return reply({ type: "outbox.publish.result", id: "p", ok: false, event, eventId: event.id, error: refuse });
+      bus.publish(event);
+      return reply({ type: "outbox.publish.result", id: "p", ok: true, event, eventId: event.id, relays: Object.fromEntries(relays.map((url) => [url, true])) });
+    },
+    query(filters) {
+      const list = Array.isArray(filters) ? filters : [filters];
+      calls.query.push(list);
+      return reply({ type: "outbox.query.result", id: "q", events: bus.query(list).map(hint) });
+    },
+    subscribe(filters) {
+      const list = Array.isArray(filters) ? filters : [filters];
+      calls.subscribe.push(list);
+      const handlers = { event: new Set(), closed: new Set() };
+      const off = bus.subscribe(list, (event) => setTimeout(() => {
+        if (alive()) for (const fn of handlers.event) fn(hint(event));
+      }, 1));
+      return {
+        on(name, fn) { handlers[name].add(fn); return { close: () => handlers[name].delete(fn) }; },
+        close() { calls.close += 1; off(); handlers.event.clear(); handlers.closed.clear(); },
+        /* Test hook: the shell ends the subscription itself (`outbox.closed`). */
+        end(reason) { off(); for (const fn of handlers.closed) fn(reason); },
+      };
+    },
+  };
 }
 
 test("a napplet opens, logs in and creates a table through the host channel", async (t) => {
@@ -231,6 +312,53 @@ test("relay traffic goes through the shell outbox as unsigned templates", async 
   assert.equal(published.length, 1, "publish() recognises what sign() already sent — no second copy");
   assert.deepEqual(await net.nostr.query({ kinds: [31600] }), [{ id: "e1", kind: 31600 }]);
   await assert.rejects(() => net.nostr.sign({ kind: 9734, tags: [], content: "" }), /outbox\.publish and table\.sign/);
+});
+
+test("a publish through the Hangar's outbox names its relays, so the router does not refuse it", async () => {
+  const bus = relayBus();
+  const outbox = kehtoOutbox(bus, HOST_SK);
+  const { net, N } = loadShell({ host: fakeHangar(), shell: shellWith({ outbox }) });
+  const template = net.nostr.inviteEvent({ matchId: "m_0123456789ab", code: "ABCDEF", table: "wss://t.example/ws", name: "f", affinity: "Power" });
+
+  const res = await N.outbox.publish(template);
+  assert.equal(res.ok, true, res.error);
+  const { options } = outbox.calls.publish[0];
+  assert.equal(options.toOutbox, false, "nappelin has no NIP-65 relay lists to find");
+  assert.deepEqual(options.relays, ["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"]);
+  assert.equal(bus.events.length, 1);
+  assert.equal(bus.events[0].pubkey, HOST_PUBKEY, "the host signed it");
+
+  const unnamed = await kehtoOutbox(relayBus(), HOST_SK).publish(template);
+  assert.deepEqual([unnamed.ok, unnamed.error], [false, "relay list unavailable"], "the router this fake follows refuses an unnamed publish");
+});
+
+test("query results arrive as { event, sidecar } and are handed on bare", async () => {
+  const bus = relayBus();
+  const signed = signEvent({ kind: 0, created_at: 1, tags: [], content: "{\"name\":\"felix\"}" }, HOST_SK);
+  bus.publish(signed);
+  const { net, N } = loadShell({ host: fakeHangar(), shell: shellWith({ outbox: kehtoOutbox(bus, HOST_SK) }) });
+  assert.deepEqual(await N.outbox.query({ kinds: [0], authors: [HOST_PUBKEY] }), [signed]);
+  assert.deepEqual(await net.nostr.query({ kinds: [0], authors: [HOST_PUBKEY] }), [signed]);
+  const profile = await net.nostr.profile(HOST_PUBKEY);
+  assert.equal(profile.name, "felix", "a verified kind 0 read through the shell reaches the profile");
+});
+
+test("relays that refuse a host-signed event do not unsign it", async () => {
+  /* The host signs before its relays answer. A refusal used to throw out of sign(), so
+   * play.js reported "signing was declined" and never handed the referee its record. */
+  const bus = relayBus();
+  const outbox = kehtoOutbox(bus, HOST_SK, { refuse: "publish denied" });
+  const { net } = loadShell({ host: fakeHangar(), shell: shellWith({ outbox }) });
+  const template = net.nostr.inviteEvent({ matchId: "m_0123456789ab", code: "ABCDEF", table: "wss://t.example/ws", name: "f", affinity: "Power" });
+  const signed = await net.nostr.sign(template);
+  assert.equal(signed.pubkey, HOST_PUBKEY);
+  assert.match(signed.sig, /^[0-9a-f]{128}$/);
+  const res = await net.nostr.publish(signed);
+  assert.deepEqual([res.ok, res.accepted, res.tried, res.error], [false, [], 1, "publish denied"]);
+  assert.equal(outbox.calls.publish.length, 1, "the host is not asked a second time");
+
+  const nobody = loadShell({ host: fakeHangar(), shell: shellWith({ outbox: kehtoOutbox(bus, null) }) });
+  await assert.rejects(() => nobody.net.nostr.sign(template), /sign in first/, "a host that could not sign still refuses");
 });
 
 test("tableUrl() in a srcdoc frame: the build constant, else nappelin's referee", () => {

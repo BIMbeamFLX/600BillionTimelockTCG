@@ -836,9 +836,10 @@
     try { localStorage.removeItem(LS_PUBKEY); } catch (err) { /* private mode */ }
   }
 
-  /* Events the host signed on our behalf, by id, so publish() can recognise one
-   * it has already fanned out rather than asking the host a second time. */
-  const hostPublished = new Set();
+  /* Events the host signed on our behalf, by id, with what its fan-out answered:
+   * null when a relay took the event, the refusal otherwise. publish() reports
+   * that answer rather than asking the host a second time. */
+  const hostPublished = new Map();
 
   async function sign(unsigned) {
     /* THE SHELL HAS NO GENERAL SIGNER. It signs an outbox template (and
@@ -850,12 +851,14 @@
     if (shellOutbox() && unsigned
         && (unsigned.kind === KIND_HANDSHAKE || unsigned.kind === KIND_RESULT)) {
       const res = await nap().outbox.publish(unsigned);
-      if (!res.ok) throw new Error(String(res.error || "the shell declined to publish"));
       const event = res.event;
       if (!event || typeof event.id !== "string" || typeof event.sig !== "string") {
-        throw new Error("the shell published but returned no signed event");
+        throw new Error(res.ok ? "the shell published but returned no signed event" : String(res.error || "the shell declined to publish"));
       }
-      hostPublished.add(event.id);
+      /* SIGNED IS NOT PUBLISHED. The host signs before it fans out, and relays
+       * that refuse the event do not unsign it: the referee can still record it,
+       * and publish() then says no relay took it, which is the website's order. */
+      hostPublished.set(event.id, res.ok ? null : String(res.error || "no relay accepted it"));
       return event;
     }
     if (!hasNip07() || !globalThis.nostr || !globalThis.nostr.signEvent) {
@@ -913,8 +916,11 @@
    * published rather than offered twice. Same result shape as the fan-out. */
   async function publishThroughShell(event) {
     if (event && typeof event.id === "string" && hostPublished.has(event.id)) {
+      const refused = hostPublished.get(event.id);
       hostPublished.delete(event.id);
-      return { ok: true, accepted: ["shell"], tried: 1, event };
+      return refused === null
+        ? { ok: true, accepted: ["shell"], tried: 1, event }
+        : { ok: false, accepted: [], tried: 1, event, error: refused };
     }
     const res = await nap().outbox.publish(event);
     return { ok: Boolean(res.ok), accepted: res.ok ? ["shell"] : [], tried: 1, event: res.event || event, error: res.error };

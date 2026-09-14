@@ -366,18 +366,32 @@
    * that carries `error` on failure (it never rejects on a relay refusal). On
    * the website it is site/net.js's own relay fan-out. The spec's fallback for a
    * missing outbox is "results stay local", so a refusal here is reported, never
-   * thrown — a match that cannot be announced is still a match that was played. */
+   * thrown — a match that cannot be announced is still a match that was played.
+   *
+   * THE RELAYS ARE NAMED. The Hangar's outbox router looks up the signer's NIP-65
+   * relay list for a publish that does not say `toOutbox: false`, finds none for
+   * anyone, and refuses with "relay list unavailable" after signing. So a publish
+   * names nappelin's relay and the three the website reads (site/net.js RELAYS),
+   * which is also what lets a Hangar player and a website player see the same
+   * invites; the host still drops any relay it does not allow. */
+  const OUTBOX_RELAYS = Object.freeze(["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"]);
+  /* NAP-OUTBOX delivers query and subscription results as `{ event, sidecar }`;
+   * a bare event is read as itself. */
+  const eventOf = (item) => (isObject(item) && isObject(item.event) ? item.event : item);
   const outbox = {
     available: () => has("outbox") || Boolean(globalThis.E1Net && globalThis.E1Net.nostr),
     async publish(template) {
       if (has("outbox")) {
         try {
-          const msg = await shell.outbox.publish(template);
-          if (msg && msg.error) {
+          const msg = await shell.outbox.publish(template, { relays: OUTBOX_RELAYS.slice(), toOutbox: false });
+          /* A refusal may still carry the event the host signed before its relays
+           * said no: handed back, because signed is not the same as published. */
+          const signed = (msg && (msg.event || msg.result)) || null;
+          if (msg && (msg.error || msg.ok === false)) {
             const error = msg.error;
-            return { ok: false, via: "shell", error: String((error && error.message) || error) };
+            return { ok: false, via: "shell", error: String((error && error.message) || error || "no relay accepted it"), event: signed };
           }
-          const event = (msg && (msg.event || msg.result)) || msg || null;
+          const event = signed || msg || null;
           return { ok: true, via: "shell", event };
         } catch (err) {
           return { ok: false, via: "shell", error: String(err && err.message) };
@@ -398,7 +412,7 @@
       if (has("outbox") && typeof shell.outbox.query === "function") {
         try {
           const msg = await shell.outbox.query(filters);
-          return msg && Array.isArray(msg.events) ? msg.events : [];
+          return msg && Array.isArray(msg.events) ? msg.events.map(eventOf).filter(isObject) : [];
         } catch (err) {
           return [];
         }
