@@ -436,6 +436,17 @@ Write `$SHA` down; it names this release. The JS suite must be green. In a clean
 Python tests that read gitignored `art/**/manifest.json` files cannot pass; every other
 Python test must.
 
+Then write down the two card-set digests of this commit, still in `$REL`:
+
+```powershell
+node -e "const E=require('./site/engine.js'); console.log('E1.0', E.setCatalog(require('./site/play-data.js')).digest); console.log('F1.0', E.setCatalog(require('./site/play-data-fast.js'), 'F1.0').digest)"
+```
+
+A browser compares its own digest with the table's before it plays: a page or a napplet from
+another commit is refused with "Card set mismatch". The referee on the box, the website it
+serves and the napplet the Hangar pins must therefore all come from `$SHA`, and 9.7 checks the
+box against these two lines.
+
 ### 9.2 · On the box, read only: what runs now
 
 Print only the keys that must not change. `systemctl show -p Environment` lists the unit's
@@ -452,9 +463,11 @@ sudo cat /proc/$(systemctl show -p MainPID --value tcg-table)/environ | tr '\0' 
 curl -s https://tcg.nappelin.com/api/health
 curl -s https://tcg.nappelin.com/v1/info | grep -o '"catalog_uri":"[^"]*"'
 curl -s https://tcg.nappelin.com/g/v1/info | grep -o '"catalog_uri":"[^"]*"'
+sudo journalctl -u tcg-table --no-pager | grep ' · catalog ' | tail -1
 ```
 
-`/home/deploy/tcg-env-before.txt` holds six public values (URLs and paths), no secrets.
+`/home/deploy/tcg-env-before.txt` holds six public values (URLs and paths), no secrets. The
+journal line shows the card-set digest the running build loaded; 9.7 compares the new one.
 
 ### 9.3 · On Windows: stage the payload without the unit
 
@@ -548,15 +561,32 @@ curl -s -o /dev/null -w "%{http_code} play.html\n" https://tcg.nappelin.com/play
 curl -s -o /dev/null -w "%{http_code} arena3d.js\n" https://tcg.nappelin.com/arena3d.js
 curl -s -o /dev/null -w "%{http_code} three.js\n" https://tcg.nappelin.com/vendor/three.js
 sudo journalctl -u tcg-table -n 20 --no-pager
+cd /home/deploy/bimCVP/infra/site-root/tcg600
+node -e "const E=require('./site/engine.js'); console.log('E1.0', E.setCatalog(require('./site/play-data.js')).digest); console.log('F1.0', E.setCatalog(require('./site/play-data-fast.js'), 'F1.0').digest)"
 ```
 
 Stop and roll back if `diff` prints anything, if either `catalog_uri` differs from 9.2, or if
 the service is not active. `arena3d.js` and `vendor/three.js` answering 200 prove the new
-site is served. Then open `https://tcg.nappelin.com/play.html` in a browser: a hotseat game
-reaches turn 2 on the 3D table and on `?arena=dom`.
+site is served.
+
+The last command must print the same two digests as 9.1: the files on the box are the
+release. The journal's start line, `[table] db … · catalog 295 cards sha256:…`, must show the
+same `E1.0` digest: the running process loaded them. A different digest means the upload did
+not replace every file or the service did not restart; stop and roll back.
+
+Then open `https://tcg.nappelin.com/play.html` in a browser: a hotseat game reaches turn 2 on
+the 3D table and on `?arena=dom`.
 
 If §5a (the Hangar origin) is applied in the same window, do it after 9.7 with its own
 before and after check, so each change is proven on its own.
+
+### 9.7a · Hand the same commit to the Hangar
+
+Send `$SHA` and the two digest lines from 9.1 to the Hangar's owner (nappelin-com-3e). They
+build the napplet from a clean clone of exactly that commit and pin it; a napplet from any
+other commit meets this referee with "Card set mismatch" and cannot play online. Until the new
+pin is live, the Hangar keeps the previous napplet, which still plays hotseat and against the
+computer but not at this table.
 
 ### 9.8 · Rollback
 
