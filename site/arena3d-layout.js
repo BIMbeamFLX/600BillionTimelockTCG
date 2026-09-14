@@ -16,7 +16,7 @@
 
   const BOARD = Object.freeze({ width: 16, depth: 10, thickness: 0.4 });
   const CARD = Object.freeze({ width: 1.0, height: 1.397, radius: 0.06 });
-  const TOKEN = Object.freeze({ width: 1.15, height: 1.32, lift: 0.05 });
+  const TOKEN = Object.freeze({ width: 1.42, height: 1.62, lift: 0.05 });
   const RAD = Math.PI / 180;
 
   /* ---- zones ------------------------------------------------------------
@@ -35,15 +35,15 @@
   const zone = (id, seat, def) => Object.freeze(Object.assign({ id, seat }, def));
   const ZONES = Object.freeze({
     youHand: zone("youHand", "you", {
-      centre: [0, 0.42, 5.75], axis: "y", bow: 1, radius: 8.5, step: 1.12, maxChord: 9.6,
-      pitch: -40 * RAD, fanRoll: -1, yawSpread: 0, scale: 1.0, kind: "card",
+      centre: [0, 0.46, 5.7], axis: "y", bow: 1, radius: 8.5, step: 1.42, maxChord: 10.6,
+      pitch: -42 * RAD, fanRoll: -1, yawSpread: 0, scale: 1.5, kind: "card",
     }),
     foeHand: zone("foeHand", "foe", {
       centre: [0, 0.5, -4.95], axis: "y", bow: -1, radius: 6.5, step: 0.62, maxChord: 5.8,
       pitch: -34 * RAD, fanRoll: 1, yawSpread: 0, scale: 0.55, kind: "back",
     }),
     youNetwork: zone("youNetwork", "you", {
-      centre: [0, TOKEN.lift, 1.95], axis: "z", bow: 1, radius: 11, step: 1.5, maxChord: 12.6,
+      centre: [0, TOKEN.lift, 1.95], axis: "z", bow: 1, radius: 11, step: 1.78, maxChord: 12.6,
       pitch: -30 * RAD, fanRoll: 0, yawSpread: 0.6, scale: 1.0, kind: "token",
     }),
     youResources: zone("youResources", "you", {
@@ -51,7 +51,7 @@
       pitch: -90 * RAD, fanRoll: 0, yawSpread: 0.5, scale: 0.62, kind: "card",
     }),
     foeNetwork: zone("foeNetwork", "foe", {
-      centre: [0, TOKEN.lift, -1.95], axis: "z", bow: -1, radius: 11, step: 1.5, maxChord: 12.6,
+      centre: [0, TOKEN.lift, -1.95], axis: "z", bow: -1, radius: 11, step: 1.78, maxChord: 12.6,
       pitch: -30 * RAD, fanRoll: 0, yawSpread: -0.6, scale: 1.0, kind: "token",
     }),
     foeResources: zone("foeResources", "foe", {
@@ -60,7 +60,7 @@
     }),
     queue: zone("queue", null, {
       centre: [0, 0.86, 0.1], axis: "z", bow: 1, radius: 11, step: 1.6, maxChord: 6.4,
-      pitch: -32 * RAD, fanRoll: 0, yawSpread: 0, scale: 1.25, kind: "queue",
+      pitch: -32 * RAD, fanRoll: 0, yawSpread: 0, scale: 1.4, kind: "queue",
     }),
     /* Stacks are single slots; the arc law has nothing to say about one card. */
     youDeck: zone("youDeck", "you", { centre: [6.7, 0.012, 3.2], pitch: -90 * RAD, scale: 0.8, stack: true }),
@@ -266,9 +266,12 @@
   /* ---- cameraFor --------------------------------------------------------
    * The camera that frames the table for a viewport aspect: fov 42, tilt ~36°
    * (~48° in portrait, where the fan also narrows), target (0,0,0.8). The
-   * distance is solved so the box every slot lives in fits NDC ±0.96.
+   * distance is solved so the box the ROWS live in fits NDC ±0.98. The box
+   * deliberately leaves the deck and archive stacks and the slab margins out:
+   * framing the whole slab made every card small (FLX, 2026-09-14), and a table
+   * is read by its cards, not by its edges.
    */
-  const FRAME = { x: 8.35, y0: -0.4, y1: 1.7, z0: -5.4, z1: 6.75 };
+  const FRAME = { x: 6.6, y0: -0.4, y1: 1.5, z0: -4.5, z1: 6.1 };
   function cameraFor(aspect, opts) {
     const a = Number(aspect) > 0 ? Number(aspect) : 16 / 9;
     const portrait = a < 0.9;
@@ -277,7 +280,7 @@
     const target = [0, 0, 0.8];
     const dir = [0, Math.sin(tilt), Math.cos(tilt)];
     // A tall viewport is width-bound: it frames the rows (±6) and lets the slab's margins crop.
-    const box = (opts && opts.frame) || (portrait ? Object.assign({}, FRAME, { x: 6.0 }) : FRAME);
+    const box = (opts && opts.frame) || (portrait ? Object.assign({}, FRAME, { x: 5.2 }) : FRAME);
     const corners = [];
     for (const x of [-box.x, box.x]) for (const y of [box.y0, box.y1]) for (const z of [box.z0, box.z1]) corners.push([x, y, z]);
     const fits = (d) => {
@@ -285,7 +288,7 @@
       const P = projector(pos, target, fov, a);
       return corners.every((c) => {
         const n = P(c);
-        return n && Math.abs(n[0]) <= 0.96 && Math.abs(n[1]) <= 0.96;
+        return n && Math.abs(n[0]) <= 0.98 && Math.abs(n[1]) <= 0.98;
       });
     };
     let lo = 4, hi = 80;
