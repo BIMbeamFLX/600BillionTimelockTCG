@@ -150,6 +150,9 @@ time, where docs/deploy.md §9.2a says, and find what a mint publishes now with 
 
 ### 3.1 · Meaning changes and their fix
 
+> These rows describe `d753505`, the build running on 2026-09-15. Rebuild them against the
+> running build before every release (the tables at the top of `server/env-check.js`).
+
 A `meaning changes` row names a value the release would start with but read differently from
 the running build, which is `d753505` on the box; the rows model that build's code and cite its
 lines. `origin/main` differs from it: it added catalog mirrors, purchase mode and the supply
@@ -173,8 +176,11 @@ one.
 
 ### 3.2 · Set, but the running build ignores it
 
-`d753505` has no catalog mirrors, no committed purchases and no supply ledger, so it never
-reads the variables below. Set on the box, they do nothing today and act the moment the release
+> These rows describe `d753505`, the build running on 2026-09-15. Rebuild them against the
+> running build before every release (the tables at the top of `server/env-check.js`).
+
+`d753505` has no catalog mirrors, no committed purchases, no supply ledger and no ruleset choice
+for tables, so it never reads the variables below. Set on the box, they do nothing today and act the moment the release
 starts. The row prints for any value other than empty or blanks, G's only while
 `G_NUTFT_ENABLED` is on, and stops the deploy like a refusal, so the choice is deliberate. The
 fix that keeps the shop as it is: remove the variable before the deploy (the running build does
@@ -187,6 +193,7 @@ not notice), and set it after the release runs, as its own change with its own c
 | `NUTFT_PURCHASE_MODE: set, but the running build ignores it`, and the same for `G_NUTFT_PURCHASE_MODE` | On: every quote answers `cards: null, purchase_required: true`, and a buyer must commit with `POST /nutft/purchase` first. A value that reads as off still prints the row. | Switch it on only after the shop and the wallet have passed the committed-purchase path (docs/nutft-purchase-and-possession.md §2.1). |
 | `NUTFT_SUPPLY_RELAYS: set, but the running build ignores it` | Publish signed supply snapshots to these relays. | Set it once the relays are chosen. |
 | `NUTFT_SUPPLY_INTERVAL_SECONDS: set, but the running build ignores it` | Sign a snapshot at that interval, or never for `0`. Unset, the release signs one every 86400 seconds. | Set it if another interval is wanted. |
+| `TABLE_RULESETS: set, but the running build ignores it` | Decide which rulesets public tables and quick match may open; anything not listed opens as Classic `E1.0`. Unset, the release allows `E1.0,F1.0`. | Set it once the ruleset decision is made. |
 
 ---
 
