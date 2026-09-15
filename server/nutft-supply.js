@@ -54,6 +54,7 @@
 const crypto = require("node:crypto");
 const WebSocket = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
+const { orThrow, supplyRelays, supplyInterval } = require("./mint-env.js");
 
 const SUPPLY_KIND = 7610;
 const SUPPLY_SCHEMA = "600b-nutft-supply-v1";
@@ -61,8 +62,6 @@ const SUPPLY_SCHEMA = "600b-nutft-supply-v1";
    comfortably inside the two a napplet will read, and it covers a client that
    checks in at least every hundred selling days in a single request. */
 const SUPPLY_PAGE = 100;
-const MIN_INTERVAL_SECONDS = 60;
-const DEFAULT_INTERVAL_SECONDS = 86_400;
 const PUBLISH_TIMEOUT_MS = 10_000;
 
 const hex = (bytes) => Buffer.from(bytes).toString("hex");
@@ -74,25 +73,9 @@ function eventId(event) {
   return crypto.createHash("sha256").update(serialized, "utf8").digest("hex");
 }
 
-function parseRelays(raw) {
-  const list = (Array.isArray(raw) ? raw : String(raw ?? "").split(","))
-    .map((entry) => String(entry).trim())
-    .filter(Boolean);
-  list.forEach((relay, index) => {
-    /* By position: a relay URL can carry an access token in its query. */
-    if (!/^wss?:\/\/\S+$/.test(relay)) throw new Error(`NUTFT_SUPPLY_RELAYS entry ${index + 1} is not a ws:// or wss:// URL`);
-  });
-  return list;
-}
-
-function parseInterval(raw) {
-  if (raw === undefined || raw === null || raw === "") return DEFAULT_INTERVAL_SECONDS;
-  const seconds = Number(raw);
-  if (!Number.isInteger(seconds) || (seconds !== 0 && seconds < MIN_INTERVAL_SECONDS)) {
-    throw new Error(`NUTFT_SUPPLY_INTERVAL_SECONDS must be 0 (no timer) or at least ${MIN_INTERVAL_SECONDS}`);
-  }
-  return seconds;
-}
+/* The rules for both live in server/mint-env.js, which the boot check shares. */
+const parseRelays = (raw) => orThrow((add) => supplyRelays(add, raw));
+const parseInterval = (raw) => orThrow((add) => supplyInterval(add, raw));
 
 function createSupplyLedger(options) {
   const { db, privateKey, canonical, collectionId, catalogUri, censusSha256, copies, read } = options;

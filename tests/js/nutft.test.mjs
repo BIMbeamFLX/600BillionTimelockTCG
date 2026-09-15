@@ -51,8 +51,9 @@ test("NutFT draw vector stays compatible with the manifest package", () => {
 });
 
 test("NutFT catalog URI must be an absolute web URL", () => {
-  assert.throws(() => createNutftMint({ catalogUri: "relative/catalog" }), /Invalid URL/);
-  assert.throws(() => createNutftMint({ catalogUri: "file:///tmp/catalog" }), /absolute HTTP\(S\) URL/);
+  const refusal = /NUTFT_CATALOG_URI: must be an absolute http:\/\/ or https:\/\/ URL/;
+  assert.throws(() => createNutftMint({ catalogUri: "relative/catalog" }), refusal);
+  assert.throws(() => createNutftMint({ catalogUri: "file:///tmp/catalog" }), refusal);
 });
 
 test("persisted mint refuses CardBinding configuration drift", async (t) => {
@@ -273,6 +274,7 @@ test("browser wallet claims a paid sealed pack after its block arrives", async (
     catalogUri: `${base}/nutft/catalog`,
     funding: createMockFunding({ settleAfterMs: 0 }),
     priceMsat: 21000,
+    sales: "open",
     allowVirtual: "1",
     beaconSource: "lnd",
     beaconConfirmations: 1,
@@ -307,7 +309,7 @@ test("browser wallet claims the invoice from an LNURL success link", async (t) =
   t.after(() => db.close());
   mint = createNutftMint({
     db, catalogUri: `${base}/nutft/catalog`, funding: createMockFunding({}),
-    priceMsat: 21000, allowVirtual: "1",
+    priceMsat: 21000, allowVirtual: "1", sales: "open",
   });
   const quote = await mint.payableQuote();
   const wallet = await browserWallet(new Map(), fetch);
@@ -452,11 +454,11 @@ test("a paid mint sells nothing until the invoice actually settles", async (t) =
   const db = new DatabaseSync(":memory:");
   t.after(() => db.close());
   assert.throws(
-    () => createNutftMint({ catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000 }),
+    () => createNutftMint({ catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000, sales: "open" }),
     /paid mint requires a database/i,
     "a payable invoice is never issued without durable claim state",
   );
-  const mint = createNutftMint({ db, catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000 });
+  const mint = createNutftMint({ db, catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000, sales: "open" });
 
   const hit = async (method, path, body) => {
     const out = { code: 0, body: null };
@@ -513,7 +515,7 @@ test("an active invoice reserves the next pack without blocking it forever", asy
   const db = new DatabaseSync(":memory:");
   t.after(() => db.close());
   const mint = createNutftMint({
-    db, funding, catalogUri: "http://127.0.0.1/nutft/catalog", priceMsat: 21000,
+    db, funding, catalogUri: "http://127.0.0.1/nutft/catalog", priceMsat: 21000, sales: "open",
   });
 
   const [first, collision] = await Promise.allSettled([mint.payableQuote(), mint.payableQuote()]);
@@ -557,7 +559,7 @@ test("one settled invoice buys exactly one pack, and never a second", async (t) 
   const mint = createNutftMint({
     db, catalogUri: "http://127.0.0.1/nutft/catalog",
     lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 1000 },
-    priceMsat: 21000,
+    priceMsat: 21000, sales: "open",
   });
 
   const keysRes = { writeHead() { return keysRes; }, end(b) { keysRes.parsed = JSON.parse(b); } };
@@ -644,7 +646,7 @@ test("a sealed pack cannot be known at purchase, and resolves to its own block",
   const mint = createNutftMint({
     db, catalogUri: "http://127.0.0.1/nutft/catalog",
     lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 500 },
-    priceMsat: 21000, beaconSource: "lnd", beaconConfirmations: 1,
+    priceMsat: 21000, sales: "open", beaconSource: "lnd", beaconConfirmations: 1,
     beaconGetInfo: async () => ({ height, hash: hashAt(height) }),
   });
   assert.equal(mint.sealed, true, "the mint seals packs");
@@ -689,7 +691,7 @@ test("a sealed pack cannot be known at purchase, and resolves to its own block",
   const otherMint = createNutftMint({
     db: otherDb, catalogUri: "http://127.0.0.1/nutft/catalog",
     lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 500 },
-    priceMsat: 21000, beaconSource: "lnd", beaconConfirmations: 1,
+    priceMsat: 21000, sales: "open", beaconSource: "lnd", beaconConfirmations: 1,
     beaconGetInfo: async () => ({ height: otherHeight, hash: hashAt(otherHeight) }),
   });
   const otherQuote = await otherMint.payableQuote();
@@ -749,7 +751,7 @@ test("LNURL-pay serves a scannable booster and binds the description hash", asyn
   const mint = createNutftMint({
     db, catalogUri: "https://tcg.example/nutft/catalog",
     lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 500 },
-    priceMsat: 21000, publicBase: "https://tcg.example",
+    priceMsat: 21000, sales: "open", publicBase: "https://tcg.example",
   });
 
   const hit = async (path) => {
@@ -802,7 +804,7 @@ test("staging runs the whole payment path on virtual sats, and says so", async (
   const funding = createMockFunding({ settleAfterMs: 60_000 });   // unpaid for now
   const mint = createNutftMint({
     db, catalogUri: "https://staging.example/nutft/catalog",
-    funding, priceMsat: 21000, allowVirtual: "1",
+    funding, priceMsat: 21000, allowVirtual: "1", sales: "open",
   });
 
   const infoRes = { writeHead() { return infoRes; }, end(b) { infoRes.parsed = JSON.parse(b); } };
@@ -923,7 +925,7 @@ test("a mint quote id is a valid payment reference, not just a 32-byte hash", as
 
   const mint = createNutftMint({
     db, catalogUri: "https://x/nutft/catalog",
-    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000,
+    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000, sales: "open",
     beaconSource: "lnd", beaconConfirmations: 1,
     lnd: { url: "http://fake", macaroon: "00", ca: null, insecure: false, timeoutMs: 500 },
     beaconGetInfo: async () => ({ height: 910000, hash: "c".repeat(64) }),
@@ -1077,7 +1079,7 @@ test("the price ladder charges by how many packs have sold", async (t) => {
 
   const mint = createNutftMint({
     db, catalogUri: "https://x/nutft/catalog",
-    funding: createMockFunding({}), allowVirtual: "1",
+    funding: createMockFunding({}), allowVirtual: "1", sales: "open",
     priceSchedule: "2100:21000,19925:420000,20925:10000000",
   });
 
@@ -1107,7 +1109,7 @@ test("the price ladder charges by how many packs have sold", async (t) => {
   // A single flat price still behaves as one tier.
   const flat = createNutftMint({
     db: new DatabaseSync(":memory:"), catalogUri: "https://y/nutft/catalog",
-    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000,
+    funding: createMockFunding({}), allowVirtual: "1", priceMsat: 21000, sales: "open",
   });
   assert.equal((await flat.payableQuote()).price_msat, 21000);
 
@@ -1167,7 +1169,7 @@ test("a closed box sells to nobody, through any door", async (t) => {
      a free mint completely open — which is precisely the premine it guards. */
   const free = createNutftMint({
     db: new DatabaseSync(":memory:"), catalogUri: "https://x/nutft/catalog",
-    publicBase: "https://x", allowVirtual: "1", priceMsat: 0, sales: "closed",
+    publicBase: "https://x", allowVirtual: "1", sales: "closed",
   });
   await assert.rejects(
     () => free.signBooster({ idempotency_key: "f1", pack_id: "pack-0001", state: "x", outputs: [] }),
@@ -1849,7 +1851,7 @@ test("a malformed output must not burn the invoice behind it", async (t) => {
   const funding = createMockFunding({ settleAfterMs: 60_000 });
   const mint = createNutftMint({
     db, catalogUri: "https://burn.example/nutft/catalog",
-    funding, priceMsat: 21000, allowVirtual: "1",
+    funding, priceMsat: 21000, allowVirtual: "1", sales: "open",
   });
 
   const quote = await mint.payableQuote();
@@ -2232,7 +2234,7 @@ test("a paid booster is reserved for its buyer, and does not become a tombstone"
   const db = new DatabaseSync(":memory:");
   t.after(() => db.close());
   const mint = createNutftMint({
-    db, catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000,
+    db, catalogUri: "http://127.0.0.1/nutft/catalog", lnd: fakeLnd, priceMsat: 21000, sales: "open",
     invoiceTtlSeconds: 60, claimGraceSeconds: 60,
   });
   const quote = async () => {
@@ -2693,6 +2695,8 @@ test("a G buyer without NIP-07 gets the signed-sale instructions, not allowlist 
     gNutftEnabled: true,
     gNutftDbPath: ":memory:",
     gNutftCatalogUri: "http://127.0.0.1/g/nutft/catalog",
+    gNutftCollectionId: "600B-G",
+    gNutftCensusPath: require.resolve("../../cards/g-census.json"),
     gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
     gNutftAllowVirtual: "1",
     gNutftSales: "signed",
@@ -2775,6 +2779,8 @@ test("the referee mounts an independent production-shaped G mint under /g", asyn
     gNutftEnabled: true,
     gNutftDbPath: ":memory:",
     gNutftCatalogUri: gCatalog,
+    gNutftCollectionId: "600B-G",
+    gNutftCensusPath: require.resolve("../../cards/g-census.json"),
     gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
     gNutftAllowVirtual: "1",
     gNutftSales: "open",
@@ -2820,6 +2826,8 @@ test("one browser wallet reads E1 boosters and G starter sets together", async (
     gNutftEnabled: true,
     gNutftDbPath: ":memory:",
     gNutftCatalogUri: gCatalog,
+    gNutftCollectionId: "600B-G",
+    gNutftCensusPath: require.resolve("../../cards/g-census.json"),
     gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
     gNutftAllowVirtual: "1",
     gNutftSales: "open",
@@ -2862,6 +2870,8 @@ test("wallet batches live proof checks and reuses verified catalogs after reload
     gNutftEnabled: true,
     gNutftDbPath: ":memory:",
     gNutftCatalogUri: gCatalog,
+    gNutftCollectionId: "600B-G",
+    gNutftCensusPath: require.resolve("../../cards/g-census.json"),
     gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
     gNutftAllowVirtual: "1",
     gNutftSales: "open",

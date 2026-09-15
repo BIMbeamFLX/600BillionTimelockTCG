@@ -9,8 +9,8 @@ const { createSupplyLedger } = require("./nutft-supply.js");
 const lnd = require("./lnd.js");
 const { createBeacon } = require("./beacon.js");
 const lnurl = require("./lnurl.js");
-const { toPubkeyHex } = require("./lnurl.js");
 const nip98 = require("./nip98.js");
+const { resolveMint } = require("./mint-env.js");
 const { createFunding } = require("./funding.js");
 
 const REPO = path.resolve(__dirname, "..");
@@ -81,7 +81,13 @@ function readBody(req) {
 }
 
 function createNutftMint(options = {}) {
-  const census = JSON.parse(fs.readFileSync(options.censusPath || process.env.NUTFT_CENSUS_PATH || CENSUS_PATH, "utf8"));
+  /* Every configured setting is decided by server/mint-env.js, the same rules
+     the referee applies to its environment before it opens anything and that
+     `node server/env-check.js` applies as a dry run. `edition: "G"` reads
+     G_NUTFT_* and never falls back to an E1 variable. */
+  const { settings, problems } = resolveMint(options, process.env, options.edition);
+  if (problems.length) throw new Error(problems.join("; "));
+  const census = JSON.parse(fs.readFileSync(settings.censusPath || CENSUS_PATH, "utf8"));
   const catalog = loadCensus(census);
   /* A MANIFEST census (a starter-set edition: content is listed, not drawn) has
      no odds to publish, because nothing is drawn -- census.tiers does not
@@ -91,26 +97,16 @@ function createNutftMint(options = {}) {
     Object.entries(census.tiers)
       .filter(([, tier]) => tier.share_of_mint != null)
       .map(([name, tier]) => [name.toLowerCase(), Number(tier.share_of_mint.toFixed(2))]));
-  const collectionId = options.collectionId || process.env.NUTFT_COLLECTION_ID || "600B-E1";
-  const catalogUri = options.catalogUri || process.env.NUTFT_CATALOG_URI || "http://localhost:8777/nutft/catalog";
-  if (!/^https?:$/.test(new URL(catalogUri).protocol)) throw new Error("NUTFT_CATALOG_URI must be an absolute HTTP(S) URL");
+  const { collectionId, catalogUri, beacon } = settings;
   /* Blossom servers that hold a copy of the signed catalog blob, comma
      separated. The mint advertises `<mirror>/<sha256>` for each in /v1/info so
      a wallet can fetch the catalog by hash from any of them, or from the
      mint's own /blossom path, before it ever trusts the catalog URL above. */
-  const rawMirrors = options.catalogMirrors ?? process.env.NUTFT_CATALOG_MIRRORS ?? "";
-  const catalogMirrors = (Array.isArray(rawMirrors) ? rawMirrors : String(rawMirrors).split(","))
-    .map((entry) => String(entry).trim().replace(/\/+$/, ""))
-    .filter(Boolean);
-  for (const mirror of catalogMirrors) {
-    if (!/^https?:$/.test(new URL(mirror).protocol)) throw new Error("NUTFT_CATALOG_MIRRORS entries must be absolute HTTP(S) URLs");
-  }
-  const beacon = (options.beacon || process.env.NUTFT_BEACON || "00".repeat(32)).toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(beacon)) throw new Error("NUTFT_BEACON must be 32-byte hex");
+  const { catalogMirrors } = settings;
   /* Committed purchases (docs/nutft-purchase-and-possession.md). Off unless
-     NUTFT_PURCHASE_MODE=1: the quote keeps revealing the pack until the shop
+     NUTFT_PURCHASE_MODE is on: the quote keeps revealing the pack until the shop
      and the wallet have passed the new path against the regtest mint. */
-  const purchaseMode = Boolean(options.purchaseMode ?? (process.env.NUTFT_PURCHASE_MODE === "1"));
+  const { purchaseMode } = settings;
   /* Injectable for the tests that age a purchase past its claim grace. */
   const clock = typeof options.clock === "function" ? options.clock : Date.now;
 
@@ -305,15 +301,16 @@ function createNutftMint(options = {}) {
   const storedState = getMeta("state");
   const state = storedState ? JSON.parse(storedState) : { counts: { ...catalog.counts }, nextPack: 1, state: initialCommitment };
   if (!storedState) putMeta("state", JSON.stringify(state));
-  /* Lightning. With no LND_REST_URL there is no funding source and the mint
-     stays exactly as it is today: free, and honest about being a demo. Wiring a
-     node in is what turns it into a shop, and nothing else changes. */
+  /* Lightning. The mint takes money only through the backend its settings name
+     (NUTFT_FUNDING, or G_NUTFT_FUNDING); with `none` it stays free, and honest
+     about being a demo. A node URL in the environment no longer picks one. */
   /* The funding source is behind a two-function interface, so which node or
      wallet API takes the money is not the mint's business and can change
      without touching this file. */
-  const funding = options.lnd === null && !options.funding ? null : createFunding(options);
-  const invoiceTtlSeconds = Number(options.invoiceTtlSeconds || process.env.NUTFT_INVOICE_TTL_SECONDS || 900);
-  if (!Number.isFinite(invoiceTtlSeconds) || invoiceTtlSeconds < 60) throw new Error("NUTFT_INVOICE_TTL_SECONDS must be at least 60");
+  const funding = settings.backend === "none"
+    ? null
+    : createFunding({ ...options, backend: settings.backend, fundingVariable: settings.fundingVariable });
+  const { invoiceTtlSeconds } = settings;
   /* How long a PAID booster stays reserved for the buyer who paid.
    *
    * Longer than the invoice window on purpose: somebody who has actually sent
@@ -321,10 +318,7 @@ function createNutftMint(options = {}) {
    * quote. When it lapses the pack simply becomes buyable again -- nothing has
    * to be returned, because nothing was ever taken. state.counts is decremented
    * in the CLAIM, so an unclaimed pack never left the mint. */
-  const claimGraceSeconds = Number(options.claimGraceSeconds || process.env.NUTFT_CLAIM_GRACE_SECONDS || 3600);
-  if (!Number.isFinite(claimGraceSeconds) || claimGraceSeconds < invoiceTtlSeconds) {
-    throw new Error("NUTFT_CLAIM_GRACE_SECONDS must be at least NUTFT_INVOICE_TTL_SECONDS — a paid booster cannot be held for less time than an unpaid one");
-  }
+  const { claimGraceSeconds } = settings;
   const lndConfig = funding && funding.name === "lnd" ? (options.lnd || lnd.readConfig(options.lndOptions || {})) : null;
   /* The price ladder. Written as "soldBelow:msat" pairs, cheapest first:
    *   NUTFT_PRICE_SCHEDULE="2100:21000,59775:420000,62775:10000000"
@@ -335,29 +329,12 @@ function createNutftMint(options = {}) {
    * The price is decided when a booster is QUOTED, and the invoice fixes it from
    * then on. A buyer quoted at 21 sat pays 21 sat even if the tier turns over
    * while they are reaching for their phone — the alternative is charging
-   * someone a price they were never shown. */
-  const parseSchedule = (raw) => String(raw).split(",").map((part, index) => {
-    const [upTo, msat] = part.split(":").map((piece) => Number(String(piece).trim()));
-    if (!Number.isFinite(upTo) || !Number.isFinite(msat) || upTo <= 0 || msat <= 0) {
-      throw new Error(`NUTFT_PRICE_SCHEDULE entry ${index + 1} is not "packs:msat"`);
-    }
-    return { upTo, msat };
-  });
-
-  /* Empty is meaningful for a second mint: it says "use this mint's flat
-     price", even when the first mint has a process-wide price schedule. Use an
-     own-property check instead of `||`, which would leak E1's schedule into G. */
-  const scheduleRaw = Object.prototype.hasOwnProperty.call(options, "priceSchedule")
-    ? options.priceSchedule
-    : process.env.NUTFT_PRICE_SCHEDULE || "";
-  const priceTiers = scheduleRaw
-    ? parseSchedule(scheduleRaw)
-    : [{ upTo: Infinity, msat: Number(options.priceMsat || process.env.NUTFT_PRICE_MSAT || 21000) }];
-  for (let i = 1; i < priceTiers.length; i += 1) {
-    if (priceTiers[i].upTo <= priceTiers[i - 1].upTo) {
-      throw new Error("NUTFT_PRICE_SCHEDULE thresholds must increase; a later tier that starts earlier can never be reached");
-    }
-  }
+   * someone a price they were never shown.
+   *
+   * Every price is a whole number of msat above 0, whole sats on phoenixd and
+   * Cashu, and the thresholds rise (server/mint-env.js). Edition G never reads
+   * E1's schedule or price. */
+  const { priceTiers } = settings;
   /* Past the last threshold the last price stands, rather than reverting to the
      cheapest — a ladder that wraps around would sell the scarcest packs for the
      introductory price. */
@@ -377,51 +354,22 @@ function createNutftMint(options = {}) {
                   gate a second attempt by, which is why onePerKey below
                   refuses to combine with this mode.
 
-     Default is "open" so an existing free demo behaves exactly as it does now;
-     a PAID mint with no explicit setting is the case worth guarding, and that is
-     checked below. */
-  const salesMode = String(options.sales || process.env.NUTFT_SALES || "open").toLowerCase();
-  if (!["open", "closed", "allowlist", "signed"].includes(salesMode)) {
-    throw new Error("NUTFT_SALES must be open, closed, allowlist or signed");
-  }
-  const allowlist = new Set();
-  /* As with the price schedule, an explicitly empty list belongs to this mint.
-     Falling through to the process-wide E1 roster would couple two editions
-     that are required to have independent issuance policy. */
-  const allowlistRaw = Object.prototype.hasOwnProperty.call(options, "allowlist")
-    ? options.allowlist
-    : process.env.NUTFT_ALLOWLIST || "";
-  String(allowlistRaw).split(",").forEach((entry, index) => {
-    const trimmed = entry.trim();
-    if (!trimmed) return;
-    const hex = toPubkeyHex(trimmed);
-    if (hex) {
-      allowlist.add(hex);
-      return;
-    }
-    /* A rejected entry is named by its position and never echoed: the likeliest
-       paste mistake is a private key, and the journal must not keep a copy. */
-    console.error(/^nsec1/i.test(trimmed)
-      ? `[nutft] an nsec (private key) was pasted into NUTFT_ALLOWLIST at entry ${index + 1}; remove it`
-      : `[nutft] NUTFT_ALLOWLIST entry ${index + 1} is not an npub or a 64-character hex key, ignored`);
-  });
-  /* ONE DECK EACH. Off by default: E1 sells as many boosters as somebody wants
-     to buy, and this is for the G starter sets, where the rule is one per
-     person.
+     A free E1 mint defaults to "open", so a local demo behaves as it always
+     has. A PAID mint has no default: it refuses to start until its sales mode
+     is named, so no shop ever opens by accident. Edition G defaults to closed.
+     An allowlist entry that is not a public key, a pasted nsec above all, also
+     refuses the start and is named by its position only (server/mint-env.js). */
+  const { sales: salesMode, allowlist } = settings;
+  /* ONE DECK EACH. Off by default for E1, which sells as many boosters as
+     somebody wants to buy; on by default for the G starter sets, where the rule
+     is one per person.
 
-     It REQUIRES allowlist mode, and refuses to start otherwise. In `open` mode
-     no signature is demanded, so there is no key to count against -- a
-     one-per-key limit that cannot identify anybody is not a weaker limit, it is
-     the absence of one wearing its name. Better to refuse at boot than to
+     It REQUIRES allowlist or signed mode, and refuses to start otherwise. In
+     `open` mode no signature is demanded, so there is no key to count against --
+     a one-per-key limit that cannot identify anybody is not a weaker limit, it
+     is the absence of one wearing its name. Better to refuse at boot than to
      advertise a rule the mint cannot keep. */
-  const onePerKeyRaw = options.onePerKey ?? process.env.NUTFT_ONE_PER_KEY ?? "";
-  const onePerKey = onePerKeyRaw === true || onePerKeyRaw === "1" || onePerKeyRaw === "true";
-  if (onePerKey && salesMode !== "allowlist" && salesMode !== "signed") {
-    throw new Error("NUTFT_ONE_PER_KEY needs NUTFT_SALES=allowlist or NUTFT_SALES=signed — without a signed request there is no key to count against");
-  }
-  if (salesMode === "allowlist" && !allowlist.size) {
-    throw new Error("NUTFT_SALES=allowlist with an empty NUTFT_ALLOWLIST would sell to nobody; set the list or use closed");
-  }
+  const { onePerKey } = settings;
   /* One proof, one request, for as long as a proof stays fresh. */
   /* One store PER ENDPOINT, not one shared store. They are separate namespaces
      because a proof is already bound to its path: an id admitted for /nutft/quote
@@ -435,10 +383,8 @@ function createNutftMint(options = {}) {
     return store;
   };
 
-  const priceMsat = priceFor(0);
   const paidMint = Boolean(funding);
   if (paidMint && !db) throw new Error("a paid mint requires a database so invoices and issuance survive restart");
-  if (paidMint && !(priceMsat > 0)) throw new Error("the booster price must be a positive number of msat");
   const notifyWalletBackupBuyer = async (buyer) => {
     if (!buyer || typeof options.onWalletBackupBuyer !== "function") return;
     try { await options.onWalletBackupBuyer(buyer); }
@@ -463,7 +409,7 @@ function createNutftMint(options = {}) {
      unref() so this never holds the process open by itself. */
   let reconcileTimer = null;
   if (funding && typeof funding.reconcile === "function") {
-    const everyMs = Math.max(30_000, Number(options.reconcileMs || process.env.NUTFT_RECONCILE_MS || 120_000));
+    const everyMs = Math.max(30_000, settings.reconcileMs);
     const sweep = () => {
       Promise.resolve()
         .then(() => funding.reconcile({}))
@@ -481,9 +427,10 @@ function createNutftMint(options = {}) {
      unknowable — to the buyer AND to the mint — until that block exists. */
   /* LNURL-pay needs to hand a wallet an absolute callback URL, so the mint has
      to know where it is publicly reachable. Derived from PUBLIC_URL, which
-     already names the canonical host, so there is one place to change hosts. */
-  const publicBase = (options.publicBase || process.env.NUTFT_PUBLIC_BASE || "" ||
-    (process.env.PUBLIC_URL || "").replace(/^ws/, "http").replace(/\/ws$/, "")).replace(/\/$/, "");
+     already names the canonical host, so there is one place to change hosts.
+     NUTFT_PUBLIC_BASE overrides it, and G_NUTFT_PUBLIC_BASE overrides that for
+     G; each must be an absolute http(s) origin, or the start is refused. */
+  const { publicBase } = settings;
   /* Mounting a second, unrelated edition (G, the starter sets) on the same
      table.js process means two nutft-mint instances share one origin, so each
      needs its own slice of the URL space -- "" for E1, "/g" for G. This is a
@@ -509,7 +456,7 @@ function createNutftMint(options = {}) {
   const payMetadata = lnurl.metadataFor(
     `600B Timelock TCG — one ${productName}, ${census.mint.cards_per_pack} cards`);
 
-  const beaconLive = String(options.beaconSource ?? process.env.NUTFT_BEACON_SOURCE ?? "") === "lnd";
+  const { beaconLive } = settings;
   /* The beacon reads the chain; the funding source takes the money. They are
      independent, and conflating them broke as soon as a node-less funding
      source existed: paying through a Cashu mint left the beacon with no chain
@@ -521,22 +468,17 @@ function createNutftMint(options = {}) {
      can choose which pack you get, which is the property the beacon exists to
      remove.
      Read only while the beacon is on: LND_REST_URL can be set for another
-     reason, and a mint that never reads a block must not demand a macaroon. */
+     reason, and a mint that never reads a block must not demand a macaroon.
+     With the beacon on, the settings already refused a start without
+     LND_REST_URL, which may point at a node used only for reading blocks. */
   const chainConfig = !beaconLive ? null : options.chainLnd || (options.beaconGetInfo ? {} : null)
     || lndConfig || (options.lnd && options.lnd !== null ? options.lnd : null)
     || lnd.readConfig(options.lndOptions || {});
-  if (beaconLive && !chainConfig && !options.beaconGetInfo) {
-    throw new Error("NUTFT_BEACON_SOURCE=lnd needs a chain source: set LND_REST_URL, "
-      + "which may point at a node used only for reading blocks");
-  }
   /* Virtual money must never be a production surprise. The mint says which
-     backend it is on, and refuses to run a mock one unless told explicitly. */
-  if (funding && funding.virtual && String(options.allowVirtual ?? process.env.NUTFT_ALLOW_VIRTUAL ?? "") !== "1") {
-    throw new Error("NUTFT_FUNDING=mock issues virtual sats and settles them itself; "
-      + "set NUTFT_ALLOW_VIRTUAL=1 to confirm this is a staging deployment");
-  }
+     backend it is on, and the settings refuse a mock one unless
+     NUTFT_ALLOW_VIRTUAL=1 confirms a staging deployment. */
   const chain = beaconLive
-    ? createBeacon({ db, lnd: chainConfig, confirmations: options.beaconConfirmations, getInfo: options.beaconGetInfo })
+    ? createBeacon({ db, lnd: chainConfig, confirmations: settings.beaconConfirmations, getInfo: options.beaconGetInfo })
     : null;
 
   const mintSeed = Buffer.from(getOrCreate("mint_seed", () => crypto.randomBytes(32).toString("hex")), "hex");

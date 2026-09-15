@@ -21,6 +21,7 @@
 
 const crypto = require("node:crypto");
 const lnd = require("./lnd.js");
+const { orThrow, whole, lndProblems, phoenixdProblems } = require("./mint-env.js");
 
 /* Not a real bolt11 and deliberately not shaped like one: a staging invoice
  * that looked payable would eventually be pasted into a real wallet by a tired
@@ -33,7 +34,8 @@ function createMockFunding(options = {}) {
   /* settleAfterMs = 0 means "already paid the moment it is created", which is
      what an automated staging run wants. A positive value leaves a window so a
      human can watch the unpaid state in the UI before it flips. */
-  const settleAfterMs = Number(options.settleAfterMs ?? process.env.NUTFT_MOCK_SETTLE_MS ?? 0);
+  const settleAfterMs = orThrow((add) => whole(add, "NUTFT_MOCK_SETTLE_MS",
+    options.settleAfterMs ?? process.env.NUTFT_MOCK_SETTLE_MS, 0, 0, "milliseconds"));
   const issuedAt = new Map();
 
   return {
@@ -63,8 +65,6 @@ function createLndFunding(config) {
   };
 }
 
-/* Returns null when the mint has no funding source, which is the free-demo
- * case and must stay the default: an unconfigured mint charges nobody. */
 /* A node of our own. The Cashu source needs none, which is why it exists, but
  * between a sale and the sweep those sats sit with somebody else's mint. With
  * phoenixd that trade simply stops being one -- and paying money OUT becomes
@@ -86,31 +86,37 @@ function createPhoenixdFunding(config) {
   };
 }
 
+/* Returns null for `none` or no backend, which is the free-demo case and must
+ * stay the default: an unconfigured mint charges nobody.
+ *
+ * The backend is named, never guessed. PHOENIXD_URL and LND_REST_URL used to
+ * select one when NUTFT_FUNDING was unset, so a node configured for Edition G
+ * or for the beacon quietly turned E1 into a paid mint. `fundingVariable` names
+ * the variable that chose, so Edition G's refusals say G_NUTFT_FUNDING. */
 function createFunding(options = {}) {
   const explicit = options.funding;
   if (explicit) return explicit;
 
-  const backend = String(options.backend || process.env.NUTFT_FUNDING || "").toLowerCase();
+  const fundingVariable = options.fundingVariable || "NUTFT_FUNDING";
+  const backend = String(options.backend ?? process.env.NUTFT_FUNDING ?? "").toLowerCase();
   if (backend === "mock") return createMockFunding(options);
-  if (backend === "phoenixd" || (!backend && process.env.PHOENIXD_URL)) {
+  if (backend === "phoenixd") {
     const config = require("./phoenixd.js").readConfig(options.phoenixd || {});
-    if (!config && backend === "phoenixd") {
-      throw new Error("NUTFT_FUNDING=phoenixd needs PHOENIXD_URL (e.g. http://127.0.0.1:9740)");
-    }
-    if (config) return createPhoenixdFunding(config);
+    if (!config) throw new Error(phoenixdProblems({}, `${fundingVariable}=phoenixd`).join("; "));
+    return createPhoenixdFunding(config);
   }
   if (backend === "cashu") {
     const { createCashuFunding } = require("./funding-cashu.js");
-    return createCashuFunding(options);
+    return createCashuFunding({ ...options, fundingVariable });
   }
-  if (backend === "lnd" || (!backend && (options.lnd || process.env.LND_REST_URL))) {
+  if (backend === "lnd" || (!backend && options.lnd)) {
     const config = options.lnd || lnd.readConfig(options.lndOptions || {});
     /* Never null here: a mint told to take money through lnd, with no node to
        ask, would otherwise become a free mint and give every booster away. */
-    if (!config) throw new Error("NUTFT_FUNDING=lnd needs LND_REST_URL");
+    if (!config) throw new Error(lndProblems({}, `${fundingVariable}=lnd`).join("; "));
     return createLndFunding(config);
   }
-  if (backend && backend !== "none") throw new Error("NUTFT_FUNDING must be lnd, phoenixd, cashu, mock or none");
+  if (backend && backend !== "none") throw new Error(`${fundingVariable}: must be lnd, phoenixd, cashu, mock or none`);
   return null;
 }
 
