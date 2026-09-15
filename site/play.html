@@ -569,6 +569,10 @@ select option, select optgroup { color: var(--parchment); background: var(--iron
   border: 1px solid var(--emphasis); background: var(--iron-800);
 }
 .playerbar.seat-target .portrait { border-color: var(--brass); }
+/* A member's own look (site/identity-look.js) arrives as an avatar, a full
+   figure or a kind 0 picture. A full figure is cropped to its head, not its
+   middle; the other two are square already and keep the centre. */
+.playerbar .portrait[data-look="fullbody"], .action-burst .shout[data-look="fullbody"] { object-position: 50% 12%; }
 
 /* Kampfansage: the announcement wears the face of whoever made the move. */
 .action-burst { display: inline-flex; align-items: center; gap: 8px; }
@@ -1356,6 +1360,9 @@ html.embedded #online { display: none; }
      null, and the portraits simply never appeared -- nothing broken, nothing
      working either. -->
 <script src="portraits.js"></script>
+<!-- A member's own look at their seat (kinds 30077 and 0). Also before play.js,
+     which keeps the default portraits when globalThis.E1Look is absent. -->
+<script src="identity-look.js"></script>
 <!-- The WebGL table (docs/arena3d.md): three.js, the pure layout, the scene, the
      motion book. Every one is optional -- play.js keeps the classic DOM table when
      any of them is missing, when WebGL2 is unavailable, or under ?arena=dom. -->

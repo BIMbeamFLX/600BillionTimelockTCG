@@ -1271,6 +1271,8 @@
       const face = seatFace(event.seat, seatMeta ? seatMeta.name : "", seatMeta ? seatMeta.pubkey : null);
       if ((face.url || face.card) && node.prepend) {
         const img = el("img", "shout");
+        if (img.dataset) img.dataset.look = face.via || "";
+        if (img.setAttribute) img.setAttribute("referrerpolicy", "no-referrer");
         paintFace(img, face, "");
         node.prepend(img);
       }
@@ -1398,26 +1400,90 @@
    * sandboxed napplet may have no relay, a build without portraits.js has no
    * index, and the test DOM has no Image and no network at all. In every one of
    * those cases the bar simply keeps the name it has always had. */
-  const PORTRAITS = new Map();   // pubkey -> url | null (null = looked up, none)
 
-  function portraitFor(pubkey) {
-    if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) return null;
-    if (PORTRAITS.has(pubkey)) return PORTRAITS.get(pubkey);
-    PORTRAITS.set(pubkey, null);            // claim it, so one miss is one lookup
-    const NETW = globalThis.E1Net;
-    if (!NETW || !NETW.nostr || typeof NETW.nostr.profile !== "function") return null;
-    Promise.resolve()
-      .then(() => NETW.nostr.profile(pubkey))
-      .then((meta) => {
-        const url = meta && typeof meta.picture === "string" ? meta.picture : "";
-        /* Only http(s). A data: or javascript: picture field is attacker-supplied
-         * text from a relay, and this one goes straight into an img src. */
-        if (/^https?:\/\//i.test(url)) {
-          PORTRAITS.set(pubkey, url);
-          if (session.full) render();
-        }
-      })
-      .catch(() => { /* no relay, no profile, no portrait — the name still stands */ });
+  /* A MEMBER'S OWN LOOK (site/identity-look.js). A seat that belongs to a key
+   * wears what that key publishes, its NIP-3D look or else its kind 0 picture
+   * and name, ahead of the portrait its name would give it. At a networked
+   * table that is every seat the referee names a key for; at a local table it
+   * is seat one, with the member's own key, while its avatar menu says "My
+   * Nappelin look". Nothing waits for it: the bar paints its default and the
+   * look repaints the seat when it lands. Inside a shell the query and the bytes
+   * go through the shell, and a preview with no shell asks nobody. */
+  const LOOK = "@look";   // the avatar menu's value for "My Nappelin look"
+  const HEX_KEY = /^[0-9a-f]{64}$/;
+  /* Read once, at load, like E1Faces: play.html loads identity-look.js before
+   * this file, and a page that came up without it keeps its default portraits
+   * for its whole life rather than growing looks halfway through a match. */
+  const LOOK_API = globalThis.E1Look || null;
+  let LOOKS = null;
+  let shellKey = null;    // the shell's answer to "who is signed in", once it lands
+
+  function looks() {
+    if (LOOKS || !LOOK_API || typeof LOOK_API.book !== "function") return LOOKS;
+    const N = globalThis.E1Napplet;
+    const has = (domain) => Boolean(N && typeof N.has === "function" && N.has(domain));
+    const relays = NET && NET.nostr ? NET.nostr : null;
+    const S = globalThis.E1Schnorr;
+    const site = !embedded();
+    LOOKS = LOOK_API.book({
+      /* One request through a shell's outbox; net.js sends one filter per REQ. */
+      query: has("outbox") ? (filters) => N.outbox.query(filters)
+        : site && relays && typeof relays.query === "function"
+          ? (filters) => Promise.all(filters.map((filter) => relays.query(filter, 2500))).then((lists) => [].concat(...lists))
+          : null,
+      bytes: has("resource") ? (url) => N.resource.bytes(url) : null,
+      fetch: site && typeof globalThis.fetch === "function" ? (url, init) => globalThis.fetch(url, init) : null,
+      hotlink: site,
+      verify: S && typeof S.verifyEvent === "function" ? (event) => S.verifyEvent(event) : null,
+      npub: relays && typeof relays.shortNpub === "function" ? (key) => relays.shortNpub(key) : null,
+    });
+    return LOOKS;
+  }
+
+  /* The member's own key as this page knows it: the website's NIP-07 sign-in,
+   * or the shell's. Null for a guest. */
+  function lookIdentity() {
+    let key = null;
+    try {
+      key = NET && NET.nostr && typeof NET.nostr.savedPubkey === "function" ? NET.nostr.savedPubkey() : null;
+    } catch (error) {
+      key = null;
+    }
+    key = key || shellKey;
+    return typeof key === "string" && HEX_KEY.test(key) ? key : null;
+  }
+
+  /* Whose look a seat wears, or null. Online the key is the one the referee's
+   * STATE gives the seat; a local table has only the member's own. */
+  function lookKey(seatIndex, pubkey) {
+    if (session.role === "hotseat") return seatIndex === 0 && SEAT_AVATARS[0] === LOOK ? lookIdentity() : null;
+    const players = NET && NET.lastState && Array.isArray(NET.lastState.players) ? NET.lastState.players : [];
+    const player = players.find((entry) => entry && entry.seat === seatIndex);
+    const key = player ? player.pubkey : pubkey;
+    return typeof key === "string" && HEX_KEY.test(key) ? key : null;
+  }
+
+  /* The look a seat wears as far as it is known now, or null. Binding the seat
+   * to its key is what keeps a late answer about somebody else off this bar. */
+  function seatLook(seatIndex, pubkey) {
+    const book = looks();
+    return book ? book.seat(`seat${seatIndex}`, lookKey(seatIndex, pubkey), repaint) : null;
+  }
+
+  /* The name on a seat's bar: the look's own name (display_name, then name)
+   * where it has one, else the name the seat plays under. Only ever text. */
+  function barName(seatIndex, seat) {
+    const look = seatLook(seatIndex, seat.pubkey);
+    return look && look.nameVia !== "npub" && look.name ? look.name : seat.name;
+  }
+
+  /* A look's picture as a face, unless the browser already refused to draw it,
+   * in which case the book lets it go (and revokes it, when it was ours). */
+  function lookFace(look) {
+    const url = look && look.image.url;
+    if (!url) return null;
+    if (!BROKEN.has(url)) return { url, card: null, via: look.image.via };
+    if (LOOKS) LOOKS.broken(url);
     return null;
   }
 
@@ -1511,32 +1577,30 @@
     return url && !BROKEN.has(url) ? { url, card: null } : { url: null, card: entry.card || null };
   }
 
-  /* Last resort: the seat's own kind-0 picture. Not a character, but it is
-   * still this person's face, and it is the only one a stranger playing under
-   * their own name will ever have here. */
-  function relayFace(pubkey) {
-    const url = portraitFor(pubkey);
-    return { url: url && !BROKEN.has(url) ? url : null, card: null };
-  }
-
   /* One question, one answer, three render sites, because the same person
    * wearing three different faces is the drift this replaced.
+   *
+   * A member's own look comes first wherever a seat wears one (lookKey says
+   * where); both clients of a networked table ask for the same key's look.
    *
    * The picked character decides only in hotseat. A pick is local — it is
    * deliberately not in the seat config, so it never crosses the wire — and
    * honouring it at a networked table would paint one face on this screen and
-   * a different one on the opponent's. Online the seat NAME is the only key
-   * both clients hold, and it resolves to the same portrait on both. */
+   * a different one on the opponent's. Online the seat NAME is the only other
+   * key both clients hold, and it resolves to the same portrait on both. Seat
+   * one wearing a look that has no picture falls back the same way. */
   function seatFace(seatIndex, name, pubkey) {
-    if (session.role === "hotseat") {
+    const own = lookFace(seatLook(seatIndex, pubkey));
+    if (own) return own;
+    if (session.role === "hotseat" && SEAT_AVATARS[seatIndex] !== LOOK) {
       /* This screen holds both seats, so the picker's answer is the whole
        * answer — including "no Avatar", which is a choice and not a gap. */
       const entry = seatCharacter(seatIndex);
-      return entry ? characterFace(entry) : relayFace(pubkey);
+      return entry ? characterFace(entry) : { url: null, card: null };
     }
     const P = globalThis.E1Portraits || null;
     const url = P && name ? P.urlFor(name) : null;
-    return url && !BROKEN.has(url) ? { url, card: null } : relayFace(pubkey);
+    return url && !BROKEN.has(url) ? { url, card: null } : { url: null, card: null };
   }
 
   /* Paint one <img>. A portrait that 404s must not leave a broken image on the
@@ -1578,10 +1642,16 @@
     if (!face.url && !face.card) { if (img && img.remove) img.remove(); return; }
     if (!img) {
       img = el("img", "portrait");
-      if (img.setAttribute) img.setAttribute("loading", "lazy");
+      if (img.setAttribute) {
+        img.setAttribute("loading", "lazy");
+        // A kind 0 picture is hotlinked from its owner's host; that host learns nothing about this page.
+        img.setAttribute("referrerpolicy", "no-referrer");
+      }
       if (bar.prepend) bar.prepend(img); else bar.append(img);
     }
-    paintFace(img, face, `${name || "Player"} avatar`);
+    // Which rung of a look this is, so play.html can crop a full figure to its head.
+    if (img.dataset) img.dataset.look = face.via || "";
+    paintFace(img, face, `${barName(seatIndex, { name, pubkey }) || "Player"} avatar`);
   }
 
   const faceUrl = (card) => "../art/cards/node-runner-web/" + encodeURIComponent(card.face);
@@ -3276,7 +3346,8 @@
       document.getElementById(`${side}Bar`).classList.toggle(
         "seat-target", wantsSeatTarget() && !(attackPick && side === "you")
       );
-      document.getElementById(`${side}Name`).textContent = v.seats[who].name;
+      // A member's look may name the seat; the log and the turn chip keep the name it plays under.
+      document.getElementById(`${side}Name`).textContent = barName(who, v.seats[who]);
       /* The playerbar IS the player — so give it the player's face. */
       mountPortrait(document.getElementById(`${side}Bar`), v.seats[who].pubkey, v.seats[who].name, who);
       const uptime = v.seats[who].uptime;
@@ -5457,6 +5528,14 @@
       const select = document.getElementById(id);
       if (!select) continue;
       select.innerHTML = "";
+      /* Seat one can wear the member's own look, and does unless the player
+       * picks something else. Offered only while a key is known. */
+      const self = seatIndex === 0 ? lookIdentity() : null;
+      if (self) {
+        const mine = el("option", null, "My Nappelin look");
+        mine.value = LOOK;
+        select.append(mine);
+      }
       const none = el("option", null, "No Avatar - just my name");
       none.value = "";
       select.append(none);
@@ -5468,9 +5547,15 @@
       const preview = document.getElementById(seatIndex === 0 ? "avatarPreviewA" : "avatarPreviewB");
       const sync = () => {
         SEAT_AVATARS[seatIndex] = select.value || null;
+        const wearing = select.value === LOOK;
+        /* The preview holds its own key in the book, so the hidden setup screen
+         * never takes seat one away from the table it is dressing. */
+        const book = seatIndex === 0 ? looks() : null;
+        const look = book ? book.seat("setup", wearing ? lookIdentity() : null, repaint) : null;
         if (!preview) return;
         const entry = seatCharacter(seatIndex);
-        const face = entry ? characterFace(entry) : { url: null, card: null };
+        const face = wearing ? lookFace(look) || { url: null, card: null }
+          : entry ? characterFace(entry) : { url: null, card: null };
         if (!face.url && !face.card) { preview.hidden = true; return; }
         /* .avatar-preview in play.html is card-shaped from when this preview WAS
          * a card face. A portrait is square, and cropping a square into a tall
@@ -5480,12 +5565,16 @@
          * crop to keep in step and no link between them. */
         if (preview.style) {
           preview.style.aspectRatio = face.url ? "1 / 1" : "";
-          preview.style.objectPosition = face.url ? "50% 50%" : "";
+          // A look's full figure is cropped to its head, like the bar crops it.
+          preview.style.objectPosition = face.url ? (face.via === "fullbody" ? "50% 12%" : "50% 50%") : "";
         }
         paintFace(preview, face, "");
         preview.hidden = false;
       };
-      select.addEventListener("change", sync);
+      select.addEventListener("change", () => {
+        AVATAR_PICKED[seatIndex] = true;
+        sync();
+      });
       AVATAR_SYNC.push(sync);
       /* Default to the character that carries the seat's own name where the set
        * has one - a player called FLX starts as FLX - otherwise stay on
@@ -5496,9 +5585,55 @@
       const wanted = !seatName ? null
         : (P ? P.slugFor(seatName) : seatName.trim().toLowerCase());
       const match = wanted && choices.find((entry) => entry.key === wanted);
-      if (match) select.value = match.key;
+      if (self) select.value = LOOK;
+      else if (match) select.value = match.key;
       sync();
     }
+  }
+
+  /* A rebuilt menu keeps what the player PICKED and works out every default
+     again, so a key that becomes known late still lands seat one on its look.
+     The picks are synced once more at the end: setting a select's value does not
+     fire its change event, and a menu showing one pick while SEAT_AVATARS holds
+     another would dress the seat in the wrong face. */
+  const AVATAR_PICKED = [false, false];
+  function rebuildAvatarMenus() {
+    const before = ["avatarA", "avatarB"].map((id) => {
+      const select = document.getElementById(id);
+      return select ? select.value : "";
+    });
+    buildAvatarMenus();
+    before.forEach((value, index) => {
+      const select = document.getElementById(index === 0 ? "avatarA" : "avatarB");
+      const offered = select && Array.prototype.some.call(select.children || [], (option) => option.value === value);
+      if (AVATAR_PICKED[index] && offered) select.value = value;
+    });
+    for (const sync of AVATAR_SYNC) sync();
+  }
+
+  /* Seat one's menu follows the member's key: inside a shell it is an answer
+     that lands after the first paint (and the shell reloads the napplet when it
+     changes); on the website the side bar says who signed in or out. */
+  function watchLookIdentity() {
+    const offered = () => {
+      const select = document.getElementById("avatarA");
+      return Boolean(select && Array.prototype.some.call(select.children || [], (option) => option.value === LOOK));
+    };
+    const follow = () => {
+      if (Boolean(lookIdentity()) !== offered()) rebuildAvatarMenus();
+      repaint();
+    };
+    const N = globalThis.E1Napplet;
+    if (N && typeof N.has === "function" && N.has("identity") && N.identity && typeof N.identity.current === "function") {
+      Promise.resolve()
+        .then(() => N.identity.current())
+        .then((key) => {
+          shellKey = key || null;
+          follow();
+        })
+        .catch(() => { /* no key from the shell: seat one keeps the menu it has */ });
+    }
+    window.addEventListener("e1:identity", follow);
   }
 
   /* The picker is built before the portrait index has arrived — the index is a
@@ -5516,16 +5651,8 @@
     if (avatarMenusRefreshed || !P || !P.ready || typeof P.ready.then !== "function") return;
     avatarMenusRefreshed = true;
     P.ready.then(() => {
-      const before = ["avatarA", "avatarB"].map((id) => {
-        const select = document.getElementById(id);
-        return select ? select.value : "";
-      });
       CHARACTERS = null;
-      buildAvatarMenus();
-      before.forEach((value, index) => {
-        const select = document.getElementById(index === 0 ? "avatarA" : "avatarB");
-        if (select && value) select.value = value;
-      });
+      rebuildAvatarMenus();
     }).catch(() => { /* no index, thirty characters, and the game plays */ });
   }
 
@@ -5627,6 +5754,7 @@
     if (portraits && portraits.ready && typeof portraits.ready.then === "function") {
       portraits.ready.then(repaint, () => { /* no index, and the derived name stands */ });
     }
+    watchLookIdentity(); // a member's own look: seat one's avatar menu follows the key
     // The local Fast faces arrive after the first paint; redraw so their art crops apply.
     if (FACES && FACES.fastFaces && FACES.fastFaces.then) {
       FACES.fastFaces.then((manifest) => { if (manifest && session.full) render(); });
