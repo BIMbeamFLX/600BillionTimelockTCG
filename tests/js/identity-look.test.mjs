@@ -266,6 +266,33 @@ test("bytes an <img> does not draw fall a rung, told by the bytes and not the cl
   assert.equal(L.sniff(svg), null);
 });
 
+test("a flood of wrong-hash imeta tags costs only the capped fetches, and a valid avatar inside the cap still lands", async () => {
+  assert.deepEqual([L.LIMITS.roleMax, L.LIMITS.verifyMax], [4, 8]);
+  const junk = (i) => ["imeta", "role avatar", `x ${sha(png(`junk${i}`))}`, `url https://example.com/${i}.png`];
+  const junkBody = (i) => ["imeta", "role fullbody", `x ${sha(png(`body${i}`))}`];
+  const flood = lookEvent([...Array.from({ length: 300 }, (_, i) => junk(i)), ...Array.from({ length: 300 }, (_, i) => junkBody(i))]);
+  const served = host({});
+  const got = await L.resolve(PK, deps([flood], { bytes: served.bytes }));
+  assert.deepEqual(got.image, { url: null, via: "none" });
+  assert.equal(served.asked.length, 4 * 2 + 4, "four avatars by hash and hint, four fullbodies by hash");
+
+  const late = lookEvent([junk(0), junk(1), junk(2), imeta("avatar", AVATAR), ...Array.from({ length: 200 }, (_, i) => junk(i + 3))]);
+  const found = host(byHash(AVATAR));
+  assert.equal((await L.resolve(PK, deps([late], { bytes: found.bytes }))).image.via, "avatar", "the fourth avatar is inside the cap");
+  const past = lookEvent([junk(0), junk(1), junk(2), junk(3), imeta("avatar", AVATAR)]);
+  assert.equal((await L.resolve(PK, deps([past], { bytes: host(byHash(AVATAR)).bytes }))).image.via, "none", "a fifth is not tried");
+
+  // Events: at most eight are checked for a signature, per kind.
+  let checked = 0;
+  const forged = Array.from({ length: 50 }, (_, i) => Object.assign(lookEvent([imeta("avatar", AVATAR)], { created_at: 1789000200 + i }), { sig: "0".repeat(128) }));
+  const counting = (event) => { checked += 1; return verify(event); };
+  await L.resolve(PK, deps(forged, { bytes: host(byHash(AVATAR)).bytes, verify: counting }));
+  assert.equal(checked, 8);
+  checked = 0;
+  const good = await L.resolve(PK, deps([...forged.slice(0, 7), lookEvent([imeta("avatar", AVATAR)])], { bytes: host(byHash(AVATAR)).bytes, verify: counting }));
+  assert.equal(good.image.via, "avatar", "a genuine look within the first eight is still worn");
+});
+
 test("no pubkey asks nobody and answers the default", async () => {
   let asked = 0;
   const query = async () => { asked += 1; return []; };

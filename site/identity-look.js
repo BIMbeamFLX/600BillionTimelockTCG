@@ -42,6 +42,11 @@
   const BLOSSOM = "https://blossom.bimcvp.com";
   // What the lobby lets a typed seat name be.
   const NAME_MAX = 40;
+  /* A signed look can carry any number of imeta tags, and each costs up to two
+   * fetches: only the first few of a role are tried. Only so many events are
+   * checked for a signature, too. */
+  const ROLE_MAX = 4;
+  const VERIFY_MAX = 8;
   // A deadline won the race; a source is over the cap (the same hash elsewhere is no smaller).
   const LATE = {};
   const BIG = {};
@@ -220,7 +225,7 @@
    * we cannot draw drops to the next entry. */
   async function climbImage(look, profile, deps) {
     for (const role of ["avatar", "fullbody"]) {
-      for (const rep of look.filter((entry) => entry.role === role)) {
+      for (const rep of look.filter((entry) => entry.role === role).slice(0, ROLE_MAX)) {
         // Declared too big: never fetched.
         if (rep.size && rep.size > (deps.maxBytes || MAX_BYTES)) continue;
         const sources = [`${deps.blossom || BLOSSOM}/${rep.x}`, rep.url];
@@ -267,7 +272,7 @@
   /* Signatures are checked one at a time and only until one holds, so only an
    * event that is used costs a verification. No verifier, no trust. */
   async function firstVerified(events, deps) {
-    for (const event of events) {
+    for (const event of events.slice(0, VERIFY_MAX)) {
       if (await attempt(deps.verify, event).then((ok) => ok === true, () => false)) return event;
     }
     return null;
@@ -388,7 +393,7 @@
     parseLook,
     safeUrl,
     sniff,
-    LIMITS: Object.freeze({ timeout: TIMEOUT_MS, fetchTimeout: FETCH_MS, maxBytes: MAX_BYTES, blossom: BLOSSOM }),
+    LIMITS: Object.freeze({ roleMax: ROLE_MAX, verifyMax: VERIFY_MAX, timeout: TIMEOUT_MS, fetchTimeout: FETCH_MS, maxBytes: MAX_BYTES, blossom: BLOSSOM }),
   };
   globalThis.E1Look = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
