@@ -419,6 +419,6 @@ function checkEnv(env) {
 }
 
 module.exports = {
-  checkEnv, resolveMint, orThrow, whole, supplyRelays, supplyInterval,
+  checkEnv, resolveMint, orThrow, flag, whole, supplyRelays, supplyInterval,
   lndSettings, lndProblems, phoenixdSettings, phoenixdProblems, cashuProblems,
 };

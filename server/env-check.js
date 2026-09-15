@@ -9,18 +9,143 @@
  *
  * It applies server/mint-env.js, the rules the referee applies before it opens
  * anything, and prints one line per problem, "VARIABLE: reason", then "ok" or
- * "N problems". Exit 0 when clean, 1 with problems, 2 when the environment
- * cannot be read. It never prints a value, writes nothing to disk, binds no
- * port, opens no database and contacts no funding backend.
+ * "N problems". A problem is a refusal, or a value this release would start
+ * with but read differently from the build it replaces ("meaning changes").
+ * Exit 0 when clean, 1 with problems, 2 when the environment cannot be read.
+ * It never prints a value, writes nothing to disk, binds no port, opens no
+ * database and contacts no funding backend.
  *
  * Node built-ins only, besides mint-env.js and the lnurl.js it needs: it runs
  * from a bare copy of those three files (docs/mint-boot-checks.md). */
 
 const fs = require("node:fs");
 const tty = require("node:tty");
-const { checkEnv } = require("./mint-env.js");
+const { checkEnv, flag } = require("./mint-env.js");
 
 const USAGE = "usage: node env-check.js [--from <environ file> | --from -]";
+
+/* ---- Spellings whose meaning changes with this release --------------------
+ *
+ * The builds before it (origin/main 74e933a, whose lines are cited below;
+ * d753505 reads these variables the same way) accept some values that this
+ * release also accepts but reads differently. A value the release refuses is
+ * already a problem line; these would start without a word and move a limit,
+ * a price, a timer, an origin, an identity or the funding. Each row models how
+ * the old code read one variable, without importing any of it, and returns
+ * [old, new] in fixed words, never the value, or null when the meaning stays
+ * or the old build could not have started with the value. The boot never uses
+ * this table: once a box runs this release, only these spellings keep a row. */
+
+/* Set, blank, and nothing else: whitespace the old Number() read as 0 and the
+   old `||` kept as a value, while the release reads it as unset. */
+const blankOnly = (raw) => typeof raw === "string" && raw !== "" && raw.trim() === "";
+/* `process.env.X || fallback`: only an unset or empty value falls back. */
+const oldSet = (raw) => raw !== undefined && raw !== "";
+/* table.js:2180, `enabled()`. */
+const oldEnabled = (raw) => ["1", "true", "yes", "on"].includes(String(raw || "").toLowerCase());
+/* funding.js:93, `String(options.backend || process.env.NUTFT_FUNDING || "").toLowerCase()`. */
+const oldBackend = (raw) => String(raw || "").toLowerCase();
+const onOff = (on) => (on ? "on" : "off");
+
+/* The release's reading of a flag through the boot's own parser, or null where
+   it refuses the spelling: that is a problem line already. */
+function newFlag(raw, fallback) {
+  let refused = false;
+  const value = flag(() => { refused = true; }, "", raw, fallback);
+  return refused ? null : value;
+}
+
+const MEANING_CHANGES = [
+  ["NUTFT_ONE_PER_KEY", (env) => {
+    /* nutft-mint.js:412-413: only "1" and "true", exactly, were on. */
+    const before = env.NUTFT_ONE_PER_KEY === "1" || env.NUTFT_ONE_PER_KEY === "true";
+    const after = newFlag(env.NUTFT_ONE_PER_KEY, false);
+    return after === null || after === before ? null : [onOff(before), onOff(after)];
+  }],
+  ["G_NUTFT_ONE_PER_KEY", (env, g) => {
+    /* table.js:2206-2208: unset was on, and a set value went through enabled(),
+       so an empty or blank one was off. */
+    if (!g.enabled) return null;
+    const before = env.G_NUTFT_ONE_PER_KEY === undefined || oldEnabled(env.G_NUTFT_ONE_PER_KEY);
+    const after = newFlag(env.G_NUTFT_ONE_PER_KEY, true);
+    return after === null || after === before ? null : [onOff(before), onOff(after)];
+  }],
+  ["G_NUTFT_CATALOG_MIRRORS", (env, g) => {
+    /* table.js:2201 and :376 into nutft-mint.js:101-104: `options.catalogMirrors
+       ?? process.env.NUTFT_CATALOG_MIRRORS`, so an unset G list took E1's
+       mirrors; an empty one did not. */
+    if (!g.enabled || env.G_NUTFT_CATALOG_MIRRORS !== undefined) return null;
+    const e1 = String(env.NUTFT_CATALOG_MIRRORS ?? "").split(",").map((entry) => entry.trim().replace(/\/+$/, ""));
+    return e1.some(Boolean) ? ["the NUTFT_CATALOG_MIRRORS list", "no mirrors"] : null;
+  }],
+  ["G_NUTFT_PRICE_MSAT", (env, g) => {
+    /* table.js:2210-2212 and :387 into nutft-mint.js:355: a set value went
+       through Number(), which reads a blank one as 0, and 0 fell back to
+       NUTFT_PRICE_MSAT, then 21000. Only a paid G with a flat price used it
+       (nutft-mint.js:350-355, :436 refused a price not above 0). */
+    if (!g.enabled || !g.paid || oldSet(env.G_NUTFT_PRICE_SCHEDULE) || !blankOnly(env.G_NUTFT_PRICE_MSAT)) return null;
+    const before = Number(oldSet(env.NUTFT_PRICE_MSAT) ? env.NUTFT_PRICE_MSAT : 21_000);
+    if (!(before > 0) || before === 210_000) return null;
+    return [oldSet(env.NUTFT_PRICE_MSAT) ? "the NUTFT_PRICE_MSAT price" : "21000 msat", "210000 msat"];
+  }],
+  ["NUTFT_RECONCILE_MS", (env, g) => {
+    /* nutft-mint.js:460-461: Math.max(30000, Number(value || 120000)), read
+       only for a funding source that sweeps (Cashu); a blank value made 30000. */
+    const cashu = oldBackend(env.NUTFT_FUNDING) === "cashu" || (g.enabled && oldBackend(env.G_NUTFT_FUNDING) === "cashu");
+    return cashu && blankOnly(env.NUTFT_RECONCILE_MS) ? ["every 30000 ms", "every 120000 ms"] : null;
+  }],
+  ["NUTFT_SUPPLY_INTERVAL_SECONDS", (env) => {
+    /* nutft-supply.js:87-94: only undefined, null and "" took the default; a
+       blank value is 0 to Number(), which stopped the snapshot timer. */
+    return blankOnly(env.NUTFT_SUPPLY_INTERVAL_SECONDS) ? ["no timer", "every 86400 seconds"] : null;
+  }],
+  ["NUTFT_PUBLIC_BASE", (env) => {
+    /* nutft-mint.js:480-481: `options.publicBase || process.env.NUTFT_PUBLIC_BASE
+       || … PUBLIC_URL`, so a blank value was the origin itself, and every
+       request that checks a signature or builds a link on it failed. */
+    return blankOnly(env.NUTFT_PUBLIC_BASE) ? ["a blank origin", originOf(env, [])] : null;
+  }],
+  ["G_NUTFT_PUBLIC_BASE", (env, g) => {
+    /* table.js:2213 and :388 into nutft-mint.js:480: the same, for G. */
+    return g.enabled && blankOnly(env.G_NUTFT_PUBLIC_BASE)
+      ? ["a blank origin", originOf(env, ["NUTFT_PUBLIC_BASE"])] : null;
+  }],
+  ["NUTFT_COLLECTION_ID", (env) => {
+    /* nutft-mint.js:94: `options.collectionId || process.env.NUTFT_COLLECTION_ID
+       || "600B-E1"`: a blank value was the collection id of every E1 card. */
+    return blankOnly(env.NUTFT_COLLECTION_ID) ? ["a blank collection id", "600B-E1"] : null;
+  }],
+  ["NUTFT_FUNDING", (env) => {
+    /* funding.js:93-111: with NUTFT_FUNDING empty, a non-empty PHOENIXD_URL
+       chose phoenixd (:95), else a non-empty LND_REST_URL chose lnd (:106), and
+       lnd.js:29-49 took even a blank URL given a hex macaroon and a certificate
+       path or LND_INSECURE=1. The release reads that URL as unset: E1 is free. */
+    if (oldSet(env.NUTFT_FUNDING) || oldSet(env.PHOENIXD_URL) || !blankOnly(env.LND_REST_URL)) return null;
+    const macaroon = oldSet(env.LND_MACAROON) ? /^[0-9a-f]+$/i.test(env.LND_MACAROON) : oldSet(env.LND_MACAROON_PATH);
+    return macaroon && (oldSet(env.LND_TLS_CERT_PATH) || env.LND_INSECURE === "1") ? ["lnd", "none"] : null;
+  }],
+];
+
+/* Where the release takes a mint's origin from once a blank value counts as unset. */
+function originOf(env, fallbacks) {
+  const source = [...fallbacks, "PUBLIC_URL"].find((name) => env[name] !== undefined && String(env[name]).trim() !== "");
+  return source ? `the ${source} origin` : "no origin";
+}
+
+/** One "VARIABLE: meaning changes (old → new)" line per variable the release would read differently. */
+function meaningChanges(env) {
+  /* table.js:2196 and funding.js:89-111: which mints the old build opened, and
+     whether G took money (lnd without LND_REST_URL gave G away for free). */
+  const gBackend = oldBackend(env.G_NUTFT_FUNDING);
+  const g = {
+    enabled: oldEnabled(env.G_NUTFT_ENABLED),
+    paid: ["mock", "phoenixd", "cashu"].includes(gBackend) || (gBackend === "lnd" && oldSet(env.LND_REST_URL)),
+  };
+  return MEANING_CHANGES.flatMap(([variable, change]) => {
+    const meanings = change(env, g);
+    return meanings ? [`${variable}: meaning changes (${meanings[0]} → ${meanings[1]})`] : [];
+  });
+}
 
 /* /proc/<pid>/environ holds NAME=value entries, each ended by a NUL byte. Only
    names and positions ever leave this function in a message. */
@@ -63,7 +188,9 @@ function run(args, io = {}) {
     if (parsed.error) return fail(parsed.error);
     env = parsed.env;
   }
-  const problems = checkEnv(env);
+  /* A meaning change stops a deploy exactly like a refusal: the release would
+     start, and a buyer would meet a different shop. */
+  const problems = [...checkEnv(env), ...meaningChanges(env)];
   for (const line of problems) stdout.write(`${line}\n`);
   stdout.write(problems.length ? `${problems.length} ${problems.length === 1 ? "problem" : "problems"}\n` : "ok\n");
   return problems.length ? 1 : 0;
@@ -71,4 +198,4 @@ function run(args, io = {}) {
 
 if (require.main === module) process.exitCode = run(process.argv.slice(2));
 
-module.exports = { run, parseEnviron };
+module.exports = { run, parseEnviron, meaningChanges };

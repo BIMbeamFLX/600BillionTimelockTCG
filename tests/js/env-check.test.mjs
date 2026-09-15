@@ -71,6 +71,44 @@ const BROKEN_LINES = [
   "G_NUTFT_ONE_PER_KEY: needs G_NUTFT_SALES=allowlist or signed: without a signed request there is no key to count",
   "G_NUTFT_PRICE_MSAT: must be a whole number of millisatoshis, at least 1",
   "G_NUTFT_PRICE_SCHEDULE: entry 1 must be a whole number of sats (divisible by 1000): phoenixd and Cashu invoice whole sats",
+  "G_NUTFT_ONE_PER_KEY: meaning changes (off → on)",
+];
+
+/* Spellings the running build (origin/main 74e933a) reads one way and the
+   release another, each with the one row it must print. */
+const MEANING_CASES = [
+  [{ NUTFT_ONE_PER_KEY: "yes" }, "NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
+  [{ NUTFT_ONE_PER_KEY: "On" }, "NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
+  [{ NUTFT_ONE_PER_KEY: "TRUE" }, "NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
+  [{ G_NUTFT_ONE_PER_KEY: "" }, "G_NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
+  [{ G_NUTFT_ONE_PER_KEY: "  " }, "G_NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
+  [{ NUTFT_CATALOG_MIRRORS: "https://blossom.example" }, "G_NUTFT_CATALOG_MIRRORS: meaning changes (the NUTFT_CATALOG_MIRRORS list → no mirrors)"],
+  [{ G_NUTFT_PRICE_MSAT: " " }, "G_NUTFT_PRICE_MSAT: meaning changes (21000 msat → 210000 msat)"],
+  [{ G_NUTFT_PRICE_MSAT: " ", NUTFT_PRICE_MSAT: "42000" }, "G_NUTFT_PRICE_MSAT: meaning changes (the NUTFT_PRICE_MSAT price → 210000 msat)"],
+  [{ G_NUTFT_FUNDING: "cashu", NUTFT_CASHU_MINT: "https://mint.example", NUTFT_RECONCILE_MS: " " },
+    "NUTFT_RECONCILE_MS: meaning changes (every 30000 ms → every 120000 ms)"],
+  [{ NUTFT_SUPPLY_INTERVAL_SECONDS: "\t" }, "NUTFT_SUPPLY_INTERVAL_SECONDS: meaning changes (no timer → every 86400 seconds)"],
+  [{ NUTFT_PUBLIC_BASE: " " }, "NUTFT_PUBLIC_BASE: meaning changes (a blank origin → the PUBLIC_URL origin)"],
+  [{ G_NUTFT_PUBLIC_BASE: " ", NUTFT_PUBLIC_BASE: "https://tcg.example.com" },
+    "G_NUTFT_PUBLIC_BASE: meaning changes (a blank origin → the NUTFT_PUBLIC_BASE origin)"],
+  [{ NUTFT_COLLECTION_ID: " " }, "NUTFT_COLLECTION_ID: meaning changes (a blank collection id → 600B-E1)"],
+];
+/* E1 alone, whose old build took lnd funding from a blank LND_REST_URL. */
+const FREE_BY_BLANK_LND = Object.freeze({
+  PUBLIC_URL: "wss://tcg.example.com/ws", LND_REST_URL: " ", LND_MACAROON_PATH: `/srv/tcg-secrets/${MARKER}.macaroon`, LND_INSECURE: "1",
+});
+/* Values both builds read the same way: no row. */
+const SAME_MEANING = [
+  { NUTFT_ONE_PER_KEY: "1" }, { NUTFT_ONE_PER_KEY: "true" }, { NUTFT_ONE_PER_KEY: "0" }, { NUTFT_ONE_PER_KEY: "no" },
+  { NUTFT_ONE_PER_KEY: "OFF" }, { NUTFT_ONE_PER_KEY: "" },
+  { G_NUTFT_ONE_PER_KEY: undefined }, { G_NUTFT_ONE_PER_KEY: "on" }, { G_NUTFT_ONE_PER_KEY: "YES" }, { G_NUTFT_ONE_PER_KEY: "0" },
+  { NUTFT_CATALOG_MIRRORS: "https://blossom.example", G_NUTFT_CATALOG_MIRRORS: "" },
+  { NUTFT_CATALOG_MIRRORS: "https://blossom.example", G_NUTFT_CATALOG_MIRRORS: "https://blossom.example" },
+  { G_NUTFT_PRICE_MSAT: "" }, { G_NUTFT_PRICE_MSAT: " 210000 " }, { G_NUTFT_PRICE_MSAT: " ", NUTFT_PRICE_MSAT: "210000" },
+  { NUTFT_RECONCILE_MS: " " }, { G_NUTFT_FUNDING: "cashu", NUTFT_CASHU_MINT: "https://mint.example", NUTFT_RECONCILE_MS: "30000" },
+  { NUTFT_SUPPLY_INTERVAL_SECONDS: "0" }, { NUTFT_SUPPLY_INTERVAL_SECONDS: "" },
+  { NUTFT_PUBLIC_BASE: "" }, { G_NUTFT_PUBLIC_BASE: "" }, { NUTFT_COLLECTION_ID: "" }, { NUTFT_COLLECTION_ID: "600B-E1" },
+  { NUTFT_FUNDING: undefined, PHOENIXD_URL: undefined, G_NUTFT_FUNDING: "none", LND_REST_URL: " " },
 ];
 
 /* Every variable in docs/deploy.md §10 (66 names), each holding MARKER. */
@@ -202,6 +240,65 @@ test("the referee refuses to boot with the same lines, before it opens its datab
     assert.ok(!existsSync(join(dir, "data")), "no database file or directory was created");
     assertNoMarker("boot", result);
   }
+});
+
+test("a value the release would read differently prints its meaning change and exits 1", () => {
+  for (const [changes, row] of MEANING_CASES) {
+    const result = node(ENV_CHECK, ["--from", "-"], { input: environ({ ...CLEAN, ...changes }) });
+    assert.equal(result.stdout, `${row}\n1 problem\n`, JSON.stringify(changes));
+    assert.equal(result.code, 1, JSON.stringify(changes));
+    assertNoMarker(row, result);
+  }
+  const funding = node(ENV_CHECK, ["--from", "-"], { input: environ(FREE_BY_BLANK_LND) });
+  assert.equal(funding.stdout, "NUTFT_FUNDING: meaning changes (lnd → none)\n1 problem\n");
+  assert.equal(funding.code, 1);
+  assertNoMarker("blank lnd", funding);
+
+  /* A refusal and a meaning change for the same variable are both shown: the
+     row says why a limit the operator thinks is off is refused as on. */
+  const both = node(ENV_CHECK, ["--from", "-"], { input: environ({ ...CLEAN, NUTFT_ONE_PER_KEY: "yes", NUTFT_SALES: "open" }) });
+  assert.deepEqual(both.stdout.trimEnd().split("\n"), [
+    "NUTFT_ONE_PER_KEY: needs NUTFT_SALES=allowlist or signed: without a signed request there is no key to count",
+    "NUTFT_ONE_PER_KEY: meaning changes (off → on)",
+    "2 problems",
+  ]);
+});
+
+test("values both builds read the same way print no meaning change", () => {
+  const { meaningChanges } = require("../../server/env-check.js");
+  for (const changes of SAME_MEANING) {
+    assert.deepEqual(meaningChanges(defined({ ...CLEAN, ...changes })), [], JSON.stringify(changes));
+  }
+  const canonical = {
+    ...CLEAN, NUTFT_ONE_PER_KEY: "1", G_NUTFT_ONE_PER_KEY: "0", NUTFT_CATALOG_MIRRORS: "https://blossom.example",
+    G_NUTFT_CATALOG_MIRRORS: "", NUTFT_SUPPLY_INTERVAL_SECONDS: "0", G_NUTFT_PRICE_MSAT: "210000",
+  };
+  assert.equal(node(ENV_CHECK, ["--from", "-"], { input: environ(canonical) }).stdout, "ok\n");
+  assert.deepEqual(meaningChanges({ G_NUTFT_ENABLED: "0", G_NUTFT_ONE_PER_KEY: "" }), [], "a G the old build never opened");
+});
+
+test("meaning change rows never carry a value", () => {
+  const env = {
+    ...CLEAN, PUBLIC_URL: `wss://${MARKER}.example/ws`, NUTFT_CATALOG_MIRRORS: `https://${MARKER}.example/`,
+    NUTFT_PRICE_MSAT: "42000", G_NUTFT_CATALOG_URI: `https://${MARKER}.example/g/nutft/catalog`,
+    NUTFT_ONE_PER_KEY: "Yes", G_NUTFT_ONE_PER_KEY: "", G_NUTFT_PRICE_MSAT: " ", NUTFT_SUPPLY_INTERVAL_SECONDS: " ",
+    NUTFT_PUBLIC_BASE: " ", G_NUTFT_PUBLIC_BASE: " ", NUTFT_COLLECTION_ID: " ",
+  };
+  const result = node(ENV_CHECK, ["--from", "-"], { input: environ(env) });
+  assert.equal(result.code, 1);
+  assert.equal(result.stdout, [
+    "NUTFT_ONE_PER_KEY: meaning changes (off → on)",
+    "G_NUTFT_ONE_PER_KEY: meaning changes (off → on)",
+    "G_NUTFT_CATALOG_MIRRORS: meaning changes (the NUTFT_CATALOG_MIRRORS list → no mirrors)",
+    "G_NUTFT_PRICE_MSAT: meaning changes (the NUTFT_PRICE_MSAT price → 210000 msat)",
+    "NUTFT_SUPPLY_INTERVAL_SECONDS: meaning changes (no timer → every 86400 seconds)",
+    "NUTFT_PUBLIC_BASE: meaning changes (a blank origin → the PUBLIC_URL origin)",
+    "G_NUTFT_PUBLIC_BASE: meaning changes (a blank origin → the PUBLIC_URL origin)",
+    "NUTFT_COLLECTION_ID: meaning changes (a blank collection id → 600B-E1)",
+    "8 problems",
+    "",
+  ].join("\n"));
+  assertNoMarker("meaning changes", result);
 });
 
 test("unreadable, empty or non-environ input exits 2 without echoing it", (t) => {
