@@ -58,12 +58,13 @@ label. A chip that names an affinity shows its Plate colour in its square dot.
 
 `site/napplet.js` repaints the chrome from the shell's theme. It uses the first of these that sets
 anything: `napplet.theme.get()`, then `window.nappletContext.theme`, then the defaults above. It
-accepts `{ tokens }` with exactly `--iron --brass --brass-2 --brass-3 --parchment --signal --panel
---well --divider --hairline --emphasis --body-ink --headline --mono --r`, and NAP-THEME's
-`{ colors }`: background → `--iron`, text → `--parchment`, primary → `--brass`, surface → `--well`,
-border → `--hairline`, muted → `--brass-3`. Every change pushed through `theme.onChanged`
-(`theme.changed`, which is how guild skins arrive) repaints from the defaults. The brand layer is
-written again after each theme, so no payload can reach it.
+accepts only `{ tokens }` with exactly `--iron --brass --brass-2 --brass-3 --parchment --signal
+--panel --well --divider --hairline --emphasis --body-ink --headline --mono --r`. NAP-THEME's
+`{ colors }` is not read: until the Hypershell theme service ships, the Hangar answers every
+napplet with `{ colors: { background, text, primary } }`, and mapping that turned the brass
+controls blue, so a colours-only payload keeps the palette above. Every change pushed through
+`theme.onChanged` (`theme.changed`, which is how guild skins arrive) repaints from the defaults.
+The brand layer is written again after each theme, so no payload can reach it.
 
 ## Fonts
 
