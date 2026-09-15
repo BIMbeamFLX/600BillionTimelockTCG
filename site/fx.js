@@ -364,7 +364,8 @@
       bus[k] = ctx.createGain(); bus[k].gain.value = BUS_GAIN[k]; bus[k].connect(softClip);
     });
 
-    bedDuck = ctx.createGain(); bedDuck.gain.value = 1; bedDuck.connect(bus.bed);
+    /* A held duck asked for before the first gesture built this graph starts ducked. */
+    bedDuck = ctx.createGain(); bedDuck.gain.value = bedRest(); bedDuck.connect(bus.bed);
 
     convolver = ctx.createConvolver();
     convolver.buffer = buildImpulse();
@@ -423,30 +424,52 @@
     });
   }
 
+  /* TWO DUCKS, ONE GAIN. `bedDuckLevel` is the game's own held duck (a hold
+     tone, a clash), 1 when none; `bedFocus` is the shell's music playing
+     (NAP-CUE focus), 1 when idle. The bed sits at the lower of the two, and every
+     release — a timed duck ramping back, unduckBed() — returns to the focus
+     level rather than to full, so a burn or a game-over fanfare never brings the
+     room tone back up under someone's music. */
   var bedDuckLevel = 1;
+  var bedFocus = 1;
+  function bedRest() { return Math.min(bedDuckLevel, bedFocus); }
   function duckBed(depth, holdMs, relMs) {
     if (!ready) return;
     var t = ctx.currentTime, g = bedDuck.gain;
-    bedDuckLevel = depth;
+    var low = Math.min(depth, bedFocus);
     guard(function () {
       g.cancelScheduledValues(t);
       g.setValueAtTime(Math.max(0.0001, g.value), t);
-      g.linearRampToValueAtTime(depth, t + 0.060);
+      g.linearRampToValueAtTime(low, t + 0.060);
       if (holdMs != null) {
-        g.setValueAtTime(depth, t + 0.060 + holdMs / 1000);
-        g.linearRampToValueAtTime(1, t + 0.060 + holdMs / 1000 + (relMs || 500) / 1000);
         bedDuckLevel = 1;
+        g.setValueAtTime(low, t + 0.060 + holdMs / 1000);
+        g.linearRampToValueAtTime(bedRest(), t + 0.060 + holdMs / 1000 + (relMs || 500) / 1000);
+      } else {
+        bedDuckLevel = depth;
       }
     });
   }
   function unduckBed(relMs) {
+    bedDuckLevel = 1;
     if (!ready) return;
     var t = ctx.currentTime, g = bedDuck.gain;
-    bedDuckLevel = 1;
     guard(function () {
       g.cancelScheduledValues(t);
       g.setValueAtTime(Math.max(0.0001, g.value), t);
-      g.linearRampToValueAtTime(1, t + (relMs || 500) / 1000);
+      g.linearRampToValueAtTime(bedRest(), t + (relMs || 500) / 1000);
+    });
+  }
+  /* Shell music can already be playing when the napplet launches, long before a
+     gesture arms audio: the level is kept and applied when the graph is built. */
+  function focusBed(depth, relMs) {
+    bedFocus = depth;
+    if (!ready) return;
+    var t = ctx.currentTime, g = bedDuck.gain;
+    guard(function () {
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001, g.value), t);
+      g.linearRampToValueAtTime(bedRest(), t + (relMs || 500) / 1000);
     });
   }
 
@@ -845,6 +868,9 @@
      to mean both things at once, which made every silencing call an unrecoverable
      one (see stopPressure / cancelPressureBeat below). */
   var pressure = { live: false, timer: 0, dark: false };
+  /* Held while the shell's music plays (NAP-CUE focus). Not cfg.pressure: that is
+     the player's saved choice, and a song starting must not rewrite it. */
+  var pressureHeld = false;
   var bedNodes = null, clashBus = null, holdPing = null, holdTimer = 0;
   var bufferTotal = 0;
   var activeSeat = 0;
@@ -883,7 +909,7 @@
      any two beats and a hidden tab stops costing anything at all. */
   function pressureSchedule() {
     if (pressure.timer) { global.clearTimeout(pressure.timer); pressure.timer = 0; }
-    if (!pressure.live || !ready || !cfg.pressure || cfg.muted) return;
+    if (!pressure.live || !ready || !cfg.pressure || cfg.muted || pressureHeld) return;
     if (bufferTotal < PRESSURE_MIN) return;
     if (doc && doc.hidden) return;
     pressure.timer = global.setTimeout(function () {
@@ -3272,9 +3298,16 @@
     },
     volume: function (v) { cfg.volume = clamp(Number(v) || 0, 0, 1); applyMaster(); refreshControls(); saveCfg(); return API; },
     /* The room tone steps back while other music plays (nappelin's NAP-CUE draft:
-       cue.focus {music: playing|idle}), and returns when it stops. */
-    duckBed: function (depth, holdMs, relMs) { duckBed(clamp(Number(depth), 0.0001, 1) || 0.45, holdMs, relMs); return API; },
-    unduckBed: function (relMs) { unduckBed(relMs); return API; },
+       cue.focus {music: playing|idle}), and returns when it stops. Without holdMs
+       the duck is that held focus level, which every later release returns to;
+       with holdMs it is a one-off duck that releases to the focus level. */
+    duckBed: function (depth, holdMs, relMs) {
+      var level = clamp(Number(depth), 0.0001, 1) || 0.45;
+      if (holdMs == null) focusBed(level); else duckBed(level, holdMs, relMs);
+      return API;
+    },
+    unduckBed: function (relMs) { focusBed(1, relMs); return API; },
+    holdPressure: function (on) { pressureHeld = !!on; pressureSchedule(); return API; },
     bed: function (on) { return API.set({ bed: !!on }); },
     pressure: function (on) { return API.set({ pressure: !!on }); },
     motion: function (m) { return API.set({ motion: m }); },

@@ -468,6 +468,7 @@
 
   function fx(event) {
     showActionFx(event);
+    cueEvent(event);
     if (!globalThis.E1FX) return; // the game must run with fx.js absent
     const card = event.cardId ? CARD_BY_ID[event.cardId] : null;
     const affinity = card && card.affinity ? card.affinity[0] : undefined;
@@ -577,6 +578,154 @@
       }
       default: return undefined;
     }
+  }
+
+  // ----------------------------------------------------------- music cues
+
+  /* THE HANGAR'S MUSIC FOLLOWS THE TABLE (nappelin NAP-CUE draft, #107). Inside a
+   * shell that routes cues, the table tells whatever music plays there what the
+   * game feels like (a mood, which holds) and when something big just happened
+   * (a moment). site/napplet.js (E1Napplet.cue) owns the wire and the shell's
+   * throttles; this is only the translation, and like fx() it reads nothing but
+   * what the table already renders: the engine's events and the view.
+   *
+   * On the website, or in a Hangar without the domain, nothing here sends. The
+   * shop is not in the napplet, so `booster-open` is never sent. */
+
+  /* TENSION: either player at 6 Uptime or less. Everyone starts at 20
+   * (START_UPTIME, rules §2.3), and one Clash deals a few Avatars' Action: the
+   * median Avatar hits for 2 in Classic and 3 in Fast, and one in ten hits for 5
+   * (Classic) or 6 (Fast). At 6 a single big attacker, or two ordinary ones and a
+   * burn, ends the game this turn: the point where a player has to start
+   * defending, which is what tension should sound like. Higher and most of a
+   * Classic game would be "tense"; lower and it arrives a turn after the danger. */
+  const CUE_TENSION_UPTIME = 6;
+  const cueTrack = { game: null, mood: null, turnSeat: null, lethal: false, ended: false, music: null };
+
+  const cueLink = () => {
+    const N = globalThis.E1Napplet;
+    if (!embedded() || !N || !N.cue || typeof N.cue.available !== "function") return null;
+    try { return N.cue.available() ? N.cue : null; } catch (error) { return null; }
+  };
+  /* The answer is never read: `accepted` does not mean anyone listened, and a
+   * refusal is final. */
+  const cueSend = (fields) => {
+    const link = cueLink();
+    if (!link) return false;
+    try { Promise.resolve(link.send(fields)).catch(() => undefined); } catch (error) { /* music is never load-bearing */ }
+    return true;
+  };
+  /* A mood is sent when it CHANGES, never per render. */
+  const cueMood = (mood) => {
+    if (cueTrack.mood === mood) return;
+    if (cueSend({ mood })) cueTrack.mood = mood;
+  };
+
+  /* The per-match memory, started over whenever a different game is on the table.
+   * A match first seen already finished (a reload, a late spectator) has had its
+   * killing blow and its ending: neither is announced again. */
+  function cueGame(state) {
+    if (!state || state.gameId === cueTrack.game) return;
+    cueTrack.game = state.gameId;
+    cueTrack.turnSeat = state.turn ? state.turn.active : null;
+    cueTrack.ended = Boolean(state.result);
+    cueTrack.lethal = Boolean(state.result);
+  }
+
+  /* Moments, from the engine's events as fx() receives them: a local dispatch
+   * and a referee FRAME both pass through here; a STATE (a resync) does not. */
+  function cueEvent(event) {
+    const full = session.full;
+    if (!full || !event || !cueLink()) return;
+    cueGame(full);
+    switch (event.t) {
+      case "TURN":
+        if (cueTrack.turnSeat !== null && event.seat !== cueTrack.turnSeat) cueSend({ moment: "turn" });
+        cueTrack.turnSeat = event.seat;
+        return;
+      // Classic declares every attacker at once, and a turn with none still emits ATTACKERS.
+      case "ATTACKERS":
+        if ((event.attackers || []).length) cueSend({ moment: "attack" });
+        return;
+      case "ATTACK": // a Fast DECLARE_ATTACK, applied
+        cueSend({ moment: "attack" });
+        return;
+      case "DAMAGE":
+      case "UPTIME": {
+        const hit = event.t === "DAMAGE" ? event.to === "seat" : event.delta < 0;
+        const seat = full.seats && full.seats[event.seat];
+        // Events are handed over before the frame renders, so this lands before match-end.
+        if (hit && seat && seat.uptime <= 0 && !cueTrack.lethal) {
+          cueTrack.lethal = true;
+          cueSend({ moment: "lethal" });
+        }
+        return;
+      }
+      default:
+        return;
+    }
+  }
+
+  /* Whose ending this screen hears: the seat a referee gave us, or the human in
+   * solo play. Hotseat and spectators hear victory. A draw is calm for everyone:
+   * nobody lost, and calm hands the music back. */
+  function cueOutcome(v) {
+    if (v.result.reason === "draw" || !(v.result.winners || []).length) return "calm";
+    const mine = session.role === "seat" ? session.seat : session.npc !== null ? 1 - session.npc : null;
+    if (mine === null || session.role === "spectator") return "victory";
+    return (v.result.winners || []).includes(mine) ? "victory" : "defeat";
+  }
+
+  /* Moods and match-end, from the view render() is drawing. */
+  function cueBoard(v) {
+    if (!v || !cueLink()) return;
+    cueGame(v);
+    if (v.result && !cueTrack.ended) {
+      cueTrack.ended = true;
+      cueSend({ moment: "match-end" });
+    }
+    const low = (v.seats || []).some((seat) => seat && seat.uptime <= CUE_TENSION_UPTIME);
+    /* A Clash with no attacker declared is a step, not a fight: `battle` starts at
+     * the first attack (Classic's declaration or a Fast attack) and holds for the
+     * rest of that turn, which covers the Clash still resolving. */
+    const fighting = Boolean(v.turn && (v.turn.attacked || []).length);
+    cueMood(v.result ? cueOutcome(v) : fighting ? "battle" : low ? "tension" : "calm");
+  }
+
+  /* Off the table (setup, the lobby, the first screen, a table left) is calm. */
+  function cueCalm() {
+    cueTrack.game = null;
+    cueMood("calm");
+  }
+
+  /* Shell music playing: the room tone steps back and the pressure pulse holds;
+   * idle gives both back. fx.js's own per-hit ducking is left alone. */
+  function cueFocus(music) {
+    if (music === cueTrack.music) return;
+    cueTrack.music = music;
+    const FX = globalThis.E1FX;
+    if (!FX) return;
+    try {
+      if (music === "playing") {
+        if (typeof FX.duckBed === "function") FX.duckBed(0.35);
+        if (typeof FX.holdPressure === "function") FX.holdPressure(true);
+      } else {
+        if (typeof FX.unduckBed === "function") FX.unduckBed();
+        if (typeof FX.holdPressure === "function") FX.holdPressure(false);
+      }
+    } catch (error) {
+      void error; // sound is never load-bearing
+    }
+  }
+
+  function initCues() {
+    const N = globalThis.E1Napplet;
+    if (!embedded() || !N || !N.cue) return;
+    if (typeof N.cue.onFocus === "function") {
+      try { N.cue.onFocus(cueFocus); } catch (error) { void error; }
+    }
+    if (typeof window.addEventListener === "function") window.addEventListener("pagehide", cueCalm);
+    if (!session.full) cueCalm();
   }
 
   /* Damage that did not land. The ring is the shield holding; the chip says by
@@ -3333,6 +3482,7 @@
     const seat = uiSeat(full);
     const v = viewNow();               // the table renders the redacted view
     const foe = 1 - seat;
+    cueBoard(v);
 
     /* The name is whoever the table is speaking to, which in remote play is
      * always you — so the turn owner is named separately whenever it is not the
@@ -5249,6 +5399,7 @@
     session.full = null;
     $("table").hidden = true;
     $("setup").hidden = false;
+    cueCalm();
     renderNetChip();
     showMode("online");
   }
@@ -5399,6 +5550,7 @@
     blocks = {};
     $("table").hidden = true;
     $("setup").hidden = false;
+    cueCalm();
     const start = $("start");
     if (start && typeof start.focus === "function") start.focus();
   }
@@ -5431,6 +5583,7 @@
     remote.endShown = null;
     $("table").hidden = true;
     $("setup").hidden = false;
+    cueCalm();
     renderNetChip();
     renderIdentity();
     toLobby();
@@ -5479,6 +5632,7 @@
       remote.agreement = null;
       $("table").hidden = true;
       $("setup").hidden = false;
+      cueCalm();
       renderNetChip();
       renderIdentity();
       if (lobby) showLobby();
@@ -6247,6 +6401,7 @@
     }
 
     initEndgame(); // before initNet, and unconditionally: see the note there.
+    initCues();    // after fx.js is mounted, so a focus push at launch finds the bed
     if (embedded()) initFirst();
 
     // Last, and guarded: a missing net.js must not take the hotseat down with it.

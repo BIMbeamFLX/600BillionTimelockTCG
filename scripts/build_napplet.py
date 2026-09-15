@@ -32,7 +32,9 @@ NAPPLET_ID = "600b-timelock-tcg"
 TITLE = "TIMELOCK TCG"
 DESCRIPTION = "Two-player card game on one screen, or against the built-in opponent. All 295 cards."
 # `link` is the NAP-LINK door: the one fixed shop URL the empty collection opens (site/play.js).
-REQUIRES = ("identity", "outbox", "resource", "storage", "intent", "link")
+# `x-nappelin-cue` is the interim NAP-CUE domain (nappelin #107): the table cues the Hangar's
+# music. A catalog that does not grant it still launches the napplet; the cues simply stay off.
+REQUIRES = ("identity", "outbox", "resource", "storage", "intent", "link", "x-nappelin-cue")
 # The referee the napplet dials. A srcdoc frame has no origin to derive one from, so
 # site/net.js tableUrl() reads window.E1_TABLE_URL, set in <head> before net.js runs.
 TABLE_URL = "wss://tcg.nappelin.com/ws"

@@ -635,7 +635,8 @@
     if (!event || event.source !== globalThis.parent) return;
     const msg = event.data;
     if (!msg || typeof msg !== "object" || typeof msg.type !== "string") return;
-    if (msg.type === "table.open.result" || msg.type === "table.sign.result") {
+    if (msg.type === CUE_FOCUS) return void cueFocus(msg);
+    if (msg.type === "table.open.result" || msg.type === "table.sign.result" || msg.type === CUE_RESULT) {
       const reply = replies.get(msg.id);
       if (!reply) return;
       replies.delete(msg.id);
@@ -790,6 +791,135 @@
     },
   };
 
+  // ---------------------------------------------------------------------- cue
+
+  /* MUSIC CUES (nappelin NAP-CUE draft, nappelin.com #107; interim domain
+   * `x-nappelin-cue`). The game tells whatever music the shell plays what the
+   * table feels like, in a closed vocabulary, and hears one bit back: whether that
+   * music is audible, so its own bed can step back. It rides the same postMessage
+   * pipe as the table channel, request ids and all.
+   *
+   * NOTHING HAPPENS UNTIL THE SHELL SAYS SO. Unless `napplet.shell.supports("x-nappelin-cue")`
+   * answers `true`, every call is a no-op and nothing is posted —
+   * which is every website visit and every Hangar that does not route cues yet.
+   *
+   * The shell rate-limits and answers `rate limited`, and an error is final: this
+   * side never retries. So the throttles live here too, and they are the shell's:
+   * a mood at most once per 8 s, the latest one winning the wait; moments at most
+   * 4 per second, the extras dropped. `accepted: true` says the shell took the cue,
+   * never that anyone listened, so no caller may depend on it. */
+  const CUE = "x-nappelin-cue";
+  const CUE_SEND = `${CUE}.send`;
+  const CUE_RESULT = `${CUE}.send.result`;
+  const CUE_FOCUS = `${CUE}.focus`;
+  const CUE_MOODS = Object.freeze(["calm", "tension", "battle", "victory", "defeat"]);
+  const CUE_MOMENTS = Object.freeze(["turn", "attack", "lethal", "match-end", "booster-open"]);
+  const CUE_MOOD_MS = 8000;
+  const CUE_MOMENTS_PER_S = 4;
+  const CUE_REPLY_MS = 8000;
+  const cueNow = () => (globalThis.Date || Date).now();
+  const cueTimer = (fn, ms) => (globalThis.setTimeout || setTimeout)(fn, ms);
+  const cueLog = { moodAt: null, mood: null, pending: null, moments: [] };
+  const focusListeners = new Set();
+
+  /** The one shape a result takes: `{ ok: true, accepted: true }` or `{ ok: false, error }`. */
+  const cueAnswer = (msg) => (msg && msg.accepted === true && msg.error === undefined
+    ? { ok: true, accepted: true }
+    : { ok: false, error: String((msg && msg.error) || "the shell refused the cue") });
+
+  function cuePost(fields) {
+    listen();
+    return new Promise((resolve) => {
+      try {
+        ask(CUE_SEND, fields, CUE_REPLY_MS, (msg) => resolve(cueAnswer(msg)));
+      } catch (err) {
+        resolve({ ok: false, error: String((err && err.message) || "no host") });
+      }
+    });
+  }
+
+  function cueFocus(msg) {
+    if (msg.music !== "playing" && msg.music !== "idle") return;
+    if (!cue.available()) return;
+    for (const fn of Array.from(focusListeners)) call(fn, msg.music);
+  }
+
+  /* The latest mood waits for the window to open. One timer, however many moods
+   * arrive while it runs; each one it replaces is told so. */
+  function cueMood(mood) {
+    const now = cueNow();
+    const waiting = cueLog.pending;
+    if (waiting) {
+      waiting.resolve({ ok: false, error: "superseded" });
+      return new Promise((resolve) => { waiting.mood = mood; waiting.resolve = resolve; });
+    }
+    if (cueLog.moodAt === null || now - cueLog.moodAt >= CUE_MOOD_MS) {
+      cueLog.moodAt = now;
+      cueLog.mood = mood;
+      return cuePost({ mood });
+    }
+    return new Promise((resolve) => {
+      cueLog.pending = { mood, resolve };
+      cueTimer(() => {
+        const { mood: latest, resolve: done } = cueLog.pending;
+        cueLog.pending = null;
+        // Back where the window started: the mood the shell holds is already this one.
+        if (latest === cueLog.mood) return void done({ ok: true });
+        cueLog.moodAt = cueNow();
+        cueLog.mood = latest;
+        cuePost({ mood: latest }).then(done);
+      }, Math.max(0, cueLog.moodAt + CUE_MOOD_MS - now));
+    });
+  }
+
+  function cueMoment(moment) {
+    const now = cueNow();
+    cueLog.moments = cueLog.moments.filter((at) => now - at < 1000);
+    if (cueLog.moments.length >= CUE_MOMENTS_PER_S) return Promise.resolve({ ok: false, error: "rate limited" });
+    cueLog.moments.push(now);
+    return cuePost({ moment });
+  }
+
+  const cue = {
+    MOODS: CUE_MOODS,
+    MOMENTS: CUE_MOMENTS,
+    /** Whether the shell routes cues. False on the website and in a Hangar without the domain. */
+    available() {
+      if (!shell || !embedded() || !hostWindow()) return false;
+      /* The one probe (nappelin #128): the host may never expose a
+       * `napplet["x-nappelin-cue"]` object, and only a plain `true` is a yes. */
+      try {
+        return Boolean(shell.shell) && typeof shell.shell.supports === "function" && shell.shell.supports(CUE) === true;
+      } catch (err) {
+        return false; // a supports() that throws supports nothing
+      }
+    },
+    /**
+     * Offer `{ mood }` or `{ moment }` (both is two cues) to the shell's music. Resolves
+     * `{ ok: true, accepted: true }` or `{ ok: false, error }`; never rejects, never retries.
+     */
+    send(fields) {
+      if (!cue.available()) return Promise.resolve({ ok: false, error: "unavailable" });
+      const { mood, moment } = isObject(fields) ? fields : {};
+      const moodOk = mood === undefined || CUE_MOODS.includes(mood);
+      const momentOk = moment === undefined || CUE_MOMENTS.includes(moment);
+      if (!moodOk || !momentOk || (mood === undefined && moment === undefined)) {
+        return Promise.resolve({ ok: false, error: "invalid request" });
+      }
+      if (mood === undefined) return cueMoment(moment);
+      if (moment === undefined) return cueMood(mood);
+      const held = cueMood(mood);
+      return cueMoment(moment).then((answer) => (answer.ok ? held : answer));
+    },
+    /** `fn("playing" | "idle")` on every focus push. Returns `unsubscribe()`. */
+    onFocus(fn) {
+      if (typeof fn !== "function" || !embedded() || !hostWindow()) return () => {};
+      listen();
+      focusListeners.add(fn);
+      return () => { focusListeners.delete(fn); };
+    },
+  };
+
   // --------------------------------------------------------------- collection
 
   /* WHAT THE PLAYER OWNS, asked of the shell rather than of a wallet. Bearlett
@@ -923,6 +1053,7 @@
     resource,
     link,
     table,
+    cue,
     collection,
     canReachInternet,
     shape,
@@ -940,6 +1071,7 @@
         outbox: has("outbox") ? "shell" : (globalThis.E1Net ? "relays" : "local only"),
         resource: has("resource") ? "shell" : "urls",
         table: table.available() ? "host channel" : "websocket",
+        cue: cue.available() ? "host channel" : "off",
         collection: has("intent") ? "intent" : "wallet",
         shape: shape(),
       };
