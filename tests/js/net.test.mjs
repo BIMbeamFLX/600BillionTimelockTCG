@@ -1964,6 +1964,43 @@ test("a preflight is answered without reaching any handler", async (t) => {
   assert.match(options.headers["access-control-allow-methods"], /GET/);
 });
 
+test("the mint answers a listed origin's wallet: JSON reads and POST preflights", async (t) => {
+  /* THE NAPPELIN HANGAR CARRIES THE BEARLETT COLLECTION'S MINT REQUESTS FROM
+   * ITS OWN ORIGIN. Without the header on the mint's JSON the browser drops
+   * /v1/info unread, and without POST in the preflight checkstate, restore and
+   * trade never leave the page. An unlisted origin still gets neither. */
+  const table = await boot(t, "c3.db", { allowedOrigins: ["https://nappelin.com"] });
+
+  const info = await rawGet(`${table.url}/v1/info`, { origin: "https://nappelin.com" });
+  assert.equal(info.status, 200);
+  assert.equal(info.headers["access-control-allow-origin"], "https://nappelin.com");
+  assert.equal(info.headers.vary, "origin");
+
+  const stranger = await rawGet(`${table.url}/v1/info`, { origin: "https://evil.example" });
+  assert.equal(stranger.headers["access-control-allow-origin"], undefined);
+
+  const preflight = (path, origin) => new Promise((resolve, reject) => {
+    const target = new URL(`${table.url}${path}`);
+    const req = httpRequest({
+      method: "OPTIONS", hostname: target.hostname, port: target.port, path: target.pathname,
+      headers: { origin, "access-control-request-method": "POST", "access-control-request-headers": "content-type" },
+    }, (response) => { response.resume(); response.on("end", () => resolve({ status: response.statusCode, headers: response.headers })); });
+    req.on("error", reject);
+    req.end();
+  });
+  const mint = await preflight("/v1/checkstate", "https://nappelin.com");
+  assert.equal(mint.status, 204);
+  assert.match(mint.headers["access-control-allow-methods"], /POST/);
+  assert.match(mint.headers["access-control-allow-headers"], /content-type/);
+
+  const lobby = await preflight("/api/tables", "https://nappelin.com");
+  assert.doesNotMatch(lobby.headers["access-control-allow-methods"], /POST/, "the lobby stays read-only");
+  assert.equal(lobby.headers["access-control-allow-headers"], undefined);
+
+  const refused = await preflight("/v1/checkstate", "https://evil.example");
+  assert.equal(refused.headers["access-control-allow-origin"], undefined);
+});
+
 // ------------------------------------------------- the whole match lifecycle
 
 test("a staked match, queued to signed result, carries everything the closing screen needs", async (t) => {
