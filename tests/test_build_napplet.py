@@ -49,7 +49,8 @@ def test_page_is_self_contained(artifact: tuple[bytes, dict]) -> None:
 def test_page_carries_the_napplet_head(artifact: tuple[bytes, dict]) -> None:
     """The build marker and the requires meta sit in <head>."""
     html = artifact[0].decode("utf-8")
-    source_sha = hashlib.sha256((SITE / "play.html").read_bytes()).hexdigest()
+    # The marker hashes the LF text, as the build does: a Windows checkout hands over CRLF.
+    source_sha = hashlib.sha256((SITE / "play.html").read_bytes().replace(CRLF, LF)).hexdigest()
 
     assert f'window.E1_NAPPLET_BUILD = "{source_sha}";' in html
     assert (
