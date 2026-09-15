@@ -258,6 +258,15 @@ test("values that used to pass startup and fail later refuse the boot", () => {
     "lnd invoices in millisatoshis, so only phoenixd and Cashu need whole sats");
   assertProblem(problemsWith({ NUTFT_CATALOG_MIRRORS: "https://blossom.example,blossom.example" }), /^NUTFT_CATALOG_MIRRORS: entry 2 is not/);
   assertProblem(problemsWith({ NUTFT_SUPPLY_INTERVAL_SECONDS: "30" }), /^NUTFT_SUPPLY_INTERVAL_SECONDS: must be 0 \(no timer\)/);
+  /* Node fires a delay longer than 2^31-1 ms every millisecond. */
+  assertProblem(problemsWith({ NUTFT_RECONCILE_MS: "3000000000" }), /^NUTFT_RECONCILE_MS: must be a number of milliseconds, at most 2147483647$/);
+  assertProblem(problemsWith({ NUTFT_SUPPLY_INTERVAL_SECONDS: "2147484" }), /at least 60 and at most 2147483$/);
+  assert.deepEqual(problemsWith({ NUTFT_RECONCILE_MS: "2147483647", NUTFT_SUPPLY_INTERVAL_SECONDS: "2147483" }), [],
+    "the longest timers Node keeps are still allowed");
+  assert.throws(() => createSupplyLedger({
+    privateKey: Buffer.alloc(32, 1), canonical: JSON.stringify, read: () => ({}), copies: { a: 1 },
+    packs: 1, issuedPerPack: 1, intervalSeconds: 3_000_000,
+  }), /at most 2147483/, "the ledger refuses it too, not only the check");
   assertProblem(problemsWith({ G_NUTFT_COLLECTION_ID: "600B G" }), /^G_NUTFT_COLLECTION_ID: must be 1 to 64 letters/);
 });
 
@@ -280,6 +289,13 @@ test("LND settings are required only from a mint or a beacon that selects lnd", 
   assertProblem(problemsWith({ ...unused, NUTFT_BEACON_SOURCE: "lnd" }), /^LND_MACAROON_PATH: required with LND_REST_URL/);
   assertProblem(problemsWith({ G_NUTFT_FUNDING: "lnd" }), /^LND_REST_URL: required when G_NUTFT_FUNDING=lnd/);
   assertProblem(problemsWith({ ...unused, LND_MACAROON: "not-hex", NUTFT_FUNDING: "lnd" }), /^LND_MACAROON: must be hex/);
+  /* A blank inline macaroon wins over the path and would be sent as the credential. */
+  const blankInline = { ...unused, NUTFT_FUNDING: "lnd", LND_MACAROON: "  ", LND_MACAROON_PATH: "/srv/tcg-secrets/invoice.macaroon",
+    LND_TLS_CERT_PATH: "/srv/tcg-secrets/tls.cert" };
+  assertProblem(problemsWith(blankInline), /^LND_MACAROON: must be hex$/);
+  assert.throws(() => require("../../server/lnd.js").readConfig({
+    url: "https://node.example:8080", macaroon: "  ", macaroonPath: "/srv/tcg-secrets/invoice.macaroon", certPath: "/srv/tcg-secrets/tls.cert",
+  }), /LND_MACAROON: must be hex/, "refused before any file is read");
 });
 
 test("a free mint asked for one per key warns at boot that it cannot enforce it", async (t) => {
@@ -324,6 +340,48 @@ test("a census path that names another file never echoes its content", async (t)
   assert.equal(code, 1);
   assert.match(output, /G_NUTFT_CENSUS_PATH: the file it names is not a census/);
   assert.ok(!`${messages.join("\n")}\n${output}`.includes(MARKER), "no byte of the file, nor its path, is printed");
+});
+
+test("a census that is almost right is refused as not a census, not with a TypeError", async (t) => {
+  const { mkdtempSync: tempDir, writeFileSync, rmSync: remove } = await import("node:fs");
+  const dir = tempDir(join(tmpdir(), "600b-census-shape-"));
+  t.after(() => remove(dir, { recursive: true, force: true }));
+  const e1 = require("../../cards/nutft-census.json");
+  const g = require("../../cards/g-census.json");
+  const broken = (census, change) => {
+    const copy = structuredClone(census);
+    change(copy);
+    return copy;
+  };
+  const cases = [
+    ["E1 without tiers", e1, (c) => { delete c.tiers; }],
+    ["E1 with a tier share that is not a number", e1, (c) => { Object.values(c.tiers)[0].share_of_mint = `${MARKER}`; }],
+    ["E1 with a null tier", e1, (c) => { c.tiers[Object.keys(c.tiers)[0]] = null; }],
+    ["a card that is not an object", e1, (c) => { c.cards[0] = null; }],
+    ["a card without an id", e1, (c) => { delete c.cards[3].id; }],
+    ["mint as a list", e1, (c) => { c.mint = [MARKER]; }],
+    ["packs as text", e1, (c) => { c.mint.packs = "62775"; }],
+    ["no census digest", e1, (c) => { delete c.census_sha256; }],
+    ["G without its manifest", g, (c) => { delete c.manifest; }],
+    ["a list instead of a census", e1, () => {}],
+  ];
+  const identity = (census) => (census === g
+    ? { edition: "G", catalogUri: "https://x/g/nutft/catalog", collectionId: "600B-G", sales: "signed" }
+    : { catalogUri: "https://x/nutft/catalog" });
+  for (const [label, census, change] of cases) {
+    const file = join(dir, `${label.replace(/\W+/g, "-")}.json`);
+    const body = label === "a list instead of a census" ? [MARKER] : broken(census, change);
+    writeFileSync(file, JSON.stringify(body));
+    const message = thrown(() => createNutftMint({ ...identity(census), lnd: null, censusPath: file }));
+    const variable = census === g ? "G_NUTFT_CENSUS_PATH" : "NUTFT_CENSUS_PATH";
+    assert.equal(message, `${variable}: the file it names is not a census`, label);
+  }
+  for (const [label, census, options] of [["E1", e1, {}], ["G", g, { edition: "G", collectionId: "600B-G", sales: "signed" }]]) {
+    const file = join(dir, `${label}-intact.json`);
+    writeFileSync(file, JSON.stringify(census));
+    const mint = createNutftMint({ catalogUri: "https://x/nutft/catalog", lnd: null, censusPath: file, ...options });
+    mint.stop();
+  }
 });
 
 test("an unknown edition name is refused, never read as E1", () => {

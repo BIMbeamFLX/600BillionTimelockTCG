@@ -3,7 +3,8 @@
 The referee refuses to start on mint settings that used to boot and then did the wrong
 thing, some of them for good: `NUTFT_CATALOG_URI`, `G_NUTFT_CATALOG_URI` and both collection
 ids are hashed into every issued card. This release **changes defaults** the running box may
-rely on (§2), **adds refusals** (§3) and **reads some spellings differently** (§3.1). The check
+rely on (§2), **adds refusals** (§3), **reads some spellings differently** (§3.1) and **acts on
+variables the running build ignores** (§3.2). The check
 in §1 runs against the running service before anything stops.
 
 The rules live in `server/mint-env.js`. The boot, both mints, the funding backends and the dry
@@ -17,9 +18,10 @@ This document explains what the check does, what each line means, and how to fix
 ## 1 · Before anything stops: the dry run against the running service
 
 The check applies the new release's rules to the environment of the process that runs now.
-It prints one line per problem, never a value, and then `ok` or the count. A problem is either
-a refusal, `VARIABLE: reason` (§3), or a value the release would start with but read
-differently from the running build, `VARIABLE: meaning changes (old → new)` (§3.1). It needs no
+It prints one line per problem, never a value, and then `ok` or the count. A problem is a
+refusal, `VARIABLE: reason` (§3); a value the release would start with but read differently
+from the running build, `VARIABLE: meaning changes (old → new)` (§3.1); or a variable only the
+release reads, `VARIABLE: set, but the running build ignores it` (§3.2). It needs no
 `node_modules`, writes nothing, opens no database, binds no port and contacts no funding
 backend. Exit code 0 is `ok`, 1 is problems, 2 is input it could not read.
 
@@ -40,8 +42,9 @@ restarted once, while nobody waits in quick match (`"queued":0`), between two sn
 both mints publish. Any difference between the snapshots stops the deploy for the day. Only a
 clean comparison goes on to the check.
 
-**Any line other than a single `ok` stops the deploy**, a refusal and a `meaning changes` row
-alike: after a meaning change the release would start, and the shop would behave differently.
+**Any line other than a single `ok` stops the deploy**, a refusal, a `meaning changes` row and
+a `set, but the running build ignores it` row alike: after the last two the release would
+start, and the shop would behave differently.
 Exit code 2 with `the environment input is empty` means the process id was 0 or stale.
 
 Every problem line is fixed in the environment first, as its own change on the **running**
@@ -88,10 +91,11 @@ Where the running box relies on an old default or spelling, §1 reports it: as a
 | `G_NUTFT_CENSUS_PATH` | `cards/g-census.json` in the code directory. | No default. |
 | `G_NUTFT_PRICE_MSAT` | `0` or a non-number took `NUTFT_PRICE_MSAT`, then 21 sat. | Refused. Unset or empty is still 210 sat. |
 | `G_NUTFT_INVOICE_TTL_SECONDS`, `G_NUTFT_CLAIM_GRACE_SECONDS` | Unset, empty, `0` or a non-number took the E1 value. | `0` or a non-number is refused. Unset is G's own 900 and 3600, and refused while the E1 variable is set. |
-| `G_NUTFT_CATALOG_MIRRORS` | Unset took `NUTFT_CATALOG_MIRRORS`. | *Meaning change:* unset is no mirrors. E1's mirrors hold E1's catalog blob; a wallet reads G's catalog from the mint's own `/g/blossom/` path. |
+| `G_NUTFT_CATALOG_MIRRORS` | The running build (`d753505`) advertises no mirrors for either mint; `origin/main` let an unset G list take `NUTFT_CATALOG_MIRRORS`. | Unset or empty is no mirrors, as on the box: E1's mirrors hold E1's catalog blob, and a wallet reads G's catalog from the mint's own `/g/blossom/` path. |
 | `G_NUTFT_ONE_PER_KEY` | An empty `G_NUTFT_ONE_PER_KEY=` switched the limit off. | *Meaning change:* empty is unset, and unset is on. |
 | `NUTFT_ONE_PER_KEY` | Only `1` and `true` were on; anything else was off. | *Meaning change* for `yes`, `on` and capitals, which are now on. The flag grammar is below. |
-| `G_NUTFT_PRICE_MSAT`, `NUTFT_RECONCILE_MS`, `NUTFT_SUPPLY_INTERVAL_SECONDS`, `NUTFT_PUBLIC_BASE`, `G_NUTFT_PUBLIC_BASE`, `NUTFT_COLLECTION_ID`, `LND_REST_URL` (reported as `NUTFT_FUNDING`) | A value of only spaces or tabs was a value: a number read it as 0, a string kept it. | *Meaning change:* blank is unset, so the default applies. |
+| `G_NUTFT_PRICE_MSAT`, `NUTFT_RECONCILE_MS`, `NUTFT_PUBLIC_BASE`, `G_NUTFT_PUBLIC_BASE`, `NUTFT_COLLECTION_ID`, `LND_REST_URL` (reported as `NUTFT_FUNDING`) | A value of only spaces or tabs was a value: a number read it as 0, a string kept it. | *Meaning change:* blank is unset, so the default applies. |
+| `LND_REST_URL` | Kept surrounding spaces, so a trailing one broke every request to the node. | *Meaning change:* the URL is trimmed. |
 | `NUTFT_ONE_PER_KEY`, `G_NUTFT_ONE_PER_KEY`, `NUTFT_PURCHASE_MODE`, `G_NUTFT_PURCHASE_MODE`, `G_NUTFT_ENABLED` | A mistyped value was off. | On is `1`, `true`, `yes`, `on`; off is `0`, `false`, `no`, `off`, in any case; unset or empty is the default. Anything else, a trailing space included, is refused. |
 | `NUTFT_BEACON_SOURCE` | Anything but exactly `lnd` was off. | Unset or empty is off, `lnd` is on, anything else is refused. |
 | `LND_*` | Read, and the macaroon demanded, on every boot while `LND_REST_URL` was set. | Read only when a mint funds through `lnd` or E1's beacon is on. |
@@ -135,20 +139,24 @@ time, where docs/deploy.md §9.2a says, and find what a mint publishes now with 
 | `…: must be on or off` | A flag from §2 holds another word. | The running build read it as off: set `0`. |
 | `NUTFT_BEACON_SOURCE: must be lnd, or unset` | Anything but `lnd` or empty. | The running build had the beacon off: remove the variable. |
 | `NUTFT_BEACON_CONFIRMATIONS: must be a whole number of blocks` | Set, and not written as a whole number of at least 1. | With the beacon off (`NUTFT_BEACON_SOURCE` unset), nothing read it: remove it. With the beacon on, the running build read `0` or a negative number as 1 block and a number in another notation (`1e1`) as its value, and those sales could be claimed: write `1`, or that value in digits. Only a non-number or a fraction left every sealed sale paid under it unclaimable (no target height, or `target height is invalid`); that changes behaviour, so write `1` and look at the open sealed sales before the deploy. |
-| `NUTFT_RECONCILE_MS: must be a number of milliseconds` | Set, and not a number. | Changes behaviour on `cashu`, where the sweep ran every millisecond: set `120000`, or remove it. |
+| `NUTFT_RECONCILE_MS: must be a number of milliseconds, at most 2147483647` | Set, and not a number, or longer than Node's longest timer. | Changes behaviour on `cashu`, where the sweep ran every millisecond: Node runs a NaN interval, and any interval above 2147483647 ms, every 1 ms. Set `120000`, or remove it. |
 | `NUTFT_PUBLIC_BASE: must be an absolute`, `G_NUTFT_PUBLIC_BASE: must be an absolute` | Set, and not `http(s)://host` without user, password, query or fragment. | Changes behaviour: quotes and eligibility checks answered 400 with a value without a scheme. Set `https://` and the site's host, or remove it to derive the base from `PUBLIC_URL`. |
 | `PUBLIC_URL: must be a ws:// or wss:// URL` | No public base is set and `PUBLIC_URL` is not `ws(s)://`. | Unchanged: the running build refused this. |
 | `…_CATALOG_URI: must be an absolute http:// or https:// URL` | Not an absolute `http(s)` URL, or surrounded by spaces. | The running build refused the first; the second it hashed into cards as written. A URI in issued cards cannot change, so stop and decide before deploying. |
 | `…_COLLECTION_ID: must be 1 to 64 letters, digits, dots, dashes or underscores` | Any other collection id. | Wallets refused a mint with such a unit; no identity-keeping fix exists, and none is expected: production is `600B-E1` and `600B-G`. |
 | `…_CATALOG_MIRRORS: entry N is not an absolute http:// or https:// URL` | Entry N is not. | Unchanged: the running build refused this. |
-| `NUTFT_SUPPLY_RELAYS: entry N is not a ws:// or wss:// URL`, `NUTFT_SUPPLY_INTERVAL_SECONDS: must be 0 (no timer) or …` | As the line says. | Unchanged, except that decimal notation such as `60.0` is refused. |
+| `NUTFT_SUPPLY_RELAYS: entry N is not a ws:// or wss:// URL`, `NUTFT_SUPPLY_INTERVAL_SECONDS: must be 0 (no timer) or a whole number of seconds, at least 60 and at most 2147483` | As the line says; 2147483 seconds is Node's longest timer, and a longer one would sign a snapshot every millisecond. | The running build has no supply ledger and ignores both (§3.2): remove them before the deploy. |
 | `NUTFT_MOCK_SETTLE_MS: must be a whole number of milliseconds` | A mint funds through `mock` and the delay is not a whole number. | Staging only; the mock never settled with it. |
 
 ### 3.1 · Meaning changes and their fix
 
+> These rows describe `d753505`, the build running on 2026-09-15. Rebuild them against the
+> running build before every release (the tables at the top of `server/env-check.js`).
+
 A `meaning changes` row names a value the release would start with but read differently from
-the running build: `origin/main` at `74e933a`, and every build that reads these variables the
-same way (`d753505` does). Nothing is refused, so without the row the check would print `ok`
+the running build, which is `d753505` on the box; the rows model that build's code and cite its
+lines. `origin/main` differs from it: it added catalog mirrors, purchase mode and the supply
+ledger, none of which `d753505` reads. Nothing is refused, so without the row the check would print `ok`
 and the shop would change at the deploy. The row stops the deploy exactly like a refusal. Its
 fix is to write the value the running build actually uses, spelled so that both builds read it
 the same, as its own change on the running build (§1). The rows flag only these spellings:
@@ -159,13 +167,33 @@ one.
 |---|---|---|
 | `NUTFT_ONE_PER_KEY: meaning changes (off → on)` | `yes`, `on`, or a capitalised `true`, `yes` or `on`: off. | `NUTFT_ONE_PER_KEY=0`. Writing `1` switches the limit on in the running build too, which is a sales decision of its own. |
 | `G_NUTFT_ONE_PER_KEY: meaning changes (off → on)` | An empty or blank value: off. | `G_NUTFT_ONE_PER_KEY=0`, or `1` if the limit was meant, which changes what G sells. |
-| `G_NUTFT_CATALOG_MIRRORS: meaning changes (the NUTFT_CATALOG_MIRRORS list → no mirrors)` | Unset: E1's mirror list. | E1's list, copied into `G_NUTFT_CATALOG_MIRRORS`. An empty `G_NUTFT_CATALOG_MIRRORS=` is no mirrors in both builds, but it changes what the running G advertises. |
 | `G_NUTFT_PRICE_MSAT: meaning changes (… → 210000 msat)` | A blank value: the `NUTFT_PRICE_MSAT` price, or 21000 msat while that is unset. | The `price_msat` that `/g/v1/info` reports. |
 | `NUTFT_RECONCILE_MS: meaning changes (every 30000 ms → every 120000 ms)` | A blank value, on Cashu: 30000. | `NUTFT_RECONCILE_MS=30000`. |
-| `NUTFT_SUPPLY_INTERVAL_SECONDS: meaning changes (no timer → every 86400 seconds)` | A blank value: 0, no snapshot timer. | `NUTFT_SUPPLY_INTERVAL_SECONDS=0`. |
 | `NUTFT_PUBLIC_BASE: meaning changes (a blank origin → …)`, `G_NUTFT_PUBLIC_BASE: meaning changes (a blank origin → …)` | A blank value: the origin itself, on which every signed request and LNURL link failed. | No spelling keeps that. Remove the variable: both builds then take the origin the row names, which repairs the shop, so treat it as that change. |
 | `NUTFT_COLLECTION_ID: meaning changes (a blank collection id → 600B-E1)` | A blank value: the collection id hashed into every E1 card. | No spelling keeps a blank id. Stop: the E1 identity needs a decision first. |
 | `NUTFT_FUNDING: meaning changes (lnd → none)` | An empty `NUTFT_FUNDING` with a blank `LND_REST_URL`, a macaroon, and a certificate path or `LND_INSECURE=1`: paid through lnd. | Stop: the release would give every E1 booster away. Set a working `LND_REST_URL` with `NUTFT_FUNDING=lnd`, or `NUTFT_FUNDING=none` as a decision. |
+| `LND_REST_URL: meaning changes (a URL no lnd call reached → the same URL without its surrounding spaces)` | A URL with a trailing space, kept as written: every request to the node failed, so a mint funding through lnd sold nothing. A leading space or a tab reached the node and prints no row. | No spelling keeps it failing. To keep the shop as it is, set that mint's sales mode to `closed` first, which the running build reads the same way and which changes nothing it sold. Removing the spaces later is a decision to start selling through lnd. |
+
+### 3.2 · Set, but the running build ignores it
+
+> These rows describe `d753505`, the build running on 2026-09-15. Rebuild them against the
+> running build before every release (the tables at the top of `server/env-check.js`).
+
+`d753505` has no catalog mirrors, no committed purchases, no supply ledger and no ruleset choice
+for tables, so it never reads the variables below. Set on the box, they do nothing today and act the moment the release
+starts. The row prints for any value other than empty or blanks, G's only while
+`G_NUTFT_ENABLED` is on, and stops the deploy like a refusal, so the choice is deliberate. The
+fix that keeps the shop as it is: remove the variable before the deploy (the running build does
+not notice), and set it after the release runs, as its own change with its own check.
+
+| Line | What the release would do with it | After the deploy |
+|---|---|---|
+| `NUTFT_CATALOG_MIRRORS: set, but the running build ignores it` | Advertise `<mirror>/<sha256>` for E1's catalog in `/v1/info`. | List only Blossom servers that hold E1's catalog blob (`scripts/upload-catalog.mjs`). |
+| `G_NUTFT_CATALOG_MIRRORS: set, but the running build ignores it` | The same for G. | List only servers that hold G's blob; never copy E1's list. Empty means no mirrors, as today. |
+| `NUTFT_PURCHASE_MODE: set, but the running build ignores it`, and the same for `G_NUTFT_PURCHASE_MODE` | On: every quote answers `cards: null, purchase_required: true`, and a buyer must commit with `POST /nutft/purchase` first. A value that reads as off still prints the row. | Switch it on only after the shop and the wallet have passed the committed-purchase path (docs/nutft-purchase-and-possession.md §2.1). |
+| `NUTFT_SUPPLY_RELAYS: set, but the running build ignores it` | Publish signed supply snapshots to these relays. | Set it once the relays are chosen. |
+| `NUTFT_SUPPLY_INTERVAL_SECONDS: set, but the running build ignores it` | Sign a snapshot at that interval, or never for `0`. Unset, the release signs one every 86400 seconds. | Set it if another interval is wanted. |
+| `TABLE_RULESETS: set, but the running build ignores it` | Decide which rulesets public tables and quick match may open; anything not listed opens as Classic `E1.0`. Unset, the release allows `E1.0,F1.0`. | Set it once the ruleset decision is made. |
 
 ---
 

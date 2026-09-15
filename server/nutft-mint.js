@@ -105,10 +105,26 @@ function readCensus(file, variable, isDefault) {
   }
   let census = null;
   try { census = JSON.parse(text); } catch { /* reported below, without the text */ }
-  if (!census || typeof census !== "object" || !Array.isArray(census.cards) || !census.mint || typeof census.mint !== "object") {
-    throw new Error(`${subject} is not a census`);
-  }
+  if (!isCensus(census)) throw new Error(`${subject} is not a census`);
   return census;
+}
+
+/* Every field the mint reads from a census before it can answer anything. A
+   file that is almost a census is refused here, in the same words, instead of
+   failing on the first field it lacks. A draw census (E1) prints odds from its
+   tiers; a manifest census (G) lists its sets. */
+function isCensus(census) {
+  const object = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  const count = (value) => Number.isSafeInteger(value) && value > 0;
+  if (!object(census) || typeof census.census_sha256 !== "string" || !object(census.mint)) return false;
+  const { mint } = census;
+  if (!count(mint.packs) || !count(mint.cards_per_pack) || !count(mint.paid_cards_per_pack)) return false;
+  if (!Array.isArray(census.cards) || !census.cards.every((card) => object(card) && typeof card.id === "string" && card.id)) {
+    return false;
+  }
+  if (mint.issuance === "manifest") return Array.isArray(census.manifest);
+  return object(census.tiers) && Object.values(census.tiers)
+    .every((tier) => object(tier) && (tier.share_of_mint == null || Number.isFinite(tier.share_of_mint)));
 }
 
 function createNutftMint(options = {}) {
