@@ -77,7 +77,7 @@
     const site = (html) => (embed ? "" : html);
     return (embed
       ? '<p>Play another member at the table server. Your Nappelin account signs you in, and nothing is staked.</p>'
-        + '<p class="prompt" id="lobbyIdentity" hidden></p>'
+        + '<div class="prompt" id="lobbyIdentity" hidden></div>'
       : '<h1 id="lobbyHeading">Play <span>across the table</span></h1>'
         + "<p>One referee runs the rules and deals both seats; every play travels over a socket, and only the"
         + " invite, the accept and the signed result ever touch a relay. NIP-07 sign-in is required for every"
@@ -668,8 +668,11 @@
           if (typeof opts.onLobby === "function") opts.onLobby(msg);
           return;
         }
-        // Seated: playing, or a finished match we rejoined to see its ending.
+        /* Seated: playing, or a finished match we rejoined to see its ending. The
+         * board is the page's now, and a lobby shown again after it holds no seat. */
         if ($("hostPanel")) $("hostPanel").hidden = true;
+        session.seat = null;
+        session.role = "hotseat";
         if (typeof opts.onSeat === "function") opts.onSeat(msg, remote.invite);
       },
 

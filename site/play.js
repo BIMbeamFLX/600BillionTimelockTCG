@@ -4976,7 +4976,9 @@
     const box = $("endStake");
     box.hidden = true;
     box.innerHTML = "";
-    if (!ctx.stake || ctx.drew || session.seat === null) return;
+    /* Never inside the Hangar: a table there plays for no stake, and a seat taken
+     * back from a website match for sats is settled on the website. */
+    if (!ctx.stake || ctx.drew || session.seat === null || embedded()) return;
     box.hidden = false;
 
     if (ctx.won) {
@@ -5134,6 +5136,11 @@
   // ---- identity -----------------------------------------------------------
 
   function renderIdentity() {
+    /* Inside the Hangar the lobby replaced the website's sign-in row with its own. */
+    if (lobby) {
+      lobby.refresh();
+      return void renderNetPanel();
+    }
     const pubkey = nostr().savedPubkey();
     shownKey = pubkey || null;
     $("nostrLogin").hidden = Boolean(pubkey);
@@ -5190,9 +5197,63 @@
    * dropped first, so the lobby opens as a lobby and not as a resume prompt for
    * a match this player just walked away from. */
   function toLobby() {
+    if (lobby) return void showLobby();
     if (embedded()) return escapeFrame();
     location.href = "matchmaking.html";
     return undefined;
+  }
+
+  /* ONE PAGE INSIDE THE HANGAR. The frame cannot navigate, so the lobby lives on
+   * this page (site/lobby.js in #lobby) beside the board, over one E1Net: a STATE
+   * that seats this player shows the board, and leaving the table shows the
+   * lobby again. A local game still on the table when a seat is dealt (a table
+   * this player opened found its guest) is put away first, bot timers and all. */
+  let lobby = null;
+  const atBoard = () => session.role !== "hotseat";
+
+  function showLobby() {
+    session.seat = null;
+    session.role = "hotseat";
+    session.full = null;
+    $("table").hidden = true;
+    $("setup").hidden = false;
+    renderNetChip();
+    if (lobby) lobby.open();
+  }
+
+  function mountLobby() {
+    lobby = globalThis.E1Lobby.mount($("lobby"), NET, {
+      embedded: true,
+      start: false,
+      onSeat(msg, invite) {
+        if (!atBoard() && session.full) backToSetup();
+        remote.invite = invite || null;
+        adoptState(msg);
+      },
+      onLobby() {
+        if (atBoard()) showLobby();
+      },
+      collection: () => collection,
+      stack: (ruleset) => (collection && collection.cards > 0 ? collectionStack(ruleset) : null),
+    });
+    const rules = $("rules");
+    if (rules && $("netRules")) $("netRules").value = rules.value;
+    /* Every message has one reader: the board while this player sits at a table
+     * or watches one, the lobby otherwise. An open table is always the lobby's. */
+    const L = lobby.handlers;
+    const either = (name) => (msg) => (atBoard() ? NET_HANDLERS : L)[name](msg);
+    return {
+      onState: (msg) => (atBoard() && msg.status !== "open" ? adoptState(msg) : L.onState(msg)),
+      onFrame: NET_HANDLERS.onFrame,
+      onReject: NET_HANDLERS.onReject,
+      onOver: NET_HANDLERS.onOver,
+      onNostr: NET_HANDLERS.onNostr,
+      onQueued: L.onQueued,
+      onActive: L.onActive,
+      onPeer: either("onPeer"),
+      onStatus: either("onStatus"),
+      onError: either("onError"),
+    };
   }
 
   /* THE WAY BACK FROM A FINISHED LOCAL GAME. There was none: the closing screen
@@ -5268,9 +5329,12 @@
   }
 
   function initNet() {
-    $("nostrLogin").addEventListener("click", signIn);
-    window.addEventListener("e1:identity", onBarIdentity);
-    $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); announceAuth(false); });
+    const routed = embedded() && globalThis.E1Lobby && $("lobby") ? mountLobby() : null;
+    if (!routed) {
+      $("nostrLogin").addEventListener("click", signIn);
+      window.addEventListener("e1:identity", onBarIdentity);
+      $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); announceAuth(false); });
+    }
     /* Disabled only while the signer is open, and re-enabled if it was refused:
      * declining a popup by accident must not permanently cost a player their
      * place on the ladder. */
@@ -5296,6 +5360,7 @@
       $("setup").hidden = false;
       renderNetChip();
       renderIdentity();
+      if (lobby) showLobby();
     });
 
     /* The panic button the runbook asks for: a forced RESUME without hunting
@@ -5309,8 +5374,14 @@
 
     renderIdentity();
     /* Auto-open only if this page already holds a match (localStorage or a
-     * ?match= link). A cold play.html opens no socket at all. */
-    const started = NET.start(NET_HANDLERS);
+     * ?match= link). A cold play.html opens no socket at all. Inside the Hangar
+     * the seat mirror answers later (started.restoring), and the lobby says so. */
+    const started = NET.start(routed || NET_HANDLERS);
+    if (lobby) {
+      lobby.told(started);
+      if (started.restoring && typeof started.restoring.then === "function") started.restoring.then(lobby.told, () => {});
+      return;
+    }
     if (started.resuming) netNotice("Rejoining your table…", "");
     else if (started.loginRequired) netNotice("Sign in with NIP-07 to open this table.", "bad");
   }
@@ -5425,6 +5496,7 @@
     note.textContent = CS.collectionLine(collection);
     note.classList.toggle("has-cards", collection.cards > 0);
     note.hidden = false;
+    if (lobby) lobby.refresh();
   }
 
   function loadCollection() {

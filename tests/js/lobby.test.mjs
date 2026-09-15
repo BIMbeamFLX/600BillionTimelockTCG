@@ -13,9 +13,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
+const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const LOBBY_JS = fs.readFileSync(path.join(HERE, "..", "..", "site", "lobby.js"), "utf8");
+const SITE = path.join(HERE, "..", "..", "site");
+const LOBBY_JS = fs.readFileSync(path.join(SITE, "lobby.js"), "utf8");
 const KEY = "b".repeat(64);
 const WORDS = {
   noIdentity: "Sign in to Nappelin to play online. Hotseat and games against the computer work now.",
@@ -24,17 +27,59 @@ const WORDS = {
   invites: "Invites cannot be listed here right now. You can still join with a table code.",
 };
 
+/* client.test.mjs's stub element, which play.js runs in too. */
 function stubElement(id) {
-  return {
+  const style = {
+    setProperty(name, value) { this[name] = String(value); },
+    getPropertyValue(name) { return this[name] || ""; },
+  };
+  const node = {
     id, hidden: false, textContent: "", value: "", className: "", innerHTML: "", disabled: false,
-    checked: false, dataset: {}, children: [], listeners: {}, attributes: {},
+    checked: false, dataset: {}, children: [], style, listeners: {}, attributes: {},
     addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); },
+    removeEventListener() {},
     setAttribute(name, value) { this.attributes[name] = String(value); },
     getAttribute(name) { return this.attributes[name]; },
-    append(...kids) { this.children.push(...kids); },
+    append(...kids) {
+      for (const kid of kids) {
+        if (kid && typeof kid === "object") kid._parent = this;
+        this.children.push(kid);
+      }
+    },
+    appendChild(kid) {
+      if (kid && typeof kid === "object") kid._parent = this;
+      this.children.push(kid);
+      return kid;
+    },
+    prepend(kid) { this.children.unshift(kid); },
+    closest: () => null,
+    querySelectorAll: () => [],
+    focus() {},
+    remove() {
+      if (!this._parent) return;
+      this._parent.children = this._parent.children.filter((child) => child !== this);
+      this._parent = null;
+    },
     click() { for (const fn of this.listeners.click || []) fn({ preventDefault() {} }); },
     fire(type) { for (const fn of this.listeners[type] || []) fn({}); },
   };
+  const classes = () => String(node.className || "").split(/\s+/).filter(Boolean);
+  const write = (list) => { node.className = list.join(" "); };
+  node.classList = {
+    add(...names) {
+      const list = classes();
+      for (const name of names) if (name && list.indexOf(name) < 0) list.push(name);
+      write(list);
+    },
+    remove(...names) { write(classes().filter((name) => names.indexOf(name) < 0)); },
+    toggle(name, force) {
+      const on = force === undefined ? !this.contains(name) : Boolean(force);
+      if (on) this.add(name); else this.remove(name);
+      return on;
+    },
+    contains: (name) => classes().indexOf(name) >= 0,
+  };
+  return node;
 }
 
 /* The words a node shows, its own and its children's, the way a reader sees a row. */
@@ -384,4 +429,231 @@ test("My collection is offered once the member holds cards, and a table is opene
   assert.deepEqual([byId("deckCollection").checked, byId("deckReady").checked], [false, true], "a choice whose cards are gone falls back to Ready");
   const website = mountLobby(netStub(), {}, {});
   assert.doesNotMatch(website.root.innerHTML, /deckCollection/, "a page that cannot build the Stack does not offer it");
+});
+
+// ------------------------------------------------------ the table page inside the Hangar
+
+const PLAY_JS = fs.readFileSync(path.join(SITE, "play.js"), "utf8");
+const E = require("../../site/engine.js");
+const CARDS = require("../../site/play-data.js");
+const FAST = require("../../site/play-data-fast.js");
+const PRECONS = require("../../site/precons.js");
+const PRECONS_FAST = require("../../site/precons-fast.js");
+require("../../site/collection-stack.js");
+
+/* A srcdoc sandbox: merely reading localStorage or sessionStorage throws. */
+function sandboxStorage(t) {
+  const denied = () => { throw new Error("SecurityError: storage is not available in an opaque origin"); };
+  for (const name of ["localStorage", "sessionStorage"]) Object.defineProperty(globalThis, name, { get: denied, configurable: true });
+  t.after(() => {
+    for (const name of ["localStorage", "sessionStorage"]) {
+      Object.defineProperty(globalThis, name, { value: undefined, writable: true, configurable: true });
+    }
+  });
+}
+
+/* The Hangar's adapter as the table page reads it. */
+function tableHangar({ key = KEY, inventory = null, link = null, embedded = true } = {}) {
+  const escaped = [];
+  return {
+    present: embedded,
+    embedded: () => embedded,
+    escape: () => { escaped.push(true); return true; },
+    has: (domain) => embedded && ["identity", "storage", "intent", ...(link ? ["link"] : [])].includes(domain),
+    identity: { current: async () => key || null, source: () => (key ? "shell" : "none") },
+    storage: { json: async (name, fallback) => fallback, get: async () => null, set: async () => true },
+    collection: {
+      inventory: async () => inventory,
+      counts: (answer) => new Map(answer.cards.map((card) => [card.asset_id, card.count])),
+    },
+    link: link || { available: () => false, open: async () => ({ ok: false, error: "unavailable" }) },
+    escaped,
+  };
+}
+
+/* The transport play.js and the lobby share. */
+function tableNet(extra) {
+  const net = netStub(extra);
+  Object.assign(net, {
+    peers: [true, true],
+    act(action) { net.calls.push(["act", action]); return true; },
+    leave() { net.calls.push(["leave"]); net.lastState = null; net.session = null; },
+    resume() { net.calls.push(["resume"]); return true; },
+    savedMatch: () => null,
+    stakesAllowed: () => false,
+  });
+  Object.assign(net.nostr, {
+    hasNip07: () => false,
+    npub: () => "npub1x",
+    relays: () => [],
+    resultEvent: (over) => ({ kind: 31600, created_at: over.resultCreatedAt, tags: over.resultTags, content: over.resultContent }),
+    acceptEvent: () => ({ kind: 4600, tags: [], content: "{}" }),
+    parseInvite: () => null,
+  });
+  return net;
+}
+
+/* play.html in a stub document, with site/lobby.js beside it: the DOMContentLoaded
+ * listener is fired by hand, which is what mounts the lobby inside the Hangar. */
+function loadTable(net, napplet) {
+  const nodes = new Map();
+  const byId = (id) => {
+    if (!nodes.has(id)) nodes.set(id, stubElement(id));
+    return nodes.get(id);
+  };
+  const fired = {};
+  globalThis.document = {
+    body: byId("body"),
+    getElementById: byId,
+    createElement: (tag) => stubElement(tag),
+    createTextNode: (text) => text,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener() {},
+  };
+  globalThis.window = {
+    addEventListener(type, fn) { (fired[type] = fired[type] || []).push(fn); },
+    dispatchEvent() {},
+    confirm: () => true,
+  };
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: () => Promise.resolve() } }, configurable: true });
+  globalThis.location = { protocol: "about:", host: "", href: "about:srcdoc", search: "" };
+  Object.assign(globalThis, {
+    E1Engine: E, E1_CARDS: CARDS, E1_CARDS_FAST: FAST, E1_PRECONS: PRECONS, E1_PRECONS_FAST: PRECONS_FAST,
+    E1Net: net, E1Napplet: napplet,
+  });
+  E.setCatalog(CARDS);
+  delete globalThis.E1FX;
+  delete globalThis.E1Look;
+  delete globalThis.E1Lobby;
+  new Function(LOBBY_JS)();
+  new Function(PLAY_JS)();
+  for (const fn of fired.DOMContentLoaded || []) fn();
+  return { byId, fired, game: globalThis.window.E1_GAME };
+}
+
+async function waitFor(check, what, turns = 400) {
+  for (let turn = 0; turn < turns; turn += 1) {
+    if (check()) return;
+    await new Promise((resolve) => setTimeout(resolve, turn < 50 ? 0 : 5));
+  }
+  assert.fail(`timed out waiting for ${what}`);
+}
+
+const MATCH = "m_0123456789ab";
+const openState = (extra) => ({
+  t: "STATE", v: 1, matchId: MATCH, code: "K7M2QF", seat: 0, role: "seat", status: "open", downgraded: false, stake: 0,
+  ruleset: "E1.0", catalogDigest: null, view: null, events: [],
+  players: [{ seat: 0, name: "felix", pubkey: KEY, affinity: "Power", online: true }, { seat: 1, name: null, pubkey: null, affinity: null, online: false }],
+  ...extra,
+});
+function playingState(extra) {
+  const full = E.createGame({
+    seats: [{ name: "felix", affinity: "Power" }, { name: "anna", affinity: "Signal" }],
+    seeds: { public: 4242, hidden: [4243, 4244] },
+    firstPlayer: 0,
+  });
+  return openState({
+    status: "playing", view: E.view(full, 0),
+    players: [{ seat: 0, name: "felix", pubkey: KEY, affinity: "Power", online: true }, { seat: 1, name: "anna", pubkey: "c".repeat(64), affinity: "Signal", online: true }],
+    ...extra,
+  });
+}
+
+test("inside the Hangar the table page finds an opponent in place: a dealt seat shows the board, and leaving shows the lobby again", (t) => {
+  sandboxStorage(t);
+  const net = tableNet();
+  const shell = tableHangar();
+  const { byId, game } = loadTable(net, shell);
+  assert.match(byId("lobby").innerHTML, /id="createTable"/, "the lobby is built into the table page");
+  assert.doesNotMatch(byId("lobby").innerHTML, /nostrLogin|matchmaking\.html/, "the website's sign-in row and its door to another page are gone");
+  assert.equal(byId("nostrLogin").listeners.click, undefined);
+  assert.equal(called(net, "start").length, 1, "one transport, started once, by the page");
+
+  byId("createTable").click();
+  assert.equal(called(net, "create")[0][1].stake, 0);
+  const open = openState();
+  net.lastState = open;
+  net.handlers.onState(open);
+  assert.equal(byId("hostPanel").hidden, false, "an open table is the lobby's");
+  assert.equal(byId("tableCode").textContent, "K7M2QF");
+  assert.equal(game.mode, "hotseat", "and no board is dealt for it");
+
+  const playing = playingState();
+  net.lastState = playing;
+  net.handlers.onState(playing);
+  assert.equal(byId("table").hidden, false, "the guest sat down: the board shows in place");
+  assert.equal(byId("setup").hidden, true);
+  assert.equal(game.mode, "seat");
+  assert.equal(byId("foeName").textContent, "anna");
+  assert.deepEqual(shell.escaped, [], "nothing asked the Hangar to close the game");
+
+  net.handlers.onError({ code: "RATE_LIMITED" });
+  assert.match(byId("prompt").textContent, /Too many actions too quickly/, "while the board is up, a refusal is the board's");
+
+  byId("leaveTable").click();
+  assert.equal(called(net, "leave").length, 1);
+  assert.deepEqual([byId("table").hidden, byId("setup").hidden, game.mode], [true, false, "hotseat"], "leaving shows the lobby again");
+  assert.equal(byId("hostPanel").hidden, true, "without the code of the table it left");
+  assert.deepEqual(shell.escaped, [], "and the game stays open");
+});
+
+test("inside the Hangar a finished match goes back to the lobby, and the settlement screen never appears", (t) => {
+  sandboxStorage(t);
+  const over = {
+    matchId: MATCH, result: { winners: [1], losers: [0], reason: "uptime" }, verify: { ok: true },
+    resultContent: JSON.stringify({ turns: 7, actions: 40, stake: 500 }), resultTags: [["d", MATCH]], resultCreatedAt: 1789000000,
+  };
+  const net = tableNet();
+  const shell = tableHangar();
+  const { byId } = loadTable(net, shell);
+  const staked = playingState({ stake: 500 });
+  net.lastState = staked;
+  net.handlers.onState(staked);
+  net.handlers.onOver(over);
+  assert.equal(byId("endVerdict").textContent, "YOU LOST");
+  assert.equal(byId("endStake").hidden, true, "no settlement inside the Hangar, not even for a seat taken back from a match for sats");
+  assert.equal(byId("endStake").children.length, 0);
+  assert.equal(byId("endRematch").textContent, "Find another opponent");
+  byId("endRematch").click();
+  assert.equal(called(net, "leave").length, 1);
+  assert.deepEqual([byId("table").hidden, byId("setup").hidden], [true, false], "the lobby, on this page");
+  assert.deepEqual(shell.escaped, [], "not the Hangar's close");
+
+  /* The same ending on the website still asks the loser to keep their word. */
+  const site = tableNet();
+  const page = loadTable(site, tableHangar({ embedded: false }));
+  site.lastState = staked;
+  site.handlers.onState(staked);
+  site.handlers.onOver(over);
+  assert.equal(page.byId("endStake").hidden, false);
+  assert.match(said(page.byId("endStake")), /You owe 500 sats/);
+});
+
+test("My collection online: the Hangar's lobby opens a table with the Stack the member's cards deal", async (t) => {
+  sandboxStorage(t);
+  const power = FAST.filter((card) => card.type === "Avatar" && card.affinity.length === 1 && card.affinity[0] === "Power"
+    && card.rarity !== "genesis" && !/\bStake\b/.test(card.text || ""));
+  const cards = power.slice(0, 6).map((card) => ({ asset_id: card.id, count: 2 })).sort((a, b) => (a.asset_id < b.asset_id ? -1 : 1));
+  const inventory = {
+    v: 1, kind: "nutft/inventory", edition: "600b-e1", collection_id: "600B-E1",
+    catalog_uri: "https://tcg.nappelin.com/nutft/catalog", mint: "https://tcg.nappelin.com", at: 1757900000, cards,
+  };
+  const net = tableNet();
+  const { byId } = loadTable(net, tableHangar({ inventory }));
+  await waitFor(() => byId("deckCollectionRow").hidden === false, "My collection in the lobby's Stack choice");
+  assert.equal(byId("deckCollectionLabel").textContent, "12 of 40 cards yours");
+
+  byId("netRules").value = "F1.0";
+  byId("deckReady").checked = false;
+  byId("deckCollection").checked = true;
+  byId("deckCollection").fire("change");
+  byId("createTable").click();
+  const [, create] = called(net, "create")[0];
+  const owned = new Map(cards.map((card) => [card.asset_id, card.count]));
+  const expected = globalThis.E1CollectionStack.buildCollectionStack(FAST, owned, { profile: "F1.0", precons: PRECONS_FAST });
+  assert.equal(create.ruleset, "F1.0");
+  assert.deepEqual(create.deck, expected.ids, "the Stack collection-stack.js deals for these cards under Fast");
+  assert.equal(create.stake, 0);
+  for (const card of cards) assert.equal(create.deck.filter((id) => id === card.asset_id).length, 2, `${card.asset_id} goes to the table`);
 });
