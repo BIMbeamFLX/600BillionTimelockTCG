@@ -519,8 +519,10 @@ function createNutftMint(options = {}) {
      beacon's chain source. Either keep an lnd for blocks alone, or accept a
      third party for them — and a third party that can lie about a block hash
      can choose which pack you get, which is the property the beacon exists to
-     remove. */
-  const chainConfig = options.chainLnd || (options.beaconGetInfo ? {} : null)
+     remove.
+     Read only while the beacon is on: LND_REST_URL can be set for another
+     reason, and a mint that never reads a block must not demand a macaroon. */
+  const chainConfig = !beaconLive ? null : options.chainLnd || (options.beaconGetInfo ? {} : null)
     || lndConfig || (options.lnd && options.lnd !== null ? options.lnd : null)
     || lnd.readConfig(options.lndOptions || {});
   if (beaconLive && !chainConfig && !options.beaconGetInfo) {

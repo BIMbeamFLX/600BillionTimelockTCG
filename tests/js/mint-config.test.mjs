@@ -35,6 +35,19 @@ async function captureLogs(t, work) {
   return lines.join("\n");
 }
 
+/* Sets process.env for one test; undefined deletes. Restored afterwards. */
+function withEnv(t, values) {
+  const saved = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
+  const apply = (entries) => {
+    for (const [key, value] of Object.entries(entries)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  };
+  apply(values);
+  t.after(() => apply(saved));
+}
+
 const thrown = (work) => {
   try {
     work();
@@ -105,6 +118,26 @@ test("a phoenixd URL without a password points at the limited-access password", 
   const message = thrown(() => phoenixd.readConfig({ url: "http://127.0.0.1:9740" }));
   assert.match(message, /http-password-limited-access/);
   assert.doesNotMatch(message, /the http-password line/, "never the full-access password");
+});
+
+test("an LND_REST_URL that no mint reads demands no macaroon", async (t) => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { createMockFunding } = require("../../server/funding.js");
+  withEnv(t, { LND_REST_URL: "https://node.example:8080", LND_MACAROON: undefined, LND_MACAROON_PATH: undefined });
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const free = createNutftMint({ catalogUri: "https://x/nutft/catalog", lnd: null });
+  const paid = createNutftMint({
+    db, catalogUri: "https://x/nutft/catalog", funding: createMockFunding({}), allowVirtual: "1", sales: "open",
+  });
+  t.after(() => { free.stop(); paid.stop(); });
+  assert.equal(free.sealed, false);
+  assert.equal(paid.funding.name, "mock", "neither the free nor the mock mint touched the lnd settings");
+});
+
+test("a mint told to fund through lnd without LND_REST_URL refuses instead of going free", (t) => {
+  withEnv(t, { LND_REST_URL: undefined });
+  assert.throws(() => createFunding({ backend: "lnd" }), /LND_REST_URL/);
 });
 
 test("PIN_SEED is announced at boot as testing only, without its value", async (t) => {

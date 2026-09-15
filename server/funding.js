@@ -105,7 +105,10 @@ function createFunding(options = {}) {
   }
   if (backend === "lnd" || (!backend && (options.lnd || process.env.LND_REST_URL))) {
     const config = options.lnd || lnd.readConfig(options.lndOptions || {});
-    return config ? createLndFunding(config) : null;
+    /* Never null here: a mint told to take money through lnd, with no node to
+       ask, would otherwise become a free mint and give every booster away. */
+    if (!config) throw new Error("NUTFT_FUNDING=lnd needs LND_REST_URL");
+    return createLndFunding(config);
   }
   if (backend && backend !== "none") throw new Error("NUTFT_FUNDING must be lnd, phoenixd, cashu, mock or none");
   return null;
