@@ -280,6 +280,13 @@ test("LND settings are required only from a mint or a beacon that selects lnd", 
   assertProblem(problemsWith({ ...unused, NUTFT_BEACON_SOURCE: "lnd" }), /^LND_MACAROON_PATH: required with LND_REST_URL/);
   assertProblem(problemsWith({ G_NUTFT_FUNDING: "lnd" }), /^LND_REST_URL: required when G_NUTFT_FUNDING=lnd/);
   assertProblem(problemsWith({ ...unused, LND_MACAROON: "not-hex", NUTFT_FUNDING: "lnd" }), /^LND_MACAROON: must be hex/);
+  /* A blank inline macaroon wins over the path and would be sent as the credential. */
+  const blankInline = { ...unused, NUTFT_FUNDING: "lnd", LND_MACAROON: "  ", LND_MACAROON_PATH: "/srv/tcg-secrets/invoice.macaroon",
+    LND_TLS_CERT_PATH: "/srv/tcg-secrets/tls.cert" };
+  assertProblem(problemsWith(blankInline), /^LND_MACAROON: must be hex$/);
+  assert.throws(() => require("../../server/lnd.js").readConfig({
+    url: "https://node.example:8080", macaroon: "  ", macaroonPath: "/srv/tcg-secrets/invoice.macaroon", certPath: "/srv/tcg-secrets/tls.cert",
+  }), /LND_MACAROON: must be hex/, "refused before any file is read");
 });
 
 test("a free mint asked for one per key warns at boot that it cannot enforce it", async (t) => {

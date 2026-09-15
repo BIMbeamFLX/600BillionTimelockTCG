@@ -152,9 +152,12 @@ function lndProblems(settings, selectedBy) {
   }
   const url = httpUrl(String(settings.url).trim());
   if (!url) add("LND_REST_URL", "must be an absolute http:// or https:// URL");
-  if (blank(settings.macaroon) && blank(settings.macaroonPath)) {
+  /* An inline macaroon wins over the path (lnd.readConfig), so one made of
+     blanks would be sent as the credential: set at all, it must be hex. */
+  const inline = String(settings.macaroon ?? "");
+  if (inline === "" && blank(settings.macaroonPath)) {
     add("LND_MACAROON_PATH", "required with LND_REST_URL (or LND_MACAROON): an invoice-only macaroon");
-  } else if (!blank(settings.macaroon) && !/^[0-9a-f]+$/i.test(String(settings.macaroon))) {
+  } else if (inline !== "" && !/^[0-9a-f]+$/i.test(inline)) {
     add("LND_MACAROON", "must be hex");
   }
   if (url && url.protocol === "https:" && blank(settings.certPath) && !settings.insecure) {
