@@ -649,6 +649,13 @@ last resort, so upgrading mid-match does not quietly cost someone their table.
 Written on the first `STATE` of a match; cleared on "new match" or "leave table". A spectator
 keeps enough to reconnect and holds **no** credential.
 
+**Inside a napplet shell neither store exists**: a sandboxed frame's storage getters throw. There
+the seat lives in memory and is mirrored to the shell's own storage under the same
+`600b:seats` key and map shape, each entry stamped with the `pubkey` that holds it and no tab id
+or heartbeat (one frame holds one seat). A reloaded frame restores the newest entry of the
+identity signed in now. The mirror answers asynchronously, so `start()` returns
+`{resuming:false, restoring}` until it has — see docs/napplet-spec.md §3c.
+
 ### 4.2 Sequence
 
 1. **Page load.** `net.js` reads the saved session (§4.1), or `?match=` — a shared link beats a
@@ -1121,9 +1128,9 @@ Everything `play.js` is allowed to touch. `net.js` holds no rules and no DOM.
 
 | Group | Members |
 |---|---|
-| Table | `start(handlers)` · `create` · `join` · `act` · `sendNostr` · `leave` · `resume` · `tables()` |
+| Table | `start(handlers)` · `create` · `join` · `act` · `sendNostr` · `leave` · `resume` · `tables()` · `connect({table?})` |
 | Matchmaking | `queue({name,affinity,pubkey})` · `unqueue()` · `rejoin(matchId)` |
-| Where we are | `tableUrl` · `publicTable` · `publicTableIsLocal` · `savedMatch` · `saveMatch` |
+| Where we are | `tableUrl` · `publicTable` · `publicTableIsLocal` · `savedMatch` · `saveMatch` · `stakesAllowed()` · `launchCode()` |
 | Read-only getters | `status` · `session` · `lastState` · `peers` · `queued` · `active` |
 | `nostr.*` | `hasNip07` `login` `logout` `sign` `publish` `relays` `query` `profile` `savedPubkey` `npub` `npubDecode` `toHexPubkey` `shortNpub` `inviteEvent` `acceptEvent` `startEvent` `resultEvent` `parseStake` `parseInvite` `subscribeInvites` `hasWebln` `payEndpoint` `zapInvoice` `payWithWebln` |
 
@@ -1132,7 +1139,16 @@ Handlers: `onStatus` `onState` `onFrame` `onReject` `onPeer` `onQueued` `onOver`
 socket loop.
 
 `rejoin(matchId)` is the `AUTH_OK.active` path made a one-liner: it validates the id shape
-(`m_` + 12 hex), clears any queue intent, and sends `RESUME` with **no token**. `query(filter,
+(`m_` + 12 hex), clears any queue intent, and sends `RESUME` with **no token**.
+
+`tables()` asks an open, signed-in socket with `TABLES` (§2.1) and otherwise reads
+`GET /api/tables`; a page whose socket a napplet host carries has no HTTP, so it first opens a
+lobby socket with `connect()` — signed in, no table intent, not reopened when it drops. A
+`STATE` clears `queued`: pairing sends no final `QUEUED`. `stakesAllowed()` is false inside a
+shell, where `create`/`queue` send `stake: 0` and `join` an explicit `stake: 0`. `launchCode()`
+hands out the table code the page was opened with once (the shell's launch argument, else
+`?code=`), and `start()` removes `?code=` from the address with `history.replaceState`: a table
+code is an invitation and is never kept in an address. `query(filter,
 ms)` fans one `REQ` across every relay, dedups by event id, and resolves on `EOSE` from all of
 them or a deadline — whichever comes first, in the same fire-and-forget spirit as `publish()`:
 a dead relay shortens the answer, it never fails the call.
