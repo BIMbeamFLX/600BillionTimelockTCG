@@ -276,6 +276,10 @@
         <span class="tcg-label">Restore from 12 words</span>
         <textarea id="restorePhrase" rows="2" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
         <button class="tcg-btn" id="restoreSeed" type="button">Recover cards</button>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px">
+          <input id="restoreDeep" type="checkbox">
+          Search further (slower). If a recovery found fewer cards than you hold, tick this and recover again.
+        </label>
       </label>
     </div>
     <p class="note mode-off" id="recoveryWords" role="status" aria-live="polite" hidden></p>
@@ -928,6 +932,16 @@
       say(importNote, count === 1 ? "Accepted. The card is in the collection above." : `Accepted. ${count} cards are in the collection above.`);
       await refresh();
     } catch (thrown) {
+      if (thrown && thrown.imported) {
+        /* Accepted, but not yet under this wallet's recovery phrase. The cards
+         * are in the collection, so the token must not be offered again. */
+        pendingImportMint = null;
+        importToken.value = "";
+        importPreview.hidden = true;
+        say(importNote, `Accepted, and in the collection above, but ${reason(thrown)}`, true);
+        await refresh();
+        return;
+      }
       say(importNote, `The mint refused it: ${reason(thrown)}`, true);
       button.disabled = false;
     }
@@ -948,6 +962,12 @@
       if (snapshot.spent.length) meta.append(chip(`${snapshot.spent.length} SPENT`));
       if (snapshot.invalid.length) meta.append(chip(`${snapshot.invalid.length} REJECTED`));
       if (snapshot.unreadable.length) meta.append(chip(`${snapshot.unreadable.length} UNREADABLE`));
+      /* Received cards the recovery phrase cannot find yet. The wallet retries on
+       * every refresh; until it succeeds, only this device or a backup file holds
+       * them, so the person has to know. */
+      if (snapshot.unrestorable && snapshot.unrestorable.length) {
+        meta.append(chip(`${snapshot.unrestorable.length} NOT YET UNDER YOUR PHRASE`));
+      }
       for (const catalog of snapshot.catalogs) {
         meta.append(chip(`${catalog.collection_id} ${catalog.census_sha256.slice(0, 12)}…`));
         /* Every asset of a catalog whose signature has already been checked —
@@ -1019,7 +1039,21 @@
     const button = event.currentTarget;
     button.disabled = true;
     try {
-      const count = await root.NutFTWallet.restoreSeed(mint, $("restorePhrase").value);
+      const deep = $("restoreDeep").checked;
+      const count = await root.NutFTWallet.restoreSeed(mint, $("restorePhrase").value, {
+        /* Searching further continues from where the last recovery of this
+         * phrase stopped, past gaps an older wallet left, so it is also how a
+         * short recovery is completed. */
+        ...(deep ? { gapSlots: root.NutFTWallet.DEEP_SCAN_SLOTS } : {}),
+        /* A busy mint is waited out, not failed. Say so, or a pause of up to
+         * 30 s looks exactly like a page that has hung. */
+        onWaiting: ({ waitMs }) => {
+          const seconds = Math.ceil(waitMs / 1000);
+          $("recoveryWords").textContent =
+            `The mint is busy. Recovery pauses for ${seconds} s, then carries on by itself.`;
+          $("recoveryWords").hidden = false;
+        },
+      });
       $("recoveryWords").textContent = `Recovered ${count} unspent card${count === 1 ? "" : "s"}.`;
       $("recoveryWords").hidden = false;
       location.reload();

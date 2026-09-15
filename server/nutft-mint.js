@@ -35,6 +35,18 @@ function assetBinding(reference) {
     .digest("hex");
 }
 
+/* node:sqlite reports every failure, a constraint or a full disk alike, as
+   ERR_SQLITE_ERROR; the mint's own refusals are plain errors with no code. */
+const isStorageFailure = (error) =>
+  Boolean(error) && typeof error.code === "string" && error.code.startsWith("ERR_SQLITE");
+
+/* A SERVICE THE MINT DEPENDS ON IS DOWN, which says nothing about the request.
+   The funding backend or the chain not answering must never look like a
+   refusal -- a wallet drops a paid claim on a refusal -- so handle() answers
+   these 503 with Retry-After, and the client asks again. */
+const UNAVAILABLE_RETRY_SECONDS = 5;
+const unavailable = (message) => Object.assign(new Error(message), { unavailable: true });
+
 function json(res, code, value) {
   const body = JSON.stringify(value);
   res.writeHead(code, {
@@ -516,6 +528,16 @@ function createNutftMint(options = {}) {
   const chain = beaconLive
     ? createBeacon({ db, lnd: chainConfig, confirmations: settings.beaconConfirmations, getInfo: options.beaconGetInfo })
     : null;
+  /* The block a sealed sale committed to, or null while it is unmined. A chain
+     source that does not answer is the mint's outage, never the buyer's error. */
+  const saleBlock = async (height) => {
+    try {
+      return await chain.beaconFor(height);
+    } catch (error) {
+      console.error("[nutft] beacon lookup failed:", error && error.message);
+      throw unavailable("the mint cannot read the chain right now — your sale is unaffected, try again shortly");
+    }
+  };
 
   const mintSeed = Buffer.from(getOrCreate("mint_seed", () => crypto.randomBytes(32).toString("hex")), "hex");
   const catalogPrivateKey = Buffer.from(getOrCreate("catalog_private_key", () => crypto.randomBytes(32).toString("hex")), "hex");
@@ -766,7 +788,7 @@ function createNutftMint(options = {}) {
     for (const row of q ? q.activeInvoices.all(base.pack_id) : []) {
       let settled;
       try { settled = await funding.isSettled(row.payment_hash, row.amount_msat); }
-      catch (error) { throw new Error("the mint cannot confirm an existing checkout right now — try again shortly"); }
+      catch (error) { throw unavailable("the mint cannot confirm an existing checkout right now — try again shortly"); }
       const created = Date.parse(row.created_at);
       const now = Date.now();
       /* `settled ||` used to short-circuit the age check entirely, so a PAID but
@@ -798,7 +820,7 @@ function createNutftMint(options = {}) {
         commitment = await chain.commitHeight();
       } catch (error) {
         console.error("[nutft] beacon commitHeight failed:", error && error.message);
-        throw new Error("the mint cannot read the chain right now — try again shortly");
+        throw unavailable("the mint cannot read the chain right now — try again shortly");
       }
     }
     let invoice;
@@ -820,7 +842,7 @@ function createNutftMint(options = {}) {
         : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}`, expirySeconds: invoiceTtlSeconds, externalId });
     } catch (error) {
       console.error("[nutft] lnd createInvoice failed:", error && error.message);
-      throw new Error("the mint cannot reach its funding source right now — try again shortly");
+      throw unavailable("the mint cannot reach its funding source right now — try again shortly");
     }
     const { paymentRequest, paymentHash } = invoice;
     /* The invoice carries the already-proven buyer so a completed paid claim
@@ -917,7 +939,7 @@ function createNutftMint(options = {}) {
     if (chain) {
       const row = q ? q.invoice.get(String(body.payment_hash || "")) : null;
       if (!row || !row.target_height) throw new Error("unknown payment_hash: quote the booster first");
-      saleBeacon = await chain.beaconFor(row.target_height);
+      saleBeacon = await saleBlock(row.target_height);
       if (!saleBeacon) {
         return { purchase_id: body.purchase_id, status: "sealed", target_height: row.target_height, cards: null,
           note: `block ${row.target_height} is not mined yet` };
@@ -1017,13 +1039,7 @@ function createNutftMint(options = {}) {
       return purchaseMode ? withheld(resolved, { sealed: false }) : { ...resolved, sealed: false };
     }
     if (!row.target_height) throw new Error("this sale was not sealed against a block");
-    let hash;
-    try {
-      hash = await chain.beaconFor(row.target_height);
-    } catch (error) {
-      console.error("[nutft] beacon lookup failed:", error && error.message);
-      throw new Error("the mint cannot read the chain right now — your sale is unaffected, try again shortly");
-    }
+    const hash = await saleBlock(row.target_height);
     if (!hash) {
       return { sealed: true, target_height: row.target_height, cards: null,
         note: `block ${row.target_height} is not mined yet` };
@@ -1058,7 +1074,7 @@ function createNutftMint(options = {}) {
       settledNow = await funding.isSettled(paymentHash, row.amount_msat);
     } catch (error) {
       console.error("[nutft] lnd isSettled failed:", error && error.message);
-      throw new Error("the mint cannot confirm payment right now — your invoice is unaffected, try again shortly");
+      throw unavailable("the mint cannot confirm payment right now — your invoice is unaffected, try again shortly");
     }
     if (!settledNow) throw new Error("invoice is not settled yet");
   }
@@ -1190,7 +1206,7 @@ function createNutftMint(options = {}) {
       if (chain) {
         const row = q ? q.invoice.get(String(body.payment_hash || "")) : null;
         if (!row || !row.target_height) throw new Error("unknown payment_hash: quote the booster first");
-        saleBeacon = await chain.beaconFor(row.target_height);
+        saleBeacon = await saleBlock(row.target_height);
         if (!saleBeacon) throw new Error(`block ${row.target_height} is not mined yet — the pack is still sealed`);
       }
       expected = await quote(saleBeacon);
@@ -1246,6 +1262,10 @@ function createNutftMint(options = {}) {
         if (invoiceRow && invoiceRow.buyer) {
           walletBackupBuyer = invoiceRow.buyer;
           if (onePerKey) {
+            /* Asked, not left to the PRIMARY KEY: a constraint violation reads as
+               a storage failure and would be retried forever, while a second
+               allocation for one key is a refusal that will never change. */
+            if (q.buyerOf.get(invoiceRow.buyer)) throw new Error(ALREADY_HAS_ITS_SET);
             q.addBuyer.run(invoiceRow.buyer, expected.pack_id, new Date().toISOString());
           }
           q.addWalletBackupBuyer.run(
@@ -1516,6 +1536,22 @@ function createNutftMint(options = {}) {
       }
       return json(res, 404, { error: "not found" });
     } catch (error) {
+      /* A 4xx IS A VERDICT, SO ONLY A VERDICT MAY WEAR ONE. The wallet drops a
+         pending claim or transfer on any 4xx but 429, so a failure that says
+         nothing about the request -- the database refusing a write -- must not
+         look like a refusal. Every write that can follow a signature (trade,
+         booster, purchase) runs in one atomic() transaction with the rest of
+         its operation, and nothing after a commit can throw (the wallet-backup
+         notice swallows its own faults), so such a failure committed nothing.
+         A 5xx makes the wallet send the same request again. */
+      if (isStorageFailure(error)) {
+        console.error("[nutft] storage failure:", error.message);
+        return json(res, 500, { error: "the mint could not record this request; try again" });
+      }
+      if (error && error.unavailable) {
+        res.setHeader("retry-after", String(UNAVAILABLE_RETRY_SECONDS));
+        return json(res, 503, { error: error.message });
+      }
       return json(res, 400, { error: error.message });
     }
   }

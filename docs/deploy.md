@@ -218,8 +218,24 @@ location /api/ {
 }
 ```
 
-`X-Forwarded-For` is deliberately **not** trusted by the referee — it treats the
-TCP peer as authoritative. Do not assume forwarded headers reach rate limiting.
+**`TRUST_PROXY` behind the Docker Caddy.** The referee ignores `X-Forwarded-For`
+unless the TCP peer is listed in `TRUST_PROXY`, and even then it takes only the
+rightmost hop, the address that proxy itself saw. `gw-caddy` reaches the referee
+from one container address, so until that address is listed every player shares
+each per-client budget (the pre-auth socket budget and the mint budgets, §5) and
+a launch rush locks people out. Find it on the box with the site open in a
+browser: `sudo ss -tnp '( sport = :8777 )'` lists the connections to the referee,
+and the peer address without its port is Caddy. List it in both spellings,
+`TRUST_PROXY=<peer>,::ffff:<peer>`: Node reports an IPv4 peer as `::ffff:<peer>`
+on a dual-stack socket, and although the referee now matches either form, older
+builds compared the strings exactly. Then verify from outside with
+`curl https://<host>/api/health`: `client` must be your own public address, and
+the container address means the list does not match yet. Recreating the
+container (a new `gw-caddy`, not a restart) can give it a different address and
+pool everyone again, so repeat the check after every recreate. While the list is
+wrong, the `rate limited:` lines in `journalctl -u tcg-table` name the container
+address instead of players' addresses. **Do not let the rate limits reach paying
+buyers until `/api/health` shows `client` as the caller's own address.**
 
 ---
 
@@ -231,15 +247,75 @@ Read at startup in `server/table.js` (bottom of file). The referee binds
 | Variable | Default | What it does |
 |---|---|---|
 | **`PUBLIC_URL`** | *(none)* | **The one that matters.** Full `wss://host/ws` used in invite links. Must be `ws://` or `wss://` or startup throws. Its host is added to the trusted-host set. |
-| `PORT` | `8777` | Listen port. Behind a proxy, keep it on loopback. |
+| `PORT` | `8777` | Listen port. The referee always binds `0.0.0.0`, so nothing in the process keeps this port private: the host firewall (ufw on the box) or the proxy's network must stop the internet reaching it. |
 | `DB` | `server/matches.db` | SQLite match state. Put it on a **persistent volume**; it holds live match state and seat tokens. |
 | `TABLE_ORIGINS` | *(empty)* | Comma-separated origins allowed to open a WebSocket. Same-host is always allowed; anything cross-origin must be listed here. |
 | `PUBLIC_HOST` | `localhost` | Host for invite links when `PUBLIC_URL` is unset. LAN/Tailscale only — it cannot express scheme or port. |
 | `PUBLIC_SCHEME` | `ws` | `wss` to force TLS in derived links. Superseded by `PUBLIC_URL`. |
-| `PIN_SEED` | *(none)* | Deterministic table PINs. **Testing only — never set in production.** |
+| `PIN_SEED` | *(none)* | Seeds every match's shuffles from this one number, so each table deals the same rehearsed opening, and anyone who knows it can rebuild both decks. **Testing only — never set in production.** |
 | `RATE_MAX` | built-in | Message rate cap. Exists for headless soak runs; leave unset so the default protects the table. |
 | `CONTROL_RATE_MAX` | built-in | Control-message rate cap. Same advice. |
 | `MAX_PAYLOAD` | built-in | Max WebSocket frame size. Same advice. |
+| `TRUST_PROXY` | *(none)* | Proxies whose `X-Forwarded-For` is believed: `loopback`, or a comma-separated list of peer IPs (any spelling; an IPv4 entry also matches its `::ffff:` form). Behind Docker Caddy it must name the Caddy container (§4); unset, everyone behind the proxy shares every per-client budget. Every per-client budget counts an IPv6 client by its `/64`. |
+| `MINT_WRITE_RATE_MAX` | `20` | Spending writes per client per minute, shared by the E1 and G mints: every mint `POST` except restore and checkstate (purchase, booster, trade, possession). A positive integer, or startup throws. |
+| `MINT_RECOVERY_RATE_MAX` | `240` | The same for restore and checkstate, which a wallet uses to read its own cards back: a phrase recovery and every wallet view. Kept apart so recovery can neither starve purchases nor be starved by them. |
+| `MINT_QUOTE_RATE_MAX` | `60` | The same for the mint `GET`s that do work: quote, reveal, eligibility and the LNURL callback. Info, keys, catalog, blob, state and supply are never limited. |
+
+### The mint budgets
+
+Both mints share one policy, checked before either mint does any work. A client,
+as `/api/health` reports it in `client`, spends from a bucket of
+`MINT_WRITE_RATE_MAX` writes that refills continuously over a minute (at the
+default, one write back every 3 s), and likewise for `MINT_RECOVERY_RATE_MAX`
+and `MINT_QUOTE_RATE_MAX`. A refusal is `429` with
+`{"error":"rate limited","retry_after":<seconds>}` and a matching `Retry-After`
+header. The first refusal a client earns on any limit, socket or mint, writes one
+line such as `[table] rate limited: mint-recovery for 203.0.113.9 (240 per 60s)`;
+further refusals from that client stay quiet for a minute.
+
+The wallet treats a `429`, any `5xx` (whatever its body) or a dropped connection as
+"not now", never as "no": a pending booster claim, purchase or transfer is kept and
+sent again, and a phrase recovery waits for `Retry-After` (never more than 30 s per
+wait, at most eight tries per request) and carries on. Only a `4xx` other than
+`429` ends an operation, and the mint answers a storage failure with `500`, never a
+`4xx`. A recovery stopped part-way keeps the cards it found and resumes from its
+last batch, and it keeps scanning until 2N + 100 slots in a row are unsigned (N is
+the catalog size), so cards beyond a slot an older wallet abandoned still come back.
+
+`MINT_RECOVERY_RATE_MAX` comes from measuring the real wallet's NUT-13 seed scan,
+which walks counters a hundred at a time: one restore per hundred, plus a
+checkstate wherever it finds cards. Each measurement recovered E1 and then G from
+one client against the referee at its default budget, so both scans drew on one
+bucket, and the request timeline was replayed through that bucket to find the
+smallest budget that refuses nothing:
+
+| Wallet | Recovery requests (restore + checkstate) | Took | Busiest minute | `429`s seen | Smallest budget with no `429`, at that pace / twice as fast |
+|---|---|---|---|---|---|
+| One 15-card pack | 46 (34 + 12) | about 25 s | 46 | 0 | — |
+| 5 E1 boosters and a G starter set, 157 cards | 273 (E1 131 + 54, G 53 + 35) | 2.1 min | 137 | 0 | 89 / 134 |
+| Full-collection size: 20 E1 boosters and 2 G sets, 464 cards | 890 (E1 500 + 219, G 99 + 72) | 6.5 min | 160 | 0 | 120 / 210 |
+
+At 240 neither recovery meets a single `429`, at the measured pace or twice it; a
+faster client meets short waits and still finishes. The same ceiling holds one
+scripted client to four requests a second, which at the mint's largest requests
+(500-output restores) cost about a quarter of a core on the measuring machine.
+
+**Restore support: a recovery that finds fewer cards than the holder expects.** A
+wallet from before 2026-09-15 that lost a purchase or a move to an error kept that
+operation's counter slots unsigned, and a normal recovery stops at such a run, so
+every card bought after it is missing. Ask the holder to tick "Search further" on
+wallet.html and press "Recover cards" again with the same phrase (in code:
+`restoreSeed(mint, phrase, { gapSlots: NutFTWallet.DEEP_SCAN_SLOTS })`). It continues
+from where the earlier recovery stopped, keeps every card already held, and stops
+only after 25,000 unsigned slots in a row: about 250 extra restore requests, a few
+minutes, inside the recovery budget. A resumed deep scan stays deep. Received cards
+the phrase cannot find yet are a separate case: the wallet page shows them as "not
+yet under your phrase" and retries moving them on every refresh.
+
+**Many wallets on one address share every budget.** A venue wifi or a carrier NAT
+is one client, and so is everyone behind the proxy while `TRUST_PROXY` is wrong.
+Nothing is lost, since the wallet waits, but a room recovering or buying at once
+slows itself down; raise the budgets before an in-person launch.
 
 ### Why `PUBLIC_URL` is the one that matters
 

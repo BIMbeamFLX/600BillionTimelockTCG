@@ -229,7 +229,7 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
 
   // A reverse proxy serves HTML for a 502. That is transport failure, not a
   // mint refusal: the trade may already have spent its input and the pending
-  // replacement is the only way to recover the card.
+  // replacement is the only way to recover the card. Any 5xx is "not now".
   let gatewayTradeResponse = true;
   const gatewayFetch = async (url, options) => {
     const response = await fetchImpl(url, options);
@@ -242,7 +242,7 @@ test("browser wallet survives reload and preserves corrupted storage", async (t)
   const thirdCard = (await (await browserWallet(storage, fetchImpl)).snapshot(table.url)).owned[0].proof.secret;
   await assert.rejects(
     () => browserWallet(storage, gatewayFetch).then((wallet) => wallet.tradeProof(table.url, thirdCard, recipientPubkey)),
-    /non-JSON error.*preserved/i,
+    /could not answer \(502\)/i,
   );
   const gatewayRecovered = await (await browserWallet(storage, fetchImpl)).recoverPending();
   assert.match(gatewayRecovered.token, /^cashu/);
@@ -1815,9 +1815,11 @@ test("a mint that cannot be reached keeps the booster you paid for", async (t) =
   };
 
   breakClaim = true;
+  /* A 5xx is "not now", so the wallet would wait for the gateway indefinitely;
+     this buyer gives up at once, which is the case the pending exists for. */
   await assert.rejects(
-    () => browserWallet(storage, fetchImpl).then((w) => w.buyBooster(table.url)),
-    /non-JSON error|preserved for retry/i,
+    () => browserWallet(storage, fetchImpl).then((w) => w.buyBooster(table.url, { timeoutMs: 1 })),
+    /could not answer \(502\).*still pending/i,
     "the buyer is told the truth: a gateway failed, not that the mint refused",
   );
 

@@ -99,7 +99,14 @@ sats") does not exist yet in this codebase. Your notes point at `lnurl-mint` (71
 separate repo) as where payment lives; wiring one paid invoice to one `booster` call is
 the missing beat.
 
-### MEDIUM — mint endpoints have no rate limit · NOT FIXED (small)
+### MEDIUM — mint endpoints have no rate limit · FIXED
+
+**Fixed:** both mints now share per-client token buckets checked before the mint does any
+work: `MINT_WRITE_RATE_MAX` (20 a minute: purchase, booster, trade, possession),
+`MINT_RECOVERY_RATE_MAX` (240 a minute: restore and checkstate, sized by measuring phrase
+recovery) and `MINT_QUOTE_RATE_MAX` (60 a minute: quote/reveal/eligibility/LNURL
+callback); the wallet waits out a `429` instead of treating it as a refusal. See
+`docs/deploy.md` §5. The finding as first written:
 
 `/v1/*` and `/nutft/*` are dispatched at the top of `serveHttp` **before** the table's
 rate limiter, and `RATE_MAX` only covers the WebSocket/table path. So `/nutft/quote` and

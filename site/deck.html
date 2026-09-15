@@ -1532,7 +1532,9 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
       applyMode(wish, { save: false });
       return;
     }
-    const view = await globalThis.NutFTWallet.snapshot(location.origin);
+    /* Only counting, so the read-only view: verifying a deck must never finish
+     * or rewrite a transfer the wallet page has open in another tab. */
+    const view = await globalThis.NutFTWallet.snapshotReadOnly(location.origin);
     verified = new Map();
     for (const item of view.owned) verified.set(item.tag[2], (verified.get(item.tag[2]) || 0) + 1);
     /* snapshot() no longer throws on a token this mint cannot read, so a wallet

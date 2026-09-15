@@ -751,7 +751,7 @@ test("a NutFT-marked Stack proves non-basic possession while Basics stay free", 
   };
   globalThis.location = { origin: "http://table.test" };
   let count = 2;
-  globalThis.NutFTWallet = { snapshot: async () => ({ owned: Array.from({ length: count }, () => ({ tag: ["1", "600B-E1", "E1-004"] })) }) };
+  globalThis.NutFTWallet = { snapshotReadOnly: async () => ({ owned: Array.from({ length: count }, () => ({ tag: ["1", "600B-E1", "E1-004"] })) }) };
   const { byId, game } = loadPlay(netStub());
   byId("deckA").value = "custom:Owned";
   byId("deckB").value = "Signal";
@@ -773,7 +773,7 @@ test("a shell-stored NutFT marker still gates its shell-stored Stack", async (t)
   const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-004")] };
   globalThis.localStorage = { getItem: () => null, setItem() {} };
   globalThis.E1Napplet = { storage: { json: async (key) => key === "600b:decks" ? saved : { Owned: true } } };
-  globalThis.NutFTWallet = { snapshot: async () => ({ owned: [] }) };
+  globalThis.NutFTWallet = { snapshotReadOnly: async () => ({ owned: [] }) };
   globalThis.location = { origin: "http://table.test" };
   t.after(() => { delete globalThis.E1Napplet; });
   const { byId, game } = loadPlay(netStub());
@@ -792,7 +792,7 @@ test("a stale NutFT marker cannot turn a missing Stack into an empty ownership c
     ["600b:nutft-decks", JSON.stringify({ Ghost: true })],
   ]);
   globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
-  globalThis.NutFTWallet = { snapshot: async () => ({ owned: [] }) };
+  globalThis.NutFTWallet = { snapshotReadOnly: async () => ({ owned: [] }) };
   globalThis.location = { origin: "http://table.test" };
   const { byId, game } = loadPlay(netStub());
   byId("deckA").value = "custom:Ghost";
@@ -816,7 +816,7 @@ test("NutFT verification locks Start against duplicate submissions", async () =>
   globalThis.location = { origin: "http://table.test" };
   let release;
   let checks = 0;
-  globalThis.NutFTWallet = { snapshot: () => {
+  globalThis.NutFTWallet = { snapshotReadOnly: () => {
     checks += 1;
     return new Promise((resolve) => { release = resolve; });
   } };

@@ -60,7 +60,11 @@ test("a committed purchase survives a lost response", async (t) => {
     return response;
   };
   const storage = new Map();
-  await assert.rejects(() => browserWallet(storage, fetchImpl, { cashu }).then((wallet) => wallet.buyBooster(table.url)), /lost response/);
+  /* A lost response is now waited out and sent again by the wallet itself
+     (tests/js/wallet-busy-mint.test.mjs). This test is about the other road, a
+     buyer who stopped waiting, so the page gives up at once and the purchase
+     has to be finished from storage. */
+  await assert.rejects(() => browserWallet(storage, fetchImpl, { cashu }).then((wallet) => wallet.buyBooster(table.url, { timeoutMs: 1 })), /lost response/);
   const saved = JSON.parse(storage.get("600b:nutft-wallet"));
   assert.ok(saved.pending && saved.pending.body.purchase_id, "the pending record keeps the purchase_id");
   assert.equal(saved.pending.outputs.length, 0, "no outputs yet: the receipt never arrived");
