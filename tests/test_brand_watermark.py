@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from brand_watermark import paste_subtle_watermark
 from PIL import Image, ImageDraw
 
@@ -49,12 +50,18 @@ def test_watermark_rejects_invalid_geometry_and_opacity():
             raise AssertionError(f"expected ValueError for {kwargs}")
 
 
+FINAL_MANIFEST = REPO_ROOT / "art" / "generated" / "prompts-v2-final-1920x2400" / "manifest.json"
+
+
+@pytest.mark.skipif(
+    not FINAL_MANIFEST.exists(),
+    reason=(
+        "needs the gitignored art/generated/prompts-v2-final-1920x2400/manifest.json, "
+        "which a clean clone does not have"
+    ),
+)
 def test_locked_art_manifest_records_one_official_watermark_per_card():
-    manifest = json.loads(
-        (
-            REPO_ROOT / "art" / "generated" / "prompts-v2-final-1920x2400" / "manifest.json"
-        ).read_text(encoding="utf-8")
-    )
+    manifest = json.loads(FINAL_MANIFEST.read_text(encoding="utf-8"))
 
     assert manifest["format_version"] == "600B-E1-art-1920x2400-v3-preview-safe-watermark"
     assert len(manifest["files"]) == 295
