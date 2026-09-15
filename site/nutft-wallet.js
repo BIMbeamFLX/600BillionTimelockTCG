@@ -364,7 +364,7 @@
       await write(state);
     }
     if (pending.type === "booster" && !pending.outputs.length && pending.body.payment_hash) {
-      const response = await fetch(`${pending.mintUrl}/nutft/reveal?payment_hash=${encodeURIComponent(pending.body.payment_hash)}`);
+      const response = await mintFetch(`${pending.mintUrl}/nutft/reveal?payment_hash=${encodeURIComponent(pending.body.payment_hash)}`);
       if (!response.ok) throw new Error(`sealed booster unavailable (${response.status})`);
       const opened = await response.json();
       if (!Array.isArray(opened.cards)) {
@@ -417,14 +417,24 @@
       try {
         return await submitPending(state, c, keyset);
       } catch (error) {
-        if (!error.awaitingPayment) throw error;
+        /* A busy mint is waited out exactly like an unpaid invoice: the pending
+           is untouched, and the next poll sends the same request again. */
+        if (!error.awaitingPayment && !error.transient) throw error;
         if (Date.now() > deadline) {
           /* The pending survives on purpose: the invoice may still settle, and
              recoverPending() can finish the sale later. */
+          if (error.transient) {
+            throw new Error(
+              `${error.message} — the booster is still pending; reopen the shop to finish it`,
+            );
+          }
           throw new Error("the invoice was not paid in time — reopen the shop to finish this booster");
         }
         if (typeof opts.onWaiting === "function") opts.onWaiting();
-        await new Promise((done) => setTimeout(done, delay));
+        const wait = error.transient
+          ? Math.min(BUSY_WAIT_CAP_MS, Math.max(delay, error.retryAfterMs || 0))
+          : delay;
+        await new Promise((done) => setTimeout(done, wait));
         delay = Math.min(delay * 1.4, 8000);
       }
     }
@@ -504,6 +514,54 @@
     throw new Error(attempt.reason);
   }
 
+  /* NOT NOW IS NOT NO. A 429 (the referee's rate limit), a 503, or no answer
+     at all means the mint never looked at the request, so none of them may
+     reach refusal() below -- that is the road on which a pending claim or
+     transfer gets discarded. mintFetch throws this instead, every caller keeps
+     what it holds, and the same request is simply sent again later. */
+  const BUSY_STATUS = [429, 503];
+  const BUSY_WAIT_CAP_MS = 30_000;
+  const BUSY_ATTEMPTS = 8;
+
+  function busyMint(message, retryAfterMs) {
+    const error = new Error(message);
+    error.transient = true;
+    error.retryAfterMs = retryAfterMs;
+    return error;
+  }
+
+  async function mintFetch(url, init) {
+    let response;
+    try { response = await fetch(url, init); }
+    catch (error) { throw busyMint(`the mint could not be reached (${error.message})`, null); }
+    if (!BUSY_STATUS.includes(response.status)) return response;
+    const header = response.headers && response.headers.get("retry-after");
+    const seconds = header ? Number(header) : NaN;
+    throw busyMint(`the mint is busy (${response.status})`,
+      Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null);
+  }
+
+  /* Restore and checkstate change nothing on the mint, so a busy answer is
+     asked again: never sooner than retry-after, never more than 30 s at a time,
+     and at most BUSY_ATTEMPTS times, so a mint that stays down ends a recovery
+     with an error rather than a page that waits forever. Each wait goes to
+     opts.onWaiting, the same status path a booster purchase reports through. */
+  async function patientFetch(url, init, opts) {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await mintFetch(url, init);
+      } catch (error) {
+        if (!error.transient || attempt >= BUSY_ATTEMPTS) throw error;
+        const backoff = 1000 * 2 ** (attempt - 1);
+        const waitMs = Math.min(BUSY_WAIT_CAP_MS, Math.max(backoff, error.retryAfterMs || 0));
+        if (typeof opts.onWaiting === "function") {
+          opts.onWaiting({ attempt, waitMs, reason: error.message });
+        }
+        await new Promise((done) => setTimeout(done, waitMs));
+      }
+    }
+  }
+
   /* Read the mint's own refusal out of a failed response -- or THROW, because
      anything that is not the mint refusing must not be treated as one.
    *
@@ -534,7 +592,7 @@
      buyer whether to install an extension, switch keys, or simply wait. */
   async function postSigned(target, body) {
     const url = new URL(target, root.location ? root.location.href : undefined).href;
-    const send = (header) => fetch(url, {
+    const send = (header) => mintFetch(url, {
       method: "POST",
       headers: header
         ? { "content-type": "application/json", Authorization: header }
@@ -1084,7 +1142,7 @@
 
   const recoveryPhrase = () => locked(recoveryPhraseUnlocked);
 
-  async function restoreSeedUnlocked(mintUrl, phrase) {
+  async function restoreSeedUnlocked(mintUrl, phrase, opts = {}) {
     const current = await read();
     if (current.tokens.length || current.pending || (current.outgoing || []).length) {
       throw new Error("recovery requires an empty wallet so bearer assets are not overwritten");
@@ -1112,13 +1170,13 @@
         const at = counter + i;
         return deterministicOutput(catalog.assets[at % catalog.assets.length], state, c, keyset, at);
       }));
-      const response = await fetch(`${mintUrl}/v1/restore`, {
+      const response = await patientFetch(`${mintUrl}/v1/restore`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ outputs: candidates.map((output) => ({
           amount: 1, id: output.blindedMessage.id, B_: output.blindedMessage.B_,
         })) }),
-      });
+      }, opts);
       if (!response.ok) throw new Error(`signature restore failed (${response.status})`);
       const restored = await response.json();
       if (!Array.isArray(restored.outputs) || !Array.isArray(restored.signatures) || restored.outputs.length !== restored.signatures.length) {
@@ -1138,9 +1196,9 @@
       }
       if (batch.length) {
         const Ys = batch.map((proof) => c.hashToCurve(new TextEncoder().encode(proof.secret)).toHex(true));
-        const checked = await fetch(`${mintUrl}/v1/checkstate`, {
+        const checked = await patientFetch(`${mintUrl}/v1/checkstate`, {
           method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys }),
-        });
+        }, opts);
         if (!checked.ok) throw new Error(`restored proof state unavailable (${checked.status})`);
         const states = (await checked.json()).states;
         batch.forEach((proof, index) => { if (states[index]?.state === "UNSPENT") recovered.push(proof); });
@@ -1157,7 +1215,9 @@
     return recovered.length;
   }
 
-  const restoreSeed = (mintUrl, phrase) => locked(() => restoreSeedUnlocked(mintUrl, phrase));
+  const restoreSeed = (mintUrl, phrase, opts) => locked(
+    () => restoreSeedUnlocked(mintUrl, phrase, opts || {}),
+  );
 
   async function exportBackup() {
     const state = await read();

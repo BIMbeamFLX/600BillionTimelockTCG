@@ -1022,7 +1022,16 @@
     const button = event.currentTarget;
     button.disabled = true;
     try {
-      const count = await root.NutFTWallet.restoreSeed(mint, $("restorePhrase").value);
+      const count = await root.NutFTWallet.restoreSeed(mint, $("restorePhrase").value, {
+        /* A busy mint is waited out, not failed. Say so, or a pause of up to
+         * 30 s looks exactly like a page that has hung. */
+        onWaiting: ({ waitMs }) => {
+          const seconds = Math.ceil(waitMs / 1000);
+          $("recoveryWords").textContent =
+            `The mint is busy. Recovery pauses for ${seconds} s, then carries on by itself.`;
+          $("recoveryWords").hidden = false;
+        },
+      });
       $("recoveryWords").textContent = `Recovered ${count} unspent card${count === 1 ? "" : "s"}.`;
       $("recoveryWords").hidden = false;
       location.reload();
