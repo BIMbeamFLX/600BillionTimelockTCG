@@ -403,6 +403,10 @@ Why so strict:
   exact commit.
 - `deploy-tcg.ps1` uploads with a password login (`PubkeyAuthentication=no`). The box uses the
   YubiKey key (`id_ed25519_sk`), so the upload here is a single `scp` with that key.
+- **`tcg.nappelin.com` must stay the only public hostname for the production shop.** The shop
+  and wallet take the page's origin as the mint's identity (`site/shop.js`, `site/wallet.html`),
+  so a second hostname serving the same referee (an alias, a mirror, the bare IP) would give the
+  same cards a second mint identity in every wallet that opened it there.
 
 Run everything in a visible window, one SSH session at a time. The referee is stopped for
 a few minutes (9.4 to 9.6).
