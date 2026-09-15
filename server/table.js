@@ -33,6 +33,7 @@ const { WebSocketServer } = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
 const { createNutftMint } = require("./nutft-mint.js");
 const { createRelayWalletAllowlist } = require("./relay-wallet-allowlist.js");
+const { createRateLimiter } = require("./rate-limit.js");
 
 const REPO = path.resolve(__dirname, "..");
 const E = require(path.join(REPO, "site", "engine.js"));
@@ -64,6 +65,19 @@ const RATE_MAX_ACT = 150;
  * and no human comes close to it. */
 const RATE_MAX_REJECT = 400;
 const RATE_MAX_CONTROL = 30;
+/* The mint's HTTP budgets, per client per minute (MINT_WRITE_RATE_MAX,
+ * MINT_RECOVERY_RATE_MAX and MINT_QUOTE_RATE_MAX override them). See
+ * mintRouteLimit for what each counts. */
+const MINT_RATE_WINDOW_MS = 60_000;
+const MINT_WRITE_RATE_MAX = 20;
+/* Measured: a phrase recovery of a full-collection wallet peaks at 160 requests
+ * a minute (docs/deploy.md §5), so 240 leaves room for a client twice as fast. */
+const MINT_RECOVERY_RATE_MAX = 240;
+const MINT_QUOTE_RATE_MAX = 60;
+/* However many addresses arrive, no more buckets than this are kept. */
+const RATE_CLIENTS_MAX = 10_000;
+/* A client refused by any rate limit is logged at most once in this long. */
+const RATE_LOG_MS = 60_000;
 const MAX_PAYLOAD = 64 * 1024;
 const MINT_ATTEMPTS = 40;
 const KIND_HANDSHAKE = 4600;
@@ -90,12 +104,40 @@ function makeCode() {
 const isHex64 = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
 const isHex128 = (v) => typeof v === "string" && /^[0-9a-f]{128}$/.test(v);
 
+/* ONE SPELLING PER IPv4 ADDRESS. A dual-stack socket reports an IPv4 peer as
+ * `::ffff:172.17.0.1`, an IPv4 socket as `172.17.0.1`, and an operator writes
+ * whichever `ss` printed. An exact comparison called the same proxy a
+ * stranger, so every player behind it shared one budget. */
+function unmappedAddress(address) {
+  const value = String(address).trim().toLowerCase();
+  return /^::ffff:\d{1,3}(\.\d{1,3}){3}$/.test(value) ? value.slice("::ffff:".length) : value;
+}
+
 function pruneAddressRates(rates, now, windowMs) {
   for (const [address, timestamps] of rates) {
     const active = timestamps.filter((timestamp) => now - timestamp < windowMs);
     if (active.length) rates.set(address, active);
     else rates.delete(address);
   }
+}
+
+/* WHICH MINT ROUTES COST SOMETHING, named by the mint's own path (any edition
+ * prefix removed). Restore and checkstate are how a wallet reads its own cards
+ * back — a phrase recovery sends them by the hundred — so they get a budget of
+ * their own instead of starving purchases, or being starved by them. Every
+ * other POST signs or spends proofs (purchase, booster, trade, possession), so
+ * a POST route added later is limited without anyone remembering to list it.
+ * These GETs draw or reveal a pack, check a signature or open an invoice.
+ * Everything else the mint serves (info, keys, catalog, blob, state, supply) is
+ * a cheap read and never limited. */
+const MINT_RECOVERY_PATHS = new Set(["/v1/restore", "/v1/checkstate"]);
+const MINT_QUOTE_PATHS = new Set([
+  "/nutft/quote", "/nutft/reveal", "/nutft/eligibility", "/nutft/lnurlp/callback",
+]);
+function mintRouteLimit(method, localPath) {
+  if (method === "POST") return MINT_RECOVERY_PATHS.has(localPath) ? "mint-recovery" : "mint-write";
+  if (method === "GET" && MINT_QUOTE_PATHS.has(localPath)) return "mint-quote";
+  return null;
 }
 
 function hostnameFromHostHeader(header) {
@@ -207,7 +249,10 @@ CREATE TABLE IF NOT EXISTS nostr_events (
  *   gNutftCensusPath?:string, gNutftCatalogUri?:string,
  *   gNutftFunding?:object, gNutftFundingBackend?:string,
  *   gNutftSales?:string, gNutftPriceMsat?:number,
- *   gNutftOnePerKey?:boolean, walletBackupAllowlistPath?:string}} opts
+ *   gNutftOnePerKey?:boolean, walletBackupAllowlistPath?:string,
+ *   mintWriteRateMax?:number|string, mintRecoveryRateMax?:number|string,
+ *   mintQuoteRateMax?:number|string,
+ *   rateClock?:() => number}} opts
  */
 async function createTable(opts) {
   const options = opts || {};
@@ -249,6 +294,58 @@ async function createTable(opts) {
   const controlMax = Number.isInteger(options.controlMax)
     ? options.controlMax
     : RATE_MAX_CONTROL;
+  /* The mint budgets come from the environment as text, and a typo must stop
+   * the referee at boot rather than quietly leave the default in charge. */
+  const mintBudget = (value, fallback, name) => {
+    if (value === undefined || value === null || value === "") return fallback;
+    const max = Number(value);
+    if (!Number.isInteger(max) || max < 1) {
+      throw new Error(`${name} must be a positive integer: ${value}`);
+    }
+    return max;
+  };
+  /* Monotonic, so a wall-clock step can neither strand nor free a client;
+   * injectable, so a test can let a minute pass without waiting one. */
+  const rateClock = typeof options.rateClock === "function"
+    ? options.rateClock
+    : () => performance.now();
+  /* ONE POLICY FOR BOTH MINTS, applied in serveHttp before either mint sees
+   * the request, per client as clientAddress resolves it — so behind a proxy
+   * it is per player only once TRUST_PROXY is right. The key is the limit and
+   * the client, which means E1 and G draw on the same three budgets. */
+  const mintLimits = {
+    "mint-write": {
+      max: mintBudget(options.mintWriteRateMax, MINT_WRITE_RATE_MAX, "MINT_WRITE_RATE_MAX"),
+      windowMs: MINT_RATE_WINDOW_MS,
+    },
+    "mint-recovery": {
+      max: mintBudget(
+        options.mintRecoveryRateMax, MINT_RECOVERY_RATE_MAX, "MINT_RECOVERY_RATE_MAX",
+      ),
+      windowMs: MINT_RATE_WINDOW_MS,
+    },
+    "mint-quote": {
+      max: mintBudget(options.mintQuoteRateMax, MINT_QUOTE_RATE_MAX, "MINT_QUOTE_RATE_MAX"),
+      windowMs: MINT_RATE_WINDOW_MS,
+    },
+  };
+  const mintRates = createRateLimiter({
+    limits: mintLimits, clock: rateClock, maxKeys: RATE_CLIENTS_MAX,
+  });
+  /* A RUSH SHOULD SHOW IN journalctl WITHOUT DROWNING IT. The first refusal a
+   * client earns from the pre-auth socket budgets or the mint budgets writes
+   * one line; every later one from that client stays quiet for a minute,
+   * whichever limit it hits. The line holds the limit and the client as
+   * clientAddress resolved it — never a token, a path, a query or a body. */
+  const rateLogged = new Map(); // client -> [when its line was written]
+  const noteRateLimited = (limit, client, rule) => {
+    const now = rateClock();
+    const last = rateLogged.get(client);
+    if (last && now - last[0] < RATE_LOG_MS) return;
+    if (!last && rateLogged.size >= RATE_CLIENTS_MAX) return;
+    rateLogged.set(client, [now]);
+    console.warn(`[table] rate limited: ${limit} for ${client} (${rule})`);
+  };
   /* WHO IS BEHIND THE PROXY. The pre-auth rate buckets key on the TCP peer,
    * because a connection has not proved an identity yet. In the prescribed
    * deployment that peer is a reverse proxy on loopback, so every player shares
@@ -260,17 +357,18 @@ async function createTable(opts) {
    * hop — the address the trusted proxy itself observed, which a client cannot
    * forge by pre-injecting the header. Unset (the default) ignores XFF entirely.
    *   trustProxy: "loopback"  → trust 127.0.0.1/::1 as the proxy (the nappelin case)
-   *   trustProxy: ["10.0.0.2"] → trust these exact peer IPs */
+   *   trustProxy: ["10.0.0.2"] → trust these peer IPs; an IPv4 entry also matches
+   *                             its ::ffff: form, and a ::ffff: entry its IPv4 form */
   const trustProxy = (() => {
     const raw = options.trustProxy;
     if (!raw) return { mode: "none", set: new Set() };
-    if (Array.isArray(raw)) return { mode: "list", set: new Set(raw.map(String)) };
+    if (Array.isArray(raw)) return { mode: "list", set: new Set(raw.map(unmappedAddress)) };
     const token = String(raw).trim().toLowerCase();
     if (token === "loopback" || token === "true" || token === "1" || token === "yes") {
       return { mode: "loopback", set: new Set() };
     }
     // A bare string may still be a comma-list of IPs.
-    const list = token.split(",").map((s) => s.trim()).filter(Boolean);
+    const list = token.split(",").map(unmappedAddress).filter(Boolean);
     return list.length ? { mode: "list", set: new Set(list) } : { mode: "none", set: new Set() };
   })();
   const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
@@ -278,7 +376,7 @@ async function createTable(opts) {
     const peer = req.socket.remoteAddress || "unknown";
     const trusted =
       trustProxy.mode === "loopback" ? LOOPBACK.has(peer)
-      : trustProxy.mode === "list" ? trustProxy.set.has(peer)
+      : trustProxy.mode === "list" ? trustProxy.set.has(unmappedAddress(peer))
       : false;
     if (!trusted) return peer;
     const forwarded = req.headers["x-forwarded-for"];
@@ -1026,16 +1124,18 @@ async function createTable(opts) {
    * address is only the fallback for traffic that has not authenticated yet,
    * which is where a shared bucket is actually the correct answer. */
   const budgetKey = (conn) => (conn.pubkey ? `k:${conn.pubkey}` : `a:${conn.address}`);
-  const addressOk = (rates, conn, max) => {
+  const addressOk = (rates, conn, max, limit) => {
     const now = Date.now();
     const key = budgetKey(conn);
     const hits = (rates.get(key) || []).filter((timestamp) => now - timestamp < RATE_WINDOW_MS);
     hits.push(now);
     rates.set(key, hits);
-    return hits.length <= max;
+    if (hits.length <= max) return true;
+    noteRateLimited(limit, conn.address, `${max} per ${RATE_WINDOW_MS / 1000}s`);
+    return false;
   };
-  const controlOk = (conn) => addressOk(controlRates, conn, controlMax);
-  const authOk = (conn) => addressOk(authRates, conn, Math.max(5, controlMax));
+  const controlOk = (conn) => addressOk(controlRates, conn, controlMax, "ws-control");
+  const authOk = (conn) => addressOk(authRates, conn, Math.max(5, controlMax), "ws-auth");
 
   function kick(conn, why) {
     fail(conn.ws, "RATE_LIMITED", why);
@@ -1855,6 +1955,8 @@ async function createTable(opts) {
   const heartbeat = setInterval(() => {
     pruneAddressRates(controlRates, Date.now(), RATE_WINDOW_MS);
     pruneAddressRates(authRates, Date.now(), RATE_WINDOW_MS);
+    mintRates.prune();
+    pruneAddressRates(rateLogged, rateClock(), RATE_LOG_MS);
     for (const ws of wss.clients) {
       if (ws.isAlive === false) {
         try { ws.terminate(); } catch (err) { /* already gone */ }
@@ -1924,6 +2026,28 @@ async function createTable(opts) {
     res.end(body);
   }
 
+  /* A MINT ROUTE OVER ITS BUDGET is answered here, before the mint does any
+   * work, with how long to wait. The headers are the ones the mint's own JSON
+   * answers carry: those send no CORS headers, so neither does the refusal,
+   * and a page that could not read the route's answer cannot read its 429. */
+  function mintLimited(req, res, localPath) {
+    const limit = mintRouteLimit(req.method, localPath);
+    if (!limit) return false;
+    const client = clientAddress(req);
+    const verdict = mintRates.take(limit, client);
+    if (verdict.ok) return false;
+    noteRateLimited(limit, client, `${mintLimits[limit].max} per ${MINT_RATE_WINDOW_MS / 1000}s`);
+    const body = JSON.stringify({ error: "rate limited", retry_after: verdict.retryAfter });
+    res.writeHead(429, {
+      "content-type": "application/json; charset=utf-8",
+      "content-length": Buffer.byteLength(body),
+      "cache-control": "no-store",
+      "retry-after": String(verdict.retryAfter),
+    });
+    res.end(body);
+    return true;
+  }
+
   async function serveHttp(req, res) {
     /* Every JSON answer carries this request's CORS verdict, so no call site can
      * forget it and quietly break a cross-origin lobby. */
@@ -1951,13 +2075,19 @@ async function createTable(opts) {
 
     if (pathname.startsWith("/g/v1/") || pathname.startsWith("/g/nutft/") || pathname.startsWith("/g/blossom/")) {
       if (!gNutft) return reply(404, { error: "not found" });
+      // The mint routes on url.pathname, so the limit is decided on the same string.
+      if (mintLimited(req, res, url.pathname.slice("/g".length))) return;
       return gNutft.handle(req, res, url);
     }
     if (pathname.startsWith("/v1/") || pathname.startsWith("/nutft/") || pathname.startsWith("/blossom/")) {
+      if (mintLimited(req, res, url.pathname)) return;
       return nutft.handle(req, res, url);
     }
 
     if (pathname === "/api/health") {
+      /* It echoes the caller's own address, so no shared cache may keep it and
+       * hand one visitor's address to the next. */
+      res.setHeader("cache-control", "no-store");
       return reply(200, {
         ok: true,
         matches: matches.size,
@@ -1965,6 +2095,12 @@ async function createTable(opts) {
         // waiting, rather than only after they have joined the queue.
         queued: queue.length,
         uptime: Math.round((Date.now() - startedAt) / 1000),
+        /* WHO THE REFEREE THINKS IS ASKING — the key every per-client budget
+         * uses. Behind a proxy this turns "is TRUST_PROXY right?" into one
+         * curl: the caller's public address means yes, the proxy's own
+         * address means every player shares one budget. It reveals nothing
+         * but the caller's own address. */
+        client: clientAddress(req),
       });
     }
     if (pathname === "/api/tables") {
@@ -2221,6 +2357,13 @@ if (require.main === module) {
      * each real client keeps its own pre-auth rate bucket. Only turn this on when
      * a trusted proxy actually fronts the table; unset, X-Forwarded-For is ignored. */
     trustProxy: process.env.TRUST_PROXY,
+    /* Per-client budgets per minute for the mint's spending POSTs, for restore
+     * and checkstate, and for the GETs that draw or reveal a pack. Unset keeps
+     * the defaults above; anything but a positive integer stops the referee at
+     * boot. */
+    mintWriteRateMax: process.env.MINT_WRITE_RATE_MAX,
+    mintRecoveryRateMax: process.env.MINT_RECOVERY_RATE_MAX,
+    mintQuoteRateMax: process.env.MINT_QUOTE_RATE_MAX,
     publicHost: process.env.PUBLIC_HOST,
     /* Behind TLS set PUBLIC_URL=wss://your.host/ws — one variable, and the
      * scheme and port stop being guesses. PUBLIC_HOST alone still covers a LAN

@@ -1327,6 +1327,95 @@ test("a trusted proxy reads its own hop, so a prepended X-Forwarded-For cannot f
     `a shared proxy hop is one auth bucket regardless of forged leftmost — got ${JSON.stringify(codes)}`);
 });
 
+test("/api/health names the caller every budget sees, and a forged header cannot change it", async (t) => {
+  /* The one-curl check for a proxied deployment. With no trusted proxy,
+   * X-Forwarded-For is attacker input and the TCP peer is the answer. */
+  const table = await boot(t, "h-client-a.db");
+  const health = await rawGet(`${table.url}/api/health`, { "x-forwarded-for": "198.51.100.23" });
+  assert.equal(health.status, 200);
+  assert.equal(JSON.parse(health.body).client, "127.0.0.1", "an untrusted peer is its own address");
+  assert.equal(health.headers["cache-control"], "no-store", "an echoed address is never cached for someone else");
+});
+
+test("behind a trusted proxy /api/health names the hop the proxy observed", async (t) => {
+  const table = await boot(t, "h-client-b.db", { trustProxy: "loopback" });
+  const proxied = await rawGet(`${table.url}/api/health`, { "x-forwarded-for": "10.0.0.9, 203.0.113.9" });
+  assert.equal(JSON.parse(proxied.body).client, "203.0.113.9",
+    "the rightmost hop, never the leftmost value a client can pre-inject");
+  const direct = await rawGet(`${table.url}/api/health`);
+  assert.equal(JSON.parse(direct.body).client, "127.0.0.1", "with no forwarded hop, the peer itself");
+});
+
+/* THE DOCKER-CADDY BUG. Node reports an IPv4 peer as a.b.c.d on an IPv4
+ * listener and as ::ffff:a.b.c.d on a dual-stack one, and an operator lists
+ * whichever form `ss` printed. An exact string match called the proxy a
+ * stranger, and every player behind it shared one budget. */
+test("a ::ffff: proxy entry trusts the peer an IPv4 listener reports", async (t) => {
+  const table = await boot(t, "tp-mapped-entry.db", { trustProxy: "::FFFF:127.0.0.1" });
+  const health = await rawGet(`${table.url}/api/health`, { "x-forwarded-for": "198.51.100.7" });
+  assert.equal(JSON.parse(health.body).client, "198.51.100.7");
+});
+
+test("an IPv4 proxy entry trusts the ::ffff: peer a dual-stack listener reports", async (t) => {
+  let table;
+  try {
+    table = await boot(t, "tp-ipv4-entry.db", { host: "::", trustProxy: ["127.0.0.1"] });
+  } catch (err) {
+    if (err.code === "EAFNOSUPPORT" || err.code === "EADDRNOTAVAIL") return t.skip("no IPv6 on this host");
+    throw err;
+  }
+  const health = `http://127.0.0.1:${table.port}/api/health`;
+  const direct = await rawGet(health);
+  assert.equal(JSON.parse(direct.body).client, "::ffff:127.0.0.1", "the peer really arrives in mapped form");
+  const proxied = await rawGet(health, { "x-forwarded-for": "198.51.100.8" });
+  assert.equal(JSON.parse(proxied.body).client, "198.51.100.8");
+});
+
+test("a peer that is not on the proxy list stays untrusted in either form", async (t) => {
+  const table = await boot(t, "tp-stranger.db", { trustProxy: "10.9.8.7, ::ffff:10.9.8.6" });
+  const health = await rawGet(`${table.url}/api/health`, { "x-forwarded-for": "198.51.100.9" });
+  assert.equal(JSON.parse(health.body).client, "127.0.0.1", "the forwarded header is ignored");
+});
+
+test("a rush against the pre-auth budgets logs one line per client per minute", async (t) => {
+  /* What a launch spike looks like in journalctl when every arrival shares one
+   * address: the AUTH budget refuses first and one line says so. Later
+   * refusals from that address, auth or control, stay quiet for a minute. */
+  const lines = [];
+  t.mock.method(console, "warn", (...args) => { lines.push(args.join(" ")); });
+  const logged = () => lines.filter((line) => line.includes("rate limited"));
+  let now = 0;
+  const table = await boot(t, "rl-log.db", { controlMax: 1, rateClock: () => now });
+
+  const authed = [];
+  const codes = [];
+  for (let i = 0; i < 7; i++) {
+    const c = await Client.open(table.wsUrl, { identity: `rush-${i}`, skipAuth: true });
+    t.after(() => c.close());
+    const challenge = await c.type("AUTH");
+    c.send({ t: "AUTH", event: signedAuth(challenge, c.privateKey) });
+    const reply = await c.next((m) => m.t === "AUTH_OK" || m.t === "ERROR");
+    codes.push(reply.code || reply.t);
+    if (reply.t === "AUTH_OK") authed.push(c);
+  }
+  assert.deepEqual(codes.slice(5), ["RATE_LIMITED", "RATE_LIMITED"], JSON.stringify(codes));
+  assert.deepEqual(logged(), ["[table] rate limited: ws-auth for 127.0.0.1 (5 per 10s)"],
+    "two refusals, one line, and no pubkey, challenge or token in it");
+
+  authed[0].send({ t: "UNQUEUE" });
+  authed[0].send({ t: "UNQUEUE" });
+  assert.equal((await authed[0].type("ERROR")).code, "RATE_LIMITED");
+  assert.equal(logged().length, 1, "another limit, same client, same minute: quiet");
+
+  now += 60_000;
+  authed[1].send({ t: "UNQUEUE" });
+  authed[1].send({ t: "UNQUEUE" });
+  assert.equal((await authed[1].type("ERROR")).code, "RATE_LIMITED");
+  assert.deepEqual(logged().slice(1), [
+    "[table] rate limited: ws-control for 127.0.0.1 (1 per 10s)",
+  ], "a minute later the client is logged again");
+});
+
 test("unseated ACT messages cannot bypass the address budget", async (t) => {
   const table = await boot(t, "t28.db", { controlMax: 1 });
   const client = await table.client();

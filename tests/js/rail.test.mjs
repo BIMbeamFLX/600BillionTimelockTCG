@@ -674,7 +674,7 @@ test("the wallet script loads when the Wallet panel opens, never with the page",
   let snapshots = 0;
   scope.NutFTWallet = {
     read: async () => ({ tokens: [], outgoing: [], pending: null }),
-    snapshotMany: async () => { snapshots += 1; return { owned: [] }; },
+    snapshotManyReadOnly: async () => { snapshots += 1; return { owned: [] }; },
   };
   walletScripts()[0].fire("load");
   await waitFor(() => /Not available here yet\./.test(panel(scope, "wallet").textContent), "the unavailable copy");
@@ -721,7 +721,7 @@ test("an origin that never issued a G card is never asked for G", async () => {
   const token = cashuToken("https://tcg.zapburg.com");
   const NutFTWallet = {
     read: async () => ({ tokens: [token], outgoing: [], pending: null }),
-    snapshotMany: async (mints) => {
+    snapshotManyReadOnly: async (mints) => {
       asked.push(mints);
       return { owned: [{ tag: ["1", "600b-e1", "E1-001"] }] };
     },
@@ -749,7 +749,7 @@ test("with the site's own mint answering, the panel counts what the wallet verif
   const tokens = [cashuToken("https://tcg.zapburg.com"), cashuToken("https://tcg.zapburg.com/g")];
   const NutFTWallet = {
     read: async () => ({ tokens, outgoing: [], pending: null }),
-    snapshotMany: async (mints) => {
+    snapshotManyReadOnly: async (mints) => {
       asked.push(mints);
       return { owned: [{ tag: ["1", "600b-e1", "E1-001"] }, { tag: ["1", "600b-e1", "E1-001"] }, { tag: ["1", "600b-e1", "E1-002"] }] };
     },
@@ -779,7 +779,7 @@ test("an unfinished transfer is left for wallet.html to finish, not counted over
   const token = cashuToken("https://tcg.zapburg.com");
   const NutFTWallet = {
     read: async () => ({ tokens: [token], outgoing: [], pending: { type: "trade" } }),
-    snapshotMany: async () => { snapshots += 1; return { owned: [] }; },
+    snapshotManyReadOnly: async () => { snapshots += 1; return { owned: [] }; },
   };
   const scope = makeScope({
     href: "https://tcg.zapburg.com/index.html",

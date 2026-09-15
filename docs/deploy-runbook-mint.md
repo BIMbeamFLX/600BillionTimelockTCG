@@ -192,7 +192,9 @@ the moment money does.
    21 users, ever.
 2. **Lightning settlement** for the 21-sat pack (from `lnurl-mint`).
 3. **Block-commitment beacon** — the fairness core.
-4. Mint-endpoint rate limiting (`/v1/*` and `/nutft/*` dispatch before the table's limiter).
+4. Mint-endpoint rate limiting. **Done:** per-client `MINT_WRITE_RATE_MAX`,
+   `MINT_RECOVERY_RATE_MAX` and `MINT_QUOTE_RATE_MAX`, checked before either mint
+   (`docs/deploy.md` §5).
 5. Legal review before any money changes hands.
 
 ---

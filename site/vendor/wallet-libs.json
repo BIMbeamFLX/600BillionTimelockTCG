@@ -1,0 +1,22 @@
+{
+  "cashu-ts.js": {
+    "package": "@cashu/cashu-ts",
+    "version": "4.7.2",
+    "sha256": "cfcf163691f0da40b8979133b87fe935aa6314cb10db71548fb33e5de92e7364"
+  },
+  "scure-bip39.js": {
+    "package": "@scure/bip39",
+    "version": "2.3.0",
+    "sha256": "f1c758a4ffc4501496f777341d50a7881c91e33bf8ffecacb3f597e68f64a061"
+  },
+  "scure-bip39-english.js": {
+    "package": "@scure/bip39",
+    "version": "2.3.0",
+    "sha256": "269d29a8646fdcabd6c8f114599f231190b36313b89fa7de3ed8a0d45df64659"
+  },
+  "scure-bip32.js": {
+    "package": "@scure/bip32",
+    "version": "2.3.0",
+    "sha256": "045adae59929a5be7110ed98e3c1e013e7e6087000b53c918cf870d400c89149"
+  }
+}

@@ -776,7 +776,7 @@ test("a NutFT-marked Stack proves non-basic possession while Basics stay free", 
   };
   globalThis.location = { origin: "http://table.test" };
   let count = 2;
-  globalThis.NutFTWallet = { snapshot: async () => ({ owned: Array.from({ length: count }, () => ({ tag: ["1", "600B-E1", "E1-004"] })) }) };
+  globalThis.NutFTWallet = { snapshotReadOnly: async () => ({ owned: Array.from({ length: count }, () => ({ tag: ["1", "600B-E1", "E1-004"] })) }) };
   const { byId, game } = loadPlay(netStub());
   byId("deckA").value = "custom:Owned";
   byId("deckB").value = "Signal";
@@ -798,7 +798,7 @@ test("a shell-stored NutFT marker still gates its shell-stored Stack", async (t)
   const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-004")] };
   globalThis.localStorage = { getItem: () => null, setItem() {} };
   globalThis.E1Napplet = { storage: { json: async (key) => key === "600b:decks" ? saved : { Owned: true } } };
-  globalThis.NutFTWallet = { snapshot: async () => ({ owned: [] }) };
+  globalThis.NutFTWallet = { snapshotReadOnly: async () => ({ owned: [] }) };
   globalThis.location = { origin: "http://table.test" };
   t.after(() => { delete globalThis.E1Napplet; });
   const { byId, game } = loadPlay(netStub());
@@ -817,7 +817,7 @@ test("a stale NutFT marker cannot turn a missing Stack into an empty ownership c
     ["600b:nutft-decks", JSON.stringify({ Ghost: true })],
   ]);
   globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
-  globalThis.NutFTWallet = { snapshot: async () => ({ owned: [] }) };
+  globalThis.NutFTWallet = { snapshotReadOnly: async () => ({ owned: [] }) };
   globalThis.location = { origin: "http://table.test" };
   const { byId, game } = loadPlay(netStub());
   byId("deckA").value = "custom:Ghost";
@@ -841,7 +841,7 @@ test("NutFT verification locks Start against duplicate submissions", async () =>
   globalThis.location = { origin: "http://table.test" };
   let release;
   let checks = 0;
-  globalThis.NutFTWallet = { snapshot: () => {
+  globalThis.NutFTWallet = { snapshotReadOnly: () => {
     checks += 1;
     return new Promise((resolve) => { release = resolve; });
   } };
@@ -2118,7 +2118,7 @@ test("a NutFT Stack loads the wallet script on demand and starts once its proofs
   const origins = [];
   globalThis.NutFTWallet = {
     read: async () => ({ tokens: ["cashuB1"] }),
-    snapshot: async (origin) => {
+    snapshotReadOnly: async (origin) => {
       origins.push(origin);
       return { owned: Array.from({ length: 3 }, () => ({ tag: ["1", "600B-E1", "E1-004"] })), spent: [], invalid: [], unreadable: [] };
     },
@@ -2217,7 +2217,7 @@ test("inside the Hangar, My collection is in both Stack menus and deals a legal 
   const shell = hangar({ inventory });
   globalThis.E1Napplet = shell;
   let snapshots = 0;
-  globalThis.NutFTWallet = { snapshot: async () => { snapshots += 1; throw new Error("a collection Stack asks no wallet"); } };
+  globalThis.NutFTWallet = { snapshotReadOnly: async () => { snapshots += 1; throw new Error("a collection Stack asks no wallet"); } };
   t.after(() => { delete globalThis.E1Napplet; delete globalThis.NutFTWallet; });
 
   const { byId, game } = loadPlay(netStub());
@@ -2335,7 +2335,7 @@ test("a website wallet with cards is read when the table opens, and offered", as
   const origins = [];
   globalThis.NutFTWallet = {
     read: async () => ({ tokens: ["cashuB1", "cashuB2"] }),
-    snapshot: async (origin) => {
+    snapshotReadOnly: async (origin) => {
       origins.push(origin);
       return { owned: [...proofs, { tag: ["1", "600B-E1", "E1-999"] }], spent: [], invalid: [], unreadable: [] };
     },

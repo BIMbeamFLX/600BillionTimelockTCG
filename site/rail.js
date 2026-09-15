@@ -736,9 +736,10 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
     if (!W || !state || !mint || wallet.unfinished) return;
     const tokens = Array.isArray(state.tokens) ? state.tokens : [];
     const mints = tokens.some((token) => namesMint(token, mint + "/g")) ? [mint, mint + "/g"] : [mint];
-    const snapshot = typeof W.snapshotMany === "function"
-      ? await withTimeout(W.snapshotMany(mints), 30000)
-      : await withTimeout(W.snapshot(mint), 30000);
+    // Only counting: the bar must never finish or rewrite a pending transfer.
+    const snapshot = typeof W.snapshotManyReadOnly === "function"
+      ? await withTimeout(W.snapshotManyReadOnly(mints), 30000)
+      : await withTimeout(W.snapshotReadOnly(mint), 30000);
     const owned = snapshot && Array.isArray(snapshot.owned) ? snapshot.owned : null;
     if (!owned) return;
     wallet.held = owned.length;
