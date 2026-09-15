@@ -56,8 +56,8 @@ function readConfig(options = {}) {
   const passwordPath = options.passwordPath || process.env.PHOENIXD_PASSWORD_PATH || "";
   if (!password && passwordPath) password = fs.readFileSync(passwordPath, "utf8").trim();
   if (!password) {
-    throw new Error("PHOENIXD_URL is set but no password: set PHOENIXD_PASSWORD or "
-      + "PHOENIXD_PASSWORD_PATH (the http-password line from phoenix.conf)");
+    throw new Error("PHOENIXD_URL is set but there is no password: set PHOENIXD_PASSWORD_PATH "
+      + "(or PHOENIXD_PASSWORD) to the http-password-limited-access value from phoenix.conf");
   }
 
   /* Accepts a boolean from a caller and "1"/"true" from the environment, which
@@ -68,8 +68,8 @@ function readConfig(options = {}) {
   const allowRemote = allowRemoteRaw === true || allowRemoteRaw === "1" || allowRemoteRaw === "true";
   const isLoopback = LOOPBACK.test(parsed.hostname);
   if (parsed.protocol === "http:" && !isLoopback && !allowRemote) {
-    throw new Error(`phoenixd at ${parsed.hostname} would receive its password in clear over the network. `
-      + "Put it behind TLS or a tunnel, or set PHOENIXD_ALLOW_REMOTE=1 if the hop is genuinely private.");
+    throw new Error("PHOENIXD_URL names a host that is not loopback, so plain http would send the password "
+      + "in clear over the network. Put it behind TLS or a tunnel, or set PHOENIXD_ALLOW_REMOTE=1 if the hop is genuinely private.");
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("PHOENIXD_URL must be http or https");

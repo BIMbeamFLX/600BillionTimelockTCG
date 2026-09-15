@@ -339,7 +339,7 @@ function createNutftMint(options = {}) {
   const parseSchedule = (raw) => String(raw).split(",").map((part, index) => {
     const [upTo, msat] = part.split(":").map((piece) => Number(String(piece).trim()));
     if (!Number.isFinite(upTo) || !Number.isFinite(msat) || upTo <= 0 || msat <= 0) {
-      throw new Error(`NUTFT_PRICE_SCHEDULE entry ${index + 1} is not "packs:msat": ${part}`);
+      throw new Error(`NUTFT_PRICE_SCHEDULE entry ${index + 1} is not "packs:msat"`);
     }
     return { upTo, msat };
   });
@@ -382,7 +382,7 @@ function createNutftMint(options = {}) {
      checked below. */
   const salesMode = String(options.sales || process.env.NUTFT_SALES || "open").toLowerCase();
   if (!["open", "closed", "allowlist", "signed"].includes(salesMode)) {
-    throw new Error(`NUTFT_SALES must be open, closed, allowlist or signed — got ${salesMode}`);
+    throw new Error("NUTFT_SALES must be open, closed, allowlist or signed");
   }
   const allowlist = new Set();
   /* As with the price schedule, an explicitly empty list belongs to this mint.
@@ -391,15 +391,20 @@ function createNutftMint(options = {}) {
   const allowlistRaw = Object.prototype.hasOwnProperty.call(options, "allowlist")
     ? options.allowlist
     : process.env.NUTFT_ALLOWLIST || "";
-  for (const entry of String(allowlistRaw).split(",")) {
+  String(allowlistRaw).split(",").forEach((entry, index) => {
     const trimmed = entry.trim();
-    if (!trimmed) continue;
+    if (!trimmed) return;
     const hex = toPubkeyHex(trimmed);
-    /* A mistyped key names itself instead of taking the mint down at boot —
-       but it must not silently become "nobody", which is why it is logged. */
-    if (hex) allowlist.add(hex);
-    else console.error(`[nutft] NUTFT_ALLOWLIST entry is not an npub or 32-byte hex, ignored: ${trimmed}`);
-  }
+    if (hex) {
+      allowlist.add(hex);
+      return;
+    }
+    /* A rejected entry is named by its position and never echoed: the likeliest
+       paste mistake is a private key, and the journal must not keep a copy. */
+    console.error(/^nsec1/i.test(trimmed)
+      ? `[nutft] an nsec (private key) was pasted into NUTFT_ALLOWLIST at entry ${index + 1}; remove it`
+      : `[nutft] NUTFT_ALLOWLIST entry ${index + 1} is not an npub or a 64-character hex key, ignored`);
+  });
   /* ONE DECK EACH. Off by default: E1 sells as many boosters as somebody wants
      to buy, and this is for the G starter sets, where the rule is one per
      person.

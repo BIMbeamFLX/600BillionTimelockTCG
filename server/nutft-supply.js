@@ -78,9 +78,10 @@ function parseRelays(raw) {
   const list = (Array.isArray(raw) ? raw : String(raw ?? "").split(","))
     .map((entry) => String(entry).trim())
     .filter(Boolean);
-  for (const relay of list) {
-    if (!/^wss?:\/\/\S+$/.test(relay)) throw new Error(`NUTFT_SUPPLY_RELAYS entries must be ws:// or wss:// URLs: ${relay}`);
-  }
+  list.forEach((relay, index) => {
+    /* By position: a relay URL can carry an access token in its query. */
+    if (!/^wss?:\/\/\S+$/.test(relay)) throw new Error(`NUTFT_SUPPLY_RELAYS entry ${index + 1} is not a ws:// or wss:// URL`);
+  });
   return list;
 }
 

@@ -107,7 +107,7 @@ function createFunding(options = {}) {
     const config = options.lnd || lnd.readConfig(options.lndOptions || {});
     return config ? createLndFunding(config) : null;
   }
-  if (backend && backend !== "none") throw new Error(`unknown NUTFT_FUNDING backend: ${backend}`);
+  if (backend && backend !== "none") throw new Error("NUTFT_FUNDING must be lnd, phoenixd, cashu, mock or none");
   return null;
 }
 

@@ -2169,6 +2169,10 @@ if (require.main === module) {
   const port = Number(process.env.PORT || 8777);
   const dbPath = process.env.DB || path.join(__dirname, "matches.db");
   const pinSeed = process.env.PIN_SEED ? Number(process.env.PIN_SEED) : null;
+  /* Said at boot, without the seed: the journal must not hand out a rehearsed opening. */
+  if (Number.isInteger(pinSeed)) {
+    console.warn("[table] PIN_SEED is set: new matches try pinned seeds first. Testing only, never in production.");
+  }
   /* RATE_MAX exists for headless soak runs, which act far faster than any human.
    * Leave it unset for the demo — the default is what protects the table. */
   const rateMax = process.env.RATE_MAX ? Number(process.env.RATE_MAX) : null;
@@ -2223,7 +2227,6 @@ if (require.main === module) {
     .then((table) => {
       console.log(`[table] 600B referee on ${table.url}  (ws ${table.wsUrl})`);
       console.log(`[table] db ${dbPath} · catalog ${CATALOG.size} cards ${CATALOG.digest}`);
-      if (pinSeed !== null) console.log(`[table] PIN_SEED=${pinSeed} — rehearsed opening`);
     })
     .catch((err) => {
       console.error("[table] failed to start:", err);
