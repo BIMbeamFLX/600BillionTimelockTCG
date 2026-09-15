@@ -66,13 +66,17 @@ dialog, card menu and overlay (60 and up), which cover it while they are open.
   reads PAUSED while the table's sound is muted, PLAYING only while its room tone actually runs,
   MUSIC otherwise.
 - **Wallet** — the NutFT card wallet at a glance: cards held and how many are different, whether the
-  site's own mint answers, and cards sent but not yet marked delivered. `nutft-wallet.js` loads the
-  first time this panel opens, never with the page. The count comes from the same `snapshotMany`
-  wallet.html reads, and only when the page's origin answers `/v1/info` with the NutFT capability;
-  otherwise the numbers are dashes and the panel says "Not available here yet." An unfinished
-  transfer or booster is never counted over — counting would finish it first, and that belongs to
-  wallet.html. The brass blinking dot on the button (cards sent, not yet delivered) is read straight
-  from storage, so it is right without loading anything.
+  site's own mint answers, and cards sent but not yet marked delivered. When storage
+  (`600b:nutft-wallet`, or the page's `NUTFT_STORE`) holds no card token at all, the panel says "No
+  cards on this device yet." and nothing is loaded or asked: no `nutft-wallet.js`, no mint. Otherwise
+  `nutft-wallet.js` loads the first time the panel opens, never with the page. The count comes from
+  the same `snapshotMany` wallet.html reads, and only when the page's origin answers `/v1/info` with
+  the NutFT capability; otherwise the numbers are dashes and the panel says "Not available here
+  yet." The E1 mint's `/v1/info` says nothing about Edition G, so the G mint (`/g`) is counted only
+  when a stored token names it — a token carries its mint's URL — and an origin that never issued a
+  G card is never asked for one. An unfinished transfer or booster is never counted over — counting
+  would finish it first, and that belongs to wallet.html. The brass blinking dot on the button (cards
+  sent, not yet delivered) is read straight from storage, so it is right without loading anything.
 - **Chat** — "Chat lives in Nappelin." and a link to `https://nappelin.com/hangar/` in a new tab. No
   rooms, no input, nothing pretending to be live.
 - **Share** — the current page's link with only `rules` and `arena` kept (values of letters, digits,
@@ -174,4 +178,5 @@ injected once, inert when embedded, the edge cycle with persistence and the narr
 scrubbing, one music slot for the life of the page, no green without `e1:auth` ok and the dot
 following the table's last word for the key it verified, `e1:identity` at load (reaching a page that
 listens from its own init), on sign-in and on sign-out and never on a refused sign-in, Escape closing
-and returning focus, and the wallet script never loading before its panel opens.
+and returning focus, the wallet script never loading before its panel opens nor for an empty wallet,
+and no `/g/` request from an origin that never issued a G card.

@@ -17,8 +17,8 @@
  * accepted a signed login. setBadge cannot reach it, and signing out puts it out.
  *
  * NOTHING HEAVY RIDES ALONG. The wallet script loads the first time the Wallet
- * panel opens, the QR encoder the first time Share does. Chat points at
- * Nappelin instead of pretending to be a room.
+ * panel opens with a card in storage to count, the QR encoder the first time
+ * Share does. Chat points at Nappelin instead of pretending to be a room.
  *
  * Browser globals are reached through globalThis only, so the tests can run
  * this file against a stand-in scope (tests/js/rail.test.mjs).
@@ -424,7 +424,7 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
   let authTicket = 0;
   const badges = { wallet: null, music: null };
   let waiting = 0;                            // transfers sent and not yet marked delivered
-  const wallet = { busy: null, checkedAt: 0, held: null, distinct: null, mint: null, unfinished: false };
+  const wallet = { busy: null, checkedAt: 0, held: null, distinct: null, mint: null, unfinished: false, empty: false };
   let openName = null;
   let ui = null;
 
@@ -643,18 +643,24 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
 
   const walletKey = () => (typeof G.NUTFT_STORE === "string" && G.NUTFT_STORE) || "600b:nutft-wallet";
 
-  /* Read straight from storage, never by loading the wallet: the dot has to be
-     right on a page that never opens the panel, and loading the wallet on every
-     page is exactly what this bar must not do. */
-  function refreshWaiting() {
-    let count = 0;
+  /* The wallet as storage holds it, read straight from storage, never by loading
+     the wallet: the dot has to be right on a page that never opens the panel, and
+     a wallet with no card in it has nothing to count. Nothing stored is an empty
+     wallet; something that does not parse is null, and the wallet judges it. */
+  function storedWallet() {
+    const saved = load("localStorage", walletKey());
+    if (!saved) return { tokens: [], outgoing: [], pending: null };
     try {
-      const state = JSON.parse(load("localStorage", walletKey()) || "null");
-      count = state && Array.isArray(state.outgoing) ? state.outgoing.length : 0;
+      const state = JSON.parse(saved);
+      return state && typeof state === "object" ? state : null;
     } catch (err) {
-      count = 0;
+      return null;
     }
-    waiting = count;
+  }
+
+  function refreshWaiting() {
+    const state = storedWallet();
+    waiting = state && Array.isArray(state.outgoing) ? state.outgoing.length : 0;
     paintWallet();
   }
 
@@ -680,11 +686,33 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
     }
   }
 
+  /* Whether a token names `mintUrl`. A Cashu token carries its mint's URL as plain
+     bytes (cashuB is CBOR, cashuA is JSON, both base64), so this needs no wallet
+     library. The E1 mint's /v1/info says nothing about G, so G is asked only where
+     this browser holds a card G issued — a G-less origin never issued one. */
+  function namesMint(token, mintUrl) {
+    try {
+      const body = String(token).replace(/^cashu[AB]/, "").replace(/-/g, "+").replace(/_/g, "/");
+      return G.atob(body).indexOf(mintUrl) >= 0;
+    } catch (err) {
+      return false;
+    }
+  }
+
   async function checkWallet() {
     wallet.held = null;
     wallet.distinct = null;
     wallet.mint = null;
     wallet.unfinished = false;
+    wallet.empty = false;
+    const stored = storedWallet();
+    /* No card on this device: nothing to count, so no wallet library (it imports
+       its Cashu code at runtime) and no mint is asked anything. */
+    if (stored && !(Array.isArray(stored.tokens) && stored.tokens.length)) {
+      wallet.empty = true;
+      wallet.unfinished = Boolean(stored.pending);
+      return;
+    }
     const W = await loadScript("nutft-wallet.js", "NutFTWallet");
     let state = null;
     if (W && typeof W.read === "function") {
@@ -700,8 +728,10 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
        wallet to finish it first, and that belongs on wallet.html, where a person
        watches it happen. Without one, counting only reads. */
     if (!W || !state || !mint || wallet.unfinished) return;
+    const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+    const mints = tokens.some((token) => namesMint(token, mint + "/g")) ? [mint, mint + "/g"] : [mint];
     const snapshot = typeof W.snapshotMany === "function"
-      ? await withTimeout(W.snapshotMany([mint, mint + "/g"]), 30000)
+      ? await withTimeout(W.snapshotMany(mints), 30000)
       : await withTimeout(W.snapshot(mint), 30000);
     const owned = snapshot && Array.isArray(snapshot.owned) ? snapshot.owned : null;
     if (!owned) return;
@@ -711,10 +741,12 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
       : String(item.asset && item.asset.asset_id)))).size;
   }
 
-  /* Asked on open, at most every 20 seconds, never twice at once. */
+  /* Asked on open, at most every 20 seconds, never twice at once. An empty wallet
+     is only a storage read, so it is read again on every open: a booster bought
+     on this page shows up at once. */
   function refreshWallet() {
     if (wallet.busy) return wallet.busy;
-    if (wallet.checkedAt && Date.now() - wallet.checkedAt < 20000) return Promise.resolve();
+    if (wallet.checkedAt && !wallet.empty && Date.now() - wallet.checkedAt < 20000) return Promise.resolve();
     wallet.busy = checkWallet()
       .catch(() => {
         wallet.held = null;
@@ -737,14 +769,18 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
       cell.append(el("span", "tcg-pop__label", label), el("span", "tcg-pop__num", value === null ? DASH : String(value)));
       return cell;
     };
-    const stats = el("div", "tcg-pop__stats");
-    stats.append(stat("Cards held", wallet.held), stat("Different", wallet.distinct));
-    const mint = el("div");
-    mint.append(
-      el("span", "tcg-pop__label", "Mint"),
-      text(checking ? "Checking…" : wallet.mint === true ? "Reachable" : wallet.mint === false ? "Not reachable" : DASH),
-    );
-    const parts = [stats, mint];
+    const parts = [];
+    if (!checking && wallet.empty) parts.push(text("No cards on this device yet."));
+    else {
+      const stats = el("div", "tcg-pop__stats");
+      stats.append(stat("Cards held", wallet.held), stat("Different", wallet.distinct));
+      const mint = el("div");
+      mint.append(
+        el("span", "tcg-pop__label", "Mint"),
+        text(checking ? "Checking…" : wallet.mint === true ? "Reachable" : wallet.mint === false ? "Not reachable" : DASH),
+      );
+      parts.push(stats, mint);
+    }
     if (waiting > 0) {
       const row = el("div", "tcg-pop__row");
       row.append(el("span", "tcg-pop__dot"), text(waiting === 1
@@ -753,7 +789,7 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
       parts.push(row);
     }
     if (!checking && wallet.unfinished) parts.push(text("Something in the wallet is unfinished. Open the wallet to finish it."));
-    else if (!checking && wallet.checkedAt && wallet.held === null) parts.push(text("Not available here yet."));
+    else if (!checking && !wallet.empty && wallet.checkedAt && wallet.held === null) parts.push(text("Not available here yet."));
     const box = el("div", "tcg-pop__box");
     box.append(el("span", "tcg-pop__label", "Not your account"), el("span", "tcg-pop__meta", "Your cards live in this browser, apart from signing in."));
     parts.push(box, linkButton("Open wallet", siteUrl("wallet.html"), { primary: true }));
