@@ -57,6 +57,18 @@ def test_page_carries_the_napplet_head(artifact: tuple[bytes, dict]) -> None:
     )
 
 
+def test_page_names_the_referee_before_net_js_runs(artifact: tuple[bytes, dict]) -> None:
+    """A srcdoc frame has no origin to derive a referee from: the build names nappelin's."""
+    html = artifact[0].decode("utf-8")
+    marker = '<script>window.E1_TABLE_URL = "wss://tcg.nappelin.com/ws";</script>'
+
+    assert build_napplet.TABLE_URL == "wss://tcg.nappelin.com/ws"
+    assert html.count(marker) == 1
+    assert html.index(marker) < html.index("</head>")
+    assert html.index(marker) < html.index("globalThis.E1Net = {"), "set before net.js runs"
+    assert "globalThis.E1_TABLE_URL" in html, "and net.js still reads it"
+
+
 def test_page_leaves_the_website_only_scripts_out(artifact: tuple[bytes, dict]) -> None:
     """The wallet, QR, bug-report and NIP-07 pages stay on the website."""
     html = artifact[0].decode("utf-8")
