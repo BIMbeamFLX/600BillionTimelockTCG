@@ -170,6 +170,39 @@ def test_style_comments_go_and_strings_stay(tmp_path: Path) -> None:
     assert build_napplet.inline_assets(page, tmp_path) == stripped
 
 
+def test_html_comments_go_and_scripts_stay() -> None:
+    """Markup comments go, and whole lines with them; `<!--` inside a script or a style stays."""
+    page = (
+        "<head>\n"
+        "  <!-- a note\n       on two lines -->\n"
+        '<script>var s = "<!-- kept -->";</script>\n'
+        "<style>.a { content: '<!-- kept -->'; }</style>\n"
+        "</head>\n<body>\n"
+        "<p>one <!-- inline --> two</p>\n"
+        "<!-- a --> <b>kept</b> <!-- c -->\n"
+        "  <!-- b -->\n"
+        "</body>\n"
+    )
+
+    assert build_napplet.strip_html_comments(page) == (
+        "<head>\n"
+        '<script>var s = "<!-- kept -->";</script>\n'
+        "<style>.a { content: '<!-- kept -->'; }</style>\n"
+        "</head>\n<body>\n"
+        "<p>one  two</p>\n"
+        " <b>kept</b> \n"
+        "</body>\n"
+    )
+
+
+def test_the_page_ships_without_html_comments(artifact: tuple[bytes, dict]) -> None:
+    """Every `<!--` left in the artifact would be inside a script, and those are escaped."""
+    html = artifact[0].decode("utf-8")
+
+    assert "<!--" not in html
+    assert "<!--" in (SITE / "play.html").read_text(encoding="utf-8"), "the source keeps them"
+
+
 @needs_node
 def test_stripped_style_is_the_same_stylesheet() -> None:
     """esbuild minifies play.html's <style> before and after stripping to identical CSS."""

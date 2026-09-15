@@ -5,7 +5,8 @@ Writes dist/napplet/600b-timelock-tcg/index.html and its .nip5a-manifest.json (k
 Every `<script src>` is inlined -- vendor/three.js and the arena3d-*.js scripts of the
 3D table included (docs/arena3d.md; three.js carries no `</script` and no `<!--`, but
 the escaping below covers them anyway) -- with its comments stripped (not three.js,
-which ships minified). Every font play.html's @font-face names under ../art/fonts/ (the
+which ships minified), as the page's CSS and markup ship without theirs. Every font
+play.html's @font-face names under ../art/fonts/ (the
 Hypershell faces and Anton, docs/brand-hypershell.md) becomes a data URL; the hero image
 ships once, as window.E1_BACKDROP_URL, which play.html copies into the stage's `--hero`
 property and the 3D cyclorama reads directly. The wallet/QR/bug-report scripts and the
@@ -55,6 +56,11 @@ STYLE_BLOCK = re.compile(r"(<style[^>]*>)(.*?)(</style>)", re.S)
 CSS_STRING_OR_COMMENT = re.compile(r"""("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|/\*.*?\*/""", re.S)
 TRAILING_SPACE = re.compile(r"[ \t]+$", re.M)
 BLANK_LINE = re.compile(r"(?<=\n)\n")
+# The markup's comments go the same way: prose for the people reading play.html. A script
+# or style block is left to its own stripper, and a comment alone on its lines takes them.
+RAW_TEXT = re.compile(r"(<script\b[^>]*>.*?</script>|<style\b[^>]*>.*?</style>)", re.S)
+HTML_COMMENT_LINE = re.compile(r"^[ \t]*<!--(?:(?!-->).)*-->[ \t]*\n", re.S | re.M)
+HTML_COMMENT = re.compile(r"<!--(?:(?!-->).)*-->", re.S)
 # The hero reaches the stage (`--hero`) and the 3D cyclorama (site/arena3d-env.js) as
 # window.E1_BACKDROP_URL; the website's CSS fallback to the file becomes `none` here.
 BACKDROP = "../art/site/hero-play.webp"
@@ -314,6 +320,14 @@ def inline_assets(html: str, site: Path) -> str:
     return FONT_URL.sub(replace, html).replace(HERO_FALLBACK, "var(--hero, none)")
 
 
+def strip_html_comments(html: str) -> str:
+    """The page without its HTML comments; script and style blocks untouched."""
+    parts = RAW_TEXT.split(html)
+    for index in range(0, len(parts), 2):
+        parts[index] = HTML_COMMENT.sub("", HTML_COMMENT_LINE.sub("", parts[index]))
+    return "".join(parts)
+
+
 def strip_site_only(html: str) -> str:
     """Drop the masthead logo and the affinity plate backgrounds (site files, not bundled)."""
     return PLATE_RULE.sub("", LOGO_TAG.sub("", html))
@@ -348,7 +362,7 @@ def build_html(site: Path, sizes: dict[str, tuple[int, int]] | None = None) -> s
     # Hash the LF text, not the checkout's bytes: Git hands Windows a CRLF copy, and a
     # marker taken before normalising made one commit build two different artifacts.
     html = add_head(html, sha256_hex(html.encode("utf-8")), backdrop_data_url(site))
-    html = strip_site_only(html)
+    html = strip_html_comments(strip_site_only(html))
     html = inline_assets(html, site)
     html = inline_scripts(html, site, sizes)
     leftover = next((marker for marker in LEFTOVERS if marker in html), None)
