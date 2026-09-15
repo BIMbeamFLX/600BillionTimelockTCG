@@ -364,7 +364,8 @@
       bus[k] = ctx.createGain(); bus[k].gain.value = BUS_GAIN[k]; bus[k].connect(softClip);
     });
 
-    bedDuck = ctx.createGain(); bedDuck.gain.value = 1; bedDuck.connect(bus.bed);
+    /* A held duck asked for before the first gesture built this graph starts ducked. */
+    bedDuck = ctx.createGain(); bedDuck.gain.value = bedDuckLevel; bedDuck.connect(bus.bed);
 
     convolver = ctx.createConvolver();
     convolver.buffer = buildImpulse();
@@ -425,7 +426,9 @@
 
   var bedDuckLevel = 1;
   function duckBed(depth, holdMs, relMs) {
-    if (!ready) return;
+    /* Shell music can already be playing when the napplet launches, long before
+       a gesture arms audio: a held duck is remembered and applied at buildGraph. */
+    if (!ready) { if (holdMs == null) bedDuckLevel = depth; return; }
     var t = ctx.currentTime, g = bedDuck.gain;
     bedDuckLevel = depth;
     guard(function () {
@@ -440,7 +443,7 @@
     });
   }
   function unduckBed(relMs) {
-    if (!ready) return;
+    if (!ready) { bedDuckLevel = 1; return; }
     var t = ctx.currentTime, g = bedDuck.gain;
     bedDuckLevel = 1;
     guard(function () {
@@ -845,6 +848,9 @@
      to mean both things at once, which made every silencing call an unrecoverable
      one (see stopPressure / cancelPressureBeat below). */
   var pressure = { live: false, timer: 0, dark: false };
+  /* Held while the shell's music plays (NAP-CUE focus). Not cfg.pressure: that is
+     the player's saved choice, and a song starting must not rewrite it. */
+  var pressureHeld = false;
   var bedNodes = null, clashBus = null, holdPing = null, holdTimer = 0;
   var bufferTotal = 0;
   var activeSeat = 0;
@@ -883,7 +889,7 @@
      any two beats and a hidden tab stops costing anything at all. */
   function pressureSchedule() {
     if (pressure.timer) { global.clearTimeout(pressure.timer); pressure.timer = 0; }
-    if (!pressure.live || !ready || !cfg.pressure || cfg.muted) return;
+    if (!pressure.live || !ready || !cfg.pressure || cfg.muted || pressureHeld) return;
     if (bufferTotal < PRESSURE_MIN) return;
     if (doc && doc.hidden) return;
     pressure.timer = global.setTimeout(function () {
@@ -3275,6 +3281,7 @@
        cue.focus {music: playing|idle}), and returns when it stops. */
     duckBed: function (depth, holdMs, relMs) { duckBed(clamp(Number(depth), 0.0001, 1) || 0.45, holdMs, relMs); return API; },
     unduckBed: function (relMs) { unduckBed(relMs); return API; },
+    holdPressure: function (on) { pressureHeld = !!on; pressureSchedule(); return API; },
     bed: function (on) { return API.set({ bed: !!on }); },
     pressure: function (on) { return API.set({ pressure: !!on }); },
     motion: function (m) { return API.set({ motion: m }); },
