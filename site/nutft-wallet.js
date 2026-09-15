@@ -1207,6 +1207,10 @@
   async function importTokenUnlocked(mintUrl, token) {
     const c = await cashu();
     let state = await identity(c);
+    /* Refused whole, before the token is stored: a card accepted now could not
+       be moved under the phrase until the recovery ends, and a token stored and
+       then reported as refused is a card nobody knows the wallet holds. */
+    if (state.restoring) throw new Error(RECOVERY_UNFINISHED);
     if (state.pending) await submitPending(state, c, await getKeyset(state.pending.mintUrl, c));
     state = await read();
     const keyset = await getKeyset(mintUrl, c);
@@ -1358,19 +1362,19 @@
           ? [...state.tokens, encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: found })]
           : state.tokens,
         counters: lastSigned >= 0 ? { ...state.counters, [key]: lastSigned + 1 } : state.counters,
-        restoring: { key, next: counter, empty: emptyBatches },
+        restoring: { key, next: counter, empty: emptyBatches, found: (state.restoring.found || 0) + found.length },
       };
       await write(state);
     }
 
-    /* Finished: one token holding every recovered card, as a recovery has
-       always left the wallet, and no checkpoint. */
-    const recovered = readableProofs(state, keyset, c);
+    /* Finished. The tokens stay exactly as the batches appended them. Folding
+       them into one token rebuilt the whole list from this edition's readable
+       proofs and dropped every token this keyset cannot read -- a G card stored
+       beside an E1 recovery was lost when the recovery finished. */
     const finished = { ...state };
     delete finished.restoring;
-    if (recovered.length) finished.tokens = [encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: recovered })];
     await write(finished);
-    return recovered.length;
+    return state.restoring.found || 0;
   }
 
   const restoreSeed = (mintUrl, phrase, opts) => locked(

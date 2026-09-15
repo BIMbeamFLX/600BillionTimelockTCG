@@ -46,7 +46,8 @@ test("a recovery held to three requests an attempt keeps its progress and finish
   assert.equal(count, PACK, `recovered after ${attempts.length} attempts`);
   const saved = device.saved();
   assert.equal(saved.restoring, undefined, "and the checkpoint is gone");
-  assert.equal(saved.tokens.length, 1, "one token, as a recovery always left it");
+  assert.equal((await device.wallet.snapshotReadOnly(mint.url)).owned.length, PACK,
+    "every recovered card is held, none twice");
 
   /* Resumed, not restarted: every batch reached the mint at most twice (once
      more only when an attempt ended between its restore and its checkstate). */
