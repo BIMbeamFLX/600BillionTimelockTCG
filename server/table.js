@@ -324,12 +324,14 @@ async function createTable(opts) {
     : RATE_MAX_CONTROL;
   /* The mint budgets come from the environment as text, and a typo must stop
    * the referee at boot rather than quietly leave the default in charge. */
+  /* The same rule the dry run applies (server/mint-env.js), and like it the
+   * refusal names the variable, never the value. */
   const mintBudget = (value, fallback, name) => {
-    if (value === undefined || value === null || value === "") return fallback;
-    const max = Number(value);
-    if (!Number.isInteger(max) || max < 1) {
-      throw new Error(`${name} must be a positive integer: ${value}`);
-    }
+    const refused = [];
+    const max = require("./mint-env.js").rateBudget(
+      (variable, reason) => refused.push(`${variable}: ${reason}`), name, value, fallback,
+    );
+    if (refused.length) throw new Error(refused.join("; "));
     return max;
   };
   /* Monotonic, so a wall-clock step can neither strand nor free a client;

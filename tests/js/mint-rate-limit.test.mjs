@@ -251,7 +251,11 @@ test("a mint budget that is not a positive integer stops the referee at boot", a
           port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: CATALOG_URI,
           [option]: bad,
         }),
-        new RegExp(`${name} must be a positive integer`),
+        (error) => {
+          assert.equal(error.message, `${name}: must be a whole number of requests per minute, at least 1`);
+          assert.equal(error.message.includes(bad), false, "the refusal never repeats the value");
+          return true;
+        },
         `${name}=${bad}`,
       );
     }

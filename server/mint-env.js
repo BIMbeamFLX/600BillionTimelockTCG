@@ -428,10 +428,18 @@ function checkEnv(env) {
   }
   supplyRelays(add, env.NUTFT_SUPPLY_RELAYS);
   supplyInterval(add, env.NUTFT_SUPPLY_INTERVAL_SECONDS);
+  for (const variable of RATE_BUDGETS) rateBudget(add, variable, env[variable], null);
   return problems;
 }
 
+/* The mints' per-client budgets (server/table.js): unset or empty means the
+   built-in default, anything else a whole number of requests per minute. */
+const RATE_BUDGETS = ["MINT_WRITE_RATE_MAX", "MINT_RECOVERY_RATE_MAX", "MINT_QUOTE_RATE_MAX"];
+function rateBudget(add, variable, raw, fallback) {
+  return whole(add, variable, raw, 1, fallback, "requests per minute");
+}
+
 module.exports = {
-  checkEnv, resolveMint, orThrow, flag, whole, supplyRelays, supplyInterval,
+  checkEnv, resolveMint, orThrow, flag, whole, supplyRelays, supplyInterval, rateBudget, RATE_BUDGETS,
   lndSettings, lndProblems, phoenixdSettings, phoenixdProblems, cashuProblems,
 };

@@ -36,7 +36,9 @@ async function paidTable(t) {
   };
   const table = await createTable({
     port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: CATALOG_URI,
-    gNutftEnabled: true, gNutftDbPath: ":memory:", gNutftCatalogUri: G_CATALOG, gNutftFunding: funding,
+    gNutftEnabled: true, gNutftDbPath: ":memory:", gNutftCollectionId: "600B-G",
+    gNutftCensusPath: require.resolve("../../cards/g-census.json"),
+    gNutftCatalogUri: G_CATALOG, gNutftFunding: funding,
     gNutftAllowVirtual: "1", gNutftSales: "open", gNutftOnePerKey: false, gNutftPriceMsat: 210_000,
   });
   t.after(() => table.close());
@@ -139,7 +141,7 @@ test("a chain source that does not answer makes the quote, the reveal and the cl
   const db = new DatabaseSync(":memory:");
   const mint = createNutftMint({
     db, catalogUri: CATALOG_URI, funding: createMockFunding({ settleAfterMs: 0 }), allowVirtual: "1",
-    priceMsat: 21_000, beaconSource: "lnd", beaconConfirmations: 1,
+    priceMsat: 21_000, sales: "open", beaconSource: "lnd", beaconConfirmations: 1,
     beaconGetInfo: async () => {
       if (chainDown) throw new Error("connect ECONNREFUSED 10.0.0.9:8080");
       return { height, hash: String(height).padStart(64, "b") };
