@@ -59,6 +59,17 @@ const PING_MS = 15000;
 /* How long an open table's host may be away (a reload, a closed Hangar frame, a
  * wifi blip) before the table stops being listed or joined. */
 const HOST_GRACE_MS = 60000;
+/* The open-table list: at most this many rows, read from at most this many open
+ * rows. Away hosts are dropped while reading, so a run of abandoned tables newer
+ * than every live one cannot empty the list, and a flood of them cannot make one
+ * list request walk the whole table. */
+const TABLES_LIST_MAX = 50;
+const TABLES_SCAN_MAX = 500;
+/* Open tables one key may host at once. One is played at a time; three covers a
+ * website tab, a Hangar frame and a phone that each opened one. A fourth closes
+ * the key's oldest open table instead of being refused: open tables do not
+ * expire, so a refusal would lock out a host whose old tabs died without LEAVE. */
+const HOST_OPEN_MAX = 3;
 const RATE_WINDOW_MS = 10000;
 /* Accepted actions only. 30/10 s was below what a human legitimately does while
  * picking targets or emptying a hand of Resources, and rejections were charged
@@ -585,7 +596,11 @@ async function createTable(opts) {
     byCode: db.prepare("SELECT * FROM matches WHERE code = ?"),
     byId: db.prepare("SELECT * FROM matches WHERE match_id = ?"),
     openTables: db.prepare(
-      "SELECT match_id, code, created_at, seat0_name, seat0_pubkey, seat0_affinity, stake, ruleset FROM matches WHERE status = 'open' ORDER BY created_at DESC LIMIT 50"
+      "SELECT match_id, code, created_at, seat0_name, seat0_pubkey, seat0_affinity, stake, ruleset FROM matches WHERE status = 'open' ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?"
+    ),
+    // One key's open tables, oldest first: the per-host cap closes from the front.
+    openOf: db.prepare(
+      "SELECT match_id FROM matches WHERE status = 'open' AND seat0_pubkey = ? ORDER BY created_at ASC, rowid ASC"
     ),
     /* Every unfinished match this identity holds a seat at. This is the query
      * that makes a cleared browser survivable: the credential is gone, the seat
@@ -1415,6 +1430,11 @@ async function createTable(opts) {
     if (conn.rec && conn.seat === 0 && conn.rec.status === "open" && !conn.rec.players[1]) {
       handleLeave(conn);
     }
+    /* One key, at most HOST_OPEN_MAX open tables: the oldest go to make room. */
+    const held = q.openOf.all(pubkey);
+    for (const row of held.slice(0, Math.max(0, held.length - (HOST_OPEN_MAX - 1)))) {
+      closeOpenTable(loadMatch(row.match_id), "the host opened a newer table");
+    }
     const matchId = "m_" + hex(6);
     let code = makeCode();
     for (let i = 0; i < 20 && q.byCode.get(code); i++) code = makeCode();
@@ -1681,7 +1701,23 @@ async function createTable(opts) {
     conn.seat = null;
     conn.tokenSent = false;
     if (!closing) return;
-    for (const ws of rec.spectators) fail(ws, "NO_SUCH_MATCH", "the host closed this table");
+    closeOpenTable(rec, "the host closed this table");
+  }
+
+  /* An open table goes: whoever still sits at or watches it is told, and let go. */
+  function closeOpenTable(rec, message) {
+    if (!rec) return;
+    for (const ws of [rec.conns[0], ...rec.spectators]) {
+      if (!ws) continue;
+      fail(ws, "NO_SUCH_MATCH", message);
+      if (ws.conn && ws.conn.rec === rec) {
+        ws.conn.rec = null;
+        ws.conn.seat = null;
+        ws.conn.tokenSent = false;
+      }
+    }
+    rec.conns[0] = null;
+    rec.spectators.clear();
     matches.delete(rec.matchId);
     byCode.delete(rec.code);
     q.dropMatch.run(rec.matchId);
@@ -1885,9 +1921,17 @@ async function createTable(opts) {
   const hostAway = (rec) =>
     rec.status === "open" && rec.hostLeftAt !== null && Date.now() - rec.hostLeftAt >= hostGraceMs;
   function openTableList() {
-    return q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
-      const rec = loadMatch(r.match_id);
-      if (!rec || hostAway(rec)) return null;
+    const rows = [];
+    for (let at = 0; at < TABLES_SCAN_MAX && rows.length < TABLES_LIST_MAX; at += TABLES_LIST_MAX) {
+      const page = q.openTables.all(TABLES_LIST_MAX, at);
+      for (const r of page) {
+        if (rows.length >= TABLES_LIST_MAX || !isHex64(r.seat0_pubkey)) continue;
+        const rec = loadMatch(r.match_id);
+        if (rec && !hostAway(rec)) rows.push([r, rec]);
+      }
+      if (page.length < TABLES_LIST_MAX) break;
+    }
+    return rows.map(([r, rec]) => {
       const host = rec.conns[0];
       return {
         matchId: r.match_id,
@@ -1905,7 +1949,7 @@ async function createTable(opts) {
          * is a wait with no end. */
         hostOnline: Boolean(host && host.readyState === 1),
       };
-    }).filter(Boolean);
+    });
   }
   function handleTables(conn, msg) {
     if (!authenticatedPubkey(conn, msg)) return;

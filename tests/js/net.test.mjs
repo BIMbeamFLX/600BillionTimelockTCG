@@ -1898,6 +1898,56 @@ test("TABLES over the socket answers exactly what /api/tables serves", async (t)
   assert.equal(listed.tables.some((row) => row.matchId === a.matchId), false, "a table already playing was listed");
 });
 
+test("sixty abandoned tables newer than a real one do not hide it", async (t) => {
+  /* The list is read newest first and capped at 50, so it used to take the 50
+   * newest open rows and only then drop the away hosts: sixty tables whose
+   * hosts connected, created and dropped their socket emptied both lists. */
+  const table = await boot(t, "tb-flood.db", { hostGraceMs: 0, controlMax: 100000 });
+  const real = await table.client({ identity: "real-host" });
+  real.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: real.pubkey });
+  const open = await real.type("STATE");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  for (let i = 0; i < 60; i += 1) {
+    // Three per key: the per-host cap would close a fourth key's oldest.
+    const ghost = await table.client({ identity: `ghost-${Math.floor(i / 3)}` });
+    ghost.send({ t: "CREATE", name: `ghost${i}`, affinity: "Keys", pubkey: ghost.pubkey });
+    await ghost.type("STATE");
+    await ghost.close();
+  }
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(table.db.prepare("SELECT COUNT(*) AS n FROM matches WHERE status='open'").get().n, 61);
+  const http = await (await fetch(`${table.url}/api/tables`)).json();
+  assert.deepEqual(http.map((row) => row.code), [open.code], "the real table is listed over HTTP");
+  const lobby = await table.client({ identity: "flood-lobby" });
+  lobby.send({ t: "TABLES" });
+  assert.deepEqual((await lobby.type("TABLES")).tables.map((row) => row.code), [open.code], "and over TABLES");
+});
+
+test("one key hosts at most three open tables; a fourth closes its oldest", async (t) => {
+  const table = await boot(t, "tb-cap.db", { controlMax: 100000 });
+  const tabs = [];
+  for (let i = 0; i < 4; i += 1) {
+    const tab = await table.client({ identity: "busy-host" });
+    tab.send({ t: "CREATE", name: `tab${i}`, affinity: "Power", pubkey: tab.pubkey });
+    tabs.push([tab, await tab.type("STATE")]);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  const closed = await tabs[0][0].type("ERROR");
+  assert.deepEqual([closed.code, closed.message], ["NO_SUCH_MATCH", "the host opened a newer table"],
+    "the oldest table's own tab is told why it went");
+  const listed = (await (await fetch(`${table.url}/api/tables`)).json()).map((row) => row.code).sort();
+  assert.deepEqual(listed, tabs.slice(1).map(([, state]) => state.code).sort());
+  assert.equal(table.db.prepare("SELECT COUNT(*) AS n FROM matches WHERE match_id=?").get(tabs[0][1].matchId).n, 0);
+
+  // Another key is not counted against this one, and the closed code is gone.
+  const guest = await table.client({ identity: "cap-guest" });
+  guest.send({ t: "JOIN", code: tabs[0][1].code, name: "anna", affinity: "Signal", pubkey: guest.pubkey });
+  assert.equal((await guest.type("ERROR")).code, "NO_SUCH_MATCH");
+  guest.send({ t: "CREATE", name: "anna", affinity: "Signal", pubkey: guest.pubkey });
+  await guest.type("STATE");
+  assert.equal((await (await fetch(`${table.url}/api/tables`)).json()).length, 4);
+});
+
 test("TABLES is for a signed-in connection only", async (t) => {
   const table = await boot(t, "tb2.db");
   const anonymous = await table.client({ skipAuth: true });
