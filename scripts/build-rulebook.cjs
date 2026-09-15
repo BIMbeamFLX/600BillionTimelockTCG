@@ -28,7 +28,10 @@ function slugify(value) {
 }
 
 function renderWebsite() {
-  let markdown = fs.readFileSync(SOURCE_MD, "utf8").replace(/^\uFEFF/, "");
+  /* LF before any pattern runs: a Windows checkout hands this file over with CRLF,
+     and the title strip below failed on a CRLF blank line, which put a spare
+     "Edition One Rules" entry in the contents list of a Windows build. */
+  let markdown = fs.readFileSync(SOURCE_MD, "utf8").replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
   markdown = markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "");
   markdown = markdown.replace(/^# 600B Timelock TCG\r?\n+## Edition One Rules\r?\n+/m, "");
   markdown = markdown
