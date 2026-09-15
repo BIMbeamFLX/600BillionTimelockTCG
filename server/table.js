@@ -2001,15 +2001,22 @@ async function createTable(opts) {
    * internet enumerate open tables and poll finished matches, and the same list
    * already decides who may open a socket, so there is one answer to "who is
    * this table for" rather than two that can drift apart. */
-  function corsHeaders(req) {
+  /* The mint's routes, which a wallet on a listed origin (the Nappelin Hangar,
+   * whose host carries the Bearlett collection's requests) must be able to
+   * POST to: checkstate, restore and trade are POSTs with a JSON body, and a
+   * buyer's NIP-98 proof travels in Authorization. Everything else stays GET. */
+  const isMintPath = (pathname) => /^\/(g\/)?(v1|nutft|blossom)\//.test(pathname || "");
+
+  function corsHeaders(req, pathname) {
     const origin = String((req && req.headers && req.headers.origin) || "").toLowerCase();
     if (!origin || !allowedOrigins.has(origin)) return { vary: "origin" };
-    return {
+    const mint = isMintPath(pathname);
+    return Object.assign({
       vary: "origin",
       "access-control-allow-origin": origin,
-      "access-control-allow-methods": "GET, OPTIONS",
+      "access-control-allow-methods": mint ? "GET, POST, OPTIONS" : "GET, OPTIONS",
       "access-control-max-age": "600",
-    };
+    }, mint ? { "access-control-allow-headers": "content-type, authorization" } : {});
   }
 
   function json(res, code, value, req) {
@@ -2022,9 +2029,10 @@ async function createTable(opts) {
   }
 
   /* A MINT ROUTE OVER ITS BUDGET is answered here, before the mint does any
-   * work, with how long to wait. The headers are the ones the mint's own JSON
-   * answers carry: those send no CORS headers, so neither does the refusal,
-   * and a page that could not read the route's answer cannot read its 429. */
+   * work, with how long to wait. The headers are the mint's own JSON headers,
+   * and the caller has already set the route's CORS verdict on the response
+   * (mintCors), so a page that may read the route's answers may read its 429
+   * and one that may not, cannot. */
   function mintLimited(req, res, localPath) {
     const limit = mintRouteLimit(req.method, localPath);
     if (!limit) return false;
@@ -2049,7 +2057,9 @@ async function createTable(opts) {
     const reply = (code, value) => json(res, code, value, req);
     if (!requestHostAllowed(req)) return reply(403, { error: "host not allowed" });
     if (req.method === "OPTIONS") {
-      res.writeHead(204, corsHeaders(req)).end();
+      let preflightPath = "";
+      try { preflightPath = new URL(req.url, "http://localhost").pathname; } catch (err) { /* plain GET rules */ }
+      res.writeHead(204, corsHeaders(req, preflightPath)).end();
       return;
     }
     let url;
@@ -2068,13 +2078,22 @@ async function createTable(opts) {
     if (pathname.indexOf("\0") >= 0) return reply(400, { error: "bad url" });
     if (pathname === "/favicon.ico") { res.writeHead(204).end(); return; }
 
+    /* The mint writes its own responses and knows nothing of this table's
+     * origin list, so the verdict is set on the response before it is handed
+     * over; writeHead merges it (a public blob's own wildcard still wins). */
+    const mintCors = () => {
+      for (const [name, value] of Object.entries(corsHeaders(req, pathname))) res.setHeader(name, value);
+    };
     if (pathname.startsWith("/g/v1/") || pathname.startsWith("/g/nutft/") || pathname.startsWith("/g/blossom/")) {
       if (!gNutft) return reply(404, { error: "not found" });
+      /* CORS first, so a 429 carries exactly the verdict the route itself would. */
+      mintCors();
       // The mint routes on url.pathname, so the limit is decided on the same string.
       if (mintLimited(req, res, url.pathname.slice("/g".length))) return;
       return gNutft.handle(req, res, url);
     }
     if (pathname.startsWith("/v1/") || pathname.startsWith("/nutft/") || pathname.startsWith("/blossom/")) {
+      mintCors();
       if (mintLimited(req, res, url.pathname)) return;
       return nutft.handle(req, res, url);
     }

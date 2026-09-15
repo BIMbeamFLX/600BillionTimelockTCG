@@ -3089,8 +3089,9 @@
       bubble.style.top =
         below + 170 < window.innerHeight ? `${below}px` : `${Math.max(12, rect.top - 180)}px`;
     } else {
-      bubble.style.right = "24px";
-      bubble.style.bottom = "24px";
+      /* Clear of the side bar on whichever edge it sits (rail.js publishes its size). */
+      bubble.style.right = "calc(24px + var(--tcg-rail-right, 0px))";
+      bubble.style.bottom = "calc(24px + var(--tcg-rail-bottom, 0px))";
     }
   }
 
@@ -4428,6 +4429,22 @@
     box.className = "prompt " + (tone || "");
   }
 
+  /* THE ONE GREEN ON THE TABLE is the side bar's account dot (site/rail.js), and
+   * it means the referee accepted this player's NIP-42 login. net.js reports
+   * status "live" only from AUTH_OK, and every way out of it — a closed socket,
+   * a retry, a superseded seat, Leave — is a status change as well, so both
+   * edges are heard here; signing out drops it too. Edges only, never repeats. */
+  let authShown = null;
+  function announceAuth(ok) {
+    if (authShown === ok) return;
+    authShown = ok;
+    try {
+      window.dispatchEvent(new CustomEvent("e1:auth", { detail: { ok } }));
+    } catch (error) {
+      void error; // no event target (the test DOM): nobody is listening either
+    }
+  }
+
   function renderNetChip() {
     const chip = $("netchip");
     if (!chip) return;
@@ -4617,8 +4634,9 @@
       if (note && !$("endgame").hidden) note.textContent = agreementWords(msg.agreement);
     },
 
-    onStatus() {
+    onStatus(info) {
       renderNetChip();
+      announceAuth(Boolean(info && info.status === "live"));
     },
 
     onError(msg) {
@@ -5046,9 +5064,10 @@
 
   function renderIdentity() {
     const pubkey = nostr().savedPubkey();
+    shownKey = pubkey || null;
     $("nostrLogin").hidden = Boolean(pubkey);
     $("nostrWho").hidden = !pubkey;
-    $("nostrLogout").hidden = !pubkey;
+    $("nostrLogout").hidden = !pubkey || barAccount();
     if (pubkey) $("nostrWho").textContent = nostr().shortNpub(pubkey);
     const url = NET.tableUrl();
     $("netTable").textContent = url ? `table ${url}` : "no table server — hotseat only";
@@ -5058,12 +5077,42 @@
   async function login() {
     try {
       await nostr().login();
-      renderIdentity();
-      netNotice("Signed in with NIP-07.", "good");
-      if (NET.session) NET.resume();
+      signedIn();
     } catch (error) {
       netNotice(String(error.message || error), "bad");
     }
+  }
+
+  function signedIn() {
+    renderIdentity();
+    netNotice("Signed in with NIP-07.", "good");
+    if (NET.session) NET.resume();
+  }
+
+  /* ONE DOOR FOR SIGNING IN. Where the side bar is drawn (site/rail.js), its
+   * Account panel signs in and out: this panel's button only opens it, and the
+   * bar's e1:identity brings the answer back. Inside a napplet there is no bar,
+   * and the button signs in by itself. */
+  const barAccount = () => Boolean(globalThis.E1Rail && globalThis.E1Rail.slot("account"));
+  let shownKey = null;
+
+  function signIn() {
+    if (barAccount() && globalThis.E1Rail.open("account")) return undefined;
+    return login();
+  }
+
+  /* The bar's word on who is signed in. Its load-time event names the key this
+     page already drew, which changes nothing; a new key is a sign-in, null a
+     sign-out. */
+  function onBarIdentity(event) {
+    const pubkey = (event && event.detail && event.detail.pubkey) || null;
+    if (pubkey === shownKey) return;
+    if (!pubkey) {
+      renderIdentity();
+      announceAuth(false);
+      return;
+    }
+    signedIn();
   }
 
   /* Leaving the table means going back to where matches are found. The seat is
@@ -5148,8 +5197,9 @@
   }
 
   function initNet() {
-    $("nostrLogin").addEventListener("click", login);
-    $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); });
+    $("nostrLogin").addEventListener("click", signIn);
+    window.addEventListener("e1:identity", onBarIdentity);
+    $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); announceAuth(false); });
     /* Disabled only while the signer is open, and re-enabled if it was refused:
      * declining a popup by accident must not permanently cost a player their
      * place on the ladder. */
@@ -5532,14 +5582,26 @@
   }
 
   function init() {
-    /* Mount the audio control into the table's control row. Mounting is lazy
-     * about the AudioContext: nothing is created until a real user gesture, so
-     * this never trips the browser's autoplay policy. */
+    /* Mount the audio control into the side bar's Music panel (site/rail.js),
+     * or into the table's control row where there is no bar — inside a shell,
+     * or a page built without it. Mounting is lazy about the AudioContext:
+     * nothing is created until a real user gesture, so this never trips the
+     * browser's autoplay policy. */
     if (globalThis.E1FX) {
+      let railMusic = null;
+      try {
+        railMusic = globalThis.E1Rail && typeof globalThis.E1Rail.slot === "function"
+          ? globalThis.E1Rail.slot("music") || null
+          : null;
+      } catch (error) {
+        railMusic = null; // a bar that cannot hand out its slot is a page without one
+      }
+      const fxHome = document.getElementById("fxControl");
+      if (fxHome) fxHome.hidden = Boolean(railMusic);
       try {
         globalThis.E1FX.init({
           control: true,
-          parent: document.getElementById("fxControl"),
+          parent: railMusic || fxHome,
           /* WHICH PANEL A SEAT IS ON. Left to itself the effects layer answers
            * "whose turn is it", which is only right for a table that reseats
            * itself every turn. This one is laid out against uiSeat() — in solo

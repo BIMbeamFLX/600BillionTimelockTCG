@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#09080b">
+<meta name="theme-color" content="#0f0c08">
 <meta name="description" content="Find an opponent for the 600B Timelock TCG. One referee runs the rules, every play travels over a socket, and only the signed result touches a relay. NIP-07 sign-in, play for sats or a friendly.">
 <title>600B Timelock TCG — Play Online</title>
 <!-- The napplet seam, before the palette below, so a shell-themed panel does
@@ -17,22 +17,52 @@
      by the signed identity, so navigating away and arriving at the table is a
      resume, not a lost game (net.js RESUME-by-identity). -->
 <script src="napplet.js"></script>
+<!-- The side bar (Account, Music, Wallet, Chat, Share). Not deferred: it reads
+     E1Napplet above and does nothing inside a shell, whose own bar replaces it. -->
+<script src="rail.js"></script>
 <script src="bugreport.js" defer></script>
 <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
 <style>
+/* Chrome is Hypershell (nappelin's Brass Terminal), the brand is 600 Billion:
+   the same split, tokens and components as play.html. No green on this page —
+   the one green is the side bar's verified-login dot. */
 @font-face { font-family: Anton600; src: url("../art/fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "Josefin Sans"; src: url("../art/fonts/josefin-sans-var.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../art/fonts/plex-mono-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../art/fonts/plex-mono-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../art/fonts/plex-mono-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
 :root {
-  --orange: #ff6a00; --orange-soft: #f7931a; --gold: #f3c244;
-  --purple: #b991e4; --purple-deep: #7447b8; --violet: #17bebb;
-  --black: #09080b; --soot: #111014; --panel: #19151f; --panel-2: #1f1a27;
-  --cream: #fff7ec; --muted: #c7bbcc; --line: rgba(185,145,228,.28);
-  --danger: #ff4d3d; --good: #6ee7a8;
+/* Hypershell core — fixed palette, no additions */
+--iron: #0f0c08;  --brass: #e7bf76;  --brass-2: #c9973f;  --brass-3: #8f6a2a;
+--parchment: #ece3d0;  --signal: #6de8a6;           /* SIGNAL IS GREEN NOW */
+/* derived surfaces */
+--panel: rgba(231,191,118,.03);  --well: rgba(231,191,118,.05);  --hairline: rgba(231,191,118,.14);
+--emphasis: rgba(231,191,118,.25);  --divider: rgba(231,191,118,.12);  --body-ink: rgba(236,227,208,.82);
+--ink-quiet: rgba(236,227,208,.62);                /* secondary paragraphs (derived, not a hue) */
+--rust: #d06b45;                                    /* danger / critical (nappelin legacy alias) */
+/* solid equivalents for things that cannot be translucent (dialogs, sticky bars, 3D clear colour) */
+--iron-850: #14100b;  --iron-800: #191410;  --iron-750: #201a13;
+/* type */
+--headline: "Josefin Sans", Georgia, sans-serif;   /* headings, uppercase, track .12–.14em, 600/700 */
+--mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;   /* body 400 13px/1.75, labels 500, controls 600 */
+/* motion */
+--t-fast: 160ms;  --t: 200ms;  --t-slow: 240ms;  --ease: cubic-bezier(.2,.8,.25,1);
+/* geometry */
+--r: 0;
+
+/* 600 Billion brand layer */
+--display: Anton600, Impact, sans-serif;           /* ONLY: the TIMELOCK TCG wordmark, 600B hero titles, card names inside the game world */
+--ember: #ff6a00;                                   /* ONLY inside the game world (effects, arena, attack/impact cues). Never on chrome */
+--aff-power: #f3c244;  --aff-bitcoin: #f7931a;  --aff-keys: #fff7ec;  --aff-signal: #7447b8;
+--aff-timelock: #17bebb;  --aff-neutral: #8a8f98;   /* Plate colours: cards, pips, affinity chips, board accents */
 }
 * { box-sizing: border-box; margin: 0; }
-html { color-scheme: dark; background: var(--black); }
-body { min-height: 100vh; color: var(--cream); font: 14px/1.45 Arial, sans-serif; }
+html { color-scheme: dark; background: var(--iron); }
+body { min-height: 100vh; color: var(--parchment); font: 400 13px/1.5 var(--mono); }
 button, select, input { font: inherit; }
-a { color: var(--orange-soft); }
+b, strong { font-weight: 600; }
+a { color: var(--brass); }
+a:hover { color: var(--parchment); }
 
 /* THIS PAGE DOES NOT LOAD 600b.css, so [hidden] needs the guard the shared
  * sheet would give it — without it .btn's display wins and a "Sign out" button
@@ -40,12 +70,12 @@ a { color: var(--orange-soft); }
 [hidden] { display: none !important; }
 .skip {
   position: absolute; left: -9999px; top: 0; z-index: 100;
-  padding: 10px 16px; background: var(--orange); color: var(--black);
-  font: 13px/1 Anton600, Impact, sans-serif; letter-spacing: .1em; text-transform: uppercase;
+  padding: 10px 16px; background: var(--brass); color: var(--iron);
+  font: 600 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
 }
 .skip:focus { left: 8px; top: 8px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
 .stage { position: relative; min-height: 100vh; }
 .stage::before {
@@ -55,83 +85,117 @@ a { color: var(--orange-soft); }
 }
 .stage::after {
   content: ""; position: fixed; inset: 0; z-index: 0;
-  background: radial-gradient(ellipse at 50% 42%, rgba(9,8,11,.4) 0%, rgba(9,8,11,.9) 62%, rgba(9,8,11,.98) 100%);
+  background: radial-gradient(ellipse at 50% 42%, rgba(15,12,8,.4) 0%, rgba(15,12,8,.9) 62%, rgba(15,12,8,.98) 100%);
 }
 .wrap { position: relative; z-index: 1; max-width: 1680px; margin: 0 auto; padding: 12px clamp(10px, 2vw, 24px) 24px; }
 
-.masthead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; background: rgba(9,8,11,.85); }
+.masthead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; background: var(--iron); border-bottom: 1px solid var(--divider); }
 .masthead img { width: 40px; height: 40px; }
-.brand strong { display: block; font: 16px/1 Anton600, Impact, sans-serif; letter-spacing: .03em; }
-.brand span { color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+.brand strong { display: block; font: 16px/1 var(--display); letter-spacing: .03em; color: var(--parchment); }
+.brand span { font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
 .navlinks { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
-.navlink { padding: 8px 11px; color: var(--cream); border: 1px solid var(--purple-deep); text-decoration: none; font: 12px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
-.navlink:hover { border-color: var(--orange); }
-.navlink.here { border-color: var(--orange); background: rgba(255,106,0,.12); }
-.turnchip { padding: 7px 12px; background: rgba(17,16,20,.85); border: 1px solid var(--line); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
-.netchip { color: var(--good); border-color: var(--good); }
-.netchip.stale { color: var(--gold); border-color: var(--gold); }
+.navlink {
+  padding: 8px 11px; color: var(--brass); border: 1px solid var(--hairline); text-decoration: none;
+  font: 600 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  transition: color var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.navlink:hover { color: var(--parchment); border-color: var(--parchment); }
+.navlink.here { color: var(--parchment); border-color: var(--brass); background: var(--well); }
 
-.setup { max-width: 720px; margin: 6vh auto; padding: 28px; background: rgba(17,16,20,.92); border: 1px solid var(--line); }
-.setup h1 { font: clamp(34px, 5vw, 58px)/.95 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 10px; }
-.setup h1 span { color: var(--orange); }
-.setup p { color: var(--muted); margin-bottom: 20px; }
-.seats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.seat { padding: 14px; background: var(--panel); border: 1px solid var(--line); }
-.seat label { display: block; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
-.seat input, .seat select { width: 100%; min-height: 40px; margin-bottom: 12px; padding: 8px 10px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
-.startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
-.btn { padding: 12px 18px; color: var(--black); background: var(--orange); border: 0; cursor: pointer; font: 15px/1 Anton600, Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
-.btn.ghost { color: var(--cream); background: transparent; border: 1px solid var(--line); }
-.btn:hover:not(:disabled) { background: var(--gold); }
-.btn.ghost:hover:not(:disabled) { background: var(--panel-2); }
+/* ---------- Hypershell components (tcg- prefix) ---------- */
+.tcg-chip, .chip, .turnchip {
+  display: inline-block; padding: 6px 10px;
+  font: 500 10px/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--brass-2); background: var(--iron); border: 1px solid var(--emphasis);
+}
+.tcg-chip::before, .chip::before, .turnchip::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; background: var(--brass-3);
+}
+.turnchip { color: var(--parchment); }
+.netchip { color: var(--brass); }
+.netchip::before { background: var(--brass); }
+.netchip.stale { color: var(--ink-quiet); }
+.netchip.stale::before { background: var(--brass-3); }
+.tcg-label, .zlabel { font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
+.zlabel { margin-bottom: 5px; }
+.tcg-field, .seat input, .seat select, .stakelabel input, .stackpick select {
+  font: 400 12px/1.3 var(--mono); color: var(--parchment); background: var(--well);
+  border: 1px solid rgba(143,106,42,.6); border-radius: 0; caret-color: var(--brass);
+  transition: border-color var(--t) var(--ease);
+}
+.tcg-field:focus, .seat input:focus, .seat select:focus, .stakelabel input:focus, .stackpick select:focus { border-color: var(--brass); }
+.tcg-field::placeholder, .seat input::placeholder { color: var(--brass-3); }
+select option, select optgroup { color: var(--parchment); background: var(--iron-850); }
+.tcg-btn, .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 12px 22px; cursor: pointer; text-decoration: none; border-radius: 0;
+  font: 600 11px/1.2 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--brass); background: transparent; border: 1px solid var(--brass-2);
+  transition: color var(--t) var(--ease), background-color var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.tcg-btn--primary, .btn:not(.ghost) { color: var(--iron); background: var(--brass); border-color: var(--brass); }
+.tcg-btn:hover:not(:disabled):not([aria-disabled="true"]),
+.btn:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--parchment); border-color: var(--parchment); }
+.tcg-btn--primary:hover:not(:disabled):not([aria-disabled="true"]),
+.btn:not(.ghost):hover:not(:disabled):not([aria-disabled="true"]) { color: var(--iron); background: var(--parchment); border-color: var(--parchment); }
 /* A DISABLED BUTTON MUST LOOK DISABLED. These carried full ember, a pointer
    cursor and a gold hover while disabled=true, so the biggest control on the
    page invited a click and answered with nothing — no message, no console
    error, enabled and disabled pixel-identical. The hover rules are guarded
    too, because lighting up under the cursor is the strongest promise a
    control can make. */
-.btn:disabled, .btn[aria-disabled="true"] {
-  opacity: .45; cursor: not-allowed; filter: none;
+.tcg-btn:disabled, .btn:disabled, .tcg-btn[aria-disabled="true"], .btn[aria-disabled="true"] {
+  color: var(--brass-3); background: transparent; border-color: rgba(143,106,42,.5); cursor: not-allowed;
 }
-.zlabel { font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--purple); margin-bottom: 5px; }
-.chip { padding: 5px 9px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); }
+
+.setup { max-width: 720px; margin: 6vh auto; padding: 28px; background: var(--iron-850); border: 1px solid var(--emphasis); }
+.setup h1 { font: 700 clamp(26px, 4.6vw, 34px)/1.25 var(--headline); letter-spacing: .13em; text-transform: uppercase; color: var(--parchment); margin-bottom: 10px; }
+.setup h1 span { color: var(--brass); }
+.setup p { color: var(--ink-quiet); line-height: 1.75; margin-bottom: 20px; }
+.seats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.seats-gap { margin-top: 14px; }
+.seat { padding: 14px; background: var(--panel); border: 1px solid var(--hairline); }
+.seat label { display: block; font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); margin-bottom: 6px; }
+.seat input, .seat select { width: 100%; min-height: 40px; margin-bottom: 12px; padding: 8px 10px; }
+.startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
 
 /* ---------- the lobby ---------- */
-.online h2 { font: clamp(22px, 3vw, 34px)/1 Anton600, Impact, sans-serif; text-transform: uppercase; margin-bottom: 8px; }
-.online h2 span { color: var(--purple); }
-.online p { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+.online p { color: var(--ink-quiet); font-size: 13px; line-height: 1.75; margin-bottom: 14px; }
 .netid { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+/* These chips carry an npub and a socket URL: copied letter for letter, so never uppercased. */
+.netid .chip { text-transform: none; letter-spacing: .02em; }
 .joinrow { display: flex; gap: 6px; margin-bottom: 12px; }
-.joinrow input { flex: 1; min-width: 0; margin-bottom: 0 !important; text-transform: uppercase; letter-spacing: .18em; font-weight: 900; }
-.hostpanel { margin-top: 16px; padding: 14px; background: var(--soot); border: 1px solid var(--orange); }
-.tablecode { font: clamp(30px, 6vw, 54px)/1 Anton600, Impact, sans-serif; letter-spacing: .16em; color: var(--orange); }
+.joinrow input { flex: 1; min-width: 0; margin-bottom: 0 !important; text-transform: uppercase; letter-spacing: .18em; font-weight: 600; }
+.hostpanel { margin-top: 16px; padding: 14px; background: var(--well); border: 1px solid var(--brass-2); }
+/* The code a player reads aloud: a terminal readout, large. */
+.tablecode { font: 600 clamp(30px, 6vw, 54px)/1 var(--mono); letter-spacing: .16em; color: var(--brass); }
 .netlist { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
-.netrow { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; background: var(--soot); border: 1px solid var(--line); font-size: 12px; }
-.netrow .btn { padding: 6px 10px; font-size: 12px; }
-.netline { color: var(--muted); font-size: 12px; padding: 2px 0; word-break: break-word; }
-.resumecard { margin-top: 14px; padding: 10px 12px; background: var(--soot); border: 1px solid var(--orange); }
+.netrow { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; background: var(--iron-800); border: 1px solid var(--hairline); font-size: 12px; }
+.netrow .btn { padding: 6px 10px; font-size: 10px; }
+.netline { color: var(--ink-quiet); font-size: 12px; padding: 2px 0; word-break: break-word; }
+.resumecard { margin-top: 14px; padding: 10px 12px; background: var(--well); border: 1px solid var(--brass-2); }
 .resumerow { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; padding: 6px 0; font-size: 12px; }
-.resumerow + .resumerow { border-top: 1px solid var(--line); }
-.resumewho { color: var(--cream); }
-.resumewho b { color: var(--orange); }
+.resumerow + .resumerow { border-top: 1px solid var(--divider); }
+.resumewho { color: var(--parchment); }
+.resumewho b { color: var(--brass); }
 .findrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
-.stakelabel { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-.stakelabel input { width: 92px; padding: 6px 8px; color: var(--cream); background: var(--soot); border: 1px solid var(--line); }
-.stakenote { color: var(--muted); font-size: 11.5px; margin-top: 8px; max-width: 68ch; line-height: 1.5; }
-.deckmode { margin-top: 18px; padding: 12px 14px; background: var(--soot); border: 1px solid var(--line); }
-.moderow { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; color: var(--muted); font-size: 12.5px; cursor: pointer; }
-.moderow b { color: var(--cream); font-weight: 700; }
-.moderow input { accent-color: var(--orange); }
-.stackpick { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
-.stackpick label { display: block; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
-.stackpick select { width: 100%; min-height: 40px; padding: 8px 10px; color: var(--cream); background: var(--black); border: 1px solid var(--line); }
-.stacknote { margin-top: 7px; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
-.stacknote.bad { color: var(--danger); }
-.prompt { padding: 10px 12px; margin: 12px 0 0; background: rgba(17,16,20,.84); border-left: 4px solid var(--purple-deep); font-weight: 700; }
-.prompt.good { border-left-color: var(--good); color: var(--good); }
-.prompt.bad { border-left-color: var(--danger); color: var(--danger); }
-.localnote { margin-top: 18px; color: var(--muted); font-size: 12.5px; }
-.localnote a { color: var(--orange-soft); font-weight: 700; }
+.stakelabel { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-quiet); font-size: 12px; }
+.stakelabel input { width: 92px; padding: 6px 8px; }
+.stakenote { color: var(--ink-quiet); font-size: 11.5px; margin-top: 8px; max-width: 68ch; line-height: 1.6; }
+.deckmode { margin-top: 18px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--hairline); }
+.moderow { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; color: var(--ink-quiet); font-size: 12.5px; cursor: pointer; }
+.moderow b { color: var(--parchment); font-weight: 600; }
+.moderow input { accent-color: var(--brass); }
+.stackpick { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--divider); }
+.stackpick label { display: block; font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); margin-bottom: 6px; }
+.stackpick select { width: 100%; min-height: 40px; padding: 8px 10px; }
+.stacknote { margin-top: 7px; color: var(--ink-quiet); font-size: 11.5px; line-height: 1.5; }
+.stacknote.bad { color: var(--rust); }
+.prompt { padding: 10px 12px; margin: 12px 0 0; background: var(--iron-850); border-left: 2px solid var(--brass-3); font-weight: 500; color: var(--parchment); }
+.prompt.good { border-left-color: var(--brass); color: var(--brass); }
+.prompt.bad { border-left-color: var(--rust); color: var(--rust); }
+.localnote { margin-top: 18px; color: var(--ink-quiet); font-size: 12.5px; }
+.localnote a { color: var(--brass); font-weight: 600; }
 
 @media (max-width: 560px) { .seats { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -164,10 +228,10 @@ a { color: var(--orange-soft); }
       online seat.</p>
 
       <div class="netid">
-        <button class="btn ghost" id="nostrLogin">Sign in with nostr</button>
-        <span class="chip" id="nostrWho" hidden></span>
-        <button class="btn ghost" id="nostrLogout" hidden>Sign out</button>
-        <span class="chip" id="netTable"></span>
+        <button class="btn ghost tcg-btn" id="nostrLogin">Sign in with nostr</button>
+        <span class="chip tcg-chip" id="nostrWho" hidden></span>
+        <button class="btn ghost tcg-btn" id="nostrLogout" hidden>Sign out</button>
+        <span class="chip tcg-chip" id="netTable"></span>
       </div>
 
       <!-- YOUR SEAT FOUND YOU. The referee names every unfinished match this
@@ -196,13 +260,13 @@ a { color: var(--orange-soft); }
 
       <!-- The fast path: no code to read aloud, no invite to publish. -->
       <div class="findrow" id="findRow">
-        <button class="btn" id="findMatch">Find an opponent</button>
+        <button class="btn tcg-btn tcg-btn--primary" id="findMatch">Find an opponent</button>
         <label class="stakelabel" for="stakeSats">Play for
           <input id="stakeSats" type="number" min="0" step="1" value="0" inputmode="numeric" autocomplete="off">
           sats
         </label>
-        <span class="chip" id="queueChip" hidden></span>
-        <button class="btn ghost" id="cancelFind" hidden>Stop looking</button>
+        <span class="chip tcg-chip" id="queueChip" hidden></span>
+        <button class="btn ghost tcg-btn" id="cancelFind" hidden>Stop looking</button>
       </div>
       <p class="stakenote" id="stakeNote">
         A wager is matched, not merely announced — you are only ever dealt against someone who
@@ -211,7 +275,7 @@ a { color: var(--orange-soft); }
         change a signed result. Leave it at 0 for a friendly.
       </p>
 
-      <div class="seats" style="margin-top:14px">
+      <div class="seats seats-gap">
         <div class="seat">
           <label for="netName">Your name</label>
           <input id="netName" value="Player" autocomplete="off">
@@ -227,7 +291,7 @@ a { color: var(--orange-soft); }
           <label for="joinCode">Join with a table code</label>
           <div class="joinrow">
             <input id="joinCode" placeholder="K7M2QF" maxlength="6" autocomplete="off" spellcheck="false">
-            <button class="btn" id="joinTable">Join</button>
+            <button class="btn tcg-btn tcg-btn--primary" id="joinTable">Join</button>
           </div>
           <label for="challengeNpub">Challenge an npub (optional)</label>
           <input id="challengeNpub" placeholder="npub1… — blank makes an open invite" autocomplete="off" spellcheck="false">
@@ -235,9 +299,9 @@ a { color: var(--orange-soft); }
       </div>
 
       <div class="startrow">
-        <button class="btn" id="createTable">Create table</button>
-        <button class="btn ghost" id="refreshTables">Open tables</button>
-        <button class="btn ghost" id="checkInvites">Check invites</button>
+        <button class="btn tcg-btn tcg-btn--primary" id="createTable">Create table</button>
+        <button class="btn ghost tcg-btn" id="refreshTables">Open tables</button>
+        <button class="btn ghost tcg-btn" id="checkInvites">Check invites</button>
       </div>
 
       <div class="prompt" id="netNotice" hidden></div>
@@ -246,9 +310,9 @@ a { color: var(--orange-soft); }
         <div class="zlabel">Table code — read it aloud</div>
         <div class="tablecode" id="tableCode">------</div>
         <div class="startrow" style="margin-top:10px">
-          <button class="btn ghost" id="copyCode">Copy join link</button>
-          <button class="btn ghost" id="publishInvite">Publish invite to nostr</button>
-          <span class="chip">waiting for a second seat</span>
+          <button class="btn ghost tcg-btn" id="copyCode">Copy join link</button>
+          <button class="btn ghost tcg-btn" id="publishInvite">Publish invite to nostr</button>
+          <span class="chip tcg-chip">waiting for a second seat</span>
         </div>
       </div>
 

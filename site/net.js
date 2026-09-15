@@ -152,6 +152,8 @@
     lastState: null,
     peers: [false, false],
     authenticated: false,
+    /* The key AUTH_OK named: every seat action on this socket plays as it. */
+    authPubkey: null,
     /* Where we stand in the matchmaking queue, or null when not searching. */
     queued: null,     // {position, waiting}
     /* Every unfinished match our npub holds a seat at, straight from AUTH_OK.
@@ -365,7 +367,10 @@
     }
     net.ws = ws;
 
+    /* A socket this page has let go of (a sign-out, a switch of tables) says
+     * nothing more: its late frames are not rendered, its close is not retried. */
     ws.onopen = () => {
+      if (net.ws !== ws) return;
       net.authenticated = false;
       // The referee sends a one-use NIP-42 challenge. No table intent leaves
       // this browser until the NIP-07 extension has signed it and the referee
@@ -385,6 +390,7 @@
     };
 
     ws.onmessage = (m) => {
+      if (net.ws !== ws) return;
       let msg;
       try { msg = JSON.parse(m.data); } catch (err) { return; }
       if (!msg || msg.v !== WIRE) return;
@@ -392,6 +398,7 @@
     };
 
     ws.onclose = (ev) => {
+      if (net.ws !== ws) return;
       net.ws = null;
       net.authenticated = false;
       /* 4009 SUPERSEDED: another connection legitimately claimed this seat.
@@ -402,6 +409,7 @@
     };
 
     ws.onerror = (err) => {
+      if (net.ws !== ws) return;
       /* A socket error is followed by onclose and says nothing more. A HOST
        * refusal (the shell would not open this table) is the one error with a
        * reason worth showing; the shim carries it, a WebSocket never does. */
@@ -466,6 +474,7 @@
         return;
       }
       net.authenticated = true;
+      net.authPubkey = msg.pubkey;
       net.attempt = 0;
       /* THE GREETING CARRIES THE SESSION. A seat token lives in one browser; the
        * seat belongs to an npub. This list is how a cleared profile, a private
@@ -516,7 +525,37 @@
     net.timer = setTimeout(open, wait);
   }
 
+  /* A LOGIN LASTS AS LONG AS ITS KEY. The referee binds a socket to the key that
+   * signed its NIP-42 proof, and every seat action on it plays as that key — so
+   * a sign-out, or another key signed in (here, in the side bar, in another tab),
+   * ends it. The socket closes WITHOUT a LEAVE, because the seat is still its
+   * owner's; no reconnect stays armed and no intent waits to be replayed for the
+   * next key. The session is kept: signing back in resumes it, after a fresh AUTH. */
+  function endLogin() {
+    const ws = net.ws;
+    clearTimeout(net.timer);
+    net.timer = null;
+    net.ws = null;
+    net.intent = null;
+    net.queued = null;
+    net.authenticated = false;
+    net.authPubkey = null;
+    net.attempt = 0;
+    if (net.active.length) {
+      net.active = [];
+      H("onActive", []);
+    }
+    try { if (ws) ws.close(1000, "signed out"); } catch (err) { /* already gone */ }
+    setStatus("idle");
+  }
+
+  /* Ends the login when the key signed in now is not the one AUTH_OK named. */
+  function checkLogin() {
+    if (net.authPubkey && savedPubkey() !== net.authPubkey) endLogin();
+  }
+
   function raw(msg) {
+    checkLogin();
     if (!net.ws || net.ws.readyState !== 1) return false;
     net.ws.send(JSON.stringify(msg));
     return true;
@@ -615,6 +654,7 @@
       H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before creating a table" });
       return false;
     }
+    checkLogin();
     net.session = null;
     forgetMatch();
     net.attempt = 0;
@@ -650,6 +690,7 @@
       H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before joining a table" });
       return false;
     }
+    checkLogin();
     net.session = null;
     forgetMatch();
     net.attempt = 0;
@@ -680,6 +721,7 @@
       H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before searching for an opponent" });
       return false;
     }
+    checkLogin();
     net.session = null;
     forgetMatch();
     net.attempt = 0;
@@ -715,6 +757,7 @@
      * spoken to, so the table travels with it — validated, because it came off
      * a relay and decides where our socket goes. */
     const where = /^wss?:\/\//.test(String(table || "")) ? table : net.url || tableUrl();
+    checkLogin();
     net.intent = null;
     net.queued = null;
     net.session = { matchId, seat: null, token: null, table: where, code: null };
@@ -733,8 +776,15 @@
 
   /* Actions only, never state. A send while disconnected is DROPPED, not queued:
    * its seq has almost certainly moved on and the referee would reject it. The
-   * fresh STATE that follows the reconnect drives whatever comes next. */
+   * fresh STATE that follows the reconnect drives whatever comes next.
+   * Signed out, it is refused here: the socket that could carry it spoke for a
+   * key nobody is signed in with any more. */
   function act(action) {
+    checkLogin();
+    if (!savedPubkey()) {
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before playing at a remote table" });
+      return false;
+    }
     return raw({ t: "ACT", v: WIRE, action });
   }
 
@@ -767,6 +817,7 @@
       H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before opening a remote table" });
       return false;
     }
+    checkLogin(); // another key dials again, with its own AUTH
     clearTimeout(net.timer);
     net.attempt = 0;
     if (net.ws && net.ws.readyState === 1 && net.authenticated) {
@@ -819,21 +870,26 @@
     }
   }
 
+  /* A different key than the one the table verified ends that login (endLogin). */
   async function login() {
     if (shellIdentity()) {
       shellPubkey = await nap().identity.login(); // rejects when nobody is signed in to the shell
+      checkLogin();
       return shellPubkey;
     }
     if (!hasNip07()) throw new Error("no NIP-07 extension — install Alby or nos2x to play online");
     const pubkey = await globalThis.nostr.getPublicKey();
     if (!/^[0-9a-f]{64}$/.test(pubkey || "")) throw new Error("the extension returned no usable pubkey");
     try { localStorage.setItem(LS_PUBKEY, pubkey); } catch (err) { /* private mode */ }
+    checkLogin();
     return pubkey;
   }
 
+  /* Signing out ends the table session too (endLogin), not only the saved key. */
   function logout() {
     shellPubkey = null;
     try { localStorage.removeItem(LS_PUBKEY); } catch (err) { /* private mode */ }
+    endLogin();
   }
 
   /* Events the host signed on our behalf, by id, so publish() can recognise one

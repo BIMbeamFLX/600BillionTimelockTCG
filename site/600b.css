@@ -1,14 +1,19 @@
 /* ---------------------------------------------------------------------------
  * 600B Timelock TCG — the one design system.
  *
- * Every page links this file. It owns the tokens, the chrome (nav, footer,
- * buttons, panels) and the card-frame DNA the board and the windows already
- * speak: a double line with PCB corner pads, steel type banners, chip squares
- * for numbers, a terminal footer. Page files keep only what is theirs.
+ * CHROME IS HYPERSHELL. THE GAME WORLD IS 600 BILLION. (docs/brand-hypershell.md)
  *
- * The palette is the locked E1 "Plate" palette. Affinity owns the accent;
- * ember is the one action colour, so a player learns "ember means act" once
- * and it holds on every page.
+ * Chrome — the page frame, nav, panels, buttons, fields, chips, labels, tables,
+ * notices, focus rings — speaks nappelin's Brass Terminal: iron ground, brass
+ * voice, IBM Plex Mono body, Josefin Sans headings, square corners, 1px lines,
+ * no shadow, no glow. The game world — card faces, the 600B mark and wordmark,
+ * the five affinity Plates, the table's art and its effects — keeps the 600
+ * Billion brand: Anton for the wordmark and card names, ember inside the card
+ * world only, the Plate colours on anything that names an affinity.
+ *
+ * Every page links this file. It owns the tokens, the `tcg-` chrome components
+ * and the site's older shared classes mapped onto them. Page files keep only
+ * what is theirs.
  * ------------------------------------------------------------------------ */
 
 @font-face {
@@ -21,55 +26,120 @@
      block period, so a failed font never costs the text. */
   font-display: block;
 }
+/* The Hangar's own files, byte for byte (SIL OFL 1.1, art/fonts/*-OFL.txt).
+   Josefin is one variable file over 400–700; the site only ever sets 600 and
+   700. Headings block for the reason Anton does; body text swaps, because a
+   paragraph must never be invisible and one monospace face for another is a
+   change nobody sees. */
+@font-face {
+  font-family: "Josefin Sans";
+  src: url("../art/fonts/josefin-sans-var.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../art/fonts/plex-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../art/fonts/plex-mono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../art/fonts/plex-mono-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
-  /* affinities — locked E1 Plate palette */
-  --power: #f3c244;
-  --bitcoin: #f7931a;
-  --keys: #fff7ec;
-  --signal: #7447b8;
-  --timelock: #17bebb;
-  --neutral: #8a8f98;
+  /* Hypershell core — fixed palette, no additions */
+  --iron: #0f0c08;
+  --brass: #e7bf76;
+  --brass-2: #c9973f;
+  --brass-3: #8f6a2a;
+  --parchment: #ece3d0;
+  --signal: #6de8a6;         /* SIGNAL IS GREEN NOW: verified / live / on, one element per view */
 
-  /* brand */
-  --ember: #ff6a00;          /* the single action colour */
-  --purple: #b991e4;         /* structure, light */
-  --purple-deep: #7447b8;    /* structure, deep */
-  --gold: #f3c244;
+  /* derived surfaces */
+  --panel: rgba(231,191,118,.03);
+  --well: rgba(231,191,118,.05);
+  --hairline: rgba(231,191,118,.14);
+  --emphasis: rgba(231,191,118,.25);
+  --divider: rgba(231,191,118,.12);
+  --body-ink: rgba(236,227,208,.82);
+  --ink-quiet: rgba(236,227,208,.62);   /* secondary paragraphs (derived, not a hue) */
+  --rust: #d06b45;                      /* danger / critical */
 
-  /* surfaces, darkest to lightest */
-  --black: #09080b;
-  --soot: #111014;
-  --panel: #19151f;
-  --panel-2: #1f1a27;
-  --steel: #262330;          /* the card's type-banner grey */
-
-  /* ink */
-  --cream: #fff7ec;
-  --muted: #c7bbcc;
-  --ink-dim: #9b90a4;
-
-  /* state */
-  --good: #6ee7a8;
-  --danger: #ff4d3d;
-  --line: rgba(185, 145, 228, .28);
-  --line-strong: rgba(185, 145, 228, .45);
+  /* solid equivalents for what cannot be translucent (dialogs, sticky bars, 3D clear colour) */
+  --iron-850: #14100b;
+  --iron-800: #191410;
+  --iron-750: #201a13;
 
   /* type */
-  --display: Anton600, Impact, "Haettenschweiler", sans-serif;
-  --body: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --headline: "Josefin Sans", Georgia, sans-serif;           /* uppercase, track .12–.14em, 600/700 */
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace; /* body 400, labels 500, controls 600 */
+
+  /* motion */
+  --t-fast: 160ms;
+  --t: 200ms;
+  --t-slow: 240ms;
+  --ease: cubic-bezier(.2,.8,.25,1);
+
+  /* geometry */
+  --r: 0;
+
+  /* 600 Billion brand layer — never themed, never on chrome */
+  --display: Anton600, Impact, sans-serif;   /* the wordmark, 600B hero titles, card names */
+  --ember: #ff6a00;                          /* inside the game world only */
+  --aff-power: #f3c244;
+  --aff-bitcoin: #f7931a;
+  --aff-keys: #fff7ec;
+  --aff-signal: #7447b8;
+  --aff-timelock: #17bebb;
+  --aff-neutral: #8a8f98;                    /* Plates: cards, pips, affinity chips, board accents */
 
   /* rhythm */
   --gap: 12px;
   --pad: clamp(16px, 4vw, 56px);
   --measure: 68ch;
-  --radius: 0px;             /* the frame is square, like the cards */
 
-  /* aliases kept so page-local CSS written before the system still resolves */
-  --orange: #ff6a00;
-  --orange-soft: #f7931a;
-  --violet: #17bebb;
+  /* Legacy names, kept for one release as aliases so a page that still says
+     --black or --cream resolves while it migrates. --signal is deliberately
+     NOT among them: it used to be the Signal affinity's purple and is green
+     now, so an old `var(--signal)` must become `var(--aff-signal)`. */
+  --black: var(--iron);
+  --soot: var(--iron-850);
+  --panel-2: var(--iron-800);
+  --steel: var(--iron-750);
+  --cream: var(--parchment);
+  --muted: var(--ink-quiet);
+  --ink-dim: var(--brass-3);
+  --line: var(--hairline);
+  --line-strong: var(--emphasis);
+  --good: var(--brass);
+  --danger: var(--rust);
+  --gold: var(--brass);
+  --orange: var(--brass);
+  --orange-soft: var(--brass-2);
+  --purple: var(--brass-2);
+  --purple-deep: var(--brass-3);
+  --violet: var(--aff-timelock);
+  --power: var(--aff-power);
+  --bitcoin: var(--aff-bitcoin);
+  --keys: var(--aff-keys);
+  --timelock: var(--aff-timelock);
+  --neutral: var(--aff-neutral);
+  --body: var(--mono);
+  --radius: 0;
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -83,42 +153,117 @@
    here rather than per page, because it is the reset that broke it. */
 dialog { margin: auto; }
 
-html { color-scheme: dark; scroll-behavior: smooth; }
+html { color-scheme: dark; scroll-behavior: smooth; accent-color: var(--brass); }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
 body {
   min-height: 100vh;
-  background: var(--black);
-  color: var(--cream);
-  font: 16px/1.6 var(--body);
+  background: var(--iron);
+  color: var(--body-ink);
+  font: 400 13px/1.75 var(--mono);
   -webkit-text-size-adjust: 100%;
 }
+::selection { background: var(--brass-2); color: var(--iron); }
 img { max-width: 100%; }
-a { color: var(--bitcoin); }
+a { color: var(--brass); text-underline-offset: .2em; }
+a:hover { color: var(--parchment); }
 button, select, input, textarea { font: inherit; }
 
-/* One visible focus ring everywhere — keyboard users get the same board.
- *
- * TWO RINGS, DARK INSIDE AND LIGHT OUTSIDE, because one colour cannot contrast
- * against both surfaces this site puts buttons on. A single gold ring measured
- * 1.72:1 against an ember .btn face — invisible on exactly the primary actions
- * a keyboard user most needs to find — while being fine on the dark page. Black
- * on ember is 6.96:1 and cream on the page is 18.8:1, so whichever surface the
- * ring lands on, one of its two edges is legible. */
-:focus-visible {
-  outline: 2px solid var(--black);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px var(--cream);
-}
+/* One visible focus ring everywhere, on every focusable thing. Brass on iron
+   is 10.9:1, and the 2px offset draws the ring on the ground AROUND a control
+   rather than on its face — so it holds on a brass-filled primary button too,
+   which is what the old two-ring version (a cream box-shadow outside a dark
+   outline) existed to solve. Flat: no shadow. */
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
 .skip {
   position: absolute; left: -9999px; top: 0; z-index: 100;
-  padding: 10px 16px; background: var(--ember); color: var(--black);
-  font: 13px/1 var(--display); letter-spacing: .1em; text-transform: uppercase;
+  padding: 10px 16px; background: var(--brass); text-decoration: none;
+  font: 600 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
 }
+.skip, .skip:hover { color: var(--iron); }
 .skip:focus { left: 8px; top: 8px; }
+
+/* ----------------------------------------------------------- tcg- chrome */
+/* The Hypershell components under a local prefix, so the day nappelin ships
+   its napplet CSS base these swap for it one to one (contract, amendment A.3).
+   The site's older class names map onto the same rules beside them. */
+
+/* Button: outline by default, primary fills brass. Hover changes colour and
+   nothing else; disabled murmurs in brass-3. */
+.tcg-btn, .btn {
+  padding: 12px 22px; cursor: pointer; text-decoration: none; text-align: center;
+  font: 600 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  border: 1px solid var(--brass-2);
+  transition: background-color var(--t) var(--ease), color var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.tcg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: transparent; color: var(--brass); }
+.tcg-btn:hover { color: var(--parchment); border-color: var(--parchment); }
+/* The site's plain .btn has always been its primary action, so it takes the fill. */
+.tcg-btn--primary, .btn { background: var(--brass); color: var(--iron); border-color: var(--brass); }
+.tcg-btn--primary:hover, .btn:hover { background: var(--parchment); color: var(--iron); border-color: var(--parchment); }
+.btn { display: inline-block; }
+.btn--ghost { background: transparent; color: var(--brass); border-color: var(--brass-2); }
+.btn--ghost:hover { background: transparent; color: var(--parchment); border-color: var(--parchment); }
+.tcg-btn--small, .btn--small { padding: 8px 12px; font-size: 10px; letter-spacing: .14em; }
+.tcg-btn[aria-disabled="true"], .btn[aria-disabled="true"], .tcg-btn:disabled, .btn:disabled {
+  background: transparent; color: var(--brass-3); border-color: rgba(143,106,42,.5); cursor: not-allowed;
+}
+.tcg-btn[aria-disabled="true"], .btn[aria-disabled="true"] { cursor: default; pointer-events: none; }
+
+/* Chip: a square dot and a tracked label. The dot idles in brass-3; a chip that
+   names an affinity (`--aff` set on it or around it) wears that Plate here. */
+.tcg-chip, .chip {
+  display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px;
+  background: transparent; border: 1px solid var(--emphasis); color: var(--brass-2);
+  font: 500 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+}
+.tcg-chip::before, .chip::before { content: ""; flex: none; width: 7px; height: 7px; background: var(--aff, var(--brass-3)); }
+.chip--on { color: var(--brass); border-color: var(--brass-2); }
+.chip--on::before { background: var(--aff, var(--brass)); }
+/* THE GREEN LAW. --signal means verified, live or on, and in this game it marks
+   one thing: the side bar's account dot (site/rail.js). This sheet draws no green. */
+
+/* Panel: the faintest brass wash behind a hairline; emphasized takes the stronger line. */
+.tcg-panel, .panel { padding: 18px; background: var(--panel); border: 1px solid var(--hairline); }
+.tcg-panel--emph, .panel--act { border-color: var(--emphasis); }
+.panel h3 { margin-bottom: 8px; }
+.panel p { color: var(--ink-quiet); }
+/* A link that is a whole panel: the hover state must read as one surface. */
+a.panel { display: block; text-decoration: none; color: inherit; }
+a.panel:hover { color: inherit; border-color: var(--brass); }
+
+/* Field: on the control itself, or on a wrapper that stacks a label over it. */
+.tcg-field:not(input, select, textarea) { display: grid; gap: 8px; }
+:is(input, select, textarea).tcg-field,
+.tcg-field :is(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea) {
+  padding: 11px 14px;
+  background: var(--well); color: var(--parchment);
+  border: 1px solid rgba(143,106,42,.6);
+  font: 400 12px/1.4 var(--mono);
+  caret-color: var(--brass);
+  transition: border-color var(--t) var(--ease);
+}
+:is(input, select, textarea).tcg-field:focus,
+.tcg-field :is(input, select, textarea):focus { border-color: var(--brass); }
+:is(input, textarea).tcg-field::placeholder,
+.tcg-field :is(input, textarea)::placeholder { color: var(--brass-3); }
+:is(input, select, textarea).tcg-field:disabled,
+.tcg-field :is(input, select, textarea):disabled { color: var(--brass-3); }
+
+/* Label: overlines, captions, the names of fields. */
+.tcg-label { font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
+
+/* The setback rule: three stepped 1px lines that quote the hull, between sections. */
+hr.tcg-steps {
+  border: 0; height: 9px; margin: 44px auto; width: min(22rem, 62%);
+  background:
+    linear-gradient(var(--hairline), var(--hairline)) 50% 100% / 100% 1px no-repeat,
+    linear-gradient(var(--hairline), var(--hairline)) 50% 50% / 60% 1px no-repeat,
+    linear-gradient(var(--hairline), var(--hairline)) 50% 0 / 26% 1px no-repeat;
+}
 
 /* ---------------------------------------------------------- nav + footer */
 
@@ -126,37 +271,38 @@ button, select, input, textarea { font: inherit; }
   position: sticky; top: 0; z-index: 30;
   display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
   padding: 10px var(--pad);
-  background: rgba(9, 8, 11, .88);
-  border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(14px);
+  background: var(--iron); color: var(--parchment);
+  border-bottom: 1px solid var(--hairline);
 }
 .nav__mark { width: 38px; height: 38px; flex-shrink: 0; }
-.nav__brand { margin-right: auto; font: 15px/1 var(--display); letter-spacing: .04em; }
+/* The TIMELOCK TCG wordmark is the brand: it stays Anton. Its tagline is chrome. */
+.nav__brand { margin-right: auto; color: var(--parchment); font: 15px/1 var(--display); letter-spacing: .04em; }
 .nav__brand small {
-  display: block; margin-top: 3px;
-  color: var(--purple); font: 700 9px/1.4 var(--body); letter-spacing: .22em;
+  display: block; margin-top: 4px;
+  color: var(--brass-2); font: 500 9px/1.4 var(--mono); letter-spacing: .22em;
 }
 .nav__links { display: flex; gap: 2px; flex-wrap: wrap; align-items: center; }
 .nav a.link {
-  display: inline-block; padding: 9px 11px;
-  color: var(--cream); text-decoration: none;
-  font: 13px/1 var(--display); letter-spacing: .08em; text-transform: uppercase;
-  border: 1px solid transparent;
+  display: inline-block; padding: 9px 11px 7px;
+  color: var(--parchment); text-decoration: none;
+  font: 500 11px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase;
+  border-bottom: 2px solid transparent;
+  transition: color var(--t) var(--ease), border-color var(--t) var(--ease);
 }
-.nav a.link:hover { border-color: var(--purple-deep); }
-.nav a.link[aria-current="page"] { color: var(--ember); border-color: var(--ember); }
+.nav a.link:hover { color: var(--brass); }
+.nav a.link[aria-current="page"] { color: var(--brass); border-bottom-color: var(--brass); }
 
 .site-footer {
   display: flex; gap: 10px 18px; flex-wrap: wrap; align-items: center;
   margin-top: 64px; padding: 26px var(--pad);
-  border-top: 1px solid var(--line);
-  color: var(--muted); font-size: 13px;
+  border-top: 1px solid var(--divider);
+  color: var(--ink-quiet); font-size: 12px;
 }
-.site-footer a { color: var(--muted); }
-.site-footer a:hover { color: var(--bitcoin); }
+.site-footer a { color: var(--brass); }
+.site-footer a:hover { color: var(--parchment); }
 .site-footer .tag {
   margin-left: auto;
-  font: 13px/1 var(--display); letter-spacing: .16em; color: var(--ember);
+  font: 600 12px/1 var(--headline); letter-spacing: .14em; color: var(--brass);
 }
 
 /* ------------------------------------------------------------- structure */
@@ -165,31 +311,35 @@ button, select, input, textarea { font: inherit; }
 .section { max-width: 1280px; margin: 0 auto; padding: clamp(44px, 6vw, 88px) var(--pad); }
 .section--tight { padding-top: clamp(24px, 3vw, 40px); padding-bottom: clamp(24px, 3vw, 40px); }
 
-h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: .01em; text-transform: uppercase; line-height: 1; }
-h1 { font-size: clamp(40px, 7vw, 92px); letter-spacing: -.01em; }
-h2 { font-size: clamp(26px, 4vw, 44px); margin-bottom: 10px; }
-h3 { font-size: clamp(17px, 2vw, 22px); letter-spacing: .04em; }
-.accent { color: var(--ember); }
-.lead { max-width: var(--measure); color: var(--muted); margin-bottom: 28px; }
+/* Headings are Josefin, uppercase and tracked. A 600B hero title or a card name
+   that wants the brand face asks for var(--display) where it lives. */
+h1, h2, h3 { font-family: var(--headline); font-weight: 700; letter-spacing: .13em; text-transform: uppercase; line-height: 1.2; color: var(--parchment); }
+h1 { font-size: clamp(26px, 4.4vw, 46px); }
+h2 { font-size: clamp(18px, 2.4vw, 24px); letter-spacing: .14em; margin-bottom: 10px; }
+h3 { font-size: clamp(14px, 1.4vw, 16px); letter-spacing: .12em; font-weight: 600; }
+.accent { color: var(--brass); }
+.lead { max-width: var(--measure); color: var(--ink-quiet); margin-bottom: 28px; }
 .eyebrow {
-  color: var(--power); font: 900 12px/1 var(--body);
-  letter-spacing: .24em; text-transform: uppercase;
+  color: var(--brass-2); font: 500 11px/1.4 var(--mono);
+  letter-spacing: .22em; text-transform: uppercase;
 }
 
 /* ------------------------------------------------------------- card DNA */
+/* The shapes a card face is built from, at page scale — drawn in brass, because
+   on a page they are chrome: a frame, a type banner, a number, a bottom line. */
 
-/* The frame every card face wears, at page scale: double line, corner pads. */
+/* The frame: a double line with corner pads. */
 .framed {
   position: relative;
   padding: 18px;
-  background: rgba(17, 16, 20, .72);
-  border: 1px solid var(--line-strong);
-  outline: 1px solid rgba(255, 106, 0, .2);
+  background: var(--panel);
+  border: 1px solid var(--emphasis);
+  outline: 1px solid var(--hairline);
   outline-offset: 4px;
 }
 .framed > .pad {
   position: absolute; width: 10px; height: 10px;
-  border: 1px solid var(--purple); background: var(--ember);
+  border: 1px solid var(--brass-2); background: var(--iron);
   pointer-events: none;
 }
 .framed > .pad.tl { top: -5px; left: -5px; }
@@ -197,58 +347,36 @@ h3 { font-size: clamp(17px, 2vw, 22px); letter-spacing: .04em; }
 .framed > .pad.bl { bottom: -5px; left: -5px; }
 .framed > .pad.br { bottom: -5px; right: -5px; }
 
-/* The card's type banner: steel chip, spaced capitals. */
+/* The type banner: a label on a well. */
 .banner {
-  display: inline-block; padding: 4px 12px 5px;
-  background: var(--steel); color: #cfd6dd;
-  font: 10px/1.3 var(--display); letter-spacing: .24em; text-transform: uppercase;
+  display: inline-block; padding: 3px 11px 4px;
+  background: var(--well); border: 1px solid var(--hairline); color: var(--brass-2);
+  font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase;
 }
 
-/* The card's cost / ACT / RES square. */
+/* The cost / ACT / RES square: a terminal readout. */
 .chip-num {
-  display: inline-grid; place-items: center; min-width: 46px; padding: 4px 8px 6px;
-  background: rgba(9, 8, 11, .92); border: 1px solid var(--line);
-  box-shadow: inset 0 0 0 1px rgba(255, 247, 236, .1);
+  display: inline-grid; place-items: center; gap: 3px; min-width: 46px; padding: 5px 8px 6px;
+  background: var(--well); border: 1px solid var(--emphasis);
   text-align: center; line-height: 1;
 }
-.chip-num b { display: block; font: 22px/1 var(--display); color: var(--cream); }
-.chip-num span { font-size: 7.5px; font-weight: 900; letter-spacing: .18em; color: var(--ember); }
-
-.chip {
-  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
-  border: 1px solid var(--line); color: var(--muted);
-  font: 900 11px/1 var(--body); letter-spacing: .07em; text-transform: uppercase;
-}
-.chip--on { color: var(--power); border-color: var(--power); background: color-mix(in srgb, var(--power) 12%, transparent); }
+.chip-num b { display: block; font: 600 20px/1 var(--mono); color: var(--parchment); }
+.chip-num span { font: 500 9px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--brass-2); }
 
 /* The card face's bottom line. */
 .terminal-line {
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
-  padding-top: 8px; border-top: 1px solid var(--line);
-  font: 11px/1 var(--display); letter-spacing: .2em; color: var(--cream); opacity: .72;
+  padding-top: 8px; border-top: 1px solid var(--divider);
+  font: 500 10px/1.4 var(--mono); letter-spacing: .2em; color: var(--brass-2);
 }
 
-/* --------------------------------------------------------------- buttons */
-
-.btn {
-  display: inline-block; padding: 13px 22px; cursor: pointer;
-  background: var(--ember); color: var(--black); border: 0; text-decoration: none;
-  font: 15px/1 var(--display); letter-spacing: .08em; text-transform: uppercase;
-  transition: filter .12s ease;
-}
-.btn:hover { filter: brightness(1.12); }
-.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
-.btn--ghost { background: transparent; color: var(--cream); border: 1px solid var(--purple-deep); }
-.btn--ghost:hover { background: var(--panel-2); filter: none; }
-.btn--small { padding: 8px 12px; font-size: 12px; }
-
-/* A card is the product; it should be the same object everywhere. Six pages
-   carried six near-identical treatments, three of them with no weight at all.
-   The double drop-shadow — a hard 3px edge, then a soft 34px falloff — is what
-   separates "a physical card lying there" from "a JPEG in a box". */
+/* A card is the product and the game world's own object, so it keeps its weight
+   on every page: a hard 3px edge, then a soft 34px falloff — what separates "a
+   physical card lying there" from "a JPEG in a box". The artwork carries its own
+   drawn frame; no radius is added. */
 .face {
   display: block; width: 100%; aspect-ratio: 744/1039; object-fit: contain;
-  filter: drop-shadow(0 3px 0 rgba(9,8,11,.9)) drop-shadow(0 18px 34px rgba(0,0,0,.6));
+  filter: drop-shadow(0 3px 0 rgba(15,12,8,.9)) drop-shadow(0 18px 34px rgba(0,0,0,.6));
 }
 .face--lift { transition: transform .18s cubic-bezier(.2,.8,.2,1); }
 .face--lift:hover { transform: translateY(-8px) rotate(-.6deg) scale(1.03); }
@@ -260,45 +388,34 @@ h3 { font-size: clamp(17px, 2vw, 22px); letter-spacing: .04em; }
 .grid--3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .grid--4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 
-/* Every surface on the site was the same flat fill behind a hairline. A plate
-   has a lit top edge, a cut shadow inside its own border and weight beneath it
-   — three declarations, no assets, and every box stops being a rectangle. */
-.panel {
-  padding: 18px; border: 1px solid var(--line);
-  border-top: 3px solid var(--purple-deep);
-  background: linear-gradient(160deg, rgba(31,26,39,.96), rgba(13,12,16,.96));
-  box-shadow:
-    inset 0 1px 0 rgba(255,247,236,.06),
-    inset 0 0 0 1px rgba(9,8,11,.55),
-    0 18px 44px rgba(0,0,0,.42);
-}
-.panel--act { border-top-color: var(--ember); }
-.panel h3 { margin-bottom: 8px; }
-.panel p { color: var(--muted); font-size: 14px; }
-
-/* A link that is a whole panel: the hover state must read as one surface. */
-a.panel { display: block; text-decoration: none; color: inherit; }
-a.panel:hover { border-color: var(--line-strong); background: rgba(31, 26, 39, .9); }
-
 .note {
-  padding: 14px 16px; border: 1px dashed var(--line);
-  color: var(--muted); font-size: 13px;
+  padding: 14px 16px; background: var(--well); border: 1px solid var(--hairline);
+  color: var(--ink-quiet); font-size: 12px;
 }
-.note strong { color: var(--power); }
+.note strong { color: var(--brass); }
 
-/* ----------------------------------------------------- affinity discs */
+/* ------------------------------------------------------- affinity discs */
+/* The Plates are the game world's colours and every affinity mark keeps them.
+   Square, like everything else: no radius anywhere. */
 
 .disc {
-  display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%;
-  background: color-mix(in srgb, var(--aff, var(--neutral)) 22%, var(--soot));
-  border: 2px solid var(--aff, var(--neutral));
+  display: grid; place-items: center; width: 38px; height: 38px;
+  background: color-mix(in srgb, var(--aff, var(--aff-neutral)) 22%, var(--iron-850));
+  border: 2px solid var(--aff, var(--aff-neutral));
 }
 .disc img { width: 22px; height: 22px; }
-.aff-power { --aff: var(--power); }
-.aff-bitcoin { --aff: var(--bitcoin); }
-.aff-keys { --aff: var(--keys); }
-.aff-signal { --aff: var(--signal); }
-.aff-timelock { --aff: var(--timelock); }
+.aff-power { --aff: var(--aff-power); }
+.aff-bitcoin { --aff: var(--aff-bitcoin); }
+.aff-keys { --aff: var(--aff-keys); }
+.aff-signal { --aff: var(--aff-signal); }
+.aff-timelock { --aff: var(--aff-timelock); }
+.aff-neutral { --aff: var(--aff-neutral); }
+
+/* ---------------------------------------------------------------- tables */
+
+table { border-collapse: collapse; }
+th, td { padding: 8px 12px; border-bottom: 1px solid var(--divider); text-align: left; }
+th { color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .2em; text-transform: uppercase; }
 
 /* ------------------------------------------------------------ utilities */
 
@@ -312,7 +429,7 @@ a.panel:hover { border-color: var(--line-strong); background: rgba(31, 26, 39, .
 
 /* THE `hidden` ATTRIBUTE HAD STOPPED WORKING, EVERYWHERE. The UA sheet's
  * [hidden]{display:none} is beaten by ANY author-origin display rule, and
- * .btn/.chip below both set one — so every `<button class="btn" hidden>` and
+ * .btn/.chip above both set one — so every `<button class="btn" hidden>` and
  * `<span class="chip" hidden>` on the site rendered regardless of what the code
  * thought. The visible symptom was a "Sign out" button offered to a signed-out
  * player. One declaration here fixes every page at once, which is why it lives
@@ -322,7 +439,7 @@ a.panel:hover { border-color: var(--line-strong); background: rgba(31, 26, 39, .
 @media (max-width: 720px) {
   .nav { gap: 8px; }
   .nav__brand small { display: none; }
-  .nav a.link { padding: 8px 9px; font-size: 12px; }
+  .nav a.link { padding: 8px 9px 6px; font-size: 10px; letter-spacing: .14em; }
   .site-footer .tag { margin-left: 0; }
 }
 
@@ -332,30 +449,30 @@ a.panel:hover { border-color: var(--line-strong); background: rgba(31, 26, 39, .
 .bug-button {
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; padding: 0; cursor: pointer;
-  background: transparent; color: var(--muted);
-  border: 1px solid var(--purple-deep);
-  transition: color .12s ease, border-color .12s ease;
+  background: transparent; color: var(--brass-3);
+  border: 1px solid var(--brass-2);
+  transition: color var(--t) var(--ease), border-color var(--t) var(--ease);
 }
-.bug-button:hover, .bug-button:focus-visible { color: var(--ember); border-color: var(--ember); }
-.bug-button--float { position: fixed; right: 14px; bottom: 14px; z-index: 60; background: var(--panel-2); }
+.bug-button:hover, .bug-button:focus-visible { color: var(--parchment); border-color: var(--parchment); }
+.bug-button--float { position: fixed; right: 14px; bottom: 14px; z-index: 60; background: var(--iron); }
 
 .bug-modal {
   position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
-  padding: 16px; background: rgba(9,8,11,.72);
+  padding: 16px; background: rgba(15,12,8,.72);
 }
 .bug-panel {
   width: min(560px, 100%); padding: 20px;
-  background: linear-gradient(160deg, rgba(31,26,39,.98), rgba(13,12,16,.98));
-  border: 1px solid var(--line-strong);
-  box-shadow: inset 0 1px 0 rgba(255,247,236,.06), 0 24px 60px rgba(0,0,0,.6);
+  background: var(--iron);
+  border: 1px solid var(--emphasis);
 }
-.bug-panel h2 { margin: 0 0 6px; font: 22px/1.2 var(--display); letter-spacing: .04em; text-transform: uppercase; }
-.bug-panel .bug-sub { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.bug-panel h2 { margin: 0 0 6px; font: 600 16px/1.3 var(--headline); letter-spacing: .12em; text-transform: uppercase; }
+.bug-panel .bug-sub { margin: 0 0 12px; color: var(--ink-quiet); font-size: 12px; line-height: 1.6; }
 .bug-panel textarea {
   width: 100%; padding: 10px; resize: vertical;
-  background: var(--black); color: var(--cream);
-  border: 1px solid var(--line); font: 13px/1.5 ui-monospace, Consolas, monospace;
+  background: var(--well); color: var(--parchment);
+  border: 1px solid rgba(143,106,42,.6); font: 12px/1.5 var(--mono);
+  caret-color: var(--brass);
 }
-.bug-panel textarea:focus-visible { border-color: var(--ember); outline: none; }
+.bug-panel textarea:focus-visible { border-color: var(--brass); }
 .bug-row { display: flex; gap: 8px; margin-top: 12px; }
-.bug-status { margin: 10px 0 0; min-height: 1.2em; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.bug-status { margin: 10px 0 0; min-height: 1.2em; color: var(--ink-quiet); font-size: 12px; line-height: 1.5; }

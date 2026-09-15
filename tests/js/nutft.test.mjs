@@ -2633,8 +2633,8 @@ test("a signed buyer gains wallet-backup access only after the paid set is issue
 });
 
 test('NUTFT_SALES="signed": any nostr key qualifies, no curated roster', async (t) => {
-  /* This is the actual rule the owner asked for: "die was sich einloggen mit
-     nip-07 duerfen genau ein deck kaufen" -- everyone who signs in, not a
+  /* This is the actual rule the owner asked for: "those who log in with
+     nip-07 may buy exactly one deck" -- everyone who signs in, not a
      fixed list of invitees. "allowlist" cannot express that (it is a roster by
      definition); this mode can, because the qualification IS the signature. */
   const { createMockFunding } = require("../../server/funding.js");

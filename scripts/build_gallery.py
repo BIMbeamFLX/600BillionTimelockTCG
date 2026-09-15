@@ -31,13 +31,15 @@ AFFINITY_ICONS = {
     "Signal": "signal",
     "Timelock": "timelock",
 }
+# The affinity Plate tokens. `--signal` is the Hypershell's green now, so the
+# Signal affinity reads `--aff-signal` like the other five.
 AFFINITY_TOKENS = {
-    "Power": "--power",
-    "Bitcoin": "--bitcoin",
-    "Keys": "--keys",
-    "Signal": "--signal",
-    "Timelock": "--timelock",
-    "Neutral": "--neutral",
+    "Power": "--aff-power",
+    "Bitcoin": "--aff-bitcoin",
+    "Keys": "--aff-keys",
+    "Signal": "--aff-signal",
+    "Timelock": "--aff-timelock",
+    "Neutral": "--aff-neutral",
 }
 
 
@@ -199,7 +201,7 @@ def _chips(facet: list[dict[str, Any]]) -> str:
     rows = []
     for item in facet:
         value = item["value"]
-        token = AFFINITY_TOKENS.get(value, "--neutral")
+        token = AFFINITY_TOKENS.get(value, "--aff-neutral")
         icon = AFFINITY_ICONS.get(value)
         disc = ""
         if icon:
@@ -207,7 +209,7 @@ def _chips(facet: list[dict[str, Any]]) -> str:
         # Below ~360px an icon chip drops its label, so the label can no longer
         # be the accessible name — aria-label carries it at every width.
         rows.append(
-            f'<button class="chip{" chip--icon" if icon else ""}" type="button"'
+            f'<button class="tcg-chip{" chip--icon" if icon else ""}" type="button"'
             f' data-aff="{html.escape(value)}" aria-pressed="false"'
             f' aria-label="{html.escape(value)}" style="--aff: var({token})">{disc}'
             f'<span class="lbl">{html.escape(value)}</span></button>'
@@ -267,12 +269,16 @@ TEMPLATE = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#09080b">
+  <meta name="theme-color" content="#0f0c08">
   <meta name="description"
     content="Every 600B Timelock TCG Edition One and promo card, with artwork and text.">
   <title>600B Timelock TCG — All Cards</title>
   <link rel="icon" href="../art/brand/600B-logo-primary.png">
   <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="../art/fonts/plex-mono-400.woff2" as="font" type="font/woff2"
+    crossorigin>
+  <link rel="preload" href="../art/fonts/josefin-sans-var.woff2" as="font" type="font/woff2"
+    crossorigin>
   <link rel="stylesheet" href="600b.css">
   <!-- The napplet adapter, loaded before anything paints. It maps a shell's
        palette onto the very custom properties 600b.css already uses (and never
@@ -281,35 +287,38 @@ TEMPLATE = """<!doctype html>
        On the plain website every optional domain is simply absent, which is
        the fallback path — not a special mode. -->
   <script src="napplet.js"></script>
+  <script src="rail.js"></script>
 <script src="bugreport.js" defer></script>
   <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
   <style>
     /* Page-local only: the catalog grid, the filter console and the detail
        dialog. Tokens, type, nav, footer and the card DNA (framed + pads,
-       steel banner, chip square, terminal line) all come from 600b.css. */
-    body {
-      background:
-        radial-gradient(circle at 16% 0, rgba(247, 147, 26, .16), transparent 30rem),
-        radial-gradient(circle at 88% 8%, rgba(116, 71, 184, .2), transparent 34rem),
-        var(--black);
-    }
+       steel banner, chip square, terminal line) all come from 600b.css.
+       Chrome is the Hypershell — iron, brass, Plex Mono, square, flat. The
+       cards stay 600 Billion: their faces, the Anton names drawn on a text
+       face, and the affinity Plate colours on every chip and disc. */
+    body { background: var(--iron); }
     .hero { max-width: 1560px; margin: 0 auto; padding: clamp(40px, 6vw, 84px) var(--pad) 22px; }
-    .hero h1 { margin: 10px 0 16px; }
-    .hero .lead { margin-bottom: 0; font-size: 18px; }
+    .hero h1 {
+      margin: 10px 0 16px;
+      font: 400 clamp(40px, 7vw, 92px)/1 var(--display);
+      letter-spacing: -.01em;
+    }
+    .hero .lead { margin-bottom: 0; font-size: 14px; }
 
     /* ------------------------------------------------- the filter console */
-    /* Clears the shared .nav: 10px pad + 38px mark + 10px pad + 1px rule. */
+    /* Clears the shared .nav: 10px pad + 38px mark + 10px pad + 1px rule, and
+       the side bar too when it has been moved to the top edge. */
     .console {
       position: sticky;
-      top: 59px;
+      top: calc(59px + var(--tcg-rail-top, 0px));
       z-index: 18;
       max-width: 1560px;
       margin: 0 auto 26px;
       padding: 8px var(--pad) 16px;
-      background: linear-gradient(180deg, rgba(9, 8, 11, .97) 82%, rgba(9, 8, 11, 0));
-      backdrop-filter: blur(14px);
+      background: var(--iron);
     }
-    .console .framed { padding: 14px; background: rgba(17, 16, 20, .94); }
+    .console .framed { padding: 14px; background: var(--iron-850); }
     /* auto-fit, so the console reflows at ANY width instead of assuming one:
        empty tracks collapse, the five selects share whatever room there is, and
        the floor is min(100%, …) so a single column can never be wider than its
@@ -320,36 +329,35 @@ TEMPLATE = """<!doctype html>
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
     }
     .field--search { grid-column: 1 / -1; }
-    .field { display: grid; gap: 6px; min-width: 0; }
-    .field > .banner { justify-self: start; }
-    .field input, .field select {
-      width: 100%;
-      min-height: 44px;
-      padding: 10px 12px;
-      color: var(--cream);
-      background: var(--panel);
-      border: 1px solid var(--line);
-      outline: none;
-    }
-    .field input:focus, .field select:focus { border-color: var(--ember); }
+    /* The look is .tcg-field's (600b.css); only the size is the console's. */
+    .field { min-width: 0; align-content: start; }
+    .field input, .field select { width: 100%; min-height: 44px; }
+    /* Filter toggles are chips that can be pressed. Idle they murmur; pressed
+       they take their own affinity Plate colour, which is what a Plate is for.
+       An icon chip already shows its Plate on the icon, so it drops the dot. */
     .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
-    .chips .chip { min-height: 40px; padding: 6px 11px; background: transparent; cursor: pointer; }
-    .chips .chip:hover { color: var(--cream); border-color: var(--line-strong); }
-    .chip[aria-pressed="true"] {
-      color: var(--aff, var(--cream));
-      background: color-mix(in srgb, var(--aff, var(--purple)) 16%, transparent);
-      border-color: var(--aff, var(--purple));
+    .chips .tcg-chip {
+      min-height: 40px;
+      padding: 6px 11px;
+      cursor: pointer;
+      transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
     }
-    /* The icon keeps its own dark disc so the white Keys plate never sits on
-       a light chip surface; the disc is tinted with its own affinity hue. */
+    .chips .chip--icon::before { display: none; }
+    .chips .tcg-chip:hover { color: var(--parchment); border-color: var(--brass-2); }
+    .chips .tcg-chip[aria-pressed="true"] {
+      color: var(--parchment);
+      background: var(--well);
+      border-color: var(--aff, var(--brass));
+    }
+    /* The icon keeps its own dark square so the white Keys plate never sits on
+       a light chip surface; the square is tinted with its own affinity hue. */
     .aff {
       display: grid;
       place-items: center;
       width: 22px;
       height: 22px;
-      border-radius: 50%;
-      background: color-mix(in srgb, var(--aff, var(--neutral)) 24%, var(--black));
-      border: 1px solid color-mix(in srgb, var(--aff, var(--neutral)) 55%, transparent);
+      background: color-mix(in srgb, var(--aff, var(--aff-neutral)) 24%, var(--iron));
+      border: 1px solid color-mix(in srgb, var(--aff, var(--aff-neutral)) 55%, transparent);
     }
     .aff img { width: 13px; height: 13px; }
     .status { margin-top: 13px; opacity: 1; }
@@ -357,26 +365,17 @@ TEMPLATE = """<!doctype html>
     /* LEFT CLICK = ACT. One press swaps every face between artwork and the
        text cards, which is also the presentation a shell without the resource
        domain gets by itself. */
-    .status .chip { min-height: 38px; cursor: pointer; }
-    .status .chip:not(.chip--on) { background: transparent; }
-    .status .chip:hover:not(:disabled):not(.chip--on) {
-      color: var(--cream);
-      border-color: var(--line-strong);
+    .status .tcg-chip { min-height: 38px; cursor: pointer; background: transparent; }
+    .status .tcg-chip:hover:not(:disabled) {
+      color: var(--parchment);
+      border-color: var(--brass-2);
     }
-    .status .chip:disabled { cursor: not-allowed; opacity: .72; }
-    #counter { color: var(--cream); }
-    .flash { color: var(--ember); }
-    .hint { color: var(--ink-dim); letter-spacing: .12em; }
-    .clear {
-      padding: 9px 12px;
-      color: var(--black);
-      background: var(--ember);
-      border: 0;
-      cursor: pointer;
-      font: 11px/1 var(--display);
-      letter-spacing: .16em;
-      text-transform: uppercase;
-    }
+    .status .tcg-chip[aria-pressed="true"] { color: var(--brass); border-color: var(--brass); }
+    .status .tcg-chip[aria-pressed="true"]::before { background: var(--brass); }
+    .status .tcg-chip:disabled { cursor: not-allowed; opacity: .72; }
+    #counter { color: var(--parchment); }
+    .flash { color: var(--brass); }
+    .hint { color: var(--brass-2); letter-spacing: .12em; }
 
     /* ------------------------------------------------------- the catalog */
     .gallery {
@@ -387,19 +386,20 @@ TEMPLATE = """<!doctype html>
       margin: 0 auto;
       padding: 0 var(--pad) 110px;
     }
+    /* A catalog tile is a Hypershell card: panel fill, a brass line when it is
+       pointed at, and it stays where it is — nothing floats. */
     .catalog-card {
       display: flex;
       min-width: 0;
       overflow: hidden;
       flex-direction: column;
-      background: linear-gradient(160deg, rgba(25, 21, 31, .98), rgba(13, 12, 16, .98));
-      border: 1px solid var(--line);
-      box-shadow: 0 18px 48px rgba(0, 0, 0, .34);
-      transition: transform .16s ease, border-color .16s ease;
+      background: var(--panel);
+      border: 1px solid rgba(231, 191, 118, .2);
+      transition: border-color var(--t) var(--ease);
     }
     /* Beats .catalog-card's display, so filtering can hide with one attribute. */
     .catalog-card[hidden] { display: none; }
-    .catalog-card:hover { border-color: var(--ember); transform: translateY(-4px); }
+    .catalog-card:hover { border-color: var(--brass); }
     /* The box is reserved by the button, not by whatever ends up inside it, so
        a face that arrives late — or never, and is drawn as text instead — moves
        nothing on the page. */
@@ -411,13 +411,13 @@ TEMPLATE = """<!doctype html>
       padding: 0;
       overflow: hidden;
       color: inherit;
-      background: #000;
+      background: var(--iron);
       border: 0;
-      border-bottom: 1px solid var(--line);
+      border-bottom: 1px solid var(--hairline);
       cursor: zoom-in;
     }
-    .art-button--text { background: var(--soot); cursor: pointer; }
-    /* This chip used to be painted on every tile permanently: 296 ember labels
+    .art-button--text { background: var(--iron-850); cursor: pointer; }
+    /* This chip used to be painted on every tile permanently: 296 labels
        stamped across the bottom-right corner of 296 finished card faces, on the
        one page whose whole job is to show the artwork. It is an affordance, so
        it appears when the card is actually being pointed at — and on
@@ -427,13 +427,13 @@ TEMPLATE = """<!doctype html>
       right: 10px;
       bottom: 10px;
       content: "DETAILS";
-      padding: 5px 7px;
-      color: var(--black);
-      background: var(--ember);
-      font: 11px/1 var(--display);
-      letter-spacing: .08em;
+      padding: 6px 8px;
+      color: var(--iron);
+      background: var(--brass);
+      font: 600 10px/1 var(--mono);
+      letter-spacing: .16em;
       opacity: 0;
-      transition: opacity .14s ease;
+      transition: opacity var(--t-fast) var(--ease);
     }
     .art-button:hover::after,
     .art-button:focus-visible::after { opacity: 1; }
@@ -451,6 +451,8 @@ TEMPLATE = """<!doctype html>
        simply 404s — the spec's fallback is a text-rendered card. So the tile
        draws the card itself, out of data it already has, wearing the printed
        frame: corner pads, steel type banner, chip squares, terminal footer. */
+    /* A text face IS a card face, so it is game world: the printed frame's
+       circuit hatch, corner pads and ember trim stay. */
     .text-face {
       position: relative;
       display: flex;
@@ -463,10 +465,10 @@ TEMPLATE = """<!doctype html>
       overflow: hidden;
       text-align: left;
       background:
-        repeating-linear-gradient(122deg, rgba(185, 145, 228, .07) 0 1px, transparent 1px 14px),
-        linear-gradient(178deg, var(--panel-2), var(--soot));
-      border: 1px solid var(--line-strong);
-      outline: 1px solid rgba(255, 106, 0, .2);
+        repeating-linear-gradient(122deg, var(--hairline) 0 1px, transparent 1px 14px),
+        var(--iron-800);
+      border: 1px solid var(--emphasis);
+      outline: 1px solid color-mix(in srgb, var(--ember) 20%, transparent);
       outline-offset: -7px;
     }
     .text-face > .pad {
@@ -474,7 +476,7 @@ TEMPLATE = """<!doctype html>
       width: 8px;
       height: 8px;
       background: var(--ember);
-      border: 1px solid var(--purple);
+      border: 1px solid var(--brass-2);
     }
     .text-face > .pad.tl { top: 3px; left: 3px; }
     .text-face > .pad.tr { top: 3px; right: 3px; }
@@ -483,7 +485,7 @@ TEMPLATE = """<!doctype html>
     .tf-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .tf-name {
       min-width: 0;
-      color: var(--cream);
+      color: var(--parchment);
       font: clamp(19px, 2.3vw, 26px)/1.02 var(--display);
       text-transform: uppercase;
       overflow-wrap: anywhere;
@@ -492,10 +494,10 @@ TEMPLATE = """<!doctype html>
     .tf-rules {
       margin: 0;
       overflow: hidden;
-      color: var(--cream);
-      font-size: 13.5px;
-      font-weight: 700;
-      line-height: 1.5;
+      color: var(--parchment);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.6;
     }
     /* Pinned left so the DETAILS chip in the corner never lands on top of it. */
     .tf-foot {
@@ -512,13 +514,13 @@ TEMPLATE = """<!doctype html>
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      color: var(--purple);
-      font: 900 11px/1 var(--body);
-      letter-spacing: .11em;
+      color: var(--brass-2);
+      font: 500 10px/1 var(--mono);
+      letter-spacing: .16em;
       text-transform: uppercase;
     }
     .card-kicker .rarity { margin-left: auto; }
-    .card-kicker .promo-tag { color: var(--ember); }
+    .card-kicker .promo-tag { color: var(--brass); }
     /* TOUCH HAS NO RIGHT CLICK. Same menu, reachable with one tap or one tab. */
     .card-kicker .more {
       flex: none;
@@ -526,80 +528,85 @@ TEMPLATE = """<!doctype html>
       min-height: 34px;
       margin: -8px -7px -8px 0;
       padding: 0;
-      color: var(--purple);
+      color: var(--brass-2);
       background: transparent;
       border: 1px solid transparent;
       cursor: pointer;
-      font: 17px/1 var(--body);
+      font: 600 16px/1 var(--mono);
       letter-spacing: 0;
+      transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
     }
-    .card-kicker .more:hover { color: var(--ember); border-color: var(--line); }
-    .card-copy h2 { margin: 9px 0 0; font-size: clamp(24px, 2.4vw, 29px); letter-spacing: .005em; }
+    .card-kicker .more:hover { color: var(--brass); border-color: var(--hairline); }
+    .card-copy h2 {
+      margin: 10px 0 0;
+      color: var(--parchment);
+      font: 600 17px/1.3 var(--headline);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
     .meta {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
       margin-top: 11px;
-      color: var(--muted);
-      font-size: 13px;
+      color: var(--ink-quiet);
+      font-size: 12px;
     }
     .meta .chip-num { min-width: 42px; padding: 3px 7px 5px; }
     .meta .chip-num b { font-size: 16px; }
     .rules {
       margin: 15px 0 0;
       padding: 13px 0 0;
-      color: var(--cream);
-      border-top: 1px solid var(--line);
-      font-weight: 700;
+      color: var(--parchment);
+      border-top: 1px solid var(--divider);
+      font-size: 13px;
+      font-weight: 500;
     }
     .flavor {
       margin: auto 0 0;
       padding-top: 15px;
-      color: var(--purple);
-      font: italic 15px/1.45 Georgia, serif;
+      color: var(--brass-2);
+      font: 400 12px/1.7 var(--mono);
     }
-    /* Sits above the grid, in the ember the site uses for "act", because it is
-       the answer to "where did all the pictures go". */
+    /* Sits above the grid, on the brass edge, because it is the answer to
+       "where did all the pictures go". */
     .face-notice {
-      margin: 0 0 10px; padding: 9px 12px;
-      color: var(--cream); background: rgba(255,106,0,.08);
-      border-left: 3px solid var(--ember);
-      font-size: 13px; line-height: 1.5;
+      margin: 0 0 10px; padding: 10px 14px;
+      color: var(--parchment); background: var(--panel);
+      border: 1px solid var(--hairline);
+      border-left: 2px solid var(--brass);
+      font-size: 12px; line-height: 1.6;
     }
-    .face-notice__back {
-      margin-left: 6px; padding: 3px 9px; cursor: pointer;
-      background: var(--ember); color: var(--black); border: 0;
-      font: 11px/1 var(--display); letter-spacing: .07em; text-transform: uppercase;
-    }
-    .face-notice__back:hover { filter: brightness(1.12); }
+    .face-notice .tcg-btn { margin-left: 8px; }
     .empty {
       grid-column: 1 / -1;
       padding: 70px 20px;
-      color: var(--muted);
-      border: 1px dashed var(--line);
+      color: var(--ink-quiet);
+      border: 1px solid var(--hairline);
       text-align: center;
     }
 
     /* --------------------------------------------------- right-click menu */
+    /* Pops up like a rail panel: iron ground, one brass line, no shadow. */
     .menu {
       position: fixed;
       z-index: 60;
       min-width: min(214px, calc(100% - 24px));
       max-width: min(260px, calc(100% - 24px));
       padding: 5px;
-      background: var(--soot);
-      border: 1px solid var(--purple-deep);
-      box-shadow: 0 22px 60px #000;
+      background: var(--iron);
+      border: 1px solid rgba(231, 191, 118, .28);
     }
     .menu strong {
       display: block;
       padding: 8px 9px 9px;
       overflow: hidden;
-      color: var(--power);
-      border-bottom: 1px solid var(--line);
-      font: 11px/1.2 var(--display);
-      letter-spacing: .14em;
+      color: var(--brass-2);
+      border-bottom: 1px solid var(--divider);
+      font: 500 10px/1.2 var(--mono);
+      letter-spacing: .16em;
+      text-transform: uppercase;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -607,14 +614,14 @@ TEMPLATE = """<!doctype html>
       display: block;
       width: 100%;
       padding: 10px 9px;
-      color: var(--cream);
+      color: var(--body-ink);
       background: transparent;
       border: 0;
       cursor: pointer;
-      font-size: 13px;
+      font: 12px/1.3 var(--mono);
       text-align: left;
     }
-    .menu button:hover { color: var(--ember); background: var(--panel-2); }
+    .menu button:hover { color: var(--parchment); background: var(--well); }
 
     /* -------------------------------------------------------- the dialog */
     /* Percentages, not vw/vh: a top-layer dialog resolves them against the
@@ -627,15 +634,14 @@ TEMPLATE = """<!doctype html>
       max-height: calc(100dvh - 24px);
       padding: 0;
       overflow: auto;
-      color: var(--cream);
-      background: var(--soot);
-      border: 1px solid var(--purple-deep);
-      border-top: 7px solid var(--ember);
-      box-shadow: 0 30px 120px #000;
+      color: var(--body-ink);
+      background: var(--iron-850);
+      border: 1px solid var(--emphasis);
+      border-top: 2px solid var(--brass);
     }
-    dialog::backdrop { background: rgba(0, 0, 0, .84); backdrop-filter: blur(8px); }
+    dialog::backdrop { background: color-mix(in srgb, var(--iron) 88%, transparent); }
     .modal-grid { display: grid; grid-template-columns: minmax(320px, 540px) minmax(0, 1fr); }
-    .modal-art { display: grid; min-width: 0; background: #000; }
+    .modal-art { display: grid; min-width: 0; background: var(--iron); }
     .modal-art > img { width: 100%; min-height: 100%; object-fit: contain; }
     .modal-art > .text-face { height: auto; align-self: start; }
     .details { position: relative; min-width: 0; padding: clamp(24px, 5vw, 50px); }
@@ -645,25 +651,33 @@ TEMPLATE = """<!doctype html>
       right: 15px;
       width: 40px;
       height: 40px;
-      color: var(--cream);
-      background: var(--black);
-      border: 1px solid var(--line);
+      color: var(--brass);
+      background: var(--iron);
+      border: 1px solid var(--hairline);
       cursor: pointer;
-      font-size: 23px;
+      font: 20px/1 var(--mono);
+      transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
     }
-    .modal-id { color: var(--ember); font-weight: 900; letter-spacing: .12em; }
-    .details h2 { margin: 8px 44px 5px 0; font-size: clamp(34px, 5vw, 60px); }
-    .detail-block { margin-top: 25px; padding-top: 19px; border-top: 1px solid var(--line); }
-    .detail-block strong {
-      display: block;
-      margin-bottom: 8px;
-      color: var(--ember);
-      font: 18px/1 var(--display);
-      letter-spacing: .06em;
+    .close:hover { color: var(--parchment); border-color: var(--parchment); }
+    .modal-id { color: var(--brass-2); font: 500 11px/1.2 var(--mono); letter-spacing: .16em; }
+    .details h2 {
+      margin: 10px 44px 6px 0;
+      color: var(--parchment);
+      font: 700 clamp(22px, 3vw, 32px)/1.2 var(--headline);
+      letter-spacing: .1em;
       text-transform: uppercase;
     }
-    .detail-block p { margin: 0; color: var(--muted); }
-    .detail-block .modal-rules { color: var(--cream); font-weight: 700; }
+    .detail-block { margin-top: 25px; padding-top: 19px; border-top: 1px solid var(--divider); }
+    .detail-block strong {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--brass-2);
+      font: 500 10px/1.2 var(--mono);
+      letter-spacing: .22em;
+      text-transform: uppercase;
+    }
+    .detail-block p { margin: 0; color: var(--body-ink); }
+    .detail-block .modal-rules { color: var(--parchment); font-weight: 500; }
     .modal-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 
     @media (max-width: 760px) {
@@ -681,10 +695,10 @@ TEMPLATE = """<!doctype html>
       .hero { padding-top: 26px; }
       .hero .lead { font-size: 15px; }
       .console .framed { padding: 10px; }
-      .chips .chip { padding: 6px 8px; }
+      .chips .tcg-chip { padding: 6px 8px; }
       .chips .chip--icon .lbl { display: none; }
       .card-copy { padding: 12px 13px 15px; }
-      .card-copy h2 { font-size: 23px; }
+      .card-copy h2 { font-size: 15px; }
       .flavor { display: none; }
       .text-face { padding: 12px 12px 38px; }
       .tf-foot { right: 90px; left: 12px; }
@@ -733,37 +747,37 @@ TEMPLATE = """<!doctype html>
         <span class="pad tl"></span><span class="pad tr"></span>
         <span class="pad bl"></span><span class="pad br"></span>
         <div class="control-grid">
-          <label class="field field--search">
-            <span class="banner">Search</span>
+          <label class="field field--search tcg-field">
+            <span class="tcg-label">Search</span>
             <input id="search" type="search" autocomplete="off" spellcheck="false"
               placeholder="Name, ID, rules, flavour, tag …">
           </label>
-          <label class="field">
-            <span class="banner">Type</span>
+          <label class="field tcg-field">
+            <span class="tcg-label">Type</span>
             <select id="typeFilter">
           __TYPE_OPTIONS__
             </select>
           </label>
-          <label class="field">
-            <span class="banner">Cost</span>
+          <label class="field tcg-field">
+            <span class="tcg-label">Cost</span>
             <select id="costFilter">
           __COST_OPTIONS__
             </select>
           </label>
-          <label class="field">
-            <span class="banner">Rarity</span>
+          <label class="field tcg-field">
+            <span class="tcg-label">Rarity</span>
             <select id="rarityFilter">
           __RARITY_OPTIONS__
             </select>
           </label>
-          <label class="field">
-            <span class="banner">Printing</span>
+          <label class="field tcg-field">
+            <span class="tcg-label">Printing</span>
             <select id="printFilter">
           __PRINT_OPTIONS__
             </select>
           </label>
-          <label class="field">
-            <span class="banner">Sort</span>
+          <label class="field tcg-field">
+            <span class="tcg-label">Sort</span>
             <select id="sortOrder">
               <option value="id">Set number</option>
               <option value="name">Name</option>
@@ -782,9 +796,10 @@ TEMPLATE = """<!doctype html>
           </div>
           <div class="side">
             <span class="hint">RIGHT-CLICK OR PRESS ⋯ FOR A CARD'S MENU</span>
-            <button class="chip" id="faceToggle" type="button"
+            <button class="tcg-chip" id="faceToggle" type="button"
               aria-pressed="false">Text cards</button>
-            <button class="clear" id="clearFilters" type="button" hidden>Clear ✕</button>
+            <button class="tcg-btn btn--small" id="clearFilters" type="button"
+              hidden>Clear ✕</button>
           </div>
         </div>
       </div>
@@ -824,8 +839,9 @@ TEMPLATE = """<!doctype html>
             Open primary source →</a></p>
         </div>
         <div class="modal-actions">
-          <a class="btn btn--small" id="modalFace" target="_blank">Open rendered card</a>
-          <button class="btn btn--small btn--ghost" id="modalCopy" type="button">Copy link</button>
+          <a class="tcg-btn tcg-btn--primary btn--small" id="modalFace"
+            target="_blank">Open rendered card</a>
+          <button class="tcg-btn btn--small" id="modalCopy" type="button">Copy link</button>
         </div>
       </div>
     </div>
@@ -986,7 +1002,7 @@ TEMPLATE = """<!doctype html>
       notice.append(document.createTextNode("Text cards are on, so the artwork is hidden. "));
       const back = document.createElement("button");
       back.type = "button";
-      back.className = "face-notice__back";
+      back.className = "tcg-btn btn--small";
       back.textContent = "Show the art";
       back.addEventListener("click", () => setFaceMode("art", true));
       notice.append(back);
@@ -995,7 +1011,6 @@ TEMPLATE = """<!doctype html>
     function syncFaceToggle() {
       const isText = faceMode === "text";
       faceToggle.setAttribute("aria-pressed", String(isText));
-      faceToggle.classList.toggle("chip--on", isText);
       syncFaceNotice();
     }
 
@@ -1013,7 +1028,8 @@ TEMPLATE = """<!doctype html>
       const disc = document.createElement("span");
       disc.className = "aff";
       disc.title = name;
-      disc.style.setProperty("--aff", "var(" + (FACETS.affinityTokens[name] || "--neutral") + ")");
+      const token = FACETS.affinityTokens[name] || "--aff-neutral";
+      disc.style.setProperty("--aff", "var(" + token + ")");
       const icon = FACETS.affinityIcons[name];
       if (icon) {
         const image = document.createElement("img");

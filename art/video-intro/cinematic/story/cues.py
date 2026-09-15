@@ -14,7 +14,7 @@ measured take -> placement -> captions -> score pockets.
 from __future__ import annotations
 
 # Per-avatar edge-tts voice and delivery. Faster across the board than the
-# first pass (the owner's verdict: schneller, mit Pausen, nicht robotisch) --
+# first pass (the owner's verdict: faster, with pauses, not robotic) --
 # the character spread stays: BlackCoffee slowest, FLX quickest.
 VOICES: dict[str, dict[str, str]] = {
     "NARRATOR": {"voice": "en-US-AndrewMultilingualNeural", "rate": "-4%", "pitch": "-4Hz"},

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#09080b">
+<meta name="theme-color" content="#0f0c08">
 <meta name="color-scheme" content="dark">
 <meta name="description" content="Free browser trading card game about Bitcoin, Nostr and open systems. 295 Edition One cards, hotseat or NPC opponent, online duels over nostr. No account, no download.">
 <meta name="keywords" content="trading card game, TCG, Bitcoin, Nostr, Lightning, cypherpunk, browser game, free, Edition One">
@@ -26,10 +26,12 @@
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="apple-touch-icon" href="../art/brand/600B-logo-primary.png">
 <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="../art/fonts/plex-mono-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../art/fonts/josefin-sans-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="600b.css">
 <script src="napplet.js"></script>
+<script src="rail.js"></script>
 <script src="bugreport.js" defer></script>
-<script src="nostr-id.js" defer></script>
 <script>
 /* Painted before the first frame, so a shell-themed napplet never shows the
    600B fallback palette and then jumps to the shell's. No shell present is not
@@ -43,37 +45,25 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
  * The front door. Everything here is local to this page — 600b.css owns the
  * tokens, the chrome and the card DNA, and no rule below invents a colour.
  *
+ * Chrome is the Hypershell: iron ground, brass voice, Plex Mono copy, Josefin
+ * headings, square corners, and nothing that floats or glows. The game world
+ * stays 600 Billion — the Anton hero title, the logo, the world plate, the
+ * card faces and the five affinity Plates.
+ *
  * The page answers three questions in order: what is this, can I play it now,
  * what does it look like. The hero carries the first two; real card faces
  * carry the third, arced the way the table arcs them.
  * ------------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------- boot intro */
-/* A short boot sequence: the world plate ramps up like a monitor waking, the
-   copy decodes line by line, one scanline sweeps once and is gone. The stagger
-   is an explicit --d per element; nth-of-type counts per tag and lied. */
-@keyframes bootBg { from { filter: brightness(0) saturate(0); } to { filter: brightness(.62) saturate(1); } }
-@keyframes bootLine {
-  0% { opacity: 0; transform: translateY(14px); }
-  55% { opacity: .55; }
-  70% { opacity: .25; }
-  100% { opacity: 1; transform: none; }
-}
-@keyframes bootScan { from { top: -8%; opacity: .5; } to { top: 108%; opacity: 0; } }
+/* A short boot sequence: lights appear by switching, not by fading. Each line
+   cuts on in turn, like a terminal answering. The stagger is an explicit --d
+   per element; nth-of-type counts per tag and lied. The card entering on the
+   right is game world and keeps its own motion. */
+@keyframes bootCut { from { opacity: 0; } to { opacity: 1; } }
 @keyframes bootFan { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
-/* The brand mark spins up like a coin landing face-up, then settles. */
-@keyframes logoIn {
-  0%   { opacity: 0; transform: perspective(600px) rotateY(-220deg) scale(.55); }
-  55%  { opacity: 1; }
-  100% { opacity: 1; transform: perspective(600px) rotateY(0) scale(1); }
-}
 
-.boot { animation: bootLine .5s ease-out both; animation-delay: var(--d, 0s); }
-.scanline {
-  position: absolute; left: 0; right: 0; top: -8%; height: 2px; z-index: 3; pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(243,194,68,.85), transparent);
-  animation: bootScan 1.3s ease-in .15s both;
-}
+.boot { animation: bootCut var(--t) steps(2, jump-none) both; animation-delay: var(--d, 0s); }
 
 /* -------------------------------------------------------------------- hero */
 .hero { position: relative; overflow: hidden; display: grid; align-content: center; padding: clamp(40px, 7vw, 96px) var(--pad); }
@@ -81,9 +71,14 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
   content: ""; position: absolute; inset: 0;
   background: url("../art/site/hero-index.webp") center 30% / cover no-repeat;
   filter: brightness(.62);
-  animation: bootBg 1.1s ease-out both;
 }
-.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,8,11,.86), rgba(9,8,11,.38) 42%, var(--black) 97%); }
+.hero::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--iron) 86%, transparent),
+    color-mix(in srgb, var(--iron) 38%, transparent) 42%,
+    var(--iron) 97%);
+}
 /* The background bleeds edge to edge; the content does not. Every direct child
  * sits in the same 1280px column as .section, so the hero's stat and resource
  * rows line up with the rest of the page instead of hugging the left edge on a
@@ -95,24 +90,22 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
   gap: clamp(22px, 4vw, 56px); align-items: center;
   width: 100%; max-width: 1280px; margin: 0 auto;
 }
-.hero h1 { margin: 10px 0 16px; }
-.hero .sub { max-width: 56ch; font-size: clamp(16px, 1.7vw, 20px); color: var(--muted); }
-.hero .sub b { color: var(--cream); font-weight: 700; }
-.hero__logo {
-  display: block; width: clamp(60px, 8vw, 100px); height: auto; margin: 0 0 14px;
-  filter: drop-shadow(0 10px 26px rgba(247,147,26,.35));
-  animation: logoIn 1s cubic-bezier(.2,.8,.2,1) .05s both;
-}
+/* The one Anton headline: the 600 Billion title. */
+.hero h1 { margin: 10px 0 16px; font: 400 clamp(40px, 7vw, 92px)/1 var(--display); letter-spacing: -.01em; }
+.hero .sub { max-width: 60ch; font-size: clamp(13px, 1.25vw, 15px); line-height: 1.75; color: var(--body-ink); }
+.hero .sub b { color: var(--parchment); font-weight: 600; }
+.hero__logo { display: block; width: clamp(60px, 8vw, 100px); height: auto; margin: 0 0 14px; }
 
 /* The promises, as chips — the same chip the table uses for a state. */
 .promises { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
 
-.stats { display: flex; gap: clamp(16px, 3vw, 30px); flex-wrap: wrap; margin-top: 34px; }
-.stat b { display: block; font: clamp(26px, 3.4vw, 34px)/1 var(--display); color: var(--bitcoin); }
-.stat span { color: var(--muted); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+/* Readouts: a Josefin figure over a murmured mono caption. */
+.stats { display: flex; gap: clamp(16px, 3vw, 34px); flex-wrap: wrap; margin-top: 34px; }
+.stat b { display: block; font: 700 clamp(22px, 2.8vw, 30px)/1.1 var(--headline); letter-spacing: .06em; color: var(--parchment); }
+.stat span { color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
 
 .resrow { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 22px; }
-.resrow .r { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; letter-spacing: .13em; text-transform: uppercase; }
+.resrow .r { display: flex; align-items: center; gap: 9px; color: var(--ink-quiet); font: 500 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
 
 /* ------------------------------------------------------------- flip card */
 /* The front door's one toy: a card back you click to reveal a random face,
@@ -148,71 +141,83 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 }
 .flipcard__front { transform: rotateY(180deg); }
 .flipcard:hover:not(.is-flipped) .flipcard__inner { transform: translateY(-6px) scale(1.02); }
-.flipcard:focus-visible { outline: 2px solid var(--ember); outline-offset: 8px; border-radius: 14px; }
+.flipcard:focus-visible { outline: 2px solid var(--brass); outline-offset: 8px; }
 .flipcard__hint {
   position: absolute; left: 0; right: 0; bottom: -26px; text-align: center;
-  color: var(--muted); font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
-  pointer-events: none; transition: opacity .3s;
+  color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .2em; text-transform: uppercase;
+  pointer-events: none; transition: opacity var(--t) var(--ease);
 }
 .flipcard.is-flipped .flipcard__hint { opacity: 0; }
 
 /* --------------------------------------------------------------- the doors */
-/* Five steps in the order a new player should take them. Ember tops the first
-   one only — ember means act, and acting here means: press play. */
-/* One deliberate row of five on desktop — minmax(0,1fr) lets the tracks shrink
-   to fit rather than overflow. It steps down to two, then one, at the narrow
-   breakpoints below. */
+/* Six steps in the order a new player should take them. A brass edge tops the
+   first one only — it is the primary action, and acting here means: press
+   play. The rest are Hypershell cards: panel fill, a brass line on focus. */
+/* One deliberate row of three on desktop — minmax(0,1fr) lets the tracks
+   shrink to fit rather than overflow. It steps down to two, then one, at the
+   narrow breakpoints below. */
 .doors { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .doors > li { display: grid; }
 .door {
-  display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px;
+  display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px;
   height: 100%; padding: 20px; text-decoration: none; color: inherit;
-  background: rgba(17,16,20,.86); border: 1px solid var(--line); border-top: 3px solid var(--purple-deep);
+  background: var(--panel); border: 1px solid rgba(231, 191, 118, .2);
+  transition: border-color var(--t) var(--ease);
 }
-.door:hover, .door:focus-visible { border-color: var(--line-strong); border-top-color: var(--ember); background: rgba(31,26,39,.92); }
-.door--first { border-top-color: var(--ember); }
-.door b { font: 20px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; }
-.door p { color: var(--muted); font-size: 14px; }
-.door .go { align-self: end; color: var(--ember); font: 12px/1 var(--display); letter-spacing: .12em; text-transform: uppercase; }
+.door:hover, .door:focus-visible { border-color: var(--brass); }
+.door--first { border-color: var(--emphasis); border-top: 2px solid var(--brass); }
+.door b { font: 600 18px/1.2 var(--headline); letter-spacing: .1em; text-transform: uppercase; color: var(--parchment); }
+.door p { color: var(--body-ink); font-size: 12px; line-height: 1.75; }
+.door .go { align-self: end; color: var(--brass); font: 600 11px/1.2 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.door:hover .go, .door:focus-visible .go { color: var(--parchment); }
 .door .chip-num { justify-self: start; }
 
 .alsorow { display: flex; gap: 8px 18px; flex-wrap: wrap; margin-top: 22px; align-items: center; }
-.alsorow span { color: var(--ink-dim); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; }
-.alsorow a { color: var(--muted); font-size: 14px; }
-.alsorow a:hover { color: var(--bitcoin); }
+.alsorow span { color: var(--brass-2); font: 500 10px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; }
+.alsorow a { color: var(--brass); font-size: 12px; }
+.alsorow a:hover { color: var(--parchment); }
 
 /* ------------------------------------------------------------- card teaser */
 .teaser { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 16px; }
 .teaser figure { margin: 0; }
 /* The WHOLE card, never a crop: the frame, the badge and the footer are the
-   design, so object-fit:cover was cutting off the very thing being shown. */
+   design, so object-fit:cover was cutting off the very thing being shown.
+   The lift and the weight under the face are the card's own — game world. */
 .teaser figure { transition: transform .18s ease; }
 .teaser figure:hover { transform: translateY(-6px); }
 .teaser img { display: block; width: 100%; height: auto; aspect-ratio: 744 / 1039; object-fit: contain; background: transparent; filter: drop-shadow(0 16px 38px rgba(0,0,0,.55)); }
-.teaser figcaption { margin-top: 8px; text-align: center; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.teaser figcaption { margin-top: 10px; text-align: center; color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
 
 /* ------------------------------------------------------------- turn strip */
 .turnstrip { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
-.turnstrip figure { margin: 0; border: 1px solid var(--line); background: rgba(17,16,20,.86); }
-.turnstrip img { display: block; width: 100%; height: auto; aspect-ratio: 4/5; object-fit: cover; border-bottom: 1px solid var(--line); background: var(--soot); }
+.turnstrip figure { margin: 0; border: 1px solid var(--hairline); background: var(--panel); }
+.turnstrip img { display: block; width: 100%; height: auto; aspect-ratio: 4/5; object-fit: cover; border-bottom: 1px solid var(--hairline); background: var(--iron-850); }
 .turnstrip figcaption { padding: 14px 16px 16px; }
-.turnstrip h3 { margin-bottom: 6px; }
-.turnstrip p { color: var(--muted); font-size: 14px; }
+.turnstrip h3 { margin-bottom: 8px; }
+.turnstrip p { color: var(--body-ink); font-size: 12px; line-height: 1.75; }
 
 /* ------------------------------------------------------------ box + duel */
-.boxfacts { display: flex; gap: clamp(16px, 3vw, 26px); flex-wrap: wrap; margin: 18px 0 22px; }
-.boxfact b { display: block; font: clamp(22px, 3vw, 28px)/1 var(--display); color: var(--power); }
-.boxfact span { color: var(--muted); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.boxfacts { display: flex; gap: clamp(16px, 3vw, 30px); flex-wrap: wrap; margin: 18px 0 22px; }
+.boxfact b { display: block; font: 700 clamp(20px, 2.4vw, 26px)/1.1 var(--headline); letter-spacing: .06em; color: var(--parchment); }
+.boxfact span { color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
 
+/* The staked-duel illustration. The uptime gauge is square and brass — the
+   Hypershell draws no circles, and a gauge is chrome, not a Plate. */
 .duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; max-width: 660px; margin: 0 auto 12px; }
-.duelist { text-align: center; padding: 20px; background: var(--soot); border: 1px solid var(--line); }
-.duelist .dial { --p: 100; width: 68px; height: 68px; margin: 0 auto 10px; border-radius: 50%; position: relative; background: conic-gradient(var(--c) calc(var(--p)*1%), rgba(255,255,255,.08) 0); display: grid; place-items: center; }
-.duelist .dial::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--panel); }
-.duelist .dial b { position: relative; font: 24px/1 var(--display); }
-.duelist .nm { font: 15px/1 var(--display); letter-spacing: .06em; }
-.duelist .st { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .13em; margin-top: 4px; }
-.bolt { font-size: 40px; color: var(--power); text-shadow: 0 0 24px rgba(243,194,68,.6); }
-.duelcap { text-align: center; color: var(--ink-dim); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 24px; }
+.duelist { text-align: center; padding: 20px; background: var(--panel); border: 1px solid var(--hairline); }
+.duelist .dial {
+  --p: 100; position: relative; display: grid; place-items: center;
+  width: 68px; height: 68px; margin: 0 auto 12px;
+  background: linear-gradient(to top, var(--brass-2) calc(var(--p) * 1%), var(--well) 0);
+}
+.duelist .dial::before { content: ""; position: absolute; inset: 7px; background: var(--iron-850); }
+.duelist .dial b { position: relative; font: 700 24px/1 var(--headline); color: var(--parchment); }
+.duelist .nm { font: 600 14px/1.2 var(--headline); letter-spacing: .12em; color: var(--parchment); }
+.duelist .st { color: var(--brass-2); font: 500 10px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .16em; margin-top: 6px; }
+.bolt { font-size: 36px; color: var(--brass); }
+.grid--4 .tcg-panel h3 { margin-bottom: 8px; }
+.grid--4 .tcg-panel p { color: var(--body-ink); font-size: 12px; line-height: 1.75; }
+.duelcap { text-align: center; color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .2em; text-transform: uppercase; margin-bottom: 24px; }
 
 /* -------------------------------------------------------------- narrow up */
 @media (max-width: 900px) {
@@ -229,7 +234,7 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
   .duel { grid-template-columns: 1fr; }
   .bolt { text-align: center; }
   .stats { gap: 14px 20px; }
-  .hero .sub { font-size: 16px; }
+  .hero .sub { font-size: 13px; }
 }
 @media (max-width: 420px) {
   .doors { grid-template-columns: 1fr; }
@@ -260,17 +265,17 @@ body { container-type: inline-size; container-name: page; }
 @container page (min-width: 0px) {
   .nav, .hero, .section, .site-footer { --pad: clamp(16px, 4cqi, 56px); }
   .hero { padding-block: clamp(40px, 7cqi, 96px); }
-  .hero .sub { font-size: clamp(16px, 1.7cqi, 20px); }
+  .hero .sub { font-size: clamp(13px, 1.25cqi, 15px); }
   .flipcard { --fw: clamp(200px, 27cqi, 320px); }
-  .stat b { font-size: clamp(26px, 3.4cqi, 34px); }
+  .stat b { font-size: clamp(22px, 2.8cqi, 30px); }
 }
 
 @container page (max-width: 900px) {
-  /* 600b.css sizes headings against the viewport too; in a narrow panel on a
+  /* The hero title is sized against the viewport too; in a narrow panel on a
      wide screen that is a 92px word in a 300px box. Same scale, measured
      against what the words actually have to fit into. */
-  h1 { font-size: clamp(36px, 10cqi, 70px); }
-  h2 { font-size: clamp(24px, 6cqi, 44px); }
+  .hero h1 { font-size: clamp(36px, 10cqi, 70px); }
+  h2 { font-size: clamp(18px, 2.4cqi, 24px); }
   .hero__grid { grid-template-columns: 1fr; }
   .flipcard { --fw: clamp(180px, 62cqi, 300px); order: 2; margin-bottom: 40px; }
   .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -278,12 +283,12 @@ body { container-type: inline-size; container-name: page; }
 @container page (max-width: 720px) {
   .nav { position: static; }
   .nav__brand small { display: none; }
-  .nav a.link { padding: 8px 9px; font-size: 12px; }
+  .nav a.link { padding: 8px 9px 6px; font-size: 10px; letter-spacing: .14em; }
   .site-footer .tag { margin-left: 0; }
   .duel { grid-template-columns: 1fr; }
   .bolt { text-align: center; }
   .stats { gap: 14px 20px; }
-  .hero .sub { font-size: 16px; }
+  .hero .sub { font-size: 13px; }
 }
 @container page (max-width: 420px) {
   .doors { grid-template-columns: 1fr; }
@@ -297,8 +302,8 @@ body { container-type: inline-size; container-name: page; }
      five doors, every promise chip and every link stay. */
   .flipcard, .duel, .duelcap { display: none; }
   .teaser { grid-template-columns: 1fr; }
-  .nav a.link { padding: 6px 7px; font-size: 11px; letter-spacing: .04em; }
-  .btn { padding: 11px 14px; font-size: 13px; }
+  .nav a.link { padding: 6px 7px 5px; font-size: 10px; letter-spacing: .08em; }
+  .tcg-btn { padding: 11px 14px; letter-spacing: .1em; }
   .stats { gap: 12px 16px; }
   .door { padding: 16px; }
 }
@@ -307,9 +312,7 @@ body { container-type: inline-size; container-name: page; }
 /* 600b.css already collapses durations globally; these say it out loud so the
    end state is never a half-played frame. */
 @media (prefers-reduced-motion: reduce) {
-  .scanline { display: none; }
-  .hero::before { animation: none; filter: brightness(.62); }
-  .boot, .flipcard, .hero__logo { animation: none; opacity: 1; transform: none; }
+  .boot, .flipcard { animation: none; opacity: 1; transform: none; }
   .flipcard__inner { transition: none; }
   .flipcard:hover:not(.is-flipped) .flipcard__inner { transform: none; }
 }
@@ -332,36 +335,29 @@ body { container-type: inline-size; container-name: page; }
     <a class="link" href="lore.html">Lore</a>
     <a class="link" href="leaderboard.html">Leaderboard</a>
   </div>
-  <button id="loginBtn" type="button">⚡ Sign in with Nostr</button>
-  <p id="loginWhy">Optional — only online duels need it</p>
-  <div id="who">
-    <img id="whoPic" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" referrerpolicy="no-referrer">
-    <div><div class="n" id="whoName"></div><div class="k" id="whoNpub"></div></div>
-    <button id="logoutBtn" type="button">sign out</button>
-  </div>
-  <p id="loginNote" role="status" hidden></p>
+  <!-- No sign-in here any more: the side bar's Account panel (rail.js) is the
+       one place on the site to say who you are. -->
 </nav>
 
 <header class="hero">
-  <div class="scanline" aria-hidden="true"></div>
   <div class="hero__grid">
     <div>
-      <img class="hero__logo" src="../art/brand/600B-logo-primary.png" alt="600B Timelock TCG" width="100" height="100" fetchpriority="high" decoding="async">
-      <p class="eyebrow boot">Free browser card game · Edition One</p>
+      <img class="hero__logo boot" src="../art/brand/600B-logo-primary.png" alt="600B Timelock TCG" width="100" height="100" fetchpriority="high" decoding="async">
+      <p class="eyebrow boot" style="--d:.06s">Free browser card game · Edition One</p>
       <h1 class="boot" style="--d:.12s">Build the Network.<br><span class="accent">Protect your Uptime.</span></h1>
       <p class="sub boot" style="--d:.28s"><b>A trading card game about Bitcoin, Nostr and open systems.</b>
       295 finished cards, a full rules engine, and a table that opens in this tab. Play a two-player
       hotseat, take on the NPC, or duel someone across the world — and learn real protocols while you
       take them offline, kindly.</p>
       <div class="btn-row boot" style="--d:.4s;margin-top:26px">
-        <a class="btn" href="play.html">Play now — it is free</a>
-        <a class="btn btn--ghost" href="quickstart.html">Never played? 5 minutes</a>
+        <a class="tcg-btn tcg-btn--primary" href="play.html">Play now — it is free</a>
+        <a class="tcg-btn" href="quickstart.html">Never played? 5 minutes</a>
       </div>
       <div class="promises boot" style="--d:.5s">
-        <span class="chip">No account</span>
-        <span class="chip">No download</span>
-        <span class="chip">Runs in your browser</span>
-        <span class="chip">MIT licensed</span>
+        <span class="tcg-chip">No account</span>
+        <span class="tcg-chip">No download</span>
+        <span class="tcg-chip">Runs in your browser</span>
+        <span class="tcg-chip">MIT licensed</span>
       </div>
     </div>
 
@@ -533,8 +529,8 @@ body { container-type: inline-size; container-name: page; }
     </figure>
   </div>
   <div class="btn-row" style="margin-top:26px">
-    <a class="btn" href="quickstart.html">Walk the 5-minute start</a>
-    <a class="btn btn--ghost" href="rules.html">Read the full rulebook</a>
+    <a class="tcg-btn tcg-btn--primary" href="quickstart.html">Walk the 5-minute start</a>
+    <a class="tcg-btn" href="rules.html">Read the full rulebook</a>
   </div>
 </section>
 
@@ -560,7 +556,7 @@ body { container-type: inline-size; container-name: page; }
     <div class="boxfact"><b>66.67%</b><span>common</span></div>
     <div class="boxfact"><b>6.67%</b><span>basic</span></div>
   </div>
-  <div class="btn-row"><a class="btn" href="shop.html?shop=demo">Open a free pack</a><a class="btn btn--ghost" href="shop.html?shop=mint">Open the NutFT mint</a><a class="btn btn--ghost" href="wallet.html">Open wallet</a></div>
+  <div class="btn-row"><a class="tcg-btn tcg-btn--primary" href="shop.html?shop=demo">Open a free pack</a><a class="tcg-btn" href="shop.html?shop=mint">Open the NutFT mint</a><a class="tcg-btn" href="wallet.html">Open wallet</a></div>
   <p class="note" style="margin-top:20px"><strong>Alpha:</strong> packs are free and stored in your browser
   in free-box mode. The separate NutFT demo already issues test Cashu proofs without payment; it is not a production or real-money mint.</p>
 </section>
@@ -572,16 +568,16 @@ body { container-type: inline-size; container-name: page; }
   Before a match, both players can agree a stake in sats — the winner receives the zap, wallet to
   wallet over Lightning. The platform never touches the money.</p>
   <div class="duel" aria-hidden="true">
-    <div class="duelist"><div class="dial" style="--c:#ff6a00"><b>20</b></div><div class="nm">YOU</div><div class="st">Stake: 2,100 sats</div></div>
+    <div class="duelist"><div class="dial"><b>20</b></div><div class="nm">YOU</div><div class="st">Stake: 2,100 sats</div></div>
     <div class="bolt">⚡</div>
-    <div class="duelist"><div class="dial" style="--c:#f3c244; --p:35"><b>7</b></div><div class="nm">OPPONENT</div><div class="st">Stake: 2,100 sats</div></div>
+    <div class="duelist"><div class="dial" style="--p:35"><b>7</b></div><div class="nm">OPPONENT</div><div class="st">Stake: 2,100 sats</div></div>
   </div>
   <p class="duelcap">Illustration · Uptime 20 against 7, both seats staked</p>
   <div class="grid grid--4">
-    <div class="panel panel--act"><h3>1 · Agree</h3><p>Both players confirm the stake at setup. It is recorded in the signed match transcript.</p></div>
-    <div class="panel panel--act"><h3>2 · Play</h3><p>Both clients run the same deterministic engine, and every action is hash-chained — the result is provable.</p></div>
-    <div class="panel panel--act"><h3>3 · Zap</h3><p>After the win the app opens the zap to the winner's Lightning address (NIP-57). Honor system.</p></div>
-    <div class="panel panel--act"><h3>4 · Publish</h3><p>Both players publish the signed result to Nostr. Settled duels build a public track record.</p></div>
+    <div class="tcg-panel"><h3>1 · Agree</h3><p>Both players confirm the stake at setup. It is recorded in the signed match transcript.</p></div>
+    <div class="tcg-panel"><h3>2 · Play</h3><p>Both clients run the same deterministic engine, and every action is hash-chained — the result is provable.</p></div>
+    <div class="tcg-panel"><h3>3 · Zap</h3><p>After the win the app opens the zap to the winner's Lightning address (NIP-57). Honor system.</p></div>
+    <div class="tcg-panel"><h3>4 · Publish</h3><p>Both players publish the signed result to Nostr. Settled duels build a public track record.</p></div>
   </div>
   <p class="note" style="margin-top:22px">v1 is an honor system, and staking is optional — off unless both
   players agree it before the match. The software never holds, escrows or moves a satoshi: it records the
@@ -596,9 +592,9 @@ body { container-type: inline-size; container-name: page; }
   <h2>The table is <span class="accent">already open.</span></h2>
   <p class="lead">No sign-up wall, no launcher, no waiting list. Press the button and you are dealt in.</p>
   <div class="btn-row">
-    <a class="btn" href="play.html">Play now — it is free</a>
-    <a class="btn btn--ghost" href="quickstart.html">Learn it in 5 minutes</a>
-    <a class="btn btn--ghost" href="cards.html">See all 295 cards</a>
+    <a class="tcg-btn tcg-btn--primary" href="play.html">Play now — it is free</a>
+    <a class="tcg-btn" href="quickstart.html">Learn it in 5 minutes</a>
+    <a class="tcg-btn" href="cards.html">See all 295 cards</a>
   </div>
   <div class="terminal-line" style="margin-top:30px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span>EDITION&nbsp;ONE&nbsp;·&nbsp;E1</span></div>
 </section>

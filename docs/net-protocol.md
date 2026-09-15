@@ -1095,6 +1095,15 @@ into that fight in the first place, and this is the backstop. `ERROR{NO_SUCH_MAT
 clears the stored credential and stops, so a stale match against a fresh database cannot loop.
 (`BAD_TOKEN` is handled but never sent — §2.4.)
 
+**A login lasts as long as its key.** The referee binds a socket to the key its `AUTH` proved, and
+every `ACT` on it plays as that key. So `nostr.logout()`, or any other key signed in — through
+`nostr.login()`, or written under `600b:pubkey` by another tab and noticed at the next send — ends
+that login: the socket closes **without `LEAVE`** (the seat stays its owner's), no reconnect timer
+stays armed, a waiting `CREATE`/`JOIN`/`QUEUE` intent is dropped, `active` is emptied and the
+status is `idle`. The key `AUTH_OK` named is recorded, so the comparison is exact. The session is
+kept: after signing back in, `resume()` dials again and sends its one `RESUME` only after a fresh
+`AUTH_OK`. `act()` while signed out fails locally with `NIP07_REQUIRED`.
+
 `Ctrl+Alt+R` forces a `RESUME` — the panic button the runbook asks for.
 
 ### The `E1Net` surface

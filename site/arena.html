@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#09080b">
+<meta name="theme-color" content="#0f0c08">
 <meta name="robots" content="noindex">
 <meta name="description" content="The Arena mockup has been folded into the live table — play at play.html.">
 <title>600B Timelock TCG — The Arena moved</title>
@@ -11,8 +11,11 @@
 <link rel="canonical" href="play.html">
 <noscript><meta http-equiv="refresh" content="0; url=play.html"></noscript>
 <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="../art/fonts/plex-mono-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../art/fonts/josefin-sans-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="600b.css">
 <script src="napplet.js"></script>
+<script src="rail.js"></script>
 <script src="bugreport.js" defer></script>
 <script>
 /* Painted before the first frame, so a shell-themed napplet never shows the
@@ -29,10 +32,10 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 .sign { max-width: 760px; margin: 0 auto; padding: clamp(48px, 9vw, 96px) var(--pad); }
 .sign h2 { margin-bottom: 14px; }
 .gone { display: grid; gap: 8px; margin: 26px 0 30px; padding-left: 0; list-style: none; }
-.gone li { display: flex; gap: 10px; align-items: baseline; color: var(--muted); font-size: 14px; }
-.gone li::before { content: "→"; color: var(--ember); font-weight: 700; }
-.gone b { color: var(--cream); font-weight: 700; }
-#countdown { color: var(--muted); font-size: 13px; margin-top: 18px; }
+.gone li { display: flex; gap: 10px; align-items: baseline; color: var(--body-ink); font-size: 12px; line-height: 1.75; }
+.gone li::before { content: "→"; color: var(--brass); font-weight: 600; }
+.gone b { color: var(--parchment); font-weight: 600; }
+#countdown { color: var(--ink-quiet); font-size: 12px; margin-top: 18px; }
 
 /* --------------------------------------------------- the layout contract */
 /* docs/napplet-spec.md: no fixed viewport assumptions, no horizontal overflow
@@ -58,22 +61,21 @@ body { container-type: inline-size; container-name: page; }
 
 @container page (max-width: 900px) {
   /* 600b.css sizes headings against the viewport too; in a narrow panel on a
-     wide screen that is a 92px word in a 300px box. Same scale, measured
+     wide screen that reads the window, not the box. Same scale, measured
      against what the words actually have to fit into. */
-  h1 { font-size: clamp(36px, 10cqi, 70px); }
-  h2 { font-size: clamp(24px, 6cqi, 44px); }
+  h2 { font-size: clamp(18px, 2.4cqi, 24px); }
 }
 @container page (max-width: 720px) {
   .nav__brand small { display: none; }
-  .nav a.link { padding: 8px 9px; font-size: 12px; }
+  .nav a.link { padding: 8px 9px 6px; font-size: 10px; letter-spacing: .14em; }
   .site-footer .tag { margin-left: 0; }
 }
 @container page (max-width: 359px) {
   /* Tiny: the spec's collapsed presentation. Nothing is removed here — the
      page is one column of text already — it just tightens. */
   .sign { padding-top: 28px; padding-bottom: 28px; }
-  .nav a.link { padding: 6px 7px; font-size: 11px; letter-spacing: .04em; }
-  .btn { padding: 11px 14px; font-size: 13px; }
+  .nav a.link { padding: 6px 7px 5px; font-size: 10px; letter-spacing: .08em; }
+  .tcg-btn { padding: 11px 14px; letter-spacing: .1em; }
 }
 </style>
 </head>
@@ -108,12 +110,12 @@ body { container-type: inline-size; container-name: page; }
       <li><b>Arced zones</b> — your Network bends toward you, theirs bends away.</li>
       <li><b>The shared clash lane</b> — attacks meet in the middle of the table.</li>
       <li><b>Committed cards turned sideways</b> — the same tell as a paper game.</li>
-      <li><b>Attack and block arrows</b> — ember to the player, violet to the attacker.</li>
+      <li><b>Attack and block arrows</b> — ember to the player, teal to the attacker.</li>
       <li><b>The uptime dial</b> — both seats, always visible, counting down from 20.</li>
     </ul>
     <div class="btn-row">
-      <a class="btn" href="play.html">Go to the table</a>
-      <a class="btn btn--ghost" href="quickstart.html">Learn it in 5 minutes</a>
+      <a class="tcg-btn tcg-btn--primary" href="play.html">Go to the table</a>
+      <a class="tcg-btn" href="quickstart.html">Learn it in 5 minutes</a>
     </div>
     <p id="countdown"></p>
     <div class="terminal-line" style="margin-top:22px">TIMELOCK_TCG&nbsp;::&nbsp;600B<span>ARENA&nbsp;·&nbsp;MOVED</span></div>

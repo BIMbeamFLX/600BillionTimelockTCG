@@ -3,54 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#09080b">
+<meta name="theme-color" content="#0f0c08">
 <title>600B Timelock TCG — NutFT Wallet</title>
 <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="../art/fonts/plex-mono-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../art/fonts/josefin-sans-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="600b.css">
-<!-- The wallet never loaded the adapter, so the top-bar sign-in chip would
-     have had nothing to ask about identity: napplet.js IS that question.
-     Nothing else on this page reads it, and the collection still comes
-     from the mint and this browser exactly as before. -->
+<!-- napplet.js is the adapter the side bar's Account panel asks about
+     identity. Nothing else on this page reads it, and the collection still
+     comes from the mint and this browser exactly as before. -->
 <script src="napplet.js"></script>
-<script src="nostr-id.js" defer></script>
+<script src="rail.js"></script>
 <style>
 /* Page-local only. Palette, type, nav, .framed / .chip-num / .note / .banner and
    the buttons all come from 600b.css; what lives here is the collection grid and
-   the trade desk, which exist on no other page. */
+   the trade desk, which exist on no other page. Chrome is the Hypershell; the
+   card faces are 600 Billion. Every state stays honest: brass for fine, rust
+   for what the mint refused, and nothing on this page is ever green. */
 [hidden] { display: none !important; }
 
-/* `.mode-off` is the dashed note turned solid and red. shop.html defines its own
+/* `.mode-off` is the note turned solid and rust. shop.html defines its own
    copy; this page used the class for a year without ever defining it, so the
    error line rendered as an ordinary muted note. */
-.mode-off { border-color: var(--danger); border-style: solid; }
-.mode-off strong { color: var(--danger); }
+.mode-off { border-color: var(--rust); border-style: solid; }
+.mode-off strong { color: var(--rust); }
 /* Not an error and not fine: a bucket the mint has no opinion about. It wears
-   the power gold rather than the danger red, because red is the colour this page
-   uses for "the mint rejected this" and that is a different sentence. */
-.mode-wait { border-color: var(--power); border-style: solid; }
-.mode-wait strong { color: var(--power); }
+   brass rather than rust, because rust is the colour this page uses for "the
+   mint rejected this" and that is a different sentence. */
+.mode-wait { border-color: var(--brass-2); border-style: solid; }
+.mode-wait strong { color: var(--brass); }
+
+/* The page title is the one Anton headline. */
+.section h1 { font: 400 clamp(40px, 7vw, 92px)/1 var(--display); letter-spacing: -.01em; }
 
 /* -------------------------------------------------------------- collection */
 
 .wallet-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
 .counters { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
 .wallet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-.wallet-card { position: relative; display: flex; flex-direction: column; border: 1px solid var(--line); background: var(--soot); }
-.wallet-card img { display: block; width: 100%; aspect-ratio: 5 / 7; object-fit: cover; background: var(--panel); }
-.wallet-card__body { display: flex; flex-direction: column; gap: 5px; flex: 1; padding: 10px; }
-.wallet-card__body strong { font-size: 14px; line-height: 1.25; }
-.wallet-card__body p { margin: 0; font-size: 12px; color: var(--muted); }
-/* The same ember square the shop stamped on a duplicate, so a stack of three
+.wallet-card { position: relative; display: flex; flex-direction: column; border: 1px solid var(--hairline); background: var(--panel); }
+.wallet-card img { display: block; width: 100%; aspect-ratio: 5 / 7; object-fit: cover; background: var(--iron-850); }
+.wallet-card__body { display: flex; flex-direction: column; gap: 6px; flex: 1; padding: 10px; }
+.wallet-card__body strong { color: var(--parchment); font: 600 12px/1.35 var(--mono); }
+.wallet-card__body p { margin: 0; font-size: 11px; line-height: 1.6; color: var(--ink-quiet); }
+/* The same brass square the shop stamps on a duplicate, so a stack of three
    reads identically on the two pages a player moves between. Decorative only —
    the copy count is spelled out in the tile's own text for a screen reader. */
-.wallet-card__n { position: absolute; right: 4px; top: 4px; padding: 2px 6px; background: var(--ember); color: var(--black); font: 900 12px/1 var(--body); }
-.wallet-card__over { color: var(--power); }
+.wallet-card__n { position: absolute; right: 4px; top: 4px; padding: 3px 6px; background: var(--brass); color: var(--iron); font: 600 11px/1 var(--mono); }
+.wallet-card__over { color: var(--brass); }
 /* Two actions per card: send it away, or build with it. Wrapping rather than
    shrinking, because a narrow tile that squeezes both onto one line puts the
    labels under the 44px tap minimum. */
 .wallet-card__acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
-.wallet-card--bad { border-color: var(--danger); }
-.wallet-card .btn { margin-top: auto; }
+.wallet-card--bad { border-color: var(--rust); }
+.wallet-card .tcg-btn { margin-top: auto; }
 
 /* ------------------------------------------------------------- the trade desk
    Left acts, right explains — the same hand the table uses. Below 900px the
@@ -58,55 +64,46 @@
 .desk { display: grid; gap: 22px; align-items: start; }
 @media (min-width: 900px) { .desk { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); } }
 .desk h3 { margin-bottom: 8px; }
-.desk .framed p { color: var(--muted); font-size: 13px; line-height: 1.65; }
+.desk .tcg-panel > p { color: var(--body-ink); font-size: 12px; line-height: 1.75; }
+.desk .framed p { color: var(--body-ink); font-size: 12px; line-height: 1.75; }
 .desk .framed p + p { margin-top: 12px; }
 
-.field { display: grid; gap: 6px; margin-top: 12px; }
-.field > label { font: 900 10px/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-dim); }
-.field input, .field select, .field textarea {
-  width: 100%; box-sizing: border-box; padding: 10px;
-  background: var(--soot); color: var(--cream); border: 1px solid var(--line);
-  font: 13px/1.5 var(--body);
-}
-.field textarea { font-family: var(--mono); font-size: 12px; resize: vertical; }
-/* The ring stays: the border only ever gains an accent on top of it. */
-.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { border-color: var(--ember); }
+/* Every field wears .tcg-field (600b.css): well fill, brass-3 rule, brass on
+   focus. The ring stays on top of it. What is left here is only size. */
+.field { margin-top: 12px; }
+.field input, .field select, .field textarea { width: 100%; box-sizing: border-box; }
+.field textarea { resize: vertical; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .row > :first-child { flex: 1; min-width: 0; }
-.hint { margin: 6px 0 0; color: var(--ink-dim); font-size: 12px; line-height: 1.6; }
-.tool-note { margin: 10px 0 0; min-height: 20px; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.tool-note.bad { color: var(--danger); }
-.keyline { font-family: var(--mono); font-size: 12px; color: var(--cream); word-break: break-all; }
+.hint { margin: 6px 0 0; color: var(--brass-3); font-size: 12px; line-height: 1.6; }
+.tool-note { margin: 10px 0 0; min-height: 20px; color: var(--ink-quiet); font-size: 12px; line-height: 1.6; }
+.tool-note.bad { color: var(--rust); }
+.keyline { font-family: var(--mono); font-size: 12px; color: var(--parchment); word-break: break-all; }
 #syncWallet { min-height: 44px; }
 
-/* The last thing between a person and an irreversible spend, so it wears the
-   one action colour and names the card in full. */
-.confirm { display: grid; gap: 10px; margin-top: 12px; padding: 14px; border: 1px solid var(--ember); background: rgba(255, 106, 0, .07); }
-.confirm p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
-.confirm p b { color: var(--cream); }
+/* The last thing between a person and an irreversible spend, so it carries
+   the critical edge and names the card in full. */
+.confirm { display: grid; gap: 10px; margin-top: 12px; padding: 14px; border: 1px solid var(--emphasis); border-left: 2px solid var(--rust); background: var(--panel); }
+.confirm p { margin: 0; font-size: 12px; line-height: 1.7; color: var(--body-ink); }
+.confirm p b { color: var(--parchment); }
 
-.preview { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--line); background: rgba(9, 8, 11, .55); }
+.preview { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--hairline); background: var(--iron-850); }
 .preview ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .preview li { display: flex; gap: 10px; align-items: center; }
-.preview li img { width: 40px; aspect-ratio: 5 / 7; object-fit: cover; border: 1px solid var(--line); flex-shrink: 0; }
+.preview li img { width: 40px; aspect-ratio: 5 / 7; object-fit: cover; flex-shrink: 0; }
 .preview li div { min-width: 0; }
-.preview li strong { display: block; font-size: 13px; }
-.preview li span { font-size: 12px; color: var(--muted); }
+.preview li strong { display: block; color: var(--parchment); font-size: 12px; font-weight: 600; }
+.preview li span { font-size: 11px; color: var(--ink-quiet); }
 
-.handoff { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); background: rgba(9, 8, 11, .55); }
+.handoff { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--hairline); background: var(--iron-850); }
 .handoff + .handoff { margin-top: 10px; }
-.handoff p { margin: 0; font-size: 13px; color: var(--muted); }
-.handoff p b { color: var(--cream); }
-.handoff textarea {
-  width: 100%; box-sizing: border-box; padding: 10px; resize: vertical;
-  background: var(--soot); color: var(--cream); border: 1px solid var(--line);
-  font-family: var(--mono); font-size: 12px;
-}
-.handoff textarea:focus-visible { border-color: var(--ember); }
+.handoff p { margin: 0; font-size: 12px; color: var(--body-ink); }
+.handoff p b { color: var(--parchment); }
+.handoff textarea { width: 100%; box-sizing: border-box; resize: vertical; }
 
 .cannot ul { margin: 8px 0 0; padding-left: 18px; }
-.cannot li { font-size: 12px; line-height: 1.7; color: var(--ink-dim); }
-.cannot code { font-family: var(--mono); color: var(--muted); }
+.cannot li { font-size: 12px; line-height: 1.7; color: var(--brass-3); }
+.cannot code { font-family: var(--mono); color: var(--ink-quiet); }
 </style>
 </head>
 <body>
@@ -131,7 +128,7 @@
       checked the NutFT secret, the CardBinding, the mint's DLEQ proof, the P2BK destination, the proof state and the
       Blossom face hash. Copies of the same card stack into one tile.</p>
 
-    <div class="wallet-meta" id="walletMeta"><span class="chip">Loading wallet…</span></div>
+    <div class="wallet-meta" id="walletMeta"><span class="tcg-chip">Loading wallet…</span></div>
     <p class="note mode-off" id="walletError" role="status" aria-live="polite" hidden></p>
 
     <div class="counters" id="counters" hidden>
@@ -167,26 +164,26 @@
              one button away", so it sits above everything it explains. -->
         <div class="note mode-wait" id="recover" role="status" aria-live="polite" hidden>
           <p id="recoverText" style="margin:0"></p>
-          <button class="btn" id="recoverGo" type="button" style="margin-top:10px">Finish it now</button>
+          <button class="tcg-btn tcg-btn--primary" id="recoverGo" type="button" style="margin-top:10px">Finish it now</button>
         </div>
 
-        <section class="panel panel--act" aria-labelledby="sendTitle">
+        <section class="tcg-panel tcg-panel--emph" aria-labelledby="sendTitle">
           <h3 id="sendTitle">Send a card</h3>
           <p>The mint spends your proof and signs a replacement locked to the key you name. It happens once and it
             cannot be reversed, so the card is named back to you before anything is sent.</p>
           <form id="sendForm">
-            <div class="field">
-              <label for="sendCard">Card to send</label>
+            <div class="field tcg-field">
+              <label class="tcg-label" for="sendCard">Card to send</label>
               <select id="sendCard"><option value="">No cards in this wallet</option></select>
             </div>
-            <div class="field">
-              <label for="recipientKey">Their destination key</label>
+            <div class="field tcg-field">
+              <label class="tcg-label" for="recipientKey">Their destination key</label>
               <input id="recipientKey" type="text" inputmode="latin" autocomplete="off" spellcheck="false"
                      placeholder="02… or 03…">
             </div>
             <p class="hint">This is the <b>P2BK destination</b> from their own wallet page — not an npub, not a
               Lightning address. The mint locks the new proof to it, so a typo sends the card to a key nobody holds.</p>
-            <div class="row" style="margin-top:12px"><button class="btn" id="sendReview" type="submit">Review this transfer</button></div>
+            <div class="row" style="margin-top:12px"><button class="tcg-btn tcg-btn--primary" id="sendReview" type="submit">Review this transfer</button></div>
           </form>
           <div class="confirm" id="sendConfirm" hidden>
             <p id="sendConfirmWhat"></p>
@@ -194,7 +191,7 @@
             <p>Sending spends the card at the mint. There is no take-back and no undo.</p>
             <!-- The card and the key are described BY the button, so landing on
                  it reads back what is about to be spent and to whom. -->
-            <div class="row"><button class="btn" id="sendGo" type="button" aria-describedby="sendConfirmWhat sendConfirmKey">Send it</button><button class="btn btn--ghost" id="sendCancel" type="button">Cancel</button></div>
+            <div class="row"><button class="tcg-btn tcg-btn--primary" id="sendGo" type="button" aria-describedby="sendConfirmWhat sendConfirmKey">Send it</button><button class="tcg-btn" id="sendCancel" type="button">Cancel</button></div>
           </div>
           <p class="tool-note" id="sendNote" role="status" aria-live="polite"></p>
           <!-- Every transfer made in this session, newest first. A list and not a
@@ -208,20 +205,20 @@
           </div>
         </section>
 
-        <section class="panel" aria-labelledby="receiveTitle">
+        <section class="tcg-panel" aria-labelledby="receiveTitle">
           <h3 id="receiveTitle">Receive a card</h3>
           <p>Give this key to whoever is sending. It is a public destination — it spends nothing and holds nothing.</p>
-          <div class="field">
-            <label for="destination">Your P2BK destination</label>
-            <div class="row"><input id="destination" readonly><button class="btn btn--ghost" id="copyDestination" type="button">Copy</button></div>
+          <div class="field tcg-field">
+            <label class="tcg-label" for="destination">Your P2BK destination</label>
+            <div class="row"><input id="destination" readonly><button class="tcg-btn" id="copyDestination" type="button">Copy</button></div>
           </div>
-          <div class="field">
-            <label for="importToken">A token you were handed</label>
+          <div class="field tcg-field">
+            <label class="tcg-label" for="importToken">A token you were handed</label>
             <textarea id="importToken" rows="3" placeholder="cashuB…"></textarea>
           </div>
           <div class="row" style="margin-top:12px">
-            <button class="btn btn--ghost" id="checkButton" type="button">Check this token</button>
-            <button class="btn" id="importButton" type="button" disabled>Accept into my wallet</button>
+            <button class="tcg-btn" id="checkButton" type="button">Check this token</button>
+            <button class="tcg-btn tcg-btn--primary" id="importButton" type="button" disabled>Accept into my wallet</button>
           </div>
           <div class="preview" id="importPreview" hidden></div>
           <p class="tool-note" id="importNote" role="status" aria-live="polite"></p>
@@ -256,7 +253,7 @@
       button on the other device. If two devices both changed the same revision, both copies are preserved and sync
       stops instead of choosing one.</p>
     <div class="row" style="margin-top:14px;max-width:760px">
-      <button class="btn" id="syncWallet" type="button" style="flex:0 0 auto">Sync over BIMCVP relay</button>
+      <button class="tcg-btn tcg-btn--primary" id="syncWallet" type="button" style="flex:0 0 auto">Sync over BIMCVP relay</button>
     </div>
     <p class="tool-note" id="syncNote" role="status" aria-live="polite"></p>
   </section>
@@ -267,18 +264,18 @@
       Keep it secret. Restore is allowed only into a wallet that holds nothing, so a restore can never overwrite cards
       you already have.</p>
     <div class="row" style="margin-top:14px;max-width:760px">
-      <button class="btn btn--ghost" id="downloadBackup" type="button" style="flex:0 0 auto">Download backup</button>
-      <label class="field" style="margin:0;flex:1;min-width:220px">
-        <span style="font:900 10px/1 var(--body);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)">Restore from a backup file</span>
+      <button class="tcg-btn" id="downloadBackup" type="button" style="flex:0 0 auto">Download backup</button>
+      <label class="field tcg-field" style="margin:0;flex:1;min-width:220px">
+        <span class="tcg-label">Restore from a backup file</span>
         <input id="restoreBackup" type="file" accept="application/json">
       </label>
     </div>
     <div class="row" style="margin-top:14px;max-width:760px;align-items:flex-start">
-      <button class="btn btn--ghost" id="showRecovery" type="button" style="flex:0 0 auto">Show recovery phrase</button>
-      <label class="field" style="margin:0;flex:1;min-width:220px">
-        <span style="font:900 10px/1 var(--body);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)">Restore from 12 words</span>
+      <button class="tcg-btn" id="showRecovery" type="button" style="flex:0 0 auto">Show recovery phrase</button>
+      <label class="field tcg-field" style="margin:0;flex:1;min-width:220px">
+        <span class="tcg-label">Restore from 12 words</span>
         <textarea id="restorePhrase" rows="2" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
-        <button class="btn btn--ghost" id="restoreSeed" type="button">Recover cards</button>
+        <button class="tcg-btn" id="restoreSeed" type="button">Recover cards</button>
         <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px">
           <input id="restoreDeep" type="checkbox">
           Search further (slower). If a recovery found fewer cards than you hold, tick this and recover again.
@@ -307,7 +304,7 @@
     if (text !== undefined) node.textContent = text;
     return node;
   };
-  const chip = (text) => el("span", "chip", text);
+  const chip = (text) => el("span", "tcg-chip", text);
 
   /* Every rung of the ladder, rarest first, with the copy limit that rung
    * carries into a Stack beside it. The number IS engine.js MAX_COPIES, written
@@ -471,7 +468,7 @@
     }
     const checks = el("p", null, "DLEQ ✓ · P2BK ✓ · Blossom checking…");
     body.append(checks);
-    const send = el("button", "btn btn--ghost btn--small", "Send a copy");
+    const send = el("button", "tcg-btn btn--small", "Send a copy");
     send.type = "button";
     send.addEventListener("click", () => {
       sendCard.value = stack.key;
@@ -484,7 +481,7 @@
        only keyboard-reachable way to reach a card with it. A real <button>
        rather than a click handler on a tile: focus, Enter and Space come free,
        and a screen reader is told what it does. */
-    const build = el("button", "btn btn--ghost btn--small", "Add to a Stack");
+    const build = el("button", "tcg-btn btn--small", "Add to a Stack");
     build.type = "button";
     build.setAttribute("aria-label", `Add ${stack.asset.name} to a Stack`);
     build.addEventListener("click", () => addToStack(stack));
@@ -689,12 +686,12 @@
     const line = el("p");
     line.append(el("b", null, name));
     if (recipient) line.append(document.createTextNode(" → "), el("span", "keyline", recipient));
-    const box = el("textarea");
+    const box = el("textarea", "tcg-field");
     box.rows = 3;
     box.readOnly = true;
     box.value = token;
     box.setAttribute("aria-label", `Transfer token for ${name}`);
-    const button = el("button", "btn btn--ghost btn--small", "Copy this token");
+    const button = el("button", "tcg-btn btn--small", "Copy this token");
     button.type = "button";
     button.addEventListener("click", async () => {
       await copy(token);

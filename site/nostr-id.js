@@ -1,6 +1,14 @@
 /* ---------------------------------------------------------------------------
  * nostr-id.js — the sign-in chip in the top bar, on every page that has one.
  *
+ * RETIRING. The side bar (site/rail.js, docs/rail.md) has an Account panel that
+ * does everything this chip did. On a page that loads rail.js this file injects
+ * nothing: E1Rail on the page means the bar owns sign-in. It still wires a chip
+ * a page carries in its OWN markup (#loginBtn and friends), so a page that has
+ * not dropped that markup keeps a working button rather than a dead one. Every
+ * page that loaded this file now loads rail.js, so none of them needs this tag;
+ * it stays for a page outside the bar, if one ever appears.
+ *
  * This lived inside index.html, which meant the front door was the only place
  * on the site where a person could say who they are. Somebody who lands on the
  * shop, buys a pack and then walks to the table had to go back to the front
@@ -77,30 +85,32 @@
 
   /* Travels with the chip rather than sitting in nine <style> blocks, which is
      the only way the ninth page cannot drift from the other eight. Every
-     colour and face is a 600b.css token; nothing below invents one. */
+     colour and face is a 600b.css token; nothing below invents one. The chip is
+     chrome, so it speaks Hypershell: a brass button, mono type, square corners,
+     no ember and no shadow. */
   const CSS = `
-#loginBtn { cursor: pointer; padding: 9px 14px; background: var(--ember); color: var(--black); border: 0; font: 13px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; }
-#loginBtn:hover { filter: brightness(1.1); }
+#loginBtn { cursor: pointer; padding: 9px 14px; background: var(--brass); color: var(--iron); border: 1px solid var(--brass); border-radius: 0; font: 600 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+#loginBtn:hover { background: var(--parchment); border-color: var(--parchment); }
 #who { display: none; align-items: center; gap: 9px; }
-#who img { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--ember); object-fit: cover; }
-#who .n { font-weight: 700; font-size: 13px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#who .k { color: var(--muted); font-size: 10px; font-family: var(--mono); }
-#who button { cursor: pointer; background: none; border: 1px solid var(--line); color: var(--muted); padding: 5px 7px; font-size: 11px; }
+#who img { width: 32px; height: 32px; border: 1px solid var(--emphasis); object-fit: cover; }
+#who .n { color: var(--parchment); font: 600 12px/1.3 var(--mono); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#who .k { color: var(--ink-quiet); font-size: 10px; font-family: var(--mono); }
+#who button { cursor: pointer; background: none; border: 1px solid var(--hairline); border-radius: 0; color: var(--brass-2); padding: 5px 7px; font: 500 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
 /* Whatever sign-in has to say, said in place. A napplet shell need not grant
    modal dialogs, so alert() is not a thing these pages may depend on to tell
    somebody their extension is missing. */
-#loginNote { flex-basis: 100%; color: var(--muted); font-size: 12px; }
-#loginNote b { color: var(--power); }
+#loginNote { flex-basis: 100%; color: var(--ink-quiet); font-size: 12px; }
+#loginNote b { color: var(--brass); }
 /* "Sign-in is optional" was the button's title= — a tooltip, which a phone
    never shows and a keyboard rarely does. It was also the ONLY place the site
    said so, so it is text now, standing next to the button it describes. */
-#loginWhy { margin: 0; max-width: 22ch; color: var(--ink-dim); font: 700 10px/1.4 var(--body); letter-spacing: .1em; text-transform: uppercase; }
+#loginWhy { margin: 0; max-width: 22ch; color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .2em; text-transform: uppercase; }
 
 /* Both narrow rules say the same thing to two different measurements. A phone
    is the viewport; a napplet panel 320px wide on a 27" monitor is not, and the
    pages that declare the page container are the ones that can be asked. */
-@media (max-width: 359px) { #loginBtn { padding: 8px 10px; font-size: 12px; } }
-@container page (max-width: 359px) { #loginBtn { padding: 8px 10px; font-size: 12px; } }
+@media (max-width: 359px) { #loginBtn { padding: 8px 10px; font-size: 10px; } }
+@container page (max-width: 359px) { #loginBtn { padding: 8px 10px; font-size: 10px; } }
 `;
 
   function addStyle() {
@@ -237,7 +247,7 @@
         /* A missing signer is the ordinary case, not an error: the whole site
            works without one. Say which of the two it was, in place. */
         say(nap.identity.source() === "none"
-          ? "No signer here. Install Alby or nos2x and reload — or just play the local hotseat, which never needs one."
+          ? "No compatible browser extension found. You can play as a guest."
           : "Sign-in did not complete: " + String((err && err.message) || err));
         return;
       }
@@ -272,6 +282,16 @@
   }
 
   function start() {
+    /* The bar's Account panel is the sign-in on a page that loads rail.js
+       (inert inside a shell, where the shell's own bar is). Inject nothing
+       there; only a chip the page wrote into its own markup is still wired. */
+    if (root.E1Rail) {
+      if (doc.getElementById("loginBtn")) {
+        addStyle();
+        wire();
+      }
+      return;
+    }
     if (mount()) wire();
   }
 

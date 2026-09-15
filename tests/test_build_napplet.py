@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import json
 import re
 import shutil
 import subprocess
@@ -14,6 +15,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SITE = REPO_ROOT / "site"
 CRLF = bytes([13, 10])
 LF = bytes([10])
+NODE = shutil.which("node")
+needs_node = pytest.mark.skipif(NODE is None, reason="node is not on PATH")
 
 
 @pytest.fixture(scope="module")
@@ -32,6 +35,8 @@ def test_page_is_self_contained(artifact: tuple[bytes, dict]) -> None:
     assert "<link rel=stylesheet" not in html
     assert '<link rel="stylesheet"' not in html
     assert 'url("../' not in html
+    assert "url('../" not in html
+    assert "url(../" not in html
     assert 'src="../' not in html
     # Every inlined block opens on its own line; schnorr.js says `<script>` mid-comment.
     assert len(re.findall(r"^<script>", html, re.MULTILINE)) == html.count("</script>")
@@ -59,11 +64,130 @@ def test_page_leaves_the_website_only_scripts_out(artifact: tuple[bytes, dict]) 
     assert "esm.sh" not in html
     for name in ("nutft-wallet.js", "qr.js", "bugreport.js", "nostr-id.js", "fast-faces.js"):
         assert f'src="{name}"' not in html
+    assert 'src="rail.js"' not in html
     # The wallet imports its vendored libraries itself, so leaving it out leaves them out.
     for bundle in ("cashu-ts.js", "scure-bip39.js", "scure-bip39-english.js", "scure-bip32.js"):
         assert f"vendor/{bundle}" not in html
     assert "E1Engine" in html
     assert "600B-logo-primary.png" not in html
+
+
+def test_the_side_bar_stays_out_of_the_napplet(tmp_path: Path) -> None:
+    """Inside the Hangar the shell draws the bar; rail.js is dropped, not inlined or fetched."""
+    page = '<script src="napplet.js"></script>\n<script src="rail.js"></script>\n'
+    (tmp_path / "napplet.js").write_text("window.N = 1;\n", encoding="utf-8")
+
+    assert "rail.js" in build_napplet.OMITTED_SCRIPTS
+    assert build_napplet.inline_scripts(page, tmp_path) == "<script>\nwindow.N = 1;\n\n</script>\n"
+    assert build_napplet.inlined_script_names(page) == ["napplet.js"]
+
+
+HYPERSHELL_FACES = {
+    "../art/fonts/josefin-sans-var.woff2": "font/woff2",
+    "../art/fonts/plex-mono-400.woff2": "font/woff2",
+    "../art/fonts/plex-mono-500.woff2": "font/woff2",
+    "../art/fonts/plex-mono-600.woff2": "font/woff2",
+    "../art/fonts/Anton-Regular.ttf": "font/ttf",
+}
+
+
+def test_play_names_the_hypershell_faces() -> None:
+    """The table's own @font-face rules name both Hypershell families and Anton."""
+    play = (SITE / "play.html").read_text(encoding="utf-8")
+    missing = HYPERSHELL_FACES.items() - build_napplet.data_url_assets(play).items()
+
+    assert not missing, f"play.html names no url() for {sorted(missing)}"
+
+
+def test_every_font_play_names_ships_as_a_data_url(artifact: tuple[bytes, dict]) -> None:
+    """Each font travels inside the page, byte for byte its file, under its MIME type."""
+    html = artifact[0].decode("utf-8")
+    play = (SITE / "play.html").read_text(encoding="utf-8")
+    fonts = build_napplet.data_url_assets(play)
+
+    assert fonts
+    for relative, mime in fonts.items():
+        data = base64.b64encode((SITE / relative).read_bytes()).decode("ascii")
+        assert f'url("data:{mime};base64,{data}")' in html, relative
+
+
+def test_font_urls_are_found_however_they_are_quoted(tmp_path: Path) -> None:
+    """Double, single or no quotes: the font is inlined; an unknown kind stops the build."""
+    site = tmp_path / "site"
+    fonts = tmp_path / "art" / "fonts"
+    site.mkdir()
+    fonts.mkdir(parents=True)
+    (fonts / "a.woff2").write_bytes(b"woff2 bytes")
+    (fonts / "b.ttf").write_bytes(b"ttf bytes")
+    page = (
+        '@font-face { src: url("../art/fonts/a.woff2") format("woff2"); }\n'
+        "@font-face { src: url('../art/fonts/b.ttf'); }\n"
+        "@font-face { src: url(../art/fonts/a.woff2); }\n"
+    )
+
+    assert build_napplet.data_url_assets(page) == {
+        "../art/fonts/a.woff2": "font/woff2",
+        "../art/fonts/b.ttf": "font/ttf",
+    }
+    inlined = build_napplet.inline_assets(page, site)
+    woff2 = base64.b64encode(b"woff2 bytes").decode("ascii")
+    assert inlined.count(f'url("data:font/woff2;base64,{woff2}")') == 2
+    assert 'url("data:font/ttf;base64,' in inlined
+    assert "../art/fonts/" not in inlined
+    with pytest.raises(SystemExit, match="no font MIME type"):
+        build_napplet.data_url_assets('src: url("../art/fonts/c.eot")')
+
+
+def test_style_comments_go_and_strings_stay(tmp_path: Path) -> None:
+    """A comment quoting url("../art/fonts/…") is prose, not a font; a quoted /* is content."""
+    page = (
+        "<head>\n<style>\n"
+        '/* build_napplet.py inlines every url("../art/fonts/…") */\n'
+        '.a { content: "/* kept */"; } /* gone */\n'
+        "\n"
+        "  /* a whole line\n     across two */\n"
+        ".b { background: url('data:image/svg+xml;utf8,<svg a=\"//x\"/>'); }\n"
+        "</style>\n</head>\n<script>/* script comments are not CSS */</script>\n"
+    )
+
+    stripped = build_napplet.strip_style_comments(page)
+    assert stripped == (
+        "<head>\n<style>\n"
+        '.a { content: "/* kept */"; }\n'
+        ".b { background: url('data:image/svg+xml;utf8,<svg a=\"//x\"/>'); }\n"
+        "</style>\n</head>\n<script>/* script comments are not CSS */</script>\n"
+    )
+    assert build_napplet.data_url_assets(page) == {}
+    assert build_napplet.inline_assets(page, tmp_path) == stripped
+
+
+@needs_node
+def test_stripped_style_is_the_same_stylesheet() -> None:
+    """esbuild minifies play.html's <style> before and after stripping to identical CSS."""
+    if not (REPO_ROOT / "node_modules" / "esbuild").is_dir():
+        pytest.skip("esbuild is not installed (npm install)")
+    play = (SITE / "play.html").read_text(encoding="utf-8").replace("\r\n", "\n")
+    style = re.compile(r"<style[^>]*>(.*?)</style>", re.S)
+    before = "".join(style.findall(play))
+    after = "".join(style.findall(build_napplet.strip_style_comments(play)))
+    check = """
+const { transformSync } = require("esbuild");
+const [a, b] = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const min = (css) => transformSync(css, { loader: "css", minify: true }).code;
+console.log(min(a) === min(b) ? "same" : "different");
+"""
+    result = subprocess.run(
+        [NODE, "-e", check],
+        input=json.dumps([before, after]),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        cwd=REPO_ROOT,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "same"
+    assert len(after) < len(before) - 10_000, "the comments are most of what the CSS sheds"
 
 
 def test_page_carries_the_3d_table(artifact: tuple[bytes, dict]) -> None:
@@ -93,8 +217,9 @@ def test_page_carries_the_3d_table(artifact: tuple[bytes, dict]) -> None:
 
 
 def test_page_stays_under_the_size_limit(artifact: tuple[bytes, dict]) -> None:
-    """The host pins one file; three megabytes is the ceiling, 2.6 MB the working headroom."""
-    assert len(artifact[0]) < 3 * 1024 * 1024
+    """The host pins one file; three MiB is the ceiling, 2.6 MiB the working headroom."""
+    assert build_napplet.SIZE_LIMIT == 3 * 1024 * 1024
+    assert len(artifact[0]) < build_napplet.SIZE_LIMIT
     assert len(artifact[0]) <= 2.6 * 1024 * 1024
 
 
@@ -164,10 +289,11 @@ def test_play_page_carries_the_embed_rules() -> None:
     assert 'classList.add("embedded")' in play
 
 
-def test_build_ignores_the_line_endings_git_chose(tmp_path: Path) -> None:
-    """A CRLF checkout of play.html still gets the head marker and the meta tag."""
-    site = tmp_path / "site"
-    site.mkdir()
+def _copy_site(root: Path, play_html: bytes, newline: bytes) -> Path:
+    """A copy of the site and the assets the build reads: play.html as given, and every
+    script it inlines rewritten with `newline` line endings."""
+    site = root / "site"
+    site.mkdir(parents=True)
     for name in SITE.iterdir():
         if name.is_file():
             (site / name.name).write_bytes(name.read_bytes())
@@ -176,23 +302,43 @@ def test_build_ignores_the_line_endings_git_chose(tmp_path: Path) -> None:
     for name in (SITE / "vendor").iterdir():
         if name.is_file():
             (site / "vendor" / name.name).write_bytes(name.read_bytes())
-    lf = (SITE / "play.html").read_bytes().replace(CRLF, LF)
-    (site / "play.html").write_bytes(lf.replace(LF, CRLF))
+    (site / "play.html").write_bytes(play_html)
+    for name in build_napplet.inlined_script_names(play_html.decode("utf-8")):
+        code = (SITE / name).read_bytes().replace(CRLF, LF)
+        (site / name).write_bytes(code.replace(LF, newline))
     for relative in ("art/fonts", "art/site"):
         (site.parent / relative).mkdir(parents=True, exist_ok=True)
         for asset in (REPO_ROOT / relative).iterdir():
             if asset.is_file():
                 (site.parent / relative / asset.name).write_bytes(asset.read_bytes())
-    page, _ = build_napplet.build(site, tmp_path / "out")
-    html = page.read_bytes().decode("utf-8")
+    return site
+
+
+def test_build_ignores_the_line_endings_git_chose(tmp_path: Path) -> None:
+    """A CRLF and an LF checkout of one commit build byte-identical artifacts.
+
+    The Hangar pins the artifact's sha256, and its owner builds from a Linux clone while
+    this repo is often checked out on Windows: a build marker hashed from the raw bytes
+    made the two differ.
+    """
+    lf = (SITE / "play.html").read_bytes().replace(CRLF, LF)
+    crlf_site = _copy_site(tmp_path / "crlf", lf.replace(LF, CRLF), CRLF)
+    scripts = build_napplet.inlined_script_names(lf.decode("utf-8"))
+    assert len(scripts) >= 15
+    assert all(CRLF in (crlf_site / name).read_bytes() for name in scripts), "scripts are CRLF"
+    crlf_page, crlf_manifest = build_napplet.build(crlf_site, tmp_path / "crlf-out")
+    lf_site = _copy_site(tmp_path / "lf", lf, LF)
+    assert not any(CRLF in (lf_site / name).read_bytes() for name in scripts), "scripts are LF"
+    lf_page, lf_manifest = build_napplet.build(lf_site, tmp_path / "lf-out")
+    html = crlf_page.read_bytes().decode("utf-8")
     assert '<meta name="napplet-requires"' in html
     assert CRLF.decode() not in html
+    assert crlf_page.read_bytes() == lf_page.read_bytes()
+    assert crlf_manifest == lf_manifest
 
 
 # --- the comment stripper -------------------------------------------------------------
 
-NODE = shutil.which("node")
-needs_node = pytest.mark.skipif(NODE is None, reason="node is not on PATH")
 BS = "\\"  # one backslash, to keep the JS cases below readable
 
 
@@ -240,7 +386,8 @@ def stripped_site(tmp_path_factory: pytest.TempPathFactory) -> Path:
             continue
         target = root / "site" / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(build_napplet.script_source(SITE, name), encoding="utf-8")
+        # Bytes, as the artifact carries them: write_text would add CRLF on Windows.
+        target.write_bytes(build_napplet.script_source(SITE, name).encode("utf-8"))
     return root
 
 
@@ -253,7 +400,9 @@ def test_stripped_scripts_still_parse(stripped_site: Path) -> None:
         result = subprocess.run([NODE, "--check", str(script)], capture_output=True, text=True)
         assert result.returncode == 0, f"{script.name}: {result.stderr}"
     for script in scripts:
-        assert script.stat().st_size < (SITE / script.name).stat().st_size, script.name
+        # Against the LF source, so neither checkout's line endings decide it.
+        source = (SITE / script.name).read_bytes().replace(CRLF, LF)
+        assert script.stat().st_size < len(source), script.name
 
 
 @needs_node

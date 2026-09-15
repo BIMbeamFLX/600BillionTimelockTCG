@@ -33,7 +33,7 @@ optional domains and fallbacks:
   common   -> short pubkey instead of profile name/avatar
   storage  -> preconstructed decks only; no saved decks, settings or history
   resource -> text-rendered card faces from bundled card data (no images)
-  theme    -> 600B dark fallback palette
+  theme    -> the Hypershell core tokens (docs/brand-hypershell.md)
   notify   -> in-UI badge only
 
 SDK helpers: webrtc.open({scope:{type:'direct',pubkey}}) / webrtc.send(sessionId, msg)
@@ -57,13 +57,24 @@ layout:
             no horizontal overflow at any size; portrait = stacked board with
             tap-to-zoom card inspector
 
-theme: optional. Map theme.colors.background/text onto :root, html, body and app
-       root; surface -> panels, border -> chrome lines, primary -> action buttons,
-       muted -> secondary text. Subscribe themeOnChanged and repaint all tokens.
-       Fallback palette: bg #09080B, text #FFF7EC, primary #FF6A00, surface #19151F,
-       border rgba(185,145,228,.27), muted #C7BBCC. The five affinity accent colors
-       (P #F3C244, B #F7931A, K #FFF7EC, S #7447B8, T #17BEBB — the locked E1
-       "Plate" palette) are brand-fixed and never follow the shell theme.
+theme: optional. Amended 2026-09-15 for the Nappelin Hypershell (docs/brand-hypershell.md).
+       Read theme.get() (then nappletContext.theme) and repaint on every theme.changed.
+       Accept only { tokens: { "--iron", "--brass", "--brass-2", "--brass-3", "--parchment",
+       "--signal", "--panel", "--well", "--divider", "--hairline", "--emphasis",
+       "--body-ink", "--headline", "--mono", "--r" } }, each value checked for its kind:
+       colours are hex (#rgb, #rgba, #rrggbb, #rrggbbaa), rgb()/rgba()/hsl()/hsla() with
+       numeric arguments only, or black/white/transparent; --headline and --mono are font
+       family lists (quoted or bare names, commas); --r is 0 or a px/rem/em length. A
+       value containing url( image-set( var( env( expression( @ ; { } < \ or a line break,
+       or of the wrong kind, keeps its default: a url() in a token is a fetch from every
+       viewer's browser. The legacy colors object is not read: until its Hypershell
+       theme service ships, the Hangar answers every napplet with
+       {colors:{background,text,primary}}, so a payload with colors and no tokens naming
+       these names repaints nothing. Fallback: the same core tokens
+       (iron #0f0c08, brass #e7bf76 / #c9973f / #8f6a2a, parchment #ece3d0,
+       signal #6de8a6). The brand layer never follows the shell theme: the five
+       affinity Plates (P #F3C244, B #F7931A, K #FFF7EC, S #7447B8, T #17BEBB), ember
+       #ff6a00 inside the game world, and Anton for game titles and card names.
 
 data flow:
   invite    dm message carrying {matchId, protocolVersion, deckFormat} (optional;
@@ -218,7 +229,8 @@ host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
 - Embed detection: `E1Napplet.embedded()` is `window.napplet` (object) OR `window.nappletContext`
   OR `?embed=1`. `E1Napplet.escape()` posts `{type:"nappelin.escape"}` to `parent`; no-op on the
   website. Under embed with no `theme` domain, `E1Napplet.NAPPELIN_THEME` (iron `#0f0c08`,
-  parchment `#ece3d0`, brass `#e7bf76`, …) is painted instead of the 600B fallback palette.
+  parchment `#ece3d0`, brass `#e7bf76`, …) is painted; since 2026-09-15 the website's fallback is
+  the same Hypershell core token set.
 - `tableUrl()` in a srcdoc frame: `?table=` → the seat's saved table → `globalThis.E1_TABLE_URL`
   (a `wss?://` constant the build may inject) → the page origin → `wss://tcg.nappelin.com/ws`
   when embedded → null.

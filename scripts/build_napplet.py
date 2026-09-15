@@ -5,10 +5,12 @@ Writes dist/napplet/600b-timelock-tcg/index.html and its .nip5a-manifest.json (k
 Every `<script src>` is inlined -- vendor/three.js and the arena3d-*.js scripts of the
 3D table included (docs/arena3d.md; three.js carries no `</script` and no `<!--`, but
 the escaping below covers them anyway) -- with its comments stripped (not three.js,
-which ships minified). The Anton font becomes a data URL; the hero image ships once, as
-window.E1_BACKDROP_URL, which play.html copies into the stage's `--hero` property and the
-3D cyclorama reads directly. The wallet/QR/bug-report scripts are left out, card faces
-keep loading by hash. `--report` prints the bytes each inlined piece costs.
+which ships minified). Every font play.html's @font-face names under ../art/fonts/ (the
+Hypershell faces and Anton, docs/brand-hypershell.md) becomes a data URL; the hero image
+ships once, as window.E1_BACKDROP_URL, which play.html copies into the stage's `--hero`
+property and the 3D cyclorama reads directly. The wallet/QR/bug-report scripts and the
+side bar are left out, card faces keep loading by hash. `--report` prints the bytes each
+inlined piece costs.
 """
 
 from __future__ import annotations
@@ -33,14 +35,22 @@ MANIFEST_KIND = 35129
 SIZE_LIMIT = 3 * 1024 * 1024
 
 # Scripts the artifact leaves out: they need the website (esm.sh imports, the
-# bug-report endpoint, the QR settlement screen, the NIP-07 identity page).
-OMITTED_SCRIPTS = frozenset({"bugreport.js", "nutft-wallet.js", "qr.js", "nostr-id.js"})
+# bug-report endpoint, the QR settlement screen, the NIP-07 identity page) -- or, for
+# rail.js, the Hangar already draws the side bar and the napplet must not draw a second.
+OMITTED_SCRIPTS = frozenset({"bugreport.js", "nutft-wallet.js", "qr.js", "nostr-id.js", "rail.js"})
 # Inlined verbatim: already minified, and its licence header must survive.
 UNSTRIPPED_SCRIPTS = frozenset({"vendor/three.js"})
-# Assets that become data URLs, keyed by the exact url(...) text in play.html.
-DATA_URL_ASSETS = {
-    "../art/fonts/Anton-Regular.ttf": "font/ttf",
-}
+# Fonts become data URLs: whatever play.html names under ../art/fonts/, quoted or not.
+# The MIME type follows the extension; one not listed here stops the build.
+FONT_URL = re.compile(r"""url\((["']?)(\.\./art/fonts/[^"')\s]+)\1\)""")
+FONT_MIME = {".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf"}
+# The page's CSS ships without its comments, as the scripts do: they are a fifth of
+# play.html's <style>, and a comment that quotes a url("../…") is not a reference.
+# A quoted string is matched first and kept, so a `/*` inside one survives.
+STYLE_BLOCK = re.compile(r"(<style[^>]*>)(.*?)(</style>)", re.S)
+CSS_STRING_OR_COMMENT = re.compile(r"""("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|/\*.*?\*/""", re.S)
+TRAILING_SPACE = re.compile(r"[ \t]+$", re.M)
+BLANK_LINE = re.compile(r"(?<=\n)\n")
 # The hero reaches the stage (`--hero`) and the 3D cyclorama (site/arena3d-env.js) as
 # window.E1_BACKDROP_URL; the website's CSS fallback to the file becomes `none` here.
 BACKDROP = "../art/site/hero-play.webp"
@@ -52,7 +62,14 @@ LOGO_TAG = re.compile(r'[ \t]*<img src="\.\./art/brand/[^"]+"[^>]*>\n?')
 PLATE_RULE = re.compile(r"^\.stage\.plate-\w+::before \{[^\n]*\n", re.MULTILINE)
 # Text that must not survive the build; the script tag is a regex because
 # engine.js mentions `<script src="engine.js">` in a comment.
-LEFTOVERS = ("<link rel=stylesheet", '<link rel="stylesheet"', 'url("../', 'src="../')
+LEFTOVERS = (
+    "<link rel=stylesheet",
+    '<link rel="stylesheet"',
+    'url("../',
+    "url('../",
+    "url(../",
+    'src="../',
+)
 
 # --- the comment stripper -----------------------------------------------------------
 # A tokenizer, not a regex replace: it walks strings, template literals (with `${}`
@@ -254,12 +271,43 @@ def inline_scripts(html: str, site: Path, sizes: dict[str, tuple[int, int]] | No
     return SCRIPT_TAG.sub(replace, html)
 
 
+def strip_style_comments(html: str) -> str:
+    """Every <style> block without its comments or the blank lines they leave; strings kept."""
+
+    def strip(match: re.Match[str]) -> str:
+        css = CSS_STRING_OR_COMMENT.sub(lambda m: m.group(1) or " ", match.group(2))
+        css = BLANK_LINE.sub("", TRAILING_SPACE.sub("", css))
+        return match.group(1) + css + match.group(3)
+
+    return STYLE_BLOCK.sub(strip, html)
+
+
+def data_url_assets(html: str) -> dict[str, str]:
+    """Every ../art/fonts/ file the page's CSS names in a url(), in page order, with its MIME."""
+    assets: dict[str, str] = {}
+    for match in FONT_URL.finditer(strip_style_comments(html)):
+        relative = match.group(2)
+        mime = FONT_MIME.get(Path(relative).suffix.lower())
+        if mime is None:
+            raise SystemExit(f"build_napplet: no font MIME type for {relative}")
+        assets[relative] = mime
+    return assets
+
+
 def inline_assets(html: str, site: Path) -> str:
-    """Turn the font url(...) into a data URL and drop the hero's file fallback."""
-    for relative, mime in DATA_URL_ASSETS.items():
-        data = base64.b64encode((site / relative).read_bytes()).decode("ascii")
-        html = html.replace(f'url("{relative}")', f'url("data:{mime};base64,{data}")')
-    return html.replace(HERO_FALLBACK, "var(--hero, none)")
+    """Drop CSS comments, turn every font url(...) into a data URL, drop the hero's file."""
+    html = strip_style_comments(html)
+    assets = data_url_assets(html)
+    encoded = {
+        relative: base64.b64encode((site / relative).read_bytes()).decode("ascii")
+        for relative in assets
+    }
+
+    def replace(match: re.Match[str]) -> str:
+        relative = match.group(2)
+        return f'url("data:{assets[relative]};base64,{encoded[relative]}")'
+
+    return FONT_URL.sub(replace, html).replace(HERO_FALLBACK, "var(--hero, none)")
 
 
 def strip_site_only(html: str) -> str:
@@ -292,7 +340,9 @@ def build_html(site: Path, sizes: dict[str, tuple[int, int]] | None = None) -> s
     html = source.decode("utf-8").replace("\r\n", "\n")
     if HERO_FALLBACK not in html:
         raise SystemExit(f"build_napplet: play.html lost its hero rule {HERO_FALLBACK}")
-    html = add_head(html, sha256_hex(source), backdrop_data_url(site))
+    # Hash the LF text, not the checkout's bytes: Git hands Windows a CRLF copy, and a
+    # marker taken before normalising made one commit build two different artifacts.
+    html = add_head(html, sha256_hex(html.encode("utf-8")), backdrop_data_url(site))
     html = strip_site_only(html)
     html = inline_assets(html, site)
     html = inline_scripts(html, site, sizes)
@@ -349,7 +399,8 @@ def build(
 def report_lines(site: Path, sizes: dict[str, tuple[int, int]], total: int) -> list[str]:
     """The per-piece byte table: every inlined script (source, shipped) and the data URLs."""
     rows = [(name, source, shipped) for name, (source, shipped) in sizes.items()]
-    for relative in (*DATA_URL_ASSETS, BACKDROP):
+    fonts = data_url_assets((site / "play.html").read_text(encoding="utf-8"))
+    for relative in (*fonts, BACKDROP):
         raw = (site / relative).stat().st_size
         rows.append((Path(relative).name + " (base64)", raw, 4 * ((raw + 2) // 3)))
     rows.sort(key=lambda row: -row[2])
