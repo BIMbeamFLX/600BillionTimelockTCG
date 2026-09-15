@@ -88,10 +88,10 @@ Where the running box relies on an old default or spelling, §1 reports it: as a
 | `G_NUTFT_CENSUS_PATH` | `cards/g-census.json` in the code directory. | No default. |
 | `G_NUTFT_PRICE_MSAT` | `0` or a non-number took `NUTFT_PRICE_MSAT`, then 21 sat. | Refused. Unset or empty is still 210 sat. |
 | `G_NUTFT_INVOICE_TTL_SECONDS`, `G_NUTFT_CLAIM_GRACE_SECONDS` | Unset, empty, `0` or a non-number took the E1 value. | `0` or a non-number is refused. Unset is G's own 900 and 3600, and refused while the E1 variable is set. |
-| `G_NUTFT_CATALOG_MIRRORS` | Unset took `NUTFT_CATALOG_MIRRORS`. | *Meaning change:* unset is no mirrors. E1's mirrors hold E1's catalog blob; a wallet reads G's catalog from the mint's own `/g/blossom/` path. |
+| `G_NUTFT_CATALOG_MIRRORS` | The running build (`d753505`) advertises no mirrors for either mint; `origin/main` let an unset G list take `NUTFT_CATALOG_MIRRORS`. | Unset or empty is no mirrors, as on the box: E1's mirrors hold E1's catalog blob, and a wallet reads G's catalog from the mint's own `/g/blossom/` path. |
 | `G_NUTFT_ONE_PER_KEY` | An empty `G_NUTFT_ONE_PER_KEY=` switched the limit off. | *Meaning change:* empty is unset, and unset is on. |
 | `NUTFT_ONE_PER_KEY` | Only `1` and `true` were on; anything else was off. | *Meaning change* for `yes`, `on` and capitals, which are now on. The flag grammar is below. |
-| `G_NUTFT_PRICE_MSAT`, `NUTFT_RECONCILE_MS`, `NUTFT_SUPPLY_INTERVAL_SECONDS`, `NUTFT_PUBLIC_BASE`, `G_NUTFT_PUBLIC_BASE`, `NUTFT_COLLECTION_ID`, `LND_REST_URL` (reported as `NUTFT_FUNDING`) | A value of only spaces or tabs was a value: a number read it as 0, a string kept it. | *Meaning change:* blank is unset, so the default applies. |
+| `G_NUTFT_PRICE_MSAT`, `NUTFT_RECONCILE_MS`, `NUTFT_PUBLIC_BASE`, `G_NUTFT_PUBLIC_BASE`, `NUTFT_COLLECTION_ID`, `LND_REST_URL` (reported as `NUTFT_FUNDING`) | A value of only spaces or tabs was a value: a number read it as 0, a string kept it. | *Meaning change:* blank is unset, so the default applies. |
 | `NUTFT_ONE_PER_KEY`, `G_NUTFT_ONE_PER_KEY`, `NUTFT_PURCHASE_MODE`, `G_NUTFT_PURCHASE_MODE`, `G_NUTFT_ENABLED` | A mistyped value was off. | On is `1`, `true`, `yes`, `on`; off is `0`, `false`, `no`, `off`, in any case; unset or empty is the default. Anything else, a trailing space included, is refused. |
 | `NUTFT_BEACON_SOURCE` | Anything but exactly `lnd` was off. | Unset or empty is off, `lnd` is on, anything else is refused. |
 | `LND_*` | Read, and the macaroon demanded, on every boot while `LND_REST_URL` was set. | Read only when a mint funds through `lnd` or E1's beacon is on. |
@@ -147,8 +147,9 @@ time, where docs/deploy.md §9.2a says, and find what a mint publishes now with 
 ### 3.1 · Meaning changes and their fix
 
 A `meaning changes` row names a value the release would start with but read differently from
-the running build: `origin/main` at `74e933a`, and every build that reads these variables the
-same way (`d753505` does). Nothing is refused, so without the row the check would print `ok`
+the running build, which is `d753505` on the box; the rows model that build's code and cite its
+lines. `origin/main` differs from it: it added catalog mirrors, purchase mode and the supply
+ledger, none of which `d753505` reads. Nothing is refused, so without the row the check would print `ok`
 and the shop would change at the deploy. The row stops the deploy exactly like a refusal. Its
 fix is to write the value the running build actually uses, spelled so that both builds read it
 the same, as its own change on the running build (§1). The rows flag only these spellings:
@@ -159,10 +160,8 @@ one.
 |---|---|---|
 | `NUTFT_ONE_PER_KEY: meaning changes (off → on)` | `yes`, `on`, or a capitalised `true`, `yes` or `on`: off. | `NUTFT_ONE_PER_KEY=0`. Writing `1` switches the limit on in the running build too, which is a sales decision of its own. |
 | `G_NUTFT_ONE_PER_KEY: meaning changes (off → on)` | An empty or blank value: off. | `G_NUTFT_ONE_PER_KEY=0`, or `1` if the limit was meant, which changes what G sells. |
-| `G_NUTFT_CATALOG_MIRRORS: meaning changes (the NUTFT_CATALOG_MIRRORS list → no mirrors)` | Unset: E1's mirror list. | E1's list, copied into `G_NUTFT_CATALOG_MIRRORS`. An empty `G_NUTFT_CATALOG_MIRRORS=` is no mirrors in both builds, but it changes what the running G advertises. |
 | `G_NUTFT_PRICE_MSAT: meaning changes (… → 210000 msat)` | A blank value: the `NUTFT_PRICE_MSAT` price, or 21000 msat while that is unset. | The `price_msat` that `/g/v1/info` reports. |
 | `NUTFT_RECONCILE_MS: meaning changes (every 30000 ms → every 120000 ms)` | A blank value, on Cashu: 30000. | `NUTFT_RECONCILE_MS=30000`. |
-| `NUTFT_SUPPLY_INTERVAL_SECONDS: meaning changes (no timer → every 86400 seconds)` | A blank value: 0, no snapshot timer. | `NUTFT_SUPPLY_INTERVAL_SECONDS=0`. |
 | `NUTFT_PUBLIC_BASE: meaning changes (a blank origin → …)`, `G_NUTFT_PUBLIC_BASE: meaning changes (a blank origin → …)` | A blank value: the origin itself, on which every signed request and LNURL link failed. | No spelling keeps that. Remove the variable: both builds then take the origin the row names, which repairs the shop, so treat it as that change. |
 | `NUTFT_COLLECTION_ID: meaning changes (a blank collection id → 600B-E1)` | A blank value: the collection id hashed into every E1 card. | No spelling keeps a blank id. Stop: the E1 identity needs a decision first. |
 | `NUTFT_FUNDING: meaning changes (lnd → none)` | An empty `NUTFT_FUNDING` with a blank `LND_REST_URL`, a macaroon, and a certificate path or `LND_INSECURE=1`: paid through lnd. | Stop: the release would give every E1 booster away. Set a working `LND_REST_URL` with `NUTFT_FUNDING=lnd`, or `NUTFT_FUNDING=none` as a decision. |

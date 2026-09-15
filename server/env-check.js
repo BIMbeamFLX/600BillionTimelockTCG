@@ -26,22 +26,22 @@ const USAGE = "usage: node env-check.js [--from <environ file> | --from -]";
 
 /* ---- Spellings whose meaning changes with this release --------------------
  *
- * The builds before it (origin/main 74e933a, whose lines are cited below;
- * d753505 reads these variables the same way) accept some values that this
- * release also accepts but reads differently. A value the release refuses is
- * already a problem line; these would start without a word and move a limit,
- * a price, a timer, an origin, an identity or the funding. Each row models how
- * the old code read one variable, without importing any of it, and returns
- * [old, new] in fixed words, never the value, or null when the meaning stays
- * or the old build could not have started with the value. The boot never uses
- * this table: once a box runs this release, only these spellings keep a row. */
+ * Production runs d753505, and the line numbers below are that build's. It
+ * accepts some values that this release also accepts but reads differently. A
+ * value the release refuses is already a problem line; these would start
+ * without a word and move a limit, a price, a timer, an origin, an identity or
+ * the funding. Each row models how d753505 read one variable, without
+ * importing any of it, and returns [old, new] in fixed words, never the value,
+ * or null when the meaning stays or d753505 could not have started with the
+ * value. The boot never uses this table. It describes the build this release
+ * replaces: model it on the new running build before the next release. */
 
 /* Set, blank, and nothing else: whitespace the old Number() read as 0 and the
    old `||` kept as a value, while the release reads it as unset. */
 const blankOnly = (raw) => typeof raw === "string" && raw !== "" && raw.trim() === "";
 /* `process.env.X || fallback`: only an unset or empty value falls back. */
 const oldSet = (raw) => raw !== undefined && raw !== "";
-/* table.js:2180, `enabled()`. */
+/* table.js:2155, `enabled()`. */
 const oldEnabled = (raw) => ["1", "true", "yes", "on"].includes(String(raw || "").toLowerCase());
 /* funding.js:93, `String(options.backend || process.env.NUTFT_FUNDING || "").toLowerCase()`. */
 const oldBackend = (raw) => String(raw || "").toLowerCase();
@@ -57,66 +57,53 @@ function newFlag(raw, fallback) {
 
 const MEANING_CHANGES = [
   ["NUTFT_ONE_PER_KEY", (env) => {
-    /* nutft-mint.js:412-413: only "1" and "true", exactly, were on. */
+    /* nutft-mint.js:323-324: only "1" and "true", exactly, were on. */
     const before = env.NUTFT_ONE_PER_KEY === "1" || env.NUTFT_ONE_PER_KEY === "true";
     const after = newFlag(env.NUTFT_ONE_PER_KEY, false);
     return after === null || after === before ? null : [onOff(before), onOff(after)];
   }],
   ["G_NUTFT_ONE_PER_KEY", (env, g) => {
-    /* table.js:2206-2208: unset was on, and a set value went through enabled(),
-       so an empty or blank one was off. */
+    /* table.js:2177-2179 into :376: unset was on, and a set value went through
+       enabled(), so an empty or blank one was off. */
     if (!g.enabled) return null;
     const before = env.G_NUTFT_ONE_PER_KEY === undefined || oldEnabled(env.G_NUTFT_ONE_PER_KEY);
     const after = newFlag(env.G_NUTFT_ONE_PER_KEY, true);
     return after === null || after === before ? null : [onOff(before), onOff(after)];
   }],
-  ["G_NUTFT_CATALOG_MIRRORS", (env, g) => {
-    /* table.js:2201 and :376 into nutft-mint.js:101-104: `options.catalogMirrors
-       ?? process.env.NUTFT_CATALOG_MIRRORS`, so an unset G list took E1's
-       mirrors; an empty one did not. */
-    if (!g.enabled || env.G_NUTFT_CATALOG_MIRRORS !== undefined) return null;
-    const e1 = String(env.NUTFT_CATALOG_MIRRORS ?? "").split(",").map((entry) => entry.trim().replace(/\/+$/, ""));
-    return e1.some(Boolean) ? ["the NUTFT_CATALOG_MIRRORS list", "no mirrors"] : null;
-  }],
   ["G_NUTFT_PRICE_MSAT", (env, g) => {
-    /* table.js:2210-2212 and :387 into nutft-mint.js:355: a set value went
-       through Number(), which reads a blank one as 0, and 0 fell back to
+    /* table.js:2181-2183 and :377-378 into nutft-mint.js:261-266: a set value
+       went through Number(), which reads a blank one as 0, and 0 fell back to
        NUTFT_PRICE_MSAT, then 21000. Only a paid G with a flat price used it
-       (nutft-mint.js:350-355, :436 refused a price not above 0). */
+       (nutft-mint.js:347 refused a price not above 0). */
     if (!g.enabled || !g.paid || oldSet(env.G_NUTFT_PRICE_SCHEDULE) || !blankOnly(env.G_NUTFT_PRICE_MSAT)) return null;
     const before = Number(oldSet(env.NUTFT_PRICE_MSAT) ? env.NUTFT_PRICE_MSAT : 21_000);
     if (!(before > 0) || before === 210_000) return null;
     return [oldSet(env.NUTFT_PRICE_MSAT) ? "the NUTFT_PRICE_MSAT price" : "21000 msat", "210000 msat"];
   }],
   ["NUTFT_RECONCILE_MS", (env, g) => {
-    /* nutft-mint.js:460-461: Math.max(30000, Number(value || 120000)), read
+    /* nutft-mint.js:371-372: Math.max(30000, Number(value || 120000)), read
        only for a funding source that sweeps (Cashu); a blank value made 30000. */
     const cashu = oldBackend(env.NUTFT_FUNDING) === "cashu" || (g.enabled && oldBackend(env.G_NUTFT_FUNDING) === "cashu");
     return cashu && blankOnly(env.NUTFT_RECONCILE_MS) ? ["every 30000 ms", "every 120000 ms"] : null;
   }],
-  ["NUTFT_SUPPLY_INTERVAL_SECONDS", (env) => {
-    /* nutft-supply.js:87-94: only undefined, null and "" took the default; a
-       blank value is 0 to Number(), which stopped the snapshot timer. */
-    return blankOnly(env.NUTFT_SUPPLY_INTERVAL_SECONDS) ? ["no timer", "every 86400 seconds"] : null;
-  }],
   ["NUTFT_PUBLIC_BASE", (env) => {
-    /* nutft-mint.js:480-481: `options.publicBase || process.env.NUTFT_PUBLIC_BASE
+    /* nutft-mint.js:391-392: `options.publicBase || process.env.NUTFT_PUBLIC_BASE
        || … PUBLIC_URL`, so a blank value was the origin itself, and every
        request that checks a signature or builds a link on it failed. */
     return blankOnly(env.NUTFT_PUBLIC_BASE) ? ["a blank origin", originOf(env, [])] : null;
   }],
   ["G_NUTFT_PUBLIC_BASE", (env, g) => {
-    /* table.js:2213 and :388 into nutft-mint.js:480: the same, for G. */
+    /* table.js:2184 and :379 into nutft-mint.js:391: the same, for G. */
     return g.enabled && blankOnly(env.G_NUTFT_PUBLIC_BASE)
       ? ["a blank origin", originOf(env, ["NUTFT_PUBLIC_BASE"])] : null;
   }],
   ["NUTFT_COLLECTION_ID", (env) => {
-    /* nutft-mint.js:94: `options.collectionId || process.env.NUTFT_COLLECTION_ID
+    /* nutft-mint.js:80: `options.collectionId || process.env.NUTFT_COLLECTION_ID
        || "600B-E1"`: a blank value was the collection id of every E1 card. */
     return blankOnly(env.NUTFT_COLLECTION_ID) ? ["a blank collection id", "600B-E1"] : null;
   }],
   ["NUTFT_FUNDING", (env) => {
-    /* funding.js:93-111: with NUTFT_FUNDING empty, a non-empty PHOENIXD_URL
+    /* funding.js:89-111: with NUTFT_FUNDING empty, a non-empty PHOENIXD_URL
        chose phoenixd (:95), else a non-empty LND_REST_URL chose lnd (:106), and
        lnd.js:29-49 took even a blank URL given a hex macaroon and a certificate
        path or LND_INSECURE=1. The release reads that URL as unset: E1 is free. */
@@ -134,7 +121,7 @@ function originOf(env, fallbacks) {
 
 /** One "VARIABLE: meaning changes (old → new)" line per variable the release would read differently. */
 function meaningChanges(env) {
-  /* table.js:2196 and funding.js:89-111: which mints the old build opened, and
+  /* table.js:2169 and funding.js:89-111: which mints d753505 opened, and
      whether G took money (lnd without LND_REST_URL gave G away for free). */
   const gBackend = oldBackend(env.G_NUTFT_FUNDING);
   const g = {

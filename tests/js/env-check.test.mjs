@@ -74,20 +74,18 @@ const BROKEN_LINES = [
   "G_NUTFT_ONE_PER_KEY: meaning changes (off → on)",
 ];
 
-/* Spellings the running build (origin/main 74e933a) reads one way and the
-   release another, each with the one row it must print. */
+/* Spellings the running build (d753505) reads one way and the release another,
+   each with the one row it must print. */
 const MEANING_CASES = [
   [{ NUTFT_ONE_PER_KEY: "yes" }, "NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
   [{ NUTFT_ONE_PER_KEY: "On" }, "NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
   [{ NUTFT_ONE_PER_KEY: "TRUE" }, "NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
   [{ G_NUTFT_ONE_PER_KEY: "" }, "G_NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
   [{ G_NUTFT_ONE_PER_KEY: "  " }, "G_NUTFT_ONE_PER_KEY: meaning changes (off → on)"],
-  [{ NUTFT_CATALOG_MIRRORS: "https://blossom.example" }, "G_NUTFT_CATALOG_MIRRORS: meaning changes (the NUTFT_CATALOG_MIRRORS list → no mirrors)"],
   [{ G_NUTFT_PRICE_MSAT: " " }, "G_NUTFT_PRICE_MSAT: meaning changes (21000 msat → 210000 msat)"],
   [{ G_NUTFT_PRICE_MSAT: " ", NUTFT_PRICE_MSAT: "42000" }, "G_NUTFT_PRICE_MSAT: meaning changes (the NUTFT_PRICE_MSAT price → 210000 msat)"],
   [{ G_NUTFT_FUNDING: "cashu", NUTFT_CASHU_MINT: "https://mint.example", NUTFT_RECONCILE_MS: " " },
     "NUTFT_RECONCILE_MS: meaning changes (every 30000 ms → every 120000 ms)"],
-  [{ NUTFT_SUPPLY_INTERVAL_SECONDS: "\t" }, "NUTFT_SUPPLY_INTERVAL_SECONDS: meaning changes (no timer → every 86400 seconds)"],
   [{ NUTFT_PUBLIC_BASE: " " }, "NUTFT_PUBLIC_BASE: meaning changes (a blank origin → the PUBLIC_URL origin)"],
   [{ G_NUTFT_PUBLIC_BASE: " ", NUTFT_PUBLIC_BASE: "https://tcg.example.com" },
     "G_NUTFT_PUBLIC_BASE: meaning changes (a blank origin → the NUTFT_PUBLIC_BASE origin)"],
@@ -102,8 +100,10 @@ const SAME_MEANING = [
   { NUTFT_ONE_PER_KEY: "1" }, { NUTFT_ONE_PER_KEY: "true" }, { NUTFT_ONE_PER_KEY: "0" }, { NUTFT_ONE_PER_KEY: "no" },
   { NUTFT_ONE_PER_KEY: "OFF" }, { NUTFT_ONE_PER_KEY: "" },
   { G_NUTFT_ONE_PER_KEY: undefined }, { G_NUTFT_ONE_PER_KEY: "on" }, { G_NUTFT_ONE_PER_KEY: "YES" }, { G_NUTFT_ONE_PER_KEY: "0" },
-  { NUTFT_CATALOG_MIRRORS: "https://blossom.example", G_NUTFT_CATALOG_MIRRORS: "" },
-  { NUTFT_CATALOG_MIRRORS: "https://blossom.example", G_NUTFT_CATALOG_MIRRORS: "https://blossom.example" },
+  /* d753505 advertises no mirrors and runs no supply timer: an unset G list or a
+     blank interval reads the same in both builds. */
+  { NUTFT_CATALOG_MIRRORS: "https://blossom.example" }, { NUTFT_CATALOG_MIRRORS: "https://blossom.example", G_NUTFT_CATALOG_MIRRORS: "" },
+  { NUTFT_SUPPLY_INTERVAL_SECONDS: "\t" },
   { G_NUTFT_PRICE_MSAT: "" }, { G_NUTFT_PRICE_MSAT: " 210000 " }, { G_NUTFT_PRICE_MSAT: " ", NUTFT_PRICE_MSAT: "210000" },
   { NUTFT_RECONCILE_MS: " " }, { G_NUTFT_FUNDING: "cashu", NUTFT_CASHU_MINT: "https://mint.example", NUTFT_RECONCILE_MS: "30000" },
   { NUTFT_SUPPLY_INTERVAL_SECONDS: "0" }, { NUTFT_SUPPLY_INTERVAL_SECONDS: "" },
@@ -279,9 +279,9 @@ test("values both builds read the same way print no meaning change", () => {
 
 test("meaning change rows never carry a value", () => {
   const env = {
-    ...CLEAN, PUBLIC_URL: `wss://${MARKER}.example/ws`, NUTFT_CATALOG_MIRRORS: `https://${MARKER}.example/`,
+    ...CLEAN, PUBLIC_URL: `wss://${MARKER}.example/ws`,
     NUTFT_PRICE_MSAT: "42000", G_NUTFT_CATALOG_URI: `https://${MARKER}.example/g/nutft/catalog`,
-    NUTFT_ONE_PER_KEY: "Yes", G_NUTFT_ONE_PER_KEY: "", G_NUTFT_PRICE_MSAT: " ", NUTFT_SUPPLY_INTERVAL_SECONDS: " ",
+    NUTFT_ONE_PER_KEY: "Yes", G_NUTFT_ONE_PER_KEY: "", G_NUTFT_PRICE_MSAT: " ",
     NUTFT_PUBLIC_BASE: " ", G_NUTFT_PUBLIC_BASE: " ", NUTFT_COLLECTION_ID: " ",
   };
   const result = node(ENV_CHECK, ["--from", "-"], { input: environ(env) });
@@ -289,13 +289,11 @@ test("meaning change rows never carry a value", () => {
   assert.equal(result.stdout, [
     "NUTFT_ONE_PER_KEY: meaning changes (off → on)",
     "G_NUTFT_ONE_PER_KEY: meaning changes (off → on)",
-    "G_NUTFT_CATALOG_MIRRORS: meaning changes (the NUTFT_CATALOG_MIRRORS list → no mirrors)",
     "G_NUTFT_PRICE_MSAT: meaning changes (the NUTFT_PRICE_MSAT price → 210000 msat)",
-    "NUTFT_SUPPLY_INTERVAL_SECONDS: meaning changes (no timer → every 86400 seconds)",
     "NUTFT_PUBLIC_BASE: meaning changes (a blank origin → the PUBLIC_URL origin)",
     "G_NUTFT_PUBLIC_BASE: meaning changes (a blank origin → the PUBLIC_URL origin)",
     "NUTFT_COLLECTION_ID: meaning changes (a blank collection id → 600B-E1)",
-    "8 problems",
+    "6 problems",
     "",
   ].join("\n"));
   assertNoMarker("meaning changes", result);
