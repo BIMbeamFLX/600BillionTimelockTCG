@@ -35,6 +35,11 @@ function assetBinding(reference) {
     .digest("hex");
 }
 
+/* node:sqlite reports every failure, a constraint or a full disk alike, as
+   ERR_SQLITE_ERROR; the mint's own refusals are plain errors with no code. */
+const isStorageFailure = (error) =>
+  Boolean(error) && typeof error.code === "string" && error.code.startsWith("ERR_SQLITE");
+
 function json(res, code, value) {
   const body = JSON.stringify(value);
   res.writeHead(code, {
@@ -1531,6 +1536,18 @@ function createNutftMint(options = {}) {
       }
       return json(res, 404, { error: "not found" });
     } catch (error) {
+      /* A 4xx IS A VERDICT, SO ONLY A VERDICT MAY WEAR ONE. The wallet drops a
+         pending claim or transfer on any 4xx but 429, so a failure that says
+         nothing about the request -- the database refusing a write -- must not
+         look like a refusal. Every write that can follow a signature (trade,
+         booster, purchase) runs in one atomic() transaction with the rest of
+         its operation, and nothing after a commit can throw (the wallet-backup
+         notice swallows its own faults), so such a failure committed nothing.
+         A 5xx makes the wallet send the same request again. */
+      if (isStorageFailure(error)) {
+        console.error("[nutft] storage failure:", error.message);
+        return json(res, 500, { error: "the mint could not record this request; try again" });
+      }
       return json(res, 400, { error: error.message });
     }
   }
