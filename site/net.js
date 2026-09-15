@@ -494,6 +494,8 @@
     ws.onopen = () => {
       if (net.ws !== ws) return;
       net.authenticated = false;
+      net.seated = false;
+      net.helloPending = false;
       // The referee sends a one-use NIP-42 challenge. No table intent leaves
       // this browser until the NIP-07 extension has signed it and the referee
       // has verified the Schnorr signature.
@@ -527,6 +529,7 @@
       if (net.ws !== ws) return;
       net.ws = null;
       net.authenticated = false;
+      net.seated = false;
       /* 4009 SUPERSEDED: another connection legitimately claimed this seat.
        * Retrying would make two tabs evict each other forever. */
       if (ev && ev.code === 4009) return void setStatus("superseded");
@@ -665,6 +668,8 @@
     net.ws = null;
     net.intent = null;
     net.queued = null;
+    net.seated = false;
+    net.helloPending = false;
     net.authenticated = false;
     net.authPubkey = null;
     net.attempt = 0;
@@ -685,8 +690,12 @@
     checkLogin();
     if (!net.ws || net.ws.readyState !== 1) return false;
     net.ws.send(JSON.stringify(msg));
+    if (HELLOS.has(msg.t)) net.helloPending = true;
     return true;
   }
+
+  /* The messages whose refusal can mean the stored match itself is gone. */
+  const HELLOS = new Set(["RESUME", "JOIN", "CREATE", "QUEUE"]);
 
   function receive(msg) {
     switch (msg.t) {
@@ -717,6 +726,8 @@
 
   function onState(msg) {
     net.intent = null; // answered; never replay it
+    net.helloPending = false;
+    net.seated = msg.seat === 0 || msg.seat === 1;
     /* A STATE ends any search: the referee takes a connection out of the line the
      * moment it sits it down, and pairing sends no last QUEUED to say so. */
     net.queued = null;
@@ -741,8 +752,15 @@
 
   function onError(msg) {
     /* A stale match in localStorage against a fresh database would otherwise
-     * retry forever. Drop the credential, tell the page, stop. */
-    if (msg.code === "NO_SUCH_MATCH" || msg.code === "BAD_TOKEN" || msg.code === "MATCH_OVER") {
+     * retry forever. Drop the credential, tell the page, stop.
+     * ONLY AN ANSWER TO A HELLO SPEAKS FOR THE STORED MATCH (or a spectator's
+     * table closing). The same code answering a play on a socket that holds no
+     * seat — another key signed in on this tab — says nothing about the owner's
+     * seat, and forgetting it there made the owner's match unreachable without
+     * its link. */
+    const gone = msg.code === "NO_SUCH_MATCH" || msg.code === "BAD_TOKEN" || msg.code === "MATCH_OVER";
+    const spectating = Boolean(net.session) && net.session.seat !== 0 && net.session.seat !== 1;
+    if (gone && (net.helloPending || spectating)) {
       if (net.session) {
         net.session = null;
         forgetMatch();
@@ -750,6 +768,7 @@
       net.intent = null;
       setStatus("gone");
     }
+    if (gone || msg.code === "IDENTITY_MISMATCH" || msg.code === "AUTH_FAILED") net.helloPending = false;
     H("onError", msg);
   }
 
@@ -931,10 +950,14 @@
       H("onError", { code: "NIP07_REQUIRED", message: "sign in with NIP-07 before playing at a remote table" });
       return false;
     }
+    /* A socket that holds no seat (another key resumed here and was refused) has
+     * nothing to play from: dropped here, like a send while disconnected. */
+    if (!net.seated) return false;
     return raw({ t: "ACT", v: WIRE, action });
   }
 
   function sendNostr(role, event) {
+    if (!net.seated) return false;
     return raw({ t: "NOSTR", v: WIRE, role, event });
   }
 
@@ -1145,6 +1168,15 @@
     try { localStorage.setItem(LS_PUBKEY, pubkey); } catch (err) { /* private mode */ }
     checkLogin();
     return pubkey;
+  }
+
+  /* ANOTHER TAB'S SIGN-OUT IS HEARD AT ONCE. localStorage is shared by the
+   * origin's tabs, and a storage event is how this tab learns the key changed
+   * there; waiting for the next send left the board live for a key nobody is
+   * signed in with. checkLogin compares the stored key with the one AUTH_OK
+   * named, so any storage event may run it: an unrelated write changes nothing. */
+  if (typeof globalThis.addEventListener === "function") {
+    globalThis.addEventListener("storage", () => checkLogin());
   }
 
   /* Signing out ends the table session too (endLogin), not only the saved key. */

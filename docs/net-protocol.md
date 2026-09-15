@@ -1122,12 +1122,19 @@ clears the stored credential and stops, so a stale match against a fresh databas
 
 **A login lasts as long as its key.** The referee binds a socket to the key its `AUTH` proved, and
 every `ACT` on it plays as that key. So `nostr.logout()`, or any other key signed in — through
-`nostr.login()`, or written under `600b:pubkey` by another tab and noticed at the next send — ends
-that login: the socket closes **without `LEAVE`** (the seat stays its owner's), no reconnect timer
+`nostr.login()`, or written under `600b:pubkey` by another tab and heard through that tab's
+`storage` event at once — ends that login: the socket closes **without `LEAVE`** (the seat stays its owner's), no reconnect timer
 stays armed, a waiting `CREATE`/`JOIN`/`QUEUE` intent is dropped, `active` is emptied and the
 status is `idle`. The key `AUTH_OK` named is recorded, so the comparison is exact. The session is
 kept: after signing back in, `resume()` dials again and sends its one `RESUME` only after a fresh
 `AUTH_OK`. `act()` while signed out fails locally with `NIP07_REQUIRED`.
+
+**A play needs a seat on this socket, and only a hello speaks for the stored match.** `act()` and
+`sendNostr()` send nothing on a socket that holds no seat — for instance after another key signed
+in on this tab and its `RESUME` was refused with `IDENTITY_MISMATCH`. And `NO_SUCH_MATCH`,
+`BAD_TOKEN` or `MATCH_OVER` forget the stored match only when they answer a hello (`RESUME`,
+`JOIN`, `CREATE`, `QUEUE`) or close a table this page only watches; the same code answering a play
+(`the match has not started`) leaves it alone, so an owner's seat stays reachable without its link.
 
 `Ctrl+Alt+R` forces a `RESUME` — the panic button the runbook asks for.
 
