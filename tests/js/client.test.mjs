@@ -474,6 +474,20 @@ async function waitFor(check, what, turns = 500) {
   assert.fail(`timed out waiting for ${what}`);
 }
 
+const leaveSolo = (byId, game) => {
+  if (game.state && !game.state.result) game.dispatch("CONCEDE", 0, {});
+  byId("endRematch").click();
+};
+
+/* Earlier tests' tables can still be walking on their own timers, and they
+   paint into whatever document is current. So a wait that reads the board
+   first repaints THIS table ("Cancel targeting" is a pure re-render) and then
+   reads it in the same synchronous turn. */
+const paintedNow = (byId, check) => () => {
+  byId("cancelTarget").click();
+  return check();
+};
+
 function clientGame(seed = 990000) {
   return globalThis.E1Engine.createGame({
     seats: [{ name: "A", affinity: "Power" }, { name: "B", affinity: "Signal" }],
@@ -2099,6 +2113,7 @@ test("a NutFT Stack loads the wallet script on demand and starts once its proofs
   assert.ok(origins.includes("http://table.test"), "the snapshot asked this site's mint");
   assert.equal(walletTags(byId).length, 1, "one tag, however many asked");
   delete globalThis.NutFTWallet;
+  leaveSolo(byId, game);
 });
 
 /* ---------------------------------------------------------------- my collection
@@ -2214,6 +2229,7 @@ test("inside the Hangar, My collection is in both Stack menus and deals a legal 
   for (const card of inventory.cards) {
     assert.ok(ownerCards(game.state, 0).filter((id) => id === card.asset_id).length >= card.count, `${card.asset_id} is in the Stack`);
   }
+  leaveSolo(byId, game);
 });
 
 test("My collection is counted under the rules chosen, and Classic deals it too", async (t) => {
@@ -2237,6 +2253,7 @@ test("My collection is counted under the rules chosen, and Classic deals it too"
   assert.ok(game.state, byId("prompt").textContent);
   assert.equal(game.state.ruleset, "E1.0");
   assert.equal(ownerCards(game.state, 1).length, 40, "seat two's collection Stack was dealt");
+  leaveSolo(byId, game);
 });
 
 test("a guest and a member without cards each get the line that fits, and no option", async (t) => {
@@ -2314,4 +2331,273 @@ test("a website wallet with cards is read when the table opens, and offered", as
   assert.equal(collectionOption(byId, "deckA").textContent, "My collection (5 of 40 cards yours)");
   assert.equal(byId("collectionNote").textContent,
     "Your collection: 5 cards. “My collection” is in both Stack menus. 1 more card is not part of this edition.");
+});
+
+/* ------------------------------------------------------------ a member's look
+ *
+ * site/identity-look.js has its own tests for the ladder. These hold play.js to
+ * where it mounts a look: which seat wears one, the name on the bar (as text),
+ * the avatar menu's choice winning, the shell's doors inside the Hangar, and a
+ * late look that must stay off a seat that has changed hands. */
+const LOOK_JS = path.join(HERE, "..", "..", "site", "identity-look.js");
+const OTHER = SK("other");
+const OTHER_KEY = Buffer.from(schnorr.getPublicKey(OTHER)).toString("hex");
+const kindZero = (sk, meta) => signed(sk, { kind: 0, created_at: 1789000000, tags: [], content: JSON.stringify(meta) });
+const portraitOf = (bar) => bar.children.find((child) => child && child.className === "portrait") || null;
+const ticks = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** net.js's relay query, one filter per call, answering per author when the test says so. */
+function lookRelays() {
+  const answers = new Map();
+  const asked = [];
+  const slot = (author) => {
+    if (!answers.has(author)) {
+      let resolve;
+      const promise = new Promise((done) => { resolve = done; });
+      answers.set(author, { promise, resolve });
+    }
+    return answers.get(author);
+  };
+  return {
+    asked,
+    query: (filter) => {
+      asked.push(filter);
+      return slot(filter.authors[0]).promise.then((events) => events.filter((event) => filter.kinds.includes(event.kind)));
+    },
+    send: (author, events) => slot(author).resolve(events),
+  };
+}
+
+/** The resolver on the page, and a count of the signatures it has checked. */
+function withLook(t) {
+  globalThis.E1Look = require(LOOK_JS);
+  const verify = globalThis.E1Schnorr.verifyEvent;
+  const seen = { verified: 0 };
+  globalThis.E1Schnorr.verifyEvent = async (event) => {
+    try {
+      return await verify(event);
+    } finally {
+      seen.verified += 1;
+    }
+  };
+  t.after(() => {
+    delete globalThis.E1Look;
+    globalThis.E1Schnorr.verifyEvent = verify;
+  });
+  return seen;
+}
+
+const startSolo = (byId) => {
+  byId("npcB").checked = true;
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+};
+
+/* The NPC keeps moving on a timer, and play.js finds `document` at call time:
+   a solo game left running paints its seats into whichever test runs next. So
+   every solo game here ends with a rugpull and the way back to setup, which
+   clears the bot's timers and the table's state. */
+/** Every value a node's textContent is given, kept so a wait can ask what THIS table painted. */
+function recordText(node) {
+  const written = [];
+  let text = "";
+  Object.defineProperty(node, "textContent", {
+    get: () => text,
+    set: (value) => { text = value; written.push(value); },
+  });
+  return written;
+}
+
+test("an NPC game dresses the signed-in player's seat in their kind 0 look, and its name stays text", async (t) => {
+  withLook(t);
+  const relays = lookRelays();
+  const stub = netStub();
+  Object.assign(stub.nostr, { savedPubkey: () => MY_KEY, query: relays.query, shortNpub: () => "npub1mine…" });
+  const { byId, game } = loadPlay(stub);
+
+  const menu = byId("avatarA");
+  assert.equal(menu.children[0].textContent, "My Nappelin look");
+  assert.equal(menu.value, menu.children[0].value, "with an identity the look is the default");
+  assert.equal(byId("avatarB").children[0].textContent, "No Avatar - just my name", "seat two is offered nobody's look");
+
+  startSolo(byId);
+  assert.ok(game.state, "the game starts without waiting for a relay");
+  assert.equal(byId("youName").textContent, "Player 1", "the typed name paints first");
+  assert.equal(portraitOf(byId("youBar")), null, "and no picture is waited for");
+
+  const markup = "<img src=x onerror=alert(1)>FLX";
+  const youNames = recordText(byId("youName"));
+  relays.send(MY_KEY, [kindZero(MINE, { display_name: markup, name: "flx", picture: "https://example.com/flx.png" })]);
+  await waitFor(() => youNames.includes(markup), "the landed look to repaint the seat by itself");
+  byId("cancelTarget").click(); // and read the whole board in one synchronous turn
+  assert.equal(byId("youName").textContent, markup);
+  assert.equal(byId("youName").innerHTML, "", "the name never reached an HTML parser");
+  const portrait = portraitOf(byId("youBar"));
+  assert.equal(portrait.getAttribute("src"), "https://example.com/flx.png");
+  assert.equal(portrait.dataset.look, "picture");
+  assert.equal(portrait.getAttribute("referrerpolicy"), "no-referrer");
+  assert.equal(portrait.getAttribute("alt"), `${markup} avatar`);
+  const chip = byId("turnchip").children.map((part) => (typeof part === "string" ? part : part.textContent)).join("");
+  assert.match(chip, /Player 1/, "the turn chip and the log keep the name the seat plays under");
+
+  assert.equal(byId("foeName").textContent, "NPC");
+  assert.equal(portraitOf(byId("foeBar")), null, "the NPC wears nobody's look");
+  byId("continue").click();
+  byId("continue").click();
+  assert.equal(relays.asked.length, 2, "two filters, asked once for the page, not once per render");
+  leaveSolo(byId, game);
+});
+
+test("the avatar the player picks wins over their look", async (t) => {
+  const seen = withLook(t);
+  const relays = lookRelays();
+  const stub = netStub();
+  Object.assign(stub.nostr, { savedPubkey: () => MY_KEY, query: relays.query });
+  const { byId, game } = loadPlay(stub);
+  relays.send(MY_KEY, [kindZero(MINE, { display_name: "FLX", picture: "https://example.com/flx.png" })]);
+
+  const menu = byId("avatarA");
+  const pick = menu.children.find((option) => option.textContent === "Rootzoll");
+  menu.value = pick.value;
+  fire(menu, "change");
+  startSolo(byId);
+  await waitFor(() => seen.verified > 0, "the look to be checked");
+  await ticks();
+  game.dispatch("PASS_PRIORITY", 0); // a render of this table, after the look has landed
+
+  assert.equal(byId("youName").textContent, "Player 1", "a picked avatar keeps the typed name too");
+  const portrait = portraitOf(byId("youBar"));
+  assert.ok(portrait, "the picked character is on the bar");
+  assert.match(String(portrait.src), /node-runner-web\/Rootzoll/, "as its card face, with no portraits.js here");
+  assert.equal(portrait.getAttribute("src"), undefined, "the look's picture was never painted");
+  assert.equal(portrait.dataset.look, "");
+  leaveSolo(byId, game);
+});
+
+test("online, each seat wears the look of the key the referee gives it, and a late look stays off a seat that changed hands", async (t) => {
+  const seen = withLook(t);
+  const relays = lookRelays();
+  const stub = netStub();
+  /* No identity on this page: at a networked table the referee's STATE names
+     every key, and nothing but each seat's own binding may repaint it. */
+  Object.assign(stub.nostr, { savedPubkey: () => null, query: relays.query });
+  const { byId } = loadPlay(stub);
+  const painted = recordText(byId("foeName"));
+  const youNames = recordText(byId("youName"));
+  const deal = (foe) => {
+    const E = globalThis.E1Engine;
+    const full = E.createGame({
+      seats: [{ name: "felix", affinity: "Power" }, { name: foe.name, affinity: "Signal" }],
+      seeds: { public: 4242, hidden: [4243, 4244] },
+      firstPlayer: 0,
+    });
+    stub.lastState = {
+      ...STATE_BASE, seat: 0, role: "seat", status: "playing", view: E.view(full, 0),
+      players: [
+        { seat: 0, name: "felix", pubkey: MY_KEY, affinity: "Power", online: true },
+        { seat: 1, name: foe.name, pubkey: foe.pubkey, affinity: "Signal", online: true },
+      ],
+    };
+    stub.handlers.onState(stub.lastState);
+  };
+
+  deal({ name: "anna", pubkey: FOE_KEY });
+  assert.equal(byId("foeName").textContent, "anna", "the seat's own name paints first");
+  await ticks(0); // the query itself goes out a microtask after the render that wanted it
+  assert.deepEqual(relays.asked.map((filter) => filter.authors[0]).filter((key, i, all) => all.indexOf(key) === i).sort(),
+    [MY_KEY, FOE_KEY].sort(), "both seats' keys are asked for, from the referee's STATE");
+
+  // A rematch against somebody else, before anna's relay has answered.
+  deal({ name: "bob", pubkey: OTHER_KEY });
+  assert.equal(byId("foeName").textContent, "bob");
+  /* Counted by what this table paints: another test's table can still be
+     finishing a timer, and it would never paint "bob". */
+  const bobPaints = () => painted.filter((name) => name === "bob").length;
+  const before = bobPaints();
+  relays.send(FOE_KEY, [kindZero(FOE, { display_name: "Anna", picture: "https://example.com/anna.png" })]);
+  await waitFor(() => seen.verified >= 1, "anna's late look to be checked");
+  await ticks();
+  assert.equal(bobPaints(), before, "anna's late look repainted a seat she no longer holds");
+  assert.equal(painted.includes("Anna"), false);
+  byId("cancelTarget").click(); // repaint THIS table, then read it in the same turn
+  assert.equal(byId("foeName").textContent, "bob");
+  assert.equal(portraitOf(byId("foeBar")), null);
+
+  relays.send(OTHER_KEY, [kindZero(OTHER, { display_name: "Bob", picture: "https://example.com/bob.png" })]);
+  relays.send(MY_KEY, [kindZero(MINE, { name: "flx" })]);
+  await waitFor(() => painted.includes("Bob") && youNames.includes("flx"), "bob's and my looks to repaint our seats");
+  byId("cancelTarget").click(); // then read the board in one synchronous turn
+  assert.equal(byId("foeName").textContent, "Bob");
+  assert.equal(portraitOf(byId("foeBar")).getAttribute("src"), "https://example.com/bob.png");
+  assert.equal(byId("youName").textContent, "flx");
+  assert.equal(portraitOf(byId("youBar")), null, "a look with no picture keeps the seat's default portrait");
+});
+
+test("inside the Hangar the look comes through the shell's outbox and resource NAP, and nothing else", async (t) => {
+  withLook(t);
+  const avatar = Buffer.concat([
+    Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAMAASsJTYQAAAAASUVORK5CYII=", "base64"),
+    Buffer.from("member"),
+  ]);
+  const x = createHash("sha256").update(avatar).digest("hex");
+  const blossom = `https://blossom.bimcvp.com/${x}`;
+  const look = signed(MINE, {
+    kind: 30077, created_at: 1789000100, content: "",
+    tags: [["d", ""], ["imeta", "role avatar", `x ${x}`, "m image/png", `url ${blossom}.png`, "dim 1024x1024"]],
+  });
+  const queried = [];
+  const requested = [];
+  globalThis.E1Napplet = {
+    present: true,
+    has: (domain) => ["identity", "outbox", "resource", "storage"].includes(domain),
+    embedded: () => true,
+    escape: () => false,
+    identity: { current: async () => MY_KEY, source: () => "shell" },
+    outbox: {
+      query: async (filters) => {
+        queried.push(filters);
+        return [{ event: look, sidecar: { relayHints: ["wss://relay.nappelin.com"] } }, { event: kindZero(MINE, { name: "flx" }) }];
+      },
+    },
+    resource: {
+      bytes: async (url) => {
+        requested.push(url);
+        return url === blossom ? new Blob([avatar]) : null;
+      },
+    },
+    storage: { get: async () => null, set: async () => true, json: async (key, fallback) => fallback },
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = () => assert.fail("a napplet opens no network of its own");
+  t.after(() => {
+    delete globalThis.E1Napplet;
+    globalThis.fetch = realFetch;
+  });
+  const stub = netStub();
+  Object.assign(stub.nostr, {
+    savedPubkey: () => null, // the shell's key arrives through E1Napplet.identity, after the first paint
+    query: () => assert.fail("inside the Hangar the relays are the shell's"),
+  });
+  const { byId, game } = loadPlay(stub);
+  /* The menu is built once before the shell's key lands and once after; the
+     stub DOM keeps old options on innerHTML = "", so look for the choice itself. */
+  const offersLook = () => {
+    const menu = byId("avatarA");
+    const mine = menu.children.find((option) => option.textContent === "My Nappelin look");
+    return Boolean(mine) && menu.value === mine.value;
+  };
+  await waitFor(offersLook, "the shell's key to offer the look");
+
+  startSolo(byId);
+  await waitFor(paintedNow(byId, () => {
+    const portrait = portraitOf(byId("youBar"));
+    return Boolean(portrait) && /^blob:/.test(portrait.getAttribute("src") || "");
+  }), "the verified avatar on the seat");
+  assert.equal(portraitOf(byId("youBar")).dataset.look, "avatar");
+  assert.equal(byId("youName").textContent, "flx");
+  assert.deepEqual(queried.map((filters) => filters.map((filter) => filter.kinds[0])), [[30077, 0]], "one query through the shell");
+  assert.deepEqual(requested, [blossom], "the bytes by hash, from the Blossom host the Hangar grants the TCG");
+  leaveSolo(byId, game);
 });
