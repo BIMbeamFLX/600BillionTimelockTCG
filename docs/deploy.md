@@ -553,17 +553,31 @@ to buyers exactly as it was. Three rules, none optional:
 
 2. **Copy each value from what the running build uses, never from a document.**
    - `NUTFT_FUNDING`: the `funding` field in `before.json` under `e1`.
-   - `G_NUTFT_COLLECTION_ID`: the `unit` of the active keyset under `g`.
-   - `G_NUTFT_CENSUS_PATH`: the path the running build's own code falls back to, read on the box
-     from the running copy, e.g.
-     `grep -n "G_NUTFT_CENSUS_PATH" /home/deploy/bimCVP/infra/site-root/tcg600/server/*.js`,
-     resolved against that directory. The `catalog_sha256` comparison in rule 3 proves the file.
+   - `G_NUTFT_COLLECTION_ID` and `G_NUTFT_CENSUS_PATH`: the fallbacks the running build's own code
+     uses, read on the box from the running copy, never from this page:
+
+     ```bash
+     cd /home/deploy/bimCVP/infra/site-root/tcg600
+     grep -n "gNutftCollectionId\|G_NUTFT_COLLECTION_ID\|gNutftCensusPath\|G_NUTFT_CENSUS_PATH" server/table.js
+     grep -n "unit: collectionId" server/nutft-mint.js
+     ```
+
+     The first grep shows the literal the running build falls back to (on `main` at the time of
+     writing, `options.gNutftCollectionId || "600B-G"` in `createTable`) and the census path it
+     resolves, relative to that directory. The second proves the keyset's `unit` in `/g/v1/keys` IS
+     the collection id, byte for byte: `nutft-mint.js` creates the keyset with
+     `createNewMintKeys(1, mintSeed, { unit: collectionId })` and answers `/v1/keys` with
+     `{ id: keyset.keysetId, unit: collectionId, … }`. Write out the literal from the first grep,
+     then check it against `before.json`: it must equal the active G keyset's `unit` exactly (case
+     and all). If the grep finds no literal, or the two differ, stop: that build is not the one this
+     page describes. The `catalog_sha256` and keyset-id comparison in rule 3 proves both values.
    - `G_NUTFT_INVOICE_TTL_SECONDS` / `G_NUTFT_CLAIM_GRACE_SECONDS`: the running build gives G the
      E1 values, so copy them from the running process (not secrets):
      `sudo cat /proc/$PID/environ | tr '\0' '\n' | grep -E '^NUTFT_(INVOICE_TTL|CLAIM_GRACE)_SECONDS='`.
 
    Keep a copy of the file you edit first (`sudo cp -a <file> <file>.bak-$STAMP`), change only
-   the named key, and never print the whole file.
+   the named key, and never print the whole file. The copy holds the same secrets as the file, so
+   it lives only until rule 3 has decided.
 
 3. **Restart the running build and compare.** As in 9.4, restart only while nobody waits in quick
    match (`"queued":0`); matches and seats resume on their own.
@@ -575,8 +589,16 @@ to buyers exactly as it was. Three rules, none optional:
    diff "$SNAP/before.json" "$SNAP/after.json" && echo "mints unchanged"
    ```
 
-   **Any output from `diff` means rolling the environment back at once**: copy the `.bak-$STAMP`
-   file back, restart, and `snap "$SNAP/rollback"` to see the old answers again. There is no
+   After a clean `diff`, the copy goes at once, and the listing proves it (names only, no content):
+
+   ```bash
+   sudo shred -u <file>.bak-$STAMP
+   sudo ls -l "$(dirname <file>)"
+   ```
+
+   **Any output from `diff` means rolling the environment back at once**: move the `.bak-$STAMP`
+   file back over the edited one (`sudo mv <file>.bak-$STAMP <file>`, so no copy is left either
+   way), restart, and `snap "$SNAP/rollback"` to see the old answers again. There is no
    second attempt in the same window; the deploy stops for the day and the difference is looked at
    first. (A booster sold between the two snapshots can move `price_msat` across a price tier; that
    is still a stop, and a reason to fix the environment when the shop is quiet.)
