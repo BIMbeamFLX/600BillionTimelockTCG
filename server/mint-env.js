@@ -205,6 +205,8 @@ function cashuProblems(mintUrl, selectedBy) {
  * edition's own variable names. Returns { settings, problems, warnings }.
  */
 function resolveMint(options = {}, env = process.env, editionName = "E1") {
+  /* A misspelt edition must not quietly get E1's names, defaults and identity. */
+  if (editionName !== "E1" && editionName !== "G") throw new Error("unknown mint edition: must be E1 or G");
   const isG = editionName === "G";
   const edition = isG ? EDITIONS.G : EDITIONS.E1;
   const { problems, add, absorb } = problemList();

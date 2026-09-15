@@ -326,6 +326,17 @@ test("a census path that names another file never echoes its content", async (t)
   assert.ok(!`${messages.join("\n")}\n${output}`.includes(MARKER), "no byte of the file, nor its path, is printed");
 });
 
+test("an unknown edition name is refused, never read as E1", () => {
+  for (const edition of ["g", "E2", "", "toString", null]) {
+    assert.throws(() => resolveMint({}, {}, edition), /^Error: unknown mint edition: must be E1 or G$/, String(edition));
+    assert.throws(() => createNutftMint({ edition, catalogUri: "https://x/nutft/catalog", lnd: null }),
+      /unknown mint edition: must be E1 or G/, String(edition));
+  }
+  assert.equal(resolveMint({}, {}).settings.edition, "E1", "no edition is E1");
+  assert.equal(resolveMint({}, {}, "E1").settings.edition, "E1");
+  assert.equal(resolveMint({}, {}, "G").settings.edition, "G");
+});
+
 test("PIN_SEED is announced at boot as testing only, without its value", async (t) => {
   /* A malformed TABLE_ORIGINS stops createTable after the warning and before any port is bound. */
   const { code, output } = await bootReferee(t, { PIN_SEED: "424242", TABLE_ORIGINS: "not-an-origin" });
