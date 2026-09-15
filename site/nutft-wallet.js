@@ -255,6 +255,15 @@
     return new c.OutputData({ amount: c.Amount.from(1), id: keyset.id, B_ }, r, encoded, Ehex);
   }
 
+  const RECOVERY_UNFINISHED = "finish recovering this wallet from its phrase first";
+
+  /* A pending record that holds none of the phrase's counter slots: a booster
+     claim still waiting for the receipt that names its cards, or a transfer to
+     somebody else's key. A half-finished recovery can resume around one. */
+  const holdsNoSlots = (pending) => !pending
+    || (pending.type === "booster" && !(pending.outputs || []).length)
+    || (pending.type === "trade" && !pending.toSelf);
+
   async function outputsFor(cards, mintUrl, state, c, keyset) {
     if (!state.seedPhrase) {
       return { outputs: cards.map((card) => c.OutputData.createSingleP2PKData({
@@ -265,7 +274,7 @@
     }
     /* Slots beyond a half-finished recovery's checkpoint may already hold this
        phrase's cards, so nothing may reserve slots until the recovery ends. */
-    if (state.restoring) throw new Error("finish recovering this wallet from its phrase first");
+    if (state.restoring) throw new Error(RECOVERY_UNFINISHED);
     const catalog = await getCatalog(mintUrl, c, keyset);
     const key = counterKey(mintUrl, keyset.id);
     const counters = { ...(state.counters || {}) };
@@ -713,6 +722,12 @@
   async function buyBoosterUnlocked(mintUrl, opts = {}) {
     const c = await cashu();
     let state = await identity(c);
+    /* REFUSED BEFORE ANYTHING EXISTS. A purchase needs counter slots for its
+       cards, and a half-finished recovery cannot hand any out. Checked here,
+       before a quote, an invoice or a pending record: refusing only when the
+       receipt arrives left a purchase committed at the mint and a claim this
+       wallet could neither finish nor get past. */
+    if (state.restoring) throw new Error(RECOVERY_UNFINISHED);
     if (state.pending) {
       const keysetForPending = await getKeyset(state.pending.mintUrl, c);
       return awaitSettlement(state, c, keysetForPending, opts);
@@ -771,6 +786,7 @@
   async function claimBoosterUnlocked(mintUrl, paymentHash, opts = {}) {
     const c = await cashu();
     let state = await identity(c);
+    if (state.restoring) throw new Error(RECOVERY_UNFINISHED);
     if (state.pending) {
       if (state.pending.body.payment_hash !== paymentHash) throw new Error("finish the pending wallet operation before claiming another booster");
       return awaitSettlement(state, c, await getKeyset(state.pending.mintUrl, c), opts);
@@ -1259,10 +1275,12 @@
        every batch, so an attempt cut off by a mint that stays busy or a closed
        tab is resumed from its checkpoint: never restarted from slot 0, and never
        refused as a wallet that already holds the cards it found. */
-    const unfinished = current.pending || (current.outgoing || []).length;
+    /* A claim left waiting for its receipt does not stop a resume: it holds no
+       slots, and it can only be finished once the scan has shown which slots the
+       phrase already filled. Finishing it first would hand out slots blind. */
     const resuming = Boolean(current.restoring && current.restoring.key === key
-      && current.seedPhrase === seedPhrase && !unfinished);
-    if (!resuming && (current.tokens.length || unfinished)) {
+      && current.seedPhrase === seedPhrase && holdsNoSlots(current.pending));
+    if (!resuming && (current.tokens.length || current.pending || (current.outgoing || []).length)) {
       throw new Error("recovery requires an empty wallet so bearer assets are not overwritten");
     }
     let state = current;
