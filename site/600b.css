@@ -279,7 +279,7 @@ hr.tcg-steps {
 .nav__brand { margin-right: auto; color: var(--parchment); font: 15px/1 var(--display); letter-spacing: .04em; }
 .nav__brand small {
   display: block; margin-top: 4px;
-  color: var(--brass-3); font: 500 9px/1.4 var(--mono); letter-spacing: .22em;
+  color: var(--brass-2); font: 500 9px/1.4 var(--mono); letter-spacing: .22em;
 }
 .nav__links { display: flex; gap: 2px; flex-wrap: wrap; align-items: center; }
 .nav a.link {
