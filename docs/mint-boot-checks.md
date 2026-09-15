@@ -110,8 +110,8 @@ time, where docs/deploy.md §9.2a says, and find what a mint publishes now with 
 | Line starts with | Refused when | Fix that keeps what the running build does |
 |---|---|---|
 | `G_NUTFT_CATALOG_URI: required` | G is enabled and it is unset or empty. | Set it to exactly the `catalog_uri` that `/g/nutft/catalog` reports, even if that is E1's URI or a localhost one: another value stops the boot with `mint database belongs to a different NutFT census, collection, or catalog URI`. |
-| `G_NUTFT_COLLECTION_ID: required` | As above. | Set it to the `unit` that `/g/nutft/state` reports (`600B-G`). |
-| `G_NUTFT_CENSUS_PATH: required` | As above. | Set it to the absolute path of `cards/g-census.json` in the code directory the unit runs (`ExecStart`, docs/deploy.md §9.2), on the box `/home/deploy/bimCVP/infra/site-root/tcg600/cards/g-census.json`; `census_sha256` in `/g/nutft/state` must not move. |
+| `G_NUTFT_COLLECTION_ID: required` | As above. | Set it to the literal the running build's own code falls back to, read from the running copy as §9.2a says; it must equal the active keyset's `unit` in `/g/v1/keys`, byte for byte. |
+| `G_NUTFT_CENSUS_PATH: required` | As above. | Set it to the absolute path of `cards/g-census.json` in the code directory the unit runs (`ExecStart`, docs/deploy.md §9.2), on the box `/home/deploy/bimCVP/infra/site-root/tcg600/cards/g-census.json`. The §4 snapshot must not move: `catalog_sha256`, the keyset ids, and `census_sha256` from `/g/nutft/catalog`. |
 | `G_NUTFT_DB: required` / `names the same file as DB` | G is enabled without its own database file. | Unchanged from before: the running build refused this too. |
 | `G_NUTFT_INVOICE_TTL_SECONDS: unset while NUTFT_INVOICE_TTL_SECONDS is set` | E1 sets its quote window and G does not. | Set G's to the E1 value the grep shows, which is what G uses now. |
 | `G_NUTFT_CLAIM_GRACE_SECONDS: unset while NUTFT_CLAIM_GRACE_SECONDS is set` | E1 sets its claim grace and G does not. | As above. A shorter G grace would pass a paid, unclaimed set to the next buyer. |
@@ -167,24 +167,26 @@ one.
 
 ---
 
-## 4 · What the mints report, before and after an environment fix
+## 4 · What the mints publish, before and after an environment fix
 
-Public answers only; nothing here prints the environment. Run the loop with `STAGE=before`,
-change the environment and restart the running build, run it again with `STAGE=after`, then
-compare:
+Every environment fix, and the restart that brings the running build in line with its files,
+is judged by the same snapshot of what both mints publish: the `snap` function in
+[docs/deploy.md §9.2](deploy.md), which §9.2a and §9.7 reuse. It prints no environment and
+retries a failed request, so a network hiccup never passes for a changed mint. For each edition
+it keeps only fields that both the running build and the release publish:
 
-```bash
-STAGE=before
-for P in /v1/info /g/v1/info /nutft/state /g/nutft/state /nutft/catalog /g/nutft/catalog; do
-  curl -s "https://tcg.nappelin.com$P" \
-    | grep -oE '"(paid|price_msat|funding|sales|one_per_key|virtual_sats|test_mint|unit|collection_id|census_sha256|catalog_uri|catalog_issuer)":("[^"]*"|[a-z0-9]+)' \
-    | sort -u | sed "s|^|$P |"
-done > /home/deploy/tcg-mints-$STAGE.txt
-```
+- from `/v1/info`: `paid`, `price_msat`, `price_tiers`, `funding`, `virtual_sats`, `test_mint`,
+  `sales`, `one_per_key`, `issuance`, `product`, `catalog_issuer` and **`catalog_sha256`**, the
+  digest of the whole catalog, every card's data included;
+- from `/nutft/catalog`: `catalog_uri`, `collection_id`, `census_sha256` and `issuer_pubkey`.
+  The running build publishes `catalog_uri` only here, not in `/v1/info`;
+- from `/v1/keys`: each keyset's `id`, `unit` and `active`, where `unit` is the collection id
+  and the id changes with the mint's keys.
 
-```bash
-diff /home/deploy/tcg-mints-before.txt /home/deploy/tcg-mints-after.txt && echo "mints unchanged"
-```
+`census_sha256` alone is not enough: it covers the census, not the card data the catalog
+signs. The `/g/…` paths give the same fields for Edition G, and a mint that is switched off is
+`null`. The snapshots before and after a fix must be identical; any difference rolls the
+change back and stops the deploy for the day, as §9.2a says.
 
 ---
 
