@@ -168,7 +168,9 @@ def test_stack_builder_rejects_imported_stake_module_cards_before_save() -> None
     """A handoff can bypass the card picker, so Save must enforce the base ruleset too."""
     builder = (REPO_ROOT / "site" / "deck.html").read_text(encoding="utf-8")
 
-    assert 'if (isStake(byId[id])) return `${byId[id].name}: Stake module is not enabled`' in builder
+    assert (
+        "if (isStake(byId[id])) return `${byId[id].name}: Stake module is not enabled`" in builder
+    )
 
 
 def test_shop_uses_the_lnurl_success_action_claim() -> None:
