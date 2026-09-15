@@ -488,6 +488,17 @@ const paintedNow = (byId, check) => () => {
   return check();
 };
 
+/** Every value a node's textContent is given, kept so a wait can ask what THIS table painted. */
+function recordText(node) {
+  const written = [];
+  let text = "";
+  Object.defineProperty(node, "textContent", {
+    get: () => text,
+    set: (value) => { text = value; written.push(value); },
+  });
+  return written;
+}
+
 function clientGame(seed = 990000) {
   return globalThis.E1Engine.createGame({
     seats: [{ name: "A", affinity: "Power" }, { name: "B", affinity: "Signal" }],
@@ -2056,6 +2067,7 @@ test("an arena that cannot be built falls back to the classic table with a notic
   lastCard("youHand", "Power Plant — Hydro").click();
   assert.equal(game.state.zones["0:network"].length, 1);
   assert.equal(game.arena, null);
+  leaveSolo(byId, game);
 });
 
 /* ------------------------------------------------------- the NutFT wallet door
@@ -2075,10 +2087,13 @@ test("a NutFT Stack on a device with no wallet is refused without loading one", 
   globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
   globalThis.location = { origin: "http://table.test" };
   const { byId, game } = loadPlay(netStub());
+  /* Read what THIS table wrote: under a loaded test run an earlier table can
+     repaint the prompt between two polls and hide the refusal. */
+  const prompts = recordText(byId("prompt"));
   byId("deckA").value = "custom:Owned";
   byId("deckB").value = "Signal";
   byId("start").click();
-  await waitFor(() => /needs 3, wallet controls 0/.test(byId("prompt").textContent), "the possession failure prompt");
+  await waitFor(() => prompts.some((line) => /needs 3, wallet controls 0/.test(line)), "the possession failure prompt");
   assert.equal(game.state, null);
   assert.equal(walletTags(byId).length, 0, "no wallet, no wallet script");
 });
@@ -2399,17 +2414,6 @@ const startSolo = (byId) => {
    a solo game left running paints its seats into whichever test runs next. So
    every solo game here ends with a rugpull and the way back to setup, which
    clears the bot's timers and the table's state. */
-/** Every value a node's textContent is given, kept so a wait can ask what THIS table painted. */
-function recordText(node) {
-  const written = [];
-  let text = "";
-  Object.defineProperty(node, "textContent", {
-    get: () => text,
-    set: (value) => { text = value; written.push(value); },
-  });
-  return written;
-}
-
 test("an NPC game dresses the signed-in player's seat in their kind 0 look, and its name stays text", async (t) => {
   withLook(t);
   const relays = lookRelays();
