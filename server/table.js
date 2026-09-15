@@ -28,6 +28,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const zlib = require("node:zlib");
+const net = require("node:net");
 const { DatabaseSync } = require("node:sqlite");
 const { WebSocketServer } = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
@@ -104,13 +105,40 @@ function makeCode() {
 const isHex64 = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
 const isHex128 = (v) => typeof v === "string" && /^[0-9a-f]{128}$/.test(v);
 
-/* ONE SPELLING PER IPv4 ADDRESS. A dual-stack socket reports an IPv4 peer as
+/* ONE SPELLING PER ADDRESS. A dual-stack socket reports an IPv4 peer as
  * `::ffff:172.17.0.1`, an IPv4 socket as `172.17.0.1`, and an operator writes
- * whichever `ss` printed. An exact comparison called the same proxy a
- * stranger, so every player behind it shared one budget. */
-function unmappedAddress(address) {
-  const value = String(address).trim().toLowerCase();
-  return /^::ffff:\d{1,3}(\.\d{1,3}){3}$/.test(value) ? value.slice("::ffff:".length) : value;
+ * whichever `ss` printed; `2001:DB8:1:2::1` and `2001:db8:1:2:0:0:0:1` are one
+ * host too. An exact comparison called the same proxy a stranger, and gave one
+ * client a fresh budget per spelling. Every address is compared and budgeted
+ * in this form: lowercase, compressed IPv6 without a zone, and an IPv4-mapped
+ * address as plain IPv4. A string that is not an address is kept as written. */
+function canonicalAddress(value) {
+  let text = String(value == null ? "" : value).trim().toLowerCase();
+  const bracketed = /^\[([^\]]+)\](?::\d+)?$/.exec(text);
+  if (bracketed) text = bracketed[1];
+  text = text.replace(/%.*$/, "");
+  if (!net.isIPv6(text)) return text;
+  const host = new URL(`http://[${text}]/`).hostname.slice(1, -1);
+  const mapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(host);
+  if (!mapped) return host;
+  const high = parseInt(mapped[1], 16);
+  const low = parseInt(mapped[2], 16);
+  return `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
+}
+
+/* THE BUDGET AN ADDRESS DRAWS ON. An IPv6 client is handed a whole /64, so
+ * rotating through its own addresses must buy nothing: IPv6 is budgeted per
+ * /64, written exactly as nappelin's rate limiter writes it
+ * (`2001:db8:0:0::/64`). IPv4 is its own address. Takes a canonical address. */
+function budgetOf(address) {
+  if (!net.isIPv6(address)) return address;
+  const [head, tail] = address.split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined
+    ? left
+    : [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill("0"), ...right];
+  return `${groups.slice(0, 4).map((group) => group.replace(/^0+(?=.)/, "")).join(":")}::/64`;
 }
 
 function pruneAddressRates(rates, now, windowMs) {
@@ -362,29 +390,33 @@ async function createTable(opts) {
   const trustProxy = (() => {
     const raw = options.trustProxy;
     if (!raw) return { mode: "none", set: new Set() };
-    if (Array.isArray(raw)) return { mode: "list", set: new Set(raw.map(unmappedAddress)) };
+    if (Array.isArray(raw)) return { mode: "list", set: new Set(raw.map(canonicalAddress)) };
     const token = String(raw).trim().toLowerCase();
     if (token === "loopback" || token === "true" || token === "1" || token === "yes") {
       return { mode: "loopback", set: new Set() };
     }
     // A bare string may still be a comma-list of IPs.
-    const list = token.split(",").map(unmappedAddress).filter(Boolean);
+    const list = token.split(",").map(canonicalAddress).filter(Boolean);
     return list.length ? { mode: "list", set: new Set(list) } : { mode: "none", set: new Set() };
   })();
-  const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+  const LOOPBACK = new Set(["127.0.0.1", "::1"]);
+  /* The client as a canonical address. Budgets draw on budgetOf() of it. */
   const clientAddress = (req) => {
-    const peer = req.socket.remoteAddress || "unknown";
+    const peer = canonicalAddress(req.socket.remoteAddress || "unknown");
     const trusted =
       trustProxy.mode === "loopback" ? LOOPBACK.has(peer)
-      : trustProxy.mode === "list" ? trustProxy.set.has(unmappedAddress(peer))
+      : trustProxy.mode === "list" ? trustProxy.set.has(peer)
       : false;
     if (!trusted) return peer;
     const forwarded = req.headers["x-forwarded-for"];
     if (!forwarded) return peer;
     const hops = String(forwarded).split(",").map((s) => s.trim()).filter(Boolean);
+    if (!hops.length) return peer;
     // Rightmost hop = the address the trusted proxy connected from. A client
-    // that pre-injects XFF only prepends to it, so this stays unforgeable.
-    return hops.length ? hops[hops.length - 1] : peer;
+    // that pre-injects XFF only prepends to it, so this stays unforgeable. A
+    // hop that is not an address was not the proxy's doing: the proxy's bucket.
+    const hop = canonicalAddress(hops[hops.length - 1]);
+    return net.isIP(hop) ? hop : peer;
   };
   const allowedOrigins = new Set(
     (Array.isArray(options.allowedOrigins) ? options.allowedOrigins : []).map((value) => {
@@ -1123,7 +1155,7 @@ async function createTable(opts) {
    * Once a connection has proved an identity, that identity is who it is; the
    * address is only the fallback for traffic that has not authenticated yet,
    * which is where a shared bucket is actually the correct answer. */
-  const budgetKey = (conn) => (conn.pubkey ? `k:${conn.pubkey}` : `a:${conn.address}`);
+  const budgetKey = (conn) => (conn.pubkey ? `k:${conn.pubkey}` : `a:${budgetOf(conn.address)}`);
   const addressOk = (rates, conn, max, limit) => {
     const now = Date.now();
     const key = budgetKey(conn);
@@ -1131,7 +1163,7 @@ async function createTable(opts) {
     hits.push(now);
     rates.set(key, hits);
     if (hits.length <= max) return true;
-    noteRateLimited(limit, conn.address, `${max} per ${RATE_WINDOW_MS / 1000}s`);
+    noteRateLimited(limit, budgetOf(conn.address), `${max} per ${RATE_WINDOW_MS / 1000}s`);
     return false;
   };
   const controlOk = (conn) => addressOk(controlRates, conn, controlMax, "ws-control");
@@ -1996,7 +2028,7 @@ async function createTable(opts) {
   function mintLimited(req, res, localPath) {
     const limit = mintRouteLimit(req.method, localPath);
     if (!limit) return false;
-    const client = clientAddress(req);
+    const client = budgetOf(clientAddress(req));
     const verdict = mintRates.take(limit, client);
     if (verdict.ok) return false;
     noteRateLimited(limit, client, `${mintLimits[limit].max} per ${MINT_RATE_WINDOW_MS / 1000}s`);
@@ -2299,7 +2331,9 @@ async function createTable(opts) {
   };
 }
 
-module.exports = { createTable, pruneAddressRates, KIND_HANDSHAKE, KIND_RESULT, WIRE };
+module.exports = {
+  createTable, pruneAddressRates, canonicalAddress, budgetOf, KIND_HANDSHAKE, KIND_RESULT, WIRE,
+};
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8777);

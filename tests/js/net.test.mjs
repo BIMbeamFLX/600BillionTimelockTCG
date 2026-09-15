@@ -11,7 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { get as httpGet, request as httpRequest } from "node:http";
+import http, { get as httpGet, request as httpRequest } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -1364,9 +1364,15 @@ test("an IPv4 proxy entry trusts the ::ffff: peer a dual-stack listener reports"
     if (err.code === "EAFNOSUPPORT" || err.code === "EADDRNOTAVAIL") return t.skip("no IPv6 on this host");
     throw err;
   }
+  // A dual-stack listener really does report this peer in mapped form...
+  const probe = http.createServer((req, res) => res.end(req.socket.remoteAddress));
+  await new Promise((resolve) => probe.listen(0, "::", resolve));
+  const seen = String((await rawGet(`http://127.0.0.1:${probe.address().port}/`)).body);
+  await new Promise((resolve) => probe.close(resolve));
+  assert.equal(seen, "::ffff:127.0.0.1");
+  // ...and the referee gives it one spelling.
   const health = `http://127.0.0.1:${table.port}/api/health`;
-  const direct = await rawGet(health);
-  assert.equal(JSON.parse(direct.body).client, "::ffff:127.0.0.1", "the peer really arrives in mapped form");
+  assert.equal(JSON.parse((await rawGet(health)).body).client, "127.0.0.1");
   const proxied = await rawGet(health, { "x-forwarded-for": "198.51.100.8" });
   assert.equal(JSON.parse(proxied.body).client, "198.51.100.8");
 });
@@ -1414,6 +1420,23 @@ test("a rush against the pre-auth budgets logs one line per client per minute", 
   assert.deepEqual(logged().slice(1), [
     "[table] rate limited: ws-control for 127.0.0.1 (1 per 10s)",
   ], "a minute later the client is logged again");
+});
+
+test("the pre-auth budget counts a forwarded IPv6 /64 as one client", async (t) => {
+  /* An IPv6 client is handed a whole /64; stepping through it must not mint a
+   * fresh AUTH allowance per address. */
+  const table = await boot(t, "t28v6.db", { controlMax: 1, trustProxy: "loopback" });
+  const codes = [];
+  for (let i = 0; i < 7; i++) {
+    const c = await Client.open(table.wsUrl, {
+      identity: `v6-${i}`, skipAuth: true, headers: { "X-Forwarded-For": `2001:db8:1:2::${i + 1}` },
+    });
+    t.after(() => c.close());
+    const challenge = await c.type("AUTH");
+    c.send({ t: "AUTH", event: signedAuth(challenge, c.privateKey) });
+    codes.push((await c.next((m) => m.t === "AUTH_OK" || m.t === "ERROR")).code || "AUTH_OK");
+  }
+  assert.deepEqual(codes, [...Array(5).fill("AUTH_OK"), "RATE_LIMITED", "RATE_LIMITED"]);
 });
 
 test("unseated ACT messages cannot bypass the address budget", async (t) => {

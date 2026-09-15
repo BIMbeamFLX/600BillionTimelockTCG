@@ -256,7 +256,7 @@ Read at startup in `server/table.js` (bottom of file). The referee binds
 | `RATE_MAX` | built-in | Message rate cap. Exists for headless soak runs; leave unset so the default protects the table. |
 | `CONTROL_RATE_MAX` | built-in | Control-message rate cap. Same advice. |
 | `MAX_PAYLOAD` | built-in | Max WebSocket frame size. Same advice. |
-| `TRUST_PROXY` | *(none)* | Proxies whose `X-Forwarded-For` is believed: `loopback`, or a comma-separated list of peer IPs (an IPv4 entry also matches its `::ffff:` form). Behind Docker Caddy it must name the Caddy container (§4); unset, everyone behind the proxy shares every per-client budget. |
+| `TRUST_PROXY` | *(none)* | Proxies whose `X-Forwarded-For` is believed: `loopback`, or a comma-separated list of peer IPs (any spelling; an IPv4 entry also matches its `::ffff:` form). Behind Docker Caddy it must name the Caddy container (§4); unset, everyone behind the proxy shares every per-client budget. Every per-client budget counts an IPv6 client by its `/64`. |
 | `MINT_WRITE_RATE_MAX` | `20` | Spending writes per client per minute, shared by the E1 and G mints: every mint `POST` except restore and checkstate (purchase, booster, trade, possession). A positive integer, or startup throws. |
 | `MINT_RECOVERY_RATE_MAX` | `240` | The same for restore and checkstate, which a wallet uses to read its own cards back: a phrase recovery and every wallet view. Kept apart so recovery can neither starve purchases nor be starved by them. |
 | `MINT_QUOTE_RATE_MAX` | `60` | The same for the mint `GET`s that do work: quote, reveal, eligibility and the LNURL callback. Info, keys, catalog, blob, state and supply are never limited. |
