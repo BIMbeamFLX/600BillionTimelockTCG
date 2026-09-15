@@ -259,10 +259,18 @@ def test_page_carries_the_3d_table(artifact: tuple[bytes, dict]) -> None:
 
 
 def test_page_stays_under_the_size_limit(artifact: tuple[bytes, dict]) -> None:
-    """The host pins one file; three MiB is the ceiling, 2.6 MiB the working headroom."""
+    """The host pins one file; three MiB is the ceiling, 2.65 MiB the working headroom.
+
+    Raised from 2.6 MiB (2026-09-15) for online play inside the Hangar. The lobby
+    (site/lobby.js), the first screen and their CSS ship about 36 KB, and the artifact
+    carried 2,709,815 bytes before them. The build shed 17 KB of comments it still
+    shipped (the markup's own, and `//` comments trailing code) to pay for most of it;
+    the rest fits under 2.6 MiB only by moving the website's half of the lobby out of
+    the one module both pages share, which is how the two copies would drift apart.
+    """
     assert build_napplet.SIZE_LIMIT == 3 * 1024 * 1024
     assert len(artifact[0]) < build_napplet.SIZE_LIMIT
-    assert len(artifact[0]) <= 2.6 * 1024 * 1024
+    assert len(artifact[0]) <= 2.65 * 1024 * 1024
 
 
 def test_site_keeps_the_hero_file() -> None:
