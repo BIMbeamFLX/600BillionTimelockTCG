@@ -296,6 +296,7 @@ test("a variable only the release reads stops the deploy while it is set", () =>
     [{ NUTFT_PURCHASE_MODE: "0" }, "NUTFT_PURCHASE_MODE"],
     [{ NUTFT_SUPPLY_RELAYS: `wss://${MARKER}.example` }, "NUTFT_SUPPLY_RELAYS"],
     [{ NUTFT_SUPPLY_INTERVAL_SECONDS: "3600" }, "NUTFT_SUPPLY_INTERVAL_SECONDS"],
+    [{ TABLE_RULESETS: "E1.0" }, "TABLE_RULESETS"],
   ];
   for (const [changes, variable] of cases) {
     const result = node(ENV_CHECK, ["--from", "-"], { input: environ({ ...CLEAN, ...changes }) });
@@ -305,7 +306,7 @@ test("a variable only the release reads stops the deploy while it is set", () =>
   }
   const { ignoredByRunningBuild } = require("../../server/env-check.js");
   for (const quiet of [
-    { NUTFT_CATALOG_MIRRORS: "" }, { NUTFT_SUPPLY_RELAYS: "  " }, { NUTFT_PURCHASE_MODE: undefined },
+    { NUTFT_CATALOG_MIRRORS: "" }, { NUTFT_SUPPLY_RELAYS: "  " }, { NUTFT_PURCHASE_MODE: undefined }, { TABLE_RULESETS: "" },
     { G_NUTFT_ENABLED: "0", G_NUTFT_PURCHASE_MODE: "1", G_NUTFT_CATALOG_MIRRORS: "https://blossom.example" },
   ]) {
     assert.deepEqual(ignoredByRunningBuild(defined({ ...CLEAN, ...quiet })), [], JSON.stringify(quiet));
