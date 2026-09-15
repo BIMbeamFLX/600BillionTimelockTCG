@@ -214,7 +214,8 @@ function resolveMint(options = {}, env = process.env, editionName = "E1") {
     if (options[key] !== undefined && options[key] !== null) return options[key];
     return isG && G_FIXED.has(key) ? undefined : env[name(key)];
   };
-  const settings = { edition: isG ? "G" : "E1" };
+  /* censusVariable names the census in messages about its file, which never quote it. */
+  const settings = { edition: isG ? "G" : "E1", censusVariable: name("censusPath") };
 
   /* Identity: taken as written, and never defaulted for G. */
   for (const key of ["catalogUri", "collectionId", "censusPath"]) {

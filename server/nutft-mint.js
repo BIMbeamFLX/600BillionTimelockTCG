@@ -80,6 +80,25 @@ function readBody(req) {
   });
 }
 
+/* The census, read without ever echoing the file. A mistyped path can name a
+   secret, JSON.parse quotes the start of whatever it is given, and an fs error
+   names the path: a message here names the variable and what went wrong. */
+function readCensus(file, variable, isDefault) {
+  const subject = isDefault ? `${variable}: unset, and the default census` : `${variable}: the file it names`;
+  let text;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    throw new Error(`${subject} cannot be read (${(error && error.code) || "read error"})`);
+  }
+  let census = null;
+  try { census = JSON.parse(text); } catch { /* reported below, without the text */ }
+  if (!census || typeof census !== "object" || !Array.isArray(census.cards) || !census.mint || typeof census.mint !== "object") {
+    throw new Error(`${subject} is not a census`);
+  }
+  return census;
+}
+
 function createNutftMint(options = {}) {
   /* Every configured setting is decided by server/mint-env.js, the same rules
      the referee applies to its environment before it opens anything and that
@@ -88,7 +107,7 @@ function createNutftMint(options = {}) {
   const { settings, problems, warnings } = resolveMint(options, process.env, options.edition);
   if (problems.length) throw new Error(problems.join("; "));
   for (const warning of warnings) console.warn(`[nutft] warning: ${warning}`);
-  const census = JSON.parse(fs.readFileSync(settings.censusPath || CENSUS_PATH, "utf8"));
+  const census = readCensus(settings.censusPath || CENSUS_PATH, settings.censusVariable, !settings.censusPath);
   const catalog = loadCensus(census);
   /* A MANIFEST census (a starter-set edition: content is listed, not drawn) has
      no odds to publish, because nothing is drawn -- census.tiers does not

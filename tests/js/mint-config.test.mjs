@@ -296,6 +296,36 @@ test("a free mint asked for one per key warns at boot that it cannot enforce it"
   assert.deepEqual(checkEnv({ ...PROD, G_NUTFT_FUNDING: "none" }), [], "a warning, never a refusal");
 });
 
+test("a census path that names another file never echoes its content", async (t) => {
+  const { mkdtempSync: tempDir, writeFileSync, rmSync: remove } = await import("node:fs");
+  const dir = tempDir(join(tmpdir(), "600b-census-"));
+  t.after(() => remove(dir, { recursive: true, force: true }));
+  const secret = join(dir, "phoenix.conf");
+  const json = join(dir, "wallet.json");
+  writeFileSync(secret, `nsec1${MARKER}${MARKER}\nhttp-password=${MARKER}\n`);
+  writeFileSync(json, JSON.stringify({ seed: `${MARKER} words`, cards: MARKER }));
+  const g = { edition: "G", catalogUri: "https://x/g/nutft/catalog", collectionId: "600B-G", sales: "signed", lnd: null };
+
+  const messages = [
+    thrown(() => createNutftMint({ ...g, censusPath: secret })),
+    thrown(() => createNutftMint({ ...g, censusPath: json })),
+    thrown(() => createNutftMint({ ...g, censusPath: join(dir, `missing-${MARKER}.json`) })),
+    thrown(() => createNutftMint({ catalogUri: "https://x/nutft/catalog", lnd: null, censusPath: secret })),
+  ];
+  assert.equal(messages[0], "G_NUTFT_CENSUS_PATH: the file it names is not a census");
+  assert.equal(messages[1], "G_NUTFT_CENSUS_PATH: the file it names is not a census");
+  assert.equal(messages[2], "G_NUTFT_CENSUS_PATH: the file it names cannot be read (ENOENT)");
+  assert.equal(messages[3], "NUTFT_CENSUS_PATH: the file it names is not a census");
+
+  const { code, output } = await bootReferee(t, {
+    G_NUTFT_ENABLED: "1", G_NUTFT_DB: join(dir, "g-mint.db"), G_NUTFT_FUNDING: "none", G_NUTFT_SALES: "signed",
+    G_NUTFT_CATALOG_URI: "http://localhost:8777/g/nutft/catalog", G_NUTFT_COLLECTION_ID: "600B-G", G_NUTFT_CENSUS_PATH: secret,
+  });
+  assert.equal(code, 1);
+  assert.match(output, /G_NUTFT_CENSUS_PATH: the file it names is not a census/);
+  assert.ok(!`${messages.join("\n")}\n${output}`.includes(MARKER), "no byte of the file, nor its path, is printed");
+});
+
 test("PIN_SEED is announced at boot as testing only, without its value", async (t) => {
   /* A malformed TABLE_ORIGINS stops createTable after the warning and before any port is bound. */
   const { code, output } = await bootReferee(t, { PIN_SEED: "424242", TABLE_ORIGINS: "not-an-origin" });
