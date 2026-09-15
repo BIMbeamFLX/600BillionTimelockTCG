@@ -274,10 +274,10 @@ CREATE TABLE IF NOT EXISTS nostr_events (
  *   pinSeed?:number, maxPayload?:number, controlMax?:number,
  *   publicHost?:string, trustedHosts?:string[], allowedOrigins?:string[],
  *   nutftCatalogUri?:string, gNutftEnabled?:boolean, gNutftDbPath?:string,
- *   gNutftCensusPath?:string, gNutftCatalogUri?:string,
+ *   gNutftCensusPath?:string, gNutftCollectionId?:string, gNutftCatalogUri?:string,
  *   gNutftFunding?:object, gNutftFundingBackend?:string,
- *   gNutftSales?:string, gNutftPriceMsat?:number,
- *   gNutftOnePerKey?:boolean, walletBackupAllowlistPath?:string,
+ *   gNutftSales?:string, gNutftPriceMsat?:number|string,
+ *   gNutftOnePerKey?:boolean|string, walletBackupAllowlistPath?:string,
  *   mintWriteRateMax?:number|string, mintRecoveryRateMax?:number|string,
  *   mintQuoteRateMax?:number|string,
  *   rateClock?:() => number}} opts
@@ -499,25 +499,29 @@ async function createTable(opts) {
     try {
       gDb = new DatabaseSync(gDbPath);
       gDb.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;");
+      /* `edition: "G"` applies G's own defaults and names, and no G setting
+       * falls back to an E1 one. The identity triple has no default at all:
+       * it is hashed into every G card, so it is always stated (ADR 0003). */
       gNutft = createNutftMint({
-        censusPath: options.gNutftCensusPath || path.join(REPO, "cards", "g-census.json"),
-        collectionId: options.gNutftCollectionId || "600B-G",
+        edition: "G",
+        censusPath: options.gNutftCensusPath,
+        collectionId: options.gNutftCollectionId,
         catalogUri: options.gNutftCatalogUri,
         catalogMirrors: options.gNutftCatalogMirrors,
         purchaseMode: options.gNutftPurchaseMode,
-        beacon: options.gNutftBeacon || "00".repeat(32),
-        beaconSource: options.gNutftBeaconSource ?? "",
+        beacon: options.gNutftBeacon,
+        beaconSource: options.gNutftBeaconSource,
         db: gDb,
         funding: options.gNutftFunding,
         backend: options.gNutftFundingBackend,
-        sales: options.gNutftSales || "closed",
-        allowlist: options.gNutftAllowlist ?? "",
-        onePerKey: options.gNutftOnePerKey ?? true,
-        priceSchedule: options.gNutftPriceSchedule ?? "",
-        priceMsat: options.gNutftPriceMsat ?? 210_000,
+        sales: options.gNutftSales,
+        allowlist: options.gNutftAllowlist,
+        onePerKey: options.gNutftOnePerKey,
+        priceSchedule: options.gNutftPriceSchedule,
+        priceMsat: options.gNutftPriceMsat,
         publicBase: options.gNutftPublicBase,
         pathPrefix: "/g",
-        allowVirtual: options.gNutftAllowVirtual ?? "",
+        allowVirtual: options.gNutftAllowVirtual,
         invoiceTtlSeconds: options.gNutftInvoiceTtlSeconds,
         claimGraceSeconds: options.gNutftClaimGraceSeconds,
         onWalletBackupBuyer: authorizeWalletBackup,
@@ -2354,10 +2358,24 @@ module.exports = {
   createTable, pruneAddressRates, canonicalAddress, budgetOf, KIND_HANDSHAKE, KIND_RESULT, WIRE,
 };
 
-if (require.main === module) {
+if (require.main === module && process.argv.includes("--check-env")) {
+  /* `node server/table.js --check-env [--from <file> | --from -]`: the dry run
+   * of server/env-check.js, which needs no node_modules and is what runs on the box. */
+  process.exitCode = require("./env-check.js").run(process.argv.slice(process.argv.indexOf("--check-env") + 1));
+} else if (require.main === module) {
+  /* Refused before a database, a port or a funding backend is touched, by the
+   * same rules `node server/env-check.js` applies as a dry run. A line names a
+   * variable and a reason, never a value. docs/mint-boot-checks.md has the fixes. */
+  const refusals = require("./mint-env.js").checkEnv(process.env);
+  for (const line of refusals) console.error(`[table] refusing to start: ${line}`);
+  if (refusals.length) process.exit(1);
   const port = Number(process.env.PORT || 8777);
   const dbPath = process.env.DB || path.join(__dirname, "matches.db");
   const pinSeed = process.env.PIN_SEED ? Number(process.env.PIN_SEED) : null;
+  /* Said at boot, without the seed: the journal must not hand out a rehearsed opening. */
+  if (Number.isInteger(pinSeed)) {
+    console.warn("[table] PIN_SEED is set: new matches try pinned seeds first. Testing only, never in production.");
+  }
   /* RATE_MAX exists for headless soak runs, which act far faster than any human.
    * Leave it unset for the demo — the default is what protects the table. */
   const rateMax = process.env.RATE_MAX ? Number(process.env.RATE_MAX) : null;
@@ -2388,38 +2406,31 @@ if (require.main === module) {
     publicScheme: process.env.PUBLIC_SCHEME,
     nutftCatalogUri: process.env.NUTFT_CATALOG_URI,
     nutftCatalogMirrors: process.env.NUTFT_CATALOG_MIRRORS,
-    nutftPurchaseMode: enabled(process.env.NUTFT_PURCHASE_MODE),
+    nutftPurchaseMode: process.env.NUTFT_PURCHASE_MODE,
     gNutftEnabled: enabled(process.env.G_NUTFT_ENABLED),
     gNutftDbPath: process.env.G_NUTFT_DB,
     gNutftCensusPath: process.env.G_NUTFT_CENSUS_PATH,
     gNutftCollectionId: process.env.G_NUTFT_COLLECTION_ID,
     gNutftCatalogUri: process.env.G_NUTFT_CATALOG_URI,
     gNutftCatalogMirrors: process.env.G_NUTFT_CATALOG_MIRRORS,
-    gNutftPurchaseMode: enabled(process.env.G_NUTFT_PURCHASE_MODE),
+    gNutftPurchaseMode: process.env.G_NUTFT_PURCHASE_MODE,
     gNutftFundingBackend: process.env.G_NUTFT_FUNDING,
     gNutftSales: process.env.G_NUTFT_SALES,
     gNutftAllowlist: process.env.G_NUTFT_ALLOWLIST,
-    gNutftOnePerKey: process.env.G_NUTFT_ONE_PER_KEY === undefined
-      ? true
-      : enabled(process.env.G_NUTFT_ONE_PER_KEY),
+    /* Passed as written: server/mint-env.js reads an empty value as unset and
+     * refuses one that does not parse, instead of `0` or a typo meaning E1's. */
+    gNutftOnePerKey: process.env.G_NUTFT_ONE_PER_KEY,
     gNutftPriceSchedule: process.env.G_NUTFT_PRICE_SCHEDULE,
-    gNutftPriceMsat: process.env.G_NUTFT_PRICE_MSAT
-      ? Number(process.env.G_NUTFT_PRICE_MSAT)
-      : 210_000,
+    gNutftPriceMsat: process.env.G_NUTFT_PRICE_MSAT,
     gNutftPublicBase: process.env.G_NUTFT_PUBLIC_BASE,
     gNutftAllowVirtual: process.env.G_NUTFT_ALLOW_VIRTUAL,
-    gNutftInvoiceTtlSeconds: process.env.G_NUTFT_INVOICE_TTL_SECONDS
-      ? Number(process.env.G_NUTFT_INVOICE_TTL_SECONDS)
-      : undefined,
-    gNutftClaimGraceSeconds: process.env.G_NUTFT_CLAIM_GRACE_SECONDS
-      ? Number(process.env.G_NUTFT_CLAIM_GRACE_SECONDS)
-      : undefined,
+    gNutftInvoiceTtlSeconds: process.env.G_NUTFT_INVOICE_TTL_SECONDS,
+    gNutftClaimGraceSeconds: process.env.G_NUTFT_CLAIM_GRACE_SECONDS,
     walletBackupAllowlistPath: process.env.TCG_WALLET_BACKUP_ALLOWLIST,
   })
     .then((table) => {
       console.log(`[table] 600B referee on ${table.url}  (ws ${table.wsUrl})`);
       console.log(`[table] db ${dbPath} · catalog ${CATALOG.size} cards ${CATALOG.digest}`);
-      if (pinSeed !== null) console.log(`[table] PIN_SEED=${pinSeed} — rehearsed opening`);
     })
     .catch((err) => {
       console.error("[table] failed to start:", err);
