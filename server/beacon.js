@@ -26,6 +26,7 @@
 const https = require("node:https");
 const http = require("node:http");
 const { URL } = require("node:url");
+const { orThrow, whole } = require("./mint-env.js");
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS nutft_beacon (
@@ -85,7 +86,10 @@ function getInfo(config) {
 function createBeacon(options = {}) {
   const db = options.db || null;
   const lndConfig = options.lnd || null;
-  const confirmations = Math.max(1, Number(options.confirmations || process.env.NUTFT_BEACON_CONFIRMATIONS || 1));
+  /* A number is required: NaN once stored no target height, and a sealed sale
+     paid under it could never be claimed. */
+  const confirmations = orThrow((add) => whole(add, "NUTFT_BEACON_CONFIRMATIONS",
+    options.confirmations ?? process.env.NUTFT_BEACON_CONFIRMATIONS, 1, 1, "blocks"));
   const readInfo = options.getInfo || getInfo;
   if (db) db.exec(DDL);
 
