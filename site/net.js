@@ -28,6 +28,11 @@
   const inShell = () => Boolean(nap() && nap().present);
   const shellIdentity = () => inShell() && typeof nap().has === "function" && nap().has("identity");
   const shellOutbox = () => inShell() && typeof nap().has === "function" && nap().has("outbox");
+  /* Embedded in a shell, or previewed as if (`?embed=1`): the page lives by the
+   * shell's rules, which E1Napplet.embedded() answers for every page. */
+  const embeddedPage = () => {
+    try { return Boolean(nap() && typeof nap().embedded === "function" && nap().embedded()); } catch (err) { return false; }
+  };
 
   /* `localStorage` and `sessionStorage` are GETTERS that throw in a sandboxed
    * frame, at the point of access rather than on use — so they are only ever
@@ -123,6 +128,14 @@
     return Number.isFinite(sats) && sats > 0 ? sats : 0;
   };
 
+  /* NO STAKES INSIDE A SHELL. A table code handed round a guild's game night must
+   * grant a seat and nothing else, so an embedded page creates and queues for a
+   * friendly whatever it was asked, and joins with an explicit stake of 0 — which
+   * a table that plays for sats refuses with STAKE_MISMATCH instead of binding the
+   * guest to its number. The lobby asks stakesAllowed() to hide the stake field. */
+  const stakesAllowed = () => !embeddedPage();
+  const stakeOf = (value) => (stakesAllowed() ? satsOf(value) : 0);
+
   /* Accepts either form and returns hex, or null. */
   const toHexPubkey = (value) => {
     const v = String(value || "").trim();
@@ -160,9 +173,14 @@
      * This is what makes a cleared browser recoverable: the seat credential is
      * gone, the seat is not, and signing in is what finds it. */
     active: [],
+    /* A TABLES request waiting for its answer. Every tables() call made in the
+     * meantime waits on the same one, so a lobby cannot spend its allowance
+     * twice on one list. */
+    tables: null,     // {waiters: [{resolve, reject, timer}], asked}
   };
 
   const H = (name, arg) => {
+    if (name === "onError" && net.tables && endsTableList(arg)) settleTables(null, arg);
     const fn = net.handlers[name];
     if (typeof fn === "function") {
       try { fn(arg); } catch (err) { console.error(`E1Net.${name}`, err); }
@@ -172,6 +190,45 @@
   const param = (name) => {
     try { return new URLSearchParams(location.search).get(name); } catch (err) { return null; }
   };
+
+  /* A TABLE CODE IS AN INVITATION: read once, never kept in an address. Inside
+   * the Hangar the shell hands it over as a launch argument
+   * (window.nappletContext.args.code, nappelin #105) and owns the URL. On the
+   * website a share link carries ?code=, which leaves the address bar the first
+   * time this page reads it, valid or not, so neither history nor a copied link
+   * keeps it. Both are untrusted and checked against the code alphabet. */
+  const TABLE_CODE = /^[A-HJ-NP-Z2-9]{6}$/;
+  const tableCode = (value) => (typeof value === "string" && TABLE_CODE.test(value) ? value : null);
+
+  let addressCode; // undefined until the address has been read
+  function takeAddressCode() {
+    if (addressCode !== undefined) return addressCode;
+    addressCode = tableCode(param("code"));
+    try {
+      const url = new URL(location.href);
+      if (url.searchParams.has("code")) {
+        url.searchParams.delete("code");
+        history.replaceState(history.state, "", url.pathname + url.search + url.hash);
+      }
+    } catch (err) { /* no address to rewrite: a sandboxed frame, a test */ }
+    return addressCode;
+  }
+
+  /* The code this page was opened with — the shell's launch argument, else the
+   * address's — handed out ONCE; every later call answers null. */
+  let launchCodeRead = false;
+  function launchCode() {
+    if (launchCodeRead) return null;
+    launchCodeRead = true;
+    let given = null;
+    try {
+      const context = globalThis.nappletContext;
+      given = context && context.args ? context.args.code : null;
+    } catch (err) {
+      given = null; // a getter that throws hands over nothing
+    }
+    return tableCode(given) || takeAddressCode();
+  }
 
   /* A seat credential is the TAB's, not the browser's — but localStorage is
    * shared by every tab of an origin, and one key held one record. Playing both
@@ -222,7 +279,58 @@
   const seatMap = () => readJSON(storeOf("localStorage"), LS_SEATS) || {};
   const seatKey = (v) => `${v.matchId}:${v.seat}`;
 
+  /* INSIDE A SHELL THE SEAT LIVES IN MEMORY, MIRRORED. A sandboxed frame has an
+   * opaque origin: localStorage, sessionStorage, caches and navigator.locks all
+   * throw there, so neither store above exists. The seat is kept in this
+   * frame's memory, which covers everything but a reload, and copied to the
+   * shell's own storage (E1Napplet.storage: async, per app, 512 KB) under the
+   * website's key and map shape, each entry stamped with the pubkey that holds
+   * it. A reloaded frame restores the newest entry of the identity signed in
+   * NOW, so a Hangar guest never resumes another key's seat.
+   *
+   * The mirror is a convenience, not the record: a write that fails costs a
+   * reload its auto-resume and nothing more, because AUTH_OK.active still names
+   * every seat an identity holds. Two Hangar tabs share one app store, so each
+   * write re-reads and merges, leaves entries it did not write alone, and
+   * prunes its own beyond MIRROR_MAX. */
+  const MIRROR_MAX = 8;
+  const mirrored = embeddedPage() && Boolean(nap().storage);
+  const memory = { session: null, touched: false, restored: !mirrored, writes: Promise.resolve() };
+
+  const mirrorEntry = (v) => Boolean(v) && typeof v === "object" && typeof v.matchId === "string"
+    && (v.seat === 0 || v.seat === 1) && typeof v.token === "string" && /^[0-9a-f]{64}$/.test(v.pubkey || "");
+  const newestFirst = (a, b) => (Number(b.seenAt) || 0) - (Number(a.seenAt) || 0);
+
+  function mirrorRead() {
+    return Promise.resolve()
+      .then(() => nap().storage.json(LS_SEATS, {}))
+      .then((map) => (map && typeof map === "object" && !Array.isArray(map) ? map : {}), () => ({}));
+  }
+
+  function mirrorWrite(change) {
+    memory.writes = memory.writes
+      .then(mirrorRead)
+      .then((map) => nap().storage.set(LS_SEATS, JSON.stringify(change(map))))
+      .catch(() => { /* refused or over budget: memory still holds the seat */ });
+  }
+
+  function mirrorSave(value) {
+    const pubkey = savedPubkey();
+    if (!pubkey || value.seat === null || !value.token) return;
+    const entry = {
+      matchId: value.matchId, seat: value.seat, token: value.token,
+      table: value.table || null, code: value.code || null, pubkey, seenAt: Date.now(),
+    };
+    mirrorWrite((map) => {
+      map[seatKey(entry)] = entry;
+      const mine = Object.values(map).filter(mirrorEntry).sort(newestFirst);
+      for (const stale of mine.slice(MIRROR_MAX)) delete map[seatKey(stale)];
+      return map;
+    });
+  }
+
   function savedMatch() {
+    if (mirrored) return memory.session ? Object.assign({}, memory.session) : null;
     // This tab's own session always wins: a reload is not a new player.
     const mine = readJSON(storeOf("sessionStorage"), SS_MATCH);
     if (mine && typeof mine.matchId === "string") return mine;
@@ -245,6 +353,12 @@
   }
 
   function saveMatch(value) {
+    if (mirrored) {
+      memory.touched = true;
+      memory.session = value ? Object.assign({}, value) : null;
+      if (value) mirrorSave(value);
+      return;
+    }
     writeJSON(storeOf("sessionStorage"), SS_MATCH, value);
     if (value && value.seat !== null && value.token) {
       const map = seatMap();
@@ -254,6 +368,13 @@
   }
 
   function forgetMatch() {
+    if (mirrored) {
+      const held = memory.session;
+      memory.touched = true;
+      memory.session = null;
+      if (held && held.seat !== null) mirrorWrite((map) => { delete map[seatKey(held)]; return map; });
+      return;
+    }
     const mine = readJSON(storeOf("sessionStorage"), SS_MATCH);
     try { globalThis.sessionStorage.removeItem(SS_MATCH); } catch (err) { /* private mode */ }
     if (!mine || mine.seat === null) return;
@@ -274,6 +395,7 @@
    * existing entry, whoever lost that race would vanish from storage for good.
    * Restoring it makes the map converge no matter who writes last. */
   const heartbeat = setInterval(() => {
+    if (mirrored) return; // one frame, one seat: nobody to tell apart
     const s = net.session;
     if (!s || s.seat === null || !s.token) return;
     const map = seatMap();
@@ -398,6 +520,10 @@
     };
 
     ws.onclose = (ev) => {
+      /* A list asked of this socket, or of none, is answered before anything
+       * else: a sign-out drops the socket first, and its asker must not wait
+       * out the timeout. Beyond that, a socket the page let go of says nothing. */
+      if (net.ws === ws || !net.ws) settleTables(null, { code: "TABLE_CLOSED", message: "the table closed before it sent its list" });
       if (net.ws !== ws) return;
       net.ws = null;
       net.authenticated = false;
@@ -483,6 +609,7 @@
       setStatus("live");
       H("onActive", net.active.slice());
       sendIntent();
+      askTables(); // a list asked for while this socket was still signing in
     }
 
     ws.answerAuth = answerAuth;
@@ -582,6 +709,7 @@
       }
       case "OVER": return H("onOver", msg);
       case "NOSTR": return H("onNostr", msg);
+      case "TABLES": return settleTables(Array.isArray(msg.tables) ? msg.tables : []);
       case "ERROR": return onError(msg);
       default: return undefined;
     }
@@ -589,6 +717,9 @@
 
   function onState(msg) {
     net.intent = null; // answered; never replay it
+    /* A STATE ends any search: the referee takes a connection out of the line the
+     * moment it sits it down, and pairing sends no last QUEUED to say so. */
+    net.queued = null;
     net.lastState = msg;
     if (msg.seat === 0 || msg.seat === 1) {
       const next = {
@@ -626,13 +757,27 @@
 
   function start(handlers) {
     net.handlers = handlers || {};
+    takeAddressCode(); // out of the address bar, whatever else this page does
+    /* A shell's seat store answers asynchronously (see `restoring`). Until it has,
+     * there is nothing to resume yet: say so, and resume when it answers — unless
+     * the page has chosen something else by then, which wins. */
+    if (!memory.restored) {
+      return {
+        resuming: false,
+        restoring: restoring.then(() => (net.session || net.intent ? { resuming: false } : resumeSaved())),
+      };
+    }
+    return resumeSaved();
+  }
+
+  function resumeSaved() {
     const saved = savedMatch();
     const fromUrl = param("match");
     if (fromUrl) {
       // A shared link beats a stale local session for the same page.
       net.session = saved && saved.matchId === fromUrl
         ? saved
-        : { matchId: fromUrl, seat: null, token: null, table: tableUrl(), code: param("code") || null };
+        : { matchId: fromUrl, seat: null, token: null, table: tableUrl(), code: takeAddressCode() };
     } else if (saved) {
       net.session = saved;
     }
@@ -663,7 +808,7 @@
       ...rulesetOf(opts),
       name: String(opts.name || "Player").slice(0, 40),
       affinity: opts.affinity || "All",
-      stake: satsOf(opts.stake),
+      stake: stakeOf(opts.stake),
       deck: deckOf(opts.deck),
       pubkey,
     };
@@ -701,8 +846,9 @@
       affinity: opts.affinity || "All",
       /* Sent as an ACKNOWLEDGEMENT of the wager we were shown, not a request.
        * The referee refuses the join if the table's number has moved, so a
-       * shared link can never bind someone to a stake they never saw. */
-      stake: satsOf(opts.stake),
+       * shared link can never bind someone to a stake they never saw. Inside a
+       * shell that acknowledgement is always 0 (stakeOf). */
+      stake: stakeOf(opts.stake),
       deck: deckOf(opts.deck),
       pubkey,
     };
@@ -732,7 +878,7 @@
       affinity: (opts && opts.affinity) || "All",
       /* The referee pairs on this, so it is a filter and not a preference: a
        * friendly waits for a friendly, and 500 sats waits for 500 sats. */
-      stake: satsOf(opts && opts.stake),
+      stake: stakeOf(opts && opts.stake),
       /* Paired on too: a Stack somebody built waits for another built Stack. */
       deck: deckOf(opts && opts.deck),
       pubkey,
@@ -833,9 +979,101 @@
     return true;
   }
 
+  /* A SOCKET FOR THE LOBBY, with no table in it yet: it signs in, hears
+   * AUTH_OK.active and answers TABLES. Opened only when asked, never on load,
+   * and not reopened when it drops — with no session and no intent, retry()
+   * lets it go idle. A create, join, queue or rejoin afterwards rides on it. */
+  function connect(opts) {
+    if (net.ws && (net.ws.readyState === 0 || net.ws.readyState === 1)) return true;
+    if (!savedPubkey()) {
+      /* The shell's identity answers asynchronously: a lobby that asks the moment
+       * it loads waits for that first answer instead of being told to sign in. */
+      if (!shellPubkeyAsked) {
+        shellPubkeyKnown.then(() => connect(opts));
+        return true;
+      }
+      H("onError", { code: "NIP07_REQUIRED", message: "sign in before opening a remote table" });
+      return false;
+    }
+    const url = (opts && opts.table) || net.url || tableUrl();
+    if (!url) {
+      H("onError", { code: "NO_TABLE", message: "no table server for this page — open it over http, or pass ?table=" });
+      return false;
+    }
+    net.url = url;
+    net.attempt = 0;
+    open();
+    return true;
+  }
+
+  const live = () => Boolean(net.ws && net.ws.readyState === 1 && net.authenticated);
+
+  /* A page whose table socket a HOST carries (site/napplet.js, "the table
+   * channel") has no network of its own: no HTTP to the referee, no relays. */
+  const hostCarried = () => {
+    try {
+      const N = nap();
+      return Boolean(N && N.table && typeof N.table.available === "function" && N.table.available());
+    } catch (err) {
+      return false;
+    }
+  };
+
+  /* The errors that end a table list still waiting: the socket could not open
+   * or sign in, the referee refused the list, or it is too old to know TABLES. */
+  const TABLE_LIST_ENDERS = ["NIP07_REQUIRED", "AUTH_FAILED", "IDENTITY_MISMATCH", "RATE_LIMITED", "NO_TABLE", "TABLE_REFUSED"];
+  function endsTableList(error) {
+    if (!error) return false;
+    if (TABLE_LIST_ENDERS.indexOf(error.code) >= 0) return true;
+    return error.code === "BAD_MESSAGE" && /TABLES/.test(String(error.message || ""));
+  }
+
+  function settleTables(rows, error) {
+    const pending = net.tables;
+    if (!pending) return;
+    net.tables = null;
+    for (const waiter of pending.waiters) {
+      clearTimeout(waiter.timer);
+      if (error) waiter.reject(Object.assign(new Error(String(error.message || error.code)), { code: error.code }));
+      else waiter.resolve(rows.slice());
+    }
+  }
+
+  function askTables() {
+    if (net.tables && !net.tables.asked) net.tables.asked = raw({ t: "TABLES", v: WIRE });
+  }
+
+  /* THE OPEN-TABLE LIST. An open, signed-in socket is asked first (TABLES), so
+   * a player already connected needs nothing more. Without one, the website
+   * reads /api/tables, the relay-free join path; a page whose socket a host
+   * carries cannot, so it opens a lobby socket (connect) and asks there. Both
+   * answer the same rows. A socket list that cannot be had rejects with an
+   * Error carrying `code` (NIP07_REQUIRED, RATE_LIMITED, TABLE_CLOSED, TIMEOUT…),
+   * and never hangs past TABLES_MS. */
+  const TABLES_MS = 15000;
+  function tables() {
+    if (!live() && !hostCarried()) return tablesOverHttp();
+    return new Promise((resolve, reject) => {
+      if (!net.tables) net.tables = { waiters: [], asked: false };
+      const waiter = { resolve, reject, timer: null };
+      net.tables.waiters.push(waiter);
+      waiter.timer = setTimeout(() => {
+        const pending = net.tables;
+        if (pending && pending.waiters.indexOf(waiter) >= 0) {
+          pending.waiters.splice(pending.waiters.indexOf(waiter), 1);
+          if (!pending.waiters.length) net.tables = null;
+        }
+        reject(Object.assign(new Error("the table did not send its list in time"), { code: "TIMEOUT" }));
+      }, TABLES_MS);
+      if (waiter.timer && typeof waiter.timer.unref === "function") waiter.timer.unref();
+      if (live()) askTables();
+      else connect(); // a refusal to connect is reported, and ends this list through H
+    });
+  }
+
   /* The relay-free join path. If every relay dies on stage, players still see
    * and join open tables. */
-  async function tables() {
+  async function tablesOverHttp() {
     const origin = httpOrigin(net.url || tableUrl());
     if (!origin) return [];
     const res = await fetch(origin + "/api/tables", { cache: "no-store" });
@@ -856,9 +1094,33 @@
    * frame, and the key is the shell's to remember anyway. Warmed at load so a
    * page that asks synchronously (start, create) finds it without a click. */
   let shellPubkey = null;
-  if (shellIdentity()) {
-    nap().identity.current().then((key) => { if (key && !shellPubkey) shellPubkey = key; }, () => {});
-  }
+  let shellPubkeyAsked = !shellIdentity(); // nothing to wait for outside a shell
+  const shellPubkeyKnown = shellIdentity()
+    ? Promise.resolve()
+      .then(() => nap().identity.current())
+      .then((key) => { if (key && !shellPubkey) shellPubkey = key; }, () => {})
+      .then(() => { shellPubkeyAsked = true; })
+    : Promise.resolve();
+
+  /* A RELOADED FRAME COMES BACK TO ITS SEAT. The mirror and the shell's identity
+   * both answer asynchronously: once both have, the newest mirrored seat of the
+   * identity signed in now becomes this frame's session, and start() — which may
+   * have run already and returned `restoring` — resumes it. Anything the page
+   * chose meanwhile (create, join, queue, rejoin, leave) wins over the mirror. */
+  const restoring = mirrored
+    ? Promise.all([shellPubkeyKnown, mirrorRead()]).then(([, map]) => {
+      const pubkey = savedPubkey();
+      const newest = Object.values(map)
+        .filter((entry) => mirrorEntry(entry) && entry.pubkey === pubkey)
+        .sort(newestFirst)[0];
+      if (newest && !memory.touched && !net.session && !net.intent) {
+        memory.session = {
+          matchId: newest.matchId, seat: newest.seat, token: newest.token,
+          table: newest.table || null, code: newest.code || null,
+        };
+      }
+    }).catch(() => { /* nothing to restore is an answer too */ }).then(() => { memory.restored = true; })
+    : Promise.resolve();
 
   function savedPubkey() {
     if (shellIdentity()) return shellPubkey;
@@ -892,9 +1154,10 @@
     endLogin();
   }
 
-  /* Events the host signed on our behalf, by id, so publish() can recognise one
-   * it has already fanned out rather than asking the host a second time. */
-  const hostPublished = new Set();
+  /* Events the host signed on our behalf, by id, with what its fan-out answered:
+   * null when a relay took the event, the refusal otherwise. publish() reports
+   * that answer rather than asking the host a second time. */
+  const hostPublished = new Map();
 
   async function sign(unsigned) {
     /* THE SHELL HAS NO GENERAL SIGNER. It signs an outbox template (and
@@ -906,12 +1169,14 @@
     if (shellOutbox() && unsigned
         && (unsigned.kind === KIND_HANDSHAKE || unsigned.kind === KIND_RESULT)) {
       const res = await nap().outbox.publish(unsigned);
-      if (!res.ok) throw new Error(String(res.error || "the shell declined to publish"));
       const event = res.event;
       if (!event || typeof event.id !== "string" || typeof event.sig !== "string") {
-        throw new Error("the shell published but returned no signed event");
+        throw new Error(res.ok ? "the shell published but returned no signed event" : String(res.error || "the shell declined to publish"));
       }
-      hostPublished.add(event.id);
+      /* SIGNED IS NOT PUBLISHED. The host signs before it fans out, and relays
+       * that refuse the event do not unsign it: the referee can still record it,
+       * and publish() then says no relay took it, which is the website's order. */
+      hostPublished.set(event.id, res.ok ? null : String(res.error || "no relay accepted it"));
       return event;
     }
     if (!hasNip07() || !globalThis.nostr || !globalThis.nostr.signEvent) {
@@ -969,8 +1234,11 @@
    * published rather than offered twice. Same result shape as the fan-out. */
   async function publishThroughShell(event) {
     if (event && typeof event.id === "string" && hostPublished.has(event.id)) {
+      const refused = hostPublished.get(event.id);
       hostPublished.delete(event.id);
-      return { ok: true, accepted: ["shell"], tried: 1, event };
+      return refused === null
+        ? { ok: true, accepted: ["shell"], tried: 1, event }
+        : { ok: false, accepted: [], tried: 1, event, error: refused };
     }
     const res = await nap().outbox.publish(event);
     return { ok: Boolean(res.ok), accepted: res.ok ? ["shell"] : [], tried: 1, event: res.event || event, error: res.error };
@@ -1166,6 +1434,16 @@
       });
       return () => {};
     }
+    const offer = (event) => {
+      const invite = parseInvite(event);
+      if (!invite || seen[invite.id]) return;
+      seen[invite.id] = true; // claimed before the await, so two relays cannot race it
+      S.verifyEvent(event).then(
+        (ok) => { if (ok) onInvite(invite); },
+        () => { /* an invite we cannot check is an invite we do not have */ }
+      );
+    };
+    if (inShell()) return subscribeInvitesThroughShell(filter, offer);
     for (const url of relays()) {
       try {
         const ws = new WebSocket(url);
@@ -1180,18 +1458,32 @@
           } catch (err) {
             return; // relays say all sorts of things
           }
-          const invite = parseInvite(event);
-          if (!invite || seen[invite.id]) return;
-          seen[invite.id] = true; // claimed before the await, so two relays cannot race it
-          S.verifyEvent(event).then(
-            (ok) => { if (ok) onInvite(invite); },
-            () => { /* an invite we cannot check is an invite we do not have */ }
-          );
+          offer(event);
         };
         ws.onerror = () => { /* one dead relay is not a failure */ };
       } catch (err) { /* nor is one bad URL */ }
     }
     return () => { for (const ws of sockets) { try { ws.close(); } catch (err) { /* gone */ } } };
+  }
+
+  /* INSIDE A SHELL THE INVITES COME THROUGH ITS OUTBOX, never over a socket of our
+   * own: a sandboxed frame has no network. The host verifies what its relays
+   * send, but the lobby renders an invite's pubkey as an identity and points our
+   * socket at its table, so every row is still parsed and verified here, exactly
+   * as off a relay. A shell that cannot subscribe, or that ends the subscription,
+   * is reported as INVITES_UNAVAILABLE and lists nothing: never a throw. */
+  function subscribeInvitesThroughShell(filter, offer) {
+    const N = nap();
+    const unavailable = (message) => H("onError", { code: "INVITES_UNAVAILABLE", message });
+    let canSubscribe = false;
+    try { canSubscribe = Boolean(N.outbox && N.outbox.canSubscribe && N.outbox.canSubscribe()); } catch (err) { canSubscribe = false; }
+    if (!canSubscribe) {
+      unavailable("this shell offers no relay subscription, so no invites are listed");
+      return () => {};
+    }
+    return N.outbox.subscribe([filter], offer, (reason) => {
+      unavailable(`the shell ended the invite subscription (${reason})`);
+    });
   }
 
   // ---- reading the record back off the relays -----------------------------
@@ -1457,8 +1749,8 @@
     KIND_HANDSHAKE,
     KIND_RESULT,
     KIND_ZAP_REQUEST,
-    start, create, join, act, sendNostr, leave, resume, tables,
-    queue, unqueue, rejoin,
+    start, create, join, act, sendNostr, leave, resume, tables, connect,
+    queue, unqueue, rejoin, stakesAllowed, launchCode,
     tableUrl, publicTable, publicTableIsLocal,
     savedMatch, saveMatch,
     get status() { return net.status; },

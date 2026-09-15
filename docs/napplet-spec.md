@@ -206,17 +206,26 @@ host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
   first" rather than prompting, because signing in is the Hangar's flow.
 - `E1Napplet.identity.sign(event)` has no shell path: it rejects with
   `"the shell signs only through outbox.publish and table.sign"` unless a NIP-07 signer exists.
-- `napplet.outbox.publish(template)` takes an **unsigned** template; the host signs with its
-  identity and fans out to `wss://relay.nappelin.com` + damus/nos.lol/primal. It resolves the raw
-  result message — `error` on failure, never a rejection. `E1Napplet.outbox.publish` returns
-  `{ok, via:"shell", event}` (the signed event, from `msg.event || msg.result`) or
-  `{ok:false, via:"shell", error}`. `E1Napplet.outbox.query(filters)` → `msg.events || []`. On the
-  website the same calls sign with NIP-07 and use `E1Net.nostr`'s own fan-out.
+- `napplet.outbox.publish(template, options)` takes an **unsigned** template; the host signs with
+  its identity, then fans out. It resolves the raw result message
+  `{type, id, ok, event?, eventId?, relays?, error?}` — `error` on failure, never a rejection.
+  **The relays are named** (2026-09-15): the Hangar's relay-pool router (Kehto 0.20) looks up the
+  signer's NIP-65 relay list unless the publish says `toOutbox: false`, finds none for anyone
+  (nappelin's `loadRelayLists` is an empty Map), and refuses with `"relay list unavailable"` —
+  after signing. So `E1Napplet.outbox.publish` passes
+  `{relays: ["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"], toOutbox: false}`
+  (the host drops any relay it does not allow). It returns `{ok, via:"shell", event}` or
+  `{ok:false, via:"shell", error, event}` — a refusal still carries the event the host signed.
+- `napplet.outbox.query(filters)` resolves `{type, id, events: [{event, sidecar}], incomplete?, error?}`;
+  `E1Napplet.outbox.query(filters)` hands on the bare events. On the website the same calls sign
+  with NIP-07 and use `E1Net.nostr`'s own fan-out.
 - **net.js consequence.** play.js keeps its `sign → publish → sendNostr` order. Inside a shell
   `E1Net.nostr.sign()` of a kind 4600/31600 template therefore *publishes it through the outbox*
   and returns the signed event (the referee still records it verbatim); `publish()` recognises an
   event the host already fanned out and reports `{ok:true, accepted:["shell"], tried:1}` instead of
-  sending a second copy. A kind 9734 zap request cannot be signed in a shell at all.
+  sending a second copy — or `{ok:false, accepted:[], tried:1, error}` when the host signed it and
+  its relays refused, because signed is not published. Only a host that could not sign makes
+  `sign()` reject. A kind 9734 zap request cannot be signed in a shell at all.
 - The shell's pubkey is cached **in memory** by net.js (`savedPubkey()`); `localStorage` is never
   named at a call site outside a try, because the getter itself throws in the sandbox.
 - Embed detection: `E1Napplet.embedded()` is `window.napplet` (object) OR `window.nappletContext`
@@ -225,8 +234,8 @@ host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
   parchment `#ece3d0`, brass `#e7bf76`, …) is painted; since 2026-09-15 the website's fallback is
   the same Hypershell core token set.
 - `tableUrl()` in a srcdoc frame: `?table=` → the seat's saved table → `globalThis.E1_TABLE_URL`
-  (a `wss?://` constant the build may inject) → the page origin → `wss://tcg.nappelin.com/ws`
-  when embedded → null.
+  (a `wss?://` constant; `scripts/build_napplet.py` injects `wss://tcg.nappelin.com/ws` in `<head>`)
+  → the page origin → `wss://tcg.nappelin.com/ws` when embedded → null.
 
 ### 3b. The table channel (napplet ⇄ Hangar page, over `postMessage`)
 
@@ -264,6 +273,61 @@ reason (session closed, guest signed out), and surfaces as `AUTH_FAILED` through
 Tests: `tests/js/net-shell.test.mjs` (a fake Hangar over real `ws` sockets to an in-process
 referee: open → host-signed AUTH → CREATE → STATE; refusals; foreign `event.source` ignored;
 the website path through the adapter), `tests/js/napplet.test.mjs` (the adapter over a fake parent).
+
+### 3c. Online play from inside the Hangar (2026-09-15)
+
+The plumbing the embedded lobby stands on (napplet-v2 Block A). Everything here is the website
+path unchanged when there is no shell.
+
+**The seat, without storage.** Inside a shell (`E1Napplet.embedded()`) net.js never reaches
+`localStorage` or `sessionStorage` (their getters throw in the frame). The seat lives in memory
+and is mirrored to `E1Napplet.storage` under `600b:seats`, the website's map shape:
+`{"<matchId>:<seat>": {matchId, seat, token, table, code, pubkey, seenAt}}`. Each entry names the
+pubkey that holds it; at most 8 of them are kept; a write re-reads and merges, so a second Hangar
+tab's entries survive. When the frame loads, the newest entry for the identity signed in now
+becomes the session: a Hangar guest (a new key per page) never resumes another key's seat. The
+mirror and the identity both answer asynchronously, so until they have, `E1Net.start(handlers)`
+returns `{resuming:false, restoring}` where `restoring` is a promise of start's usual answer
+(`{resuming, matchId?, seat?, loginRequired?}`), and the seat is resumed then — unless the page
+has created, joined, queued, rejoined or left in the meantime, which wins. A mirror that refuses
+every access costs only the reload's auto-resume: `AUTH_OK.active` still names the seat, and
+`E1Net.rejoin(matchId)` takes it. Seat tokens go to that storage and to the socket, never into an
+address, a log line or an error message.
+
+**Invites through the outbox.** `E1Napplet.outbox.subscribe(filters, onEvent, onClosed) → unsubscribe()`
+wraps the prelude's NAP-OUTBOX handle (`outbox.subscribe(filters)` → `{on("event" | "closed", fn), close()}`):
+`onEvent` gets bare events, `onClosed(reason)` hears a subscription the shell ended, and without a
+shell outbox it is called once with `"unavailable"` (`E1Napplet.outbox.canSubscribe()` asks first).
+It never throws. Inside a shell `E1Net.nostr.subscribeInvites(pubkey, onInvite)` subscribes there
+with the website's filter (`kinds:[4600]`, `#t:["invite"]`, `#p:[pubkey]`, the last hour, 40)
+and still parses and signature-checks every row with `E1Schnorr` before `onInvite` sees it; a
+shell that cannot subscribe, or ends the subscription, is `onError{INVITES_UNAVAILABLE}`.
+
+**Open tables over the socket.** The frame has no HTTP to the referee. `E1Net.tables()` asks an
+open, signed-in socket with `TABLES` (docs/net-protocol.md §2.1) and resolves the rows
+`/api/tables` serves. When a host carries the socket and none is open it first calls
+`E1Net.connect({table?})`, which opens and signs in a socket with no table in it (it is not reopened
+when it drops). Lists asked for together share one `TABLES`; a list that cannot be had rejects
+with an `Error` whose `code` is the reason (`NIP07_REQUIRED`, `RATE_LIMITED`, `TABLE_CLOSED`,
+`TIMEOUT` after 15 s, `BAD_MESSAGE` from a referee that predates `TABLES`). On the website
+`tables()` keeps reading `/api/tables` until a signed-in socket is open.
+
+**No stakes.** `E1Net.stakesAllowed()` is `false` when embedded. `create` and `queue` then send
+`stake: 0` whatever they are given, and `join` sends an explicit `stake: 0`, so a table that plays
+for sats answers `ERROR{STAKE_MISMATCH}` ("this table plays for N sats") and seats nobody.
+
+**The launch code.** `E1Net.launchCode()` returns `window.nappletContext.args.code` (nappelin #105)
+once, checked again against `^[A-HJ-NP-Z2-9]{6}$`, else the website's `?code=`; every later call
+returns null, and a frozen, absent or throwing context is simply null. On the website `start()`
+reads `?code=` once and removes it from the address with `history.replaceState`, valid or not.
+
+**Host facts this rests on** (nappelin `apps/hangar/src/host.ts`, Kehto shell and services 0.20,
+read 2026-09-15): the outbox router has no NIP-65 relay lists, hence the named relays and
+`toOutbox: false`; subscription and query results are `{event, sidecar}`; a subscription is closed
+with `outbox.close {id, subId}` and ended by the host with `outbox.closed {subId, reason?}`; the
+host has no per-frame cap on subscriptions and drops them without `outbox.closed` when the frame
+closes or the identity changes (which closes the frame too). Storage values are strings of at
+most 8 MB per key under 200-character keys; the napplet holds itself to 512 KB.
 
 ### 4. The inventory intent (bearlett → nappelin → game)
 

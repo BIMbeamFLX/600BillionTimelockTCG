@@ -31,6 +31,9 @@ NAPPLET_ID = "600b-timelock-tcg"
 TITLE = "TIMELOCK TCG"
 DESCRIPTION = "Two-player card game on one screen, or against the built-in opponent. All 295 cards."
 REQUIRES = ("identity", "outbox", "resource", "storage", "intent")
+# The referee the napplet dials. A srcdoc frame has no origin to derive one from, so
+# site/net.js tableUrl() reads window.E1_TABLE_URL, set in <head> before net.js runs.
+TABLE_URL = "wss://tcg.nappelin.com/ws"
 MANIFEST_KIND = 35129
 SIZE_LIMIT = 3 * 1024 * 1024
 
@@ -322,9 +325,10 @@ def backdrop_data_url(site: Path) -> str:
 
 
 def add_head(html: str, source_sha: str, backdrop: str = "") -> str:
-    """Insert the build marker, the backdrop URL and the requires meta at the top of <head>."""
+    """Insert the build marker, the referee, the backdrop URL and the requires meta into <head>."""
     head = (
         f'<script>window.E1_NAPPLET_BUILD = "{source_sha}";</script>\n'
+        + f'<script>window.E1_TABLE_URL = "{TABLE_URL}";</script>\n'
         + (f'<script>window.E1_BACKDROP_URL = "{backdrop}";</script>\n' if backdrop else "")
         + f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
     )
