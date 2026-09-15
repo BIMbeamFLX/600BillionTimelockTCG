@@ -251,16 +251,17 @@ test("a colours-only theme, like today's Hangar sends, keeps every Hypershell to
   assertDefaults(N, doc, "theme.changed with colours only");
 });
 
-test("a tokens payload sets exactly the fifteen core names and nothing of the brand", async () => {
+test("a tokens payload sets exactly the nineteen core names and nothing of the brand", async () => {
   const doc = stubRoot();
   const tokens = {
     "--iron": "#101010", "--brass": "#b0b0ff", "--brass-2": "#9090ff", "--brass-3": "#7070ff",
     "--parchment": "#fafafa", "--signal": "#00ff00", "--panel": "rgba(1,1,1,.03)", "--well": "rgba(2,2,2,.05)",
     "--divider": "rgba(3,3,3,.12)", "--hairline": "rgba(4,4,4,.14)", "--emphasis": "rgba(5,5,5,.25)",
     "--body-ink": "rgba(6,6,6,.82)", "--headline": "Georgia, serif", "--mono": "monospace", "--r": "0",
+    "--iron-850": "#151515", "--iron-800": "#1a1a1a", "--iron-750": "#202020", "--rust": "#cc4444",
     // Everything below is outside the core set and must be ignored.
     "--ember": "#0000ff", "--aff-signal": "#00ff00", "--display": "Comic Sans MS", "--ink-quiet": "#123456",
-    "--iron-850": "#654321", "--black": "#ffffff",
+    "--soot": "#654321", "--black": "#ffffff",
   };
   const N = load({
     localStorage: memoryStorage().api,
@@ -271,10 +272,26 @@ test("a tokens payload sets exactly the fifteen core names and nothing of the br
   await N.theme.start();
   for (const name of Object.keys(N.NAPPELIN_THEME.tokens)) assert.equal(doc.__set.get(name), tokens[name], name);
   assert.equal(doc.__set.get("--iron"), "#101010", "the colours beside the tokens are not read");
-  for (const name of ["--ink-quiet", "--iron-850", "--black"]) assert.equal(doc.__set.has(name), false, name);
+  for (const name of ["--ink-quiet", "--soot", "--black"]) assert.equal(doc.__set.has(name), false, name);
   assertBrand(doc, "a tokens payload cannot name its way into the brand layer");
   assert.equal(N.theme.tokens()["--brass"], "#b0b0ff", "tokens() reports what was painted");
   assert.equal(N.report().theme, "shell");
+});
+
+test("a colour the browser would not paint keeps the default where the page can ask", async () => {
+  const doc = stubRoot();
+  const asked = [];
+  const N = load({
+    CSS: { supports: (property, value) => { asked.push([property, value]); return value !== "rgb(1 2 3 4)"; } },
+    localStorage: memoryStorage().api,
+    document: doc,
+    napplet: { theme: { get: async () => ({ tokens: { "--brass": "rgb(1 2 3 4)", "--brass-2": "#9090ff", "--r": "2px" } }) } },
+  });
+  await N.theme.start();
+  assert.equal(doc.__set.get("--brass"), N.NAPPELIN_THEME.tokens["--brass"], "a shape-valid colour the browser refuses keeps the default");
+  assert.equal(doc.__set.get("--brass-2"), "#9090ff", "a colour the browser paints applies");
+  assert.equal(doc.__set.get("--r"), "2px", "lengths are not asked as colours");
+  assert.deepEqual(asked.map(([property]) => property).filter((p) => p !== "color"), [], "only colours are asked");
 });
 
 /* The three doors a theme comes through. Each paints `payload` into a fresh page and

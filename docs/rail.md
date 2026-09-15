@@ -40,6 +40,9 @@ Loading `rail.js` twice is harmless: the second include changes nothing.
 | `left` | 104px wide | `--tcg-rail-left: 104px` |
 | `top` | 64px tall | `--tcg-rail-top: 64px` |
 
+Hypershell's decisions put the bar at the side, right by default. Below 700px wide it starts at the
+bottom instead, a phone layout that waits for the handoff's phone pass (PLAN step 9).
+
 The **Move** button at the end of the bar cycles right → bottom → left → top and remembers the choice
 in `localStorage` as `600b:rail`. Without a stored choice the bar follows the window: bottom under
 700px, right otherwise. Storage that refuses to keep anything only costs the bar its memory.
@@ -61,7 +64,9 @@ dialog, card menu and overlay (60 and up), which cover it while they are open.
   verbatim, "No compatible browser extension found. You can play as a guest." The label reads
   SIGN IN, GUEST (the player chose to play as a guest this tab session) or ACCOUNT. A display name
   appears only where net.js can verify the profile's signature; elsewhere the short npub stands.
-- **Music** — where `E1FX` is on the page (play.html) the table mounts its sound controls into
+- **Music** — interim until nappelin's music track (the NAP-CUE draft) lands: today it controls the
+  game's own room tone only, and `E1FX.duckBed(depth)` / `E1FX.unduckBed()` are the hooks that link
+  will use to step the bed back while other music plays. Where `E1FX` is on the page (play.html) the table mounts its sound controls into
   `E1Rail.slot("music")`. Elsewhere: "Sound plays at the table." and a link to play.html. The label
   reads PAUSED while the table's sound is muted, PLAYING only while its room tone actually runs,
   MUSIC otherwise.

@@ -799,7 +799,7 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
     else if (!checking && !wallet.empty && wallet.checkedAt && wallet.held === null) parts.push(text("Not available here yet."));
     const box = el("div", "tcg-pop__box");
     box.append(el("span", "tcg-pop__label", "Not your account"), el("span", "tcg-pop__meta", "Your cards live in this browser, apart from signing in."));
-    parts.push(box, linkButton("Open wallet", siteUrl("wallet.html"), { primary: true }));
+    parts.push(box, linkButton("Open wallet", siteUrl("wallet.html"), { primary: true, external: true }));
     fill("wallet", parts);
   }
 

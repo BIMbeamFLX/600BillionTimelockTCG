@@ -40,7 +40,7 @@
   const QUOTA = 512 * 1024;
 
   /* CHROME IS HYPERSHELL, THE GAME WORLD IS 600 BILLION (docs/brand-hypershell.md).
-   * These fifteen names are nappelin's own design-system.css names and the ONLY
+   * These nineteen names are nappelin's own design-system.css names and the ONLY
    * ones a shell theme can set; the values are the Hypershell defaults that
    * site/600b.css declares, and tests/js/napplet.test.mjs holds the two files to
    * each other. The same set is painted on the website (the fallback) and inside
@@ -62,6 +62,13 @@
       "--headline": "\"Josefin Sans\", Georgia, sans-serif",
       "--mono": "\"IBM Plex Mono\", ui-monospace, Consolas, monospace",
       "--r": "0",
+      /* The raised irons dialogs and panels sit on, and the danger colour, are
+         design-system.css tokens too: a guild skin that repaints --iron repaints
+         these, or its dialogs keep the default iron. */
+      "--iron-850": "#14100b",
+      "--iron-800": "#191410",
+      "--iron-750": "#201a13",
+      "--rust": "#d06b45",
     }),
   });
 
@@ -299,7 +306,14 @@
   function tokenValue(name, value) {
     if (!isValue(value) || value.length > 160 || NEVER.test(value)) return null;
     const shape = name === "--r" ? LENGTH : name === "--headline" || name === "--mono" ? FONT_LIST : COLOR;
-    return shape.test(value.trim()) ? value.trim() : null;
+    const clean = value.trim();
+    if (!shape.test(clean)) return null;
+    /* The shape admits `rgb(1 2 3 4)` or `hsl(10%, 20deg, 3turn)`, which a browser
+       drops, leaving the property unset instead of the default. Where the page can
+       ask, a colour the browser would not paint keeps the default. */
+    const css = globalThis.CSS;
+    if (shape === COLOR && css && typeof css.supports === "function" && !css.supports("color", clean)) return null;
+    return clean;
   }
 
   /** The core tokens a `{ tokens }` payload names. A `colors`-only payload names none. */

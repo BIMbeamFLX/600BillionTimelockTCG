@@ -323,3 +323,90 @@ def test_the_card_art_exemption_is_narrow() -> None:
     assert violations(CARD_ART_RULE.sub("", card)) == []
     assert violations(CARD_ART_RULE.sub("", mixed)) != []
     assert violations(CARD_ART_RULE.sub("", chrome)) != []
+
+
+# A drop-shadow() filter is a shadow too. The game world keeps its weight: card faces lying on
+# a surface, and the pack reveal's die. Every selector of a rule that uses one must be here.
+GAME_WORLD_ART = {
+    ".face",  # 600b.css: a card face, on every page
+    ".art-button img",  # cards.html: the gallery's faces
+    ".flipcard__face",  # index.html: the hero card
+    ".teaser img",  # index.html: the teaser faces
+    ".arc img",  # lore.html: the fan of faces
+    ".step__art img",  # quickstart.html: a card per step
+    ".fan img",  # quickstart.html: the fan of faces
+    ".pack-die",  # shop.html: the die rolled in the pack reveal
+}
+DROP_SHADOW = re.compile(r"drop-shadow\(", re.I)
+
+
+def drop_shadow_violations(css: str) -> list[str]:
+    """Rules that use drop-shadow() on anything but game-world art."""
+    found = []
+    for selectors, decls in rules(css):
+        if any(DROP_SHADOW.search(value) for value in decls.values()):
+            outside = [s for s in selectors if s not in GAME_WORLD_ART]
+            if outside:
+                found.append(f"drop-shadow on {', '.join(outside)}")
+    return found
+
+
+@pytest.mark.parametrize("name", ["600b.css", *PAGES])
+def test_drop_shadow_only_weighs_game_world_art(name: str) -> None:
+    """A filter shadow on chrome (a logo, a panel, a button) is a shadow like any other."""
+    css = stylesheet() if name == "600b.css" else page_css(SITE / name)
+
+    assert drop_shadow_violations(css) == []
+
+
+def test_the_drop_shadow_exemption_is_narrow() -> None:
+    """Card art passes; chrome, or chrome sharing a rule with card art, does not."""
+    assert drop_shadow_violations(".face { filter: drop-shadow(0 3px 0 #000); }") == []
+    assert drop_shadow_violations(".intro__mark { filter: drop-shadow(0 10px 30px #000); }") != []
+    assert drop_shadow_violations(".face, .nav__mark { filter: drop-shadow(0 1px 0 #000); }") != []
+
+
+SMALL_FONT = re.compile(r"(?:^|\s)(\d+(?:\.\d+)?)px(?:/|\s|$)")
+
+
+def test_small_text_is_never_brass_three() -> None:
+    """Brass-3 is 3.96:1 on iron: fine for resting icons and dots, never for 10px text."""
+    found = []
+    for selectors, decls in rules(stylesheet()):
+        font, font_size = decls.get("font", ""), " " + decls.get("font-size", "")
+        size = SMALL_FONT.search(font) or SMALL_FONT.search(font_size)
+        if size and float(size.group(1)) <= 10 and norm(decls.get("color", "")) == "var(--brass-3)":
+            found.append(", ".join(selectors))
+
+    assert found == []
+
+
+# --- the CSS the scripts inject -------------------------------------------------------
+
+INJECTING = ["rail.js", "fx.js", "arena3d.js"]
+JS_SHADOW = re.compile(r"(?:box|text)-shadow\s*:\s*([^;}'\"`]+)")
+JS_RADIUS = re.compile(r"border(?:-[a-z]+)*-radius\s*:\s*([^;}'\"`]+)")
+
+
+def injected_violations(name: str) -> list[str]:
+    """Shadows, radius, foreign faces and green in the CSS strings a script injects."""
+    source = (SITE / name).read_text(encoding="utf-8")
+    found = [f"face {m.group()}" for m in FORBIDDEN_FACE.finditer(source)]
+    for match in JS_SHADOW.finditer(source):
+        if norm(match.group(1)) != "none":
+            found.append(f"shadow {match.group(0).strip()}")
+    found += [f"drop-shadow at {m.start()}" for m in DROP_SHADOW.finditer(source)]
+    for match in JS_RADIUS.finditer(source):
+        if norm(match.group(1)) not in {"0", "var(--r)", "var(--r,0)"}:
+            found.append(f"radius {match.group(0).strip()}")
+    for line in source.splitlines():
+        # The side bar's account dot is the one green the site draws.
+        if GREEN.search(line) and "tcg-rail__dot--live" not in line:
+            found.append(f"green {line.strip()[:80]}")
+    return found
+
+
+@pytest.mark.parametrize("name", INJECTING)
+def test_injected_css_keeps_the_non_negotiables(name: str) -> None:
+    """The bar, the sound controls and the 3D table's chip are chrome, whoever writes their CSS."""
+    assert injected_violations(name) == []

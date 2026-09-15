@@ -1647,7 +1647,7 @@
     '.fxbar button{width:34px;height:34px;display:grid;place-items:center;padding:0;cursor:pointer;',
     'background:transparent;border:1px solid #c9973f;border-radius:0;color:#e7bf76}',
     '.fxbar button:hover{color:#ece3d0;border-color:#ece3d0}',
-    '.fxbar button[aria-pressed="true"]{color:#8f6a2a;border-color:rgba(143,106,42,.5)}',
+    '.fxbar button[aria-pressed="true"]{color:#e7bf76;border-color:#e7bf76;background:rgba(231,191,118,.12)}',
     '.fxbar input[type=range]{-webkit-appearance:none;appearance:none;width:92px;height:2px;',
     'background:#8f6a2a;border:0;outline-offset:3px}',
     '.fxbar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;',
@@ -3271,6 +3271,10 @@
       return API;
     },
     volume: function (v) { cfg.volume = clamp(Number(v) || 0, 0, 1); applyMaster(); refreshControls(); saveCfg(); return API; },
+    /* The room tone steps back while other music plays (nappelin's NAP-CUE draft:
+       cue.focus {music: playing|idle}), and returns when it stops. */
+    duckBed: function (depth, holdMs, relMs) { duckBed(clamp(Number(depth), 0.0001, 1) || 0.45, holdMs, relMs); return API; },
+    unduckBed: function (relMs) { unduckBed(relMs); return API; },
     bed: function (on) { return API.set({ bed: !!on }); },
     pressure: function (on) { return API.set({ pressure: !!on }); },
     motion: function (m) { return API.set({ motion: m }); },
