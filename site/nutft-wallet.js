@@ -263,6 +263,9 @@
         additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
       }, 1, keyset.id)), counters: state.counters || {} };
     }
+    /* Slots beyond a half-finished recovery's checkpoint may already hold this
+       phrase's cards, so nothing may reserve slots until the recovery ends. */
+    if (state.restoring) throw new Error("finish recovering this wallet from its phrase first");
     const catalog = await getCatalog(mintUrl, c, keyset);
     const key = counterKey(mintUrl, keyset.id);
     const counters = { ...(state.counters || {}) };
@@ -1240,25 +1243,36 @@
 
   async function restoreSeedUnlocked(mintUrl, phrase, opts = {}) {
     const current = await read();
-    if (current.tokens.length || current.pending || (current.outgoing || []).length) {
-      throw new Error("recovery requires an empty wallet so bearer assets are not overwritten");
-    }
     const wc = await walletCrypto();
     const seedPhrase = String(phrase || "").trim().toLowerCase().replace(/\s+/g, " ");
     if (!wc.validateMnemonic(seedPhrase, wc.wordlist)) throw new Error("recovery phrase is not a valid 12-word BIP39 phrase");
-    const seed = wc.mnemonicToSeedSync(seedPhrase);
     const c = await cashu();
-    const privateKey = wc.HDKey.fromMasterSeed(seed).derive("m/129373'/10'/0'/0'/0").privateKey;
-    const state = {
-      privateKey: hex(privateKey), pubkey: hex(c.getPubKeyFromPrivKey(privateKey)), seedPhrase,
-      counters: {}, tokens: [], outgoing: [], pending: null,
-    };
     const keyset = await getKeyset(mintUrl, c);
+    const key = counterKey(mintUrl, keyset.id);
+    /* PICK UP WHERE THE LAST ATTEMPT STOPPED. Recovery writes its progress after
+       every batch, so an attempt cut off by a mint that stays busy or a closed
+       tab is resumed from its checkpoint: never restarted from slot 0, and never
+       refused as a wallet that already holds the cards it found. */
+    const unfinished = current.pending || (current.outgoing || []).length;
+    const resuming = Boolean(current.restoring && current.restoring.key === key
+      && current.seedPhrase === seedPhrase && !unfinished);
+    if (!resuming && (current.tokens.length || unfinished)) {
+      throw new Error("recovery requires an empty wallet so bearer assets are not overwritten");
+    }
+    let state = current;
+    if (!resuming) {
+      const seed = wc.mnemonicToSeedSync(seedPhrase);
+      const privateKey = wc.HDKey.fromMasterSeed(seed).derive("m/129373'/10'/0'/0'/0").privateKey;
+      state = {
+        privateKey: hex(privateKey), pubkey: hex(c.getPubKeyFromPrivKey(privateKey)), seedPhrase,
+        counters: { [key]: 0 }, tokens: [], outgoing: [], pending: null,
+        restoring: { key, next: 0, empty: 0 },
+      };
+      await write(state);
+    }
     const catalog = await getCatalog(mintUrl, c, keyset);
-    const recovered = [];
-    let counter = 0;
-    let emptyBatches = 0;
-    let lastCounterWithSignature = -1;
+    let counter = state.restoring.next;
+    let emptyBatches = state.restoring.empty;
     /* HOW FAR PAST THE LAST CARD TO LOOK. Slot c holds only the card at catalog
        index c mod N, so two cards taken one after the other lie at most N slots
        apart. A slot reserved and never signed between them -- left by a wallet
@@ -1287,10 +1301,12 @@
       }
       const signatures = new Map(restored.outputs.map((output, index) => [output.B_, restored.signatures[index]]));
       const batch = [];
+      const found = [];
+      let lastSigned = -1;
       for (let i = 0; i < candidates.length; i += 1) {
         const signature = signatures.get(candidates[i].blindedMessage.B_);
         if (!signature) continue;
-        lastCounterWithSignature = counter + i;
+        lastSigned = counter + i;
         const proof = candidates[i].toProof({ ...signature, amount: c.Amount.from(signature.amount) }, keyset);
         if (!proof.p2pk_e || !c.hasValidDleq(proof, keyset, { require: true }) || !c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof).length) {
           throw new Error("mint returned an invalid restored NutFT proof");
@@ -1304,17 +1320,32 @@
         }, opts);
         if (!checked.ok) throw new Error(`restored proof state unavailable (${checked.status})`);
         const states = (await checked.json()).states;
-        batch.forEach((proof, index) => { if (states[index]?.state === "UNSPENT") recovered.push(proof); });
+        batch.forEach((proof, index) => { if (states[index]?.state === "UNSPENT") found.push(proof); });
         emptyBatches = 0;
       } else {
         emptyBatches += 1;
       }
       counter += 100;
+      /* CHECKPOINT: the cards this batch found, the counter past its last signed
+         slot, and where the next batch starts, before anything else is asked. */
+      state = {
+        ...state,
+        tokens: found.length
+          ? [...state.tokens, encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: found })]
+          : state.tokens,
+        counters: lastSigned >= 0 ? { ...state.counters, [key]: lastSigned + 1 } : state.counters,
+        restoring: { key, next: counter, empty: emptyBatches },
+      };
+      await write(state);
     }
 
-    state.counters[counterKey(mintUrl, keyset.id)] = lastCounterWithSignature + 1;
-    if (recovered.length) state.tokens = [encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: recovered })];
-    await write(state);
+    /* Finished: one token holding every recovered card, as a recovery has
+       always left the wallet, and no checkpoint. */
+    const recovered = readableProofs(state, keyset, c);
+    const finished = { ...state };
+    delete finished.restoring;
+    if (recovered.length) finished.tokens = [encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: recovered })];
+    await write(finished);
     return recovered.length;
   }
 
