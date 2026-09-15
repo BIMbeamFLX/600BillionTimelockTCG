@@ -961,6 +961,12 @@
       if (snapshot.spent.length) meta.append(chip(`${snapshot.spent.length} SPENT`));
       if (snapshot.invalid.length) meta.append(chip(`${snapshot.invalid.length} REJECTED`));
       if (snapshot.unreadable.length) meta.append(chip(`${snapshot.unreadable.length} UNREADABLE`));
+      /* Received cards the recovery phrase cannot find yet. The wallet retries on
+       * every refresh; until it succeeds, only this device or a backup file holds
+       * them, so the person has to know. */
+      if (snapshot.unrestorable && snapshot.unrestorable.length) {
+        meta.append(chip(`${snapshot.unrestorable.length} NOT YET UNDER YOUR PHRASE`));
+      }
       for (const catalog of snapshot.catalogs) {
         meta.append(chip(`${catalog.collection_id} ${catalog.census_sha256.slice(0, 12)}…`));
         /* Every asset of a catalog whose signature has already been checked —

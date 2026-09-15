@@ -61,7 +61,8 @@
   const digest = async (value) => hex(new Uint8Array(await root.crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))));
   const reference = (tag) => ({ collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3] });
   const binding = async (tag) => digest(`Cashu_NutFT_v1${canonical(reference(tag))}`);
-  const validState = (state) => state && typeof state === "object" && typeof state.privateKey === "string" && typeof state.pubkey === "string" && (state.seedPhrase == null || typeof state.seedPhrase === "string") && (state.counters == null || (typeof state.counters === "object" && !Array.isArray(state.counters))) && Array.isArray(state.tokens) && state.tokens.every((token) => typeof token === "string") && (state.pending == null || typeof state.pending === "object");
+  const validState = (state) => state && typeof state === "object" && typeof state.privateKey === "string" && typeof state.pubkey === "string" && (state.seedPhrase == null || typeof state.seedPhrase === "string") && (state.counters == null || (typeof state.counters === "object" && !Array.isArray(state.counters))) && Array.isArray(state.tokens) && state.tokens.every((token) => typeof token === "string") && (state.pending == null || typeof state.pending === "object")
+    && (state.unmoved == null || (Array.isArray(state.unmoved) && state.unmoved.every((entry) => entry && typeof entry.mint === "string" && typeof entry.secret === "string")));
 
   /* ALWAYS re-read storage. The cache used to be returned outright, so this
    * function could not see a write made by another TAB — and every decision
@@ -359,8 +360,12 @@
     const token = encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs: [proof] });
     if (pending.toSelf) {
       /* A card moved under this wallet's own recovery phrase stays in this
-         wallet. It is not a hand-off, whichever call happens to finish it. */
-      await write({ ...state, tokens: [...rebuilt, token, ...opaque], pending: null });
+         wallet. It is not a hand-off, whichever call happens to finish it, and
+         it is no longer a card the phrase cannot find. */
+      await write({
+        ...state, tokens: [...rebuilt, token, ...opaque], pending: null,
+        ...(state.unmoved ? { unmoved: state.unmoved.filter((entry) => entry.secret !== pending.input_secret) } : {}),
+      });
       return { ...response, token, proof };
     }
     /* PERSIST THE OUTGOING TOKEN. It is the only thing that can ever claim this
@@ -984,8 +989,16 @@
        unreadable-token bug, one level up. The recovery is still attempted, and
        the page has its own route to retry it. */
     try { await locked(recoverPending); } catch { /* reported by recoverPending's own caller */ }
+    try { await locked(() => retryMovesUnlocked([mintUrl])); } catch { /* still listed in `unrestorable` */ }
     return snapshotReadOnly(mintUrl);
   }
+
+  /* The held cards the recovery phrase cannot find yet, from the stored list.
+     Keyed by mint as well as secret, since the list spans editions. */
+  const unrestorableIn = (walletState, owned) => {
+    const listed = new Set((walletState.unmoved || []).map((entry) => `${entry.mint}\n${entry.secret}`));
+    return owned.filter((item) => listed.has(`${item.mintUrl}\n${item.proof.secret}`));
+  };
 
   /* COUNTING ONLY READS. snapshot() and snapshotMany() finish an unfinished
      booster or transfer before they count, which is right for the wallet page
@@ -1025,7 +1038,11 @@
        rejects, while an unreadable token is one it cannot even open. A page
        that conflates them tells a buyer their card is bad when the truth is
        that they are looking at the wrong mint. */
-    return { catalog: catalogs.values().next().value || null, owned, spent, invalid, unreadable };
+    /* `unrestorable`: owned cards not yet moved under the recovery phrase. The
+       wallet keeps trying on every refresh; until then only a backup file or
+       this device holds them. */
+    const unrestorable = unrestorableIn(walletState, owned.map((item) => ({ ...item, mintUrl })));
+    return { catalog: catalogs.values().next().value || null, owned, spent, invalid, unreadable, unrestorable };
   }
 
   /* One browser wallet may hold E1 boosters and G starter sets at the same
@@ -1034,6 +1051,9 @@
    * dead foreign token on the E1 wallet page (and vice versa). */
   async function snapshotMany(mintUrls) {
     try { await locked(recoverPending); } catch { /* the recovery panel owns this error */ }
+    try {
+      await locked(() => retryMovesUnlocked([...new Set((mintUrls || []).map(String))]));
+    } catch { /* still listed in `unrestorable` */ }
     return snapshotManyReadOnly(mintUrls);
   }
 
@@ -1104,7 +1124,8 @@
         }
       }
     }));
-    return { catalogs: [...catalogs.values()], owned, spent, invalid, unreadable, unavailable };
+    const unrestorable = unrestorableIn(walletState, owned);
+    return { catalogs: [...catalogs.values()], owned, spent, invalid, unreadable, unavailable, unrestorable };
   }
 
   async function tradeProofUnlocked(mintUrl, secret, recipientPubkey) {
@@ -1232,28 +1253,68 @@
       const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
       if (item.state !== "UNSPENT" || !c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof).length) throw new Error("token is spent or not addressed to this wallet");
     }
-    await write({ ...state, tokens: [...state.tokens, token] });
     /* Received proofs were made by the sender, so their random output material
-       cannot be recovered from this wallet's NUT-13 seed. Reissue each one to
-       our own destination immediately; the old token remains stored if a
-       request fails, and the normal pending/outgoing records cover a lost
-       response after the mint spends it. */
-    if (state.seedPhrase) {
-      for (const proof of decoded.proofs) {
+       cannot be recovered from this wallet's NUT-13 seed. The token and the list
+       of its cards still to be moved under the phrase are stored in one write;
+       each card is then reissued to our own destination, and leaves the list
+       only when that trade is done. The normal pending/outgoing records cover a
+       lost response after the mint spends it. */
+    const arriving = state.seedPhrase
+      ? decoded.proofs.map((proof) => ({ mint: mintUrl, secret: proof.secret }))
+      : [];
+    await write({
+      ...state, tokens: [...state.tokens, token],
+      ...(arriving.length ? { unmoved: [...(state.unmoved || []), ...arriving] } : {}),
+    });
+    /* SAY SO. This loop used to break silently, so an import reported every card
+       as received while the one that failed stayed under the sender's secret,
+       where this wallet's recovery phrase can never find it. The cards are in
+       the wallet either way; the caller hears which is not under the phrase yet,
+       and every refresh tries again. */
+    const failure = await moveUnderPhrase(arriving, state.pubkey);
+    if (failure) throw notMoved(failure, decoded.proofs.length);
+    return decoded.proofs.length;
+  }
+
+  /* MOVE CARDS UNDER THE PHRASE, one trade to this wallet's own key each.
+     "output was already signed" means another device on the phrase took the
+     slot between the probe and the trade; the counter now stands past it, so the
+     card is tried again at once on a fresh slot. A card no longer held, or
+     already spent, leaves the list. A busy mint, an unfinished recovery or a
+     transfer in progress ends the round with the card still listed, and so does
+     any other refusal, after the rest have had their turn. Returns the first
+     failure, or null. */
+  async function moveUnderPhrase(entries, pubkey) {
+    let failure = null;
+    for (const entry of entries) {
+      for (let attempt = 1; ; attempt += 1) {
         try {
-          await tradeProofUnlocked(mintUrl, proof.secret, state.pubkey);
+          await tradeProofUnlocked(entry.mint, entry.secret, pubkey);
+          break;
         } catch (error) {
-          /* SAY SO. This loop used to break silently, so an import reported
-             every card as received while the one that failed stayed under the
-             sender's secret, where this wallet's recovery phrase can never find
-             it. The cards are in the wallet either way, and the caller has to
-             hear that one is not under the phrase yet. A busy mint leaves the
-             move pending, and the next wallet operation finishes it. */
-          throw notMoved(error, decoded.proofs.length);
+          if (/card is not in this wallet|already spent/i.test(error.message)) {
+            const current = await read();
+            await write({ ...current, unmoved: (current.unmoved || []).filter((item) => item.secret !== entry.secret) });
+            break;
+          }
+          if (/output was already signed/i.test(error.message) && attempt < 3) continue;
+          failure = failure || error;
+          if (error.transient || error.message === RECOVERY_UNFINISHED || /transfer already in progress/.test(error.message)) {
+            return failure;
+          }
+          break;
         }
       }
     }
-    return decoded.proofs.length;
+    return failure;
+  }
+
+  /* Every refresh gives the cards not yet under the phrase another try. */
+  async function retryMovesUnlocked(mintUrls) {
+    const state = await read();
+    if (!state.seedPhrase || state.restoring || state.pending) return;
+    const entries = (state.unmoved || []).filter((entry) => !mintUrls || mintUrls.includes(entry.mint));
+    if (entries.length) await moveUnderPhrase(entries, state.pubkey);
   }
 
   const importToken = (mintUrl, token) => locked(() => importTokenUnlocked(mintUrl, token));

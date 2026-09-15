@@ -56,15 +56,13 @@ test("an 'output was already signed' refusal keeps the counter past that slot", 
   });
   const token = await cardFor(mint, bob);
 
-  await assert.rejects(bob.wallet.importToken(mint.url, token), /already signed/);
-  const past = bob.counter();
-  assert.ok(past > 0, "that slot belongs to someone else, so the counter stays beyond it");
-
-  const [held] = (await bob.wallet.snapshotReadOnly(mint.url)).owned;
-  await bob.wallet.tradeProof(mint.url, held.proof.secret, await bob.wallet.destination());
+  /* The import tries again at once, and the counter it tries from stands past
+     the slot the refusal named: that slot belongs to someone else. */
+  assert.equal(await bob.wallet.importToken(mint.url, token), 1);
   const [refused, retried] = bob.posted("/nutft/trade").map((request) => request.body.outputs[0].B_);
-  assert.notEqual(retried, refused, "the next attempt took a fresh slot");
-  assert.ok(bob.counter() > past);
+  assert.notEqual(retried, refused, "the retry took a fresh slot");
+  assert.ok(bob.counter() > 0);
+  assert.equal((await bob.wallet.snapshotReadOnly(mint.url)).owned.length, 1);
 });
 
 test("a move the mint is too busy for stays pending and lands in the wallet, not the hand-offs",
