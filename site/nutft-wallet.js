@@ -374,7 +374,12 @@
   /* "not settled yet" is not a rejection, it is a wait. Treating it as one was
      dangerous: the pending outputs were discarded, and a buyer who then paid had
      nothing left to claim with — their sats gone and no way to ask again. */
-  const AWAITING_PAYMENT = /not settled yet|is still sealed|not mined yet/i;
+  const AWAITING_PAYMENT = /not settled yet|is still sealed|not mined yet|cannot confirm payment right now|cannot read the chain right now/i;
+
+  /* The verdicts that end a claim somebody paid for. Anything else -- an answer
+     this wallet does not recognise -- keeps the claim and its payment hash, since
+     without them a paid invoice can never be collected by this wallet again. */
+  const CLAIM_IS_OVER = /purchase expired|already claimed|already been claimed|stale booster quote|does not take committed purchases|unknown payment_hash|unknown purchase_id|quoted for a different pack|already taken its allocation/i;
 
   async function submitPending(state, c, keyset) {
     let pending = state.pending;
@@ -439,10 +444,11 @@
         wait.awaitingPayment = true;
         throw wait;
       }
-      /* A committed purchase still owns its cards: only a final verdict from
-         the mint drops the pending record; a temporary refusal keeps it. */
-      const terminal = /purchase expired|already claimed|stale booster quote|does not take committed purchases/i;
-      if (!pending.body.purchase_id || terminal.test(detail)) {
+      /* A committed purchase or a paid invoice still owns its cards: only a
+         final verdict from the mint drops that pending record. A free booster or
+         a transfer the mint refused never happened, so it is dropped. */
+      const paidFor = Boolean(pending.body.purchase_id || pending.body.payment_hash);
+      if (!paidFor || CLAIM_IS_OVER.test(detail)) {
         await write({ ...state, counters: countersAfterRefusal(state, pending, detail), pending: null });
       }
       throw new Error(detail);
