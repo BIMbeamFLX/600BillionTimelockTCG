@@ -41,41 +41,23 @@ const fs = require("node:fs");
 const http = require("node:http");
 const https = require("node:https");
 const { URL } = require("node:url");
-
-const LOOPBACK = /^(127\.\d+\.\d+\.\d+|localhost|\[?::1\]?)$/i;
+const { phoenixdSettings, phoenixdProblems } = require("./mint-env.js");
 
 function readConfig(options = {}) {
-  const url = options.url || process.env.PHOENIXD_URL || "";
-  if (!url) return null;
+  /* Checked by server/mint-env.js before the password file is read: the same
+     rules the boot check and the dry run apply. `allowRemote` takes a boolean
+     from a caller and "1" or "true" from the environment; comparing to "1"
+     alone once silently ignored `allowRemote: true`. */
+  const settings = phoenixdSettings(options);
+  if (!settings.url) return null;
+  const problems = phoenixdProblems(settings, "PHOENIXD_URL is set");
+  if (problems.length) throw new Error(problems.join("; "));
 
-  let parsed;
-  try { parsed = new URL(url); }
-  catch { throw new Error("PHOENIXD_URL must be an absolute URL, e.g. http://127.0.0.1:9740"); }
-
-  let password = options.password || process.env.PHOENIXD_PASSWORD || "";
-  const passwordPath = options.passwordPath || process.env.PHOENIXD_PASSWORD_PATH || "";
-  if (!password && passwordPath) password = fs.readFileSync(passwordPath, "utf8").trim();
+  const password = settings.password || fs.readFileSync(settings.passwordPath, "utf8").trim();
   if (!password) {
-    throw new Error("PHOENIXD_URL is set but no password: set PHOENIXD_PASSWORD or "
-      + "PHOENIXD_PASSWORD_PATH (the http-password line from phoenix.conf)");
+    throw new Error("PHOENIXD_PASSWORD_PATH: names an empty file; it must hold the http-password-limited-access value from phoenix.conf");
   }
-
-  /* Accepts a boolean from a caller and "1"/"true" from the environment, which
-     is the only place a string can come from. Comparing String(x) to "1" alone
-     silently ignored `allowRemote: true` — an option that looks like it works
-     and does not is worse than one that does not exist. */
-  const allowRemoteRaw = options.allowRemote ?? process.env.PHOENIXD_ALLOW_REMOTE ?? "";
-  const allowRemote = allowRemoteRaw === true || allowRemoteRaw === "1" || allowRemoteRaw === "true";
-  const isLoopback = LOOPBACK.test(parsed.hostname);
-  if (parsed.protocol === "http:" && !isLoopback && !allowRemote) {
-    throw new Error(`phoenixd at ${parsed.hostname} would receive its password in clear over the network. `
-      + "Put it behind TLS or a tunnel, or set PHOENIXD_ALLOW_REMOTE=1 if the hop is genuinely private.");
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("PHOENIXD_URL must be http or https");
-  }
-
-  return { url: parsed.origin, password, timeoutMs: Number(options.timeoutMs || 15000) };
+  return { url: new URL(settings.url.trim()).origin, password, timeoutMs: Number(options.timeoutMs || 15000) };
 }
 
 /* node:http rather than fetch. The same reason server/lnd.js uses node:https:

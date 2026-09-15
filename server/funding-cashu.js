@@ -20,6 +20,8 @@
  * mints and persists the proofs before it reports true, and reports false if
  * minting failed. Proofs are bearer instruments: the row IS the money. */
 
+const { cashuProblems } = require("./mint-env.js");
+
 const DDL = `
 /* Every quote we hand out, so a payment can be collected even if the buyer
    never comes back to claim their pack. Without this the only trigger for
@@ -45,8 +47,8 @@ CREATE TABLE IF NOT EXISTS nutft_treasury (
 
 function createCashuFunding(options = {}) {
   const mintUrl = (options.mintUrl || process.env.NUTFT_CASHU_MINT || "").replace(/\/$/, "");
-  if (!mintUrl) throw new Error("NUTFT_FUNDING=cashu needs NUTFT_CASHU_MINT (a mint URL)");
-  if (!/^https:\/\//i.test(mintUrl)) throw new Error("NUTFT_CASHU_MINT must be https");
+  const problems = cashuProblems(mintUrl, `${options.fundingVariable || "NUTFT_FUNDING"}=cashu`);
+  if (problems.length) throw new Error(problems.join("; "));
   const db = options.db || null;
   if (db) db.exec(DDL);
 

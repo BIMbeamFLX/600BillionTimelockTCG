@@ -53,6 +53,8 @@ test("referee startup restores previous paid buyers into the relay allowlist", a
     gNutftEnabled: true,
     gNutftDbPath: gDbPath,
     gNutftCatalogUri: "http://127.0.0.1/g/nutft/catalog",
+    gNutftCollectionId: "600B-G",
+    gNutftCensusPath: require.resolve("../../cards/g-census.json"),
     gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
     gNutftAllowVirtual: "1",
     gNutftSales: "signed",

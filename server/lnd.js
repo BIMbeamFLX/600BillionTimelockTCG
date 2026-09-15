@@ -20,6 +20,7 @@
 const fs = require("node:fs");
 const https = require("node:https");
 const { URL } = require("node:url");
+const { lndSettings, lndProblems } = require("./mint-env.js");
 
 /* LND signs its REST endpoint with its own CA, so the system trust store will
  * reject it. Pinning that CA is the correct fix; disabling verification is not,
@@ -27,26 +28,16 @@ const { URL } = require("node:url");
  * therefore the supported route and LND_INSECURE exists only for a local
  * throwaway regtest node, and says so out loud when used. */
 function readConfig(options = {}) {
-  const url = options.url || process.env.LND_REST_URL || "";
+  /* The settings are checked by server/mint-env.js before any file is read,
+     the same rules the boot check and the dry run apply. */
+  const { url, macaroon: macaroonHex, macaroonPath, certPath, insecure } = lndSettings(options);
   if (!url) return null;
+  const problems = lndProblems({ url, macaroon: macaroonHex, macaroonPath, certPath, insecure }, "LND_REST_URL is set");
+  if (problems.length) throw new Error(problems.join("; "));
 
-  const macaroonHex = options.macaroon || process.env.LND_MACAROON || "";
-  const macaroonPath = options.macaroonPath || process.env.LND_MACAROON_PATH || "";
-  let macaroon = macaroonHex;
-  if (!macaroon && macaroonPath) macaroon = fs.readFileSync(macaroonPath).toString("hex");
-  if (!macaroon) throw new Error("LND_REST_URL is set but no macaroon: set LND_MACAROON_PATH or LND_MACAROON");
-  if (!/^[0-9a-f]+$/i.test(macaroon)) throw new Error("LND macaroon must be hex");
-
-  const certPath = options.certPath || process.env.LND_TLS_CERT_PATH || "";
-  const insecure = String(options.insecure ?? process.env.LND_INSECURE ?? "") === "1";
-  let ca = null;
-  if (certPath) ca = fs.readFileSync(certPath);
-  else if (!insecure && new URL(url).protocol === "https:") {
-    throw new Error("LND uses a self-signed certificate: set LND_TLS_CERT_PATH to its tls.cert "
-      + "(or LND_INSECURE=1 for a throwaway local node, which accepts any certificate)");
-  }
-
-  return { url: url.replace(/\/$/, ""), macaroon, ca, insecure, timeoutMs: Number(options.timeoutMs || 8000) };
+  const macaroon = macaroonHex || fs.readFileSync(macaroonPath).toString("hex");
+  const ca = certPath ? fs.readFileSync(certPath) : null;
+  return { url: url.trim().replace(/\/$/, ""), macaroon, ca, insecure, timeoutMs: Number(options.timeoutMs || 8000) };
 }
 
 /* node:https rather than fetch. LND signs its REST endpoint with its own CA, and

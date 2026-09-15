@@ -184,6 +184,8 @@ test("the E1 and G mints share one policy and one budget per client", async (t) 
     mintRecoveryRateMax: 4,
     gNutftEnabled: true,
     gNutftDbPath: ":memory:",
+    gNutftCollectionId: "600B-G",
+    gNutftCensusPath: require.resolve("../../cards/g-census.json"),
     gNutftCatalogUri: "http://127.0.0.1/g/nutft/catalog",
     gNutftFunding: createMockFunding({ settleAfterMs: 0 }),
     gNutftAllowVirtual: "1",
