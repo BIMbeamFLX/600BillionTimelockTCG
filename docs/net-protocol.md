@@ -115,7 +115,16 @@ present it must match that identity; it is never trusted as proof by itself.
 The server mints seeds (§5.1), calls `E.createGame(config)`, persists, and sends `STATE` to
 **both** sockets (status `"playing"`, `view` non-null).
 Errors: `NIP07_REQUIRED`, `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `STAKE_MISMATCH`,
-`DECK_BUILD_FAILED`.
+`BAD_DECK`, `DECK_BUILD_FAILED`.
+
+**The table's rules are its host's.** A guest's `deck` is checked against them, never against
+rules the guest names, and a `BAD_DECK` answer to a `JOIN` names them:
+```json
+{"t":"ERROR","v":1,"code":"BAD_DECK","message":"Timelock Channel — Midnight appears 5 times; 4 is the limit (§7)","ruleset":"F1.0"}
+```
+A lobby builds the Stack it joins with under a listed table's `ruleset` (§2.2 `TABLES`) or an
+invite's; for a bare code it has neither, and a refusal naming other rules than the ones it built
+under is shown as exactly that.
 
 **Nobody is dealt into a wager they did not accept.** A guest that states a `stake` is stating
 the one it was *shown*; if the table's figure has changed since, or the link was passed around
@@ -386,11 +395,16 @@ Sent to **both** seats, so a client must match on content rather than on "the ne
 ```json
 {"t":"TABLES","v":1,
  "tables":[{"matchId":"m_7f3a91c2","code":"K7M2QF","name":"felix","pubkey":"<64-hex>",
-            "affinity":"Power","createdAt":"2026-08-15T18:24:02.117Z","stake":0,"hostOnline":true}]}
+            "affinity":"Power","createdAt":"2026-08-15T18:24:02.117Z","stake":0,
+            "ruleset":"E1.0","hostOnline":true}]}
 ```
-The rows are `GET /api/tables`' rows (§2.6), row for row: `status = 'open'`, a host with a
-NIP-07 pubkey, newest first, at most 50. No seat token and no match already playing is ever in
-it. `tests/js/net.test.mjs` compares the two answers so they cannot drift apart.
+The rows are `GET /api/tables`' rows (§2.6), row for row, built by one function: `status = 'open'`,
+a host with a NIP-07 pubkey, newest first, at most 50. No seat token and no match already playing
+is ever in it. `tests/js/net.test.mjs` compares the two answers so they cannot drift apart.
+
+`ruleset` is the rules the table plays, which are its host's: `"E1.0"` (Classic) or `"F1.0"`
+(Fast). A guest's Stack is checked against them (§2.1 `JOIN`), so a lobby builds the Stack it
+joins with, "My collection" included, under the row's `ruleset` rather than its own choice.
 
 **`ERROR`** — fatal for the attempted operation.
 ```json
@@ -418,7 +432,7 @@ Engine codes pass through **verbatim** in `REJECT`: `SEQ_MISMATCH`, `NO_PRIORITY
 Transport codes only ever appear in `ERROR`. The complete set the referee emits:
 `BAD_MESSAGE`, `BAD_VERSION`, `AUTH_FAILED`, `NIP07_REQUIRED`, `IDENTITY_MISMATCH`,
 `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `STAKE_MISMATCH`, `SUPERSEDED`,
-`DECK_BUILD_FAILED`, `RATE_LIMITED`.
+`BAD_DECK`, `DECK_BUILD_FAILED`, `RATE_LIMITED`.
 
 `BAD_TOKEN` is **not emitted by this server**. `net.js` still treats it — alongside
 `NO_SUCH_MATCH` and `MATCH_OVER` — as "drop the stored credential and stop retrying", so it
@@ -477,7 +491,7 @@ human. **Leave it unset for the demo** — the default is what protects the tabl
 GET /                      → site/index.html
 GET /<path>                → static from site/ , and /art/ /cards/ /rules/ from the repo root
 GET /api/health            → {"ok":true,"matches":3,"queued":2,"uptime":1820,"client":"203.0.113.9"}
-GET /api/tables            → [{matchId,code,name,pubkey,affinity,createdAt,stake,hostOnline}]
+GET /api/tables            → [{matchId,code,name,pubkey,affinity,createdAt,stake,ruleset,hostOnline}]
                              (status='open', newest first, max 50)
 GET /api/match/:matchId    → while status ≠ 'over':
                              {matchId, status, headSeq, headHash, publicHash}

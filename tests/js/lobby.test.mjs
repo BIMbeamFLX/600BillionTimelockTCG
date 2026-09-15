@@ -25,6 +25,7 @@ const WORDS = {
   stakes: "This table plays for sats; stakes are not available in Nappelin yet.",
   unreachable: "The table server cannot be reached right now. Hotseat and games against the computer work now.",
   invites: "Invites cannot be listed here right now. You can still join with a table code.",
+  otherRules: "That table plays other rules. Pick Ready for a starter Stack, then join again.",
 };
 
 /* client.test.mjs's stub element, which play.js runs in too. */
@@ -429,6 +430,46 @@ test("My collection is offered once the member holds cards, and a table is opene
   assert.deepEqual([byId("deckCollection").checked, byId("deckReady").checked], [false, true], "a choice whose cards are gone falls back to Ready");
   const website = mountLobby(netStub(), {}, {});
   assert.doesNotMatch(website.root.innerHTML, /deckCollection/, "a page that cannot build the Stack does not offer it");
+});
+
+test("a joining Stack is built under its table's rules: from the list, by a listed code, and a bare code the table refuses", async () => {
+  const net = netStub();
+  const hooks = {
+    collection: () => ({ cards: 12 }),
+    stack: (ruleset) => ({ ids: Array.from({ length: 40 }, (_, i) => `${ruleset}:${i}`), fromCollection: 12, filled: 28 }),
+  };
+  const { byId } = mountLobby(net, hooks, { napplet: hangar() });
+  byId("deckReady").checked = false;
+  byId("deckCollection").checked = true;
+  byId("netRules").value = "E1.0";
+  byId("deckCollection").fire("change");
+
+  net.tables = async () => [
+    { code: "K7M2QF", name: "anna", affinity: "Signal", stake: 0, ruleset: "F1.0", hostOnline: true },
+    { code: "Q2W3E4", name: "bob", affinity: "Power", stake: 0, ruleset: "E1.0", hostOnline: true },
+  ];
+  byId("refreshTables").click();
+  await settle();
+  const [fast] = byId("tableList").children.slice(-2);
+  buttonsOf(fast)[0].click();
+  assert.equal(called(net, "join")[0][1].deck[0], "F1.0:0", "the row's rules, not the lobby's Classic");
+
+  byId("joinCode").value = "k7m2qf";
+  byId("joinTable").click();
+  assert.equal(called(net, "join")[1][1].deck[0], "F1.0:0", "a typed code that is listed finds its row");
+
+  byId("joinCode").value = "Z9Y8X7";
+  byId("joinTable").click();
+  assert.equal(called(net, "join")[2][1].deck[0], "E1.0:0", "a bare code with no row keeps the lobby's rules");
+  net.handlers.onError({ code: "BAD_DECK", message: "Timelock Channel — Midnight appears 5 times; 4 is the limit (§7)", ruleset: "F1.0" });
+  assert.equal(byId("netNotice").textContent, WORDS.otherRules, "a table that plays other rules says so in one line");
+  assert.match(byId("netNotice").className, /bad/);
+
+  net.handlers.onError({ code: "BAD_DECK", message: "Genesis Lotus appears 2 times; 1 is the limit (§7)", ruleset: "E1.0" });
+  assert.equal(byId("netNotice").textContent, "Genesis Lotus appears 2 times; 1 is the limit (§7)",
+    "under the rules the Stack was built for, the refusal is about the Stack");
+  net.handlers.onError({ code: "BAD_DECK", message: "a Stack needs at least 40 cards (§7) — this one has 39" });
+  assert.match(byId("netNotice").textContent, /at least 40 cards/, "and a refusal that names no rules keeps its own words");
 });
 
 // ------------------------------------------------------ the table page inside the Hangar

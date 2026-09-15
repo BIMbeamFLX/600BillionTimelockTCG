@@ -1818,8 +1818,9 @@ test("TABLES over the socket answers exactly what /api/tables serves", async (t)
   assert.deepEqual(listed.tables, http, "the socket and HTTP must never drift apart");
   assert.deepEqual(listed.tables.map((row) => row.code), [open.code]);
   assert.deepEqual(Object.keys(listed.tables[0]).sort(),
-    ["affinity", "code", "createdAt", "hostOnline", "matchId", "name", "pubkey", "stake"]);
+    ["affinity", "code", "createdAt", "hostOnline", "matchId", "name", "pubkey", "ruleset", "stake"]);
   assert.equal(listed.tables[0].stake, 2100);
+  assert.equal(listed.tables[0].ruleset, "E1.0");
   assert.equal(listed.tables[0].hostOnline, true);
   const wire = JSON.stringify(listed);
   for (const token of [host.token, a.token]) assert.equal(wire.includes(token), false, "a seat token was listed");
@@ -2484,6 +2485,37 @@ test("a ruleset the deployment does not allow opens a Classic table", async (t) 
   const b = await table.client();
   b.send({ t: "JOIN", code: created.code, name: "anna", affinity: "Signal", pubkey: b.pubkey });
   assert.equal((await b.type("STATE")).view.ruleset, "E1.0");
+});
+
+test("a listed table names the rules it plays, over HTTP and TABLES alike, and so does a join it refuses", async (t) => {
+  const table = await boot(t, "f4.db");
+  const classic = await table.client({ identity: "classic-host" });
+  classic.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: classic.pubkey });
+  const classicOpen = await classic.type("STATE");
+  const fast = await table.client({ identity: "fast-host" });
+  fast.send({ t: "CREATE", ruleset: "F1.0", name: "anna", affinity: "Signal", pubkey: fast.pubkey });
+  const fastOpen = await fast.type("STATE");
+
+  const lobby = await table.client({ identity: "lobby" });
+  lobby.send({ t: "TABLES" });
+  const listed = (await lobby.type("TABLES")).tables;
+  const http = await (await fetch(`${table.url}/api/tables`)).json();
+  assert.deepEqual(listed, http, "one row shape on both paths");
+  assert.deepEqual(Object.fromEntries(http.map((row) => [row.code, row.ruleset])),
+    { [classicOpen.code]: "E1.0", [fastOpen.code]: "F1.0" });
+
+  /* A Stack built under Classic: a Basic Resource is uncapped there and a four-copy
+   * Hardware under Fast, so the Fast table refuses it and says which rules it plays. */
+  const basic = CARDS.find((c) => c.type === "Basic Resource");
+  const classicStack = Array(6).fill(basic.id).concat(builtStack(34));
+  const guest = await table.client({ identity: "guest" });
+  guest.send({ t: "JOIN", code: fastOpen.code, name: "bob", affinity: "Keys", pubkey: guest.pubkey, deck: classicStack });
+  const refused = await guest.type("ERROR");
+  assert.deepEqual([refused.code, refused.ruleset], ["BAD_DECK", "F1.0"]);
+  assert.equal(refused.message, `${basic.name} appears 5 times; 4 is the limit (§7)`);
+  guest.send({ t: "JOIN", code: classicOpen.code, name: "bob", affinity: "Keys", pubkey: guest.pubkey, deck: classicStack });
+  const seated = await guest.type("STATE");
+  assert.deepEqual([seated.seat, seated.status], [1, "playing"], "the same Stack is legal at the Classic table");
 });
 
 test("the queue pairs Fast with Fast and never with Classic", async (t) => {

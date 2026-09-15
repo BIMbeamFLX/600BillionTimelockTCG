@@ -33,6 +33,8 @@
 
   const TABLE_CODE = /^[A-HJ-NP-Z2-9]{6}$/;
   const STAKE_KEY = "600b:stake";
+  /* A ruleset a row, an invite or a refusal named, or null. */
+  const rulesOf = (value) => (value === "F1.0" || value === "E1.0" ? value : null);
 
   /* The Hangar's words: plain English, and never "NIP-07", which is the website's. */
   const WORDS = Object.freeze({
@@ -40,6 +42,7 @@
     stakes: "This table plays for sats; stakes are not available in Nappelin yet.",
     unreachable: "The table server cannot be reached right now. Hotseat and games against the computer work now.",
     invites: "Invites cannot be listed here right now. You can still join with a table code.",
+    otherRules: "That table plays other rules. Pick Ready for a starter Stack, then join again.",
   });
 
   const SITE_ERRORS = {
@@ -140,6 +143,9 @@
     const MIN_STACK = (globalThis.E1Keys && globalThis.E1Keys.MIN_STACK) || 40;
     // The shell's key, once it answers: net.js learns it asynchronously too.
     let shellKey = null;
+    /* The open tables last listed, by code, and the rules the last join built its Stack under. */
+    const listed = new Map();
+    let joinedUnder = null;
 
     const $ = (id) => document.getElementById(id);
     const on = (id, type, fn) => {
@@ -163,6 +169,9 @@
       const known = (embed ? HANGAR_ERRORS : SITE_ERRORS)[msg.code];
       if (known) return known;
       if (msg.code === "STAKE_MISMATCH") return msg.message || "That table plays for a different stake than the one you were shown.";
+      /* A join's refusal names the table's rules: a Stack built under others is
+       * that, and not the card the other rules happened to trip over. */
+      if (msg.code === "BAD_DECK" && rulesOf(msg.ruleset) && joinedUnder && msg.ruleset !== joinedUnder) return WORDS.otherRules;
       if (msg.code === "BAD_DECK") return msg.message || "That Stack is not legal at this table.";
       return null;
     };
@@ -423,16 +432,19 @@
       if (!TABLE_CODE.test(value)) return void netNotice("A table code is six characters, no 0/O/1/I.", "bad");
       remote.invite = invite || null;
       netNotice("Joining…", "");
-      /* The host's rules are the table's: an invite names them, a bare code does not
-       * (the open-table rows carry no ruleset), so the lobby's own choice stands in. */
-      const named = invite && (invite.ruleset === "F1.0" || invite.ruleset === "E1.0") ? invite.ruleset : null;
+      /* The host's rules are the table's, and the Stack joins under them: an invite
+       * names them, and so does the table's row in the last list, which a typed code
+       * finds too. A code with neither keeps the lobby's own choice, and the
+       * referee's refusal then says which rules the table plays. */
+      const row = listed.get(value);
+      joinedUnder = rulesOf(invite && invite.ruleset) || rulesOf(row && row.ruleset) || lobbyRuleset();
       NET.join({
         code: value,
         name: lobbyName(),
         affinity: lobbyAffinity(),
         pubkey,
         stake: embed ? 0 : stake === undefined ? undefined : stake,
-        deck: chosenDeck(named || lobbyRuleset()),
+        deck: chosenDeck(joinedUnder),
         table: invite ? invite.table : undefined,
       });
     }
@@ -448,8 +460,10 @@
       const list = $("tableList");
       if (!list) return;
       list.innerHTML = "";
+      listed.clear();
       try {
         const rows = await NET.tables();
+        for (const row of rows) listed.set(row.code, row);
         if (!rows.length) return void list.append(el("div", "netline", "No open tables."));
         for (const row of rows) {
           const item = el("div", "netrow");

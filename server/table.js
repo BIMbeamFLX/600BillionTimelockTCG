@@ -544,7 +544,7 @@ async function createTable(opts) {
     byCode: db.prepare("SELECT * FROM matches WHERE code = ?"),
     byId: db.prepare("SELECT * FROM matches WHERE match_id = ?"),
     openTables: db.prepare(
-      "SELECT match_id, code, created_at, seat0_name, seat0_pubkey, seat0_affinity, stake FROM matches WHERE status = 'open' ORDER BY created_at DESC LIMIT 50"
+      "SELECT match_id, code, created_at, seat0_name, seat0_pubkey, seat0_affinity, stake, ruleset FROM matches WHERE status = 'open' ORDER BY created_at DESC LIMIT 50"
     ),
     /* Every unfinished match this identity holds a seat at. This is the query
      * that makes a cleared browser survivable: the credential is gone, the seat
@@ -617,6 +617,9 @@ async function createTable(opts) {
   ).split(",").map((value) => value.trim()).filter((value) => CATALOGS[value]);
   /* Anything unknown or not allowed here is Classic, which every table plays. */
   const cleanRuleset = (value) => (allowedRulesets.indexOf(value) >= 0 ? value : "E1.0");
+  /* The rules a stored table plays, as its row and its refusals name them:
+   * mintGame deals anything but Fast as Classic. */
+  const tableRules = (value) => (value === "F1.0" ? "F1.0" : "E1.0");
 
   function mintGame(seat0, seat1, ruleset) {
     const attempts = [];
@@ -1405,8 +1408,12 @@ async function createTable(opts) {
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
     let deck;
-    // The table's rules are the host's: a guest's Stack is checked against them.
-    try { deck = cleanDeck(msg.deck, rec.ruleset); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
+    /* The table's rules are the host's: a guest's Stack is checked against them,
+     * and the refusal names them, so a lobby that built the Stack under other
+     * rules can say that rather than which card broke them. */
+    try { deck = cleanDeck(msg.deck, rec.ruleset); } catch (err) {
+      return send(conn.ws, { t: "ERROR", v: WIRE, code: "BAD_DECK", message: String(err.message), ruleset: tableRules(rec.ruleset) });
+    }
     // Belt and braces for the same fumble from a second tab of the same login.
     if (pubkey && rec.players[0].pubkey === pubkey) {
       return fail(conn.ws, "MATCH_FULL", "you cannot take both seats at one table");
@@ -1807,7 +1814,8 @@ async function createTable(opts) {
    * with a signed-in host, never a seat token, never a match already playing.
    * Signed-in connections only, and metered per connection on top of the
    * control budget. Past that meter the list is refused and the socket stays
-   * open, because a lobby that refreshes too eagerly must not lose a seat. */
+   * open, because a lobby that refreshes too eagerly must not lose a seat.
+   * GET /api/tables serves this same function, so the two cannot drift apart. */
   const TABLES_MAX = 10;
   function openTableList() {
     return q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
@@ -1821,6 +1829,12 @@ async function createTable(opts) {
         affinity: r.seat0_affinity,
         createdAt: r.created_at,
         stake: Number.isInteger(r.stake) ? r.stake : 0,
+        /* The host's rules, which a guest's Stack is checked against: a lobby
+         * builds the Stack it joins with under these. */
+        ruleset: tableRules(r.ruleset),
+        /* Whether anyone is actually sitting there. A code whose host closed
+         * the tab looks identical to a live one in a bare list, and joining it
+         * is a wait with no end. */
         hostOnline: Boolean(host && host.readyState === 1),
       };
     });
@@ -2105,24 +2119,8 @@ async function createTable(opts) {
     }
     if (pathname === "/api/tables") {
       // The RELAY-FREE join path: if every relay dies on stage, players still
-      // see and join tables.
-      return reply(200, q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
-        const rec = matches.get(r.match_id);
-        const host = rec && rec.conns[0];
-        return {
-          matchId: r.match_id,
-          code: r.code,
-          name: r.seat0_name,
-          pubkey: r.seat0_pubkey,
-          affinity: r.seat0_affinity,
-          createdAt: r.created_at,
-          stake: Number.isInteger(r.stake) ? r.stake : 0,
-          /* Whether anyone is actually sitting there. A code whose host closed
-           * the tab looks identical to a live one in a bare list, and joining it
-           * is a wait with no end. */
-          hostOnline: Boolean(host && host.readyState === 1),
-        };
-      }));
+      // see and join tables. The rows TABLES answers over the socket.
+      return reply(200, openTableList());
     }
     if (pathname.startsWith("/api/match/")) {
       const id = pathname.slice("/api/match/".length);

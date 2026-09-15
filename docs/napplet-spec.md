@@ -369,9 +369,12 @@ ids of the table's ruleset, no Stake card, at most four copies of anything but a
 and `E.createGame` (the floor and each card's own copy limit, one for a genesis card). So the embedded lobby
 offers "My collection" once the member holds a card, labelled "n of 40 cards yours", and sends the
 Stack `buildCollectionStack` deals for the table's rules: the lobby's rules for a table it opens
-or a match it searches, an invite's `ruleset` for a join from an invite, and the lobby's rules for
-a bare code, because the open-table rows carry no ruleset. The quick match pairs a built Stack
-only with another built Stack. A collection Stack claims no possession at the table either.
+or a match it searches, an invite's `ruleset` for a join from an invite, the row's `ruleset` for a
+join from the open-table list or a typed code that is listed there, and the lobby's rules for a
+bare code with no row. A `BAD_DECK` refusal of a join names the table's rules; when they are not
+the ones the Stack was built under, the lobby says "That table plays other rules. Pick Ready for a
+starter Stack, then join again." The quick match pairs a built Stack only with another built Stack.
+A collection Stack claims no possession at the table either.
 
 **The first screen.** Embedded, `play.html` opens on `#first`: "Playing as" with the member's
 look (name and picture through the seat code's `E1Look` book, the short npub until it lands,
