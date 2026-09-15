@@ -247,12 +247,12 @@ Read at startup in `server/table.js` (bottom of file). The referee binds
 | Variable | Default | What it does |
 |---|---|---|
 | **`PUBLIC_URL`** | *(none)* | **The one that matters.** Full `wss://host/ws` used in invite links. Must be `ws://` or `wss://` or startup throws. Its host is added to the trusted-host set. |
-| `PORT` | `8777` | Listen port. Behind a proxy, keep it on loopback. |
+| `PORT` | `8777` | Listen port. The referee always binds `0.0.0.0`, so nothing in the process keeps this port private: the host firewall (ufw on the box) or the proxy's network must stop the internet reaching it. |
 | `DB` | `server/matches.db` | SQLite match state. Put it on a **persistent volume**; it holds live match state and seat tokens. |
 | `TABLE_ORIGINS` | *(empty)* | Comma-separated origins allowed to open a WebSocket. Same-host is always allowed; anything cross-origin must be listed here. |
 | `PUBLIC_HOST` | `localhost` | Host for invite links when `PUBLIC_URL` is unset. LAN/Tailscale only — it cannot express scheme or port. |
 | `PUBLIC_SCHEME` | `ws` | `wss` to force TLS in derived links. Superseded by `PUBLIC_URL`. |
-| `PIN_SEED` | *(none)* | Deterministic table PINs. **Testing only — never set in production.** |
+| `PIN_SEED` | *(none)* | Seeds every match's shuffles from this one number, so each table deals the same rehearsed opening, and anyone who knows it can rebuild both decks. **Testing only — never set in production.** |
 | `RATE_MAX` | built-in | Message rate cap. Exists for headless soak runs; leave unset so the default protects the table. |
 | `CONTROL_RATE_MAX` | built-in | Control-message rate cap. Same advice. |
 | `MAX_PAYLOAD` | built-in | Max WebSocket frame size. Same advice. |
