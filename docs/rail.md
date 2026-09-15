@@ -66,18 +66,23 @@ dialog, card menu and overlay (60 and up), which cover it while they are open.
   reads PAUSED while the table's sound is muted, PLAYING only while its room tone actually runs,
   MUSIC otherwise.
 - **Wallet** — the NutFT card wallet at a glance: cards held and how many are different, whether the
-  site's own mint answers, and cards sent but not yet marked delivered. `nutft-wallet.js` loads the
-  first time this panel opens, never with the page. The count comes from the same `snapshotMany`
-  wallet.html reads, and only when the page's origin answers `/v1/info` with the NutFT capability;
-  otherwise the numbers are dashes and the panel says "Not available here yet." An unfinished
-  transfer or booster is never counted over — counting would finish it first, and that belongs to
-  wallet.html. The brass blinking dot on the button (cards sent, not yet delivered) is read straight
-  from storage, so it is right without loading anything.
+  site's own mint answers, and cards sent but not yet marked delivered. When storage
+  (`600b:nutft-wallet`, or the page's `NUTFT_STORE`) holds no card token at all, the panel says "No
+  cards on this device yet." and nothing is loaded or asked: no `nutft-wallet.js`, no mint. Otherwise
+  `nutft-wallet.js` loads the first time the panel opens, never with the page. The count comes from
+  the same `snapshotMany` wallet.html reads, and only when the page's origin answers `/v1/info` with
+  the NutFT capability; otherwise the numbers are dashes and the panel says "Not available here
+  yet." The E1 mint's `/v1/info` says nothing about Edition G, so the G mint (`/g`) is counted only
+  when a stored token names it — a token carries its mint's URL — and an origin that never issued a
+  G card is never asked for one. An unfinished transfer or booster is never counted over — counting
+  would finish it first, and that belongs to wallet.html. The brass blinking dot on the button (cards
+  sent, not yet delivered) is read straight from storage, so it is right without loading anything.
 - **Chat** — "Chat lives in Nappelin." and a link to `https://nappelin.com/hangar/` in a new tab. No
   rooms, no input, nothing pretending to be live.
-- **Share** — the current page's link with only `rules` and `arena` kept (values of letters, digits,
-  `-` and `_`); `match`, `code`, `table`, `relay`, keys, credentials, every other parameter and the
-  fragment are dropped. Copy link, and a QR from `qr.js`, loaded the first time Share opens.
+- **Share** — the current page's link with only `rules` and `arena` kept, and only with the values
+  the pages act on: `rules` as `fast` or `classic`, `arena` as `3d` or `dom`. `match`, `code`,
+  `table`, `relay`, keys, credentials, any other value, every other parameter and the fragment are
+  dropped. Copy link, and a QR from `qr.js`, loaded the first time Share opens.
 
 Keyboard and pointer: every button is a real `<button>` with `aria-expanded` and `aria-controls`.
 Opening a panel moves focus into it; Escape or the × closes it and returns focus to its button; a
@@ -134,7 +139,8 @@ window.addEventListener("e1:identity", (event) => {
 
 **`e1:auth` — the page tells the bar whether the table accepted the login.** `detail: { ok: true | false }`,
 sent by play.js and matchmaking.js when the referee's answer flips: `ok: true` on AUTH_OK, `ok: false`
-when the seat closes, retries, is superseded or is left.
+when the seat closes, retries, is superseded or is left, or the player signs out (which ends the
+table's session).
 
 ```js
 window.dispatchEvent(new CustomEvent("e1:auth", { detail: { ok: true } }));
@@ -158,14 +164,15 @@ Because the table sends `e1:auth` only when its answer flips, the dot follows th
 bound to the key that was signed in when that event arrived:
 
 - `ok: false` puts it out.
-- Signing out hides it — a signed-out page never shows green.
-- Signing back in with the same key while the table has said nothing new shows it again: that seat is
-  still the verified one.
-- Signing in with a different key does not, until the table verifies that key (`ok: false`, then
-  `ok: true`).
+- Signing out hides it — a signed-out page never shows green. Signing out also ends the table's
+  session: net.js closes the socket without giving up the seat, so the table's last word becomes
+  `ok: false`, and the dot stays dark after signing back in, with the same key or another, until the
+  table verifies the new login (`ok: true`).
+- A key signed out and back in from another tab, while this page's table login stands, shows it
+  again: that login is still the verified one. A different key does not, until the table verifies it.
 
-The Account panel says "Your seat at the table is verified." in words under the same condition,
-without a second green.
+The Account panel says "The table has verified this key." in words under the same condition,
+without a second green. The words fit the lobby, which has no seat, as well as the table.
 
 ## Tests
 
@@ -174,4 +181,5 @@ injected once, inert when embedded, the edge cycle with persistence and the narr
 scrubbing, one music slot for the life of the page, no green without `e1:auth` ok and the dot
 following the table's last word for the key it verified, `e1:identity` at load (reaching a page that
 listens from its own init), on sign-in and on sign-out and never on a refused sign-in, Escape closing
-and returning focus, and the wallet script never loading before its panel opens.
+and returning focus, the wallet script never loading before its panel opens nor for an empty wallet,
+and no `/g/` request from an origin that never issued a G card.

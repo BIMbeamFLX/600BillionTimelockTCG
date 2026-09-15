@@ -172,8 +172,9 @@ def test_signal_is_green_and_the_signal_affinity_is_its_own_token() -> None:
     assert norm(root["--radius"]) == "0"
 
 
-def test_green_is_only_ever_the_live_dot_and_ember_never_chrome() -> None:
-    """The green law in CSS: one component may be green; this sheet is chrome, so no ember."""
+def test_the_stylesheet_draws_no_green_and_no_ember() -> None:
+    """The green law in CSS: the one green is the side bar's dot, which rail.js draws itself;
+    this sheet is chrome, so it draws no green and no ember."""
     css = stylesheet()
     green = [
         selectors
@@ -181,8 +182,7 @@ def test_green_is_only_ever_the_live_dot_and_ember_never_chrome() -> None:
         if any(GREEN.search(value) for name, value in decls.items() if name != "--signal")
     ]
 
-    assert green, "the live chip lost its signal dot"
-    assert all(s.startswith(".tcg-chip--live") for selectors in green for s in selectors), green
+    assert green == []
     assert "var(--ember)" not in css
 
 
@@ -233,11 +233,6 @@ def test_the_tcg_components_match_the_hypershell_spec() -> None:
     dot = declared(css, ".tcg-chip::before")
     assert (dot["width"], dot["height"]) == ("7px", "7px")
     assert "var(--brass-3)" in dot["background"]
-    assert "2.4s" in declared(css, ".tcg-chip--live::before")["animation"]
-    assert re.search(
-        r"prefers-reduced-motion:\s*reduce\)\s*\{\s*\.tcg-chip--live::before\s*\{\s*animation:\s*none",
-        css,
-    )
 
     assert declared(css, ".tcg-panel")["background"] == "var(--panel)"
     assert declared(css, ".tcg-panel")["border"] == "1px solid var(--hairline)"

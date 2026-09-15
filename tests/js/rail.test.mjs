@@ -159,6 +159,7 @@ function makeScope(options = {}) {
     location: { href, search: url.search, protocol: url.protocol, host: url.host, origin: url.origin, pathname: url.pathname },
     matchMedia: (media) => ({ media, matches: Boolean(options.narrow), addEventListener() {}, removeEventListener() {} }),
     navigator: { clipboard: { writeText: async () => {} } },
+    atob: (text) => globalThis.atob(text),
     fetch: options.fetch || (async () => ({ ok: false, status: 404, json: async () => ({}) })),
     addEventListener(type, fn) {
       if (!heard.has(type)) heard.set(type, []);
@@ -320,6 +321,10 @@ test("a shared link keeps rules and arena and drops everything else", () => {
     ],
     ["https://tcg.zapburg.com/matchmaking.html?code=K7M2QF&match=m_0123456789ab", "https://tcg.zapburg.com/matchmaking.html"],
     ["http://localhost:8790/play.html?rules=%3Cscript%3E&arena=dom", "http://localhost:8790/play.html?arena=dom"],
+    // Only values the pages act on survive: a harmless-looking word is still not one of them.
+    ["http://localhost:8790/play.html?arena=webgl&rules=turbo", "http://localhost:8790/play.html"],
+    ["http://localhost:8790/play.html?arena=3d&rules=K7M2QF", "http://localhost:8790/play.html?arena=3d"],
+    ["http://localhost:8790/deck.html?rules=classic&arena=DOM", "http://localhost:8790/deck.html?rules=classic"],
     ["http://user:secret@localhost:8790/cards.html?embed=0&assets=local&arenastats=1", "http://localhost:8790/cards.html"],
   ];
   for (const [href, expected] of cases) {
@@ -417,7 +422,8 @@ test("the account dot stays dark until the table accepts a login, and goes dark 
   scope.emit("e1:auth", { ok: true });
   await settle();
   api.open("account");
-  assert.match(panel(scope, "account").textContent, /Your seat at the table is verified\./);
+  assert.match(panel(scope, "account").textContent, /The table has verified this key\./,
+    "words that fit the lobby, which has no seat, as well as the table");
   const signOut = find(panel(scope, "account"), (node) => node.localName === "button" && node.textContent === "Sign out");
   signOut.click();
   await settle();
@@ -426,18 +432,18 @@ test("the account dot stays dark until the table accepts a login, and goes dark 
 });
 
 test("the dot follows the table's last word, for the key that was signed in when it spoke", async () => {
-  /* play.js sends e1:auth only when its answer flips, so the bar cannot wait
-     for the table to repeat itself: a sign-out and a sign-in in the bar, with
-     the table silent, must land back on the table's last word. */
+  /* play.js sends e1:auth only when its answer flips. Signing out ends the
+     table's session (net.js closes the socket), and the table page then says
+     ok:false, which this stand-in does the way play.js does. */
   const other = "c".repeat(64);
   let saved = KEY;
   let next = KEY;
-  const E1Net = { nostr: {
+  const scope = makeScope();
+  scope.E1Net = { nostr: {
     savedPubkey: () => saved, hasNip07: () => true,
     login: async () => { saved = next; return next; },
-    logout() { saved = null; },
+    logout() { saved = null; scope.emit("e1:auth", { ok: false }); },
   } };
-  const scope = makeScope({ globals: { E1Net } });
   const api = run(scope);
   await settle();
   const live = byClass(bar(scope), "tcg-rail__dot--live");
@@ -450,13 +456,27 @@ test("the dot follows the table's last word, for the key that was signed in when
   await settle();
   assert.equal(live.hidden, false, "a storage refresh is not the table speaking");
 
+  // Another tab signs out and back in with the same key: this page's login still stands.
+  saved = null;
+  scope.emit("storage", null);
+  await settle();
+  assert.equal(live.hidden, true, "signed out elsewhere is dark here too");
+  saved = KEY;
+  scope.emit("storage", null);
+  await settle();
+  assert.equal(live.hidden, false, "the same key back, and the table has said nothing new: its last word stands");
+
   api.open("account");
   press(account, "Sign out");
   await settle();
   assert.equal(live.hidden, true, "signed out is dark");
   press(account, "Sign in");
   await settle();
-  assert.equal(live.hidden, false, "the same key, and the table has said nothing new: its last word stands");
+  assert.equal(live.hidden, true, "the same key again, but signing out ended the table's session");
+  assert.doesNotMatch(account.textContent, /verified/);
+  scope.emit("e1:auth", { ok: true });
+  await settle();
+  assert.equal(live.hidden, false, "until the table verifies the new login");
 
   press(account, "Sign out");
   await settle();
@@ -464,10 +484,6 @@ test("the dot follows the table's last word, for the key that was signed in when
   press(account, "Sign in");
   await settle();
   assert.equal(live.hidden, true, "a different key is not the one the table verified");
-  assert.doesNotMatch(account.textContent, /verified/);
-
-  scope.emit("e1:auth", { ok: false });
-  await settle();
   scope.emit("e1:auth", { ok: true });
   await settle();
   assert.equal(live.hidden, false, "until the table verifies this one");
@@ -627,8 +643,18 @@ test("Escape closes the open panel and gives focus back to its button", () => {
 
 // --------------------------------------------------------------------- wallet
 
+/** A stand-in cashuB token: base64url of CBOR-shaped bytes that carry the mint URL verbatim. */
+const cashuToken = (mint) => "cashuB" + Buffer.concat([
+  Buffer.from([0xa3, 0x61, 0x6d, 0x78, mint.length]), Buffer.from(mint),
+  Buffer.from([0x61, 0x75, 0x67]), Buffer.from("600B-E1"), Buffer.from([0x61, 0x74, 0x81]),
+]).toString("base64url");
+const walletStorage = (state) => ({ "600b:nutft-wallet": JSON.stringify({ privateKey: "", pubkey: "", outgoing: [], ...state }) });
+
 test("the wallet script loads when the Wallet panel opens, never with the page", async () => {
-  const stored = { privateKey: "", pubkey: "", tokens: [], outgoing: [{ token: "cashuBx", asset_id: "E1-001", at: "2026-09-14T10:00:00Z" }] };
+  const stored = {
+    privateKey: "", pubkey: "", tokens: [cashuToken("http://localhost:8790")],
+    outgoing: [{ token: "cashuBx", asset_id: "E1-001", at: "2026-09-14T10:00:00Z" }],
+  };
   const scope = makeScope({ storage: { "600b:nutft-wallet": JSON.stringify(stored) } });
   const api = run(scope);
   const walletScripts = () => scripts(scope).filter((node) => /nutft-wallet\.js$/.test(node.src));
@@ -659,11 +685,70 @@ test("the wallet script loads when the Wallet panel opens, never with the page",
   assert.equal(open.href, "wallet.html");
 });
 
+test("an empty wallet shows its empty state and never loads the wallet script or asks a mint", async () => {
+  const fetched = [];
+  const fetch = async (url) => {
+    fetched.push(url);
+    return { ok: true, json: async () => ({ nuts: { 31: { supported: true } } }) };
+  };
+  const cases = [
+    ["nothing stored", {}],
+    ["no tokens, one card still on its way out", walletStorage({ tokens: [], outgoing: [{ token: "cashuBx", asset_id: "E1-001" }] })],
+    ["no tokens, a booster being bought", walletStorage({ tokens: [], pending: { type: "booster" } })],
+  ];
+  for (const [why, storage] of cases) {
+    const scope = makeScope({ href: "https://tcg.zapburg.com/index.html", storage, fetch });
+    const api = run(scope);
+    api.open("wallet");
+    await waitFor(() => /No cards on this device yet\./.test(panel(scope, "wallet").textContent), `${why}: the empty state`);
+    const words = panel(scope, "wallet").textContent;
+    assert.deepEqual(numbers(scope), [], `${why}: no counts to show`);
+    assert.doesNotMatch(words, /Not available here yet/, why);
+    assert.equal(/1 card sent, not yet marked delivered\./.test(words), why.includes("on its way out"), `${why}: the waiting row`);
+    assert.equal(/unfinished/.test(words), why.includes("booster"), `${why}: the unfinished note`);
+    api.close();
+    api.open("wallet");
+    await settle();
+    await settle();
+    assert.deepEqual(scripts(scope), [], `${why}: nutft-wallet.js is never loaded`);
+  }
+  assert.deepEqual(fetched, [], "and no mint is asked anything");
+});
+
+test("an origin that never issued a G card is never asked for G", async () => {
+  const fetched = [];
+  const asked = [];
+  const token = cashuToken("https://tcg.zapburg.com");
+  const NutFTWallet = {
+    read: async () => ({ tokens: [token], outgoing: [], pending: null }),
+    snapshotMany: async (mints) => {
+      asked.push(mints);
+      return { owned: [{ tag: ["1", "600b-e1", "E1-001"] }] };
+    },
+  };
+  const scope = makeScope({
+    href: "https://tcg.zapburg.com/shop.html",
+    storage: walletStorage({ tokens: [token] }),
+    fetch: async (url) => {
+      fetched.push(url);
+      return url.includes("/g/")
+        ? { ok: false, status: 404, json: async () => ({}) }
+        : { ok: true, json: async () => ({ nuts: { 31: { supported: true } } }) };
+    },
+    globals: { NutFTWallet },
+  });
+  run(scope).open("wallet");
+  await waitFor(() => numbers(scope)[0] === "1", "the count");
+  assert.deepEqual(asked, [["https://tcg.zapburg.com"]], "the wallet counts at the E1 mint alone");
+  assert.deepEqual(fetched, ["https://tcg.zapburg.com/v1/info"], "and nothing is asked of /g/");
+});
+
 test("with the site's own mint answering, the panel counts what the wallet verified", async () => {
   const fetched = [];
   const asked = [];
+  const tokens = [cashuToken("https://tcg.zapburg.com"), cashuToken("https://tcg.zapburg.com/g")];
   const NutFTWallet = {
-    read: async () => ({ tokens: ["cashuB..."], outgoing: [], pending: null }),
+    read: async () => ({ tokens, outgoing: [], pending: null }),
     snapshotMany: async (mints) => {
       asked.push(mints);
       return { owned: [{ tag: ["1", "600b-e1", "E1-001"] }, { tag: ["1", "600b-e1", "E1-001"] }, { tag: ["1", "600b-e1", "E1-002"] }] };
@@ -671,6 +756,7 @@ test("with the site's own mint answering, the panel counts what the wallet verif
   };
   const scope = makeScope({
     href: "https://tcg.zapburg.com/shop.html",
+    storage: walletStorage({ tokens }),
     fetch: async (url) => {
       fetched.push(url);
       return { ok: true, json: async () => ({ nuts: { 31: { supported: true } } }) };
@@ -683,18 +769,21 @@ test("with the site's own mint answering, the panel counts what the wallet verif
   assert.deepEqual(numbers(scope), ["3", "2"], "three cards, two different");
   assert.match(panel(scope, "wallet").textContent, /Reachable/);
   assert.deepEqual(fetched, ["https://tcg.zapburg.com/v1/info"]);
-  assert.deepEqual(asked, [["https://tcg.zapburg.com", "https://tcg.zapburg.com/g"]], "the same mints wallet.html reads");
+  assert.deepEqual(asked, [["https://tcg.zapburg.com", "https://tcg.zapburg.com/g"]],
+    "the same mints wallet.html reads, where this browser holds a card G issued");
   assert.equal(scripts(scope).length, 0, "a page that already has the wallet loads nothing");
 });
 
 test("an unfinished transfer is left for wallet.html to finish, not counted over", async () => {
   let snapshots = 0;
+  const token = cashuToken("https://tcg.zapburg.com");
   const NutFTWallet = {
-    read: async () => ({ tokens: [], outgoing: [], pending: { type: "trade" } }),
+    read: async () => ({ tokens: [token], outgoing: [], pending: { type: "trade" } }),
     snapshotMany: async () => { snapshots += 1; return { owned: [] }; },
   };
   const scope = makeScope({
     href: "https://tcg.zapburg.com/index.html",
+    storage: walletStorage({ tokens: [token], pending: { type: "trade" } }),
     fetch: async () => ({ ok: true, json: async () => ({ nuts: { 31: {} } }) }),
     globals: { NutFTWallet },
   });

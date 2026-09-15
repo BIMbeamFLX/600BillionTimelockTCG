@@ -65,16 +65,11 @@
     }),
   });
 
-  /* NAP-THEME's `colors`, which predates `tokens` and is all a shell that has
-   * never heard of Hypershell sends: one colour, one token. */
-  const COLOR_TOKENS = {
-    background: "--iron",
-    text: "--parchment",
-    primary: "--brass",
-    surface: "--well",
-    border: "--hairline",
-    muted: "--brass-3",
-  };
+  /* NAP-THEME's `colors` map is NOT read. Today's Hangar, which has no Hypershell
+   * theme service yet, answers theme.get() with its generic default
+   * `{ colors: { background, text, primary } }`, and mapping that painted every
+   * brass control blue. Only a `tokens` payload that names Hypershell tokens
+   * repaints; that is what the Hypershell theme service sends. */
 
   /* The 600 Billion brand layer: never themed. A shell may repaint the chrome; it
    * may not repaint what an affinity looks like, because the Plate colours are how
@@ -286,19 +281,36 @@
   const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
   const isValue = (value) => typeof value === "string" && value.trim() !== "";
 
-  /** The core tokens a theme payload names: `{ tokens }`, NAP-THEME `{ colors }`, or bare colours. */
+  /* A THEME VALUE IS CHECKED, NEVER PASSED THROUGH. It lands in a custom property
+   * the page's CSS reads, so a url() or image-set() in it makes every viewer's
+   * browser fetch from wherever the theme points, and whoever controls a theme
+   * logs their addresses. Each token must look like what it is: a colour (hex,
+   * rgb()/hsl() with numbers only, black, white, transparent), a font family list
+   * for --headline and --mono, a length for --r. Anything else keeps the default. */
+  const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:%|deg|rad|grad|turn)?";
+  const COLOR = new RegExp("^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})"
+    + `|(?:rgba?|hsla?)\\(\\s*${NUMBER}(?:\\s*[,/]\\s*${NUMBER}|\\s+${NUMBER}){2,3}\\s*\\)`
+    + "|black|white|transparent)$", "i");
+  const FAMILY = "(?:\"[\\w .-]+\"|'[\\w .-]+'|[a-z][\\w-]*(?: [a-z][\\w-]*)*)";
+  const FONT_LIST = new RegExp(`^${FAMILY}(?:\\s*,\\s*${FAMILY})*$`, "i");
+  const LENGTH = /^(?:0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em))$/;
+  const NEVER = /url\(|image-set\(|var\(|env\(|expression\(|[@;{}<\\\n\r\f]/i;
+
+  function tokenValue(name, value) {
+    if (!isValue(value) || value.length > 160 || NEVER.test(value)) return null;
+    const shape = name === "--r" ? LENGTH : name === "--headline" || name === "--mono" ? FONT_LIST : COLOR;
+    return shape.test(value.trim()) ? value.trim() : null;
+  }
+
+  /** The core tokens a `{ tokens }` payload names. A `colors`-only payload names none. */
   function themeTokens(payload) {
     const out = {};
-    if (!isObject(payload)) return out;
-    const colors = isObject(payload.colors) ? payload.colors : payload;
-    for (const [key, name] of Object.entries(COLOR_TOKENS)) {
-      if (isValue(colors[key])) out[name] = colors[key];
-    }
-    /* Exact names win over the colour map, and only the core names are read:
-     * `--ember`, `--aff-*` or `--display` in a payload are simply not looked at. */
-    const tokens = isObject(payload.tokens) ? payload.tokens : {};
+    /* Only the core names are read: `--ember`, `--aff-*` or `--display` in a
+     * payload are simply not looked at. */
+    const tokens = isObject(payload) && isObject(payload.tokens) ? payload.tokens : {};
     for (const name of Object.keys(NAPPELIN_THEME.tokens)) {
-      if (isValue(tokens[name])) out[name] = tokens[name];
+      const value = tokenValue(name, tokens[name]);
+      if (value !== null) out[name] = value;
     }
     return out;
   }
@@ -334,7 +346,7 @@
     /**
      * Paint now and repaint on every shell change. Safe to call on any page.
      * Sources, first that names a token wins: the theme service (`theme.get()`,
-     * or a static `theme.colors`), then `nappletContext.theme`, then the defaults.
+     * or a static `theme.tokens`), then `nappletContext.theme`, then the defaults.
      * Returns a promise only when the service answers asynchronously.
      */
     start() {

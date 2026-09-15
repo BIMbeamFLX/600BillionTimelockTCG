@@ -299,8 +299,9 @@ def test_play_page_carries_the_embed_rules() -> None:
     assert 'classList.add("embedded")' in play
 
 
-def _copy_site(root: Path, play_html: bytes) -> Path:
-    """A copy of the site and the assets the build reads, with the given play.html bytes."""
+def _copy_site(root: Path, play_html: bytes, newline: bytes) -> Path:
+    """A copy of the site and the assets the build reads: play.html as given, and every
+    script it inlines rewritten with `newline` line endings."""
     site = root / "site"
     site.mkdir(parents=True)
     for name in SITE.iterdir():
@@ -312,6 +313,9 @@ def _copy_site(root: Path, play_html: bytes) -> Path:
         if name.is_file():
             (site / "vendor" / name.name).write_bytes(name.read_bytes())
     (site / "play.html").write_bytes(play_html)
+    for name in build_napplet.inlined_script_names(play_html.decode("utf-8")):
+        code = (SITE / name).read_bytes().replace(CRLF, LF)
+        (site / name).write_bytes(code.replace(LF, newline))
     for relative in ("art/fonts", "art/site"):
         (site.parent / relative).mkdir(parents=True, exist_ok=True)
         for asset in (REPO_ROOT / relative).iterdir():
@@ -328,10 +332,14 @@ def test_build_ignores_the_line_endings_git_chose(tmp_path: Path) -> None:
     made the two differ.
     """
     lf = (SITE / "play.html").read_bytes().replace(CRLF, LF)
-    crlf_page, crlf_manifest = build_napplet.build(
-        _copy_site(tmp_path / "crlf", lf.replace(LF, CRLF)), tmp_path / "crlf-out"
-    )
-    lf_page, lf_manifest = build_napplet.build(_copy_site(tmp_path / "lf", lf), tmp_path / "lf-out")
+    crlf_site = _copy_site(tmp_path / "crlf", lf.replace(LF, CRLF), CRLF)
+    scripts = build_napplet.inlined_script_names(lf.decode("utf-8"))
+    assert len(scripts) >= 15
+    assert all(CRLF in (crlf_site / name).read_bytes() for name in scripts), "scripts are CRLF"
+    crlf_page, crlf_manifest = build_napplet.build(crlf_site, tmp_path / "crlf-out")
+    lf_site = _copy_site(tmp_path / "lf", lf, LF)
+    assert not any(CRLF in (lf_site / name).read_bytes() for name in scripts), "scripts are LF"
+    lf_page, lf_manifest = build_napplet.build(lf_site, tmp_path / "lf-out")
     html = crlf_page.read_bytes().decode("utf-8")
     assert '<meta name="napplet-requires"' in html
     assert CRLF.decode() not in html
@@ -388,7 +396,8 @@ def stripped_site(tmp_path_factory: pytest.TempPathFactory) -> Path:
             continue
         target = root / "site" / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(build_napplet.script_source(SITE, name), encoding="utf-8")
+        # Bytes, as the artifact carries them: write_text would add CRLF on Windows.
+        target.write_bytes(build_napplet.script_source(SITE, name).encode("utf-8"))
     return root
 
 
@@ -401,7 +410,9 @@ def test_stripped_scripts_still_parse(stripped_site: Path) -> None:
         result = subprocess.run([NODE, "--check", str(script)], capture_output=True, text=True)
         assert result.returncode == 0, f"{script.name}: {result.stderr}"
     for script in scripts:
-        assert script.stat().st_size < (SITE / script.name).stat().st_size, script.name
+        # Against the LF source, so neither checkout's line endings decide it.
+        source = (SITE / script.name).read_bytes().replace(CRLF, LF)
+        assert script.stat().st_size < len(source), script.name
 
 
 @needs_node
