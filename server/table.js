@@ -55,6 +55,9 @@ const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const EVENT_CAP = 240;
 const EVENT_RING = 600; // unredacted ring; the tail of it is what a STATE ships
 const PING_MS = 15000;
+/* How long an open table's host may be away (a reload, a closed Hangar frame, a
+ * wifi blip) before the table stops being listed or joined. */
+const HOST_GRACE_MS = 60000;
 const RATE_WINDOW_MS = 10000;
 /* Accepted actions only. 30/10 s was below what a human legitimately does while
  * picking targets or emptying a hand of Resources, and rejections were charged
@@ -548,7 +551,7 @@ async function createTable(opts) {
     byCode: db.prepare("SELECT * FROM matches WHERE code = ?"),
     byId: db.prepare("SELECT * FROM matches WHERE match_id = ?"),
     openTables: db.prepare(
-      "SELECT match_id, code, created_at, seat0_name, seat0_pubkey, seat0_affinity, stake FROM matches WHERE status = 'open' ORDER BY created_at DESC LIMIT 50"
+      "SELECT match_id, code, created_at, seat0_name, seat0_pubkey, seat0_affinity, stake, ruleset FROM matches WHERE status = 'open' ORDER BY created_at DESC LIMIT 50"
     ),
     /* Every unfinished match this identity holds a seat at. This is the query
      * that makes a cleared browser survivable: the credential is gone, the seat
@@ -621,6 +624,9 @@ async function createTable(opts) {
   ).split(",").map((value) => value.trim()).filter((value) => CATALOGS[value]);
   /* Anything unknown or not allowed here is Classic, which every table plays. */
   const cleanRuleset = (value) => (allowedRulesets.indexOf(value) >= 0 ? value : "E1.0");
+  /* The rules a stored table plays, as its row and its refusals name them:
+   * mintGame deals anything but Fast as Classic. */
+  const tableRules = (value) => (value === "F1.0" ? "F1.0" : "E1.0");
 
   function mintGame(seat0, seat1, ruleset) {
     const attempts = [];
@@ -738,6 +744,9 @@ async function createTable(opts) {
       endedAt: row.ended_at || null,
       events: [], // unredacted ring
       conns: [null, null],
+      /* When seat 0 was last left empty, or null while it is held. A record read
+       * from its row has nobody at it yet, so the grace starts when it is loaded. */
+      hostLeftAt: Date.now(),
       spectators: new Set(),
       rate: [[], []],
       rejectRate: [[], []],
@@ -1311,7 +1320,7 @@ async function createTable(opts) {
 
   /* A CLIENT-SUPPLIED STACK IS UNTRUSTED INPUT. The engine is the real
    * authority — createGame refuses an unknown card, a Stack under §7's floor and
-   * a fourth copy of anything, and it does that on every topology — but a
+   * a copy past a card's own limit, and it does that on every topology — but a
    * decklist that is going to be refused should be refused HERE, at the message
    * boundary, with a sentence naming what is wrong. Otherwise an illegal Stack
    * spends forty mint attempts failing identically and comes back as "the
@@ -1335,8 +1344,13 @@ async function createTable(opts) {
         throw badDeck(`${card.name} needs the Stake module, which this table does not run`);
       }
       copies[raw] = (copies[raw] || 0) + 1;
-      if (copies[raw] > E.MAX_COPIES && card.type !== "Basic Resource") {
-        throw badDeck(`${card.name} appears ${copies[raw]} times; ${E.MAX_COPIES} is the limit (§7)`);
+      /* The engine's own limit for this card under this table's rules, never a
+       * copy of it: one for a genesis card, no limit for a Basic Resource. A flat
+       * four let two Genesis Lotus through here, and createGame then failed forty
+       * mints and blamed the guest with DECK_BUILD_FAILED. */
+      const limit = E.copyLimit(card);
+      if (copies[raw] > limit) {
+        throw badDeck(`${card.name} appears ${copies[raw]} times; ${limit} is the limit (§7)`);
       }
     }
     return value.slice();
@@ -1401,19 +1415,30 @@ async function createTable(opts) {
      * and the real opponent got MATCH_FULL forever with no way back.
      * SEATED, not merely attached — a spectator downgraded onto this table is
      * usually the person the host sent the link to, and JOIN is exactly how they
-     * take the free seat. */
+     * take the free seat. It is refused as the host's own table, not as a full
+     * one: both seats are not taken, and the host is told what they did. */
     if (conn.rec === rec && conn.seat !== null) {
-      return fail(conn.ws, "MATCH_FULL", "you are already seated at this table");
+      return fail(conn.ws, "OWN_TABLE", "that is your own table");
     }
 
     const name = String(msg.name || "Player").slice(0, 40);
     const affinity = HAND_AFFINITIES.indexOf(msg.affinity) >= 0 ? msg.affinity : "All";
     let deck;
-    // The table's rules are the host's: a guest's Stack is checked against them.
-    try { deck = cleanDeck(msg.deck, rec.ruleset); } catch (err) { return fail(conn.ws, "BAD_DECK", String(err.message)); }
+    /* The table's rules are the host's: a guest's Stack is checked against them,
+     * and the refusal names them, so a lobby that built the Stack under other
+     * rules can say that rather than which card broke them. */
+    try { deck = cleanDeck(msg.deck, rec.ruleset); } catch (err) {
+      return send(conn.ws, { t: "ERROR", v: WIRE, code: "BAD_DECK", message: String(err.message), ruleset: tableRules(rec.ruleset) });
+    }
     // Belt and braces for the same fumble from a second tab of the same login.
     if (pubkey && rec.players[0].pubkey === pubkey) {
-      return fail(conn.ws, "MATCH_FULL", "you cannot take both seats at one table");
+      return fail(conn.ws, "OWN_TABLE", "that is your own table");
+    }
+    /* A host away past the grace has left a trap, not a table: joining it is a
+     * wait with no end. The row stays, and the table is theirs again, listed and
+     * joinable, the moment they come back to it. */
+    if (hostAway(rec)) {
+      return fail(conn.ws, "HOST_AWAY", "the host of that table is away");
     }
     /* NOBODY IS DEALT INTO A WAGER THEY DID NOT ACCEPT. A guest that states a
      * stake is stating the one it was shown; if the table's has changed since,
@@ -1663,6 +1688,7 @@ async function createTable(opts) {
       if (held.conn) held.conn.rec = null;
     }
     rec.conns[n] = conn.ws;
+    if (n === 0) rec.hostLeftAt = null;
   }
 
   function handleResume(conn, msg) {
@@ -1811,12 +1837,24 @@ async function createTable(opts) {
    * with a signed-in host, never a seat token, never a match already playing.
    * Signed-in connections only, and metered per connection on top of the
    * control budget. Past that meter the list is refused and the socket stays
-   * open, because a lobby that refreshes too eagerly must not lose a seat. */
+   * open, because a lobby that refreshes too eagerly must not lose a seat.
+   * GET /api/tables serves this same function, so the two cannot drift apart.
+   *
+   * AN OPEN TABLE WHOSE HOST HAS BEEN AWAY PAST THE GRACE IS NOT LISTED, and a
+   * JOIN to its code is refused as HOST_AWAY. Within the grace it stays listed
+   * (hostOnline false) and joinable, because a reload, a Hangar frame closed and
+   * reopened or a wifi blip comes straight back with RESUME. */
   const TABLES_MAX = 10;
+  const hostGraceMs = Number.isInteger(options.hostGraceMs) && options.hostGraceMs >= 0
+    ? options.hostGraceMs
+    : HOST_GRACE_MS;
+  const hostAway = (rec) =>
+    rec.status === "open" && rec.hostLeftAt !== null && Date.now() - rec.hostLeftAt >= hostGraceMs;
   function openTableList() {
     return q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
-      const rec = matches.get(r.match_id);
-      const host = rec && rec.conns[0];
+      const rec = loadMatch(r.match_id);
+      if (!rec || hostAway(rec)) return null;
+      const host = rec.conns[0];
       return {
         matchId: r.match_id,
         code: r.code,
@@ -1825,9 +1863,15 @@ async function createTable(opts) {
         affinity: r.seat0_affinity,
         createdAt: r.created_at,
         stake: Number.isInteger(r.stake) ? r.stake : 0,
+        /* The host's rules, which a guest's Stack is checked against: a lobby
+         * builds the Stack it joins with under these. */
+        ruleset: tableRules(r.ruleset),
+        /* Whether anyone is actually sitting there. A code whose host closed
+         * the tab looks identical to a live one in a bare list, and joining it
+         * is a wait with no end. */
         hostOnline: Boolean(host && host.readyState === 1),
       };
-    });
+    }).filter(Boolean);
   }
   function handleTables(conn, msg) {
     if (!authenticatedPubkey(conn, msg)) return;
@@ -1846,6 +1890,7 @@ async function createTable(opts) {
     if (conn.seat === null) rec.spectators.delete(conn.ws);
     else if (rec.conns[conn.seat] === conn.ws) {
       rec.conns[conn.seat] = null;
+      if (conn.seat === 0) rec.hostLeftAt = Date.now(); // the grace starts now
       peer(rec, conn.seat, false);
     }
     conn.rec = null;
@@ -2109,24 +2154,8 @@ async function createTable(opts) {
     }
     if (pathname === "/api/tables") {
       // The RELAY-FREE join path: if every relay dies on stage, players still
-      // see and join tables.
-      return reply(200, q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
-        const rec = matches.get(r.match_id);
-        const host = rec && rec.conns[0];
-        return {
-          matchId: r.match_id,
-          code: r.code,
-          name: r.seat0_name,
-          pubkey: r.seat0_pubkey,
-          affinity: r.seat0_affinity,
-          createdAt: r.created_at,
-          stake: Number.isInteger(r.stake) ? r.stake : 0,
-          /* Whether anyone is actually sitting there. A code whose host closed
-           * the tab looks identical to a live one in a bare list, and joining it
-           * is a wait with no end. */
-          hostOnline: Boolean(host && host.readyState === 1),
-        };
-      }));
+      // see and join tables. The rows TABLES answers over the socket.
+      return reply(200, openTableList());
     }
     if (pathname.startsWith("/api/match/")) {
       const id = pathname.slice("/api/match/".length);

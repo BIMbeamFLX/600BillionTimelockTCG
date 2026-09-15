@@ -25,6 +25,7 @@ const WORDS = {
   stakes: "This table plays for sats; stakes are not available in Nappelin yet.",
   unreachable: "The table server cannot be reached right now. Hotseat and games against the computer work now.",
   invites: "Invites cannot be listed here right now. You can still join with a table code.",
+  otherRules: "That table plays other rules. Pick Ready for a starter Stack, then join again.",
 };
 
 /* client.test.mjs's stub element, which play.js runs in too. */
@@ -308,6 +309,32 @@ test("the open tables say why they could not be listed, for every code a list is
   assert.equal(said(lastRow(byId("tableList"))), "No open tables.");
 });
 
+test("a host's own table is offered back, never joined, and a refused join says why in plain words", async () => {
+  for (const napplet of [hangar(), null]) {
+    const net = netStub();
+    const { byId } = mountLobby(net, {}, { napplet });
+    const where = napplet ? "Hangar" : "website";
+    net.tables = async () => [
+      { matchId: "m_0123456789ab", code: "K7M2QF", name: "felix", pubkey: KEY, affinity: "Power", stake: 0, ruleset: "E1.0", hostOnline: false },
+      { matchId: "m_ba9876543210", code: "Q2W3E4", name: "anna", pubkey: "c".repeat(64), affinity: "Signal", stake: 0, ruleset: "E1.0", hostOnline: false },
+    ];
+    byId("refreshTables").click();
+    await settle();
+    const [mine, theirs] = byId("tableList").children.slice(-2);
+    assert.equal(said(mine), "K7M2QF · felix · Power · your table Rejoin", `${where}: the host's own row after a reload`);
+    assert.equal(said(theirs), "Q2W3E4 · anna · Signal · host away Join");
+    buttonsOf(mine)[0].click();
+    assert.deepEqual(called(net, "rejoin"), [["rejoin", "m_0123456789ab"]], `${where}: taken back by its match id`);
+    assert.deepEqual(called(net, "join"), [], "never joined");
+    assert.equal(byId("netNotice").textContent, "Taking your seat…");
+
+    net.handlers.onError({ code: "OWN_TABLE", message: "that is your own table" });
+    assert.equal(byId("netNotice").textContent, "That is your own table.", `${where}: not "both seats are taken"`);
+    net.handlers.onError({ code: "HOST_AWAY", message: "the host of that table is away" });
+    assert.equal(byId("netNotice").textContent, "The host of that table is away right now. Try again when they are back.");
+  }
+});
+
 test("on the website the list keeps its own words and its stakes", async () => {
   const net = netStub();
   const { byId, root } = mountLobby(net, {}, {});
@@ -429,6 +456,46 @@ test("My collection is offered once the member holds cards, and a table is opene
   assert.deepEqual([byId("deckCollection").checked, byId("deckReady").checked], [false, true], "a choice whose cards are gone falls back to Ready");
   const website = mountLobby(netStub(), {}, {});
   assert.doesNotMatch(website.root.innerHTML, /deckCollection/, "a page that cannot build the Stack does not offer it");
+});
+
+test("a joining Stack is built under its table's rules: from the list, by a listed code, and a bare code the table refuses", async () => {
+  const net = netStub();
+  const hooks = {
+    collection: () => ({ cards: 12 }),
+    stack: (ruleset) => ({ ids: Array.from({ length: 40 }, (_, i) => `${ruleset}:${i}`), fromCollection: 12, filled: 28 }),
+  };
+  const { byId } = mountLobby(net, hooks, { napplet: hangar() });
+  byId("deckReady").checked = false;
+  byId("deckCollection").checked = true;
+  byId("netRules").value = "E1.0";
+  byId("deckCollection").fire("change");
+
+  net.tables = async () => [
+    { code: "K7M2QF", name: "anna", affinity: "Signal", stake: 0, ruleset: "F1.0", hostOnline: true },
+    { code: "Q2W3E4", name: "bob", affinity: "Power", stake: 0, ruleset: "E1.0", hostOnline: true },
+  ];
+  byId("refreshTables").click();
+  await settle();
+  const [fast] = byId("tableList").children.slice(-2);
+  buttonsOf(fast)[0].click();
+  assert.equal(called(net, "join")[0][1].deck[0], "F1.0:0", "the row's rules, not the lobby's Classic");
+
+  byId("joinCode").value = "k7m2qf";
+  byId("joinTable").click();
+  assert.equal(called(net, "join")[1][1].deck[0], "F1.0:0", "a typed code that is listed finds its row");
+
+  byId("joinCode").value = "Z9Y8X7";
+  byId("joinTable").click();
+  assert.equal(called(net, "join")[2][1].deck[0], "E1.0:0", "a bare code with no row keeps the lobby's rules");
+  net.handlers.onError({ code: "BAD_DECK", message: "Timelock Channel — Midnight appears 5 times; 4 is the limit (§7)", ruleset: "F1.0" });
+  assert.equal(byId("netNotice").textContent, WORDS.otherRules, "a table that plays other rules says so in one line");
+  assert.match(byId("netNotice").className, /bad/);
+
+  net.handlers.onError({ code: "BAD_DECK", message: "Genesis Lotus appears 2 times; 1 is the limit (§7)", ruleset: "E1.0" });
+  assert.equal(byId("netNotice").textContent, "Genesis Lotus appears 2 times; 1 is the limit (§7)",
+    "under the rules the Stack was built for, the refusal is about the Stack");
+  net.handlers.onError({ code: "BAD_DECK", message: "a Stack needs at least 40 cards (§7) — this one has 39" });
+  assert.match(byId("netNotice").textContent, /at least 40 cards/, "and a refusal that names no rules keeps its own words");
 });
 
 // ------------------------------------------------------ the table page inside the Hangar
@@ -598,6 +665,26 @@ test("inside the Hangar the table page finds an opponent in place: a dealt seat 
   assert.deepEqual(shell.escaped, [], "and the game stays open");
 });
 
+test("a reloaded frame that takes its own open table back shows it over the first screen, and leaves a chosen game alone", (t) => {
+  sandboxStorage(t);
+  const net = tableNet();
+  const { byId } = loadTable(net, tableHangar());
+  assert.deepEqual([byId("first").hidden, byId("lobby").hidden], [false, true], "the first screen, nothing chosen");
+  const open = openState({ token: "t".repeat(32) }); // what the mirrored seat's RESUME answers
+  net.lastState = open;
+  net.handlers.onState(open);
+  assert.equal(byId("lobby").hidden, false, "the lobby is brought into view");
+  assert.equal(byId("modeOnline").getAttribute("aria-pressed"), "true");
+  assert.deepEqual([byId("hostPanel").hidden, byId("tableCode").textContent], [false, "K7M2QF"], "with the host's own code to read aloud");
+
+  const local = tableNet();
+  const page = loadTable(local, tableHangar());
+  page.byId("modeHotseat").click();
+  local.lastState = open;
+  local.handlers.onState(open);
+  assert.deepEqual([page.byId("lobby").hidden, page.byId("localSetup").hidden], [true, false], "a chosen local game is not pushed aside");
+});
+
 test("inside the Hangar a finished match goes back to the lobby, and the settlement screen never appears", (t) => {
   sandboxStorage(t);
   const over = {
@@ -683,11 +770,11 @@ const EMPTY_INVENTORY = {
 
 /* The prelude a Hangar installs, with only the domains a test grants, under the real
  * adapter (site/napplet.js), so the table reads it exactly as it does in the frame. */
-function realAdapter({ key = MEMBER, inventory = EMPTY_INVENTORY, intent = true, link = null, outbox = null, resource = null } = {}) {
+function realAdapter({ key = MEMBER, inventory = EMPTY_INVENTORY, intent = true, link = null, outbox = null, resource = null, storage = null } = {}) {
   const asked = { link: [] };
   const shell = {
     identity: { getPublicKey: async () => key || "" },
-    storage: { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} },
+    storage: storage || { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} },
   };
   if (intent) shell.intent = { invoke: async () => ({ ok: true, inventory }), available: async () => true };
   if (link) shell.link = { open: (url, options) => { asked.link.push([url, options]); return link(url); } };
@@ -761,6 +848,143 @@ test("the first screen inside the Hangar: the member's look, three ways to play,
   for (const fn of fired["e1:identity"] || []) fn({ detail: {} }); // anything that repaints the page
   assert.equal(byId("firstName").textContent, "FLX", "the first screen was painted again");
   assert.equal(byId("netName").value, "flx at the table", "a name the member typed is theirs to keep");
+});
+
+test("inside the Hangar the first-game tour remembers it is done through the shell's storage, and waits for its answer", async (t) => {
+  sandboxStorage(t);
+  const rejections = [];
+  const note = (reason) => rejections.push(reason);
+  process.on("unhandledRejection", note);
+  t.after(() => process.off("unhandledRejection", note));
+  const COACH = "600b:coach";
+  const withStorage = (storage) => Object.assign(tableHangar(), { storage: Object.assign({ json: async (name, fallback) => fallback }, storage) });
+
+  // One app store, two frames: the tour finished in the first never comes back in the next.
+  const store = new Map();
+  const shared = { get: async (key) => (store.has(key) ? store.get(key) : null), set: async (key, value) => { store.set(key, String(value)); return true; } };
+  const first = loadTable(tableNet(), withStorage(shared));
+  first.byId("modeNpc").click();
+  await flush();
+  assert.equal(first.byId("coach").hidden, false, "a first visit is taught");
+  first.byId("coachSkip").click();
+  await flush();
+  assert.deepEqual([first.byId("coach").hidden, store.get(COACH)], [true, "done"], "done, and stored in the shell");
+  const next = loadTable(tableNet(), withStorage(shared));
+  next.byId("modeNpc").click();
+  await flush();
+  assert.equal(next.byId("coach").hidden, true, "the next frame remembers");
+
+  // An answer still on its way: no tour, not even for a local game already chosen.
+  let answer;
+  const slow = loadTable(tableNet(), withStorage({
+    get: (key) => (key === COACH ? new Promise((resolve) => { answer = resolve; }) : Promise.resolve(null)),
+    set: async () => true,
+  }));
+  slow.byId("modeHotseat").click();
+  await flush();
+  assert.equal(slow.byId("coach").hidden, true, "nothing is shown before the stored answer is known");
+  answer(null);
+  await flush();
+  assert.equal(slow.byId("coach").hidden, false, "and a first visit is taught once it is");
+
+  /* Storage that throws on every access, twice over: an adapter whose answers reject,
+   * and the real adapter over a shell storage domain that throws. The tour teaches,
+   * and finishing it throws nothing. */
+  const throwing = () => { throw new Error("storage refused"); };
+  const shellStorage = { getItem: throwing, setItem: throwing, removeItem: throwing };
+  for (const shell of [withStorage({ get: async () => throwing(), set: async () => throwing() }), realAdapter({ storage: shellStorage }).N]) {
+    const refusing = loadTable(shellNet(), shell);
+    refusing.byId("modeNpc").click();
+    await flush();
+    assert.equal(refusing.byId("coach").hidden, false, "an answer that could not be read is a tour not done yet");
+    refusing.byId("coachNext").click();
+    refusing.byId("coachSkip").click();
+    await flush();
+    assert.equal(refusing.byId("coach").hidden, true);
+  }
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.deepEqual(rejections, [], "no refusal escaped");
+});
+
+test("on the website the tour's flag stays in localStorage, which may throw", (t) => {
+  sandboxStorage(t);
+  const page = loadTable(tableNet(), undefined);
+  assert.equal(page.byId("coach").hidden, false, "no adapter and a throwing localStorage: the tour teaches");
+  assert.doesNotThrow(() => page.byId("coachSkip").click(), "and finishing it cannot fail");
+  assert.equal(page.byId("coach").hidden, true);
+
+  const written = [];
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: { getItem: (key) => (key === "600b:coach" ? "done" : null), setItem: (key, value) => written.push([key, value]), removeItem() {} },
+  });
+  const done = loadTable(tableNet(), undefined);
+  assert.equal(done.byId("coach").hidden, true, "a tour done in this browser stays done");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: { getItem: () => null, setItem: (key, value) => written.push([key, value]), removeItem() {} },
+  });
+  const fresh = loadTable(tableNet(), undefined);
+  fresh.byId("coachSkip").click();
+  assert.deepEqual(written.filter(([key]) => key === "600b:coach"), [["600b:coach", "done"]], "and finishing it writes it there");
+});
+
+test("inside the Hangar a subscription is closed when the lobby is put away, a board shows, a table is left or ends, and the frame unloads", async (t) => {
+  sandboxStorage(t);
+  const handles = [];
+  const outbox = {
+    query: async () => ({ type: "outbox.query.result", events: [] }),
+    subscribe(filters, options) {
+      const handle = { filters, options, closed: 0, on() {}, close() { handle.closed += 1; } };
+      handles.push(handle);
+      return handle;
+    },
+  };
+  const unloading = {};
+  globalThis.window = { addEventListener: (type, fn) => { (unloading[type] = unloading[type] || []).push(fn); } };
+  const { N } = realAdapter({ outbox }); // the adapter listens for pagehide on the frame's window
+  const net = shellNet();
+  // net.js's invites, through the same door: the shell's outbox subscription.
+  net.nostr.subscribeInvites = (pubkey, onInvite) => N.outbox.subscribe([{ kinds: [4600], "#t": ["invite"], "#p": [pubkey] }], onInvite);
+  const { byId } = loadTable(net, N);
+  const open = () => handles.filter((handle) => !handle.closed).length;
+  const subscribeAnything = () => N.outbox.subscribe([{ kinds: [31600] }], () => {});
+  await waitFor(() => byId("lobbyIdentity").hidden === true, "the member's key");
+
+  byId("modeOnline").click();
+  byId("checkInvites").click();
+  assert.equal(open(), 1, "the lobby listens for invites");
+  byId("modeNpc").click();
+  assert.equal(open(), 0, "a local game puts the lobby away, and its subscription with it");
+
+  byId("modeOnline").click();
+  byId("checkInvites").click();
+  assert.equal(open(), 1);
+  const playing = playingState();
+  net.lastState = playing;
+  net.handlers.onState(playing);
+  assert.equal(byId("table").hidden, false);
+  assert.equal(open(), 0, "the board takes the lobby's place");
+
+  subscribeAnything();
+  byId("leaveTable").click();
+  assert.deepEqual([open(), byId("lobby").hidden], [0, false], "leaving a table closes what is open, and shows the lobby");
+
+  net.lastState = playing;
+  net.handlers.onState(playing);
+  subscribeAnything();
+  net.handlers.onOver({
+    matchId: MATCH, result: { winners: [0], losers: [1], reason: "uptime" }, verify: { ok: true },
+    resultContent: JSON.stringify({ turns: 7, actions: 40 }), resultTags: [["d", MATCH]], resultCreatedAt: 1789000000,
+  });
+  assert.equal(open(), 0, "a table that ends closes it");
+
+  subscribeAnything();
+  subscribeAnything();
+  for (const fn of unloading.pagehide || []) fn({});
+  assert.equal(open(), 0, "and so does the frame unloading");
+  assert.ok(handles.every((handle) => handle.closed === 1), "each one closed once");
+  assert.ok(handles.every((handle) => JSON.stringify(handle.options.relays) === JSON.stringify(["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"])));
 });
 
 test("each service the Hangar does not give says so in one line, and the door only opens where it can", async (t) => {

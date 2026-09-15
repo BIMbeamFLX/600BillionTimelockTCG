@@ -399,11 +399,23 @@
    * anyone, and refuses with "relay list unavailable" after signing. So a publish
    * names the four relays the website reads (site/net.js READ_RELAYS: nappelin's
    * and the public three), which is also what lets a Hangar player and a website
-   * player see the same invites; the host still drops any relay it does not allow. */
+   * player see the same invites; the host still drops any relay it does not allow.
+   * A query and a subscription name the same four, so reading a member's kind 0
+   * (site/identity-look.js, net.js profile and sessions) or an invite never rests
+   * on the router finding that member's relay list. */
   const OUTBOX_RELAYS = Object.freeze(["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"]);
+  const relayOptions = () => ({ relays: OUTBOX_RELAYS.slice() });
   /* NAP-OUTBOX delivers query and subscription results as `{ event, sidecar }`;
    * a bare event is read as itself. */
   const eventOf = (item) => (isObject(item) && isObject(item.event) ? item.event : item);
+  /* AT MOST EIGHT SUBSCRIPTIONS ARE OPEN AT ONCE, and the napplet closes its own:
+   * the host keeps a frame's subscriptions until the frame is destroyed. A ninth
+   * closes the oldest, quietly, as its own unsubscribe would: the newest is the one
+   * a player just asked for and is looking at. closeAll() ends every one (play.js:
+   * the lobby put away, a board shown, a table left or ended), and so does the
+   * frame unloading (pagehide). Only a subscription the shell ends is told why. */
+  const SUBSCRIPTIONS_MAX = 8;
+  const subscriptions = new Set(); // each open one's quiet close, oldest first
   const outbox = {
     available: () => has("outbox") || Boolean(globalThis.E1Net && globalThis.E1Net.nostr),
     async publish(template) {
@@ -437,7 +449,7 @@
     async query(filters, ms) {
       if (has("outbox") && typeof shell.outbox.query === "function") {
         try {
-          const msg = await shell.outbox.query(filters);
+          const msg = await shell.outbox.query(filters, relayOptions());
           return msg && Array.isArray(msg.events) ? msg.events.map(eventOf).filter(isObject) : [];
         } catch (err) {
           return [];
@@ -459,40 +471,53 @@
     subscribe(filters, onEvent, onClosed) {
       let handle = null;
       let open = true;
-      const end = (reason) => {
-        if (!open) return;
-        open = false;
-        call(onClosed, reason);
-      };
-      const endLater = (reason) => { Promise.resolve().then(() => end(reason)); };
       const stop = () => {
         try { if (handle && typeof handle.close === "function") handle.close(); } catch (err) { /* already closed */ }
       };
       const unsubscribe = () => {
         if (!open) return;
         open = false;
+        subscriptions.delete(unsubscribe);
         stop();
       };
+      const end = (reason) => {
+        if (!open) return;
+        open = false;
+        subscriptions.delete(unsubscribe);
+        call(onClosed, reason);
+      };
+      const endLater = (reason) => { Promise.resolve().then(() => end(reason)); };
       if (!outbox.canSubscribe()) {
         endLater("unavailable");
         return unsubscribe;
       }
       try {
         /* The prelude's handle (NAP-OUTBOX): `on("event" | "closed", fn)` and `close()`. */
-        handle = shell.outbox.subscribe(Array.isArray(filters) ? filters : [filters]);
+        handle = shell.outbox.subscribe(Array.isArray(filters) ? filters : [filters], relayOptions());
         if (!handle || typeof handle.on !== "function") throw new Error("unavailable");
         handle.on("event", (result) => {
           const event = eventOf(result);
           if (open && isObject(event)) call(onEvent, event);
         });
         handle.on("closed", (reason) => end(reason === undefined ? "closed" : String(reason)));
+        if (open) {
+          subscriptions.add(unsubscribe);
+          if (subscriptions.size > SUBSCRIPTIONS_MAX) subscriptions.values().next().value();
+        }
       } catch (err) {
         stop();
         endLater(String((err && err.message) || "unavailable"));
       }
       return unsubscribe;
     },
+    /** Ends every open subscription quietly, as each one's own unsubscribe would. */
+    closeAll() {
+      for (const close of Array.from(subscriptions)) close();
+    },
   };
+  /* A frame that unloads closes what it opened: a reload may keep its window, and
+   * with it every subscription the host still holds for that window. */
+  if (typeof win().addEventListener === "function") win().addEventListener("pagehide", () => outbox.closeAll());
 
   // ----------------------------------------------------------------- resource
 

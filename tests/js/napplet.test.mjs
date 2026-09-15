@@ -683,6 +683,92 @@ test("on the website an unsigned template is signed by NIP-07 before the relay f
   assert.deepEqual(await N.outbox.query({ kinds: [31600] }), []);
 });
 
+/* NAP-OUTBOX as the Kehto prelude hands it over: every call's options recorded, results
+ * as `{ event, sidecar }`, and subscription handles that say whether they were closed. */
+function recordingOutbox() {
+  const seen = { publish: [], query: [], subscribe: [] };
+  const handles = [];
+  return {
+    seen,
+    handles,
+    publish: async (template, options) => { seen.publish.push(options); return { type: "outbox.publish.result", ok: true, event: Object.assign({ id: "e", sig: "s" }, template) }; },
+    query: async (filters, options) => {
+      seen.query.push(options);
+      return { type: "outbox.query.result", events: [{ event: { id: "q", kind: 0 }, sidecar: { relayHints: ["wss://relay.nappelin.com"] } }] };
+    },
+    subscribe(filters, options) {
+      seen.subscribe.push(options);
+      const handle = { closed: 0, listeners: { event: [], closed: [] } };
+      handle.on = (name, fn) => handle.listeners[name].push(fn);
+      handle.close = () => { handle.closed += 1; };
+      handle.emit = (event) => { for (const fn of handle.listeners.event) fn({ event, sidecar: { relayHints: [] } }); };
+      handles.push(handle);
+      return handle;
+    },
+  };
+}
+const RELAYS = ["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
+
+test("a query and a subscription through the shell's outbox name the relays its publish names", async () => {
+  const outbox = recordingOutbox();
+  const N = load(Object.assign(base(), { napplet: { outbox } }));
+  await N.outbox.publish({ kind: 4600, content: "" });
+  assert.deepEqual(await N.outbox.query([{ kinds: [0], authors: ["c".repeat(64)] }]), [{ id: "q", kind: 0 }], "handed on bare");
+  const got = [];
+  N.outbox.subscribe([{ kinds: [4600] }], (event) => got.push(event));
+  outbox.handles[0].emit({ id: "live" });
+  assert.deepEqual(got, [{ id: "live" }]);
+  assert.deepEqual(outbox.seen.publish[0].relays, RELAYS);
+  assert.deepEqual(outbox.seen.query, [{ relays: RELAYS }], "a member's kind 0 never rests on a relay list the router has to find");
+  assert.deepEqual(outbox.seen.subscribe, [{ relays: RELAYS }]);
+});
+
+test("at most eight subscriptions are open at once: a ninth closes the oldest, quietly", () => {
+  const outbox = recordingOutbox();
+  const N = load(Object.assign(base(), { napplet: { outbox } }));
+  const heard = [];
+  const ended = [];
+  const offs = Array.from({ length: 9 }, (_, i) => N.outbox.subscribe([{ kinds: [4600] }], (event) => heard.push([i, event.id]), (reason) => ended.push([i, reason])));
+  assert.deepEqual(outbox.handles.map((handle) => handle.closed), [1, 0, 0, 0, 0, 0, 0, 0, 0], "the oldest made room");
+  outbox.handles[0].emit({ id: "late" });
+  outbox.handles[8].emit({ id: "new" });
+  assert.deepEqual(heard, [[8, "new"]], "the oldest hears nothing more; the newest does");
+  assert.deepEqual(ended, [], "and nobody is told: closing it was the napplet's own decision");
+  offs[0]();
+  assert.equal(outbox.handles[0].closed, 1, "its own unsubscribe afterwards closes nothing twice");
+
+  offs[3]();
+  N.outbox.subscribe([{ kinds: [4600] }], () => {});
+  assert.deepEqual(outbox.handles.map((handle) => handle.closed), [1, 0, 0, 1, 0, 0, 0, 0, 0, 0], "a place freed is a place: nothing else closes");
+
+  // A subscription the shell ended frees its place too, and its owner is told why.
+  outbox.handles[1].listeners.closed[0]("relay list unavailable");
+  assert.deepEqual(ended, [[1, "relay list unavailable"]]);
+  N.outbox.subscribe([{ kinds: [4600] }], () => {});
+  assert.equal(outbox.handles.filter((handle) => handle.closed).length, 2, "eight open, none closed for the ninth");
+});
+
+test("closeAll() and the frame unloading end every open subscription", () => {
+  const outbox = recordingOutbox();
+  const listeners = {};
+  const window = { addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
+  const N = load(Object.assign(base(), { napplet: { outbox }, window }));
+  const ended = [];
+  const offs = [0, 1, 2].map((i) => N.outbox.subscribe([{ kinds: [4600] }], () => {}, (reason) => ended.push([i, reason])));
+  N.outbox.closeAll();
+  assert.deepEqual(outbox.handles.map((handle) => handle.closed), [1, 1, 1]);
+  for (const off of offs) off();
+  assert.deepEqual(outbox.handles.map((handle) => handle.closed), [1, 1, 1], "closed once each");
+
+  N.outbox.subscribe([{ kinds: [4600] }], () => {});
+  N.outbox.subscribe([{ kinds: [4600] }], () => {});
+  assert.equal(listeners.pagehide.length, 1, "the adapter listens for the frame unloading");
+  listeners.pagehide[0]({});
+  assert.deepEqual(outbox.handles.map((handle) => handle.closed), [1, 1, 1, 1, 1]);
+  assert.deepEqual(ended, [], "quietly");
+  N.outbox.closeAll(); // nothing open: nothing to do
+});
+
 // ------------------------------------------------------------------- table
 
 const SIGNED = { kind: 22242, pubkey: "d".repeat(64), id: "i", sig: "s" };

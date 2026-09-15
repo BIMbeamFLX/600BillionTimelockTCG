@@ -198,7 +198,8 @@ function relayBus() {
  * `subscribe(filters)` returns a handle with `on("event" | "closed")` and `close()`. */
 const HANGAR_RELAYS = ["wss://relay.nappelin.com", "wss://relay.bimcvp.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
 function kehtoOutbox(bus, sk, { refuse = null, alive = () => true } = {}) {
-  const calls = { publish: [], query: [], subscribe: [], close: 0 };
+  // `options` holds what each query and subscription asked the router for, in order.
+  const calls = { publish: [], query: [], subscribe: [], close: 0, options: { query: [], subscribe: [] } };
   const hint = (event) => ({ event, sidecar: { relayHints: [HANGAR_RELAYS[0]] } });
   const reply = (value) => (alive() ? new Promise((resolve) => setTimeout(() => resolve(value), 1)) : new Promise(() => {}));
   return {
@@ -215,14 +216,16 @@ function kehtoOutbox(bus, sk, { refuse = null, alive = () => true } = {}) {
       bus.publish(event);
       return reply({ type: "outbox.publish.result", id: "p", ok: true, event, eventId: event.id, relays: Object.fromEntries(relays.map((url) => [url, true])) });
     },
-    query(filters) {
+    query(filters, options) {
       const list = Array.isArray(filters) ? filters : [filters];
       calls.query.push(list);
+      calls.options.query.push(options);
       return reply({ type: "outbox.query.result", id: "q", events: bus.query(list).map(hint) });
     },
-    subscribe(filters) {
+    subscribe(filters, options) {
       const list = Array.isArray(filters) ? filters : [filters];
       calls.subscribe.push(list);
+      calls.options.subscribe.push(options);
       const handlers = { event: new Set(), closed: new Set() };
       const off = bus.subscribe(list, (event) => setTimeout(() => {
         if (alive()) for (const fn of handlers.event) fn(hint(event));
@@ -529,6 +532,33 @@ test("query results arrive as { event, sidecar } and are handed on bare", async 
   assert.deepEqual(await net.nostr.query({ kinds: [0], authors: [HOST_PUBKEY] }), [signed]);
   const profile = await net.nostr.profile(HOST_PUBKEY);
   assert.equal(profile.name, "felix", "a verified kind 0 read through the shell reaches the profile");
+});
+
+test("every read through the Hangar's outbox names the relays its publish does: looks, profiles, sessions and invites", async () => {
+  /* nappelin's router has no NIP-65 relay lists. A query that names no relays only finds a
+   * member's kind 0 through whatever fallback the router keeps, so each one names them. */
+  const bus = relayBus();
+  const outbox = kehtoOutbox(bus, HOST_SK);
+  const { net, N } = loadShell({ host: fakeHangar(), shell: shellWith({ outbox }) });
+  const look = require("../../site/identity-look.js");
+  bus.publish(signEvent({ kind: 0, created_at: 1, tags: [], content: JSON.stringify({ display_name: "Felix" }) }, HOST_SK));
+
+  await N.outbox.publish(net.nostr.inviteEvent({ matchId: "m_0123456789ab", code: "ABCDEF", table: "wss://t.example/ws", name: "f", affinity: "Power" }));
+  const published = outbox.calls.publish[0].options.relays;
+  assert.deepEqual(published, ["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"]);
+
+  assert.equal((await net.nostr.profile(HOST_PUBKEY)).name, "Felix", "net.js profile()");
+  assert.deepEqual(await net.nostr.sessions(HOST_PUBKEY), [], "net.js sessions()");
+  const seen = await look.resolve(HOST_PUBKEY, { query: (filters) => N.outbox.query(filters), verify: (event) => globalThis.E1Schnorr.verifyEvent(event) });
+  assert.deepEqual([seen.name, seen.nameVia], ["Felix", "display_name"], "an opponent's look, the way play.js asks for it");
+  const unsubscribe = net.nostr.subscribeInvites(HOST_PUBKEY, () => {});
+  unsubscribe();
+
+  assert.equal(outbox.calls.options.query.length, 4, "one profile, two for sessions, one look");
+  assert.equal(outbox.calls.options.subscribe.length, 1);
+  for (const options of [...outbox.calls.options.query, ...outbox.calls.options.subscribe]) {
+    assert.deepEqual(options, { relays: published }, "the same four relays, and nothing else asked of the router");
+  }
 });
 
 test("relays that refuse a host-signed event do not unsign it", async () => {
@@ -1070,6 +1100,35 @@ test("two Hangar tabs open a table and join it by its code in their table pages'
   const join = JSON.parse(bob.host.sent.find((data) => JSON.parse(data).t === "JOIN"));
   assert.deepEqual([join.code, join.stake], [code, 0], "joined by the code, for no stake");
   assert.deepEqual([...a.sockets, ...b.sockets], [], "no socket or fetch of their own");
+});
+
+test("a host who reloads the table page is back at their own open table, offered to them as Rejoin and never as Join", async (t) => {
+  const table = await referee(t, "reload-host.db");
+  const build = { E1_TABLE_URL: table.wsUrl };
+  const alice = hangarTab(t, "alice");
+  const a = alice.openTable({ scope: build });
+  await waitFor(() => a.byId("lobbyIdentity").hidden === true);
+  a.byId("modeOnline").click();
+  a.byId("netName").value = "alice";
+  a.byId("createTable").click();
+  const code = await waitFor(() => (/^[A-HJ-NP-Z2-9]{6}$/.test(a.byId("tableCode").textContent) ? a.byId("tableCode").textContent : null));
+  const matchId = a.net.lastState.matchId;
+  await waitFor(() => alice.mirror()[`${matchId}:0`]);
+
+  a.frame.kill(); // the Hangar closes the frame, or the member reloads it
+  const again = alice.openTable({ scope: build });
+  assert.equal(again.byId("lobby").hidden, true, "the reloaded frame opens on its first screen");
+  await waitFor(() => again.byId("tableCode").textContent === code);
+  assert.deepEqual([again.byId("lobby").hidden, again.byId("hostPanel").hidden], [false, false], "and shows the table it took back");
+  assert.equal(again.byId("modeOnline").getAttribute("aria-pressed"), "true");
+
+  const row = await waitFor(() => again.byId("tableList").children.find((item) => item.children && item.children[0] && item.children[0].textContent.startsWith(code)));
+  assert.equal(row.children[0].textContent, `${code} · alice · Power · your table`);
+  assert.deepEqual(row.children.slice(1).map((button) => button.textContent), ["Rejoin"], "its own row offers the seat back, not a Join");
+  row.children[1].click();
+  await waitFor(() => sentOf(alice.host, "RESUME") === 2);
+  assert.equal(sentOf(alice.host, "JOIN"), 0, "nothing ever asked to join it");
+  assert.deepEqual([...a.sockets, ...again.sockets], []);
 });
 
 test("two Hangar tabs find each other in the quick match", async (t) => {

@@ -223,8 +223,12 @@ host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
   `{relays: ["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"], toOutbox: false}`
   (the host drops any relay it does not allow). It returns `{ok, via:"shell", event}` or
   `{ok:false, via:"shell", error, event}` — a refusal still carries the event the host signed.
-- `napplet.outbox.query(filters)` resolves `{type, id, events: [{event, sidecar}], incomplete?, error?}`;
-  `E1Napplet.outbox.query(filters)` hands on the bare events. On the website the same calls sign
+- `napplet.outbox.query(filters, options)` resolves `{type, id, events: [{event, sidecar}], incomplete?, error?}`;
+  `E1Napplet.outbox.query(filters)` passes `{relays: [the same four]}` from the one constant its
+  publish uses (`OUTBOX_RELAYS`), and hands on the bare events. A query with `authors` otherwise
+  asks the router for those authors' relay lists, finds none, and reads only whatever fallback the
+  router keeps (flagged `incomplete`), so a member's kind 0 read by `site/identity-look.js` or by
+  net.js `profile()` and `sessions()` names the relays instead. On the website the same calls sign
   with NIP-07 and use `E1Net.nostr`'s own fan-out.
 - **net.js consequence.** play.js keeps its `sign → publish → sendNostr` order. Inside a shell
   `E1Net.nostr.sign()` of a kind 4600/31600 template therefore *publishes it through the outbox*
@@ -302,13 +306,24 @@ every access costs only the reload's auto-resume: `AUTH_OK.active` still names t
 address, a log line or an error message.
 
 **Invites through the outbox.** `E1Napplet.outbox.subscribe(filters, onEvent, onClosed) → unsubscribe()`
-wraps the prelude's NAP-OUTBOX handle (`outbox.subscribe(filters)` → `{on("event" | "closed", fn), close()}`):
-`onEvent` gets bare events, `onClosed(reason)` hears a subscription the shell ended, and without a
-shell outbox it is called once with `"unavailable"` (`E1Napplet.outbox.canSubscribe()` asks first).
-It never throws. Inside a shell `E1Net.nostr.subscribeInvites(pubkey, onInvite)` subscribes there
-with the website's filter (`kinds:[4600]`, `#t:["invite"]`, `#p:[pubkey]`, the last hour, 40)
-and still parses and signature-checks every row with `E1Schnorr` before `onInvite` sees it; a
-shell that cannot subscribe, or ends the subscription, is `onError{INVITES_UNAVAILABLE}`.
+wraps the prelude's NAP-OUTBOX handle (`outbox.subscribe(filters, {relays})` → `{on("event" | "closed", fn), close()}`,
+the same four relays a query names): `onEvent` gets bare events, `onClosed(reason)` hears a
+subscription the shell ended, and without a shell outbox it is called once with `"unavailable"`
+(`E1Napplet.outbox.canSubscribe()` asks first). It never throws. Inside a shell
+`E1Net.nostr.subscribeInvites(pubkey, onInvite)` subscribes there with the website's filter
+(`kinds:[4600]`, `#t:["invite"]`, `#p:[pubkey]`, the last hour, 40) and still parses and
+signature-checks every row with `E1Schnorr` before `onInvite` sees it; a shell that cannot
+subscribe, or ends the subscription, is `onError{INVITES_UNAVAILABLE}`.
+
+**The napplet closes its own subscriptions,** because the host keeps them until the frame is
+destroyed. At most 8 are open at once: a ninth closes the oldest, quietly, as that one's own
+`unsubscribe()` would, because the newest is the one a member just asked for and is looking at
+(and the lobby ends its previous invite subscription before it opens another, so an oldest one
+past eight is a leak with nothing on screen). `E1Napplet.outbox.closeAll()` ends every open one,
+also quietly; `site/play.js` calls it, with the lobby's own `close()` (which empties the invite
+list), when the lobby is put away for a local game, when a board takes the lobby's place, when a
+table is left and when a table ends (`OVER`). The adapter itself calls it on `pagehide`. Only a
+subscription the shell ended calls `onClosed`.
 
 **Open tables over the socket.** The frame has no HTTP to the referee. `E1Net.tables()` asks an
 open, signed-in socket with `TABLES` (docs/net-protocol.md §2.1) and resolves the rows
@@ -329,8 +344,11 @@ returns null, and a frozen, absent or throwing context is simply null. On the we
 reads `?code=` once and removes it from the address with `history.replaceState`, valid or not.
 
 **Host facts this rests on** (nappelin `apps/hangar/src/host.ts`, Kehto shell and services 0.20,
-read 2026-09-15): the outbox router has no NIP-65 relay lists, hence the named relays and
-`toOutbox: false`; subscription and query results are `{event, sidecar}`; a subscription is closed
+read 2026-09-15): the outbox router has no NIP-65 relay lists, hence the named relays on every
+publish, query and subscription and `toOutbox: false`; the relays a query or subscription names
+are the ones the router reads when it allows them (a query without authors reads its fallback set
+beside them), and it falls back to that set only when it allows none; subscription and query
+results are `{event, sidecar}`; a subscription is closed
 with `outbox.close {id, subId}` and ended by the host with `outbox.closed {subId, reason?}`; the
 host has no per-frame cap on subscriptions and drops them without `outbox.closed` when the frame
 closes or the identity changes (which closes the frame too). Storage values are strings of at
@@ -340,14 +358,18 @@ most 8 MB per key under 200-character keys; the napplet holds itself to 512 KB.
 
 **One lobby, two pages.** `site/lobby.js` is the online lobby: `E1Lobby.mount(root, NET, hooks)`
 builds its markup into `root` and returns `{handlers, refresh(), notice(text, tone), open(),
-launchCode, invite}`. `matchmaking.html` mounts it into `#online` and, when the referee deals a
+close(), launchCode, invite}`. `matchmaking.html` mounts it into `#online` and, when the referee deals a
 seat, still hands off to `play.html`. Embedded, `play.js` mounts it into `#lobby` (where the
 website keeps its small online door) with `{embedded: true, start: false, onSeat, onLobby,
 collection, stack}` and starts the one `E1Net` itself: while the member sits at a table or watches
 one the board reads the referee's messages, otherwise the lobby does, and an open table is always
 the lobby's. A dealt seat shows the board in place (a local game still on the table is put away
 first); leaving the table, or "Find another opponent" after a match, shows the lobby again and
-never closes the frame.
+never closes the frame. A frame reloaded while its member hosts an open table takes the seat back
+from the mirror (§3c) and opens the lobby on that table's code, over a first screen where nothing
+was chosen yet. In the open-table list a member's own table is offered as Rejoin, never as Join
+(a join to it is `OWN_TABLE`, "That is your own table."), and a table whose host has been away
+past the referee's grace is not listed at all (docs/net-protocol.md §2.6).
 
 **Inside the Hangar the lobby differs from the website's in exactly this.** No sign-in button:
 the shell's key is the identity, read when the frame loads (an identity change closes the frame,
@@ -365,13 +387,18 @@ a referee too old to list tables, or invites that this shell cannot list.
 
 **My collection online.** The referee takes a Stack in `CREATE`, `JOIN` and `QUEUE` under Classic
 and Fast alike, and checks it twice: `cleanDeck` in `server/table.js` (a list of 40 to 300 known
-ids of the table's ruleset, no Stake card, at most four copies of anything but a Basic Resource)
-and `E.createGame` (the floor and each card's own copy limit, one for a genesis card). So the embedded lobby
+ids of the table's ruleset, no Stake card, and each card's own copy limit under those rules, asked
+of the engine's `E.copyLimit`: one for a genesis card, no limit for a Basic Resource, four for the rest)
+and `E.createGame` (the same floor and limits again). A Stack past a limit is refused as `BAD_DECK`
+naming the card, before any seat changes. So the embedded lobby
 offers "My collection" once the member holds a card, labelled "n of 40 cards yours", and sends the
 Stack `buildCollectionStack` deals for the table's rules: the lobby's rules for a table it opens
-or a match it searches, an invite's `ruleset` for a join from an invite, and the lobby's rules for
-a bare code, because the open-table rows carry no ruleset. The quick match pairs a built Stack
-only with another built Stack. A collection Stack claims no possession at the table either.
+or a match it searches, an invite's `ruleset` for a join from an invite, the row's `ruleset` for a
+join from the open-table list or a typed code that is listed there, and the lobby's rules for a
+bare code with no row. A `BAD_DECK` refusal of a join names the table's rules; when they are not
+the ones the Stack was built under, the lobby says "That table plays other rules. Pick Ready for a
+starter Stack, then join again." The quick match pairs a built Stack only with another built Stack.
+A collection Stack claims no possession at the table either.
 
 **The first screen.** Embedded, `play.html` opens on `#first`: "Playing as" with the member's
 look (name and picture through the seat code's `E1Look` book, the short npub until it lands,
@@ -379,6 +406,13 @@ look (name and picture through the seat code's `E1Look` book, the short npub unt
 Online, which stays above the setup form or the lobby it opens, and the collection line. Every
 service the shell does not give says so in one line: no identity, no collection app (the
 collection line), and inside the lobby the table server and the invites.
+
+**The first-game tour** belongs to the local game: it opens with Against the computer or Hotseat,
+never over the first screen or the lobby. Whether it is done is stored under `600b:coach` through
+`E1Napplet.storage` (the shell's storage inside the Hangar, localStorage on the website, and
+localStorage directly on a page without the adapter), so a member who finished or skipped it does
+not meet it again in the next frame. That answer is asynchronous, and the tour stays hidden until
+it is known; storage that refuses to answer counts as a tour not done yet.
 
 **The empty collection's door.** `E1Napplet.link.open(url)` asks NAP-LINK (`napplet.link.open`,
 which resolves `{status: "opened" | "denied"}`) for an https URL only, and resolves `{ok: true}`

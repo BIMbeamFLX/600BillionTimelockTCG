@@ -114,8 +114,32 @@ present it must match that identity; it is never trusted as proof by itself.
 ```
 The server mints seeds (§5.1), calls `E.createGame(config)`, persists, and sends `STATE` to
 **both** sockets (status `"playing"`, `view` non-null).
-Errors: `NIP07_REQUIRED`, `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `STAKE_MISMATCH`,
-`DECK_BUILD_FAILED`.
+Errors: `NIP07_REQUIRED`, `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `OWN_TABLE`,
+`HOST_AWAY`, `STAKE_MISMATCH`, `BAD_DECK`, `DECK_BUILD_FAILED`.
+
+**A host cannot join their own table.** A `JOIN` from the connection seated at seat 0, or from
+any connection signed in as seat 0's pubkey, is `ERROR{OWN_TABLE}` ("that is your own table"),
+not `MATCH_FULL`: seat 1 is free, and the way back to one's own table is `RESUME`. **Nor a table
+whose host has gone.** When seat 0 of an `open` table has been empty for longer than the host
+grace (60 s; `hostGraceMs` in-process), the `JOIN` is `ERROR{HOST_AWAY}` and the row stays as it
+is. Inside the grace the table is joinable, because a reload or a closed Hangar frame comes
+straight back; the host's own `RESUME`, at any time, makes it listed and joinable again (§2.6).
+
+**A Stack is checked at the message boundary.** `CREATE`, `JOIN` and `QUEUE` may carry `deck`, a
+list of card ids; absent, the referee deals. Before any seat or queue place changes, `cleanDeck`
+refuses with `ERROR{BAD_DECK}` a list that is not 40 to 300 known ids of the table's rules, holds
+a Stake card, or holds more copies of a card than the engine's own `E.copyLimit` allows under
+those rules (one for a genesis card, no limit for a Basic Resource, four for the rest). The message
+names the card, and `E.createGame` checks the same again when the match is dealt.
+
+**The table's rules are its host's.** A guest's `deck` is checked against them, never against
+rules the guest names, and a `BAD_DECK` answer to a `JOIN` names them:
+```json
+{"t":"ERROR","v":1,"code":"BAD_DECK","message":"Timelock Channel — Midnight appears 5 times; 4 is the limit (§7)","ruleset":"F1.0"}
+```
+A lobby builds the Stack it joins with under a listed table's `ruleset` (§2.2 `TABLES`) or an
+invite's; for a bare code it has neither, and a refusal naming other rules than the ones it built
+under is shown as exactly that.
 
 **Nobody is dealt into a wager they did not accept.** A guest that states a `stake` is stating
 the one it was *shown*; if the table's figure has changed since, or the link was passed around
@@ -386,11 +410,17 @@ Sent to **both** seats, so a client must match on content rather than on "the ne
 ```json
 {"t":"TABLES","v":1,
  "tables":[{"matchId":"m_7f3a91c2","code":"K7M2QF","name":"felix","pubkey":"<64-hex>",
-            "affinity":"Power","createdAt":"2026-08-15T18:24:02.117Z","stake":0,"hostOnline":true}]}
+            "affinity":"Power","createdAt":"2026-08-15T18:24:02.117Z","stake":0,
+            "ruleset":"E1.0","hostOnline":true}]}
 ```
-The rows are `GET /api/tables`' rows (§2.6), row for row: `status = 'open'`, a host with a
-NIP-07 pubkey, newest first, at most 50. No seat token and no match already playing is ever in
+The rows are `GET /api/tables`' rows (§2.6), row for row, built by one function: `status = 'open'`,
+a host with a NIP-07 pubkey, a host that is seated or has been away no longer than the grace
+(§2.1 `JOIN`), newest first, at most 50. No seat token and no match already playing is ever in
 it. `tests/js/net.test.mjs` compares the two answers so they cannot drift apart.
+
+`ruleset` is the rules the table plays, which are its host's: `"E1.0"` (Classic) or `"F1.0"`
+(Fast). A guest's Stack is checked against them (§2.1 `JOIN`), so a lobby builds the Stack it
+joins with, "My collection" included, under the row's `ruleset` rather than its own choice.
 
 **`ERROR`** — fatal for the attempted operation.
 ```json
@@ -417,8 +447,8 @@ Engine codes pass through **verbatim** in `REJECT`: `SEQ_MISMATCH`, `NO_PRIORITY
 
 Transport codes only ever appear in `ERROR`. The complete set the referee emits:
 `BAD_MESSAGE`, `BAD_VERSION`, `AUTH_FAILED`, `NIP07_REQUIRED`, `IDENTITY_MISMATCH`,
-`NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `STAKE_MISMATCH`, `SUPERSEDED`,
-`DECK_BUILD_FAILED`, `RATE_LIMITED`.
+`NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `OWN_TABLE`, `HOST_AWAY`, `STAKE_MISMATCH`,
+`SUPERSEDED`, `BAD_DECK`, `DECK_BUILD_FAILED`, `RATE_LIMITED`.
 
 `BAD_TOKEN` is **not emitted by this server**. `net.js` still treats it — alongside
 `NO_SUCH_MATCH` and `MATCH_OVER` — as "drop the stored credential and stop retrying", so it
@@ -477,7 +507,7 @@ human. **Leave it unset for the demo** — the default is what protects the tabl
 GET /                      → site/index.html
 GET /<path>                → static from site/ , and /art/ /cards/ /rules/ from the repo root
 GET /api/health            → {"ok":true,"matches":3,"queued":2,"uptime":1820,"client":"203.0.113.9"}
-GET /api/tables            → [{matchId,code,name,pubkey,affinity,createdAt,stake,hostOnline}]
+GET /api/tables            → [{matchId,code,name,pubkey,affinity,createdAt,stake,ruleset,hostOnline}]
                              (status='open', newest first, max 50)
 GET /api/match/:matchId    → while status ≠ 'over':
                              {matchId, status, headSeq, headHash, publicHash}
@@ -501,6 +531,16 @@ in a bare list, and joining it is a wait with no end. A dropped socket does **no
 row — that would punish a reconnect — it only flips this flag to `false`; explicit `LEAVE` is
 what removes it (§2.1). Rows whose seat 0 has no NIP-07 pubkey (pre-auth builds) are filtered
 out entirely, because nobody can ever authenticate into them.
+
+**An abandoned table is not listed.** A row with `hostOnline: false` is listed only while its host
+has been away for no longer than the host grace (60 s): a reload, a closed Hangar frame or a
+wifi blip comes back inside it. Past the grace the table is left out of `/api/tables` and
+`TABLES` and refused as `HOST_AWAY` (§2.1), until its host `RESUME`s. The rule is "not listed"
+rather than "listed as away" because a list is for joining: a row nobody may join is a line to
+read past, and a code typed from an old invite gets the refusal instead. A referee restart
+starts every recovered table's grace at boot, and the hosts' forever-retrying clients are back
+long before it ends. A host's own row, seen from a reloaded page or a second device, is theirs
+to take back: the lobbies offer it as Rejoin (`E1Net.rejoin(matchId)`), never as Join.
 
 `/api/match/:id` is out-of-band verification, and **verification is a post-match act**.
 While a match is live it returns only the four public chain fields. `config` carries the two
