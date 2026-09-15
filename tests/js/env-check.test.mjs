@@ -18,7 +18,7 @@ const MARKER = "zqleakmarker9";
 const REPO = join(dirname(require.resolve("../../package.json")));
 const ENV_CHECK = join(REPO, "server", "env-check.js");
 const TABLE_JS = join(REPO, "server", "table.js");
-/* What an operator copies to the box: docs/mint-boot-checks.md step (a). */
+/* What an operator copies to the box: docs/mint-boot-checks.md §1, docs/deploy.md §9.2a. */
 const CHECK_FILES = ["server/env-check.js", "server/mint-env.js", "server/lnurl.js"];
 
 const CLEAN = Object.freeze({
@@ -320,16 +320,14 @@ test("unreadable, empty or non-environ input exits 2 without echoing it", (t) =>
   }
 });
 
-test("the operator doc copies exactly those files and never runs the copy as root", () => {
-  const doc = readFileSync(join(REPO, "docs", "mint-boot-checks.md"), "utf8");
-  const copy = /^Copy-Item (.+)$/m.exec(doc);
-  assert.ok(copy, "step (a) copies the files");
-  assert.deepEqual([...copy[1].matchAll(/\\server\\([\w.-]+\.js)/g)].map((match) => `server/${match[1]}`).sort(),
-    [...CHECK_FILES].sort());
-  assert.match(doc, /^sudo cat \/proc\/\$PID\/environ \| node \/home\/deploy\/tcg-envcheck-<sha12>\/server\/env-check\.js --from -$/m);
-  for (const [, block] of doc.matchAll(/```(?:bash|powershell)\r?\n([\s\S]*?)```/g)) {
-    assert.doesNotMatch(block, /sudo\s+node/, "only the environ read runs as root");
-  }
+test("the doc names exactly those files, points operators at deploy.md, and never runs node as root", () => {
+  const doc = readFileSync(join(REPO, "docs", "mint-boot-checks.md"), "utf8").replace(/\r?\n/g, " ");
+  const needs = /The check needs three files from the release clone: (.+?)\. /.exec(doc);
+  assert.ok(needs, "§1 lists the files the check needs");
+  assert.deepEqual([...needs[1].matchAll(/`(server\/[\w.-]+\.js)`/g)].map((match) => match[1]).sort(), [...CHECK_FILES].sort());
+  assert.match(doc, /The operator's page is \[docs\/deploy\.md §9\.2a\]\(deploy\.md\)/);
+  assert.match(doc, /NeedDaemonReload/, "the process must match its files before the check");
+  assert.doesNotMatch(doc, /sudo\s+node/, "only the environ read runs as root");
 });
 
 test("the check runs from a bare copy of its three files, without node_modules, and writes nothing", (t) => {

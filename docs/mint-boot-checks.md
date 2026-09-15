@@ -3,15 +3,18 @@
 The referee refuses to start on mint settings that used to boot and then did the wrong
 thing, some of them for good: `NUTFT_CATALOG_URI`, `G_NUTFT_CATALOG_URI` and both collection
 ids are hashed into every issued card. This release **changes defaults** the running box may
-rely on (§2) and **adds refusals** (§3). Run §1 against the running service before you stop
-anything.
+rely on (§2), **adds refusals** (§3) and **reads some spellings differently** (§3.1). The check
+in §1 runs against the running service before anything stops.
 
 The rules live in `server/mint-env.js`. The boot, both mints, the funding backends and the dry
 run below all apply that one module, so the dry run cannot pass what the boot refuses.
 
+**The operator's page is [docs/deploy.md §9.2a](deploy.md).** It has every command, in order.
+This document explains what the check does, what each line means, and how to fix it.
+
 ---
 
-## 1 · On the box, before anything stops: check the running environment
+## 1 · Before anything stops: the dry run against the running service
 
 The check applies the new release's rules to the environment of the process that runs now.
 It prints one line per problem, never a value, and then `ok` or the count. A problem is either
@@ -20,60 +23,39 @@ differently from the running build, `VARIABLE: meaning changes (old → new)` (�
 `node_modules`, writes nothing, opens no database, binds no port and contacts no funding
 backend. Exit code 0 is `ok`, 1 is problems, 2 is input it could not read.
 
-**(a)** On Windows, copy the check's three files from the release clone (`$REL` and `$SHA`,
-docs/deploy.md §9.1) to `/home/deploy/tcg-envcheck-<sha12>/`, where `<sha12>` is the value of
-`$SHA12` below. One touch of the key:
+The check needs three files from the release clone: `server/env-check.js`, `server/mint-env.js`
+and `server/lnurl.js`. `--from -` reads a NUL-separated environment from stdin, `--from <file>`
+reads one from a file, and without a flag it checks its own environment. On the box only the
+read of `/proc/<pid>/environ` runs as root, piped into an unprivileged `node`: the copy sits in
+a directory the deploy user can write, so running it with `sudo` would run as root whatever was
+swapped in between the copy and the run.
 
-```powershell
-$SHA12 = $SHA.Substring(0,12)
-$CHECK = Join-Path $env:TEMP "tcg-envcheck-$SHA12"
-New-Item -ItemType Directory -Force "$CHECK\server" | Out-Null
-Copy-Item "$REL\server\env-check.js", "$REL\server\mint-env.js", "$REL\server\lnurl.js" "$CHECK\server\"
-scp -i $HOME\.ssh\id_ed25519_sk -o IdentitiesOnly=yes -r $CHECK deploy@178.105.93.78:/home/deploy/
-```
+**It reads the running process, not the next start.** If the unit, a drop-in or an
+`EnvironmentFile` was edited after the last start, the next start differs from the environment
+the check read, and the release would refuse at its first start with the shop already stopped.
+So before the check, §9.2a compares `systemctl show -p NeedDaemonReload` and the modification
+times of the unit file, every drop-in and every `EnvironmentFile` with the process start time
+(`ExecMainStartTimestamp`). If anything is newer, the running build is brought in line first:
+restarted once, while nobody waits in quick match (`"queued":0`), between two snapshots of what
+both mints publish. Any difference between the snapshots stops the deploy for the day. Only a
+clean comparison goes on to the check.
 
-**(b)** On the box, find the running service:
+**Any line other than a single `ok` stops the deploy**, a refusal and a `meaning changes` row
+alike: after a meaning change the release would start, and the shop would behave differently.
+Exit code 2 with `the environment input is empty` means the process id was 0 or stale.
 
-```bash
-PID=$(systemctl show -p MainPID --value tcg-table)
-```
+Every problem line is fixed in the environment first, as its own change on the **running**
+build, never by starting the release to see whether it refuses:
 
-**(c)** Check its environment against the release:
+- Read only the keys a line names; never print a whole `EnvironmentFile`, it can hold
+  `PHOENIXD_PASSWORD`.
+- Write the value the running build actually uses (§3 and §3.1 say which, §9.2a where to read
+  it), restart the running build, and compare the snapshots before and after. They must be
+  identical. §3 names the few fixes that change behaviour because the old value was already
+  broken; those are sales decisions to settle before the deploy, not during it.
+- Run the check again, until the only line is `ok`.
 
-```bash
-sudo cat /proc/$PID/environ | node /home/deploy/tcg-envcheck-<sha12>/server/env-check.js --from -
-```
-
-Only `cat` runs as root: the copy sits in a directory the deploy user can write, so `sudo node`
-on it would run as root whatever was swapped in between the copy and the run.
-
-**(d)** Any output other than the single line `ok` means stop. A `meaning changes` row stops
-the deploy exactly like a refusal: the release would start, and the shop would behave
-differently. Its fix is to write the value the running build actually uses (§3.1), which both
-builds then read the same way. `env-check: the environment input is empty` (exit 2) means
-`$PID` is 0 or stale: the service is not running, so there is nothing to compare. For every
-problem line, fix the environment first, as its own change:
-
-- Read only the keys a line names, with a grep; never print the whole `EnvironmentFile`, it
-  can hold `PHOENIXD_PASSWORD`. For keys that are not secrets:
-  `sudo cat /proc/$PID/environ | tr '\0' '\n' | grep -E '^(G_NUTFT_COLLECTION_ID|G_NUTFT_CENSUS_PATH)='`
-- Record the mints' public answers (§4), change the value in the unit's `EnvironmentFile` or
-  drop-in with the fix from §3, restart the running build, and record them again. For a fix
-  that keeps what the running build does, `diff` must print nothing. §3 names the few fixes
-  that change behaviour, because the old value was already broken; those are sales decisions
-  to settle before the deploy, not during it.
-- Run (b) and (c) again, until the only line is `ok`.
-
-Never start the new release to see whether it refuses.
-
-**(e)** Remove the copy:
-
-```bash
-rm -r /home/deploy/tcg-envcheck-<sha12>
-```
-
-A clean run prints `ok`. An environment with five of the problems this release looks for
-prints:
+A clean run prints `ok`. An environment with six of the problems this release looks for prints:
 
 ```text
 NUTFT_FUNDING: unset while PHOENIXD_URL or LND_REST_URL is set: E1 no longer takes its funding from them, so set lnd, phoenixd, cashu, mock or none
@@ -81,11 +63,13 @@ NUTFT_ALLOWLIST: an nsec (private key) was pasted into NUTFT_ALLOWLIST at entry 
 G_NUTFT_COLLECTION_ID: required when G_NUTFT_ENABLED is on: it is hashed into every Edition G card for good
 G_NUTFT_CENSUS_PATH: required when G_NUTFT_ENABLED is on: the census it names is signed into the Edition G catalog for good
 G_NUTFT_CLAIM_GRACE_SECONDS: unset while NUTFT_CLAIM_GRACE_SECONDS is set: Edition G does not inherit it, so set G's own value
-5 problems
+NUTFT_ONE_PER_KEY: meaning changes (off → on)
+6 problems
 ```
 
 `node server/table.js --check-env` runs the same check in a full checkout. A refused boot prints
-the same lines, each prefixed `[table] refusing to start: `, before it opens a database.
+the refusals, each prefixed `[table] refusing to start: `, before it opens a database; the
+boot has no running build to compare with, so it never prints a `meaning changes` row.
 
 ---
 
@@ -120,8 +104,8 @@ Where the running box relies on an old default or spelling, §1 reports it: as a
 ## 3 · Every new refusal and its fix
 
 A reason names variables, never a value. "E1" is the `NUTFT_*` mint, "G" the `G_NUTFT_*` one;
-G variables are checked only while `G_NUTFT_ENABLED` is on. Read any value you need with the
-grep from §1 (d), and find what a mint does now with §4.
+G variables are checked only while `G_NUTFT_ENABLED` is on. Read a value you need one key at a
+time, where docs/deploy.md §9.2a says, and find what a mint publishes now with §4.
 
 | Line starts with | Refused when | Fix that keeps what the running build does |
 |---|---|---|
@@ -165,7 +149,7 @@ the running build: `origin/main` at `74e933a`, and every build that reads these 
 same way (`d753505` does). Nothing is refused, so without the row the check would print `ok`
 and the shop would change at the deploy. The row stops the deploy exactly like a refusal. Its
 fix is to write the value the running build actually uses, spelled so that both builds read it
-the same, as its own change on the running build (§1 (d)). The rows flag only these spellings:
+the same, as its own change on the running build (§1). The rows flag only these spellings:
 an environment written with `1` and `0`, and without values made only of spaces, never shows
 one.
 
