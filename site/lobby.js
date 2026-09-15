@@ -48,6 +48,8 @@
   const SITE_ERRORS = {
     NO_SUCH_MATCH: "No table with that code.",
     MATCH_FULL: "Both seats at that table are taken.",
+    OWN_TABLE: "That is your own table.",
+    HOST_AWAY: "The host of that table is away right now. Try again when they are back.",
     MATCH_OVER: "That match is already finished.",
     DECK_BUILD_FAILED: "The referee could not build a legal deck pair — try again.",
     RATE_LIMITED: "Too many actions too quickly.",
@@ -401,13 +403,15 @@
         }
         row.append(who);
         const back = el("button", "btn", "Rejoin");
-        back.addEventListener("click", () => {
-          netNotice("Taking your seat…", "");
-          NET.rejoin(match.matchId);
-        });
+        back.addEventListener("click", () => rejoin(match.matchId));
         row.append(back);
         list.append(row);
       }
+    }
+
+    function rejoin(matchId) {
+      netNotice("Taking your seat…", "");
+      NET.rejoin(matchId);
     }
 
     // ---- lobby actions --------------------------------------------------
@@ -467,14 +471,19 @@
         if (!rows.length) return void list.append(el("div", "netline", "No open tables."));
         for (const row of rows) {
           const item = el("div", "netrow");
+          /* A host's own table, after a reload or on another device, is theirs to
+           * take back: the referee refuses a JOIN to it. */
+          const mine = Boolean(row.pubkey) && row.pubkey === myKey();
           const bits = [row.code, row.name, row.affinity];
           if (row.stake) bits.push(embed ? "plays for sats" : `${row.stake.toLocaleString("en-US")} sats`);
-          if (row.hostOnline === false) bits.push("host away");
+          if (mine) bits.push("your table");
+          else if (row.hostOnline === false) bits.push("host away");
           item.append(el("span", null, bits.join(" · ")));
           /* Inside the Hangar a table that plays for sats is listed, not offered. */
           if (!(embed && row.stake)) {
-            const button = el("button", "btn ghost", !embed && row.stake ? `Join for ${row.stake} sats` : "Join");
-            button.addEventListener("click", () => joinTable(row.code, null, embed ? 0 : row.stake || 0));
+            const label = mine ? "Rejoin" : !embed && row.stake ? `Join for ${row.stake} sats` : "Join";
+            const button = el("button", "btn ghost", label);
+            button.addEventListener("click", () => (mine ? rejoin(row.matchId) : joinTable(row.code, null, embed ? 0 : row.stake || 0)));
             item.append(button);
           }
           list.append(item);

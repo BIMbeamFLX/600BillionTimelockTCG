@@ -347,7 +347,11 @@ collection, stack}` and starts the one `E1Net` itself: while the member sits at 
 one the board reads the referee's messages, otherwise the lobby does, and an open table is always
 the lobby's. A dealt seat shows the board in place (a local game still on the table is put away
 first); leaving the table, or "Find another opponent" after a match, shows the lobby again and
-never closes the frame.
+never closes the frame. A frame reloaded while its member hosts an open table takes the seat back
+from the mirror (§3c) and opens the lobby on that table's code, over a first screen where nothing
+was chosen yet. In the open-table list a member's own table is offered as Rejoin, never as Join
+(a join to it is `OWN_TABLE`, "That is your own table."), and a table whose host has been away
+past the referee's grace is not listed at all (docs/net-protocol.md §2.6).
 
 **Inside the Hangar the lobby differs from the website's in exactly this.** No sign-in button:
 the shell's key is the identity, read when the frame loads (an identity change closes the frame,

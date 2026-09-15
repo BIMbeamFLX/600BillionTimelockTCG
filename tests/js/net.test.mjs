@@ -1202,7 +1202,7 @@ test("one player's chatter cannot close another player's socket", async (t) => {
   // The host, who did nothing, is still seated and still able to act.
   host.send({ t: "JOIN", code: open.code, name: "felix", affinity: "Power", pubkey: host.pubkey });
   const reply = await host.next((m) => m.t === "ERROR");
-  assert.equal(reply.code, "MATCH_FULL", "and is answered on the rules, not kicked for a stranger's noise");
+  assert.equal(reply.code, "OWN_TABLE", "and is answered on the rules, not kicked for a stranger's noise");
 });
 
 test("malformed, bad-version, and unknown messages share the address budget", async (t) => {
@@ -1480,14 +1480,16 @@ test("a table refuses to seat the same connection twice", async (t) => {
   /* A presenter who fumbles and types their OWN code into the join box used to
    * be registered at conns[0] AND conns[1]: the match started against itself,
    * left /api/tables, delivered both seats' unredacted views down one socket,
-   * and the real opponent got MATCH_FULL forever with no way back. */
+   * and the real opponent got MATCH_FULL forever with no way back. The refusal
+   * says what happened: both seats are not taken, the table is theirs. */
   a.send({ t: "JOIN", code: created.code, name: "solo-again", affinity: "Signal", pubkey: a.pubkey });
-  assert.equal((await a.type("ERROR")).code, "MATCH_FULL");
+  const own = await a.type("ERROR");
+  assert.deepEqual([own.code, own.message], ["OWN_TABLE", "that is your own table"]);
 
   // A second tab of the same login is refused on the pubkey alone.
   const dup = await table.client({ identity: "a" });
   dup.send({ t: "JOIN", code: created.code, name: "me-again", affinity: "Keys", pubkey: dup.pubkey });
-  assert.equal((await dup.type("ERROR")).code, "MATCH_FULL");
+  assert.equal((await dup.type("ERROR")).code, "OWN_TABLE");
 
   // The table survived all of it: a real opponent still gets seat 1.
   const b = await table.client();
@@ -1793,6 +1795,52 @@ test("/api/tables says whether the host is actually sitting there", async (t) =>
   const cold = await (await fetch(table.url + "/api/tables")).json();
   assert.equal(cold.length, 1, "a dropped socket is not an abandoned table");
   assert.equal(cold[0].hostOnline, false, "a code whose host closed the tab must say so");
+});
+
+test("a host back within the grace keeps their table; away past it, the table is neither listed nor joined until they return", async (t) => {
+  const table = await boot(t, "l5.db", { hostGraceMs: 1000 });
+  const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const listed = async () => (await (await fetch(table.url + "/api/tables")).json()).map((row) => [row.code, row.hostOnline]);
+
+  // A reload: the host's socket goes and comes back inside the grace.
+  const host = await table.client({ identity: "grace-host" });
+  host.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: host.pubkey });
+  const open = await host.type("STATE");
+  await host.close();
+  await pause(100);
+  assert.deepEqual(await listed(), [[open.code, false]], "inside the grace the table stays listed");
+  const guest = await table.client({ identity: "grace-guest" });
+  guest.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", pubkey: guest.pubkey });
+  assert.deepEqual([(await guest.type("STATE")).seat], [1], "and joinable: the host is on their way back");
+  const back = await table.client({ identity: "grace-host" });
+  back.send({ t: "RESUME", matchId: open.matchId, token: open.token });
+  const resumed = await back.type("STATE");
+  assert.deepEqual([resumed.seat, resumed.status], [0, "playing"], "the host takes the dealt seat back");
+
+  // Away past the grace: gone from both lists, refused by code, and kept for its host.
+  const away = await table.client({ identity: "away-host" });
+  away.send({ t: "CREATE", ruleset: "F1.0", name: "bob", affinity: "Keys", pubkey: away.pubkey });
+  const left = await away.type("STATE");
+  await away.close();
+  await pause(1200);
+  assert.deepEqual(await listed(), [], "not listed over HTTP");
+  const lobby = await table.client({ identity: "away-lobby" });
+  lobby.send({ t: "TABLES" });
+  assert.deepEqual((await lobby.type("TABLES")).tables, [], "nor over TABLES");
+  lobby.send({ t: "JOIN", code: left.code, name: "carol", affinity: "Signal", pubkey: lobby.pubkey });
+  const refused = await lobby.type("ERROR");
+  assert.deepEqual([refused.code, refused.message], ["HOST_AWAY", "the host of that table is away"]);
+  const row = table.db.prepare("SELECT status, seat1_pubkey FROM matches WHERE match_id=?").get(left.matchId);
+  assert.deepEqual([row.status, row.seat1_pubkey], ["open", null], "the row waits for its host");
+
+  // The host comes back, with no token: listed and joinable again.
+  const returned = await table.client({ identity: "away-host" });
+  returned.send({ t: "RESUME", matchId: left.matchId, pubkey: returned.pubkey });
+  assert.deepEqual([(await returned.type("STATE")).seat], [0]);
+  assert.deepEqual(await listed(), [[left.code, true]]);
+  lobby.send({ t: "JOIN", code: left.code, name: "carol", affinity: "Signal", pubkey: lobby.pubkey });
+  const seated = await lobby.type("STATE");
+  assert.deepEqual([seated.seat, seated.status, seated.ruleset], [1, "playing", "F1.0"]);
 });
 
 // ------------------------------------------------ the table list, over the socket

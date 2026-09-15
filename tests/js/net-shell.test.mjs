@@ -1072,6 +1072,35 @@ test("two Hangar tabs open a table and join it by its code in their table pages'
   assert.deepEqual([...a.sockets, ...b.sockets], [], "no socket or fetch of their own");
 });
 
+test("a host who reloads the table page is back at their own open table, offered to them as Rejoin and never as Join", async (t) => {
+  const table = await referee(t, "reload-host.db");
+  const build = { E1_TABLE_URL: table.wsUrl };
+  const alice = hangarTab(t, "alice");
+  const a = alice.openTable({ scope: build });
+  await waitFor(() => a.byId("lobbyIdentity").hidden === true);
+  a.byId("modeOnline").click();
+  a.byId("netName").value = "alice";
+  a.byId("createTable").click();
+  const code = await waitFor(() => (/^[A-HJ-NP-Z2-9]{6}$/.test(a.byId("tableCode").textContent) ? a.byId("tableCode").textContent : null));
+  const matchId = a.net.lastState.matchId;
+  await waitFor(() => alice.mirror()[`${matchId}:0`]);
+
+  a.frame.kill(); // the Hangar closes the frame, or the member reloads it
+  const again = alice.openTable({ scope: build });
+  assert.equal(again.byId("lobby").hidden, true, "the reloaded frame opens on its first screen");
+  await waitFor(() => again.byId("tableCode").textContent === code);
+  assert.deepEqual([again.byId("lobby").hidden, again.byId("hostPanel").hidden], [false, false], "and shows the table it took back");
+  assert.equal(again.byId("modeOnline").getAttribute("aria-pressed"), "true");
+
+  const row = await waitFor(() => again.byId("tableList").children.find((item) => item.children && item.children[0] && item.children[0].textContent.startsWith(code)));
+  assert.equal(row.children[0].textContent, `${code} · alice · Power · your table`);
+  assert.deepEqual(row.children.slice(1).map((button) => button.textContent), ["Rejoin"], "its own row offers the seat back, not a Join");
+  row.children[1].click();
+  await waitFor(() => sentOf(alice.host, "RESUME") === 2);
+  assert.equal(sentOf(alice.host, "JOIN"), 0, "nothing ever asked to join it");
+  assert.deepEqual([...a.sockets, ...again.sockets], []);
+});
+
 test("two Hangar tabs find each other in the quick match", async (t) => {
   const table = await referee(t, "quick.db");
   const build = { E1_TABLE_URL: table.wsUrl };

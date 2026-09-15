@@ -114,8 +114,16 @@ present it must match that identity; it is never trusted as proof by itself.
 ```
 The server mints seeds (§5.1), calls `E.createGame(config)`, persists, and sends `STATE` to
 **both** sockets (status `"playing"`, `view` non-null).
-Errors: `NIP07_REQUIRED`, `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `STAKE_MISMATCH`,
-`BAD_DECK`, `DECK_BUILD_FAILED`.
+Errors: `NIP07_REQUIRED`, `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `OWN_TABLE`,
+`HOST_AWAY`, `STAKE_MISMATCH`, `BAD_DECK`, `DECK_BUILD_FAILED`.
+
+**A host cannot join their own table.** A `JOIN` from the connection seated at seat 0, or from
+any connection signed in as seat 0's pubkey, is `ERROR{OWN_TABLE}` ("that is your own table"),
+not `MATCH_FULL`: seat 1 is free, and the way back to one's own table is `RESUME`. **Nor a table
+whose host has gone.** When seat 0 of an `open` table has been empty for longer than the host
+grace (60 s; `hostGraceMs` in-process), the `JOIN` is `ERROR{HOST_AWAY}` and the row stays as it
+is. Inside the grace the table is joinable, because a reload or a closed Hangar frame comes
+straight back; the host's own `RESUME`, at any time, makes it listed and joinable again (§2.6).
 
 **A Stack is checked at the message boundary.** `CREATE`, `JOIN` and `QUEUE` may carry `deck`, a
 list of card ids; absent, the referee deals. Before any seat or queue place changes, `cleanDeck`
@@ -406,8 +414,9 @@ Sent to **both** seats, so a client must match on content rather than on "the ne
             "ruleset":"E1.0","hostOnline":true}]}
 ```
 The rows are `GET /api/tables`' rows (§2.6), row for row, built by one function: `status = 'open'`,
-a host with a NIP-07 pubkey, newest first, at most 50. No seat token and no match already playing
-is ever in it. `tests/js/net.test.mjs` compares the two answers so they cannot drift apart.
+a host with a NIP-07 pubkey, a host that is seated or has been away no longer than the grace
+(§2.1 `JOIN`), newest first, at most 50. No seat token and no match already playing is ever in
+it. `tests/js/net.test.mjs` compares the two answers so they cannot drift apart.
 
 `ruleset` is the rules the table plays, which are its host's: `"E1.0"` (Classic) or `"F1.0"`
 (Fast). A guest's Stack is checked against them (§2.1 `JOIN`), so a lobby builds the Stack it
@@ -438,8 +447,8 @@ Engine codes pass through **verbatim** in `REJECT`: `SEQ_MISMATCH`, `NO_PRIORITY
 
 Transport codes only ever appear in `ERROR`. The complete set the referee emits:
 `BAD_MESSAGE`, `BAD_VERSION`, `AUTH_FAILED`, `NIP07_REQUIRED`, `IDENTITY_MISMATCH`,
-`NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `STAKE_MISMATCH`, `SUPERSEDED`,
-`BAD_DECK`, `DECK_BUILD_FAILED`, `RATE_LIMITED`.
+`NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `OWN_TABLE`, `HOST_AWAY`, `STAKE_MISMATCH`,
+`SUPERSEDED`, `BAD_DECK`, `DECK_BUILD_FAILED`, `RATE_LIMITED`.
 
 `BAD_TOKEN` is **not emitted by this server**. `net.js` still treats it — alongside
 `NO_SUCH_MATCH` and `MATCH_OVER` — as "drop the stored credential and stop retrying", so it
@@ -522,6 +531,16 @@ in a bare list, and joining it is a wait with no end. A dropped socket does **no
 row — that would punish a reconnect — it only flips this flag to `false`; explicit `LEAVE` is
 what removes it (§2.1). Rows whose seat 0 has no NIP-07 pubkey (pre-auth builds) are filtered
 out entirely, because nobody can ever authenticate into them.
+
+**An abandoned table is not listed.** A row with `hostOnline: false` is listed only while its host
+has been away for no longer than the host grace (60 s): a reload, a closed Hangar frame or a
+wifi blip comes back inside it. Past the grace the table is left out of `/api/tables` and
+`TABLES` and refused as `HOST_AWAY` (§2.1), until its host `RESUME`s. The rule is "not listed"
+rather than "listed as away" because a list is for joining: a row nobody may join is a line to
+read past, and a code typed from an old invite gets the refusal instead. A referee restart
+starts every recovered table's grace at boot, and the hosts' forever-retrying clients are back
+long before it ends. A host's own row, seen from a reloaded page or a second device, is theirs
+to take back: the lobbies offer it as Rejoin (`E1Net.rejoin(matchId)`), never as Join.
 
 `/api/match/:id` is out-of-band verification, and **verification is a post-match act**.
 While a match is live it returns only the four public chain fields. `config` carries the two

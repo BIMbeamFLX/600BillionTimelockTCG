@@ -5318,6 +5318,9 @@
       },
       onLobby() {
         if (atBoard()) showLobby();
+        /* A reloaded frame that took its own open table back shows it, over the
+         * first screen where no way to play has been chosen yet. */
+        else if (mode === null) showMode("online");
       },
       collection: () => collection,
       stack: (ruleset) => (collection && collection.cards > 0 ? collectionStack(ruleset) : null),

@@ -309,6 +309,32 @@ test("the open tables say why they could not be listed, for every code a list is
   assert.equal(said(lastRow(byId("tableList"))), "No open tables.");
 });
 
+test("a host's own table is offered back, never joined, and a refused join says why in plain words", async () => {
+  for (const napplet of [hangar(), null]) {
+    const net = netStub();
+    const { byId } = mountLobby(net, {}, { napplet });
+    const where = napplet ? "Hangar" : "website";
+    net.tables = async () => [
+      { matchId: "m_0123456789ab", code: "K7M2QF", name: "felix", pubkey: KEY, affinity: "Power", stake: 0, ruleset: "E1.0", hostOnline: false },
+      { matchId: "m_ba9876543210", code: "Q2W3E4", name: "anna", pubkey: "c".repeat(64), affinity: "Signal", stake: 0, ruleset: "E1.0", hostOnline: false },
+    ];
+    byId("refreshTables").click();
+    await settle();
+    const [mine, theirs] = byId("tableList").children.slice(-2);
+    assert.equal(said(mine), "K7M2QF · felix · Power · your table Rejoin", `${where}: the host's own row after a reload`);
+    assert.equal(said(theirs), "Q2W3E4 · anna · Signal · host away Join");
+    buttonsOf(mine)[0].click();
+    assert.deepEqual(called(net, "rejoin"), [["rejoin", "m_0123456789ab"]], `${where}: taken back by its match id`);
+    assert.deepEqual(called(net, "join"), [], "never joined");
+    assert.equal(byId("netNotice").textContent, "Taking your seat…");
+
+    net.handlers.onError({ code: "OWN_TABLE", message: "that is your own table" });
+    assert.equal(byId("netNotice").textContent, "That is your own table.", `${where}: not "both seats are taken"`);
+    net.handlers.onError({ code: "HOST_AWAY", message: "the host of that table is away" });
+    assert.equal(byId("netNotice").textContent, "The host of that table is away right now. Try again when they are back.");
+  }
+});
+
 test("on the website the list keeps its own words and its stakes", async () => {
   const net = netStub();
   const { byId, root } = mountLobby(net, {}, {});
@@ -637,6 +663,26 @@ test("inside the Hangar the table page finds an opponent in place: a dealt seat 
   assert.deepEqual([byId("table").hidden, byId("setup").hidden, game.mode], [true, false, "hotseat"], "leaving shows the lobby again");
   assert.equal(byId("hostPanel").hidden, true, "without the code of the table it left");
   assert.deepEqual(shell.escaped, [], "and the game stays open");
+});
+
+test("a reloaded frame that takes its own open table back shows it over the first screen, and leaves a chosen game alone", (t) => {
+  sandboxStorage(t);
+  const net = tableNet();
+  const { byId } = loadTable(net, tableHangar());
+  assert.deepEqual([byId("first").hidden, byId("lobby").hidden], [false, true], "the first screen, nothing chosen");
+  const open = openState({ token: "t".repeat(32) }); // what the mirrored seat's RESUME answers
+  net.lastState = open;
+  net.handlers.onState(open);
+  assert.equal(byId("lobby").hidden, false, "the lobby is brought into view");
+  assert.equal(byId("modeOnline").getAttribute("aria-pressed"), "true");
+  assert.deepEqual([byId("hostPanel").hidden, byId("tableCode").textContent], [false, "K7M2QF"], "with the host's own code to read aloud");
+
+  const local = tableNet();
+  const page = loadTable(local, tableHangar());
+  page.byId("modeHotseat").click();
+  local.lastState = open;
+  local.handlers.onState(open);
+  assert.deepEqual([page.byId("lobby").hidden, page.byId("localSetup").hidden], [true, false], "a chosen local game is not pushed aside");
 });
 
 test("inside the Hangar a finished match goes back to the lobby, and the settlement screen never appears", (t) => {

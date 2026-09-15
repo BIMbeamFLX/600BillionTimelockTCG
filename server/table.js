@@ -55,6 +55,9 @@ const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const EVENT_CAP = 240;
 const EVENT_RING = 600; // unredacted ring; the tail of it is what a STATE ships
 const PING_MS = 15000;
+/* How long an open table's host may be away (a reload, a closed Hangar frame, a
+ * wifi blip) before the table stops being listed or joined. */
+const HOST_GRACE_MS = 60000;
 const RATE_WINDOW_MS = 10000;
 /* Accepted actions only. 30/10 s was below what a human legitimately does while
  * picking targets or emptying a hand of Resources, and rejections were charged
@@ -737,6 +740,9 @@ async function createTable(opts) {
       endedAt: row.ended_at || null,
       events: [], // unredacted ring
       conns: [null, null],
+      /* When seat 0 was last left empty, or null while it is held. A record read
+       * from its row has nobody at it yet, so the grace starts when it is loaded. */
+      hostLeftAt: Date.now(),
       spectators: new Set(),
       rate: [[], []],
       rejectRate: [[], []],
@@ -1405,9 +1411,10 @@ async function createTable(opts) {
      * and the real opponent got MATCH_FULL forever with no way back.
      * SEATED, not merely attached — a spectator downgraded onto this table is
      * usually the person the host sent the link to, and JOIN is exactly how they
-     * take the free seat. */
+     * take the free seat. It is refused as the host's own table, not as a full
+     * one: both seats are not taken, and the host is told what they did. */
     if (conn.rec === rec && conn.seat !== null) {
-      return fail(conn.ws, "MATCH_FULL", "you are already seated at this table");
+      return fail(conn.ws, "OWN_TABLE", "that is your own table");
     }
 
     const name = String(msg.name || "Player").slice(0, 40);
@@ -1421,7 +1428,13 @@ async function createTable(opts) {
     }
     // Belt and braces for the same fumble from a second tab of the same login.
     if (pubkey && rec.players[0].pubkey === pubkey) {
-      return fail(conn.ws, "MATCH_FULL", "you cannot take both seats at one table");
+      return fail(conn.ws, "OWN_TABLE", "that is your own table");
+    }
+    /* A host away past the grace has left a trap, not a table: joining it is a
+     * wait with no end. The row stays, and the table is theirs again, listed and
+     * joinable, the moment they come back to it. */
+    if (hostAway(rec)) {
+      return fail(conn.ws, "HOST_AWAY", "the host of that table is away");
     }
     /* NOBODY IS DEALT INTO A WAGER THEY DID NOT ACCEPT. A guest that states a
      * stake is stating the one it was shown; if the table's has changed since,
@@ -1671,6 +1684,7 @@ async function createTable(opts) {
       if (held.conn) held.conn.rec = null;
     }
     rec.conns[n] = conn.ws;
+    if (n === 0) rec.hostLeftAt = null;
   }
 
   function handleResume(conn, msg) {
@@ -1820,12 +1834,23 @@ async function createTable(opts) {
    * Signed-in connections only, and metered per connection on top of the
    * control budget. Past that meter the list is refused and the socket stays
    * open, because a lobby that refreshes too eagerly must not lose a seat.
-   * GET /api/tables serves this same function, so the two cannot drift apart. */
+   * GET /api/tables serves this same function, so the two cannot drift apart.
+   *
+   * AN OPEN TABLE WHOSE HOST HAS BEEN AWAY PAST THE GRACE IS NOT LISTED, and a
+   * JOIN to its code is refused as HOST_AWAY. Within the grace it stays listed
+   * (hostOnline false) and joinable, because a reload, a Hangar frame closed and
+   * reopened or a wifi blip comes straight back with RESUME. */
   const TABLES_MAX = 10;
+  const hostGraceMs = Number.isInteger(options.hostGraceMs) && options.hostGraceMs >= 0
+    ? options.hostGraceMs
+    : HOST_GRACE_MS;
+  const hostAway = (rec) =>
+    rec.status === "open" && rec.hostLeftAt !== null && Date.now() - rec.hostLeftAt >= hostGraceMs;
   function openTableList() {
     return q.openTables.all().filter((r) => isHex64(r.seat0_pubkey)).map((r) => {
-      const rec = matches.get(r.match_id);
-      const host = rec && rec.conns[0];
+      const rec = loadMatch(r.match_id);
+      if (!rec || hostAway(rec)) return null;
+      const host = rec.conns[0];
       return {
         matchId: r.match_id,
         code: r.code,
@@ -1842,7 +1867,7 @@ async function createTable(opts) {
          * is a wait with no end. */
         hostOnline: Boolean(host && host.readyState === 1),
       };
-    });
+    }).filter(Boolean);
   }
   function handleTables(conn, msg) {
     if (!authenticatedPubkey(conn, msg)) return;
@@ -1861,6 +1886,7 @@ async function createTable(opts) {
     if (conn.seat === null) rec.spectators.delete(conn.ws);
     else if (rec.conns[conn.seat] === conn.ws) {
       rec.conns[conn.seat] = null;
+      if (conn.seat === 0) rec.hostLeftAt = Date.now(); // the grace starts now
       peer(rec, conn.seat, false);
     }
     conn.rec = null;
