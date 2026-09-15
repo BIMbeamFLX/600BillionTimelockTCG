@@ -929,6 +929,64 @@ test("on the website the tour's flag stays in localStorage, which may throw", (t
   assert.deepEqual(written.filter(([key]) => key === "600b:coach"), [["600b:coach", "done"]], "and finishing it writes it there");
 });
 
+test("inside the Hangar a subscription is closed when the lobby is put away, a board shows, a table is left or ends, and the frame unloads", async (t) => {
+  sandboxStorage(t);
+  const handles = [];
+  const outbox = {
+    query: async () => ({ type: "outbox.query.result", events: [] }),
+    subscribe(filters, options) {
+      const handle = { filters, options, closed: 0, on() {}, close() { handle.closed += 1; } };
+      handles.push(handle);
+      return handle;
+    },
+  };
+  const unloading = {};
+  globalThis.window = { addEventListener: (type, fn) => { (unloading[type] = unloading[type] || []).push(fn); } };
+  const { N } = realAdapter({ outbox }); // the adapter listens for pagehide on the frame's window
+  const net = shellNet();
+  // net.js's invites, through the same door: the shell's outbox subscription.
+  net.nostr.subscribeInvites = (pubkey, onInvite) => N.outbox.subscribe([{ kinds: [4600], "#t": ["invite"], "#p": [pubkey] }], onInvite);
+  const { byId } = loadTable(net, N);
+  const open = () => handles.filter((handle) => !handle.closed).length;
+  const subscribeAnything = () => N.outbox.subscribe([{ kinds: [31600] }], () => {});
+  await waitFor(() => byId("lobbyIdentity").hidden === true, "the member's key");
+
+  byId("modeOnline").click();
+  byId("checkInvites").click();
+  assert.equal(open(), 1, "the lobby listens for invites");
+  byId("modeNpc").click();
+  assert.equal(open(), 0, "a local game puts the lobby away, and its subscription with it");
+
+  byId("modeOnline").click();
+  byId("checkInvites").click();
+  assert.equal(open(), 1);
+  const playing = playingState();
+  net.lastState = playing;
+  net.handlers.onState(playing);
+  assert.equal(byId("table").hidden, false);
+  assert.equal(open(), 0, "the board takes the lobby's place");
+
+  subscribeAnything();
+  byId("leaveTable").click();
+  assert.deepEqual([open(), byId("lobby").hidden], [0, false], "leaving a table closes what is open, and shows the lobby");
+
+  net.lastState = playing;
+  net.handlers.onState(playing);
+  subscribeAnything();
+  net.handlers.onOver({
+    matchId: MATCH, result: { winners: [0], losers: [1], reason: "uptime" }, verify: { ok: true },
+    resultContent: JSON.stringify({ turns: 7, actions: 40 }), resultTags: [["d", MATCH]], resultCreatedAt: 1789000000,
+  });
+  assert.equal(open(), 0, "a table that ends closes it");
+
+  subscribeAnything();
+  subscribeAnything();
+  for (const fn of unloading.pagehide || []) fn({});
+  assert.equal(open(), 0, "and so does the frame unloading");
+  assert.ok(handles.every((handle) => handle.closed === 1), "each one closed once");
+  assert.ok(handles.every((handle) => JSON.stringify(handle.options.relays) === JSON.stringify(["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"])));
+});
+
 test("each service the Hangar does not give says so in one line, and the door only opens where it can", async (t) => {
   sandboxStorage(t);
   const cases = [

@@ -198,7 +198,8 @@ function relayBus() {
  * `subscribe(filters)` returns a handle with `on("event" | "closed")` and `close()`. */
 const HANGAR_RELAYS = ["wss://relay.nappelin.com", "wss://relay.bimcvp.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
 function kehtoOutbox(bus, sk, { refuse = null, alive = () => true } = {}) {
-  const calls = { publish: [], query: [], subscribe: [], close: 0 };
+  // `options` holds what each query and subscription asked the router for, in order.
+  const calls = { publish: [], query: [], subscribe: [], close: 0, options: { query: [], subscribe: [] } };
   const hint = (event) => ({ event, sidecar: { relayHints: [HANGAR_RELAYS[0]] } });
   const reply = (value) => (alive() ? new Promise((resolve) => setTimeout(() => resolve(value), 1)) : new Promise(() => {}));
   return {
@@ -215,14 +216,16 @@ function kehtoOutbox(bus, sk, { refuse = null, alive = () => true } = {}) {
       bus.publish(event);
       return reply({ type: "outbox.publish.result", id: "p", ok: true, event, eventId: event.id, relays: Object.fromEntries(relays.map((url) => [url, true])) });
     },
-    query(filters) {
+    query(filters, options) {
       const list = Array.isArray(filters) ? filters : [filters];
       calls.query.push(list);
+      calls.options.query.push(options);
       return reply({ type: "outbox.query.result", id: "q", events: bus.query(list).map(hint) });
     },
-    subscribe(filters) {
+    subscribe(filters, options) {
       const list = Array.isArray(filters) ? filters : [filters];
       calls.subscribe.push(list);
+      calls.options.subscribe.push(options);
       const handlers = { event: new Set(), closed: new Set() };
       const off = bus.subscribe(list, (event) => setTimeout(() => {
         if (alive()) for (const fn of handlers.event) fn(hint(event));
@@ -529,6 +532,33 @@ test("query results arrive as { event, sidecar } and are handed on bare", async 
   assert.deepEqual(await net.nostr.query({ kinds: [0], authors: [HOST_PUBKEY] }), [signed]);
   const profile = await net.nostr.profile(HOST_PUBKEY);
   assert.equal(profile.name, "felix", "a verified kind 0 read through the shell reaches the profile");
+});
+
+test("every read through the Hangar's outbox names the relays its publish does: looks, profiles, sessions and invites", async () => {
+  /* nappelin's router has no NIP-65 relay lists. A query that names no relays only finds a
+   * member's kind 0 through whatever fallback the router keeps, so each one names them. */
+  const bus = relayBus();
+  const outbox = kehtoOutbox(bus, HOST_SK);
+  const { net, N } = loadShell({ host: fakeHangar(), shell: shellWith({ outbox }) });
+  const look = require("../../site/identity-look.js");
+  bus.publish(signEvent({ kind: 0, created_at: 1, tags: [], content: JSON.stringify({ display_name: "Felix" }) }, HOST_SK));
+
+  await N.outbox.publish(net.nostr.inviteEvent({ matchId: "m_0123456789ab", code: "ABCDEF", table: "wss://t.example/ws", name: "f", affinity: "Power" }));
+  const published = outbox.calls.publish[0].options.relays;
+  assert.deepEqual(published, ["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"]);
+
+  assert.equal((await net.nostr.profile(HOST_PUBKEY)).name, "Felix", "net.js profile()");
+  assert.deepEqual(await net.nostr.sessions(HOST_PUBKEY), [], "net.js sessions()");
+  const seen = await look.resolve(HOST_PUBKEY, { query: (filters) => N.outbox.query(filters), verify: (event) => globalThis.E1Schnorr.verifyEvent(event) });
+  assert.deepEqual([seen.name, seen.nameVia], ["Felix", "display_name"], "an opponent's look, the way play.js asks for it");
+  const unsubscribe = net.nostr.subscribeInvites(HOST_PUBKEY, () => {});
+  unsubscribe();
+
+  assert.equal(outbox.calls.options.query.length, 4, "one profile, two for sessions, one look");
+  assert.equal(outbox.calls.options.subscribe.length, 1);
+  for (const options of [...outbox.calls.options.query, ...outbox.calls.options.subscribe]) {
+    assert.deepEqual(options, { relays: published }, "the same four relays, and nothing else asked of the router");
+  }
 });
 
 test("relays that refuse a host-signed event do not unsign it", async () => {

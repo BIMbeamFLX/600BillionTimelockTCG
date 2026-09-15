@@ -1,7 +1,7 @@
 /* ---------------------------------------------------------------------------
  * lobby.js — the online lobby, one module for every page that finds an opponent.
  *
- *   E1Lobby.mount(root, NET, hooks) -> { handlers, refresh(), notice(text, tone), open(), launchCode, invite }
+ *   E1Lobby.mount(root, NET, hooks) -> { handlers, refresh(), notice(text, tone), open(), close(), launchCode, invite }
  *
  * Create a table, join one by its code, the quick match and its Stop, the open
  * tables, the invites, the way back to an unfinished match, the rules and the
@@ -826,6 +826,15 @@
       refresh() {
         renderIdentity();
         renderStackPick();
+      },
+      /* The page put the lobby away (a local game, a board shown, a table left or
+       * ended): the invite subscription ends, and the list it filled is emptied
+       * rather than left saying it listens. */
+      close() {
+        if (remote.unsubscribe) remote.unsubscribe();
+        remote.unsubscribe = null;
+        const list = $("inviteList");
+        if (list) list.innerHTML = "";
       },
       /* The page brought the lobby into view. The first time, a member who is
        * signed in sees the open tables at once: asking is what tells them whether

@@ -4713,6 +4713,7 @@
     },
 
     onOver(msg) {
+      closeSubscriptions();
       remote.over = msg;
       renderNetPanel();
       renderNetChip();
@@ -5233,6 +5234,15 @@
   let lobby = null;
   const atBoard = () => session.role !== "hotseat";
 
+  /* A SUBSCRIPTION LIVES AS LONG AS THE LOBBY THAT ASKED FOR IT IS IN VIEW. Every one
+   * the frame holds is closed when the lobby is put away for a local game or a board,
+   * and when a table is left or ends; napplet.js closes them on pagehide as well. */
+  function closeSubscriptions() {
+    if (lobby) lobby.close();
+    const N = globalThis.E1Napplet;
+    if (N && N.outbox && typeof N.outbox.closeAll === "function") N.outbox.closeAll();
+  }
+
   function showLobby() {
     session.seat = null;
     session.role = "hotseat";
@@ -5261,6 +5271,7 @@
     if (local) local.hidden = !(mode === "npc" || mode === "hotseat");
     const panel = $("lobby");
     if (panel) panel.hidden = mode !== "online";
+    if (mode !== "online") closeSubscriptions();
     const npc = $("npcB");
     if (npc && mode !== "online" && mode !== null) npc.checked = mode === "npc";
     if (mode === "online" && lobby) lobby.open();
@@ -5330,6 +5341,7 @@
       start: false,
       onSeat(msg, invite) {
         if (!atBoard() && session.full) backToSetup();
+        closeSubscriptions(); // the board takes the lobby's place
         remote.invite = invite || null;
         adoptState(msg);
       },
@@ -5409,6 +5421,7 @@
      * seat or a viewing to give up and a lobby to be sent back to. */
     if (!(remote.endWasNetworked || atNetworkTable())) return void backToSetup();
     closeEndgame();
+    closeSubscriptions();
     if (NET) NET.leave();
     session.seat = null;
     session.role = "hotseat";
@@ -5457,6 +5470,7 @@
       netNotice("Resynced from the referee.", "");
     });
     $("leaveTable").addEventListener("click", () => {
+      closeSubscriptions();
       NET.leave();
       session.seat = null;
       session.role = "hotseat";
