@@ -533,8 +533,9 @@ function latestUidNode(byId, zoneId, uid) {
   return null;
 }
 
-/* Loads matchmaking.js against the same stub DOM. `nav` records where the
- * lobby tried to send the browser, which is the hand-off itself. */
+/* Loads matchmaking.js — and site/lobby.js, the lobby it mounts — against the
+ * same stub DOM. `nav` records where the lobby tried to send the browser, which
+ * is the hand-off itself. */
 function loadLobby(netStub) {
   const nodes = new Map();
   const byId = (id) => {
@@ -562,6 +563,7 @@ function loadLobby(netStub) {
     assign(url) { nav.push(url); },
   };
   globalThis.E1Net = netStub;
+  new Function(fs.readFileSync(path.join(HERE, "..", "..", "site", "lobby.js"), "utf8"))();
   new Function(fs.readFileSync(path.join(HERE, "..", "..", "site", "matchmaking.js"), "utf8"))();
   for (const fn of fired.DOMContentLoaded || []) fn();
   return { byId, nav, fired };
