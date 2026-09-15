@@ -736,10 +736,12 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
     if (!W || !state || !mint || wallet.unfinished) return;
     const tokens = Array.isArray(state.tokens) ? state.tokens : [];
     const mints = tokens.some((token) => namesMint(token, mint + "/g")) ? [mint, mint + "/g"] : [mint];
-    // Only counting: the bar must never finish or rewrite a pending transfer.
-    const snapshot = typeof W.snapshotManyReadOnly === "function"
-      ? await withTimeout(W.snapshotManyReadOnly(mints), 30000)
-      : await withTimeout(W.snapshotReadOnly(mint), 30000);
+    /* The read-only view: it never finishes, retries or rewrites anything, so a
+       transfer that starts in another tab between the check above and this count
+       is left alone. snapshotMany would finish pending records and retry moving
+       received cards first, which is wallet.html's to do. */
+    if (typeof W.snapshotManyReadOnly !== "function") return;
+    const snapshot = await withTimeout(W.snapshotManyReadOnly(mints), 30000);
     const owned = snapshot && Array.isArray(snapshot.owned) ? snapshot.owned : null;
     if (!owned) return;
     wallet.held = owned.length;

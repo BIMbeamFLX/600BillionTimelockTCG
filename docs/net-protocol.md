@@ -524,7 +524,10 @@ with `TABLES` (§2.1). Paths resolving outside the allowed roots are `403`, neve
 `health.queued` is the queue depth, so the lobby can say "2 players searching" *before* anyone
 commits to waiting rather than only after. `health.client` is the caller's address as the
 referee resolved it for every per-client budget: the rightmost `X-Forwarded-For` hop when the
-TCP peer is a trusted proxy (`TRUST_PROXY`), otherwise the peer itself. It reveals nothing but
+TCP peer is a trusted proxy (`TRUST_PROXY`), otherwise the peer itself (a hop that is not an
+address counts as the proxy). It is spelled one way: lowercase, compressed IPv6, and an
+IPv4-mapped address as IPv4. Budgets use that address, except that an IPv6 client is budgeted by
+its `/64` (`2001:db8:1:2::/64`), the block one line is handed. It reveals nothing but
 the caller's own address, and the response is `cache-control: no-store`. `tables[].hostOnline` says whether anyone is
 actually sitting at that code: a table whose host closed the tab looks identical to a live one
 in a bare list, and joining it is a wait with no end. A dropped socket does **not** delete the

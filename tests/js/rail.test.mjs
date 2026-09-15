@@ -751,6 +751,8 @@ test("with the site's own mint answering, the panel counts what the wallet verif
   const tokens = [cashuToken("https://tcg.zapburg.com"), cashuToken("https://tcg.zapburg.com/g")];
   const NutFTWallet = {
     read: async () => ({ tokens, outgoing: [], pending: null }),
+    /* The recovering view finishes and retries things; the bar only counts. */
+    snapshotMany: async () => { throw new Error("the side bar called the recovering view"); },
     snapshotManyReadOnly: async (mints) => {
       asked.push(mints);
       return { owned: [{ tag: ["1", "600b-e1", "E1-001"] }, { tag: ["1", "600b-e1", "E1-001"] }, { tag: ["1", "600b-e1", "E1-002"] }] };

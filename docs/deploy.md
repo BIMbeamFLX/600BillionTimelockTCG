@@ -256,7 +256,7 @@ Read at startup in `server/table.js` (bottom of file). The referee binds
 | `RATE_MAX` | built-in | Message rate cap. Exists for headless soak runs; leave unset so the default protects the table. |
 | `CONTROL_RATE_MAX` | built-in | Control-message rate cap. Same advice. |
 | `MAX_PAYLOAD` | built-in | Max WebSocket frame size. Same advice. |
-| `TRUST_PROXY` | *(none)* | Proxies whose `X-Forwarded-For` is believed: `loopback`, or a comma-separated list of peer IPs (an IPv4 entry also matches its `::ffff:` form). Behind Docker Caddy it must name the Caddy container (§4); unset, everyone behind the proxy shares every per-client budget. |
+| `TRUST_PROXY` | *(none)* | Proxies whose `X-Forwarded-For` is believed: `loopback`, or a comma-separated list of peer IPs (any spelling; an IPv4 entry also matches its `::ffff:` form). Behind Docker Caddy it must name the Caddy container (§4); unset, everyone behind the proxy shares every per-client budget. Every per-client budget counts an IPv6 client by its `/64`. |
 | `MINT_WRITE_RATE_MAX` | `20` | Spending writes per client per minute, shared by the E1 and G mints: every mint `POST` except restore and checkstate (purchase, booster, trade, possession). A positive integer, or startup throws. |
 | `MINT_RECOVERY_RATE_MAX` | `240` | The same for restore and checkstate, which a wallet uses to read its own cards back: a phrase recovery and every wallet view. Kept apart so recovery can neither starve purchases nor be starved by them. |
 | `MINT_QUOTE_RATE_MAX` | `60` | The same for the mint `GET`s that do work: quote, reveal, eligibility and the LNURL callback. Info, keys, catalog, blob, state and supply are never limited. |
@@ -299,6 +299,18 @@ At 240 neither recovery meets a single `429`, at the measured pace or twice it; 
 faster client meets short waits and still finishes. The same ceiling holds one
 scripted client to four requests a second, which at the mint's largest requests
 (500-output restores) cost about a quarter of a core on the measuring machine.
+
+**Restore support: a recovery that finds fewer cards than the holder expects.** A
+wallet from before 2026-09-15 that lost a purchase or a move to an error kept that
+operation's counter slots unsigned, and a normal recovery stops at such a run, so
+every card bought after it is missing. Ask the holder to tick "Search further" on
+wallet.html and press "Recover cards" again with the same phrase (in code:
+`restoreSeed(mint, phrase, { gapSlots: NutFTWallet.DEEP_SCAN_SLOTS })`). It continues
+from where the earlier recovery stopped, keeps every card already held, and stops
+only after 25,000 unsigned slots in a row: about 250 extra restore requests, a few
+minutes, inside the recovery budget. A resumed deep scan stays deep. Received cards
+the phrase cannot find yet are a separate case: the wallet page shows them as "not
+yet under your phrase" and retries moving them on every refresh.
 
 **Many wallets on one address share every budget.** A venue wifi or a carrier NAT
 is one client, and so is everyone behind the proxy while `TRUST_PROXY` is wrong.

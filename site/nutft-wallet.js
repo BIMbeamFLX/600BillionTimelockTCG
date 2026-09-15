@@ -61,7 +61,8 @@
   const digest = async (value) => hex(new Uint8Array(await root.crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))));
   const reference = (tag) => ({ collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3] });
   const binding = async (tag) => digest(`Cashu_NutFT_v1${canonical(reference(tag))}`);
-  const validState = (state) => state && typeof state === "object" && typeof state.privateKey === "string" && typeof state.pubkey === "string" && (state.seedPhrase == null || typeof state.seedPhrase === "string") && (state.counters == null || (typeof state.counters === "object" && !Array.isArray(state.counters))) && Array.isArray(state.tokens) && state.tokens.every((token) => typeof token === "string") && (state.pending == null || typeof state.pending === "object");
+  const validState = (state) => state && typeof state === "object" && typeof state.privateKey === "string" && typeof state.pubkey === "string" && (state.seedPhrase == null || typeof state.seedPhrase === "string") && (state.counters == null || (typeof state.counters === "object" && !Array.isArray(state.counters))) && Array.isArray(state.tokens) && state.tokens.every((token) => typeof token === "string") && (state.pending == null || typeof state.pending === "object")
+    && (state.unmoved == null || (Array.isArray(state.unmoved) && state.unmoved.every((entry) => entry && typeof entry.mint === "string" && typeof entry.secret === "string")));
 
   /* ALWAYS re-read storage. The cache used to be returned outright, so this
    * function could not see a write made by another TAB — and every decision
@@ -255,6 +256,15 @@
     return new c.OutputData({ amount: c.Amount.from(1), id: keyset.id, B_ }, r, encoded, Ehex);
   }
 
+  const RECOVERY_UNFINISHED = "finish recovering this wallet from its phrase first";
+
+  /* A pending record that holds none of the phrase's counter slots: a booster
+     claim still waiting for the receipt that names its cards, or a transfer to
+     somebody else's key. A half-finished recovery can resume around one. */
+  const holdsNoSlots = (pending) => !pending
+    || (pending.type === "booster" && !(pending.outputs || []).length)
+    || (pending.type === "trade" && !pending.toSelf);
+
   async function outputsFor(cards, mintUrl, state, c, keyset) {
     if (!state.seedPhrase) {
       return { outputs: cards.map((card) => c.OutputData.createSingleP2PKData({
@@ -265,7 +275,7 @@
     }
     /* Slots beyond a half-finished recovery's checkpoint may already hold this
        phrase's cards, so nothing may reserve slots until the recovery ends. */
-    if (state.restoring) throw new Error("finish recovering this wallet from its phrase first");
+    if (state.restoring) throw new Error(RECOVERY_UNFINISHED);
     const catalog = await getCatalog(mintUrl, c, keyset);
     const key = counterKey(mintUrl, keyset.id);
     const counters = { ...(state.counters || {}) };
@@ -350,8 +360,12 @@
     const token = encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs: [proof] });
     if (pending.toSelf) {
       /* A card moved under this wallet's own recovery phrase stays in this
-         wallet. It is not a hand-off, whichever call happens to finish it. */
-      await write({ ...state, tokens: [...rebuilt, token, ...opaque], pending: null });
+         wallet. It is not a hand-off, whichever call happens to finish it, and
+         it is no longer a card the phrase cannot find. */
+      await write({
+        ...state, tokens: [...rebuilt, token, ...opaque], pending: null,
+        ...(state.unmoved ? { unmoved: state.unmoved.filter((entry) => entry.secret !== pending.input_secret) } : {}),
+      });
       return { ...response, token, proof };
     }
     /* PERSIST THE OUTGOING TOKEN. It is the only thing that can ever claim this
@@ -374,7 +388,12 @@
   /* "not settled yet" is not a rejection, it is a wait. Treating it as one was
      dangerous: the pending outputs were discarded, and a buyer who then paid had
      nothing left to claim with — their sats gone and no way to ask again. */
-  const AWAITING_PAYMENT = /not settled yet|is still sealed|not mined yet/i;
+  const AWAITING_PAYMENT = /not settled yet|is still sealed|not mined yet|cannot confirm payment right now|cannot read the chain right now/i;
+
+  /* The verdicts that end a claim somebody paid for. Anything else -- an answer
+     this wallet does not recognise -- keeps the claim and its payment hash, since
+     without them a paid invoice can never be collected by this wallet again. */
+  const CLAIM_IS_OVER = /purchase expired|already claimed|already been claimed|stale booster quote|does not take committed purchases|unknown payment_hash|unknown purchase_id|quoted for a different pack|already taken its allocation/i;
 
   async function submitPending(state, c, keyset) {
     let pending = state.pending;
@@ -439,10 +458,11 @@
         wait.awaitingPayment = true;
         throw wait;
       }
-      /* A committed purchase still owns its cards: only a final verdict from
-         the mint drops the pending record; a temporary refusal keeps it. */
-      const terminal = /purchase expired|already claimed|stale booster quote|does not take committed purchases/i;
-      if (!pending.body.purchase_id || terminal.test(detail)) {
+      /* A committed purchase or a paid invoice still owns its cards: only a
+         final verdict from the mint drops that pending record. A free booster or
+         a transfer the mint refused never happened, so it is dropped. */
+      const paidFor = Boolean(pending.body.purchase_id || pending.body.payment_hash);
+      if (!paidFor || CLAIM_IS_OVER.test(detail)) {
         await write({ ...state, counters: countersAfterRefusal(state, pending, detail), pending: null });
       }
       throw new Error(detail);
@@ -707,6 +727,12 @@
   async function buyBoosterUnlocked(mintUrl, opts = {}) {
     const c = await cashu();
     let state = await identity(c);
+    /* REFUSED BEFORE ANYTHING EXISTS. A purchase needs counter slots for its
+       cards, and a half-finished recovery cannot hand any out. Checked here,
+       before a quote, an invoice or a pending record: refusing only when the
+       receipt arrives left a purchase committed at the mint and a claim this
+       wallet could neither finish nor get past. */
+    if (state.restoring) throw new Error(RECOVERY_UNFINISHED);
     if (state.pending) {
       const keysetForPending = await getKeyset(state.pending.mintUrl, c);
       return awaitSettlement(state, c, keysetForPending, opts);
@@ -765,6 +791,7 @@
   async function claimBoosterUnlocked(mintUrl, paymentHash, opts = {}) {
     const c = await cashu();
     let state = await identity(c);
+    if (state.restoring) throw new Error(RECOVERY_UNFINISHED);
     if (state.pending) {
       if (state.pending.body.payment_hash !== paymentHash) throw new Error("finish the pending wallet operation before claiming another booster");
       return awaitSettlement(state, c, await getKeyset(state.pending.mintUrl, c), opts);
@@ -962,8 +989,16 @@
        unreadable-token bug, one level up. The recovery is still attempted, and
        the page has its own route to retry it. */
     try { await locked(recoverPending); } catch { /* reported by recoverPending's own caller */ }
+    try { await locked(() => retryMovesUnlocked([mintUrl])); } catch { /* still listed in `unrestorable` */ }
     return snapshotReadOnly(mintUrl);
   }
+
+  /* The held cards the recovery phrase cannot find yet, from the stored list.
+     Keyed by mint as well as secret, since the list spans editions. */
+  const unrestorableIn = (walletState, owned) => {
+    const listed = new Set((walletState.unmoved || []).map((entry) => `${entry.mint}\n${entry.secret}`));
+    return owned.filter((item) => listed.has(`${item.mintUrl}\n${item.proof.secret}`));
+  };
 
   /* COUNTING ONLY READS. snapshot() and snapshotMany() finish an unfinished
      booster or transfer before they count, which is right for the wallet page
@@ -1003,7 +1038,11 @@
        rejects, while an unreadable token is one it cannot even open. A page
        that conflates them tells a buyer their card is bad when the truth is
        that they are looking at the wrong mint. */
-    return { catalog: catalogs.values().next().value || null, owned, spent, invalid, unreadable };
+    /* `unrestorable`: owned cards not yet moved under the recovery phrase. The
+       wallet keeps trying on every refresh; until then only a backup file or
+       this device holds them. */
+    const unrestorable = unrestorableIn(walletState, owned.map((item) => ({ ...item, mintUrl })));
+    return { catalog: catalogs.values().next().value || null, owned, spent, invalid, unreadable, unrestorable };
   }
 
   /* One browser wallet may hold E1 boosters and G starter sets at the same
@@ -1012,6 +1051,9 @@
    * dead foreign token on the E1 wallet page (and vice versa). */
   async function snapshotMany(mintUrls) {
     try { await locked(recoverPending); } catch { /* the recovery panel owns this error */ }
+    try {
+      await locked(() => retryMovesUnlocked([...new Set((mintUrls || []).map(String))]));
+    } catch { /* still listed in `unrestorable` */ }
     return snapshotManyReadOnly(mintUrls);
   }
 
@@ -1082,7 +1124,8 @@
         }
       }
     }));
-    return { catalogs: [...catalogs.values()], owned, spent, invalid, unreadable, unavailable };
+    const unrestorable = unrestorableIn(walletState, owned);
+    return { catalogs: [...catalogs.values()], owned, spent, invalid, unreadable, unavailable, unrestorable };
   }
 
   async function tradeProofUnlocked(mintUrl, secret, recipientPubkey) {
@@ -1185,6 +1228,10 @@
   async function importTokenUnlocked(mintUrl, token) {
     const c = await cashu();
     let state = await identity(c);
+    /* Refused whole, before the token is stored: a card accepted now could not
+       be moved under the phrase until the recovery ends, and a token stored and
+       then reported as refused is a card nobody knows the wallet holds. */
+    if (state.restoring) throw new Error(RECOVERY_UNFINISHED);
     if (state.pending) await submitPending(state, c, await getKeyset(state.pending.mintUrl, c));
     state = await read();
     const keyset = await getKeyset(mintUrl, c);
@@ -1206,28 +1253,68 @@
       const item = await inspectProof(mintUrl, proof, c, keyset, catalogs);
       if (item.state !== "UNSPENT" || !c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof).length) throw new Error("token is spent or not addressed to this wallet");
     }
-    await write({ ...state, tokens: [...state.tokens, token] });
     /* Received proofs were made by the sender, so their random output material
-       cannot be recovered from this wallet's NUT-13 seed. Reissue each one to
-       our own destination immediately; the old token remains stored if a
-       request fails, and the normal pending/outgoing records cover a lost
-       response after the mint spends it. */
-    if (state.seedPhrase) {
-      for (const proof of decoded.proofs) {
+       cannot be recovered from this wallet's NUT-13 seed. The token and the list
+       of its cards still to be moved under the phrase are stored in one write;
+       each card is then reissued to our own destination, and leaves the list
+       only when that trade is done. The normal pending/outgoing records cover a
+       lost response after the mint spends it. */
+    const arriving = state.seedPhrase
+      ? decoded.proofs.map((proof) => ({ mint: mintUrl, secret: proof.secret }))
+      : [];
+    await write({
+      ...state, tokens: [...state.tokens, token],
+      ...(arriving.length ? { unmoved: [...(state.unmoved || []), ...arriving] } : {}),
+    });
+    /* SAY SO. This loop used to break silently, so an import reported every card
+       as received while the one that failed stayed under the sender's secret,
+       where this wallet's recovery phrase can never find it. The cards are in
+       the wallet either way; the caller hears which is not under the phrase yet,
+       and every refresh tries again. */
+    const failure = await moveUnderPhrase(arriving, state.pubkey);
+    if (failure) throw notMoved(failure, decoded.proofs.length);
+    return decoded.proofs.length;
+  }
+
+  /* MOVE CARDS UNDER THE PHRASE, one trade to this wallet's own key each.
+     "output was already signed" means another device on the phrase took the
+     slot between the probe and the trade; the counter now stands past it, so the
+     card is tried again at once on a fresh slot. A card no longer held, or
+     already spent, leaves the list. A busy mint, an unfinished recovery or a
+     transfer in progress ends the round with the card still listed, and so does
+     any other refusal, after the rest have had their turn. Returns the first
+     failure, or null. */
+  async function moveUnderPhrase(entries, pubkey) {
+    let failure = null;
+    for (const entry of entries) {
+      for (let attempt = 1; ; attempt += 1) {
         try {
-          await tradeProofUnlocked(mintUrl, proof.secret, state.pubkey);
+          await tradeProofUnlocked(entry.mint, entry.secret, pubkey);
+          break;
         } catch (error) {
-          /* SAY SO. This loop used to break silently, so an import reported
-             every card as received while the one that failed stayed under the
-             sender's secret, where this wallet's recovery phrase can never find
-             it. The cards are in the wallet either way, and the caller has to
-             hear that one is not under the phrase yet. A busy mint leaves the
-             move pending, and the next wallet operation finishes it. */
-          throw notMoved(error, decoded.proofs.length);
+          if (/card is not in this wallet|already spent/i.test(error.message)) {
+            const current = await read();
+            await write({ ...current, unmoved: (current.unmoved || []).filter((item) => item.secret !== entry.secret) });
+            break;
+          }
+          if (/output was already signed/i.test(error.message) && attempt < 3) continue;
+          failure = failure || error;
+          if (error.transient || error.message === RECOVERY_UNFINISHED || /transfer already in progress/.test(error.message)) {
+            return failure;
+          }
+          break;
         }
       }
     }
-    return decoded.proofs.length;
+    return failure;
+  }
+
+  /* Every refresh gives the cards not yet under the phrase another try. */
+  async function retryMovesUnlocked(mintUrls) {
+    const state = await read();
+    if (!state.seedPhrase || state.restoring || state.pending) return;
+    const entries = (state.unmoved || []).filter((entry) => !mintUrls || mintUrls.includes(entry.mint));
+    if (entries.length) await moveUnderPhrase(entries, state.pubkey);
   }
 
   const importToken = (mintUrl, token) => locked(() => importTokenUnlocked(mintUrl, token));
@@ -1253,14 +1340,28 @@
        every batch, so an attempt cut off by a mint that stays busy or a closed
        tab is resumed from its checkpoint: never restarted from slot 0, and never
        refused as a wallet that already holds the cards it found. */
-    const unfinished = current.pending || (current.outgoing || []).length;
+    /* A claim left waiting for its receipt does not stop a resume: it holds no
+       slots, and it can only be finished once the scan has shown which slots the
+       phrase already filled. Finishing it first would hand out slots blind. */
     const resuming = Boolean(current.restoring && current.restoring.key === key
-      && current.seedPhrase === seedPhrase && !unfinished);
-    if (!resuming && (current.tokens.length || unfinished)) {
+      && current.seedPhrase === seedPhrase && holdsNoSlots(current.pending));
+    /* SEARCHING FURTHER. A wallet from before refused operations handed their
+       slots back can hold an unsigned run longer than the normal window, and a
+       recovery stops there with cards still beyond it. A deep scan (a larger
+       gapSlots) on a wallet already holding this phrase continues from the
+       wallet's own counter rather than from slot 0, keeps every card it holds,
+       and adds only cards it does not. */
+    const deeper = !resuming && Number(opts.gapSlots) > 0 && !current.restoring
+      && current.seedPhrase === seedPhrase && holdsNoSlots(current.pending);
+    if (!resuming && !deeper && (current.tokens.length || current.pending || (current.outgoing || []).length)) {
       throw new Error("recovery requires an empty wallet so bearer assets are not overwritten");
     }
     let state = current;
-    if (!resuming) {
+    if (deeper) {
+      const from = Math.floor(Number((current.counters || {})[key] || 0) / 100) * 100;
+      state = { ...current, restoring: { key, next: from, empty: 0, found: 0 } };
+      await write(state);
+    } else if (!resuming) {
       const seed = wc.mnemonicToSeedSync(seedPhrase);
       const privateKey = wc.HDKey.fromMasterSeed(seed).derive("m/129373'/10'/0'/0'/0").privateKey;
       state = {
@@ -1279,8 +1380,13 @@
        from before refused operations gave their slots back -- pushes the next
        card up to 2N slots on, and batch edges cost up to one more batch. So the
        scan stops only after at least 2N + 100 slots in a row came back unsigned;
-       stopping after three hundred lost every card beyond such a gap. */
-    const gapBatches = Math.ceil((2 * catalog.assets.length + 100) / 100);
+       stopping after three hundred lost every card beyond such a gap. A deep scan
+       asks for more (opts.gapSlots), and the checkpoint remembers it, so a deep
+       scan that is resumed without asking again stays deep. */
+    const gapSlots = Math.max(2 * catalog.assets.length + 100, Number(opts.gapSlots) || 0,
+      Number(state.restoring.gapSlots) || 0);
+    const gapBatches = Math.ceil(gapSlots / 100);
+    const held = new Set(readableProofs(state, keyset, c).map((proof) => proof.secret));
 
     while (emptyBatches < gapBatches) {
       const candidates = await Promise.all(Array.from({ length: 100 }, (_, i) => {
@@ -1320,33 +1426,43 @@
         }, opts);
         if (!checked.ok) throw new Error(`restored proof state unavailable (${checked.status})`);
         const states = (await checked.json()).states;
-        batch.forEach((proof, index) => { if (states[index]?.state === "UNSPENT") found.push(proof); });
+        batch.forEach((proof, index) => {
+          if (states[index]?.state === "UNSPENT" && !held.has(proof.secret)) {
+            held.add(proof.secret);
+            found.push(proof);
+          }
+        });
         emptyBatches = 0;
       } else {
         emptyBatches += 1;
       }
       counter += 100;
       /* CHECKPOINT: the cards this batch found, the counter past its last signed
-         slot, and where the next batch starts, before anything else is asked. */
+         slot (never moved back: a deep scan starts below it), and where the next
+         batch starts, before anything else is asked. */
+      const known = Number(state.counters[key] || 0);
       state = {
         ...state,
         tokens: found.length
           ? [...state.tokens, encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: found })]
           : state.tokens,
-        counters: lastSigned >= 0 ? { ...state.counters, [key]: lastSigned + 1 } : state.counters,
-        restoring: { key, next: counter, empty: emptyBatches },
+        counters: { ...state.counters, [key]: Math.max(known, lastSigned + 1) },
+        restoring: {
+          key, next: counter, empty: emptyBatches, gapSlots,
+          found: (state.restoring.found || 0) + found.length,
+        },
       };
       await write(state);
     }
 
-    /* Finished: one token holding every recovered card, as a recovery has
-       always left the wallet, and no checkpoint. */
-    const recovered = readableProofs(state, keyset, c);
+    /* Finished. The tokens stay exactly as the batches appended them. Folding
+       them into one token rebuilt the whole list from this edition's readable
+       proofs and dropped every token this keyset cannot read -- a G card stored
+       beside an E1 recovery was lost when the recovery finished. */
     const finished = { ...state };
     delete finished.restoring;
-    if (recovered.length) finished.tokens = [encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: recovered })];
     await write(finished);
-    return recovered.length;
+    return state.restoring.found || 0;
   }
 
   const restoreSeed = (mintUrl, phrase, opts) => locked(
@@ -1417,5 +1533,7 @@
     tradeProof, importToken,
     destination, recoverPending, outgoing, forgetOutgoing, exportBackup,
     restoreBackup, replaceBackup, recoveryPhrase, restoreSeed, provePossession, read, cashu, hex, bytes,
+    /* The window a deep scan asks for: restoreSeed(mint, phrase, { gapSlots: DEEP_SCAN_SLOTS }). */
+    DEEP_SCAN_SLOTS: 25_000,
   };
   root.NutFTWallet.encodeToken = encodeToken;})(globalThis);

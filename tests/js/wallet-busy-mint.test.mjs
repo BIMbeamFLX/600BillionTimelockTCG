@@ -116,7 +116,11 @@ test("a 429 in the middle of a phrase recovery waits, resumes and recovers every
         `wait ${index + 1} honoured retry-after`);
       assert.ok(step.waitMs <= 30_000, `wait ${index + 1} is capped at 30 s`);
     });
-    assert.equal(JSON.parse(storage.get(STORE)).tokens.length, 1);
+    /* Counted from storage: asking the mint would spend this test's tiny budget. */
+    const keysetId = (await (await fetch(`${clock.table.url}/v1/keys`)).json()).keysets[0].id;
+    const held = JSON.parse(storage.get(STORE)).tokens
+      .flatMap((token) => cashu.getDecodedToken(token, [keysetId]).proofs);
+    assert.equal(held.length, PACK, "and the wallet holds every one of them");
   });
 
 test("a transfer refused with a 429 stays pending and completes when it is resumed", async (t) => {
