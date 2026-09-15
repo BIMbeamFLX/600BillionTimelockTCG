@@ -95,6 +95,7 @@ Where the running box relies on an old default or spelling, §1 reports it: as a
 | `G_NUTFT_ONE_PER_KEY` | An empty `G_NUTFT_ONE_PER_KEY=` switched the limit off. | *Meaning change:* empty is unset, and unset is on. |
 | `NUTFT_ONE_PER_KEY` | Only `1` and `true` were on; anything else was off. | *Meaning change* for `yes`, `on` and capitals, which are now on. The flag grammar is below. |
 | `G_NUTFT_PRICE_MSAT`, `NUTFT_RECONCILE_MS`, `NUTFT_PUBLIC_BASE`, `G_NUTFT_PUBLIC_BASE`, `NUTFT_COLLECTION_ID`, `LND_REST_URL` (reported as `NUTFT_FUNDING`) | A value of only spaces or tabs was a value: a number read it as 0, a string kept it. | *Meaning change:* blank is unset, so the default applies. |
+| `LND_REST_URL` | Kept surrounding spaces, so a trailing one broke every request to the node. | *Meaning change:* the URL is trimmed. |
 | `NUTFT_ONE_PER_KEY`, `G_NUTFT_ONE_PER_KEY`, `NUTFT_PURCHASE_MODE`, `G_NUTFT_PURCHASE_MODE`, `G_NUTFT_ENABLED` | A mistyped value was off. | On is `1`, `true`, `yes`, `on`; off is `0`, `false`, `no`, `off`, in any case; unset or empty is the default. Anything else, a trailing space included, is refused. |
 | `NUTFT_BEACON_SOURCE` | Anything but exactly `lnd` was off. | Unset or empty is off, `lnd` is on, anything else is refused. |
 | `LND_*` | Read, and the macaroon demanded, on every boot while `LND_REST_URL` was set. | Read only when a mint funds through `lnd` or E1's beacon is on. |
@@ -168,6 +169,7 @@ one.
 | `NUTFT_PUBLIC_BASE: meaning changes (a blank origin → …)`, `G_NUTFT_PUBLIC_BASE: meaning changes (a blank origin → …)` | A blank value: the origin itself, on which every signed request and LNURL link failed. | No spelling keeps that. Remove the variable: both builds then take the origin the row names, which repairs the shop, so treat it as that change. |
 | `NUTFT_COLLECTION_ID: meaning changes (a blank collection id → 600B-E1)` | A blank value: the collection id hashed into every E1 card. | No spelling keeps a blank id. Stop: the E1 identity needs a decision first. |
 | `NUTFT_FUNDING: meaning changes (lnd → none)` | An empty `NUTFT_FUNDING` with a blank `LND_REST_URL`, a macaroon, and a certificate path or `LND_INSECURE=1`: paid through lnd. | Stop: the release would give every E1 booster away. Set a working `LND_REST_URL` with `NUTFT_FUNDING=lnd`, or `NUTFT_FUNDING=none` as a decision. |
+| `LND_REST_URL: meaning changes (a URL no lnd call reached → the same URL without its surrounding spaces)` | A URL with a trailing space, kept as written: every request to the node failed, so a mint funding through lnd sold nothing. A leading space or a tab reached the node and prints no row. | No spelling keeps it failing. To keep the shop as it is, set that mint's sales mode to `closed` first, which the running build reads the same way and which changes nothing it sold. Removing the spaces later is a decision to start selling through lnd. |
 
 ### 3.2 · Set, but the running build ignores it
 

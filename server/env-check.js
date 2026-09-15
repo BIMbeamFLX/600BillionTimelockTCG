@@ -112,6 +112,22 @@ const MEANING_CHANGES = [
     const macaroon = oldSet(env.LND_MACAROON) ? /^[0-9a-f]+$/i.test(env.LND_MACAROON) : oldSet(env.LND_MACAROON_PATH);
     return macaroon && (oldSet(env.LND_TLS_CERT_PATH) || env.LND_INSECURE === "1") ? ["lnd", "none"] : null;
   }],
+  ["LND_REST_URL", (env, g) => {
+    /* lnd.js:30 and :49 kept the URL as written, and every request was
+       new URL(url + path) (lnd.js:58, beacon.js:41): a trailing space made that
+       throw or went into the path, so no call reached the node and nothing
+       sold. The release trims it and sells. Read only by a mint funding through
+       lnd, chosen (funding.js:106) or auto-detected, or by the beacon
+       (nutft-mint.js:418). A blank URL is the NUTFT_FUNDING row. */
+    const raw = env.LND_REST_URL;
+    if (!oldSet(raw) || blankOnly(raw) || raw === raw.trim()) return null;
+    const e1 = oldBackend(env.NUTFT_FUNDING);
+    const usesLnd = e1 === "lnd" || (!e1 && !oldSet(env.PHOENIXD_URL))
+      || (g.enabled && oldBackend(env.G_NUTFT_FUNDING) === "lnd") || env.NUTFT_BEACON_SOURCE === "lnd";
+    const request = (base) => { try { return new URL(`${base}/v1/invoices`).href; } catch { return null; } };
+    return usesLnd && request(raw.replace(/\/$/, "")) !== request(raw.trim().replace(/\/$/, ""))
+      ? ["a URL no lnd call reached", "the same URL without its surrounding spaces"] : null;
+  }],
 ];
 
 /* ---- Variables the running build never reads -------------------------------

@@ -75,6 +75,8 @@ const BROKEN_LINES = [
   "NUTFT_PURCHASE_MODE: set, but the running build ignores it",
 ];
 
+/* E1 funding through a node the release can reach. */
+const LND_E1 = Object.freeze({ NUTFT_FUNDING: "lnd", LND_MACAROON: "abcdef", LND_TLS_CERT_PATH: "/srv/tcg-secrets/tls.cert" });
 /* Spellings the running build (d753505) reads one way and the release another,
    each with the one row it must print. */
 const MEANING_CASES = [
@@ -91,6 +93,10 @@ const MEANING_CASES = [
   [{ G_NUTFT_PUBLIC_BASE: " ", NUTFT_PUBLIC_BASE: "https://tcg.example.com" },
     "G_NUTFT_PUBLIC_BASE: meaning changes (a blank origin → the NUTFT_PUBLIC_BASE origin)"],
   [{ NUTFT_COLLECTION_ID: " " }, "NUTFT_COLLECTION_ID: meaning changes (a blank collection id → 600B-E1)"],
+  [{ ...LND_E1, LND_REST_URL: "https://node.example:8080 " },
+    "LND_REST_URL: meaning changes (a URL no lnd call reached → the same URL without its surrounding spaces)"],
+  [{ ...LND_E1, LND_REST_URL: " https://node.example:8080/ " },
+    "LND_REST_URL: meaning changes (a URL no lnd call reached → the same URL without its surrounding spaces)"],
 ];
 /* E1 alone, whose old build took lnd funding from a blank LND_REST_URL. */
 const FREE_BY_BLANK_LND = Object.freeze({
@@ -110,6 +116,9 @@ const SAME_MEANING = [
   { NUTFT_SUPPLY_INTERVAL_SECONDS: "0" }, { NUTFT_SUPPLY_INTERVAL_SECONDS: "" },
   { NUTFT_PUBLIC_BASE: "" }, { G_NUTFT_PUBLIC_BASE: "" }, { NUTFT_COLLECTION_ID: "" }, { NUTFT_COLLECTION_ID: "600B-E1" },
   { NUTFT_FUNDING: undefined, PHOENIXD_URL: undefined, G_NUTFT_FUNDING: "none", LND_REST_URL: " " },
+  /* A leading space or a tab still reached the node, and a mint on phoenixd never read the URL. */
+  { ...LND_E1, LND_REST_URL: " https://node.example:8080" }, { ...LND_E1, LND_REST_URL: "\thttps://node.example:8080\t" },
+  { LND_REST_URL: "https://node.example:8080 " },
 ];
 
 /* Every variable in docs/deploy.md §10 (66 names), each holding MARKER. */
