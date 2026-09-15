@@ -475,6 +475,49 @@ sudo journalctl -u tcg-table --no-pager | grep ' · catalog ' | tail -1
 `/home/deploy/tcg-env-before.txt` holds six public values (URLs and paths), no secrets. The
 journal line shows the card-set digest the running build loaded; 9.7 compares the new one.
 
+### 9.2a · Before anything else changes: check the running environment against the release
+
+The release refuses to start on mint settings that used to boot and then did the wrong thing
+(PR #72, `docs/mint-boot-checks.md`), and it changes defaults the running box may rely on. So
+the new release's rules are applied to the **running** service's environment first, before
+any backup, upload or stop. The check prints `VARIABLE: reason` lines, never a value, and then
+`ok` or the number of problems; it needs no `node_modules`, opens no database and binds no port.
+
+On Windows, copy its three files from the release clone (one touch of the key):
+
+```powershell
+$SHA12 = $SHA.Substring(0,12)
+$CHECK = Join-Path $env:TEMP "tcg-envcheck-$SHA12"
+New-Item -ItemType Directory -Force "$CHECK\server" | Out-Null
+Copy-Item "$REL\server\env-check.js", "$REL\server\mint-env.js", "$REL\server\lnurl.js" "$CHECK\server\"
+scp -i $HOME\.ssh\id_ed25519_sk -o IdentitiesOnly=yes -r $CHECK deploy@178.105.93.78:/home/deploy/
+```
+
+On the box (put the twelve characters of `$SHA12` in place of `<sha12>`):
+
+```bash
+PID=$(systemctl show -p MainPID --value tcg-table)
+sudo cat /proc/$PID/environ | node /home/deploy/tcg-envcheck-<sha12>/server/env-check.js --from -
+```
+
+Only `cat` runs as root; `node` does not, because the copy sits in a directory the deploy user
+can write.
+
+**Anything but the single line `ok` stops the deploy here.** Exit code 2 (`the environment input
+is empty`) means `$PID` is 0 or stale. For every problem line, fix the environment first, as its
+own change with its own before and after check, exactly as `docs/mint-boot-checks.md` §1 (d) and
+§3 describe: read only the named keys with a grep, never print the whole `EnvironmentFile`,
+record the mints' public answers, change the value, restart the **running** build, record them
+again, then run the check again until it prints `ok`. Never start the new release to see whether
+it refuses. Then remove the copy:
+
+```bash
+rm -r /home/deploy/tcg-envcheck-<sha12>
+```
+
+If an environment fix was needed, run 9.2 again so `tcg-env-before.txt` holds the values the new
+release will start with.
+
 ### 9.3 · On Windows: stage the payload without the unit
 
 ```powershell
