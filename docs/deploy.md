@@ -559,6 +559,8 @@ diff /home/deploy/tcg-env-before.txt /home/deploy/tcg-env-after.txt && echo "env
 curl -s https://tcg.nappelin.com/api/health
 curl -s https://tcg.nappelin.com/v1/info | grep -o '"catalog_uri":"[^"]*"'
 curl -s https://tcg.nappelin.com/g/v1/info | grep -o '"catalog_uri":"[^"]*"'
+curl -s https://tcg.nappelin.com/v1/info | grep -o '"9":{"supported":true}'
+curl -s https://tcg.nappelin.com/g/v1/info | grep -o '"9":{"supported":true}'
 curl -s -o /dev/null -w "%{http_code} play.html\n" https://tcg.nappelin.com/play.html
 curl -s -o /dev/null -w "%{http_code} arena3d.js\n" https://tcg.nappelin.com/arena3d.js
 curl -s -o /dev/null -w "%{http_code} three.js\n" https://tcg.nappelin.com/vendor/three.js
@@ -573,7 +575,11 @@ node -e "const E=require('./site/engine.js'); console.log('E1.0', E.setCatalog(r
 ```
 
 Stop and roll back if `diff` prints anything, if either `catalog_uri` differs from 9.2, or if
-the service is not active. `arena3d.js` and `vendor/three.js` answering 200 prove the new
+the service is not active. Both mints must print `"9":{"supported":true}`: the card wallet (on
+the website and in the Hangar's collection) refuses every snapshot, receive, trade and restore
+at a mint that does not advertise NUT-09, and the 2026-08-20 build did not. A G mint that is
+switched off prints nothing for its two lines; that is expected only when `G_NUTFT_ENABLED` is
+unset in 9.2's before-file. `arena3d.js` and `vendor/three.js` answering 200 prove the new
 site is served. `rail.js` must answer `200 text/javascript` and each font `200 font/woff2`: a
 404 there leaves every page without its side bar or in fallback type, and nothing else would
 show it.
