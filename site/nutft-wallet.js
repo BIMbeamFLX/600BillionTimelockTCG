@@ -279,6 +279,36 @@
     return { outputs: await Promise.all(outputs.map((item) => deterministicOutput(item.card, state, c, keyset, item.counter))), counters };
   }
 
+  /* THE SLOTS AN OPERATION RESERVES. outputsFor moves the counter past every
+     slot it uses, and the pending is written with that counter, so those slots
+     are spoken for until the mint answers. Remembering where the counter stood
+     is what lets a refusal hand them back. */
+  const reservation = (state, mintUrl, keyset, counters) => {
+    const key = counterKey(mintUrl, keyset.id);
+    const before = Number((state.counters || {})[key] || 0);
+    return Number(counters[key] || 0) === before ? null : { key, before };
+  };
+
+  /* A REFUSED OPERATION GIVES ITS SLOTS BACK. A recovery phrase finds cards by
+     walking the counter, and a restore stops after a long enough run of slots
+     the mint never signed. Slots kept by an operation the mint turned down open
+     exactly such a run in front of every later card, so those cards could not
+     be restored. The one refusal that keeps the slots is "output was already
+     signed": that slot really is taken, by another device holding this phrase,
+     so the counter stays past it. */
+  const countersAfterRefusal = (state, pending, detail) => {
+    const reserved = pending.reserved;
+    if (!reserved || /output was already signed/i.test(detail)) return state.counters;
+    return { ...(state.counters || {}), [reserved.key]: reserved.before };
+  };
+
+  /* An import whose cards arrived but could not all be moved under this
+     wallet's recovery phrase. The cards are in the wallet either way. */
+  const notMoved = (error, imported) => Object.assign(
+    new Error(`not yet moved under this wallet's recovery phrase: ${error.message}`),
+    { imported, transient: Boolean(error.transient) },
+  );
+
   async function finishPending(state, pending, response, c, keyset) {
     if (pending.type === "booster") {
       const outputs = pending.outputs.map((saved) => restoreOutput(saved, c));
@@ -315,6 +345,12 @@
       ? [encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs: remaining })]
       : [];
     const token = encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs: [proof] });
+    if (pending.toSelf) {
+      /* A card moved under this wallet's own recovery phrase stays in this
+         wallet. It is not a hand-off, whichever call happens to finish it. */
+      await write({ ...state, tokens: [...rebuilt, token, ...opaque], pending: null });
+      return { ...response, token, proof };
+    }
     /* PERSIST THE OUTGOING TOKEN. It is the only thing that can ever claim this
        card: the sender no longer holds it, the recipient does not have it yet,
        and it is locked to a key only the recipient has. Returning it and writing
@@ -365,7 +401,8 @@
       if (receipt.purchase_id !== pending.body.purchase_id || receipt.status !== "purchased") throw new Error("invalid purchase receipt");
       const prepared = await outputsFor(receipt.cards, pending.mintUrl, state, c, keyset);
       const outputs = prepared.outputs.map(savedOutput);
-      pending = { ...pending, outputs, body: { ...pending.body, pack_id: receipt.pack_id, state: receipt.state, outputs: outputs.map(requestOutput) } };
+      const reserved = reservation(state, pending.mintUrl, keyset, prepared.counters);
+      pending = { ...pending, outputs, reserved, body: { ...pending.body, pack_id: receipt.pack_id, state: receipt.state, outputs: outputs.map(requestOutput) } };
       state = { ...state, counters: prepared.counters, pending };
       await write(state);
     }
@@ -380,7 +417,8 @@
       }
       const prepared = await outputsFor(opened.cards, pending.mintUrl, state, c, keyset);
       const outputs = prepared.outputs.map(savedOutput);
-      pending = { ...pending, outputs, body: { ...pending.body, pack_id: opened.pack_id, state: opened.state, outputs: outputs.map(requestOutput) } };
+      const reserved = reservation(state, pending.mintUrl, keyset, prepared.counters);
+      pending = { ...pending, outputs, reserved, body: { ...pending.body, pack_id: opened.pack_id, state: opened.state, outputs: outputs.map(requestOutput) } };
       state = { ...state, counters: prepared.counters, pending };
       await write(state);
     }
@@ -401,7 +439,9 @@
       /* A committed purchase still owns its cards: only a final verdict from
          the mint drops the pending record; a temporary refusal keeps it. */
       const terminal = /purchase expired|already claimed|stale booster quote|does not take committed purchases/i;
-      if (!pending.body.purchase_id || terminal.test(detail)) await write({ ...state, pending: null });
+      if (!pending.body.purchase_id || terminal.test(detail)) {
+        await write({ ...state, counters: countersAfterRefusal(state, pending, detail), pending: null });
+      }
       throw new Error(detail);
     }
     return finishPending(state, pending, await response.json(), c, keyset);
@@ -657,7 +697,8 @@
        its own purchase_id first (see submitPending) and builds the outputs from
        the receipt. The same id is the claim's idempotency key. */
     const purchaseId = quote.purchase_required ? hex(root.crypto.getRandomValues(new Uint8Array(32))) : null;
-    const pending = { type: "booster", mintUrl, outputs: saved, body: {
+    const reserved = reservation(state, mintUrl, keyset, prepared.counters);
+    const pending = { type: "booster", mintUrl, outputs: saved, reserved, body: {
       idempotency_key: purchaseId || root.crypto.randomUUID(),
       ...(purchaseId ? { purchase_id: purchaseId } : {}),
       pack_id: quote.pack_id,
@@ -1046,12 +1087,16 @@
     c.pointFromHex(recipientPubkey);
     let output;
     let counters = state.counters || {};
-    if (state.seedPhrase && recipientPubkey === state.pubkey) {
+    /* Moving a card under this wallet's own recovery phrase, as an import does. */
+    const toSelf = Boolean(state.seedPhrase && recipientPubkey === state.pubkey);
+    let reserved = null;
+    if (toSelf) {
       const prepared = await outputsFor([{
         collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3], asset_binding: tag[4],
       }], mintUrl, state, c, keyset);
       [output] = prepared.outputs;
       counters = prepared.counters;
+      reserved = reservation(state, mintUrl, keyset, counters);
     } else {
       output = c.OutputData.createSingleP2PKData({
         pubkey: recipientPubkey,
@@ -1060,7 +1105,7 @@
       }, 1, keyset.id);
     }
     const saved = savedOutput(output);
-    const pending = { type: "trade", mintUrl, input_secret: oldProof.secret, outputs: [saved], body: { idempotency_key: root.crypto.randomUUID(), inputs: c.serializeProofs([signed]), outputs: [requestOutput(saved)] } };
+    const pending = { type: "trade", mintUrl, input_secret: oldProof.secret, outputs: [saved], ...(toSelf ? { toSelf, reserved } : {}), body: { idempotency_key: root.crypto.randomUUID(), inputs: c.serializeProofs([signed]), outputs: [requestOutput(saved)] } };
     state = { ...state, counters, pending };
     await write(state);
     return submitPending(state, c, keyset);
@@ -1139,14 +1184,16 @@
     if (state.seedPhrase) {
       for (const proof of decoded.proofs) {
         try {
-          const moved = await tradeProofUnlocked(mintUrl, proof.secret, state.pubkey);
-          const current = await read();
-          await write({
-            ...current,
-            tokens: [...current.tokens, moved.token],
-            outgoing: (current.outgoing || []).filter((entry) => entry.token !== moved.token),
-          });
-        } catch { break; }
+          await tradeProofUnlocked(mintUrl, proof.secret, state.pubkey);
+        } catch (error) {
+          /* SAY SO. This loop used to break silently, so an import reported
+             every card as received while the one that failed stayed under the
+             sender's secret, where this wallet's recovery phrase can never find
+             it. The cards are in the wallet either way, and the caller has to
+             hear that one is not under the phrase yet. A busy mint leaves the
+             move pending, and the next wallet operation finishes it. */
+          throw notMoved(error, decoded.proofs.length);
+        }
       }
     }
     return decoded.proofs.length;

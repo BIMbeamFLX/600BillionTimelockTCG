@@ -931,6 +931,16 @@
       say(importNote, count === 1 ? "Accepted. The card is in the collection above." : `Accepted. ${count} cards are in the collection above.`);
       await refresh();
     } catch (thrown) {
+      if (thrown && thrown.imported) {
+        /* Accepted, but not yet under this wallet's recovery phrase. The cards
+         * are in the collection, so the token must not be offered again. */
+        pendingImportMint = null;
+        importToken.value = "";
+        importPreview.hidden = true;
+        say(importNote, `Accepted, and in the collection above, but ${reason(thrown)}`, true);
+        await refresh();
+        return;
+      }
       say(importNote, `The mint refused it: ${reason(thrown)}`, true);
       button.disabled = false;
     }
