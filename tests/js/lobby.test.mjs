@@ -723,6 +723,7 @@ test("the first screen inside the Hangar: the member's look, three ways to play,
   const { byId } = loadTable(net, N, { look });
 
   assert.equal(byId("first").hidden, false, "the first screen is the page inside the Hangar");
+  assert.equal(byId("coach").hidden, true, "the first-game tour does not open over the first screen");
   assert.deepEqual(["modeNpc", "modeHotseat", "modeOnline"].map((id) => byId(id).getAttribute("aria-pressed")),
     ["false", "false", "false"], "three ways to play, none chosen yet");
   assert.deepEqual([byId("localSetup").hidden, byId("lobby").hidden], [true, true], "nothing opens before a choice");
@@ -745,10 +746,12 @@ test("the first screen inside the Hangar: the member's look, three ways to play,
   byId("modeNpc").click();
   assert.deepEqual([byId("localSetup").hidden, byId("lobby").hidden, byId("npcB").checked], [false, true, true]);
   assert.equal(byId("modeNpc").getAttribute("aria-pressed"), "true");
+  assert.equal(byId("coach").hidden, false, "the tour opens with the local game it teaches");
   byId("modeHotseat").click();
   assert.deepEqual([byId("localSetup").hidden, byId("npcB").checked, byId("modeNpc").getAttribute("aria-pressed")], [false, false, "false"]);
   byId("modeOnline").click();
   assert.deepEqual([byId("localSetup").hidden, byId("lobby").hidden, byId("modeOnline").getAttribute("aria-pressed")], [true, false, "true"]);
+  assert.equal(byId("coach").hidden, true, "and never sits over the lobby, or a table code read aloud there");
   await waitFor(() => called(net, "tables").length === 1, "the open tables, asked once the lobby is in view");
   assert.equal(byId("lobbyIdentity").hidden, true);
 });

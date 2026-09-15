@@ -3141,6 +3141,9 @@
     const previous = document.querySelector(".coach-target");
     if (previous) previous.classList.remove("coach-target");
     if (coachIndex < 0) return void (bubble.hidden = true);
+    /* Inside the Hangar the tour is the local game's: it waits on the first screen until
+     * one is chosen, and never sits over the lobby or a table code read aloud there. */
+    if (embedded() && mode !== "npc" && mode !== "hotseat") return void (bubble.hidden = true);
     while (coachIndex < COACH_STEPS.length && COACH_STEPS[coachIndex].done()) coachIndex += 1;
     if (coachIndex >= COACH_STEPS.length) return void finishCoach();
     const step = COACH_STEPS[coachIndex];
@@ -5244,6 +5247,7 @@
     const npc = $("npcB");
     if (npc && mode !== "online" && mode !== null) npc.checked = mode === "npc";
     if (mode === "online" && lobby) lobby.open();
+    coachStep();
   }
 
   /* The member as the shell knows them: their look's name and picture (the seat
