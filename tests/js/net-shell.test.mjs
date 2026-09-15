@@ -242,7 +242,7 @@ function kehtoOutbox(bus, sk, { refuse = null, alive = () => true } = {}) {
  * each other in one process, which a single globalThis cannot hold. Globals the scope
  * does not name (setTimeout, URL, JSON) are the real ones. `sockets` lists every raw
  * WebSocket or fetch the frame tried: a napplet has neither, so it must stay empty. */
-function loadFrame(frame, napplet, extra) {
+function loadFrame(frame, napplet, extra, pageScripts = "") {
   const scope = {};
   const sandboxed = (name) => ({ configurable: true, get() { throw new Error(`SecurityError: ${name} is not available in a sandboxed frame`); } });
   for (const name of ["localStorage", "sessionStorage", "caches"]) Object.defineProperty(scope, name, sandboxed(name));
@@ -262,8 +262,72 @@ function loadFrame(frame, napplet, extra) {
   for (const [name, value] of Object.entries(values)) {
     Object.defineProperty(scope, name, { configurable: true, writable: true, value });
   }
-  new Function("scope", `with (scope) {\n${NAPPLET_JS}\n;\n${NET_JS}\n}`)(scope);
+  new Function("scope", `with (scope) {\n${NAPPLET_JS}\n;\n${NET_JS}\n;\n${pageScripts}\n}`)(scope);
   return { scope, net: scope.E1Net, N: scope.E1Napplet, sockets };
+}
+
+/* The whole table page in a frame of its own: play.html's scripts after the transport
+ * (site/lobby.js, then play.js), over a stub document in client.test.mjs's shape, with
+ * the frame's DOMContentLoaded fired by hand. `byId` reads what the page painted. */
+const SITE_DIR = path.join(HERE, "..", "..", "site");
+const TABLE_PAGE_JS = ["lobby.js", "play.js"].map((name) => fs.readFileSync(path.join(SITE_DIR, name), "utf8")).join("\n;\n");
+const CARDS = require("../../site/play-data.js");
+function stubNode(id) {
+  const node = {
+    id, hidden: false, textContent: "", value: "", className: "", innerHTML: "", disabled: false, checked: false,
+    dataset: {}, children: [], listeners: {}, attributes: {},
+    style: { setProperty(name, value) { this[name] = String(value); }, getPropertyValue(name) { return this[name] || ""; } },
+    addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); },
+    removeEventListener() {},
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    getAttribute(name) { return this.attributes[name]; },
+    append(...kids) { for (const kid of kids) this.children.push(kid); },
+    appendChild(kid) { this.children.push(kid); return kid; },
+    prepend(kid) { this.children.unshift(kid); },
+    closest: () => null,
+    querySelectorAll: () => [],
+    focus() {},
+    remove() {},
+    click() { for (const fn of this.listeners.click || []) fn({ preventDefault() {} }); },
+  };
+  const classes = () => String(node.className || "").split(" ").filter(Boolean);
+  node.classList = {
+    add(...names) { node.className = [...new Set([...classes(), ...names])].join(" "); },
+    remove(...names) { node.className = classes().filter((name) => !names.includes(name)).join(" "); },
+    toggle(name, force) {
+      const on = force === undefined ? !classes().includes(name) : Boolean(force);
+      if (on) this.add(name); else this.remove(name);
+      return on;
+    },
+    contains: (name) => classes().includes(name),
+  };
+  return node;
+}
+function loadTableFrame(frame, napplet, extra) {
+  const nodes = new Map();
+  const byId = (id) => {
+    if (!nodes.has(id)) nodes.set(id, stubNode(id));
+    return nodes.get(id);
+  };
+  const fired = {};
+  const window = {
+    addEventListener(type, fn) {
+      if (type === "message") frame.window.addEventListener(type, fn);
+      else (fired[type] = fired[type] || []).push(fn);
+    },
+    dispatchEvent() {},
+    confirm: () => true,
+  };
+  const document = {
+    body: byId("body"), getElementById: byId, createElement: (tag) => stubNode(tag), createTextNode: (text) => text,
+    querySelector: () => null, querySelectorAll: () => [], addEventListener() {},
+  };
+  const page = Object.assign({
+    window, document, E1Engine: E, E1_CARDS: CARDS, E1CollectionStack: require("../../site/collection-stack.js"),
+  }, extra || {});
+  const loaded = loadFrame(frame, napplet, page, TABLE_PAGE_JS);
+  for (const fn of fired.DOMContentLoaded || []) fn();
+  return Object.assign(loaded, { byId, game: window.E1_GAME });
 }
 
 const keyOf = (label) => Uint8Array.from(createHash("sha256").update(`test:hangar:${label}`).digest());
@@ -275,7 +339,8 @@ function hangarTab(t, label, { bus = relayBus(), sk = keyOf(label), storage = ne
   const host = fakeHangar({ sk });
   t.after(() => host.close());
   const tab = { label, host, bus, sk, pubkey: sk ? hex(schnorr.getPublicKey(sk)) : "", storage, clients: [] };
-  tab.open = ({ storageApi, scope } = {}) => {
+  /* The next frame and the prelude the Hangar installs in it. */
+  const nextFrame = (storageApi) => {
     const frame = tab.clients.length ? host.openFrame() : host.frames[0];
     const alive = () => !frame.dead;
     // The prelude answers asynchronously; a removed frame's questions are never answered.
@@ -292,6 +357,17 @@ function hangarTab(t, label, { bus = relayBus(), sk = keyOf(label), storage = ne
       },
       outbox,
     };
+    return { frame, napplet, outbox };
+  };
+  /* The table page itself in the next frame: it mounts the lobby and starts E1Net. */
+  tab.openTable = ({ scope } = {}) => {
+    const { frame, napplet, outbox } = nextFrame();
+    const client = Object.assign(loadTableFrame(frame, napplet, scope), { tab, frame, outbox });
+    tab.clients.push(client);
+    return client;
+  };
+  tab.open = ({ storageApi, scope } = {}) => {
+    const { frame, napplet, outbox } = nextFrame(storageApi);
     const client = Object.assign(loadFrame(frame, napplet, scope), { tab, frame, outbox, view: null });
     const log = { errors: [], states: [], frames: [], overs: [], rejects: [], peers: [], active: [], queued: [], nostr: [] };
     client.log = log;
@@ -960,6 +1036,40 @@ test("two Hangar tabs meet by invite, play a table to OVER through their hosts, 
   assert.deepEqual([...a.sockets, ...b.sockets, ...b2.sockets], [], "no socket or fetch of their own, ever");
   assert.deepEqual([...a.log.errors, ...b2.log.errors], []);
   assert.deepEqual(rejections, []);
+});
+
+test("two Hangar tabs open a table and join it by its code in their table pages' lobbies, and both boards show", async (t) => {
+  const table = await referee(t, "lobbies.db");
+  E.setCatalog(CARDS);
+  const bus = relayBus();
+  const build = { E1_TABLE_URL: table.wsUrl };
+  const alice = hangarTab(t, "alice", { bus });
+  const bob = hangarTab(t, "bob", { bus });
+  const a = alice.openTable({ scope: build });
+  const b = bob.openTable({ scope: build });
+  for (const page of [a, b]) {
+    assert.equal(page.byId("first").hidden, false, "each frame opens on its first screen");
+    await waitFor(() => page.byId("lobbyIdentity").hidden === true, 5000);
+    page.byId("modeOnline").click();
+  }
+
+  a.byId("netName").value = "alice";
+  a.byId("createTable").click();
+  const code = await waitFor(() => (/^[A-HJ-NP-Z2-9]{6}$/.test(a.byId("tableCode").textContent) ? a.byId("tableCode").textContent : null));
+  assert.equal(a.byId("hostPanel").hidden, false, "alice reads her code in the lobby");
+  assert.equal(alice.host.signRequests, 1, "her host signed her table login");
+
+  b.byId("netName").value = "bob";
+  b.byId("joinCode").value = code.toLowerCase();
+  b.byId("joinTable").click();
+  await waitFor(() => a.byId("setup").hidden === true && b.byId("setup").hidden === true);
+  assert.deepEqual([a.byId("table").hidden, b.byId("table").hidden], [false, false], "the lobby made way for the board in both frames");
+  assert.deepEqual([a.game.mode, a.game.seat, b.game.mode, b.game.seat], ["seat", 0, "seat", 1]);
+  assert.deepEqual([a.byId("foeName").textContent, b.byId("foeName").textContent], ["bob", "alice"], "each board names the other member");
+  assert.ok(a.game.state.zones["0:wallet"].length > 0 && b.game.state.zones["1:wallet"].length > 0, "and each holds its own hand");
+  const join = JSON.parse(bob.host.sent.find((data) => JSON.parse(data).t === "JOIN"));
+  assert.deepEqual([join.code, join.stake], [code, 0], "joined by the code, for no stake");
+  assert.deepEqual([...a.sockets, ...b.sockets], [], "no socket or fetch of their own");
 });
 
 test("two Hangar tabs find each other in the quick match", async (t) => {
