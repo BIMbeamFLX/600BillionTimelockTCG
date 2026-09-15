@@ -9,8 +9,9 @@
  *
  * It applies server/mint-env.js, the rules the referee applies before it opens
  * anything, and prints one line per problem, "VARIABLE: reason", then "ok" or
- * "N problems". A problem is a refusal, or a value this release would start
- * with but read differently from the build it replaces ("meaning changes").
+ * "N problems". A problem is a refusal, a value this release would start with
+ * but read differently from the build it replaces ("meaning changes"), or a
+ * variable only this release reads ("set, but the running build ignores it").
  * Exit 0 when clean, 1 with problems, 2 when the environment cannot be read.
  * It never prints a value, writes nothing to disk, binds no port, opens no
  * database and contacts no funding backend.
@@ -113,6 +114,31 @@ const MEANING_CHANGES = [
   }],
 ];
 
+/* ---- Variables the running build never reads -------------------------------
+ *
+ * d753505 has no catalog mirrors, no committed purchases and no supply ledger:
+ * its server/ has no nutft-supply.js, and neither its nutft-mint.js nor its
+ * table.js (main, :2144-2192) reads any of these names. Set on the box, they do
+ * nothing today and act the moment the release starts, so each one set to more
+ * than blanks stops the deploy until someone decides. The second field says
+ * whether the variable belongs to Edition G, which counts only while G is on. */
+const IGNORED_BY_RUNNING_BUILD = [
+  ["NUTFT_CATALOG_MIRRORS", false],
+  ["G_NUTFT_CATALOG_MIRRORS", true],
+  ["NUTFT_PURCHASE_MODE", false],
+  ["G_NUTFT_PURCHASE_MODE", true],
+  ["NUTFT_SUPPLY_RELAYS", false],
+  ["NUTFT_SUPPLY_INTERVAL_SECONDS", false],
+];
+
+/** One "VARIABLE: set, but the running build ignores it" line per such variable that is set. */
+function ignoredByRunningBuild(env) {
+  const gEnabled = oldEnabled(env.G_NUTFT_ENABLED);
+  return IGNORED_BY_RUNNING_BUILD
+    .filter(([variable, edition]) => (!edition || gEnabled) && oldSet(env[variable]) && !blankOnly(env[variable]))
+    .map(([variable]) => `${variable}: set, but the running build ignores it`);
+}
+
 /* Where the release takes a mint's origin from once a blank value counts as unset. */
 function originOf(env, fallbacks) {
   const source = [...fallbacks, "PUBLIC_URL"].find((name) => env[name] !== undefined && String(env[name]).trim() !== "");
@@ -175,9 +201,10 @@ function run(args, io = {}) {
     if (parsed.error) return fail(parsed.error);
     env = parsed.env;
   }
-  /* A meaning change stops a deploy exactly like a refusal: the release would
-     start, and a buyer would meet a different shop. */
-  const problems = [...checkEnv(env), ...meaningChanges(env)];
+  /* A meaning change, or a variable only the release reads, stops a deploy
+     exactly like a refusal: the release would start, and a buyer would meet a
+     different shop. */
+  const problems = [...checkEnv(env), ...meaningChanges(env), ...ignoredByRunningBuild(env)];
   for (const line of problems) stdout.write(`${line}\n`);
   stdout.write(problems.length ? `${problems.length} ${problems.length === 1 ? "problem" : "problems"}\n` : "ok\n");
   return problems.length ? 1 : 0;
@@ -185,4 +212,4 @@ function run(args, io = {}) {
 
 if (require.main === module) process.exitCode = run(process.argv.slice(2));
 
-module.exports = { run, parseEnviron, meaningChanges };
+module.exports = { run, parseEnviron, meaningChanges, ignoredByRunningBuild };

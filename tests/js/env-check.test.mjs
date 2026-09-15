@@ -72,6 +72,7 @@ const BROKEN_LINES = [
   "G_NUTFT_PRICE_MSAT: must be a whole number of millisatoshis, at least 1",
   "G_NUTFT_PRICE_SCHEDULE: entry 1 must be a whole number of sats (divisible by 1000): phoenixd and Cashu invoice whole sats",
   "G_NUTFT_ONE_PER_KEY: meaning changes (off → on)",
+  "NUTFT_PURCHASE_MODE: set, but the running build ignores it",
 ];
 
 /* Spellings the running build (d753505) reads one way and the release another,
@@ -270,11 +271,36 @@ test("values both builds read the same way print no meaning change", () => {
     assert.deepEqual(meaningChanges(defined({ ...CLEAN, ...changes })), [], JSON.stringify(changes));
   }
   const canonical = {
-    ...CLEAN, NUTFT_ONE_PER_KEY: "1", G_NUTFT_ONE_PER_KEY: "0", NUTFT_CATALOG_MIRRORS: "https://blossom.example",
-    G_NUTFT_CATALOG_MIRRORS: "", NUTFT_SUPPLY_INTERVAL_SECONDS: "0", G_NUTFT_PRICE_MSAT: "210000",
+    ...CLEAN, NUTFT_ONE_PER_KEY: "1", G_NUTFT_ONE_PER_KEY: "0", G_NUTFT_CATALOG_MIRRORS: "",
+    NUTFT_SUPPLY_RELAYS: " ", G_NUTFT_PRICE_MSAT: "210000",
   };
   assert.equal(node(ENV_CHECK, ["--from", "-"], { input: environ(canonical) }).stdout, "ok\n");
   assert.deepEqual(meaningChanges({ G_NUTFT_ENABLED: "0", G_NUTFT_ONE_PER_KEY: "" }), [], "a G the old build never opened");
+});
+
+test("a variable only the release reads stops the deploy while it is set", () => {
+  const cases = [
+    [{ NUTFT_CATALOG_MIRRORS: `https://${MARKER}.example` }, "NUTFT_CATALOG_MIRRORS"],
+    [{ G_NUTFT_CATALOG_MIRRORS: `https://${MARKER}.example` }, "G_NUTFT_CATALOG_MIRRORS"],
+    [{ NUTFT_PURCHASE_MODE: "yes" }, "NUTFT_PURCHASE_MODE"],
+    [{ G_NUTFT_PURCHASE_MODE: "1" }, "G_NUTFT_PURCHASE_MODE"],
+    [{ NUTFT_PURCHASE_MODE: "0" }, "NUTFT_PURCHASE_MODE"],
+    [{ NUTFT_SUPPLY_RELAYS: `wss://${MARKER}.example` }, "NUTFT_SUPPLY_RELAYS"],
+    [{ NUTFT_SUPPLY_INTERVAL_SECONDS: "3600" }, "NUTFT_SUPPLY_INTERVAL_SECONDS"],
+  ];
+  for (const [changes, variable] of cases) {
+    const result = node(ENV_CHECK, ["--from", "-"], { input: environ({ ...CLEAN, ...changes }) });
+    assert.equal(result.stdout, `${variable}: set, but the running build ignores it\n1 problem\n`, JSON.stringify(changes));
+    assert.equal(result.code, 1);
+    assertNoMarker(variable, result);
+  }
+  const { ignoredByRunningBuild } = require("../../server/env-check.js");
+  for (const quiet of [
+    { NUTFT_CATALOG_MIRRORS: "" }, { NUTFT_SUPPLY_RELAYS: "  " }, { NUTFT_PURCHASE_MODE: undefined },
+    { G_NUTFT_ENABLED: "0", G_NUTFT_PURCHASE_MODE: "1", G_NUTFT_CATALOG_MIRRORS: "https://blossom.example" },
+  ]) {
+    assert.deepEqual(ignoredByRunningBuild(defined({ ...CLEAN, ...quiet })), [], JSON.stringify(quiet));
+  }
 });
 
 test("meaning change rows never carry a value", () => {

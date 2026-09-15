@@ -3,7 +3,8 @@
 The referee refuses to start on mint settings that used to boot and then did the wrong
 thing, some of them for good: `NUTFT_CATALOG_URI`, `G_NUTFT_CATALOG_URI` and both collection
 ids are hashed into every issued card. This release **changes defaults** the running box may
-rely on (§2), **adds refusals** (§3) and **reads some spellings differently** (§3.1). The check
+rely on (§2), **adds refusals** (§3), **reads some spellings differently** (§3.1) and **acts on
+variables the running build ignores** (§3.2). The check
 in §1 runs against the running service before anything stops.
 
 The rules live in `server/mint-env.js`. The boot, both mints, the funding backends and the dry
@@ -17,9 +18,10 @@ This document explains what the check does, what each line means, and how to fix
 ## 1 · Before anything stops: the dry run against the running service
 
 The check applies the new release's rules to the environment of the process that runs now.
-It prints one line per problem, never a value, and then `ok` or the count. A problem is either
-a refusal, `VARIABLE: reason` (§3), or a value the release would start with but read
-differently from the running build, `VARIABLE: meaning changes (old → new)` (§3.1). It needs no
+It prints one line per problem, never a value, and then `ok` or the count. A problem is a
+refusal, `VARIABLE: reason` (§3); a value the release would start with but read differently
+from the running build, `VARIABLE: meaning changes (old → new)` (§3.1); or a variable only the
+release reads, `VARIABLE: set, but the running build ignores it` (§3.2). It needs no
 `node_modules`, writes nothing, opens no database, binds no port and contacts no funding
 backend. Exit code 0 is `ok`, 1 is problems, 2 is input it could not read.
 
@@ -40,8 +42,9 @@ restarted once, while nobody waits in quick match (`"queued":0`), between two sn
 both mints publish. Any difference between the snapshots stops the deploy for the day. Only a
 clean comparison goes on to the check.
 
-**Any line other than a single `ok` stops the deploy**, a refusal and a `meaning changes` row
-alike: after a meaning change the release would start, and the shop would behave differently.
+**Any line other than a single `ok` stops the deploy**, a refusal, a `meaning changes` row and
+a `set, but the running build ignores it` row alike: after the last two the release would
+start, and the shop would behave differently.
 Exit code 2 with `the environment input is empty` means the process id was 0 or stale.
 
 Every problem line is fixed in the environment first, as its own change on the **running**
@@ -165,6 +168,23 @@ one.
 | `NUTFT_PUBLIC_BASE: meaning changes (a blank origin → …)`, `G_NUTFT_PUBLIC_BASE: meaning changes (a blank origin → …)` | A blank value: the origin itself, on which every signed request and LNURL link failed. | No spelling keeps that. Remove the variable: both builds then take the origin the row names, which repairs the shop, so treat it as that change. |
 | `NUTFT_COLLECTION_ID: meaning changes (a blank collection id → 600B-E1)` | A blank value: the collection id hashed into every E1 card. | No spelling keeps a blank id. Stop: the E1 identity needs a decision first. |
 | `NUTFT_FUNDING: meaning changes (lnd → none)` | An empty `NUTFT_FUNDING` with a blank `LND_REST_URL`, a macaroon, and a certificate path or `LND_INSECURE=1`: paid through lnd. | Stop: the release would give every E1 booster away. Set a working `LND_REST_URL` with `NUTFT_FUNDING=lnd`, or `NUTFT_FUNDING=none` as a decision. |
+
+### 3.2 · Set, but the running build ignores it
+
+`d753505` has no catalog mirrors, no committed purchases and no supply ledger, so it never
+reads the variables below. Set on the box, they do nothing today and act the moment the release
+starts. The row prints for any value other than empty or blanks, G's only while
+`G_NUTFT_ENABLED` is on, and stops the deploy like a refusal, so the choice is deliberate. The
+fix that keeps the shop as it is: remove the variable before the deploy (the running build does
+not notice), and set it after the release runs, as its own change with its own check.
+
+| Line | What the release would do with it | After the deploy |
+|---|---|---|
+| `NUTFT_CATALOG_MIRRORS: set, but the running build ignores it` | Advertise `<mirror>/<sha256>` for E1's catalog in `/v1/info`. | List only Blossom servers that hold E1's catalog blob (`scripts/upload-catalog.mjs`). |
+| `G_NUTFT_CATALOG_MIRRORS: set, but the running build ignores it` | The same for G. | List only servers that hold G's blob; never copy E1's list. Empty means no mirrors, as today. |
+| `NUTFT_PURCHASE_MODE: set, but the running build ignores it`, and the same for `G_NUTFT_PURCHASE_MODE` | On: every quote answers `cards: null, purchase_required: true`, and a buyer must commit with `POST /nutft/purchase` first. A value that reads as off still prints the row. | Switch it on only after the shop and the wallet have passed the committed-purchase path (docs/nutft-purchase-and-possession.md §2.1). |
+| `NUTFT_SUPPLY_RELAYS: set, but the running build ignores it` | Publish signed supply snapshots to these relays. | Set it once the relays are chosen. |
+| `NUTFT_SUPPLY_INTERVAL_SECONDS: set, but the running build ignores it` | Sign a snapshot at that interval, or never for `0`. Unset, the release signs one every 86400 seconds. | Set it if another interval is wanted. |
 
 ---
 
