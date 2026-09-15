@@ -388,7 +388,9 @@ BS = "\\"  # one backslash, to keep the JS cases below readable
 @pytest.mark.parametrize(
     ("source", "expected"),
     [
-        ("a = 1; // trailing stays\n", "a = 1; // trailing stays\n"),
+        ("a = 1; // trailing goes too\n", "a = 1;\n"),
+        ("a = 1; /* c */ // and this\nb();\n", "a = 1;  \nb();\n"),
+        ("return x // ASI keeps its line break\n+ y;\n", "return x\n+ y;\n"),
         ("  // whole line\nb();\n", "b();\n"),
         ("/* block\n   on lines */\nc();\n", "c();\n"),
         ("x = a/**/b;\n", "x = a b;\n"),
@@ -399,11 +401,12 @@ BS = "\\"  # one backslash, to keep the JS cases below readable
         (f"s = '{BS}' /* c */' + 1;\n", f"s = '{BS}' /* c */' + 1;\n"),
         (f"s = '{BS}{BS}' /* c */ + 1;\n", f"s = '{BS}{BS}'   + 1;\n"),
         ("t = `// ${a /* c */ + `/* ${b} */`} //`;\n", "t = `// ${a   + `/* ${b} */`} //`;\n"),
-        (f"r = /[/*]{BS}/{BS}//g.test(s); // keep\n", f"r = /[/*]{BS}/{BS}//g.test(s); // keep\n"),
+        (f"r = /[/*]{BS}/{BS}//g.test(s); // gone\n", f"r = /[/*]{BS}/{BS}//g.test(s);\n"),
         ("q = x / 2 / y; /* gone */\n", "q = x / 2 / y;  \n"),
         ("if (ok) return /'\"`/.test(s);\n", "if (ok) return /'\"`/.test(s);\n"),
         ("n = i++ / 2; m = (a) / 'b'.length;\n", "n = i++ / 2; m = (a) / 'b'.length;\n"),
-        ("o = { a: 1 }.a / 2; // x\n", "o = { a: 1 }.a / 2; // x\n"),
+        ("o = { a: 1 }.a / 2; // x\n", "o = { a: 1 }.a / 2;\n"),
+        ('u = "https://x"; // a URL in a string is not a comment\n', 'u = "https://x";\n'),
         ("/*! licence */\nkeep();\n", "/*! licence */\nkeep();\n"),
     ],
 )

@@ -29,8 +29,8 @@
 (() => {
   "use strict";
 
-  /* Notes sit on their own lines in this file: the napplet build strips those
-   * and keeps a comment that trails code, and every byte of the artifact counts. */
+  /* Notes sit on their own lines in this file, and the napplet build strips every
+   * one of them: every byte of the artifact counts. */
   const HEX64 = /^[0-9a-f]{64}$/;
   const LOOK_KIND = 30077;
   // The relay query's hard deadline, and one image source's.

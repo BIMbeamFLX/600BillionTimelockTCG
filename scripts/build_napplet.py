@@ -84,8 +84,8 @@ LEFTOVERS = (
 # --- the comment stripper -----------------------------------------------------------
 # A tokenizer, not a regex replace: it walks strings, template literals (with `${}`
 # nesting) and regex literals, so a `//` or `/*` inside one is never touched. It removes
-# block comments and whole-line `//` comments; `/*!` and `@license` blocks and trailing
-# `//` comments stay. Anything it cannot follow raises StripError rather than guessing.
+# block comments and `//` comments, whole-line or trailing; `/*!` and `@license` blocks
+# stay. Anything it cannot follow raises StripError rather than guessing.
 WORD = re.compile(r"[A-Za-z0-9_$\u0080-\uffff]+")
 SPACE = re.compile(r"[ \t\r\n\f\v]+")
 # After one of these words a `/` opens a regex literal; after any other word it divides.
@@ -167,7 +167,7 @@ def _regex_allowed(code: str, prev: str, prev_at: int) -> bool:
 
 
 def strip_js_comments(code: str) -> str:
-    """The code without block comments and whole-line `//` comments; literals untouched."""
+    """The code without its block and `//` comments; literals and line breaks untouched."""
     cuts: list[tuple[int, int, str]] = []  # (start, end, replacement) on the original
     braces: list[bool] = []  # True where the matching `}` closes a template `${`
     prev, prev_at = "", 0  # last significant token: "", "word", "value" or a punctuator
@@ -218,6 +218,12 @@ def strip_js_comments(code: str) -> str:
             line_end = n if line_end < 0 else line_end
             if not code[line_start:i].strip():
                 cuts.append((line_start, min(line_end + 1, n), ""))
+            else:
+                # One that trails code goes with the spaces before it; the line break stays.
+                start = i
+                while start > line_start and code[start - 1] in " \t":
+                    start -= 1
+                cuts.append((start, line_end, ""))
             i = line_end
             continue
         if ch == "/" and _regex_allowed(code, prev, prev_at):
