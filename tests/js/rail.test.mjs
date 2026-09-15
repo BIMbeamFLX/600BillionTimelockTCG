@@ -321,6 +321,10 @@ test("a shared link keeps rules and arena and drops everything else", () => {
     ],
     ["https://tcg.zapburg.com/matchmaking.html?code=K7M2QF&match=m_0123456789ab", "https://tcg.zapburg.com/matchmaking.html"],
     ["http://localhost:8790/play.html?rules=%3Cscript%3E&arena=dom", "http://localhost:8790/play.html?arena=dom"],
+    // Only values the pages act on survive: a harmless-looking word is still not one of them.
+    ["http://localhost:8790/play.html?arena=webgl&rules=turbo", "http://localhost:8790/play.html"],
+    ["http://localhost:8790/play.html?arena=3d&rules=K7M2QF", "http://localhost:8790/play.html?arena=3d"],
+    ["http://localhost:8790/deck.html?rules=classic&arena=DOM", "http://localhost:8790/deck.html?rules=classic"],
     ["http://user:secret@localhost:8790/cards.html?embed=0&assets=local&arenastats=1", "http://localhost:8790/cards.html"],
   ];
   for (const [href, expected] of cases) {

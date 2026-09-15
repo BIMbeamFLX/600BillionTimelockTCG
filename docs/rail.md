@@ -79,9 +79,10 @@ dialog, card menu and overlay (60 and up), which cover it while they are open.
   sent, not yet delivered) is read straight from storage, so it is right without loading anything.
 - **Chat** — "Chat lives in Nappelin." and a link to `https://nappelin.com/hangar/` in a new tab. No
   rooms, no input, nothing pretending to be live.
-- **Share** — the current page's link with only `rules` and `arena` kept (values of letters, digits,
-  `-` and `_`); `match`, `code`, `table`, `relay`, keys, credentials, every other parameter and the
-  fragment are dropped. Copy link, and a QR from `qr.js`, loaded the first time Share opens.
+- **Share** — the current page's link with only `rules` and `arena` kept, and only with the values
+  the pages act on: `rules` as `fast` or `classic`, `arena` as `3d` or `dom`. `match`, `code`,
+  `table`, `relay`, keys, credentials, any other value, every other parameter and the fragment are
+  dropped. Copy link, and a QR from `qr.js`, loaded the first time Share opens.
 
 Keyboard and pointer: every button is a real `<button>` with `aria-expanded` and `aria-controls`.
 Opening a panel moves focus into it; Escape or the × closes it and returns focus to its button; a

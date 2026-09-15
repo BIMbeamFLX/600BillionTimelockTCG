@@ -41,7 +41,9 @@
   const HEX64 = /^[0-9a-f]{64}$/;
   const NO_EXTENSION = "No compatible browser extension found. You can play as a guest.";
   const NAPPELIN = "https://nappelin.com/hangar/";
-  const SHARE_KEEP = ["rules", "arena"]; // the only query a shared link may carry
+  /* The only query a shared link may carry, and only the values play.js and
+     deck.html act on: ?rules=fast|classic, ?arena=3d|dom. */
+  const SHARE_KEEP = { rules: ["fast", "classic"], arena: ["3d", "dom"] };
   const DASH = "—";
 
   /* Inside a shell? The adapter answers; a page without it asks the same three
@@ -812,9 +814,9 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
     let url;
     try { url = new URL(String(href || "")); } catch (err) { return ""; }
     const kept = new URLSearchParams();
-    for (const name of SHARE_KEEP) {
+    for (const name of Object.keys(SHARE_KEEP)) {
       const value = url.searchParams.get(name);
-      if (value !== null && /^[A-Za-z0-9_-]{1,32}$/.test(value)) kept.set(name, value);
+      if (SHARE_KEEP[name].indexOf(value) >= 0) kept.set(name, value);
     }
     const query = kept.toString();
     return url.protocol + "//" + url.host + url.pathname + (query ? "?" + query : "");
