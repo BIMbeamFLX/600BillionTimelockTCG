@@ -5262,7 +5262,15 @@
       for (const card of inventory.cards) available.set(card.asset_id, card.count);
       return available;
     }
-    const wallet = globalThis.NutFTWallet;
+    /* The wallet script is not on this page until something needs it
+     * (site/collection-stack.js loadWallet), and a device that holds no wallet
+     * holds no cards: nothing is loaded to be told so, and a cold table stays cold. */
+    let wallet = globalThis.NutFTWallet;
+    const CS = globalThis.E1CollectionStack;
+    if (!wallet && CS) {
+      if (!CS.walletExists()) return available;
+      wallet = await CS.loadWallet({ document });
+    }
     if (!wallet || typeof wallet.snapshot !== "function") throw new Error("the NutFT wallet is not loaded on this page");
     const view = await wallet.snapshot(location.origin);
     for (const item of view.owned) available.set(item.tag[2], (available.get(item.tag[2]) || 0) + 1);
@@ -5292,6 +5300,74 @@
         return false;
       }
     })();
+  }
+
+  /* MY COLLECTION. The cards this player holds, read once for the setup form
+   * (site/collection-stack.js: Bearlett's inventory inside a shell, the site's
+   * NutFT wallet on the website), offered in both Stack menus as "My collection
+   * (n of 40 cards yours)" — or one line that says why there is nothing to offer.
+   *
+   * A COLLECTION STACK PROVES NO POSSESSION, AND CLAIMS NONE. Its owned part is
+   * counts, not proofs (the inventory carries none, and a wallet snapshot is a
+   * read, not a certificate), and its filler is Starter and pool copies nobody
+   * owns. So it is never marked in 600b:nutft-decks, never wears "· NutFT", and
+   * never reaches verifyNutftSetup above, which goes on gating exactly the saved
+   * Stacks marked NutFT. "n of 40 cards yours" is a count shown honestly. */
+  let collection = null;               // loadCollection's answer + ownedFromInventory's counts
+  const collectionOptions = new Map(); // select id -> its "My collection" option, while it is in the menu
+
+  /* Dealt under the rules chosen now, from the counts read at setup. */
+  function collectionStack(ruleset) {
+    const fast = ruleset === "F1.0";
+    const cards = fast && Array.isArray(globalThis.E1_CARDS_FAST) ? globalThis.E1_CARDS_FAST : globalThis.E1_CARDS || [];
+    const precons = (fast ? globalThis.E1_PRECONS_FAST : globalThis.E1_PRECONS) || {};
+    const owned = collection ? collection.owned : new Map();
+    return globalThis.E1CollectionStack.buildCollectionStack(cards, owned, { profile: fast ? "F1.0" : "E1.0", precons });
+  }
+
+  /* The option joins a menu the first time there is something to offer and is
+   * relabelled after that, so a late answer never resets a seat's choice. */
+  function renderCollection() {
+    const CS = globalThis.E1CollectionStack;
+    if (!CS || !collection) return;
+    if (collection.cards > 0) {
+      const rulesSelect = document.getElementById("rules");
+      const stack = collectionStack(rulesSelect && rulesSelect.value === "F1.0" ? "F1.0" : "E1.0");
+      for (const id of ["deckA", "deckB"]) {
+        const select = document.getElementById(id);
+        if (!select) continue;
+        let option = collectionOptions.get(id);
+        if (!option) {
+          const group = document.createElement("optgroup");
+          group.label = "Your cards";
+          option = el("option", null, "");
+          option.value = "collection";
+          group.append(option);
+          select.append(group);
+          collectionOptions.set(id, option);
+        }
+        option.textContent = CS.optionLabel(stack.fromCollection, stack.ids.length);
+      }
+    }
+    const note = document.getElementById("collectionNote");
+    if (!note) return;
+    note.textContent = CS.collectionLine(collection);
+    note.classList.toggle("has-cards", collection.cards > 0);
+    note.hidden = false;
+  }
+
+  function loadCollection() {
+    const CS = globalThis.E1CollectionStack;
+    if (!CS) return; // a page built without it keeps the presets and the saved Stacks
+    CS.loadCollection({
+      napplet: globalThis.E1Napplet,
+      net: NET,
+      document,
+      origin: globalThis.location && globalThis.location.origin,
+    }).then((answer) => {
+      collection = Object.assign(answer, CS.ownedFromInventory(answer.counts, globalThis.E1_CARDS || CARDS));
+      renderCollection();
+    });
   }
 
   /* ANY WORD IS A SEED. The field used to compute `Number(text) | 0`, and
@@ -5361,6 +5437,7 @@
       if (value && value.startsWith("custom:") && Array.isArray(stacks[value.slice(7)])) {
         return { deck: stacks[value.slice(7)].slice() };
       }
+      if (value === "collection") return { deck: collectionStack(ruleset).ids };
       return { affinity: value };
     };
     const config = {
@@ -5536,6 +5613,7 @@
       const select = document.getElementById(id);
       if (!select) return;
       select.innerHTML = "";
+      collectionOptions.delete(id);
     }
     const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock"];
     // Stacks saved by the Stack Builder (site/deck.html) join the affinity
@@ -5578,6 +5656,7 @@
       }
       select.value = id === "deckA" ? "Power" : "Signal";
     }
+    renderCollection(); // the menus were rebuilt, and "My collection" is counted under these rules
   }
 
   function init() {
@@ -5670,6 +5749,13 @@
     };
     describeRules();
     loadStackLibrary(() => { buildSeatMenus(); start.disabled = false; });
+    loadCollection();
+    /* Signing in through the side bar changes which empty line is true. */
+    window.addEventListener("e1:identity", (event) => {
+      if (!collection) return;
+      collection.identity = (event && event.detail && event.detail.pubkey) || null;
+      renderCollection();
+    });
     if (rulesSelect && rulesSelect.addEventListener) {
       // The precon shelf differs per rules: rebuild the seat menus, keeping plain affinities.
       rulesSelect.addEventListener("change", () => {
