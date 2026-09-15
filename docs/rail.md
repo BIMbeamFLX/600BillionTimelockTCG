@@ -138,7 +138,8 @@ window.addEventListener("e1:identity", (event) => {
 
 **`e1:auth` — the page tells the bar whether the table accepted the login.** `detail: { ok: true | false }`,
 sent by play.js and matchmaking.js when the referee's answer flips: `ok: true` on AUTH_OK, `ok: false`
-when the seat closes, retries, is superseded or is left.
+when the seat closes, retries, is superseded or is left, or the player signs out (which ends the
+table's session).
 
 ```js
 window.dispatchEvent(new CustomEvent("e1:auth", { detail: { ok: true } }));
@@ -162,14 +163,15 @@ Because the table sends `e1:auth` only when its answer flips, the dot follows th
 bound to the key that was signed in when that event arrived:
 
 - `ok: false` puts it out.
-- Signing out hides it — a signed-out page never shows green.
-- Signing back in with the same key while the table has said nothing new shows it again: that seat is
-  still the verified one.
-- Signing in with a different key does not, until the table verifies that key (`ok: false`, then
-  `ok: true`).
+- Signing out hides it — a signed-out page never shows green. Signing out also ends the table's
+  session: net.js closes the socket without giving up the seat, so the table's last word becomes
+  `ok: false`, and the dot stays dark after signing back in, with the same key or another, until the
+  table verifies the new login (`ok: true`).
+- A key signed out and back in from another tab, while this page's table login stands, shows it
+  again: that login is still the verified one. A different key does not, until the table verifies it.
 
-The Account panel says "Your seat at the table is verified." in words under the same condition,
-without a second green.
+The Account panel says "The table has verified this key." in words under the same condition,
+without a second green. The words fit the lobby, which has no seat, as well as the table.
 
 ## Tests
 

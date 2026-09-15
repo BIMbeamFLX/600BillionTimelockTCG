@@ -418,7 +418,8 @@ test("the account dot stays dark until the table accepts a login, and goes dark 
   scope.emit("e1:auth", { ok: true });
   await settle();
   api.open("account");
-  assert.match(panel(scope, "account").textContent, /Your seat at the table is verified\./);
+  assert.match(panel(scope, "account").textContent, /The table has verified this key\./,
+    "words that fit the lobby, which has no seat, as well as the table");
   const signOut = find(panel(scope, "account"), (node) => node.localName === "button" && node.textContent === "Sign out");
   signOut.click();
   await settle();
@@ -427,18 +428,18 @@ test("the account dot stays dark until the table accepts a login, and goes dark 
 });
 
 test("the dot follows the table's last word, for the key that was signed in when it spoke", async () => {
-  /* play.js sends e1:auth only when its answer flips, so the bar cannot wait
-     for the table to repeat itself: a sign-out and a sign-in in the bar, with
-     the table silent, must land back on the table's last word. */
+  /* play.js sends e1:auth only when its answer flips. Signing out ends the
+     table's session (net.js closes the socket), and the table page then says
+     ok:false, which this stand-in does the way play.js does. */
   const other = "c".repeat(64);
   let saved = KEY;
   let next = KEY;
-  const E1Net = { nostr: {
+  const scope = makeScope();
+  scope.E1Net = { nostr: {
     savedPubkey: () => saved, hasNip07: () => true,
     login: async () => { saved = next; return next; },
-    logout() { saved = null; },
+    logout() { saved = null; scope.emit("e1:auth", { ok: false }); },
   } };
-  const scope = makeScope({ globals: { E1Net } });
   const api = run(scope);
   await settle();
   const live = byClass(bar(scope), "tcg-rail__dot--live");
@@ -451,13 +452,27 @@ test("the dot follows the table's last word, for the key that was signed in when
   await settle();
   assert.equal(live.hidden, false, "a storage refresh is not the table speaking");
 
+  // Another tab signs out and back in with the same key: this page's login still stands.
+  saved = null;
+  scope.emit("storage", null);
+  await settle();
+  assert.equal(live.hidden, true, "signed out elsewhere is dark here too");
+  saved = KEY;
+  scope.emit("storage", null);
+  await settle();
+  assert.equal(live.hidden, false, "the same key back, and the table has said nothing new: its last word stands");
+
   api.open("account");
   press(account, "Sign out");
   await settle();
   assert.equal(live.hidden, true, "signed out is dark");
   press(account, "Sign in");
   await settle();
-  assert.equal(live.hidden, false, "the same key, and the table has said nothing new: its last word stands");
+  assert.equal(live.hidden, true, "the same key again, but signing out ended the table's session");
+  assert.doesNotMatch(account.textContent, /verified/);
+  scope.emit("e1:auth", { ok: true });
+  await settle();
+  assert.equal(live.hidden, false, "until the table verifies the new login");
 
   press(account, "Sign out");
   await settle();
@@ -465,10 +480,6 @@ test("the dot follows the table's last word, for the key that was signed in when
   press(account, "Sign in");
   await settle();
   assert.equal(live.hidden, true, "a different key is not the one the table verified");
-  assert.doesNotMatch(account.textContent, /verified/);
-
-  scope.emit("e1:auth", { ok: false });
-  await settle();
   scope.emit("e1:auth", { ok: true });
   await settle();
   assert.equal(live.hidden, false, "until the table verifies this one");

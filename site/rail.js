@@ -14,7 +14,8 @@
  *
  * THE GREEN RULE. The account dot is the only green on the site, and exactly one
  * thing lights it: an `e1:auth` event whose detail.ok is true — the table
- * accepted a signed login. setBadge cannot reach it, and signing out puts it out.
+ * accepted a signed login. setBadge cannot reach it, and signing out puts it out
+ * until the table verifies the next login.
  *
  * NOTHING HEAVY RIDES ALONG. The wallet script loads the first time the Wallet
  * panel opens with a card in storage to count, the QR encoder the first time
@@ -476,8 +477,11 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
 
   /* The table sends e1:auth only when its answer flips, so the dot follows the
      LAST word it sent — for the key that was signed in when it sent it. Signing
-     out hides the dot; signing back in with that same key, while the table has
-     said nothing new, shows it again; any other key does not. */
+     out ends the table's session too (net.js closes its socket), so that last
+     word becomes ok:false and the dot stays dark after signing back in, with any
+     key, until the table verifies the new login. A key signed out and back in
+     from another tab, while this page's login stands, shows it again; any other
+     key does not. */
   const verified = () => authed && Boolean(who.pubkey) && who.pubkey === authedKey;
 
   function paintAccount() {
@@ -507,7 +511,7 @@ html[data-tcg-rail="bottom"] .tcg-pop__panel, html[data-tcg-rail="top"] .tcg-pop
       if (who.name) box.append(el("span", "tcg-pop__name", who.name));
       box.append(el("span", who.name ? "tcg-pop__meta" : "tcg-pop__name", shortNpub(who.pubkey)));
       parts.push(box);
-      if (verified()) parts.push(text("Your seat at the table is verified."));
+      if (verified()) parts.push(text("The table has verified this key."));
       parts.push(quiet("Online duels seat you with this key. Nothing else here needs it."));
       parts.push(action("Sign out", signOut));
       askName();
