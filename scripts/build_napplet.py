@@ -30,7 +30,8 @@ OUT_DIR = REPO_ROOT / "dist" / "napplet" / "600b-timelock-tcg"
 NAPPLET_ID = "600b-timelock-tcg"
 TITLE = "TIMELOCK TCG"
 DESCRIPTION = "Two-player card game on one screen, or against the built-in opponent. All 295 cards."
-REQUIRES = ("identity", "outbox", "resource", "storage", "intent")
+# `link` is the NAP-LINK door: the one fixed shop URL the empty collection opens (site/play.js).
+REQUIRES = ("identity", "outbox", "resource", "storage", "intent", "link")
 # The referee the napplet dials. A srcdoc frame has no origin to derive one from, so
 # site/net.js tableUrl() reads window.E1_TABLE_URL, set in <head> before net.js runs.
 TABLE_URL = "wss://tcg.nappelin.com/ws"

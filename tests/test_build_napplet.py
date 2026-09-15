@@ -53,9 +53,8 @@ def test_page_carries_the_napplet_head(artifact: tuple[bytes, dict]) -> None:
     source_sha = hashlib.sha256((SITE / "play.html").read_bytes().replace(CRLF, LF)).hexdigest()
 
     assert f'window.E1_NAPPLET_BUILD = "{source_sha}";' in html
-    assert (
-        '<meta name="napplet-requires" content="identity,outbox,resource,storage,intent">' in html
-    )
+    requires = "identity,outbox,resource,storage,intent,link"
+    assert f'<meta name="napplet-requires" content="{requires}">' in html
 
 
 def test_page_names_the_referee_before_net_js_runs(artifact: tuple[bytes, dict]) -> None:
@@ -271,6 +270,7 @@ def test_manifest_pins_the_page(artifact: tuple[bytes, dict]) -> None:
         "resource",
         "storage",
         "intent",
+        "link",
     ]
     assert not [tag for tag in tags if tag[0] == "archetype"]
 

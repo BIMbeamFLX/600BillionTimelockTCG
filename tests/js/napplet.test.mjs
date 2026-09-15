@@ -813,3 +813,54 @@ test("the inventory validator refuses anything that is not exactly §4a", () => 
   assert.equal(parse("not an object"), null);
   assert.equal(parse(null), null);
 });
+
+// -------------------------------------------------------------------- link
+
+const SHOP = "https://tcg.nappelin.com/shop.html";
+/* A shell whose link domain answers with `answer(url)`; `timers` collects the adapter's deadlines. */
+const withLink = (answer, extra) => {
+  const asked = [];
+  const timers = [];
+  const N = load(Object.assign(base(), {
+    URL,
+    napplet: { link: { open: (url, options) => { asked.push([url, options]); return answer(url); } } },
+    setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+    clearTimeout: (id) => { if (timers[id - 1]) timers[id - 1].cleared = true; },
+  }, extra || {}));
+  return { N, asked, timers };
+};
+
+test("link.open asks the host for exactly the https URL and says whether it opened", async () => {
+  const opened = withLink(async () => ({ status: "opened" }));
+  assert.equal(opened.N.link.available(), true);
+  assert.deepEqual(await opened.N.link.open(SHOP), { ok: true });
+  assert.deepEqual(opened.asked, [[SHOP, undefined]], "the constant, handed over as it is");
+  assert.equal(opened.timers[0].ms, 30000, "the same 30 s the prelude waits");
+  assert.equal(opened.timers[0].cleared, true, "an answer ends the wait");
+
+  const denied = withLink(async () => ({ status: "denied" }));
+  assert.deepEqual(await denied.N.link.open(SHOP), { ok: false, error: "denied" }, "the member said no");
+  const failed = withLink(async () => { throw new Error("link.open timed out"); });
+  assert.deepEqual(await failed.N.link.open(SHOP), { ok: false, error: "link.open timed out" }, "a rejection is an answer too");
+  const thrown = withLink(() => { throw new Error("no service"); });
+  assert.deepEqual(await thrown.N.link.open(SHOP), { ok: false, error: "no service" });
+});
+
+test("a host that never answers link.open is a refusal after 30 s, and nothing is asked without a link domain", async () => {
+  const silent = withLink(() => new Promise(() => {}));
+  const pending = silent.N.link.open(SHOP);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(silent.asked.length, 1);
+  silent.timers[0].fn();
+  assert.deepEqual(await pending, { ok: false, error: "timeout" });
+
+  for (const url of ["http://tcg.nappelin.com/shop.html", "javascript:alert(1)", "shop.html", null]) {
+    const refused = withLink(async () => ({ status: "opened" }));
+    assert.deepEqual(await refused.N.link.open(url), { ok: false, error: "https only" }, String(url));
+    assert.deepEqual(refused.asked, [], "the host is never asked for anything but an https URL");
+  }
+  const none = load(Object.assign(base(), { URL, napplet: {} }));
+  assert.equal(none.link.available(), false);
+  assert.deepEqual(await none.link.open(SHOP), { ok: false, error: "unavailable" }, "no link domain resolves, never throws");
+  assert.deepEqual(await load(Object.assign(base(), { URL })).link.open(SHOP), { ok: false, error: "unavailable" }, "and neither does the website");
+});

@@ -532,6 +532,37 @@
     },
   };
 
+  // --------------------------------------------------------------------- link
+
+  /* A LINK OUT IS THE HOST'S TO OPEN (NAP-LINK). A sandboxed frame cannot
+   * navigate anywhere, so it asks: the Hangar shows the member the destination,
+   * opens it only on their yes, and answers `{ status: "opened" | "denied" }`.
+   * Its own prelude gives up after 30 s, and so does this door. A refusal, a
+   * rejection, a host that never answers or a shell with no link domain all
+   * resolve `{ ok: false, error }` — never a rejection — so the page keeps what it
+   * was showing. Only an https URL is ever asked for. */
+  const LINK_MS = 30000;
+  const link = {
+    available: () => has("link") && typeof shell.link.open === "function",
+    /** `{ ok: true }` once the host opened `url`, else `{ ok: false, error }`. Never rejects. */
+    open(url) {
+      let target = null;
+      try { target = new globalThis.URL(url); } catch (err) { target = null; }
+      if (!target || target.protocol !== "https:") return Promise.resolve({ ok: false, error: "https only" });
+      if (!link.available()) return Promise.resolve({ ok: false, error: "unavailable" });
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => resolve({ ok: false, error: "timeout" }), LINK_MS);
+        const done = (answer) => { clearTimeout(timer); resolve(answer); };
+        Promise.resolve()
+          .then(() => shell.link.open(target.href))
+          .then(
+            (answer) => done(answer && answer.status === "opened" ? { ok: true } : { ok: false, error: String((answer && answer.status) || "denied") }),
+            (err) => done({ ok: false, error: String((err && err.message) || err) })
+          );
+      });
+    },
+  };
+
   // -------------------------------------------------------------------- table
 
   /* THE TRANSPORT SEAM. A napplet has a pipe, not a network: the table socket is
@@ -847,6 +878,7 @@
     theme,
     outbox,
     resource,
+    link,
     table,
     collection,
     canReachInternet,
