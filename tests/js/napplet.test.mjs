@@ -967,3 +967,136 @@ test("a host that never answers link.open is a refusal after 30 s, and nothing i
   assert.deepEqual(await none.link.open(SHOP), { ok: false, error: "unavailable" }, "no link domain resolves, never throws");
   assert.deepEqual(await load(Object.assign(base(), { URL })).link.open(SHOP), { ok: false, error: "unavailable" }, "and neither does the website");
 });
+
+// --------------------------------------------------------------------- cue
+
+/* NAP-CUE (nappelin #107), interim domain x-nappelin-cue. A shell that routes
+ * cues answers every send; the clock and the timers are the test's, so the 8 s
+ * mood window and the 4-per-second moment cap are checked without waiting. */
+function cueShell({ supports = true, answer = (msg) => ({ accepted: true }) } = {}) {
+  const clock = { t: 1000000, timers: [] };
+  const host = fakeHost((msg, h) => {
+    if (msg.type !== "x-nappelin-cue.send") return;
+    const reply = answer(msg);
+    if (reply) h.deliver(Object.assign({ type: "x-nappelin-cue.send.result", id: msg.id }, reply));
+  });
+  const asked = [];
+  const napplet = { shell: { supports: (domain) => { asked.push(domain); return supports && domain === "x-nappelin-cue"; } } };
+  const N = load(Object.assign(base(), {
+    napplet, window: host.window, parent: host.parent,
+    Date: { now: () => clock.t },
+    setTimeout: (fn, ms) => { const timer = { fn, at: clock.t + ms, unref() {} }; clock.timers.push(timer); return timer; },
+    clearTimeout: (timer) => { if (timer) timer.fn = null; },
+  }));
+  const advance = async (ms) => {
+    clock.t += ms;
+    for (const timer of clock.timers.filter((entry) => entry.at <= clock.t)) {
+      clock.timers.splice(clock.timers.indexOf(timer), 1);
+      if (timer.fn) timer.fn();
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  const sent = () => host.posted.filter((msg) => msg.type === "x-nappelin-cue.send").map(({ mood, moment }) => (mood ? { mood } : { moment }));
+  return { N, host, clock, advance, sent, asked };
+}
+
+test("cue: nothing is sent on the website, or in a shell that does not route cues", async () => {
+  const site = load(base());
+  assert.equal(site.cue.available(), false);
+  assert.deepEqual(await site.cue.send({ mood: "battle" }), { ok: false, error: "unavailable" });
+  assert.equal(typeof site.cue.onFocus(() => {}), "function");
+  assert.equal(site.report().cue, "off");
+
+  const off = cueShell({ supports: false });
+  assert.equal(off.N.cue.available(), false);
+  assert.deepEqual(await off.N.cue.send({ moment: "attack" }), { ok: false, error: "unavailable" });
+  const heard = [];
+  off.N.cue.onFocus((music) => heard.push(music));
+  off.host.deliver({ type: "x-nappelin-cue.focus", music: "playing" });
+  assert.deepEqual(heard, [], "a focus push without the feature reaches nobody");
+  assert.deepEqual(off.host.posted, [], "and nothing was posted");
+});
+
+test("cue: the feature check asks shell.supports, and the result is accepted or an error", async () => {
+  const { N, host, asked } = cueShell();
+  assert.equal(N.cue.available(), true);
+  assert.ok(asked.includes("x-nappelin-cue"));
+  assert.equal(N.report().cue, "host channel");
+  assert.deepEqual(await N.cue.send({ moment: "turn" }), { ok: true, accepted: true });
+  const msg = host.posted[0];
+  assert.equal(msg.type, "x-nappelin-cue.send");
+  assert.equal(typeof msg.id, "string");
+  assert.deepEqual(Object.keys(msg).sort(), ["id", "moment", "type"], "only the wire fields, nothing about the table");
+
+  const refused = cueShell({ answer: () => ({ error: "not permitted" }) });
+  assert.deepEqual(await refused.N.cue.send({ mood: "calm" }), { ok: false, error: "not permitted" });
+  assert.equal(refused.host.posted.length, 1, "an error is final: no retry");
+  const odd = cueShell({ answer: () => ({ accepted: false }) });
+  assert.equal((await odd.N.cue.send({ moment: "attack" })).ok, false, "only accepted: true is an acceptance");
+});
+
+test("cue: the vocabulary is closed", async () => {
+  const { N, host } = cueShell();
+  for (const bad of [{ mood: "happy" }, { moment: "draw" }, {}, null, "battle", { mood: "Battle" }, { mood: "calm", moment: "boom" }]) {
+    assert.deepEqual(await N.cue.send(bad), { ok: false, error: "invalid request" }, JSON.stringify(bad));
+  }
+  assert.deepEqual(host.posted, [], "nothing outside the enums leaves the frame");
+  assert.deepEqual(N.cue.MOODS, ["calm", "tension", "battle", "victory", "defeat"]);
+  assert.deepEqual(N.cue.MOMENTS, ["turn", "attack", "lethal", "match-end", "booster-open"]);
+});
+
+test("cue: a mood goes at most once per 8 s, and the latest one waiting is the one sent", async () => {
+  const { N, advance, sent } = cueShell();
+  assert.deepEqual(await N.cue.send({ mood: "tension" }), { ok: true, accepted: true });
+  await advance(1000);
+  const battle = N.cue.send({ mood: "battle" });
+  await advance(1000);
+  const victory = N.cue.send({ mood: "victory" });
+  assert.deepEqual(await battle, { ok: false, error: "superseded" });
+  assert.deepEqual(sent(), [{ mood: "tension" }], "nothing more inside the window");
+  await advance(5999);
+  assert.deepEqual(sent(), [{ mood: "tension" }], "not a millisecond early");
+  await advance(1);
+  assert.deepEqual(await victory, { ok: true, accepted: true });
+  assert.deepEqual(sent(), [{ mood: "tension" }, { mood: "victory" }], "trailing: the latest wins");
+
+  // A wait that ends where it started sends nothing: the shell already holds that mood.
+  await advance(2000);
+  const away = N.cue.send({ mood: "calm" });
+  const back = N.cue.send({ mood: "victory" });
+  await advance(6000);
+  assert.deepEqual(await away, { ok: false, error: "superseded" });
+  assert.deepEqual(await back, { ok: true });
+  assert.equal(sent().length, 2);
+  await advance(9000);
+  await N.cue.send({ mood: "calm" });
+  assert.deepEqual(sent().at(-1), { mood: "calm" }, "an open window sends at once");
+});
+
+test("cue: at most four moments a second, the extras dropped", async () => {
+  const { N, advance, sent } = cueShell();
+  const answers = [];
+  for (let i = 0; i < 6; i += 1) answers.push(await N.cue.send({ moment: "attack" }));
+  assert.equal(answers.filter((a) => a.ok).length, 4);
+  assert.deepEqual(answers.slice(4), [{ ok: false, error: "rate limited" }, { ok: false, error: "rate limited" }]);
+  assert.equal(sent().length, 4);
+  await advance(999);
+  assert.equal((await N.cue.send({ moment: "turn" })).ok, false, "still the same second");
+  await advance(1);
+  assert.deepEqual(await N.cue.send({ moment: "turn" }), { ok: true, accepted: true });
+  assert.equal(sent().length, 5);
+});
+
+test("cue: onFocus hears playing and idle from the parent, and unsubscribes", () => {
+  const { N, host } = cueShell();
+  const heard = [];
+  const stop = N.cue.onFocus((music) => heard.push(music));
+  host.deliver({ type: "x-nappelin-cue.focus", music: "playing" });
+  host.deliver({ type: "x-nappelin-cue.focus", music: "loud" });
+  host.deliver({ type: "x-nappelin-cue.focus", music: "idle" }, { not: "the parent" });
+  host.deliver({ type: "x-nappelin-cue.focus", music: "idle" });
+  assert.deepEqual(heard, ["playing", "idle"]);
+  stop();
+  host.deliver({ type: "x-nappelin-cue.focus", music: "playing" });
+  assert.deepEqual(heard, ["playing", "idle"], "unsubscribed");
+});
