@@ -29,17 +29,22 @@
 (() => {
   "use strict";
 
+  /* Notes sit on their own lines in this file: the napplet build strips those
+   * and keeps a comment that trails code, and every byte of the artifact counts. */
   const HEX64 = /^[0-9a-f]{64}$/;
   const LOOK_KIND = 30077;
-  const TIMEOUT_MS = 2500; // the relay query's hard deadline
-  const FETCH_MS = 8000; // one image source's deadline
+  // The relay query's hard deadline, and one image source's.
+  const TIMEOUT_MS = 2500;
+  const FETCH_MS = 8000;
   const MAX_BYTES = 3 * 1024 * 1024;
   /* agent-api uploads a character's image here, and the Hangar grants this host
    * to the TCG's resource requests (nappelin host.ts, TCG_FACE_ORIGINS). */
   const BLOSSOM = "https://blossom.bimcvp.com";
-  const NAME_MAX = 40; // what the lobby lets a typed seat name be
-  const LATE = {}; // a deadline won the race
-  const BIG = {}; // a source over the cap: the same hash elsewhere is no smaller
+  // What the lobby lets a typed seat name be.
+  const NAME_MAX = 40;
+  // A deadline won the race; a source is over the cap (the same hash elsewhere is no smaller).
+  const LATE = {};
+  const BIG = {};
 
   /* A call that may be missing, throw or reject, always as a promise. */
   const attempt = (fn, ...args) => Promise.resolve().then(() => fn(...args));
@@ -105,13 +110,15 @@
     const out = [];
     for (const tag of event && Array.isArray(event.tags) ? event.tags : []) {
       if (!Array.isArray(tag) || tag[0] !== "imeta") continue;
-      const field = new Map(); // a Map, so a "__proto__" field is only a field
+      // A Map, so a "__proto__" field is only a field.
+      const field = new Map();
       for (const raw of tag.slice(1)) {
         const gap = typeof raw === "string" ? raw.indexOf(" ") : -1;
         if (gap > 0 && !field.has(raw.slice(0, gap))) field.set(raw.slice(0, gap), raw.slice(gap + 1).trim());
       }
       const x = String(field.get("x") || "").toLowerCase();
-      if (!field.get("role") || !HEX64.test(x)) continue; // the hash is the identity of the media
+      // No role, or no hash: the hash is the identity of the media.
+      if (!field.get("role") || !HEX64.test(x)) continue;
       const size = Number(field.get("size"));
       out.push({
         role: field.get("role"),
@@ -134,7 +141,8 @@
     if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
     if (ascii(0, "GIF8")) return "image/gif";
     if (ascii(0, "RIFF") && ascii(8, "WEBP")) return "image/webp";
-    if (ascii(4, "ftypavi")) return "image/avif"; // avif and avis
+    // ftypavif and ftypavis alike.
+    if (ascii(4, "ftypavi")) return "image/avif";
     return null;
   }
 
@@ -180,7 +188,8 @@
     const max = deps.maxBytes || MAX_BYTES;
     const abort = typeof AbortController === "function" ? new AbortController() : null;
     const reading = attempt(read, url, deps, max, abort);
-    reading.catch(() => {}); // a source that fails after its deadline is nobody's error
+    // A source that fails after its deadline is nobody's error.
+    reading.catch(() => {});
     try {
       let data = await within(reading, deps.fetchTimeout || FETCH_MS, deps);
       if (data === LATE) {
@@ -189,7 +198,8 @@
       }
       if (data === BIG) return BIG;
       if (!data) return null;
-      if (typeof data.size === "number" && data.size > max) return BIG; // a Blob knows before it is read
+      // A Blob knows its size before it is read.
+      if (typeof data.size === "number" && data.size > max) return BIG;
       if (typeof data.arrayBuffer === "function") data = await data.arrayBuffer();
       const bytes = data instanceof ArrayBuffer ? new Uint8Array(data)
         : ArrayBuffer.isView(data) ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength) : null;
@@ -211,7 +221,8 @@
   async function climbImage(look, profile, deps) {
     for (const role of ["avatar", "fullbody"]) {
       for (const rep of look.filter((entry) => entry.role === role)) {
-        if (rep.size && rep.size > (deps.maxBytes || MAX_BYTES)) continue; // declared too big: never fetched
+        // Declared too big: never fetched.
+        if (rep.size && rep.size > (deps.maxBytes || MAX_BYTES)) continue;
         const sources = [`${deps.blossom || BLOSSOM}/${rep.x}`, rep.url];
         for (const url of sources.filter((item, i) => item && sources.indexOf(item) === i)) {
           const got = await load(url, rep.x, deps);
@@ -316,11 +327,13 @@
    */
   function book(deps) {
     const d = deps || {};
-    const known = new Map(); // pubkey -> look
+    // pubkey -> look, the keys asked about, and seat key -> { pubkey, onChange }.
+    const known = new Map();
     const asked = new Set();
-    const seats = new Map(); // seat key -> { pubkey, onChange }
+    const seats = new Map();
     const revoke = (url) => {
-      if (!/^blob:/.test(url || "")) return; // only an object URL is ours; a hotlinked picture is not
+      // Only an object URL is ours; a hotlinked picture is not.
+      if (!/^blob:/.test(url || "")) return;
       try {
         if (d.revoke) d.revoke(url);
         else globalThis.URL.revokeObjectURL(url);
@@ -330,10 +343,12 @@
     };
     function land(pubkey, look, late) {
       const held = known.get(pubkey);
-      if (held && !late) return; // a late answer already upgraded this key
+      // A late answer has already upgraded this key.
+      if (held && !late) return;
       if (held && held.image.url !== look.image.url) revoke(held.image.url);
       known.set(pubkey, look);
-      if (!held && !look.image.url && look.nameVia === "npub") return; // nothing to repaint
+      // A first answer with nothing in it changes nothing on screen.
+      if (!held && !look.image.url && look.nameVia === "npub") return;
       const told = new Set();
       for (const seat of seats.values()) {
         if (seat.pubkey !== pubkey || typeof seat.onChange !== "function" || told.has(seat.onChange)) continue;
