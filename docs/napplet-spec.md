@@ -202,7 +202,7 @@ above is closed by it.
 **`requires: [webrtc]` is superseded.** There is no WebRTC NAP and none is needed: the Table
 topology (amended 2026-08-15) plays over a referee socket, and inside the Hangar that socket is a
 *pipe the host opens on the napplet's behalf* — see "the table channel". The artifact declares
-`identity, outbox, resource, storage, intent` (`<meta name="napplet-requires">`); `table` is a
+`identity, outbox, resource, storage, intent, link` (`<meta name="napplet-requires">`); `table` is a
 host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
 
 ### 3a. Identity and outbox — what the prelude really offers
@@ -335,6 +335,64 @@ with `outbox.close {id, subId}` and ended by the host with `outbox.closed {subId
 host has no per-frame cap on subscriptions and drops them without `outbox.closed` when the frame
 closes or the identity changes (which closes the frame too). Storage values are strings of at
 most 8 MB per key under 200-character keys; the napplet holds itself to 512 KB.
+
+### 3d. The first screen and the lobby inside the Hangar (2026-09-15)
+
+**One lobby, two pages.** `site/lobby.js` is the online lobby: `E1Lobby.mount(root, NET, hooks)`
+builds its markup into `root` and returns `{handlers, refresh(), notice(text, tone), open(),
+launchCode, invite}`. `matchmaking.html` mounts it into `#online` and, when the referee deals a
+seat, still hands off to `play.html`. Embedded, `play.js` mounts it into `#lobby` (where the
+website keeps its small online door) with `{embedded: true, start: false, onSeat, onLobby,
+collection, stack}` and starts the one `E1Net` itself: while the member sits at a table or watches
+one the board reads the referee's messages, otherwise the lobby does, and an open table is always
+the lobby's. A dealt seat shows the board in place (a local game still on the table is put away
+first); leaving the table, or "Find another opponent" after a match, shows the lobby again and
+never closes the frame.
+
+**Inside the Hangar the lobby differs from the website's in exactly this.** No sign-in button:
+the shell's key is the identity, read when the frame loads (an identity change closes the frame,
+so a reload is the change), and without one the lobby says "Sign in to Nappelin to play online.
+Hotseat and games against the computer work now." No stake field and no stake note; create, queue
+and join always send `stake: 0`; a table for sats is listed without a Join, and a
+`STAKE_MISMATCH` reads "This table plays for sats; stakes are not available in Nappelin yet."
+The settlement screen never opens. No share link: the host panel shows the code to read aloud
+and "Send an invite", which the host signs through the outbox (as it signs the result). The
+launch code (`E1Net.launchCode()`) is read once at mount, fills Join, opens the online choice,
+and is never joined by itself or written into any address. The open-table list and the invite
+list say in one line why they are empty: the table server cannot be reached (`NO_TABLE`,
+`TABLE_REFUSED`, `TABLE_CLOSED`, `TIMEOUT`), the sign-in could not be confirmed, too many requests,
+a referee too old to list tables, or invites that this shell cannot list.
+
+**My collection online.** The referee takes a Stack in `CREATE`, `JOIN` and `QUEUE` under Classic
+and Fast alike, and checks it twice: `cleanDeck` in `server/table.js` (a list of 40 to 300 known
+ids of the table's ruleset, no Stake card, at most four copies of anything but a Basic Resource)
+and `E.createGame` (the floor and each card's own copy limit, one for a genesis card). So the embedded lobby
+offers "My collection" once the member holds a card, labelled "n of 40 cards yours", and sends the
+Stack `buildCollectionStack` deals for the table's rules: the lobby's rules for a table it opens
+or a match it searches, an invite's `ruleset` for a join from an invite, and the lobby's rules for
+a bare code, because the open-table rows carry no ruleset. The quick match pairs a built Stack
+only with another built Stack. A collection Stack claims no possession at the table either.
+
+**The first screen.** Embedded, `play.html` opens on `#first`: "Playing as" with the member's
+look (name and picture through the seat code's `E1Look` book, the short npub until it lands,
+"Not signed in" once the shell has said nobody), the choice Against the computer / Hotseat /
+Online, which stays above the setup form or the lobby it opens, and the collection line. Every
+service the shell does not give says so in one line: no identity, no collection app (the
+collection line), and inside the lobby the table server and the invites.
+
+**The empty collection's door.** `E1Napplet.link.open(url)` asks NAP-LINK (`napplet.link.open`,
+which resolves `{status: "opened" | "denied"}`) for an https URL only, and resolves `{ok: true}`
+or `{ok: false, error}` on every outcome, a host that never answers included after 30 s, the
+prelude's own deadline. When the collection line is the empty one and the shell grants `link`,
+one button opens the constant `https://tcg.nappelin.com/shop.html`; the Hangar asks the member
+first, and a refusal or 30 s of silence leaves the line as it was.
+
+**For guild admins.** TIMELOCK TCG can sit in a guild's Play list: the Guilds tab opens the same
+`600b-timelock-tcg` napplet, which starts on the first screen above, so a member plays against the
+computer or hotseat at once and online once they are signed in. To gather members for a game
+night, link the event to `https://nappelin.com/hangar/?napplet=600b-timelock-tcg`; the member who
+hosts reads the table code aloud or sends it as an invite, and everyone else joins with it.
+Tables opened from Nappelin never play for sats.
 
 ### 4. The inventory intent (bearlett → nappelin → game)
 
