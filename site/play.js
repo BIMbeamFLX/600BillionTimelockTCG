@@ -5272,7 +5272,16 @@
     const line = $("firstIdentity");
     line.hidden = !known || Boolean(key);
     line.textContent = line.hidden ? "" : lobbyWords().noIdentity || "";
+    /* The lobby's name field starts as the member's own name once their look has one:
+     * the seat plays under it, and a table of two "Player"s says nothing. A name the
+     * member typed is theirs to keep. */
+    const field = lobby ? $("netName") : null;
+    if (field && look && look.nameVia !== "npub" && look.name && (field.value === "Player" || field.value === namedAs)) {
+      field.value = look.name;
+      namedAs = look.name;
+    }
   }
+  let namedAs = null;
 
   /* The empty collection's one door, to a fixed address and never one built from
    * input. The Hangar asks the member first; a refusal, or 30 s of silence
@@ -5315,6 +5324,7 @@
     });
     const rules = $("rules");
     if (rules && $("netRules")) $("netRules").value = rules.value;
+    renderFirst();
     /* Every message has one reader: the board while this player sits at a table
      * or watches one, the lobby otherwise. An open table is always the lobby's. */
     const L = lobby.handlers;

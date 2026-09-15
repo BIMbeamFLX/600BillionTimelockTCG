@@ -720,7 +720,8 @@ test("the first screen inside the Hangar: the member's look, three ways to play,
     resource: { bytes: async (url) => (url === picture ? new Blob([png]) : null) },
   });
   const net = shellNet();
-  const { byId } = loadTable(net, N, { look });
+  const { byId, fired } = loadTable(net, N, { look });
+  byId("netName").value = "Player"; // the lobby markup's own default
 
   assert.equal(byId("first").hidden, false, "the first screen is the page inside the Hangar");
   assert.equal(byId("coach").hidden, true, "the first-game tour does not open over the first screen");
@@ -729,6 +730,7 @@ test("the first screen inside the Hangar: the member's look, three ways to play,
   assert.deepEqual([byId("localSetup").hidden, byId("lobby").hidden], [true, true], "nothing opens before a choice");
 
   await waitFor(() => byId("firstName").textContent === "FLX", "the member's name from their look");
+  assert.equal(byId("netName").value, "FLX", "and the seat the lobby opens plays under it");
   await waitFor(() => /^blob:/.test(byId("firstPortrait").getAttribute("src") || ""), "their picture, through the shell");
   assert.equal(byId("firstPortrait").hidden, false);
   assert.equal(byId("firstPortrait").dataset.look, "picture");
@@ -754,6 +756,11 @@ test("the first screen inside the Hangar: the member's look, three ways to play,
   assert.equal(byId("coach").hidden, true, "and never sits over the lobby, or a table code read aloud there");
   await waitFor(() => called(net, "tables").length === 1, "the open tables, asked once the lobby is in view");
   assert.equal(byId("lobbyIdentity").hidden, true);
+  byId("netName").value = "flx at the table";
+  byId("firstName").textContent = "";
+  for (const fn of fired["e1:identity"] || []) fn({ detail: {} }); // anything that repaints the page
+  assert.equal(byId("firstName").textContent, "FLX", "the first screen was painted again");
+  assert.equal(byId("netName").value, "flx at the table", "a name the member typed is theirs to keep");
 });
 
 test("each service the Hangar does not give says so in one line, and the door only opens where it can", async (t) => {
