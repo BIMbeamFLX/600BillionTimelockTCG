@@ -2342,3 +2342,160 @@ test("the queue pairs Fast with Fast and never with Classic", async (t) => {
   assert.equal(dealt.view.ruleset, "F1.0");
   assert.equal(classic.seat, null, "the Classic player is still waiting");
 });
+
+// ------------------------------------------ site/net.js: a login ends with its key
+//
+// On a shared device the referee's socket used to outlive a sign-out: End turn
+// still played, and after another key signed in it still played as the OLD key.
+// These drive the real site/net.js against this real referee.
+
+const NET_JS = fs.readFileSync(new URL("../../site/net.js", import.meta.url), "utf8");
+const hexKey = (label) => Buffer.from(schnorr.getPublicKey(identityKey(label))).toString("hex");
+
+function signWith(template, privateKey) {
+  const event = { pubkey: Buffer.from(schnorr.getPublicKey(privateKey)).toString("hex"), ...template };
+  event.id = eventId(event);
+  event.sig = Buffer.from(schnorr.sign(event.id, privateKey)).toString("hex");
+  return event;
+}
+
+async function waitUntil(check, ms = 5000) {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    const value = check();
+    if (value) return value;
+    if (Date.now() > deadline) throw new Error("timed out waiting for the page");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
+/** A browser tab running site/net.js: its own storage, a NIP-07 extension whose
+ *  account can be switched, and sockets that record the type of every message sent. */
+function browserTab() {
+  const storage = (map) => ({
+    getItem: (key) => (map.has(key) ? map.get(key) : null),
+    setItem: (key, value) => map.set(key, String(value)),
+    removeItem: (key) => map.delete(key),
+  });
+  const tab = { store: new Map(), sockets: [], errors: [], states: [], key: null };
+  globalThis.location = { protocol: "http:", host: "127.0.0.1", href: "http://127.0.0.1/play.html", search: "" };
+  globalThis.localStorage = storage(tab.store);
+  globalThis.sessionStorage = storage(new Map());
+  globalThis.nostr = {
+    getPublicKey: async () => hexKey(tab.key),
+    signEvent: async (template) => signWith(template, identityKey(tab.key)),
+  };
+  globalThis.WebSocket = class extends WebSocket {
+    constructor(url) {
+      super(url);
+      this.sent = [];
+      tab.sockets.push(this);
+    }
+    send(data) {
+      this.sent.push(JSON.parse(data).t);
+      super.send(data);
+    }
+  };
+  delete globalThis.E1Napplet;
+  delete globalThis.E1Net;
+  new Function(NET_JS)();
+  tab.net = globalThis.E1Net;
+  tab.net.start({ onError: (e) => tab.errors.push(e), onState: (s) => tab.states.push(s) });
+  return tab;
+}
+
+/** The tab signs in as `tab-felix`, opens a table, and a scripted opponent joins it. */
+async function seatedTab(t, name) {
+  const table = await boot(t, name, { publicHost: "127.0.0.1" });
+  const tab = browserTab();
+  t.after(() => tab.net.nostr.logout()); // no reconnect loop may outlive the test
+  tab.key = "tab-felix";
+  const pubkey = await tab.net.nostr.login();
+  assert.ok(tab.net.create({ name: "felix", affinity: "Power", pubkey, table: table.wsUrl }));
+  const open = await waitUntil(() => tab.states.find((s) => s.status === "open"));
+  const foe = await table.client({ identity: "tab-anna" });
+  foe.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", pubkey: foe.pubkey });
+  await foe.type("STATE");
+  const dealt = await waitUntil(() => tab.states.find((s) => s.status === "playing"));
+  assert.equal(dealt.seat, 0);
+  const endTurn = { type: "PASS_PRIORITY", seat: 0, seq: dealt.view.seq, at: "", payload: {} };
+  const seqOf = () => table.matches.get(dealt.matchId).state.seq;
+  return { table, tab, foe, dealt, endTurn, seqOf };
+}
+
+test("signing out ends the table session: End turn is not sent and the referee's seq does not move", async (t) => {
+  const { table, tab, foe, dealt, endTurn, seqOf } = await seatedTab(t, "o1.db");
+  const socket = tab.sockets[0];
+  const seq = seqOf();
+
+  tab.net.nostr.logout();
+  assert.equal(tab.net.status, "idle");
+  assert.ok(socket.readyState >= WebSocket.CLOSING, "the socket that spoke for the key is closed");
+  await foe.next((m) => m.t === "PEER" && m.seat === 0 && m.online === false);
+
+  assert.equal(tab.net.act(endTurn), false, "End turn is refused while signed out");
+  assert.equal(tab.errors.at(-1).code, "NIP07_REQUIRED");
+  await new Promise((resolve) => setTimeout(resolve, 400)); // past the first reconnect backoff
+  assert.equal(tab.sockets.length, 1, "no reconnect was left armed");
+  assert.deepEqual(socket.sent, ["AUTH", "CREATE"], "no LEAVE and no ACT left the page");
+  assert.equal(seqOf(), seq, "the referee's seq did not move");
+  const row = table.db.prepare("SELECT status, seat0_pubkey FROM matches WHERE match_id = ?").get(dealt.matchId);
+  assert.deepEqual([row.status, row.seat0_pubkey], ["playing", hexKey("tab-felix")], "the seat is still its owner's");
+  assert.equal(tab.net.session.matchId, dealt.matchId, "and the page keeps the session to resume");
+});
+
+test("signing in as another key plays nothing as the old key", async (t) => {
+  const { tab, endTurn, seqOf } = await seatedTab(t, "o2.db");
+  const seq = seqOf();
+
+  // Another player on the same device: sign out, sign in with their own key, resume.
+  tab.net.nostr.logout();
+  tab.key = "tab-other";
+  assert.equal(await tab.net.nostr.login(), hexKey("tab-other"));
+  assert.equal(tab.net.resume(), true);
+  const refused = await waitUntil(() => tab.errors.find((e) => e.code === "IDENTITY_MISMATCH"));
+  assert.match(refused.message, /another NIP-07 identity/);
+  assert.equal(tab.sockets.length, 2);
+  assert.deepEqual(tab.sockets[1].sent, ["AUTH", "RESUME"], "one fresh AUTH and one RESUME for the new key");
+
+  tab.net.act(endTurn); // the old key's End turn, from the page that still shows its board
+  await waitUntil(() => tab.errors.find((e) => e.code === "NO_SUCH_MATCH"));
+  assert.equal(seqOf(), seq, "the new key's socket holds no seat to play from");
+  assert.equal(tab.sockets[0].sent.includes("ACT"), false, "and the old key's socket carried nothing");
+});
+
+test("a key changed in another tab ends the login before the old key's socket sends again", async (t) => {
+  const { tab, endTurn, seqOf } = await seatedTab(t, "o3.db");
+  const socket = tab.sockets[0];
+  const seq = seqOf();
+
+  tab.store.set("600b:pubkey", hexKey("tab-other")); // the other tab signed in; this one was told nothing
+  assert.equal(tab.net.act(endTurn), false);
+  assert.equal(tab.net.status, "idle");
+  assert.ok(socket.readyState >= WebSocket.CLOSING);
+  assert.deepEqual(socket.sent, ["AUTH", "CREATE"], "End turn never reached the socket of the old key");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(seqOf(), seq);
+});
+
+test("signing back in with the same key resumes the seat through one fresh AUTH and one RESUME", async (t) => {
+  const { tab, foe, dealt, endTurn, seqOf } = await seatedTab(t, "o4.db");
+  const seq = seqOf();
+  tab.net.nostr.logout();
+  await foe.next((m) => m.t === "PEER" && m.seat === 0 && m.online === false);
+
+  const before = tab.states.length;
+  await tab.net.nostr.login();
+  assert.equal(tab.net.resume(), true);
+  const back = await waitUntil(() => tab.states.slice(before).find((s) => s.matchId === dealt.matchId));
+  assert.equal(back.seat, 0, "the owner is seated again, not downgraded");
+  assert.equal(back.role, "seat");
+  assert.equal(tab.net.status, "live");
+  assert.equal(tab.sockets.length, 2, "one new socket");
+  assert.deepEqual(tab.sockets[1].sent, ["AUTH", "RESUME"], "a fresh AUTH before the RESUME, once each");
+
+  assert.equal(tab.net.act(endTurn), true, "and End turn plays again, as the key that owns the seat");
+  await foe.next((m) => m.t === "FRAME" && m.seq === seq + 1);
+  assert.equal(seqOf(), seq + 1);
+  assert.deepEqual(tab.sockets[1].sent, ["AUTH", "RESUME", "ACT"]);
+});
