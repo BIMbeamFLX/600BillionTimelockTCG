@@ -234,7 +234,8 @@ the container address means the list does not match yet. Recreating the
 container (a new `gw-caddy`, not a restart) can give it a different address and
 pool everyone again, so repeat the check after every recreate. While the list is
 wrong, the `rate limited:` lines in `journalctl -u tcg-table` name the container
-address instead of players' addresses.
+address instead of players' addresses. **Do not let the rate limits reach paying
+buyers until `/api/health` shows `client` as the caller's own address.**
 
 ---
 
@@ -256,7 +257,8 @@ Read at startup in `server/table.js` (bottom of file). The referee binds
 | `CONTROL_RATE_MAX` | built-in | Control-message rate cap. Same advice. |
 | `MAX_PAYLOAD` | built-in | Max WebSocket frame size. Same advice. |
 | `TRUST_PROXY` | *(none)* | Proxies whose `X-Forwarded-For` is believed: `loopback`, or a comma-separated list of peer IPs (an IPv4 entry also matches its `::ffff:` form). Behind Docker Caddy it must name the Caddy container (§4); unset, everyone behind the proxy shares every per-client budget. |
-| `MINT_WRITE_RATE_MAX` | `20` | Writes per client per minute, shared by the E1 and G mints: every mint `POST` (purchase, booster, trade, possession, restore, checkstate). A positive integer, or startup throws. |
+| `MINT_WRITE_RATE_MAX` | `20` | Spending writes per client per minute, shared by the E1 and G mints: every mint `POST` except restore and checkstate (purchase, booster, trade, possession). A positive integer, or startup throws. |
+| `MINT_RECOVERY_RATE_MAX` | `240` | The same for restore and checkstate, which a wallet uses to read its own cards back: a phrase recovery and every wallet view. Kept apart so recovery can neither starve purchases nor be starved by them. |
 | `MINT_QUOTE_RATE_MAX` | `60` | The same for the mint `GET`s that do work: quote, reveal, eligibility and the LNURL callback. Info, keys, catalog, blob, state and supply are never limited. |
 
 ### The mint budgets
@@ -264,23 +266,40 @@ Read at startup in `server/table.js` (bottom of file). The referee binds
 Both mints share one policy, checked before either mint does any work. A client,
 as `/api/health` reports it in `client`, spends from a bucket of
 `MINT_WRITE_RATE_MAX` writes that refills continuously over a minute (at the
-default, one write back every 3 s), and likewise for `MINT_QUOTE_RATE_MAX`. A
-refusal is `429` with `{"error":"rate limited","retry_after":<seconds>}` and a
-matching `Retry-After` header. The first refusal a client earns on any limit,
-socket or mint, writes one line such as
-`[table] rate limited: mint-write for 203.0.113.9 (20 per 60s)`; further
-refusals from that client stay quiet for a minute.
+default, one write back every 3 s), and likewise for `MINT_RECOVERY_RATE_MAX`
+and `MINT_QUOTE_RATE_MAX`. A refusal is `429` with
+`{"error":"rate limited","retry_after":<seconds>}` and a matching `Retry-After`
+header. The first refusal a client earns on any limit, socket or mint, writes one
+line such as `[table] rate limited: mint-recovery for 203.0.113.9 (240 per 60s)`;
+further refusals from that client stay quiet for a minute.
 
-Two situations outgrow the defaults; raise the budgets before either arises:
+The wallet treats a `429`, a `503` or a dropped connection as "not now", never as
+"no": a pending booster claim, purchase or transfer is kept and sent again, and a
+phrase recovery waits for `Retry-After` (never more than 30 s per wait, at most
+eight tries per request) and carries on. Only a real refusal from the mint ends an
+operation.
 
-- **Phrase recovery.** The wallet's NUT-13 seed scan sends dozens of restore and
-  checkstate `POST`s even for a wallet holding a single pack, and gives up at the
-  first `429`. At the default of 20 a restore is refused part-way.
-- **Many buyers on one address.** A venue wifi or a carrier NAT is one client,
-  so a room buying at once shares one budget, and so does everyone behind the
-  proxy while `TRUST_PROXY` is wrong. The wallet treats a `429` as a final
-  refusal and drops a pending booster claim that has no committed purchase, so
-  verify `TRUST_PROXY` (§4) before these limits face paying buyers.
+`MINT_RECOVERY_RATE_MAX` comes from measuring the real wallet's NUT-13 seed scan,
+which walks counters a hundred at a time: one restore per hundred, plus a
+checkstate wherever it finds cards. Each measurement recovered E1 and then G from
+one client, so both scans drew on one budget, and the request timeline was
+replayed through the referee's bucket to find the smallest budget that refuses
+nothing:
+
+| Wallet | Recovery requests (restore + checkstate) | Took | Busiest minute | Smallest budget with no `429`, at that pace / twice as fast |
+|---|---|---|---|---|
+| 5 E1 boosters and a G starter set, 157 cards | 267 (E1 127 + 54, G 51 + 35) | 2 min | 142 | 91 / 136 |
+| Full-collection size: 20 E1 boosters and 2 G sets, 464 cards | 884 (E1 496 + 219, G 97 + 72) | 6.4 min | 158 | 120 / 211 |
+
+At 240 neither recovery meets a single `429`, at the measured pace or twice it; a
+faster client meets short waits and still finishes. The same ceiling holds one
+scripted client to four requests a second, which at the mint's largest requests
+(500-output restores) cost about a quarter of a core on the measuring machine.
+
+**Many wallets on one address share every budget.** A venue wifi or a carrier NAT
+is one client, and so is everyone behind the proxy while `TRUST_PROXY` is wrong.
+Nothing is lost, since the wallet waits, but a room recovering or buying at once
+slows itself down; raise the budgets before an in-person launch.
 
 ### Why `PUBLIC_URL` is the one that matters
 
