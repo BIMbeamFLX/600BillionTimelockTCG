@@ -281,6 +281,27 @@
   const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
   const isValue = (value) => typeof value === "string" && value.trim() !== "";
 
+  /* A THEME VALUE IS CHECKED, NEVER PASSED THROUGH. It lands in a custom property
+   * the page's CSS reads, so a url() or image-set() in it makes every viewer's
+   * browser fetch from wherever the theme points, and whoever controls a theme
+   * logs their addresses. Each token must look like what it is: a colour (hex,
+   * rgb()/hsl() with numbers only, black, white, transparent), a font family list
+   * for --headline and --mono, a length for --r. Anything else keeps the default. */
+  const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:%|deg|rad|grad|turn)?";
+  const COLOR = new RegExp("^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})"
+    + `|(?:rgba?|hsla?)\\(\\s*${NUMBER}(?:\\s*[,/]\\s*${NUMBER}|\\s+${NUMBER}){2,3}\\s*\\)`
+    + "|black|white|transparent)$", "i");
+  const FAMILY = "(?:\"[\\w .-]+\"|'[\\w .-]+'|[a-z][\\w-]*(?: [a-z][\\w-]*)*)";
+  const FONT_LIST = new RegExp(`^${FAMILY}(?:\\s*,\\s*${FAMILY})*$`, "i");
+  const LENGTH = /^(?:0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em))$/;
+  const NEVER = /url\(|image-set\(|var\(|env\(|expression\(|[@;{}<\\\n\r\f]/i;
+
+  function tokenValue(name, value) {
+    if (!isValue(value) || value.length > 160 || NEVER.test(value)) return null;
+    const shape = name === "--r" ? LENGTH : name === "--headline" || name === "--mono" ? FONT_LIST : COLOR;
+    return shape.test(value.trim()) ? value.trim() : null;
+  }
+
   /** The core tokens a `{ tokens }` payload names. A `colors`-only payload names none. */
   function themeTokens(payload) {
     const out = {};
@@ -288,7 +309,8 @@
      * payload are simply not looked at. */
     const tokens = isObject(payload) && isObject(payload.tokens) ? payload.tokens : {};
     for (const name of Object.keys(NAPPELIN_THEME.tokens)) {
-      if (isValue(tokens[name])) out[name] = tokens[name];
+      const value = tokenValue(name, tokens[name]);
+      if (value !== null) out[name] = value;
     }
     return out;
   }

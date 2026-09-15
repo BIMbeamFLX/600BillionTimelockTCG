@@ -61,10 +61,16 @@ theme: optional. Amended 2026-09-15 for the Nappelin Hypershell (docs/brand-hype
        Read theme.get() (then nappletContext.theme) and repaint on every theme.changed.
        Accept only { tokens: { "--iron", "--brass", "--brass-2", "--brass-3", "--parchment",
        "--signal", "--panel", "--well", "--divider", "--hairline", "--emphasis",
-       "--body-ink", "--headline", "--mono", "--r" } }. The legacy colors object is not
-       read: until its Hypershell theme service ships, the Hangar answers every napplet
-       with {colors:{background,text,primary}}, so a payload with colors and no tokens
-       naming these names repaints nothing. Fallback: the same core tokens
+       "--body-ink", "--headline", "--mono", "--r" } }, each value checked for its kind:
+       colours are hex (#rgb, #rgba, #rrggbb, #rrggbbaa), rgb()/rgba()/hsl()/hsla() with
+       numeric arguments only, or black/white/transparent; --headline and --mono are font
+       family lists (quoted or bare names, commas); --r is 0 or a px/rem/em length. A
+       value containing url( image-set( var( env( expression( @ ; { } < \ or a line break,
+       or of the wrong kind, keeps its default: a url() in a token is a fetch from every
+       viewer's browser. The legacy colors object is not read: until its Hypershell
+       theme service ships, the Hangar answers every napplet with
+       {colors:{background,text,primary}}, so a payload with colors and no tokens naming
+       these names repaints nothing. Fallback: the same core tokens
        (iron #0f0c08, brass #e7bf76 / #c9973f / #8f6a2a, parchment #ece3d0,
        signal #6de8a6). The brand layer never follows the shell theme: the five
        affinity Plates (P #F3C244, B #F7931A, K #FFF7EC, S #7447B8, T #17BEBB), ember

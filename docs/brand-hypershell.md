@@ -59,7 +59,12 @@ label. A chip that names an affinity shows its Plate colour in its square dot.
 `site/napplet.js` repaints the chrome from the shell's theme. It uses the first of these that sets
 anything: `napplet.theme.get()`, then `window.nappletContext.theme`, then the defaults above. It
 accepts only `{ tokens }` with exactly `--iron --brass --brass-2 --brass-3 --parchment --signal
---panel --well --divider --hairline --emphasis --body-ink --headline --mono --r`. NAP-THEME's
+--panel --well --divider --hairline --emphasis --body-ink --headline --mono --r`, and checks
+each value for its kind before it is written: a colour is hex, `rgb()`/`rgba()`/`hsl()`/`hsla()`
+with numbers only, or `black`/`white`/`transparent`; `--headline` and `--mono` are font family
+lists; `--r` is `0` or a `px`/`rem`/`em` length. A value holding `url(`, `image-set(`, `var(`,
+`env(`, `expression(`, `@`, `;`, `{`, `}`, `<`, a backslash or a line break, or one of the wrong
+kind, keeps the default: a `url()` in a token would be fetched by every viewer. NAP-THEME's
 `{ colors }` is not read: until the Hypershell theme service ships, the Hangar answers every
 napplet with `{ colors: { background, text, primary } }`, and mapping that turned the brass
 controls blue, so a colours-only payload keeps the palette above. Every change pushed through
@@ -84,7 +89,7 @@ single-file napplet as a data URL. Anton stays a TTF there, because the repo ven
 `tests/test_hypershell_brand.py` checks `site/600b.css` strictly: tokens and values, aliases,
 fonts, the components, no forbidden face, radius or shadow, green only on the live chip, no ember.
 It checks each page's own CSS too, as an advisory check. `tests/js/napplet.test.mjs` compares the
-adapter's defaults with the stylesheet and pins the theme reader.
+adapter's defaults with the stylesheet and pins the theme reader and its value checks.
 
 ## Sources
 

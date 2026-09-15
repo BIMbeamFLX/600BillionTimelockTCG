@@ -277,6 +277,107 @@ test("a tokens payload sets exactly the fifteen core names and nothing of the br
   assert.equal(N.report().theme, "shell");
 });
 
+/* The three doors a theme comes through. Each paints `payload` into a fresh page and
+ * hands back the adapter and the properties it wrote. */
+const THEME_DOORS = {
+  "theme.get": async (payload) => {
+    const doc = stubRoot();
+    const N = load({ localStorage: memoryStorage().api, document: doc, napplet: { theme: { get: async () => payload } } });
+    await N.theme.start();
+    return { N, doc };
+  },
+  "nappletContext.theme": async (payload) => {
+    const doc = stubRoot();
+    const N = load({ localStorage: memoryStorage().api, document: doc, nappletContext: { theme: payload } });
+    N.theme.start();
+    return { N, doc };
+  },
+  "theme.changed": async (payload) => {
+    const doc = stubRoot();
+    let handler = null;
+    const N = load({ localStorage: memoryStorage().api, document: doc, napplet: { theme: { onChanged: (fn) => { handler = fn; } } } });
+    N.theme.start();
+    handler(payload);
+    return { N, doc };
+  },
+};
+
+const BS = String.fromCharCode(92);
+/* A value in a custom property can make every viewer's browser fetch, and whoever
+ * set it sees who asked. None of these may be written, whatever else is around it. */
+const REFUSED_THEME_VALUES = [
+  "url(http://theme.example/pixel.png)",
+  "URL(http://theme.example/pixel.png)",
+  "image-set(url(http://theme.example/a.png) 1x)",
+  "-webkit-image-set(url(http://theme.example/a.png) 1x)",
+  "var(--brass)",
+  "env(safe-area-inset-top)",
+  "expression(alert(1))",
+  "@import url(http://theme.example/x.css)",
+  "#0f0c08; background: url(http://theme.example/x)",
+  "#0f0c08 }",
+  "{ color: #0f0c08",
+  "<style>",
+  BS + "75rl(http://theme.example/x)",
+  "#0f0c08" + BS,
+  "#0f0c08\nbody { background: #fff }",
+  "#0f0c08\r",
+  "rgb(var(--x), 0, 0)",
+];
+const THEMED = ["--iron", "--brass", "--brass-3", "--panel", "--well", "--headline", "--mono", "--r"];
+
+test("a theme value that could fetch anything keeps the default, through every door", async () => {
+  for (const [door, paint] of Object.entries(THEME_DOORS)) {
+    for (const bad of REFUSED_THEME_VALUES) {
+      const tokens = Object.fromEntries(THEMED.map((name) => [name, bad]));
+      tokens["--divider"] = "#123456"; // one good value, so the payload is known to be read
+      const { N, doc } = await paint({ tokens });
+      const why = `${door} ${JSON.stringify(bad)}`;
+      assert.equal(doc.__set.get("--divider"), "#123456", `${why}: the good value beside it applies`);
+      for (const name of THEMED) {
+        assert.equal(doc.__set.get(name), N.NAPPELIN_THEME.tokens[name], `${why}: ${name} keeps its default`);
+        assert.equal(N.theme.tokens()[name], N.NAPPELIN_THEME.tokens[name], `${why}: tokens() says so too`);
+      }
+      assertBrand(doc, why);
+    }
+  }
+});
+
+test("a theme value of the wrong kind keeps the default", async () => {
+  const wrong = [
+    ["--iron", "\"Josefin Sans\""], ["--brass", "red"], ["--brass-2", "#12345"], ["--well", "rgb(1, 2)"],
+    ["--panel", "calc(1px + 2px)"], ["--mono", "#0f0c08"], ["--headline", "\"Josefin\" Sans"],
+    ["--r", "#fff"], ["--r", "calc(1px)"], ["--r", "10%"], ["--signal", 42],
+  ];
+  for (const [door, paint] of Object.entries(THEME_DOORS)) {
+    for (const [name, value] of wrong) {
+      const { N, doc } = await paint({ tokens: { [name]: value, "--divider": "#123456" } });
+      assert.equal(doc.__set.get(name), N.NAPPELIN_THEME.tokens[name], `${door}: ${name} ${JSON.stringify(value)}`);
+      assert.equal(doc.__set.get("--divider"), "#123456", door);
+    }
+  }
+});
+
+test("every allowed colour, font list and length still applies, through every door", async () => {
+  const allowed = [
+    ["--iron", "#fff"], ["--iron", "#ffff"], ["--iron", "#0a0b0c"], ["--iron", "#0A0B0C80"],
+    ["--brass", "rgb(1, 2, 3)"], ["--brass", "rgba(231,191,118,.03)"], ["--brass", "rgb(10 20 30 / 50%)"],
+    ["--brass-2", "hsl(120deg, 50%, 50%)"], ["--brass-2", "hsla(120, 50%, 50%, 0.5)"],
+    ["--panel", "transparent"], ["--parchment", "white"], ["--signal", "Black"],
+    ["--headline", "\"Josefin Sans\", Georgia, sans-serif"], ["--mono", "'IBM Plex Mono', ui-monospace, monospace"],
+    ["--mono", "monospace"], ["--headline", "Times New Roman, serif"],
+    ["--r", "0"], ["--r", "2px"], ["--r", ".25rem"], ["--r", "1.5em"],
+  ];
+  for (const [door, paint] of Object.entries(THEME_DOORS)) {
+    for (const [name, value] of allowed) {
+      const { N, doc } = await paint({ tokens: { [name]: `  ${value} ` } });
+      assert.equal(doc.__set.get(name), value, `${door}: ${name} ${value}`);
+      assert.equal(N.theme.tokens()[name], value);
+      assertBrand(doc, door);
+    }
+  }
+});
+
 test("theme.changed repaints on every change, from the defaults, and a stale get() loses", async () => {
   const doc = stubRoot();
   let handler = null;
