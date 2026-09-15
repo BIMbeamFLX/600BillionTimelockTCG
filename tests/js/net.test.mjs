@@ -2194,6 +2194,35 @@ test("the agreed wager survives a referee restart", async (t) => {
   assert.equal(resumed.seat, 0);
 });
 
+test("after a restart an open table is away until its host returns", async (t) => {
+  /* A record read from its row used to start the grace at load, so every table
+   * abandoned before a restart was listed and joinable for another minute. */
+  const dbPath = tmpDb("away-restart.db");
+  const first = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
+  const host = await Client.open(first.wsUrl, { identity: "restart-host" });
+  host.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: host.pubkey });
+  const open = await host.type("STATE");
+  await host.close();
+  await first.close();
+
+  const second = await createTable({ port: 0, dbPath, host: "127.0.0.1", rateMax: 1000000 });
+  t.after(async () => second.close());
+  assert.deepEqual(await (await fetch(`${second.url}/api/tables`)).json(), [], "not listed before its host is back");
+  const guest = await Client.open(second.wsUrl, { identity: "restart-guest" });
+  t.after(() => guest.close());
+  guest.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", pubkey: guest.pubkey });
+  assert.equal((await guest.type("ERROR")).code, "HOST_AWAY");
+
+  const back = await Client.open(second.wsUrl, { identity: "restart-host" });
+  t.after(() => back.close());
+  back.send({ t: "RESUME", matchId: open.matchId, token: open.token });
+  assert.equal((await back.type("STATE")).seat, 0, "the host reconnecting right after the restart keeps the table");
+  const listed = await (await fetch(`${second.url}/api/tables`)).json();
+  assert.deepEqual(listed.map((row) => [row.code, row.hostOnline]), [[open.code, true]]);
+  guest.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", pubkey: guest.pubkey });
+  assert.deepEqual([(await guest.type("STATE")).seat], [1]);
+});
+
 // -------------------------------------------------------------------- CORS
 
 test("a page on a listed origin can read the lobby; anyone else cannot", async (t) => {

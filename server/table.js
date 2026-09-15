@@ -794,8 +794,10 @@ async function createTable(opts) {
       events: [], // unredacted ring
       conns: [null, null],
       /* When seat 0 was last left empty, or null while it is held. A record read
-       * from its row has nobody at it yet, so the grace starts when it is loaded. */
-      hostLeftAt: Date.now(),
+       * from its row has nobody at it, and no socket survives a restart, so its
+       * host is away from the start: the table is listed and joinable again the
+       * moment they RESUME. A fresh CREATE seats its host, which clears this. */
+      hostLeftAt: 0,
       spectators: new Set(),
       rate: [[], []],
       rejectRate: [[], []],
