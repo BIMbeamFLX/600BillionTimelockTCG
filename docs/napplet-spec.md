@@ -510,10 +510,12 @@ engine events `fx()` already receives and the view `render()` draws, sent on cha
 moments, and a match first seen finished does not announce `match-end` again.
 
 **Focus ducks the bed.** `playing` → `E1FX.duckBed(0.35)` and `E1FX.holdPressure(true)`; `idle` →
-`E1FX.unduckBed()` and `E1FX.holdPressure(false)`. A duck asked for before audio is armed is applied
-when the graph is built; holding the pressure pulse leaves the saved pressure setting alone.
-fx.js's per-hit ducking is unchanged (its game-over duck releases to full, so the bed returns at
-the end of a match while music still plays, until the next focus change).
+`E1FX.unduckBed()` and `E1FX.holdPressure(false)`. An untimed public `duckBed(depth)` is that held
+focus level: fx.js's own ducks (a hold tone, a burn, the game-over fanfare) never lift the bed above
+it and release back to it rather than to full, and `unduckBed()` returns the bed to 1. A focus duck
+asked for before audio is armed is applied when the graph is built; holding the pressure pulse
+leaves the saved pressure setting alone.
 
 Tests: `tests/js/napplet.test.mjs` (the adapter over a fake parent and an injected clock),
-`tests/js/client.test.mjs` (a scripted hotseat Fast game, a referee's seat, focus ducking).
+`tests/js/client.test.mjs` (a scripted hotseat Fast game, a referee's seat, focus ducking),
+`tests/js/fx-focus.test.mjs` (the bed's releases over a fake Web Audio graph).
