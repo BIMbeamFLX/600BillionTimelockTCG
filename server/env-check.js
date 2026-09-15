@@ -27,6 +27,9 @@ const USAGE = "usage: node env-check.js [--from <environ file> | --from -]";
 
 /* ---- Spellings whose meaning changes with this release --------------------
  *
+ * THIS TABLE AND THE NEXT describe d753505, the build running on 2026-09-15.
+ * Rebuild both against the running build before every release.
+ *
  * Production runs d753505, and the line numbers below are that build's. It
  * accepts some values that this release also accepts but reads differently. A
  * value the release refuses is already a problem line; these would start
@@ -34,8 +37,7 @@ const USAGE = "usage: node env-check.js [--from <environ file> | --from -]";
  * the funding. Each row models how d753505 read one variable, without
  * importing any of it, and returns [old, new] in fixed words, never the value,
  * or null when the meaning stays or d753505 could not have started with the
- * value. The boot never uses this table. It describes the build this release
- * replaces: model it on the new running build before the next release. */
+ * value. The boot never uses this table. */
 
 /* Set, blank, and nothing else: whitespace the old Number() read as 0 and the
    old `||` kept as a value, while the release reads it as unset. */
@@ -132,9 +134,12 @@ const MEANING_CHANGES = [
 
 /* ---- Variables the running build never reads -------------------------------
  *
- * d753505 has no catalog mirrors, no committed purchases and no supply ledger:
- * its server/ has no nutft-supply.js, and neither its nutft-mint.js nor its
- * table.js (main, :2144-2192) reads any of these names. Set on the box, they do
+ * Describes d753505, the build running on 2026-09-15; rebuild it against the
+ * running build before every release.
+ *
+ * d753505 has no catalog mirrors, no committed purchases, no supply ledger and
+ * no ruleset choice for tables: its server/ has no nutft-supply.js, and neither
+ * its nutft-mint.js nor its table.js reads any of these names. Set on the box, they do
  * nothing today and act the moment the release starts, so each one set to more
  * than blanks stops the deploy until someone decides. The second field says
  * whether the variable belongs to Edition G, which counts only while G is on. */
@@ -145,6 +150,7 @@ const IGNORED_BY_RUNNING_BUILD = [
   ["G_NUTFT_PURCHASE_MODE", true],
   ["NUTFT_SUPPLY_RELAYS", false],
   ["NUTFT_SUPPLY_INTERVAL_SECONDS", false],
+  ["TABLE_RULESETS", false],
 ];
 
 /** One "VARIABLE: set, but the running build ignores it" line per such variable that is set. */
