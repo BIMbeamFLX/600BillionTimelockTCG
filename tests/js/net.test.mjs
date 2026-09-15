@@ -2840,6 +2840,33 @@ test("a key changed in another tab ends the login before the old key's socket se
   assert.equal(seqOf(), seq);
 });
 
+test("a refused join is answered: it is not sent again after a reconnect, even once the host is back", async (t) => {
+  const table = await boot(t, "o9.db", { publicHost: "127.0.0.1", hostGraceMs: 50 });
+  const host = await table.client({ identity: "replay-host" });
+  host.send({ t: "CREATE", name: "felix", affinity: "Power", pubkey: host.pubkey });
+  const open = await host.type("STATE");
+  await host.close();
+  await new Promise((resolve) => setTimeout(resolve, 150)); // past the host's grace
+
+  const tab = browserTab();
+  t.after(() => tab.net.nostr.logout());
+  tab.key = "replay-guest";
+  const pubkey = await tab.net.nostr.login();
+  assert.ok(tab.net.join({ code: open.code, name: "anna", affinity: "Signal", pubkey, table: table.wsUrl }));
+  await waitUntil(() => tab.errors.find((e) => e.code === "HOST_AWAY"));
+
+  // The host returns, then this tab's socket drops.
+  const back = await table.client({ identity: "replay-host" });
+  back.send({ t: "RESUME", matchId: open.matchId, pubkey: back.pubkey });
+  await back.type("STATE");
+  tab.sockets[0].close();
+  await new Promise((resolve) => setTimeout(resolve, 600)); // past the first reconnect backoff
+  const joins = tab.sockets.flatMap((socket) => socket.sent).filter((type) => type === "JOIN");
+  assert.equal(joins.length, 1, "the refused join went out once and was never replayed");
+  const row = table.db.prepare("SELECT status, seat1_pubkey FROM matches WHERE match_id = ?").get(open.matchId);
+  assert.deepEqual([row.status, row.seat1_pubkey], ["open", null], "nobody was seated behind the player's back");
+});
+
 test("signing back in with the same key resumes the seat through one fresh AUTH and one RESUME", async (t) => {
   const { tab, foe, dealt, endTurn, seqOf } = await seatedTab(t, "o4.db");
   const seq = seqOf();

@@ -773,6 +773,11 @@
       net.intent = null;
       setStatus("gone");
     }
+    /* A REFUSED CREATE, JOIN OR QUEUE IS ANSWERED. Kept as the pending intent, it
+     * went out again after the next reconnect, where it could quietly succeed
+     * later (a host back from HOST_AWAY) behind the player's back. Only a
+     * rate-limit refusal asks for the same message again. */
+    if (net.helloPending && net.intent && msg.code !== "RATE_LIMITED") net.intent = null;
     if (gone || msg.code === "IDENTITY_MISMATCH" || msg.code === "AUTH_FAILED") net.helloPending = false;
     H("onError", msg);
   }
