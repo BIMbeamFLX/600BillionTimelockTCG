@@ -9,10 +9,16 @@
   const CATALOG_CACHE = "600b:nutft-catalogs-v1";
   const CATALOG_CACHE_VERSION = 1;
   const CATALOG_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-  const CASHU_URL = "https://esm.sh/@cashu/cashu-ts@4.7.2?bundle";
-  const BIP39_URL = "https://esm.sh/@scure/bip39@2.3.0?bundle";
-  const ENGLISH_URL = "https://esm.sh/@scure/bip39@2.3.0/wordlists/english.js?bundle";
-  const BIP32_URL = "https://esm.sh/@scure/bip32@2.3.0?bundle";
+  /* The libraries are this site's own files, never a CDN import: a module
+     fetched live from a third party can hand a wallet that holds bearer cards
+     any code it likes. scripts/build-wallet-vendor.mjs builds them from pinned
+     npm versions and tests/js/vendor.test.mjs checks their hashes. A dynamic
+     import in a classic script resolves against the script's own URL, so these
+     are found beside nutft-wallet.js whichever page loads it. */
+  const CASHU_URL = "./vendor/cashu-ts.js";
+  const BIP39_URL = "./vendor/scure-bip39.js";
+  const ENGLISH_URL = "./vendor/scure-bip39-english.js";
+  const BIP32_URL = "./vendor/scure-bip32.js";
   let cashuPromise;
   let walletCryptoPromise;
   const seedCache = new Map();
