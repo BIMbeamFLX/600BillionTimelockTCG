@@ -2332,7 +2332,7 @@ test("a cold website table never loads the NutFT wallet, and signing in changes 
   await waitFor(() => byId("collectionNote").textContent === "Sign in to use your cards. You can play with a starter stack now.", "the guest line");
   for (const fn of fired["e1:identity"] || []) fn({ detail: { pubkey: "a".repeat(64) } });
   assert.equal(byId("collectionNote").textContent,
-    "No cards in your collection yet. A card bought on tcg.nappelin.com is locked to that site's wallet: send it to your collection's address in the wallet there first, then paste the token into the collection.");
+    "No cards in this browser's wallet yet. Cards you buy or claim in the shop land here. You can play with a starter stack now.", "on the website the cards are this browser's wallet, not a collection to paste into");
   for (const fn of fired["e1:identity"] || []) fn({ detail: { pubkey: null } });
   assert.match(byId("collectionNote").textContent, /^Sign in to use your cards\./, "and signing out changes it back");
   assert.equal(walletTags(byId).length, 0, "no wallet on this device, so no wallet script");

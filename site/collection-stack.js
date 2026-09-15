@@ -454,9 +454,11 @@
 
   /* `empty` carries the sentence agreed with nappelin for the Hangar's empty collection,
      word for word as bearlett's docs have it: a website card is P2PK-locked to the
-     website's wallet, and pasting it straight into the collection is refused. */
+     website's wallet, and pasting it straight into the collection is refused. On the
+     website itself the cards ARE that wallet's, so `walletEmpty` says so instead. */
   const WORDS = Object.freeze({
     guest: "Sign in to use your cards. You can play with a starter stack now.",
+    walletEmpty: "No cards in this browser's wallet yet. Cards you buy or claim in the shop land here. You can play with a starter stack now.",
     empty: "No cards in your collection yet. A card bought on tcg.nappelin.com is locked to that site's wallet: send it to your collection's address in the wallet there first, then paste the token into the collection.",
     noCollection: "No card collection is reachable in this shell. You can play with a starter stack now.",
   });
@@ -481,7 +483,8 @@
     if (c.unknown) {
       return `Your collection holds ${counted(c.unknown, "card", "cards")} this edition does not know. You can play with a starter stack now.`;
     }
-    return c.identity ? WORDS.empty : WORDS.guest;
+    if (!c.identity) return WORDS.guest;
+    return c.source === "wallet" ? WORDS.walletEmpty : WORDS.empty;
   }
 
   return Object.freeze({
