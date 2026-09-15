@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createRequire } from "node:module";
 import { browserWallet } from "./helpers/browser-wallet.mjs";
+import * as fixture from "./helpers/wallet-fixture.mjs";
 
 const require = createRequire(import.meta.url);
 const { createTable } = require("../../server/table.js");
@@ -159,6 +160,52 @@ test("a 503 and a dropped connection are waited out like a 429", async (t) => {
   assert.equal(issued.cards.length, PACK);
   assert.equal(pendingIn(storage), null);
 });
+
+/* The mint carries the request out, and then a gateway answers in JSON anyway. */
+const committedThen = (path, status, error) => {
+  let answered = false;
+  return async (request, send) => {
+    if (answered || request.method !== "POST" || request.path !== path) return null;
+    answered = true;
+    await send();
+    return Response.json({ error }, { status });
+  };
+};
+
+test("a transfer the mint committed behind a 504 with a JSON error is finished by the replay",
+  async (t) => {
+    const mint = await fixture.bootMint(t);
+    const alice = await fixture.openWallet(mint, {
+      intercept: committedThen("/nutft/trade", 504, "upstream timed out"),
+    });
+    await alice.wallet.buyBooster(mint.url);
+    const [card] = (await alice.wallet.snapshotReadOnly(mint.url)).owned;
+    const bob = await fixture.openWallet(mint);
+
+    await assert.rejects(alice.wallet.tradeProof(mint.url, card.proof.secret, await bob.wallet.destination()),
+      /could not answer \(504\)/);
+    assert.equal(alice.saved().pending.type, "trade", "a JSON body on a 5xx is not the mint's verdict");
+
+    const finished = await alice.wallet.recoverPending();
+    const [first, again] = alice.posted("/nutft/trade");
+    assert.equal(again.body.idempotency_key, first.body.idempotency_key, "the same request, replayed");
+    assert.equal(await bob.wallet.importToken(mint.url, finished.token), 1, "and the card reached bob");
+  });
+
+test("a booster claim answered 500 with a JSON error after issuance is polled into the replay",
+  async (t) => {
+    const mint = await fixture.bootMint(t);
+    const buyer = await fixture.openWallet(mint, {
+      intercept: committedThen("/nutft/booster", 500, "internal server error"),
+    });
+
+    const issued = await buyer.wallet.buyBooster(mint.url);
+
+    assert.equal(issued.cards.length, PACK);
+    assert.equal(buyer.posted("/nutft/booster").length, 2, "polled once more, and replayed");
+    const state = await (await fetch(`${mint.url}/nutft/state`)).json();
+    assert.equal(state.sold, 1, "one pack, not two");
+  });
 
 test("a real refusal from the mint still ends a booster claim", async (t) => {
   const clock = await boot(t);

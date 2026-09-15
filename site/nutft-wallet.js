@@ -560,12 +560,15 @@
     throw new Error(attempt.reason);
   }
 
-  /* NOT NOW IS NOT NO. A 429 (the referee's rate limit), a 503, or no answer
-     at all means the mint never looked at the request, so none of them may
-     reach refusal() below -- that is the road on which a pending claim or
+  /* NOT NOW IS NOT NO. Only a 4xx other than 429 is the mint's verdict on a
+     request. A 429 (the referee's rate limit), any 5xx whatever its body, or no
+     answer at all says nothing about whether the mint acted: a proxy can answer
+     504 {"error": ...} after the mint has already committed a trade. None of
+     them may reach refusal() below, the road on which a pending claim or
      transfer gets discarded. mintFetch throws this instead, every caller keeps
-     what it holds, and the same request is simply sent again later. */
-  const BUSY_STATUS = [429, 503];
+     what it holds, and the same request is sent again later, which the mint
+     either carries out or answers by replaying what it already committed. */
+  const isVerdict = (status) => status >= 400 && status < 500 && status !== 429;
   const BUSY_WAIT_CAP_MS = 30_000;
   const BUSY_ATTEMPTS = 8;
 
@@ -580,11 +583,13 @@
     let response;
     try { response = await fetch(url, init); }
     catch (error) { throw busyMint(`the mint could not be reached (${error.message})`, null); }
-    if (!BUSY_STATUS.includes(response.status)) return response;
+    if (response.ok || isVerdict(response.status)) return response;
     const header = response.headers && response.headers.get("retry-after");
     const seconds = header ? Number(header) : NaN;
-    throw busyMint(`the mint is busy (${response.status})`,
-      Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null);
+    const message = response.status === 429
+      ? "the mint is busy (429)"
+      : `the mint could not answer (${response.status})`;
+    throw busyMint(message, Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null);
   }
 
   /* Restore and checkstate change nothing on the mint, so a busy answer is

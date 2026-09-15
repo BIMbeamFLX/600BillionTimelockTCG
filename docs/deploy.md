@@ -273,8 +273,9 @@ header. The first refusal a client earns on any limit, socket or mint, writes on
 line such as `[table] rate limited: mint-recovery for 203.0.113.9 (240 per 60s)`;
 further refusals from that client stay quiet for a minute.
 
-The wallet treats a `429`, a `503` or a dropped connection as "not now", never as
-"no": a pending booster claim, purchase or transfer is kept and sent again, and a
+The wallet treats a `429`, any `5xx` (whatever its body) or a dropped connection as
+"not now", never as "no": a pending booster claim, purchase or transfer is kept and
+sent again, and a
 phrase recovery waits for `Retry-After` (never more than 30 s per wait, at most
 eight tries per request) and carries on. Only a real refusal from the mint ends an
 operation.
