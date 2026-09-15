@@ -675,6 +675,9 @@
 
   function onState(msg) {
     net.intent = null; // answered; never replay it
+    /* A STATE ends any search: the referee takes a connection out of the line the
+     * moment it sits it down, and pairing sends no last QUEUED to say so. */
+    net.queued = null;
     net.lastState = msg;
     if (msg.seat === 0 || msg.seat === 1) {
       const next = {

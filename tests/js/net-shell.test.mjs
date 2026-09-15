@@ -862,6 +862,30 @@ test("on the website a ?code= is read once and taken out of the address bar, val
   assert.deepEqual(replaced, [], "an address without a code is left alone");
 });
 
+// ------------------------------------------------------------ two shells, one table
+
+test("two Hangar tabs find each other in the quick match", async (t) => {
+  const table = await referee(t, "quick.db");
+  const build = { E1_TABLE_URL: table.wsUrl };
+  const carol = hangarTab(t, "carol");
+  const dave = hangarTab(t, "dave");
+  const c = carol.open({ scope: build });
+  const d = dave.open({ scope: build });
+  c.net.queue({ name: "carol", affinity: "Power", pubkey: carol.pubkey });
+  await waitFor(() => c.log.queued.find((q) => q.queued && q.position === 1));
+  d.net.queue({ name: "dave", affinity: "Keys", pubkey: dave.pubkey });
+  const [dealtC, dealtD] = await Promise.all([
+    waitFor(() => c.log.states.find((s) => s.status === "playing")),
+    waitFor(() => d.log.states.find((s) => s.status === "playing")),
+  ]);
+  assert.equal(dealtC.matchId, dealtD.matchId);
+  assert.deepEqual([dealtC.seat, dealtD.seat].sort(), [0, 1]);
+  assert.deepEqual([dealtC.stake, dealtD.stake], [0, 0]);
+  assert.equal(c.net.queued, null, "the line is left once a seat is dealt");
+  assert.deepEqual(await d.net.tables(), [], "a dealt match is no open table");
+  assert.deepEqual([...c.sockets, ...d.sockets], []);
+});
+
 test("tableUrl() in a srcdoc frame: the build constant, else nappelin's referee", () => {
   const host = fakeHangar();
   assert.equal(loadShell({ host, shell: shellWith() }).net.tableUrl(), "wss://tcg.nappelin.com/ws");
