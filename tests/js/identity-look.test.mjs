@@ -434,8 +434,9 @@ test("one query per key, and a replaced look revokes the object URL it held", as
   assert.deepEqual(revoked, ["blob:look/1"], "only an object URL is revoked");
 });
 
-test("a picture that is not http(s) is never a source", async () => {
+test("a picture that is not https is never a source", async () => {
   const hostile = [
+    "http://example.com/flx.png", "HTTP://example.com/flx.png", "http://localhost:8777/art/flx.png",
     "javascript:alert(1)", "JavaScript:alert(1)", " javascript:alert(1)", "data:image/png;base64,iVBORw0KGgo=",
     "blob:https://example.com/0000", "file:///etc/passwd", "vbscript:msgbox(1)", "//example.com/flx.png",
     "https://user:secret@example.com/flx.png", "https://example.com/" + "a".repeat(2100), 42, null,
@@ -455,7 +456,7 @@ test("a picture that is not http(s) is never a source", async () => {
   }
   assert.equal(fetched, 0, "nothing was fetched for a hostile picture");
   assert.equal(L.safeUrl("https://example.com/flx.png"), "https://example.com/flx.png");
-  assert.equal(L.safeUrl("http://localhost:8777/art/flx.png"), "http://localhost:8777/art/flx.png");
+  assert.equal(L.safeUrl("HTTPS://example.com/flx.png"), "https://example.com/flx.png");
 });
 
 test("names are cleaned text, never markup, and bounded", async () => {

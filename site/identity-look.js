@@ -79,14 +79,13 @@
     return Array.from(text).slice(0, NAME_MAX).join("").trim() || null;
   }
 
-  /* http(s) only, no credentials, bounded. A picture field is whatever a relay
-   * handed over, so `javascript:`, `data:` and `blob:` never become a source. */
+  /* https only, no credentials, bounded. A picture field is whatever a relay
+   * handed over, so `javascript:`, `data:`, `blob:` and plain `http:` never become a source. */
   function safeUrl(raw) {
     if (typeof raw !== "string" || !raw.trim() || raw.length > 2048) return null;
     try {
       const url = new URL(raw.trim());
-      const web = url.protocol === "https:" || url.protocol === "http:";
-      return web && !url.username && !url.password ? url.href : null;
+      return url.protocol === "https:" && !url.username && !url.password ? url.href : null;
     } catch (error) {
       return null;
     }
