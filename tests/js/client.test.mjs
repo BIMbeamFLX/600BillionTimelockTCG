@@ -2790,3 +2790,22 @@ test("a seat that loses at a referee's table hears defeat, and a finished match 
   assert.deepEqual(shell.sent.slice(4), ["mood:defeat"], "the mood, but no second match-end");
   byId("leaveTable").click();
 });
+
+test("a draw is calm for every seat: nobody lost, and calm hands the music back", (t) => {
+  const shell = cueHangar();
+  opaqueStorage(t);
+  globalThis.E1Napplet = shell;
+  t.after(() => { delete globalThis.E1Napplet; });
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+  const view = globalThis.E1Engine.view(clientGame(990456), 1);
+  view.seats[0].uptime = 3; // tension first, so the draw has a mood to change
+  stub.handlers.onState({ ...STATE_BASE, seat: 1, role: "seat", status: "playing", claimable: false, view });
+  assert.deepEqual(shell.sent, ["mood:calm", "mood:tension"]);
+  const over = structuredClone(view);
+  over.result = { winners: [], losers: [0, 1], reason: "draw" };
+  stub.handlers.onFrame({ view: over, events: [{ t: "GAME_OVER", winners: [], reason: "draw" }] });
+  assert.deepEqual(shell.sent.slice(2), ["moment:match-end", "mood:calm"], "not defeat, and not victory");
+  byId("leaveTable").click();
+  assert.equal(shell.sent.length, 4, "leaving a drawn table is already calm");
+});

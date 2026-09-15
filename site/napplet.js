@@ -795,8 +795,8 @@
    * music is audible, so its own bed can step back. It rides the same postMessage
    * pipe as the table channel, request ids and all.
    *
-   * NOTHING HAPPENS UNTIL THE SHELL SAYS SO. Without `shell.supports("x-nappelin-cue")`
-   * (or the domain on the prelude) every call is a no-op and nothing is posted —
+   * NOTHING HAPPENS UNTIL THE SHELL SAYS SO. Unless `napplet.shell.supports("x-nappelin-cue")`
+   * answers `true`, every call is a no-op and nothing is posted —
    * which is every website visit and every Hangar that does not route cues yet.
    *
    * The shell rate-limits and answers `rate limited`, and an error is final: this
@@ -882,10 +882,10 @@
     /** Whether the shell routes cues. False on the website and in a Hangar without the domain. */
     available() {
       if (!shell || !embedded() || !hostWindow()) return false;
-      if (has(CUE)) return true;
+      /* The one probe (nappelin #128): the host may never expose a
+       * `napplet["x-nappelin-cue"]` object, and only a plain `true` is a yes. */
       try {
-        if (shell.shell && typeof shell.shell.supports === "function" && shell.shell.supports(CUE) === true) return true;
-        return typeof shell.supports === "function" && shell.supports(CUE) === true;
+        return Boolean(shell.shell) && typeof shell.shell.supports === "function" && shell.shell.supports(CUE) === true;
       } catch (err) {
         return false; // a supports() that throws supports nothing
       }

@@ -667,8 +667,10 @@
   }
 
   /* Whose ending this screen hears: the seat a referee gave us, or the human in
-   * solo play. Hotseat and spectators hear victory. */
+   * solo play. Hotseat and spectators hear victory. A draw is calm for everyone:
+   * nobody lost, and calm hands the music back. */
   function cueOutcome(v) {
+    if (v.result.reason === "draw" || !(v.result.winners || []).length) return "calm";
     const mine = session.role === "seat" ? session.seat : session.npc !== null ? 1 - session.npc : null;
     if (mine === null || session.role === "spectator") return "victory";
     return (v.result.winners || []).includes(mine) ? "victory" : "defeat";

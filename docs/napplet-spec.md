@@ -462,19 +462,20 @@ check takes the same branch. Both fall back to the page's own NutFT wallet on th
 ### 5. Music cues and audio focus (NAP-CUE, 2026-09-15)
 
 The Hangar's music napplet (DJ David Clanker) follows the table, and the table's own sound bed
-steps back while that music plays. Draft: nappelin PR #107, `specs/naps/nap-cue.md`, under the
+steps back while that music plays. Spec: nappelin `specs/naps/nap-cue.md` (drafted in #107, merged in #128), under the
 interim domain `x-nappelin-cue`. The manifest declares `["requires", "x-nappelin-cue"]`; a catalog
 that does not grant it still launches the napplet, and the check below stays false.
 
 **Nothing is sent until the shell says so.** `E1Napplet.cue.available()` is
-`napplet.shell.supports("x-nappelin-cue")` (or `napplet.supports`, or the domain on the prelude),
-inside a frame with a parent. On the website, or without the feature, every call is a no-op and
+`napplet.shell.supports("x-nappelin-cue") === true`, inside a frame with a parent. That is the only
+probe: no `napplet["x-nappelin-cue"]` object is read, and anything but a plain `true` is a no. On the website, or without the feature, every call is a no-op and
 nothing is posted.
 
 | direction | message | fields |
 | --- | --- | --- |
 | napplet → host | `x-nappelin-cue.send` | `id`, `mood?`, `moment?` |
 | host → napplet | `x-nappelin-cue.send.result` | `id`, `accepted: true` or `error` |
+| host → music handler | `x-nappelin-cue.cue` | `mood?`, `moment?` (DJ David Clanker only; the TCG never receives it) |
 | host → napplet | `x-nappelin-cue.focus` | `music: "playing" \| "idle"` (on change, and once at launch) |
 
 It rides the table channel's pipe (§3b): a fresh `id` per send, replies matched on it, only
@@ -501,10 +502,10 @@ engine events `fx()` already receives and the view `render()` draws, sent on cha
 | `attack` | an `ATTACKERS` event with at least one attacker (Classic), or an `ATTACK` event (Fast `DECLARE_ATTACK`) |
 | `lethal` | once per match, a seat `DAMAGE` or an `UPTIME` loss leaves that seat at 0 or less; sent before `match-end` |
 | `match-end` | the view's `result` appears for a match first seen unfinished |
-| `calm` | the first screen, setup, the lobby, a table left, `pagehide`; and in play when nothing below holds |
+| `calm` | the first screen, setup, the lobby, a table left, `pagehide`, a draw; and in play when nothing below holds |
 | `tension` | either seat at 6 Uptime or less (`CUE_TENSION_UPTIME`: 30% of the 20 start, one big Avatar's hit) |
 | `battle` | an attack was made this turn (`turn.attacked` is not empty) |
-| `victory` / `defeat` | the result, from the local seat: a referee's seat or the human in solo play; hotseat and spectators hear `victory` |
+| `victory` / `defeat` | a result with a winner, from the local seat: a referee's seat or the human in solo play; hotseat and spectators hear `victory` |
 
 `booster-open` is never sent: the shop is not in the napplet. A resync (`STATE`) sends moods but no
 moments, and a match first seen finished does not announce `match-end` again.

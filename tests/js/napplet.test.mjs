@@ -973,7 +973,7 @@ test("a host that never answers link.open is a refusal after 30 s, and nothing i
 /* NAP-CUE (nappelin #107), interim domain x-nappelin-cue. A shell that routes
  * cues answers every send; the clock and the timers are the test's, so the 8 s
  * mood window and the 4-per-second moment cap are checked without waiting. */
-function cueShell({ supports = true, answer = (msg) => ({ accepted: true }) } = {}) {
+function cueShell({ supports = true, answer = (msg) => ({ accepted: true }), extra = {} } = {}) {
   const clock = { t: 1000000, timers: [] };
   const host = fakeHost((msg, h) => {
     if (msg.type !== "x-nappelin-cue.send") return;
@@ -981,7 +981,8 @@ function cueShell({ supports = true, answer = (msg) => ({ accepted: true }) } = 
     if (reply) h.deliver(Object.assign({ type: "x-nappelin-cue.send.result", id: msg.id }, reply));
   });
   const asked = [];
-  const napplet = { shell: { supports: (domain) => { asked.push(domain); return supports && domain === "x-nappelin-cue"; } } };
+  const napplet = { shell: { supports: (domain) => { asked.push(domain); return domain === "x-nappelin-cue" ? supports : false; } } };
+  Object.assign(napplet, extra);
   const N = load(Object.assign(base(), {
     napplet, window: host.window, parent: host.parent,
     Date: { now: () => clock.t },
@@ -1099,4 +1100,17 @@ test("cue: onFocus hears playing and idle from the parent, and unsubscribes", ()
   stop();
   host.deliver({ type: "x-nappelin-cue.focus", music: "playing" });
   assert.deepEqual(heard, ["playing", "idle"], "unsubscribed");
+});
+
+test("cue: napplet.shell.supports(\"x-nappelin-cue\") === true is the only probe", async () => {
+  for (const loose of ["true", 1, {}, "yes"]) {
+    const shell = cueShell({ supports: loose });
+    assert.equal(shell.N.cue.available(), false, `supports() answering ${JSON.stringify(loose)} is not a yes`);
+    assert.deepEqual(await shell.N.cue.send({ moment: "turn" }), { ok: false, error: "unavailable" });
+    assert.deepEqual(shell.host.posted, []);
+  }
+  const prelude = cueShell({ supports: false, extra: { "x-nappelin-cue": { send() {} }, supports: () => true } });
+  assert.equal(prelude.N.cue.available(), false, "neither a prelude object nor a top-level supports() stands in for the probe");
+  const throwing = cueShell({ extra: { shell: { supports() { throw new Error("not ready"); } } } });
+  assert.equal(throwing.N.cue.available(), false, "a supports() that throws supports nothing");
 });
