@@ -275,22 +275,25 @@ further refusals from that client stay quiet for a minute.
 
 The wallet treats a `429`, any `5xx` (whatever its body) or a dropped connection as
 "not now", never as "no": a pending booster claim, purchase or transfer is kept and
-sent again, and a
-phrase recovery waits for `Retry-After` (never more than 30 s per wait, at most
-eight tries per request) and carries on. Only a real refusal from the mint ends an
-operation.
+sent again, and a phrase recovery waits for `Retry-After` (never more than 30 s per
+wait, at most eight tries per request) and carries on. Only a `4xx` other than
+`429` ends an operation, and the mint answers a storage failure with `500`, never a
+`4xx`. A recovery stopped part-way keeps the cards it found and resumes from its
+last batch, and it keeps scanning until 2N + 100 slots in a row are unsigned (N is
+the catalog size), so cards beyond a slot an older wallet abandoned still come back.
 
 `MINT_RECOVERY_RATE_MAX` comes from measuring the real wallet's NUT-13 seed scan,
 which walks counters a hundred at a time: one restore per hundred, plus a
 checkstate wherever it finds cards. Each measurement recovered E1 and then G from
-one client, so both scans drew on one budget, and the request timeline was
-replayed through the referee's bucket to find the smallest budget that refuses
-nothing:
+one client against the referee at its default budget, so both scans drew on one
+bucket, and the request timeline was replayed through that bucket to find the
+smallest budget that refuses nothing:
 
-| Wallet | Recovery requests (restore + checkstate) | Took | Busiest minute | Smallest budget with no `429`, at that pace / twice as fast |
-|---|---|---|---|---|
-| 5 E1 boosters and a G starter set, 157 cards | 267 (E1 127 + 54, G 51 + 35) | 2 min | 142 | 91 / 136 |
-| Full-collection size: 20 E1 boosters and 2 G sets, 464 cards | 884 (E1 496 + 219, G 97 + 72) | 6.4 min | 158 | 120 / 211 |
+| Wallet | Recovery requests (restore + checkstate) | Took | Busiest minute | `429`s seen | Smallest budget with no `429`, at that pace / twice as fast |
+|---|---|---|---|---|---|
+| One 15-card pack | 46 (34 + 12) | about 25 s | 46 | 0 | — |
+| 5 E1 boosters and a G starter set, 157 cards | 273 (E1 131 + 54, G 53 + 35) | 2.1 min | 137 | 0 | 89 / 134 |
+| Full-collection size: 20 E1 boosters and 2 G sets, 464 cards | 890 (E1 500 + 219, G 99 + 72) | 6.5 min | 160 | 0 | 120 / 210 |
 
 At 240 neither recovery meets a single `429`, at the measured pace or twice it; a
 faster client meets short waits and still finishes. The same ceiling holds one

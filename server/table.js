@@ -70,7 +70,7 @@ const RATE_MAX_CONTROL = 30;
  * mintRouteLimit for what each counts. */
 const MINT_RATE_WINDOW_MS = 60_000;
 const MINT_WRITE_RATE_MAX = 20;
-/* Measured: a phrase recovery of a full-collection wallet peaks at 158 requests
+/* Measured: a phrase recovery of a full-collection wallet peaks at 160 requests
  * a minute (docs/deploy.md §5), so 240 leaves room for a client twice as fast. */
 const MINT_RECOVERY_RATE_MAX = 240;
 const MINT_QUOTE_RATE_MAX = 60;
