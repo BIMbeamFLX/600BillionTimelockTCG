@@ -301,6 +301,17 @@ select option, select optgroup { color: var(--parchment); background: var(--iron
   color: var(--brass-3); background: transparent; border-color: rgba(143,106,42,.5); cursor: not-allowed;
 }
 
+/* ---------- the first screen (inside the Hangar) ---------- */
+.first { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--divider); }
+.member { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.member .portrait { width: 56px; height: 56px; object-fit: cover; border: 1px solid var(--emphasis); background: var(--iron-800); }
+.member .portrait[data-look="fullbody"] { object-position: 50% 12%; }
+.member strong { display: block; margin-top: 2px; font: 700 18px/1.2 var(--headline); letter-spacing: .12em; text-transform: uppercase; color: var(--parchment); }
+.modes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+/* The way to play that is open below: switched on, in machine brass. */
+.modes .tcg-btn[aria-pressed="true"] { color: var(--iron); background: var(--brass-2); border-color: var(--brass-2); }
+#shopDoor { margin-top: 8px; padding: 8px 14px; }
+
 /* ---------- the online door ---------- */
 .online { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--divider); }
 .online h2 { font: 700 20px/1.2 var(--headline); letter-spacing: .14em; text-transform: uppercase; color: var(--parchment); margin-bottom: 8px; }
@@ -978,6 +989,9 @@ html.embedded * { border-radius: 0; }
 /* The masthead keeps only the turn and net chips. */
 html.embedded .masthead img, html.embedded .brand, html.embedded .skip { display: none; }
 html.embedded .navlinks { display: none; }
+/* The first screen names the ways to play, so the setup form keeps no title of its own,
+   and the collection is said once, on the first screen. */
+html.embedded #localSetup > h1, html.embedded #collectionNote { display: none; }
 /* A fixed layer in a short srcdoc frame paints over the host: anchor both
    background layers to the stage instead. */
 html.embedded .stage::before { position: absolute; }
@@ -1009,6 +1023,26 @@ html.embedded .stage::after { position: absolute; }
 
   <!-- ---------------- setup ---------------- -->
   <section class="setup" id="setup">
+    <!-- THE FIRST SCREEN INSIDE THE HANGAR, and from a guild's Play list, which opens
+         the same napplet: who is playing, the three ways to play, what the collection
+         holds, and one line for whatever is not available. play.js shows it only when
+         embedded; the choice stays above the setup form or the lobby it opens. -->
+    <div class="first" id="first" hidden>
+      <div class="member">
+        <img class="portrait" id="firstPortrait" alt="" hidden>
+        <div><span class="tcg-label">Playing as</span><strong id="firstName"></strong></div>
+      </div>
+      <div class="modes" role="group" aria-label="How to play">
+        <button class="btn ghost tcg-btn" id="modeNpc" aria-pressed="false">Against the computer</button>
+        <button class="btn ghost tcg-btn" id="modeHotseat" aria-pressed="false">Hotseat</button>
+        <button class="btn ghost tcg-btn" id="modeOnline" aria-pressed="false">Online</button>
+      </div>
+      <div class="setup-note" id="firstIdentity" hidden></div>
+      <div class="setup-note collection-note" id="firstCollection" role="status" aria-live="polite" hidden></div>
+      <!-- The empty collection's one door: a fixed address the Hangar asks the member about. -->
+      <button class="btn ghost tcg-btn" id="shopDoor" hidden>Open the shop</button>
+    </div>
+    <div id="localSetup">
     <h1>Play <span>locally</span></h1>
     <p id="setupClassic">Two-player hotseat on one machine, with all <b id="cardCount">295</b> Edition One cards.
     Each seat gets a randomised 40-card Stack in the rulebook's recommended prototype shape.
@@ -1079,6 +1113,7 @@ html.embedded .stage::after { position: absolute; }
         <input id="seed" class="tcg-field" placeholder="word or number" autocomplete="off" aria-describedby="seedHint">
       </label>
       <span id="seedHint" class="hint">Any word or number deals the same game every time. Blank deals a new one.</span>
+    </div>
     </div>
 
     <!-- ---------------- the online door ----------------

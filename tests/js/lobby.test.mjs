@@ -98,7 +98,7 @@ function netStub(extra) {
     queue(o) { calls.push(["queue", o]); stub.queued = { position: 1, waiting: 1 }; return true; },
     unqueue() { calls.push(["unqueue"]); stub.queued = null; return true; },
     rejoin(id) { calls.push(["rejoin", id]); return true; },
-    tables: async () => [],
+    tables: async () => { calls.push(["tables"]); return []; },
     tableUrl: () => "wss://tcg.nappelin.com/ws",
     publicTable: () => "wss://tcg.nappelin.com/ws",
     publicTableIsLocal: () => false,
@@ -495,7 +495,7 @@ function tableNet(extra) {
 
 /* play.html in a stub document, with site/lobby.js beside it: the DOMContentLoaded
  * listener is fired by hand, which is what mounts the lobby inside the Hangar. */
-function loadTable(net, napplet) {
+function loadTable(net, napplet, { look = null } = {}) {
   const nodes = new Map();
   const byId = (id) => {
     if (!nodes.has(id)) nodes.set(id, stubElement(id));
@@ -524,7 +524,7 @@ function loadTable(net, napplet) {
   });
   E.setCatalog(CARDS);
   delete globalThis.E1FX;
-  delete globalThis.E1Look;
+  if (look) globalThis.E1Look = look; else delete globalThis.E1Look;
   delete globalThis.E1Lobby;
   new Function(LOBBY_JS)();
   new Function(PLAY_JS)();
@@ -656,4 +656,168 @@ test("My collection online: the Hangar's lobby opens a table with the Stack the 
   assert.deepEqual(create.deck, expected.ids, "the Stack collection-stack.js deals for these cards under Fast");
   assert.equal(create.stake, 0);
   for (const card of cards) assert.equal(create.deck.filter((id) => id === card.asset_id).length, 2, `${card.asset_id} goes to the table`);
+});
+
+// -------------------------------------------------------- the first screen inside the Hangar
+
+const NAPPLET_JS = fs.readFileSync(path.join(SITE, "napplet.js"), "utf8");
+const { schnorr } = require("@noble/curves/secp256k1");
+const { createHash } = require("node:crypto");
+require("../../site/schnorr.js");
+const SHOP = "https://tcg.nappelin.com/shop.html";
+const COLLECTION_WORDS = globalThis.E1CollectionStack.WORDS;
+const MEMBER_SK = Uint8Array.from(createHash("sha256").update("lobby:member").digest());
+const MEMBER = Buffer.from(schnorr.getPublicKey(MEMBER_SK)).toString("hex");
+
+function signedBy(sk, template) {
+  const event = Object.assign({ pubkey: Buffer.from(schnorr.getPublicKey(sk)).toString("hex") }, template);
+  event.id = createHash("sha256").update(JSON.stringify([0, event.pubkey, event.created_at, event.kind, event.tags, event.content])).digest("hex");
+  event.sig = Buffer.from(schnorr.sign(event.id, sk)).toString("hex");
+  return event;
+}
+
+const EMPTY_INVENTORY = {
+  v: 1, kind: "nutft/inventory", edition: "600b-e1", collection_id: "600B-E1",
+  catalog_uri: "", mint: "https://tcg.nappelin.com", at: 1757900000, cards: [],
+};
+
+/* The prelude a Hangar installs, with only the domains a test grants, under the real
+ * adapter (site/napplet.js), so the table reads it exactly as it does in the frame. */
+function realAdapter({ key = MEMBER, inventory = EMPTY_INVENTORY, intent = true, link = null, outbox = null, resource = null } = {}) {
+  const asked = { link: [] };
+  const shell = {
+    identity: { getPublicKey: async () => key || "" },
+    storage: { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} },
+  };
+  if (intent) shell.intent = { invoke: async () => ({ ok: true, inventory }), available: async () => true };
+  if (link) shell.link = { open: (url, options) => { asked.link.push([url, options]); return link(url); } };
+  if (outbox) shell.outbox = outbox;
+  if (resource) shell.resource = resource;
+  globalThis.napplet = shell;
+  delete globalThis.E1Napplet;
+  new Function(NAPPLET_JS)();
+  delete globalThis.napplet;
+  return { N: globalThis.E1Napplet, asked };
+}
+
+/* net.js before it has heard the shell's key: the table and the lobby ask the shell. */
+const shellNet = (extra) => {
+  const net = tableNet(extra);
+  net.nostr.savedPubkey = () => null;
+  return net;
+};
+const flush = async (turns = 8) => { for (let i = 0; i < turns; i += 1) await Promise.resolve(); };
+
+test("the first screen inside the Hangar: the member's look, three ways to play, and the collection line with its door", async (t) => {
+  sandboxStorage(t);
+  const look = require("../../site/identity-look.js");
+  const picture = "https://example.com/flx.png";
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAMAASsJTYQAAAAASUVORK5CYII=", "base64");
+  const profile = signedBy(MEMBER_SK, { kind: 0, created_at: 1789000000, tags: [], content: JSON.stringify({ display_name: "FLX", picture }) });
+  const { N, asked } = realAdapter({
+    link: async () => ({ status: "opened" }),
+    outbox: { query: async () => ({ type: "outbox.query.result", events: [{ event: profile }] }) },
+    resource: { bytes: async (url) => (url === picture ? new Blob([png]) : null) },
+  });
+  const net = shellNet();
+  const { byId } = loadTable(net, N, { look });
+
+  assert.equal(byId("first").hidden, false, "the first screen is the page inside the Hangar");
+  assert.deepEqual(["modeNpc", "modeHotseat", "modeOnline"].map((id) => byId(id).getAttribute("aria-pressed")),
+    ["false", "false", "false"], "three ways to play, none chosen yet");
+  assert.deepEqual([byId("localSetup").hidden, byId("lobby").hidden], [true, true], "nothing opens before a choice");
+
+  await waitFor(() => byId("firstName").textContent === "FLX", "the member's name from their look");
+  await waitFor(() => /^blob:/.test(byId("firstPortrait").getAttribute("src") || ""), "their picture, through the shell");
+  assert.equal(byId("firstPortrait").hidden, false);
+  assert.equal(byId("firstPortrait").dataset.look, "picture");
+  assert.equal(byId("firstIdentity").hidden, true, "signed in: no identity line");
+
+  await waitFor(() => byId("firstCollection").textContent === COLLECTION_WORDS.empty, "the empty collection's line");
+  assert.equal(byId("firstCollection").hidden, false);
+  assert.equal(byId("shopDoor").hidden, false, "one button on the empty line");
+  byId("shopDoor").click();
+  assert.equal(byId("shopDoor").disabled, true, "one ask at a time");
+  await waitFor(() => byId("shopDoor").disabled === false, "the host's answer");
+  assert.deepEqual(asked.link, [[SHOP, undefined]], "the fixed address, asked of the Hangar once");
+  assert.equal(byId("firstCollection").textContent, COLLECTION_WORDS.empty);
+
+  byId("modeNpc").click();
+  assert.deepEqual([byId("localSetup").hidden, byId("lobby").hidden, byId("npcB").checked], [false, true, true]);
+  assert.equal(byId("modeNpc").getAttribute("aria-pressed"), "true");
+  byId("modeHotseat").click();
+  assert.deepEqual([byId("localSetup").hidden, byId("npcB").checked, byId("modeNpc").getAttribute("aria-pressed")], [false, false, "false"]);
+  byId("modeOnline").click();
+  assert.deepEqual([byId("localSetup").hidden, byId("lobby").hidden, byId("modeOnline").getAttribute("aria-pressed")], [true, false, "true"]);
+  await waitFor(() => called(net, "tables").length === 1, "the open tables, asked once the lobby is in view");
+  assert.equal(byId("lobbyIdentity").hidden, true);
+});
+
+test("each service the Hangar does not give says so in one line, and the door only opens where it can", async (t) => {
+  sandboxStorage(t);
+  const cases = [
+    [{ key: "", intent: false }, "Not signed in", COLLECTION_WORDS.noCollection, false],
+    [{ key: "", inventory: EMPTY_INVENTORY }, "Not signed in", COLLECTION_WORDS.guest, false],
+    [{ inventory: EMPTY_INVENTORY }, null, COLLECTION_WORDS.empty, false],
+    [{ inventory: EMPTY_INVENTORY, link: async () => ({ status: "opened" }) }, null, COLLECTION_WORDS.empty, true],
+  ];
+  for (const [grants, name, line, door] of cases) {
+    const { N } = realAdapter(grants);
+    const net = shellNet();
+    const { byId } = loadTable(net, N);
+    await waitFor(() => byId("firstCollection").textContent === line, line);
+    assert.equal(byId("shopDoor").hidden, !door, `door for ${line} with${grants.link ? "" : "out"} a link domain`);
+    if (name) {
+      await waitFor(() => byId("firstName").textContent === name, name);
+      assert.equal(byId("firstIdentity").hidden, false);
+      assert.equal(byId("firstIdentity").textContent, WORDS.noIdentity, "no key: one line, and local play still offered");
+      byId("modeOnline").click();
+      assert.equal(byId("lobbyIdentity").textContent, WORDS.noIdentity, "and the lobby says the same");
+      assert.equal(called(net, "tables").length, 0, "nobody to seat, so no table is asked");
+    } else {
+      await waitFor(() => byId("firstName").textContent !== "", "the member's short npub");
+      assert.equal(byId("firstName").textContent, "npub1bbbb…bbbbb");
+      assert.equal(byId("firstIdentity").hidden, true);
+    }
+  }
+});
+
+test("the shop door: a refusal, and a host that never answers for 30 s, leave the line as it was", async (t) => {
+  sandboxStorage(t);
+  const { N, asked } = realAdapter({ link: async () => ({ status: "denied" }) });
+  const { byId } = loadTable(shellNet(), N);
+  await waitFor(() => byId("shopDoor").hidden === false, "the door on the empty line");
+  byId("shopDoor").click();
+  await waitFor(() => byId("shopDoor").disabled === false, "the refusal");
+  assert.equal(asked.link.length, 1);
+  assert.equal(byId("firstCollection").textContent, COLLECTION_WORDS.empty, "refused: the words stay");
+  assert.equal(byId("shopDoor").hidden, false, "and so does the door");
+
+  const silent = realAdapter({ link: () => new Promise(() => {}) });
+  const page = loadTable(shellNet(), silent.N);
+  await waitFor(() => page.byId("shopDoor").hidden === false, "the door on the empty line");
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  page.byId("shopDoor").click();
+  await flush();
+  assert.equal(silent.asked.link.length, 1, "the host was asked");
+  t.mock.timers.tick(29999);
+  await flush();
+  assert.equal(page.byId("shopDoor").disabled, true, "still waiting just before 30 s");
+  t.mock.timers.tick(1);
+  await flush();
+  t.mock.timers.reset();
+  assert.equal(page.byId("shopDoor").disabled, false, "30 s of silence is a refusal");
+  assert.equal(page.byId("firstCollection").textContent, COLLECTION_WORDS.empty, "and the words stay");
+});
+
+test("a frame launched with a table code opens the online lobby with the code in Join, and joins nothing", (t) => {
+  sandboxStorage(t);
+  const reads = [];
+  const net = tableNet({ launchCode: () => { reads.push(1); return reads.length === 1 ? "K7M2QF" : null; } });
+  const { byId } = loadTable(net, tableHangar());
+  assert.equal(byId("modeOnline").getAttribute("aria-pressed"), "true");
+  assert.deepEqual([byId("lobby").hidden, byId("localSetup").hidden], [false, true]);
+  assert.equal(byId("joinCode").value, "K7M2QF");
+  assert.equal(reads.length, 1);
+  assert.deepEqual(called(net, "join"), [], "never joined by itself");
 });

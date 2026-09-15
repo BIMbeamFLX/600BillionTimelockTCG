@@ -1417,6 +1417,7 @@
   const LOOK_API = globalThis.E1Look || null;
   let LOOKS = null;
   let shellKey = null;    // the shell's answer to "who is signed in", once it lands
+  let shellAnswered = false;
 
   function looks() {
     if (LOOKS || !LOOK_API || typeof LOOK_API.book !== "function") return LOOKS;
@@ -1627,6 +1628,7 @@
    * reach whatever is on screen, and that is either the table or the picker. */
   const AVATAR_SYNC = [];
   function repaint() {
+    renderFirst();
     if (session.full) render();
     for (const sync of AVATAR_SYNC) sync();
   }
@@ -5218,7 +5220,78 @@
     $("table").hidden = true;
     $("setup").hidden = false;
     renderNetChip();
-    if (lobby) lobby.open();
+    showMode("online");
+  }
+
+  /* THE FIRST SCREEN INSIDE THE HANGAR (a guild's Play list opens the same napplet):
+   * who plays, the three ways to play, the collection line and a line for every
+   * service that is not there. The choice stays above what it opens: the setup
+   * form for a local game, the lobby for an online one. */
+  const SHOP_URL = "https://tcg.nappelin.com/shop.html";
+  const lobbyWords = () => (globalThis.E1Lobby && globalThis.E1Lobby.WORDS) || {};
+  let mode = null;
+
+  function showMode(next) {
+    mode = next;
+    for (const [id, name] of [["modeNpc", "npc"], ["modeHotseat", "hotseat"], ["modeOnline", "online"]]) {
+      const button = $(id);
+      if (button) button.setAttribute("aria-pressed", String(mode === name));
+    }
+    const local = $("localSetup");
+    if (local) local.hidden = !(mode === "npc" || mode === "hotseat");
+    const panel = $("lobby");
+    if (panel) panel.hidden = mode !== "online";
+    const npc = $("npcB");
+    if (npc && mode !== "online" && mode !== null) npc.checked = mode === "npc";
+    if (mode === "online" && lobby) lobby.open();
+  }
+
+  /* The member as the shell knows them: their look's name and picture (the seat
+   * code's own book), the short npub until it lands, and one line without a key.
+   * Nothing is said before the shell has answered who is signed in. */
+  function renderFirst() {
+    if (!embedded()) return;
+    const key = lookIdentity();
+    const book = key ? looks() : null;
+    const look = book ? book.seat("first", key, repaint) : null;
+    const known = Boolean(key) || shellAnswered;
+    const short = NET && NET.nostr ? NET.nostr.shortNpub(key) : "";
+    const name = !key ? (known ? "Not signed in" : "") : look && look.name ? look.name : short;
+    $("firstName").textContent = name;
+    const face = lookFace(look);
+    const img = $("firstPortrait");
+    img.hidden = !face;
+    if (face) {
+      if (img.dataset) img.dataset.look = face.via || "";
+      paintFace(img, face, `${name} avatar`);
+    }
+    const line = $("firstIdentity");
+    line.hidden = !known || Boolean(key);
+    line.textContent = line.hidden ? "" : lobbyWords().noIdentity || "";
+  }
+
+  /* The empty collection's one door, to a fixed address and never one built from
+   * input. The Hangar asks the member first; a refusal, or 30 s of silence
+   * (E1Napplet.link), leaves the line as it was. */
+  function openShop() {
+    const N = globalThis.E1Napplet;
+    const door = $("shopDoor");
+    if (door.disabled || !N || !N.link) return;
+    door.disabled = true;
+    Promise.resolve()
+      .then(() => N.link.open(SHOP_URL))
+      .catch(() => null)
+      .then(() => { door.disabled = false; });
+  }
+
+  function initFirst() {
+    $("first").hidden = false;
+    $("modeNpc").addEventListener("click", () => showMode("npc"));
+    $("modeHotseat").addEventListener("click", () => showMode("hotseat"));
+    $("modeOnline").addEventListener("click", () => showMode("online"));
+    $("shopDoor").addEventListener("click", openShop);
+    showMode(null);
+    renderFirst();
   }
 
   function mountLobby() {
@@ -5380,6 +5453,8 @@
     if (lobby) {
       lobby.told(started);
       if (started.restoring && typeof started.restoring.then === "function") started.restoring.then(lobby.told, () => {});
+      /* A frame opened with a table code shows the lobby it is prefilled in. */
+      if (lobby.launchCode) showMode("online");
       return;
     }
     if (started.resuming) netNotice("Rejoining your table…", "");
@@ -5497,6 +5572,16 @@
     note.classList.toggle("has-cards", collection.cards > 0);
     note.hidden = false;
     if (lobby) lobby.refresh();
+    if (!embedded()) return;
+    /* The first screen says the same line, and offers the shop when it is the empty one. */
+    const line = CS.collectionLine(collection);
+    const first = $("firstCollection");
+    first.textContent = line;
+    first.classList.toggle("has-cards", collection.cards > 0);
+    first.hidden = false;
+    const N = globalThis.E1Napplet;
+    const door = Boolean(N && N.link && typeof N.link.available === "function" && N.link.available());
+    $("shopDoor").hidden = !(door && line === CS.WORDS.empty);
   }
 
   function loadCollection() {
@@ -5778,9 +5863,16 @@
         .then(() => N.identity.current())
         .then((key) => {
           shellKey = key || null;
+          shellAnswered = true;
           follow();
         })
-        .catch(() => { /* no key from the shell: seat one keeps the menu it has */ });
+        .catch(() => {
+          /* no key from the shell: seat one keeps the menu it has */
+          shellAnswered = true;
+          repaint();
+        });
+    } else {
+      shellAnswered = true;
     }
     window.addEventListener("e1:identity", follow);
   }
@@ -6106,6 +6198,7 @@
     }
 
     initEndgame(); // before initNet, and unconditionally: see the note there.
+    if (embedded()) initFirst();
 
     // Last, and guarded: a missing net.js must not take the hotseat down with it.
     if (globalThis.E1Net) {
