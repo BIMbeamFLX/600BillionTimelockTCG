@@ -504,12 +504,84 @@ Only `cat` runs as root; `node` does not, because the copy sits in a directory t
 can write.
 
 **Anything but the single line `ok` stops the deploy here.** Exit code 2 (`the environment input
-is empty`) means `$PID` is 0 or stale. For every problem line, fix the environment first, as its
-own change with its own before and after check, exactly as `docs/mint-boot-checks.md` §1 (d) and
-§3 describe: read only the named keys with a grep, never print the whole `EnvironmentFile`,
-record the mints' public answers, change the value, restart the **running** build, record them
-again, then run the check again until it prints `ok`. Never start the new release to see whether
-it refuses. Then remove the copy:
+is empty`) means `$PID` is 0 or stale. Never start the new release to see whether it refuses.
+
+#### Fixing a problem line: the running build must prove nothing changed
+
+Most refusals are fixed by writing out a value the running build already uses as a default or
+inherits: `NUTFT_FUNDING`, `G_NUTFT_COLLECTION_ID`, `G_NUTFT_CENSUS_PATH`, and Edition G's
+`G_NUTFT_INVOICE_TTL_SECONDS` / `G_NUTFT_CLAIM_GRACE_SECONDS`. Each fix is its own change, applied
+to the **running** (old) build, and it must leave everything hashed into card bindings or visible
+to buyers exactly as it was. Three rules, none optional:
+
+1. **Snapshot the mints first.** Define this once in the SSH session, then save what both mints
+   publish before any edit:
+
+   ```bash
+   snap() {  # snap <dir>: both mints' public answers, and their stable fields as <dir>.json
+     mkdir -p "$1"
+     for M in v1 g/v1; do
+       N=$(echo "$M" | tr / -)
+       curl -sf "https://tcg.nappelin.com/$M/info" > "$1/$N-info.json"
+       curl -sf "https://tcg.nappelin.com/$M/keys" > "$1/$N-keys.json"
+     done
+     node -e '
+       const fs = require("fs"), dir = process.argv[1];
+       const read = (f) => { try { return JSON.parse(fs.readFileSync(`${dir}/${f}`, "utf8")); } catch { return null; } };
+       const pick = (m) => {
+         const info = read(`${m}-info.json`), keys = read(`${m}-keys.json`);
+         if (!info) return null;
+         const n = (info.nuts && info.nuts["31"]) || {};
+         const f = ["paid", "price_msat", "price_tiers", "funding", "virtual_sats", "test_mint", "sales",
+           "one_per_key", "issuance", "product", "purchase_mode", "supply_kind", "catalog_issuer",
+           "catalog_uri", "catalog_sha256", "catalog_blob_sha256"];
+         return { nut31: Object.fromEntries(f.map((k) => [k, n[k] === undefined ? null : n[k]])),
+           nut7: (info.nuts && info.nuts["7"]) || null, nut9: (info.nuts && info.nuts["9"]) || null,
+           keysets: ((keys && keys.keysets) || []).map((k) => ({ id: k.id, unit: k.unit, active: k.active })) };
+       };
+       console.log(JSON.stringify({ e1: pick("v1"), g: pick("g-v1") }, null, 1));
+     ' "$1" > "$1.json"
+   }
+   STAMP=$(date -u +%Y%m%dT%H%M%SZ); SNAP=/home/deploy/tcg-envfix-$STAMP
+   snap "$SNAP/before"
+   cat "$SNAP/before.json"
+   ```
+
+   `before.json` holds, for both editions, the catalog URI and digests, the collection id (a
+   keyset's `unit`), the keyset ids, sales mode, price and tiers, funding kind and one-per-key. A
+   mint that is switched off is `null` in both snapshots.
+
+2. **Copy each value from what the running build uses, never from a document.**
+   - `NUTFT_FUNDING`: the `funding` field in `before.json` under `e1`.
+   - `G_NUTFT_COLLECTION_ID`: the `unit` of the active keyset under `g`.
+   - `G_NUTFT_CENSUS_PATH`: the path the running build's own code falls back to, read on the box
+     from the running copy, e.g.
+     `grep -n "G_NUTFT_CENSUS_PATH" /home/deploy/bimCVP/infra/site-root/tcg600/server/*.js`,
+     resolved against that directory. The `catalog_sha256` comparison in rule 3 proves the file.
+   - `G_NUTFT_INVOICE_TTL_SECONDS` / `G_NUTFT_CLAIM_GRACE_SECONDS`: the running build gives G the
+     E1 values, so copy them from the running process (not secrets):
+     `sudo cat /proc/$PID/environ | tr '\0' '\n' | grep -E '^NUTFT_(INVOICE_TTL|CLAIM_GRACE)_SECONDS='`.
+
+   Keep a copy of the file you edit first (`sudo cp -a <file> <file>.bak-$STAMP`), change only
+   the named key, and never print the whole file.
+
+3. **Restart the running build and compare.** As in 9.4, restart only while nobody waits in quick
+   match (`"queued":0`); matches and seats resume on their own.
+
+   ```bash
+   curl -s https://tcg.nappelin.com/api/health
+   sudo systemctl restart tcg-table && systemctl is-active tcg-table
+   snap "$SNAP/after"
+   diff "$SNAP/before.json" "$SNAP/after.json" && echo "mints unchanged"
+   ```
+
+   **Any output from `diff` means rolling the environment back at once**: copy the `.bak-$STAMP`
+   file back, restart, and `snap "$SNAP/rollback"` to see the old answers again. There is no
+   second attempt in the same window; the deploy stops for the day and the difference is looked at
+   first. (A booster sold between the two snapshots can move `price_msat` across a price tier; that
+   is still a stop, and a reason to fix the environment when the shop is quiet.)
+
+Run the check again after each fix until it prints `ok`, then remove the copy:
 
 ```bash
 rm -r /home/deploy/tcg-envcheck-<sha12>
