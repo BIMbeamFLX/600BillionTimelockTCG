@@ -683,6 +683,8 @@ test("the wallet script loads when the Wallet panel opens, never with the page",
   assert.equal(snapshots, 0, "no mint, no count");
   const open = find(panel(scope, "wallet"), (node) => node.localName === "a");
   assert.equal(open.href, "wallet.html");
+  assert.equal(open.target, "_blank", "the drawer overlays and never navigates away from a match");
+  assert.equal(open.rel, "noopener noreferrer");
 });
 
 test("an empty wallet shows its empty state and never loads the wallet script or asks a mint", async () => {
