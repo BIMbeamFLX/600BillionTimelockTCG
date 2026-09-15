@@ -22,7 +22,10 @@ const BACKENDS = ["lnd", "phoenixd", "cashu", "mock", "none"];
 const LOOPBACK = /^(127\.\d+\.\d+\.\d+|localhost|\[?::1\]?)$/i;
 /* The wallet refuses any other keyset unit, so a mint with one could never be read. */
 const COLLECTION_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
-const SUPPLY_INTERVAL = { fallback: 86_400, min: 60 };
+/* Node's longest timer. A longer delay is not an error to Node: it warns and
+   fires every millisecond, a sweep or a signer that never rests. */
+const MAX_TIMER_MS = 2 ** 31 - 1;
+const SUPPLY_INTERVAL = { fallback: 86_400, min: 60, max: Math.floor(MAX_TIMER_MS / 1000) };
 
 /* The editions differ in names and defaults only. A G setting never falls back
    to an E1 variable (ADR 0003), and G's permanent settings, hashed into every
@@ -128,8 +131,11 @@ function supplyRelays(add, raw) {
 function supplyInterval(add, raw) {
   if (blank(raw)) return SUPPLY_INTERVAL.fallback;
   const seconds = wholeNumber(raw);
-  if (Number.isSafeInteger(seconds) && (seconds === 0 || seconds >= SUPPLY_INTERVAL.min)) return seconds;
-  add("NUTFT_SUPPLY_INTERVAL_SECONDS", `must be 0 (no timer) or a whole number of seconds, at least ${SUPPLY_INTERVAL.min}`);
+  if (Number.isSafeInteger(seconds) && (seconds === 0 || (seconds >= SUPPLY_INTERVAL.min && seconds <= SUPPLY_INTERVAL.max))) {
+    return seconds;
+  }
+  add("NUTFT_SUPPLY_INTERVAL_SECONDS", `must be 0 (no timer) or a whole number of seconds, at least ${SUPPLY_INTERVAL.min} `
+    + `and at most ${SUPPLY_INTERVAL.max}`);
   return SUPPLY_INTERVAL.fallback;
 }
 
@@ -397,8 +403,9 @@ function resolveMint(options = {}, env = process.env, editionName = "E1") {
   settings.reconcileMs = 120_000;
   const reconcile = options.reconcileMs ?? env.NUTFT_RECONCILE_MS;
   if (!blank(reconcile)) {
-    if (Number.isFinite(Number(reconcile))) settings.reconcileMs = Number(reconcile);
-    else add("NUTFT_RECONCILE_MS", "must be a number of milliseconds");
+    const ms = Number(reconcile);
+    if (Number.isFinite(ms) && ms <= MAX_TIMER_MS) settings.reconcileMs = ms;
+    else add("NUTFT_RECONCILE_MS", `must be a number of milliseconds, at most ${MAX_TIMER_MS}`);
   }
 
   return { settings, problems, warnings };

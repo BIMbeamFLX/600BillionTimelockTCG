@@ -258,6 +258,15 @@ test("values that used to pass startup and fail later refuse the boot", () => {
     "lnd invoices in millisatoshis, so only phoenixd and Cashu need whole sats");
   assertProblem(problemsWith({ NUTFT_CATALOG_MIRRORS: "https://blossom.example,blossom.example" }), /^NUTFT_CATALOG_MIRRORS: entry 2 is not/);
   assertProblem(problemsWith({ NUTFT_SUPPLY_INTERVAL_SECONDS: "30" }), /^NUTFT_SUPPLY_INTERVAL_SECONDS: must be 0 \(no timer\)/);
+  /* Node fires a delay longer than 2^31-1 ms every millisecond. */
+  assertProblem(problemsWith({ NUTFT_RECONCILE_MS: "3000000000" }), /^NUTFT_RECONCILE_MS: must be a number of milliseconds, at most 2147483647$/);
+  assertProblem(problemsWith({ NUTFT_SUPPLY_INTERVAL_SECONDS: "2147484" }), /at least 60 and at most 2147483$/);
+  assert.deepEqual(problemsWith({ NUTFT_RECONCILE_MS: "2147483647", NUTFT_SUPPLY_INTERVAL_SECONDS: "2147483" }), [],
+    "the longest timers Node keeps are still allowed");
+  assert.throws(() => createSupplyLedger({
+    privateKey: Buffer.alloc(32, 1), canonical: JSON.stringify, read: () => ({}), copies: { a: 1 },
+    packs: 1, issuedPerPack: 1, intervalSeconds: 3_000_000,
+  }), /at most 2147483/, "the ledger refuses it too, not only the check");
   assertProblem(problemsWith({ G_NUTFT_COLLECTION_ID: "600B G" }), /^G_NUTFT_COLLECTION_ID: must be 1 to 64 letters/);
 });
 

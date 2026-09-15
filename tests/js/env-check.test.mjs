@@ -65,7 +65,7 @@ const BROKEN_LINES = [
   "NUTFT_ALLOWLIST: holds no key, so NUTFT_SALES=allowlist would sell to nobody; list the early-access keys or use closed",
   "NUTFT_PURCHASE_MODE: must be on or off: 1, true, yes, on, 0, false, no or off",
   "NUTFT_BEACON_CONFIRMATIONS: must be a whole number of blocks, at least 1",
-  "NUTFT_RECONCILE_MS: must be a number of milliseconds",
+  "NUTFT_RECONCILE_MS: must be a number of milliseconds, at most 2147483647",
   "G_NUTFT_CATALOG_URI: required when G_NUTFT_ENABLED is on: it is hashed into every Edition G card for good, and G never uses NUTFT_CATALOG_URI",
   "G_NUTFT_SALES: required for a paid mint: closed, allowlist, signed or open (early access is allowlist)",
   "G_NUTFT_ONE_PER_KEY: needs G_NUTFT_SALES=allowlist or signed: without a signed request there is no key to count",
