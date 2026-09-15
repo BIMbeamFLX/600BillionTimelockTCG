@@ -382,8 +382,8 @@ Smoke test:
 ## 9 · Alpha code deploy: new site and referee, never a new unit
 
 Production on the box (`tcg.nappelin.com`, systemd `tcg-table`, webroot
-`/home/deploy/bimCVP/infra/site-root/tcg600`) ran the build from 2026-08-20 when this was
-written. Deploying TCG `main` for the alpha replaces **code and site files only**. The unit
+`/home/deploy/bimCVP/infra/site-root/tcg600`) ran a build from 2026-08-21 when this was
+written (the `4a1b090`…`d753505` family): its `/v1/info` publishes no `catalog_uri` and no NUT-09. Deploying TCG `main` for the alpha replaces **code and site files only**. The unit
 and its environment stay exactly as they are on the box.
 
 Why so strict:
@@ -467,13 +467,63 @@ sudo cat /proc/$(systemctl show -p MainPID --value tcg-table)/environ | tr '\0' 
   | grep -E '^(NUTFT_CATALOG_URI|G_NUTFT_CATALOG_URI|PUBLIC_URL|TABLE_ORIGINS|DB|G_NUTFT_DB)=' \
   | tee /home/deploy/tcg-env-before.txt
 curl -s https://tcg.nappelin.com/api/health
-curl -s https://tcg.nappelin.com/v1/info | grep -o '"catalog_uri":"[^"]*"'
-curl -s https://tcg.nappelin.com/g/v1/info | grep -o '"catalog_uri":"[^"]*"'
 sudo journalctl -u tcg-table --no-pager | grep ' · catalog ' | tail -1
 ```
 
 `/home/deploy/tcg-env-before.txt` holds six public values (URLs and paths), no secrets. The
 journal line shows the card-set digest the running build loaded; 9.7 compares the new one.
+
+Then snapshot what both mints publish. Define `snap` once in this SSH session; 9.2a and 9.7 use
+the same function, so every comparison reads the same fields the same way:
+
+```bash
+fetch() {  # fetch <url> <file>: 200 keeps the body, 404 (a mint that is off) an empty file; else fail
+  local code
+  code=$(curl -s --retry 3 --retry-delay 2 --retry-all-errors --max-time 30 -o "$2" -w '%{http_code}' "$1")
+  [ "$code" = 200 ] && return 0
+  [ "$code" = 404 ] && { : > "$2"; return 0; }
+  echo "snap: $1 answered ${code:-nothing}; take the snapshot again" >&2
+  return 1
+}
+snap() {  # snap <dir>: both mints' public answers, and their stable fields as <dir>.json
+  mkdir -p "$1" && rm -f "$1.json"
+  for P in "" /g; do
+    N=v1; [ -n "$P" ] && N=g-v1
+    fetch "https://tcg.nappelin.com$P/v1/info" "$1/$N-info.json" || return 1
+    fetch "https://tcg.nappelin.com$P/v1/keys" "$1/$N-keys.json" || return 1
+    fetch "https://tcg.nappelin.com$P/nutft/catalog" "$1/$N-catalog.json" || return 1
+  done
+  node -e '
+    const fs = require("fs"), dir = process.argv[1];
+    const read = (f) => { try { return JSON.parse(fs.readFileSync(`${dir}/${f}`, "utf8")); } catch { return null; } };
+    const pick = (m) => {
+      const info = read(`${m}-info.json`), keys = read(`${m}-keys.json`), cat = read(`${m}-catalog.json`);
+      if (!info) return null;
+      const n = (info.nuts && info.nuts["31"]) || {};
+      const f = ["paid", "price_msat", "price_tiers", "funding", "virtual_sats", "test_mint", "sales",
+        "one_per_key", "issuance", "product", "catalog_issuer", "catalog_sha256"];
+      return { nut31: Object.fromEntries(f.map((k) => [k, n[k] === undefined ? null : n[k]])),
+        catalog: cat && { catalog_uri: cat.catalog_uri, collection_id: cat.collection_id,
+          census_sha256: cat.census_sha256, issuer_pubkey: cat.issuer_pubkey },
+        keysets: ((keys && keys.keysets) || []).map((k) => ({ id: k.id, unit: k.unit, active: k.active })) };
+    };
+    console.log(JSON.stringify({ e1: pick("v1"), g: pick("g-v1") }, null, 1));
+  ' "$1" > "$1.json"
+}
+snap /home/deploy/tcg-release-before
+cat /home/deploy/tcg-release-before.json
+```
+
+For both editions the snapshot holds what is hashed into card bindings or shown to buyers, taken
+only from fields **both** the running build and the release publish: from `/v1/info` the price,
+tiers, funding kind, sales mode, one-per-key, issuance, product, catalog issuer and
+`catalog_sha256`; from `/nutft/catalog` the `catalog_uri`, `collection_id`, `census_sha256` and
+issuer key (the running build does not publish `catalog_uri` in `/v1/info`); from `/v1/keys` the
+keyset ids and units. A mint that is switched off (404) is `null`. Any other failed request (a
+timeout, a 5xx, a refused connection while the referee starts) fails the whole snapshot after three
+retries and writes no `.json`, so a network hiccup can never pass for a changed mint: take the
+snapshot again. NUT-09 is not in it on purpose: the running build lacks it and the release adds it,
+so 9.7 checks it on its own.
 
 ### 9.2a · Before anything else changes: check the running environment against the release
 
@@ -493,7 +543,29 @@ Copy-Item "$REL\server\env-check.js", "$REL\server\mint-env.js", "$REL\server\ln
 scp -i $HOME\.ssh\id_ed25519_sk -o IdentitiesOnly=yes -r $CHECK deploy@178.105.93.78:/home/deploy/
 ```
 
-On the box (put the twelve characters of `$SHA12` in place of `<sha12>`):
+On the box, first make sure the running process is what its files say. The check reads the
+**running** process; if the unit, a drop-in or an `EnvironmentFile` was edited after the last
+start, the next start differs from it, and the release would refuse at 9.6 with the shop already
+stopped:
+
+```bash
+systemctl show -p NeedDaemonReload --value tcg-table
+START=$(date -d "$(systemctl show -p ExecMainStartTimestamp --value tcg-table)" +%s)
+for F in $(systemctl show -p FragmentPath --value tcg-table) \
+         $(systemctl show -p DropInPaths --value tcg-table) \
+         $(systemctl show -p EnvironmentFiles --value tcg-table | tr ' ' '\n' | grep '^-\?/' | sed 's/^-//'); do
+  [ -e "$F" ] && [ "$(stat -c %Y "$F")" -gt "$START" ] && echo "edited after the running start: $F"
+done
+```
+
+`NeedDaemonReload` must print `no` and the loop nothing. Otherwise the running build is brought in
+line first, once, while nobody waits in quick match (`"queued":0`), under the same comparison as an
+environment fix below: `snap "$SNAP/before"`, then `sudo systemctl daemon-reload` (only if it
+printed `yes`) and `sudo systemctl restart tcg-table`, then `snap "$SNAP/after"` and `diff`. A
+difference means an edit made before this deploy changed what the mints publish: stop for the day
+and find out which edit did it. Only a clean diff goes on to the check.
+
+Then the check (put the twelve characters of `$SHA12` in place of `<sha12>`):
 
 ```bash
 PID=$(systemctl show -p MainPID --value tcg-table)
@@ -514,42 +586,14 @@ inherits: `NUTFT_FUNDING`, `G_NUTFT_COLLECTION_ID`, `G_NUTFT_CENSUS_PATH`, and E
 to the **running** (old) build, and it must leave everything hashed into card bindings or visible
 to buyers exactly as it was. Three rules, none optional:
 
-1. **Snapshot the mints first.** Define this once in the SSH session, then save what both mints
-   publish before any edit:
+1. **Snapshot the mints first**, with the `snap` function from 9.2 (define it again if this is a
+   new SSH session):
 
    ```bash
-   snap() {  # snap <dir>: both mints' public answers, and their stable fields as <dir>.json
-     mkdir -p "$1"
-     for M in v1 g/v1; do
-       N=$(echo "$M" | tr / -)
-       curl -sf "https://tcg.nappelin.com/$M/info" > "$1/$N-info.json"
-       curl -sf "https://tcg.nappelin.com/$M/keys" > "$1/$N-keys.json"
-     done
-     node -e '
-       const fs = require("fs"), dir = process.argv[1];
-       const read = (f) => { try { return JSON.parse(fs.readFileSync(`${dir}/${f}`, "utf8")); } catch { return null; } };
-       const pick = (m) => {
-         const info = read(`${m}-info.json`), keys = read(`${m}-keys.json`);
-         if (!info) return null;
-         const n = (info.nuts && info.nuts["31"]) || {};
-         const f = ["paid", "price_msat", "price_tiers", "funding", "virtual_sats", "test_mint", "sales",
-           "one_per_key", "issuance", "product", "purchase_mode", "supply_kind", "catalog_issuer",
-           "catalog_uri", "catalog_sha256", "catalog_blob_sha256"];
-         return { nut31: Object.fromEntries(f.map((k) => [k, n[k] === undefined ? null : n[k]])),
-           nut7: (info.nuts && info.nuts["7"]) || null, nut9: (info.nuts && info.nuts["9"]) || null,
-           keysets: ((keys && keys.keysets) || []).map((k) => ({ id: k.id, unit: k.unit, active: k.active })) };
-       };
-       console.log(JSON.stringify({ e1: pick("v1"), g: pick("g-v1") }, null, 1));
-     ' "$1" > "$1.json"
-   }
    STAMP=$(date -u +%Y%m%dT%H%M%SZ); SNAP=/home/deploy/tcg-envfix-$STAMP
    snap "$SNAP/before"
    cat "$SNAP/before.json"
    ```
-
-   `before.json` holds, for both editions, the catalog URI and digests, the collection id (a
-   keyset's `unit`), the keyset ids, sales mode, price and tiers, funding kind and one-per-key. A
-   mint that is switched off is `null` in both snapshots.
 
 2. **Copy each value from what the running build uses, never from a document.**
    - `NUTFT_FUNDING`: the `funding` field in `before.json` under `e1`.
@@ -698,8 +742,8 @@ sudo cat /proc/$(systemctl show -p MainPID --value tcg-table)/environ | tr '\0' 
   > /home/deploy/tcg-env-after.txt
 diff /home/deploy/tcg-env-before.txt /home/deploy/tcg-env-after.txt && echo "environment unchanged"
 curl -s https://tcg.nappelin.com/api/health
-curl -s https://tcg.nappelin.com/v1/info | grep -o '"catalog_uri":"[^"]*"'
-curl -s https://tcg.nappelin.com/g/v1/info | grep -o '"catalog_uri":"[^"]*"'
+snap /home/deploy/tcg-release-after
+diff /home/deploy/tcg-release-before.json /home/deploy/tcg-release-after.json && echo "mints unchanged"
 curl -s https://tcg.nappelin.com/v1/info | grep -o '"9":{"supported":true}'
 curl -s https://tcg.nappelin.com/g/v1/info | grep -o '"9":{"supported":true}'
 curl -s -o /dev/null -w "%{http_code} play.html\n" https://tcg.nappelin.com/play.html
@@ -715,10 +759,13 @@ cd /home/deploy/bimCVP/infra/site-root/tcg600
 node -e "const E=require('./site/engine.js'); console.log('E1.0', E.setCatalog(require('./site/play-data.js')).digest); console.log('F1.0', E.setCatalog(require('./site/play-data-fast.js'), 'F1.0').digest)"
 ```
 
-Stop and roll back if `diff` prints anything, if either `catalog_uri` differs from 9.2, or if
-the service is not active. Both mints must print `"9":{"supported":true}`: the card wallet (on
-the website and in the Hangar's collection) refuses every snapshot, receive, trade and restore
-at a mint that does not advertise NUT-09, and the 2026-08-20 build did not. A G mint that is
+Stop and roll back if either `diff` prints anything (the environment, or the mints' snapshot
+against 9.2's, which covers catalog URI, collection id, census, catalog digest, keysets, price,
+sales mode, funding and one-per-key), or if the service is not active. (If 9.2a needed an
+environment fix, 9.2 was run again afterwards, so the before-snapshot already holds the fixed
+answers.) Both mints must print `"9":{"supported":true}`: the card wallet (on the website and in
+the Hangar's collection) refuses every snapshot, receive, trade and restore at a mint that does
+not advertise NUT-09, and the running 2026-08-21 build did not. A G mint that is
 switched off prints nothing for its two lines; that is expected only when `G_NUTFT_ENABLED` is
 unset in 9.2's before-file. `arena3d.js` and `vendor/three.js` answering 200 prove the new
 site is served. `rail.js` must answer `200 text/javascript` and each font `200 font/woff2`: a
@@ -758,10 +805,20 @@ systemctl is-active tcg-table
 ```
 
 A code-only rollback is safe on the database the new code has already opened. Between the
-2026-08-20 build (`bc589b0`) and `main`, `server/nutft-mint.js` only adds tables
-(`nutft_buyers`, `nutft_wallet_backup_buyers`, `nutft_signatures`, `nutft_purchases`,
-`nutft_supply`) and one nullable column (`nutft_invoices.buyer`); the old code writes
-`nutft_invoices` with an explicit column list, and the `matches` table is unchanged. After a
+running 2026-08-21 build (`d753505`) and `main` when this was written, the server code only adds
+tables (`nutft_purchases`, `nutft_signatures`, `nutft_supply`); `nutft_buyers`,
+`nutft_wallet_backup_buyers` and `nutft_invoices.buyer` already exist there, and the `matches`
+table is unchanged. Check it for the actual release before 9.4, by comparing the schema statements
+of the running copy with the release clone; the second list may only add lines:
+
+```bash
+grep -rhoE "CREATE TABLE IF NOT EXISTS [a-z_]+|ALTER TABLE [a-z_]+ ADD COLUMN [a-z_]+" \
+  /home/deploy/bimCVP/infra/site-root/tcg600/server/ | sort -u
+```
+
+```powershell
+git -C $REL grep -h -o -E "CREATE TABLE IF NOT EXISTS [a-z_]+|ALTER TABLE [a-z_]+ ADD COLUMN [a-z_]+" -- server/ | Sort-Object -Unique
+``` After a
 rollback the old mint simply does not serve purchases, signatures and supply records the new
 code wrote in between; they stay in the database for the next deploy.
 
