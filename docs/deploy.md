@@ -54,7 +54,7 @@ session this document was written).
 |---|---|---|---|
 | 26 | 1.64 MB | `/` | every tracked file in `site/` |
 | 1 | 0.06 MB | `art/brand/` | the logo in every page's nav and favicon |
-| 2 | 0.21 MB | `art/fonts/` | Anton + Alfa Slab One, used by `600b.css` and five pages |
+| 5 | 0.19 MB | `art/fonts/` | Anton for the 600 Billion headlines, plus (from PR #70) Josefin Sans and IBM Plex Mono in four `.woff2` files for the Hypershell chrome, byte-identical with nappelin's. Alfa Slab One is no longer referenced by a page and stays out of the set. |
 | 5 | 0.00 MB | `art/resources/` | the five affinity pips, built by concatenation |
 | 6 | 0.69 MB | `art/rulebook/` | the six rulebook banners |
 | 5 | 1.13 MB | `art/world-plates/` | board and page backgrounds (`neutral.png` is unreferenced and excluded) |
@@ -277,14 +277,14 @@ To make online play work from a static deploy you need **all** of:
 3. Players arriving via a link carrying `?table=wss://your.referee/ws`. Invite
    links already carry it, which is why `PUBLIC_URL` has to be right.
 
-**Known limitation, unfixed:** the public table browser will still not work
-cross-origin. `site/net.js` fetches `/api/tables` from the referee origin, and
-`server/table.js` sends **no CORS headers at all** — no
-`Access-Control-Allow-Origin` anywhere in the file. The browser blocks that
-cross-origin read. Direct invite links work (they are a WebSocket, gated by
-`TABLE_ORIGINS`, not by CORS); browsing the public lobby from the nsite does not.
-Fixing it means adding CORS headers to the `/api/*` responses in
-`server/table.js`.
+**The public table browser works cross-origin only from a listed origin.**
+`site/net.js` fetches `/api/tables` from the referee origin, and `server/table.js`
+answers every JSON response with `Access-Control-Allow-Origin` for exactly the
+origins in `TABLE_ORIGINS` (`corsHeaders()`, `GET, OPTIONS`). An nsite gateway
+origin that is not listed gets no CORS header and the browser blocks the read;
+direct invite links still work there, because they are a WebSocket gated by the
+same list. So add the nsite's origin to `TABLE_ORIGINS` as well, not only for the
+socket.
 
 Given that, **Topology A is the recommended launch path.** Use nsite as a
 censorship-resistant mirror for the single-player and reference surfaces, and
@@ -367,9 +367,9 @@ Smoke test:
 
 - **Nothing here has been deployed.** Only the publish script has been run.
 - The nginx config is a sketch; no proxy has been stood up.
-- Topology B's cross-origin table browser is known broken (no CORS in
-  `server/table.js`). Invite links should work; that is reasoning from the origin
-  gate, not an observation.
+- Topology B's cross-origin table browser needs the nsite origin in `TABLE_ORIGINS`
+  (§6); with it, `/api/tables` carries the CORS header. Neither that nor the invite
+  links have been observed on a real nsite gateway; both are reasoning from the code.
 - The multi-file MIME risk on nsite gateways is unmitigated and untested for this
   site (§6).
 - No load testing. No estimate of concurrent tables one referee sustains.
@@ -562,6 +562,11 @@ curl -s https://tcg.nappelin.com/g/v1/info | grep -o '"catalog_uri":"[^"]*"'
 curl -s -o /dev/null -w "%{http_code} play.html\n" https://tcg.nappelin.com/play.html
 curl -s -o /dev/null -w "%{http_code} arena3d.js\n" https://tcg.nappelin.com/arena3d.js
 curl -s -o /dev/null -w "%{http_code} three.js\n" https://tcg.nappelin.com/vendor/three.js
+curl -s -o /dev/null -w "%{http_code} %{content_type} rail.js\n" https://tcg.nappelin.com/rail.js
+for FONT in josefin-sans-var plex-mono-400 plex-mono-500 plex-mono-600; do
+  curl -s -o /dev/null -w "%{http_code} %{content_type} $FONT.woff2\n" \
+    "https://tcg.nappelin.com/art/fonts/$FONT.woff2"
+done
 sudo journalctl -u tcg-table -n 20 --no-pager
 cd /home/deploy/bimCVP/infra/site-root/tcg600
 node -e "const E=require('./site/engine.js'); console.log('E1.0', E.setCatalog(require('./site/play-data.js')).digest); console.log('F1.0', E.setCatalog(require('./site/play-data-fast.js'), 'F1.0').digest)"
@@ -569,7 +574,9 @@ node -e "const E=require('./site/engine.js'); console.log('E1.0', E.setCatalog(r
 
 Stop and roll back if `diff` prints anything, if either `catalog_uri` differs from 9.2, or if
 the service is not active. `arena3d.js` and `vendor/three.js` answering 200 prove the new
-site is served.
+site is served. `rail.js` must answer `200 text/javascript` and each font `200 font/woff2`: a
+404 there leaves every page without its side bar or in fallback type, and nothing else would
+show it.
 
 The last command must print the same two digests as 9.1: the files on the box are the
 release. The journal's start line, `[table] db … · catalog 295 cards sha256:…`, must show the
