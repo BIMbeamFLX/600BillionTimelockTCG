@@ -48,6 +48,11 @@
   const KIND_AUTH = 22242;         // NIP-42 ephemeral connection proof
   const KIND_ZAP_REQUEST = 9734;   // NIP-57, the stake settlement the loser signs
   const RELAYS = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
+  /* NAPPELIN'S RELAY IS READ AS WELL. A member's look or kind 0 published from the
+   * Hangar may live only on relay.nappelin.com, and a Hangar tab sends its invites
+   * and results there first (site/napplet.js), so the website asks it too. The
+   * website still publishes to the public three. */
+  const READ_RELAYS = ["wss://relay.nappelin.com"].concat(RELAYS);
   const BACKOFF = [250, 500, 1000, 2000, 4000];
   const PUBLISH_MS = 3000;
   const INVITE_TTL = 3600;
@@ -1222,17 +1227,17 @@
    * decides who gets paid. It is honoured only for a well-formed wss:/ws: URL,
    * and never silently: a page that is reading from one stranger's relay should
    * be able to say so. */
-  function relays() {
+  function relays(writing) {
     const override = param("relay");
     if (override && /^wss?:\/\/[^\s]+$/i.test(override)) return [override];
-    return RELAYS;
+    return writing ? RELAYS : READ_RELAYS;
   }
 
   /* Open, EVENT, resolve on OK, close after 3 s regardless. Publishing is
    * fire-and-forget by design: a dead relay degrades the beat, never the match. */
   function publish(event) {
     if (shellOutbox()) return publishThroughShell(event);
-    const urls = relays();
+    const urls = relays(true);
     return new Promise((resolve) => {
       const accepted = [];
       const sockets = [];
@@ -1717,7 +1722,7 @@
           tags: [
             ["p", opts.to],
             ["amount", String(msats)],
-            ["relays", ...relays()],
+            ["relays", ...relays(true)],
             ["m", opts.matchId || ""],
             ["alt", "600B Timelock TCG stake settlement"],
           ],

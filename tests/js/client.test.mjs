@@ -1331,21 +1331,23 @@ test("the clash preview promises exactly what the engine then does", () => {
 
 // -------------------------------------------------- nostr as the session root
 
-/* `sessions()` fans two REQs across the relays. Driving the stub sockets by
- * hand is the harness: open them, feed EVENTs, then EOSE so the query resolves
- * on agreement rather than on its deadline. */
-function answerRelays(sockets, from, events) {
-  const three = sockets.slice(from, from + 3);
-  for (const ws of three) {
+/* `sessions()` fans two REQs across the relays it reads, one socket per relay:
+ * the first query's sockets, then the second's. Driving the stub sockets by hand
+ * is the harness: open them, feed EVENTs, then EOSE so the query resolves on
+ * agreement rather than on its deadline. */
+function answerRelays(sockets, query, events) {
+  const fan = sockets.length / 2;
+  const relays = sockets.slice(query * fan, (query + 1) * fan);
+  for (const ws of relays) {
     ws.readyState = 1;
     if (ws.onopen) ws.onopen();
   }
   // One relay carries everything; the others are silent but must still EOSE, or
   // the query waits out its full deadline.
   for (const event of events) {
-    three[0].onmessage({ data: JSON.stringify(["EVENT", "q", event]) });
+    relays[0].onmessage({ data: JSON.stringify(["EVENT", "q", event]) });
   }
-  for (const ws of three) ws.onmessage({ data: JSON.stringify(["EOSE", "q"]) });
+  for (const ws of relays) ws.onmessage({ data: JSON.stringify(["EOSE", "q"]) });
 }
 
 const SK = (label) => Uint8Array.from(createHash("sha256").update(`client:${label}`).digest());
@@ -1398,7 +1400,7 @@ test("an npub alone finds the matches it has not finished", async () => {
   const { net, sockets } = loadNet(HTTP_ENV);
   const pending = net.nostr.sessions(MY_KEY);
   answerRelays(sockets, 0, [startEventFor("m_0000000000a1")]);
-  answerRelays(sockets, 3, []); // no results published: the match is still live
+  answerRelays(sockets, 1, []); // no results published: the match is still live
   const found = await pending;
 
   assert.equal(found.length, 1);
@@ -1413,7 +1415,7 @@ test("a match with a published result is over, not resumable", async () => {
   const { net, sockets } = loadNet(HTTP_ENV);
   const pending = net.nostr.sessions(MY_KEY);
   answerRelays(sockets, 0, [startEventFor("m_0000000000b1"), startEventFor("m_0000000000b2")]);
-  answerRelays(sockets, 3, [resultEventFor("m_0000000000b2")]);
+  answerRelays(sockets, 1, [resultEventFor("m_0000000000b2")]);
   const found = await pending;
 
   assert.deepEqual(found.map((m) => m.matchId), ["m_0000000000b1"]);
@@ -1444,7 +1446,7 @@ test("a start announcement off a relay is untrusted input", async () => {
   const good = startEventFor("m_0000000000c5");
 
   answerRelays(sockets, 0, [notAWebsocket, notMyMatch, junk, wrongShape, good]);
-  answerRelays(sockets, 3, []);
+  answerRelays(sockets, 1, []);
   const found = await pending;
 
   assert.deepEqual(
@@ -1452,6 +1454,22 @@ test("a start announcement off a relay is untrusted input", async () => {
     ["m_0000000000c5"],
     "only the well-formed announcement naming a websocket and seating us survives"
   );
+});
+
+test("the website reads nappelin's relay beside the public three, and publishes to the public three", () => {
+  const { net, opened } = loadNet(HTTP_ENV);
+  const reads = ["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
+  assert.deepEqual(net.nostr.relays(), reads, "what the leaderboard names as the relays it asks");
+  net.nostr.query({ kinds: [0], authors: [MY_KEY] }, 1);
+  assert.deepEqual(opened, reads, "a look or profile published only on nappelin's relay is found there");
+  opened.length = 0;
+  net.nostr.subscribeInvites(MY_KEY, () => {});
+  assert.deepEqual(opened, reads, "and so are the invites a Hangar tab sends there first");
+  opened.length = 0;
+  net.nostr.publish({ id: "e".repeat(64), kind: 4600, tags: [], content: "{}" });
+  assert.deepEqual(opened, reads.slice(1), "a publish still goes to the public three");
+  const pinned = loadNet({ ...HTTP_ENV, location: { ...HTTP_ENV.location, search: "?relay=wss://relay.example" } });
+  assert.deepEqual(pinned.net.nostr.relays(), ["wss://relay.example"], "?relay= still routes every read and write");
 });
 
 test("asking without an identity asks no relay anything", async () => {

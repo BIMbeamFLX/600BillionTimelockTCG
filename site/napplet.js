@@ -383,9 +383,9 @@
    * THE RELAYS ARE NAMED. The Hangar's outbox router looks up the signer's NIP-65
    * relay list for a publish that does not say `toOutbox: false`, finds none for
    * anyone, and refuses with "relay list unavailable" after signing. So a publish
-   * names nappelin's relay and the three the website reads (site/net.js RELAYS),
-   * which is also what lets a Hangar player and a website player see the same
-   * invites; the host still drops any relay it does not allow. */
+   * names the four relays the website reads (site/net.js READ_RELAYS: nappelin's
+   * and the public three), which is also what lets a Hangar player and a website
+   * player see the same invites; the host still drops any relay it does not allow. */
   const OUTBOX_RELAYS = Object.freeze(["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"]);
   /* NAP-OUTBOX delivers query and subscription results as `{ event, sidecar }`;
    * a bare event is read as itself. */
