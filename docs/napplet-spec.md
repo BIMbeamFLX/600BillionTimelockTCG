@@ -202,7 +202,7 @@ above is closed by it.
 **`requires: [webrtc]` is superseded.** There is no WebRTC NAP and none is needed: the Table
 topology (amended 2026-08-15) plays over a referee socket, and inside the Hangar that socket is a
 *pipe the host opens on the napplet's behalf* — see "the table channel". The artifact declares
-`identity, outbox, resource, storage, intent, link` (`<meta name="napplet-requires">`); `table` is a
+`identity, outbox, resource, storage, intent, link, x-nappelin-cue` (`<meta name="napplet-requires">`; §5 for the last); `table` is a
 host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
 
 ### 3a. Identity and outbox — what the prelude really offers
@@ -458,3 +458,62 @@ is floored unix seconds. The validator lives in `site/napplet.js` (`E1Napplet.co
 Readers: `site/deck.html` asks the collection first when `E1Napplet.has("intent")` and says
 "Cards from your Bearlett collection" under the mode buttons; `site/play.js`'s NutFT possession
 check takes the same branch. Both fall back to the page's own NutFT wallet on the website.
+
+### 5. Music cues and audio focus (NAP-CUE, 2026-09-15)
+
+The Hangar's music napplet (DJ David Clanker) follows the table, and the table's own sound bed
+steps back while that music plays. Draft: nappelin PR #107, `specs/naps/nap-cue.md`, under the
+interim domain `x-nappelin-cue`. The manifest declares `["requires", "x-nappelin-cue"]`; a catalog
+that does not grant it still launches the napplet, and the check below stays false.
+
+**Nothing is sent until the shell says so.** `E1Napplet.cue.available()` is
+`napplet.shell.supports("x-nappelin-cue")` (or `napplet.supports`, or the domain on the prelude),
+inside a frame with a parent. On the website, or without the feature, every call is a no-op and
+nothing is posted.
+
+| direction | message | fields |
+| --- | --- | --- |
+| napplet → host | `x-nappelin-cue.send` | `id`, `mood?`, `moment?` |
+| host → napplet | `x-nappelin-cue.send.result` | `id`, `accepted: true` or `error` |
+| host → napplet | `x-nappelin-cue.focus` | `music: "playing" \| "idle"` (on change, and once at launch) |
+
+It rides the table channel's pipe (§3b): a fresh `id` per send, replies matched on it, only
+`event.source === parent` heard, and no answer within 8 s is an error.
+
+- **Vocabulary, closed.** `mood`: `calm`, `tension`, `battle`, `victory`, `defeat` (held until the
+  next one). `moment`: `turn`, `attack`, `lethal`, `match-end`, `booster-open`. Anything else
+  resolves `{ok:false, error:"invalid request"}` without posting.
+- **Throttles, the shell's own.** A mood at most once per 8 s: inside the window the latest one
+  waits and is sent when it opens (an earlier waiting mood resolves `superseded`; a wait that ends
+  on the mood already sent sends nothing). Moments at most 4 per second; extras resolve
+  `rate limited` and are dropped.
+- **Results.** `send()` never throws: `{ok:true, accepted:true}` or `{ok:false, error}`. An error
+  (`not permitted`, `invalid request`, `rate limited`) is final and never retried. `accepted`
+  says the shell took the cue, not that anyone listened, so nothing in the game depends on it.
+- `E1Napplet.cue.onFocus(fn)` calls `fn("playing" | "idle")` and returns `unsubscribe()`.
+
+**What the table sends** (`site/play.js`, only when embedded and available; derived from the
+engine events `fx()` already receives and the view `render()` draws, sent on change only):
+
+| cue | when |
+| --- | --- |
+| `turn` | a `TURN` event names a different seat than the turn before |
+| `attack` | an `ATTACKERS` event with at least one attacker (Classic), or an `ATTACK` event (Fast `DECLARE_ATTACK`) |
+| `lethal` | once per match, a seat `DAMAGE` or an `UPTIME` loss leaves that seat at 0 or less; sent before `match-end` |
+| `match-end` | the view's `result` appears for a match first seen unfinished |
+| `calm` | the first screen, setup, the lobby, a table left, `pagehide`; and in play when nothing below holds |
+| `tension` | either seat at 6 Uptime or less (`CUE_TENSION_UPTIME`: 30% of the 20 start, one big Avatar's hit) |
+| `battle` | an attack was made this turn (`turn.attacked` is not empty) |
+| `victory` / `defeat` | the result, from the local seat: a referee's seat or the human in solo play; hotseat and spectators hear `victory` |
+
+`booster-open` is never sent: the shop is not in the napplet. A resync (`STATE`) sends moods but no
+moments, and a match first seen finished does not announce `match-end` again.
+
+**Focus ducks the bed.** `playing` → `E1FX.duckBed(0.35)` and `E1FX.holdPressure(true)`; `idle` →
+`E1FX.unduckBed()` and `E1FX.holdPressure(false)`. A duck asked for before audio is armed is applied
+when the graph is built; holding the pressure pulse leaves the saved pressure setting alone.
+fx.js's per-hit ducking is unchanged (its game-over duck releases to full, so the bed returns at
+the end of a match while music still plays, until the next focus change).
+
+Tests: `tests/js/napplet.test.mjs` (the adapter over a fake parent and an injected clock),
+`tests/js/client.test.mjs` (a scripted hotseat Fast game, a referee's seat, focus ducking).
