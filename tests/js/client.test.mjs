@@ -2625,3 +2625,168 @@ test("inside the Hangar the look comes through the shell's outbox and resource N
   assert.deepEqual(requested, [blossom], "the bytes by hash, from the Blossom host the Hangar grants the TCG");
   leaveSolo(byId, game);
 });
+
+// ------------------------------------------------------------- music cues
+
+/* NAP-CUE (nappelin #107): inside a Hangar that routes cues, the table sends the
+ * music its moments and moods. The adapter's wire and throttles are tested in
+ * napplet.test.mjs; here `send` only records what play.js asked for. */
+function cueHangar({ available = true } = {}) {
+  const shell = hangar();
+  const sent = [];
+  const focus = [];
+  return Object.assign(shell, {
+    sent,
+    focus,
+    embedded: () => true,
+    escape() {},
+    link: { available: () => false, open: async () => ({ ok: false, error: "unavailable" }) },
+    cue: {
+      available: () => available,
+      send(fields) { sent.push(fields.mood ? `mood:${fields.mood}` : `moment:${fields.moment}`); return Promise.resolve({ ok: true, accepted: true }); },
+      onFocus(fn) { focus.push(fn); return () => {}; },
+    },
+  });
+}
+
+function fxRecorder() {
+  const calls = [];
+  return {
+    calls,
+    stub: {
+      emit() {}, init() {}, get: () => ({ motionActive: "reduced" }),
+      duckBed: (depth) => calls.push(["duckBed", depth]),
+      unduckBed: () => calls.push(["unduckBed"]),
+      holdPressure: (on) => calls.push(["holdPressure", on]),
+    },
+  };
+}
+
+/* A hotseat Fast table with one vanilla Avatar on seat one's side. */
+function cueTable(t, shell, fx) {
+  globalThis.E1_CARDS_FAST = require(FAST_DATA);
+  globalThis.E1_PRECONS_FAST = require(FAST_PRECONS);
+  opaqueStorage(t);
+  globalThis.E1Napplet = shell;
+  t.after(() => { delete globalThis.E1Napplet; });
+  const loaded = loadPlay(netStub(), fx && fx.stub);
+  const { byId, game } = loaded;
+  byId("rules").value = "F1.0";
+  byId("deckA").value = "precon:Power Surge";
+  byId("deckB").value = "precon:Key Custody";
+  byId("seed").value = "music";
+  game.startGame();
+  assert.ok(game.state, byId("prompt").textContent);
+  const vanilla = globalThis.E1_CARDS_FAST.find((card) => card.type === "Avatar" && card.abilities.length === 0 && card.keywords.length === 0);
+  const state = game.state;
+  const uid = `o${state.nextUid++}`;
+  state.objects[uid] = {
+    uid, cardId: vanilla.id, owner: 0, controller: 0, zone: "0:network", committed: false,
+    bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+    revealedTo: [0, 1], revealedUntil: null, token: false, entersSeq: 0, prevUid: null,
+  };
+  state.zones["0:network"].push(uid);
+  return { ...loaded, uid, vanilla };
+}
+
+/* Walks the active seat's turn to its end through the table's own dispatch, synchronously
+ * (the table's auto-walk runs on a timer), discarding down to the hand limit on the way. */
+function passTurn(byId, game) {
+  const from = game.state.turn.active;
+  for (let step = 0; step < 40 && game.state.turn.active === from && !game.state.result; step += 1) {
+    const { awaiting, priority } = game.state;
+    if (awaiting && awaiting.kind === "discard") {
+      const hand = game.state.zones[`${awaiting.seat}:wallet`];
+      game.dispatch("DISCARD_TO_LIMIT", awaiting.seat, { uids: hand.slice(0, hand.length - game.state.handLimit) });
+    } else {
+      assert.ok(!awaiting, `an unexpected decision: ${awaiting && awaiting.kind}`);
+      game.dispatch("PASS_PRIORITY", priority.seat);
+    }
+  }
+  assert.notEqual(game.state.turn.active, from, "the turn changed hands");
+}
+
+test("a scripted local game sends turn, attack, lethal, match-end and its moods in order, each once", (t) => {
+  const shell = cueHangar();
+  const { byId, game, uid, vanilla } = cueTable(t, shell);
+  // The first hit leaves seat two at exactly the tension line.
+  assert.ok(vanilla.action <= 6);
+  game.state.seats[1].uptime = 6 + vanilla.action;
+  byId("cancelTarget").click();
+  assert.deepEqual(shell.sent, ["mood:calm"], "the first screen is calm, and the dealt table still is");
+
+  assert.equal(game.dispatch("DECLARE_ATTACK", 0, { attacker: uid, target: { kind: "seat", seat: 1 } }), true);
+  assert.deepEqual(shell.sent.slice(1), ["moment:attack", "mood:battle"]);
+  for (let i = 0; i < 3; i += 1) byId("cancelTarget").click();
+  assert.equal(shell.sent.length, 3, "a render that changes nothing sends nothing");
+
+  passTurn(byId, game);
+  assert.ok(game.state.seats[1].uptime <= 6, "seat two is low");
+  assert.deepEqual(shell.sent.slice(3), ["moment:turn", "mood:tension"]);
+  passTurn(byId, game);
+  assert.deepEqual(shell.sent.slice(5), ["moment:turn"], "tension holds: the mood did not change");
+  game.state.seats[1].uptime = vanilla.action; // the next hit is the last
+
+  assert.equal(game.dispatch("DECLARE_ATTACK", 0, { attacker: uid, target: { kind: "seat", seat: 1 } }), true);
+  assert.ok(game.state.result, "the second hit ends it");
+  assert.deepEqual(shell.sent.slice(6), ["moment:attack", "moment:lethal", "moment:match-end", "mood:victory"], "hotseat hears victory");
+  byId("cancelTarget").click();
+  assert.equal(shell.sent.length, 10, "the ending is sent once");
+  assert.ok(!shell.sent.includes("moment:booster-open"), "the napplet has no shop");
+
+  leaveSolo(byId, game);
+  assert.deepEqual(shell.sent.slice(10), ["mood:calm"], "leaving the table is calm");
+});
+
+test("a concession ends a hotseat table in victory, and without the feature nothing is sent at all", (t) => {
+  const shell = cueHangar();
+  const { byId, game } = cueTable(t, shell);
+  game.dispatch("CONCEDE", 0, {});
+  assert.deepEqual(shell.sent.slice(-2), ["moment:match-end", "mood:victory"], "hotseat: whoever conceded, the screen hears victory");
+  leaveSolo(byId, game);
+
+  const off = cueHangar({ available: false });
+  const table = cueTable(t, off);
+  table.game.dispatch("DECLARE_ATTACK", 0, { attacker: table.uid, target: { kind: "seat", seat: 1 } });
+  leaveSolo(table.byId, table.game);
+  assert.deepEqual(off.sent, [], "no feature, no cue");
+});
+
+test("shell music playing ducks the bed and holds the pressure pulse; idle gives both back", (t) => {
+  const shell = cueHangar();
+  const fx = fxRecorder();
+  const { byId, game } = cueTable(t, shell, fx);
+  assert.equal(shell.focus.length, 1, "one focus subscription");
+  const [focus] = shell.focus;
+  focus("playing");
+  focus("playing");
+  assert.deepEqual(fx.calls, [["duckBed", 0.35], ["holdPressure", true]], "on change only");
+  focus("idle");
+  assert.deepEqual(fx.calls.slice(2), [["unduckBed"], ["holdPressure", false]]);
+  leaveSolo(byId, game);
+});
+
+test("a seat that loses at a referee's table hears defeat, and a finished match seen first is not re-announced", (t) => {
+  const shell = cueHangar();
+  opaqueStorage(t);
+  globalThis.E1Napplet = shell;
+  t.after(() => { delete globalThis.E1Napplet; });
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+  const E = globalThis.E1Engine;
+  const view = E.view(clientGame(990123), 1);
+  stub.handlers.onState({ ...STATE_BASE, seat: 1, role: "seat", status: "playing", claimable: false, view });
+  assert.deepEqual(shell.sent, ["mood:calm"]);
+  const over = structuredClone(view);
+  over.result = { winners: [0], losers: [1], reason: "concede" };
+  stub.handlers.onFrame({ view: over, events: [{ t: "GAME_OVER", winners: [0], reason: "concede" }] });
+  assert.deepEqual(shell.sent.slice(1), ["moment:match-end", "mood:defeat"]);
+  byId("leaveTable").click();
+  assert.deepEqual(shell.sent.slice(3), ["mood:calm"], "leaving the table is calm");
+
+  const reloaded = structuredClone(over);
+  reloaded.gameId = "g_reloaded";
+  stub.handlers.onState({ ...STATE_BASE, seat: 1, role: "seat", status: "over", claimable: false, view: reloaded, result: over.result });
+  assert.deepEqual(shell.sent.slice(4), ["mood:defeat"], "the mood, but no second match-end");
+  byId("leaveTable").click();
+});
