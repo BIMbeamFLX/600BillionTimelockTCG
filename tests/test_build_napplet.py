@@ -73,10 +73,13 @@ def test_page_leaves_the_website_only_scripts_out(artifact: tuple[bytes, dict]) 
     """The wallet, QR, bug-report and NIP-07 pages stay on the website."""
     html = artifact[0].decode("utf-8")
 
-    assert "esm.sh" not in html  # nutft-wallet.js imports it at runtime
+    assert "esm.sh" not in html
     for name in ("nutft-wallet.js", "qr.js", "bugreport.js", "nostr-id.js", "fast-faces.js"):
         assert f'src="{name}"' not in html
     assert 'src="rail.js"' not in html
+    # The wallet imports its vendored libraries itself, so leaving it out leaves them out.
+    for bundle in ("cashu-ts.js", "scure-bip39.js", "scure-bip39-english.js", "scure-bip32.js"):
+        assert f"vendor/{bundle}" not in html
     assert "E1Engine" in html
     assert "600B-logo-primary.png" not in html
 

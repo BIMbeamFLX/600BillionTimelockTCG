@@ -358,7 +358,7 @@ function walletStub(state, view) {
   return {
     calls,
     read: async () => { calls.read += 1; return state; },
-    snapshot: async (origin) => {
+    snapshotReadOnly: async (origin) => {
       calls.snapshot.push(origin);
       if (view instanceof Error) throw view;
       return view;

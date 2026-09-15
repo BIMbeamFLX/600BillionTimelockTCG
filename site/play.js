@@ -5488,8 +5488,9 @@
       if (!CS.walletExists()) return available;
       wallet = await CS.loadWallet({ document });
     }
-    if (!wallet || typeof wallet.snapshot !== "function") throw new Error("the NutFT wallet is not loaded on this page");
-    const view = await wallet.snapshot(location.origin);
+    if (!wallet || typeof wallet.snapshotReadOnly !== "function") throw new Error("the NutFT wallet is not loaded on this page");
+    // Only counting: a possession check must never finish or rewrite a pending transfer.
+    const view = await wallet.snapshotReadOnly(location.origin);
     for (const item of view.owned) available.set(item.tag[2], (available.get(item.tag[2]) || 0) + 1);
     return available;
   }

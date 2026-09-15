@@ -9,10 +9,16 @@
   const CATALOG_CACHE = "600b:nutft-catalogs-v1";
   const CATALOG_CACHE_VERSION = 1;
   const CATALOG_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-  const CASHU_URL = "https://esm.sh/@cashu/cashu-ts@4.7.2?bundle";
-  const BIP39_URL = "https://esm.sh/@scure/bip39@2.3.0?bundle";
-  const ENGLISH_URL = "https://esm.sh/@scure/bip39@2.3.0/wordlists/english.js?bundle";
-  const BIP32_URL = "https://esm.sh/@scure/bip32@2.3.0?bundle";
+  /* The libraries are this site's own files, never a CDN import: a module
+     fetched live from a third party can hand a wallet that holds bearer cards
+     any code it likes. scripts/build-wallet-vendor.mjs builds them from pinned
+     npm versions and tests/js/vendor.test.mjs checks their hashes. A dynamic
+     import in a classic script resolves against the script's own URL, so these
+     are found beside nutft-wallet.js whichever page loads it. */
+  const CASHU_URL = "./vendor/cashu-ts.js";
+  const BIP39_URL = "./vendor/scure-bip39.js";
+  const ENGLISH_URL = "./vendor/scure-bip39-english.js";
+  const BIP32_URL = "./vendor/scure-bip32.js";
   let cashuPromise;
   let walletCryptoPromise;
   const seedCache = new Map();
@@ -257,6 +263,9 @@
         additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
       }, 1, keyset.id)), counters: state.counters || {} };
     }
+    /* Slots beyond a half-finished recovery's checkpoint may already hold this
+       phrase's cards, so nothing may reserve slots until the recovery ends. */
+    if (state.restoring) throw new Error("finish recovering this wallet from its phrase first");
     const catalog = await getCatalog(mintUrl, c, keyset);
     const key = counterKey(mintUrl, keyset.id);
     const counters = { ...(state.counters || {}) };
@@ -272,6 +281,36 @@
     counters[key] = counter;
     return { outputs: await Promise.all(outputs.map((item) => deterministicOutput(item.card, state, c, keyset, item.counter))), counters };
   }
+
+  /* THE SLOTS AN OPERATION RESERVES. outputsFor moves the counter past every
+     slot it uses, and the pending is written with that counter, so those slots
+     are spoken for until the mint answers. Remembering where the counter stood
+     is what lets a refusal hand them back. */
+  const reservation = (state, mintUrl, keyset, counters) => {
+    const key = counterKey(mintUrl, keyset.id);
+    const before = Number((state.counters || {})[key] || 0);
+    return Number(counters[key] || 0) === before ? null : { key, before };
+  };
+
+  /* A REFUSED OPERATION GIVES ITS SLOTS BACK. A recovery phrase finds cards by
+     walking the counter, and a restore stops after a long enough run of slots
+     the mint never signed. Slots kept by an operation the mint turned down open
+     exactly such a run in front of every later card, so those cards could not
+     be restored. The one refusal that keeps the slots is "output was already
+     signed": that slot really is taken, by another device holding this phrase,
+     so the counter stays past it. */
+  const countersAfterRefusal = (state, pending, detail) => {
+    const reserved = pending.reserved;
+    if (!reserved || /output was already signed/i.test(detail)) return state.counters;
+    return { ...(state.counters || {}), [reserved.key]: reserved.before };
+  };
+
+  /* An import whose cards arrived but could not all be moved under this
+     wallet's recovery phrase. The cards are in the wallet either way. */
+  const notMoved = (error, imported) => Object.assign(
+    new Error(`not yet moved under this wallet's recovery phrase: ${error.message}`),
+    { imported, transient: Boolean(error.transient) },
+  );
 
   async function finishPending(state, pending, response, c, keyset) {
     if (pending.type === "booster") {
@@ -309,6 +348,12 @@
       ? [encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs: remaining })]
       : [];
     const token = encodeToken(c, { mint: pending.mintUrl, unit: response.unit, proofs: [proof] });
+    if (pending.toSelf) {
+      /* A card moved under this wallet's own recovery phrase stays in this
+         wallet. It is not a hand-off, whichever call happens to finish it. */
+      await write({ ...state, tokens: [...rebuilt, token, ...opaque], pending: null });
+      return { ...response, token, proof };
+    }
     /* PERSIST THE OUTGOING TOKEN. It is the only thing that can ever claim this
        card: the sender no longer holds it, the recipient does not have it yet,
        and it is locked to a key only the recipient has. Returning it and writing
@@ -359,12 +404,13 @@
       if (receipt.purchase_id !== pending.body.purchase_id || receipt.status !== "purchased") throw new Error("invalid purchase receipt");
       const prepared = await outputsFor(receipt.cards, pending.mintUrl, state, c, keyset);
       const outputs = prepared.outputs.map(savedOutput);
-      pending = { ...pending, outputs, body: { ...pending.body, pack_id: receipt.pack_id, state: receipt.state, outputs: outputs.map(requestOutput) } };
+      const reserved = reservation(state, pending.mintUrl, keyset, prepared.counters);
+      pending = { ...pending, outputs, reserved, body: { ...pending.body, pack_id: receipt.pack_id, state: receipt.state, outputs: outputs.map(requestOutput) } };
       state = { ...state, counters: prepared.counters, pending };
       await write(state);
     }
     if (pending.type === "booster" && !pending.outputs.length && pending.body.payment_hash) {
-      const response = await fetch(`${pending.mintUrl}/nutft/reveal?payment_hash=${encodeURIComponent(pending.body.payment_hash)}`);
+      const response = await mintFetch(`${pending.mintUrl}/nutft/reveal?payment_hash=${encodeURIComponent(pending.body.payment_hash)}`);
       if (!response.ok) throw new Error(`sealed booster unavailable (${response.status})`);
       const opened = await response.json();
       if (!Array.isArray(opened.cards)) {
@@ -374,7 +420,8 @@
       }
       const prepared = await outputsFor(opened.cards, pending.mintUrl, state, c, keyset);
       const outputs = prepared.outputs.map(savedOutput);
-      pending = { ...pending, outputs, body: { ...pending.body, pack_id: opened.pack_id, state: opened.state, outputs: outputs.map(requestOutput) } };
+      const reserved = reservation(state, pending.mintUrl, keyset, prepared.counters);
+      pending = { ...pending, outputs, reserved, body: { ...pending.body, pack_id: opened.pack_id, state: opened.state, outputs: outputs.map(requestOutput) } };
       state = { ...state, counters: prepared.counters, pending };
       await write(state);
     }
@@ -395,7 +442,9 @@
       /* A committed purchase still owns its cards: only a final verdict from
          the mint drops the pending record; a temporary refusal keeps it. */
       const terminal = /purchase expired|already claimed|stale booster quote|does not take committed purchases/i;
-      if (!pending.body.purchase_id || terminal.test(detail)) await write({ ...state, pending: null });
+      if (!pending.body.purchase_id || terminal.test(detail)) {
+        await write({ ...state, counters: countersAfterRefusal(state, pending, detail), pending: null });
+      }
       throw new Error(detail);
     }
     return finishPending(state, pending, await response.json(), c, keyset);
@@ -417,14 +466,24 @@
       try {
         return await submitPending(state, c, keyset);
       } catch (error) {
-        if (!error.awaitingPayment) throw error;
+        /* A busy mint is waited out exactly like an unpaid invoice: the pending
+           is untouched, and the next poll sends the same request again. */
+        if (!error.awaitingPayment && !error.transient) throw error;
         if (Date.now() > deadline) {
           /* The pending survives on purpose: the invoice may still settle, and
              recoverPending() can finish the sale later. */
+          if (error.transient) {
+            throw new Error(
+              `${error.message} — the booster is still pending; reopen the shop to finish it`,
+            );
+          }
           throw new Error("the invoice was not paid in time — reopen the shop to finish this booster");
         }
         if (typeof opts.onWaiting === "function") opts.onWaiting();
-        await new Promise((done) => setTimeout(done, delay));
+        const wait = error.transient
+          ? Math.min(BUSY_WAIT_CAP_MS, Math.max(delay, error.retryAfterMs || 0))
+          : delay;
+        await new Promise((done) => setTimeout(done, wait));
         delay = Math.min(delay * 1.4, 8000);
       }
     }
@@ -504,6 +563,73 @@
     throw new Error(attempt.reason);
   }
 
+  /* NOT NOW IS NOT NO. Only a 4xx other than 429 is the mint's verdict on a
+     request. A 429 (the referee's rate limit), any 5xx whatever its body, or no
+     answer at all says nothing about whether the mint acted: a proxy can answer
+     504 {"error": ...} after the mint has already committed a trade. None of
+     them may reach refusal() below, the road on which a pending claim or
+     transfer gets discarded. mintFetch throws this instead, every caller keeps
+     what it holds, and the same request is sent again later, which the mint
+     either carries out or answers by replaying what it already committed. */
+  const isVerdict = (status) => status >= 400 && status < 500 && status !== 429;
+  const BUSY_WAIT_CAP_MS = 30_000;
+  const BUSY_ATTEMPTS = 8;
+
+  function busyMint(message, retryAfterMs) {
+    const error = new Error(message);
+    error.transient = true;
+    error.retryAfterMs = retryAfterMs;
+    return error;
+  }
+
+  async function mintFetch(url, init) {
+    let response;
+    try { response = await fetch(url, init); }
+    catch (error) { throw busyMint(`the mint could not be reached (${error.message})`, null); }
+    if (response.ok || isVerdict(response.status)) return response;
+    const header = response.headers && response.headers.get("retry-after");
+    const seconds = header ? Number(header) : NaN;
+    const message = response.status === 429
+      ? "the mint is busy (429)"
+      : `the mint could not answer (${response.status})`;
+    throw busyMint(message, Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null);
+  }
+
+  /* Restore and checkstate change nothing on the mint, so a busy answer is
+     asked again: never sooner than retry-after, never more than 30 s at a time,
+     and at most BUSY_ATTEMPTS times, so a mint that stays down ends a recovery
+     with an error rather than a page that waits forever. Each wait goes to
+     opts.onWaiting, the same status path a booster purchase reports through. */
+  async function patientFetch(url, init, opts) {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await mintFetch(url, init);
+      } catch (error) {
+        if (!error.transient || attempt >= BUSY_ATTEMPTS) throw error;
+        const backoff = 1000 * 2 ** (attempt - 1);
+        const waitMs = Math.min(BUSY_WAIT_CAP_MS, Math.max(backoff, error.retryAfterMs || 0));
+        if (typeof opts.onWaiting === "function") {
+          opts.onWaiting({ attempt, waitMs, reason: error.message });
+        }
+        await new Promise((done) => setTimeout(done, waitMs));
+      }
+    }
+  }
+
+  /* Whether the mint already holds a signature for this output. Restore answers
+     for exactly the outputs it has signed, and changes nothing. */
+  async function slotSigned(mintUrl, output) {
+    const { id, B_ } = output.blindedMessage;
+    const response = await patientFetch(`${mintUrl}/v1/restore`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ outputs: [{ amount: 1, id, B_ }] }),
+    }, {});
+    if (!response.ok) throw new Error(`the mint could not check this card's slot (${response.status})`);
+    const restored = await response.json();
+    return Array.isArray(restored.outputs) && restored.outputs.some((item) => item.B_ === B_);
+  }
+
   /* Read the mint's own refusal out of a failed response -- or THROW, because
      anything that is not the mint refusing must not be treated as one.
    *
@@ -534,7 +660,7 @@
      buyer whether to install an extension, switch keys, or simply wait. */
   async function postSigned(target, body) {
     const url = new URL(target, root.location ? root.location.href : undefined).href;
-    const send = (header) => fetch(url, {
+    const send = (header) => mintFetch(url, {
       method: "POST",
       headers: header
         ? { "content-type": "application/json", Authorization: header }
@@ -593,7 +719,8 @@
        its own purchase_id first (see submitPending) and builds the outputs from
        the receipt. The same id is the claim's idempotency key. */
     const purchaseId = quote.purchase_required ? hex(root.crypto.getRandomValues(new Uint8Array(32))) : null;
-    const pending = { type: "booster", mintUrl, outputs: saved, body: {
+    const reserved = reservation(state, mintUrl, keyset, prepared.counters);
+    const pending = { type: "booster", mintUrl, outputs: saved, reserved, body: {
       idempotency_key: purchaseId || root.crypto.randomUUID(),
       ...(purchaseId ? { purchase_id: purchaseId } : {}),
       pack_id: quote.pack_id,
@@ -835,6 +962,17 @@
        unreadable-token bug, one level up. The recovery is still attempted, and
        the page has its own route to retry it. */
     try { await locked(recoverPending); } catch { /* reported by recoverPending's own caller */ }
+    return snapshotReadOnly(mintUrl);
+  }
+
+  /* COUNTING ONLY READS. snapshot() and snapshotMany() finish an unfinished
+     booster or transfer before they count, which is right for the wallet page
+     and wrong for anything that only wants a number: a count taken in one tab
+     could send, retry or rewrite a pending record that another tab began a
+     moment earlier. These read the wallet once, ask the mint about its proofs,
+     and never touch a pending record. A card whose transfer is unfinished
+     counts as spent until the wallet page finishes it. */
+  async function snapshotReadOnly(mintUrl) {
     const c = await cashu();
     const walletState = await read();
     const keyset = await getKeyset(mintUrl, c);
@@ -874,6 +1012,10 @@
    * dead foreign token on the E1 wallet page (and vice versa). */
   async function snapshotMany(mintUrls) {
     try { await locked(recoverPending); } catch { /* the recovery panel owns this error */ }
+    return snapshotManyReadOnly(mintUrls);
+  }
+
+  async function snapshotManyReadOnly(mintUrls) {
     const c = await cashu();
     const walletState = await read();
     const descriptors = [];
@@ -967,12 +1109,25 @@
     c.pointFromHex(recipientPubkey);
     let output;
     let counters = state.counters || {};
-    if (state.seedPhrase && recipientPubkey === state.pubkey) {
-      const prepared = await outputsFor([{
-        collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3], asset_binding: tag[4],
-      }], mintUrl, state, c, keyset);
+    /* Moving a card under this wallet's own recovery phrase, as an import does. */
+    const toSelf = Boolean(state.seedPhrase && recipientPubkey === state.pubkey);
+    let reserved = null;
+    if (toSelf) {
+      const card = { collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3], asset_binding: tag[4] };
+      let prepared = await outputsFor([card], mintUrl, state, c, keyset);
+      /* ANOTHER DEVICE MAY HOLD THIS PHRASE. Counters live in one browser, so a
+         laptop and a phone on the same phrase derive the same output for their
+         next copy of a card, and the mint signs it only once: the second device
+         was refused, and its card stayed where the phrase cannot find it. So ask
+         first. A slot the mint has already signed belongs to the other device;
+         step to this card's next slot, and on past every one already taken. */
+      for (let taken = 0; await slotSigned(mintUrl, prepared.outputs[0]); taken += 1) {
+        if (taken >= 64) throw new Error("every nearby slot for this card is already signed");
+        prepared = await outputsFor([card], mintUrl, { ...state, counters: prepared.counters }, c, keyset);
+      }
       [output] = prepared.outputs;
       counters = prepared.counters;
+      reserved = reservation(state, mintUrl, keyset, counters);
     } else {
       output = c.OutputData.createSingleP2PKData({
         pubkey: recipientPubkey,
@@ -981,7 +1136,7 @@
       }, 1, keyset.id);
     }
     const saved = savedOutput(output);
-    const pending = { type: "trade", mintUrl, input_secret: oldProof.secret, outputs: [saved], body: { idempotency_key: root.crypto.randomUUID(), inputs: c.serializeProofs([signed]), outputs: [requestOutput(saved)] } };
+    const pending = { type: "trade", mintUrl, input_secret: oldProof.secret, outputs: [saved], ...(toSelf ? { toSelf, reserved } : {}), body: { idempotency_key: root.crypto.randomUUID(), inputs: c.serializeProofs([signed]), outputs: [requestOutput(saved)] } };
     state = { ...state, counters, pending };
     await write(state);
     return submitPending(state, c, keyset);
@@ -1060,14 +1215,16 @@
     if (state.seedPhrase) {
       for (const proof of decoded.proofs) {
         try {
-          const moved = await tradeProofUnlocked(mintUrl, proof.secret, state.pubkey);
-          const current = await read();
-          await write({
-            ...current,
-            tokens: [...current.tokens, moved.token],
-            outgoing: (current.outgoing || []).filter((entry) => entry.token !== moved.token),
-          });
-        } catch { break; }
+          await tradeProofUnlocked(mintUrl, proof.secret, state.pubkey);
+        } catch (error) {
+          /* SAY SO. This loop used to break silently, so an import reported
+             every card as received while the one that failed stayed under the
+             sender's secret, where this wallet's recovery phrase can never find
+             it. The cards are in the wallet either way, and the caller has to
+             hear that one is not under the phrase yet. A busy mint leaves the
+             move pending, and the next wallet operation finishes it. */
+          throw notMoved(error, decoded.proofs.length);
+        }
       }
     }
     return decoded.proofs.length;
@@ -1084,41 +1241,59 @@
 
   const recoveryPhrase = () => locked(recoveryPhraseUnlocked);
 
-  async function restoreSeedUnlocked(mintUrl, phrase) {
+  async function restoreSeedUnlocked(mintUrl, phrase, opts = {}) {
     const current = await read();
-    if (current.tokens.length || current.pending || (current.outgoing || []).length) {
-      throw new Error("recovery requires an empty wallet so bearer assets are not overwritten");
-    }
     const wc = await walletCrypto();
     const seedPhrase = String(phrase || "").trim().toLowerCase().replace(/\s+/g, " ");
     if (!wc.validateMnemonic(seedPhrase, wc.wordlist)) throw new Error("recovery phrase is not a valid 12-word BIP39 phrase");
-    const seed = wc.mnemonicToSeedSync(seedPhrase);
     const c = await cashu();
-    const privateKey = wc.HDKey.fromMasterSeed(seed).derive("m/129373'/10'/0'/0'/0").privateKey;
-    const state = {
-      privateKey: hex(privateKey), pubkey: hex(c.getPubKeyFromPrivKey(privateKey)), seedPhrase,
-      counters: {}, tokens: [], outgoing: [], pending: null,
-    };
     const keyset = await getKeyset(mintUrl, c);
+    const key = counterKey(mintUrl, keyset.id);
+    /* PICK UP WHERE THE LAST ATTEMPT STOPPED. Recovery writes its progress after
+       every batch, so an attempt cut off by a mint that stays busy or a closed
+       tab is resumed from its checkpoint: never restarted from slot 0, and never
+       refused as a wallet that already holds the cards it found. */
+    const unfinished = current.pending || (current.outgoing || []).length;
+    const resuming = Boolean(current.restoring && current.restoring.key === key
+      && current.seedPhrase === seedPhrase && !unfinished);
+    if (!resuming && (current.tokens.length || unfinished)) {
+      throw new Error("recovery requires an empty wallet so bearer assets are not overwritten");
+    }
+    let state = current;
+    if (!resuming) {
+      const seed = wc.mnemonicToSeedSync(seedPhrase);
+      const privateKey = wc.HDKey.fromMasterSeed(seed).derive("m/129373'/10'/0'/0'/0").privateKey;
+      state = {
+        privateKey: hex(privateKey), pubkey: hex(c.getPubKeyFromPrivKey(privateKey)), seedPhrase,
+        counters: { [key]: 0 }, tokens: [], outgoing: [], pending: null,
+        restoring: { key, next: 0, empty: 0 },
+      };
+      await write(state);
+    }
     const catalog = await getCatalog(mintUrl, c, keyset);
-    const recovered = [];
-    let counter = 0;
-    let emptyBatches = 0;
-    let lastCounterWithSignature = -1;
-    const gapBatches = Math.max(3, Math.ceil(catalog.assets.length / 100));
+    let counter = state.restoring.next;
+    let emptyBatches = state.restoring.empty;
+    /* HOW FAR PAST THE LAST CARD TO LOOK. Slot c holds only the card at catalog
+       index c mod N, so two cards taken one after the other lie at most N slots
+       apart. A slot reserved and never signed between them -- left by a wallet
+       from before refused operations gave their slots back -- pushes the next
+       card up to 2N slots on, and batch edges cost up to one more batch. So the
+       scan stops only after at least 2N + 100 slots in a row came back unsigned;
+       stopping after three hundred lost every card beyond such a gap. */
+    const gapBatches = Math.ceil((2 * catalog.assets.length + 100) / 100);
 
     while (emptyBatches < gapBatches) {
       const candidates = await Promise.all(Array.from({ length: 100 }, (_, i) => {
         const at = counter + i;
         return deterministicOutput(catalog.assets[at % catalog.assets.length], state, c, keyset, at);
       }));
-      const response = await fetch(`${mintUrl}/v1/restore`, {
+      const response = await patientFetch(`${mintUrl}/v1/restore`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ outputs: candidates.map((output) => ({
           amount: 1, id: output.blindedMessage.id, B_: output.blindedMessage.B_,
         })) }),
-      });
+      }, opts);
       if (!response.ok) throw new Error(`signature restore failed (${response.status})`);
       const restored = await response.json();
       if (!Array.isArray(restored.outputs) || !Array.isArray(restored.signatures) || restored.outputs.length !== restored.signatures.length) {
@@ -1126,10 +1301,12 @@
       }
       const signatures = new Map(restored.outputs.map((output, index) => [output.B_, restored.signatures[index]]));
       const batch = [];
+      const found = [];
+      let lastSigned = -1;
       for (let i = 0; i < candidates.length; i += 1) {
         const signature = signatures.get(candidates[i].blindedMessage.B_);
         if (!signature) continue;
-        lastCounterWithSignature = counter + i;
+        lastSigned = counter + i;
         const proof = candidates[i].toProof({ ...signature, amount: c.Amount.from(signature.amount) }, keyset);
         if (!proof.p2pk_e || !c.hasValidDleq(proof, keyset, { require: true }) || !c.maybeDeriveP2BKPrivateKeys(state.privateKey, proof).length) {
           throw new Error("mint returned an invalid restored NutFT proof");
@@ -1138,26 +1315,43 @@
       }
       if (batch.length) {
         const Ys = batch.map((proof) => c.hashToCurve(new TextEncoder().encode(proof.secret)).toHex(true));
-        const checked = await fetch(`${mintUrl}/v1/checkstate`, {
+        const checked = await patientFetch(`${mintUrl}/v1/checkstate`, {
           method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ Ys }),
-        });
+        }, opts);
         if (!checked.ok) throw new Error(`restored proof state unavailable (${checked.status})`);
         const states = (await checked.json()).states;
-        batch.forEach((proof, index) => { if (states[index]?.state === "UNSPENT") recovered.push(proof); });
+        batch.forEach((proof, index) => { if (states[index]?.state === "UNSPENT") found.push(proof); });
         emptyBatches = 0;
       } else {
         emptyBatches += 1;
       }
       counter += 100;
+      /* CHECKPOINT: the cards this batch found, the counter past its last signed
+         slot, and where the next batch starts, before anything else is asked. */
+      state = {
+        ...state,
+        tokens: found.length
+          ? [...state.tokens, encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: found })]
+          : state.tokens,
+        counters: lastSigned >= 0 ? { ...state.counters, [key]: lastSigned + 1 } : state.counters,
+        restoring: { key, next: counter, empty: emptyBatches },
+      };
+      await write(state);
     }
 
-    state.counters[counterKey(mintUrl, keyset.id)] = lastCounterWithSignature + 1;
-    if (recovered.length) state.tokens = [encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: recovered })];
-    await write(state);
+    /* Finished: one token holding every recovered card, as a recovery has
+       always left the wallet, and no checkpoint. */
+    const recovered = readableProofs(state, keyset, c);
+    const finished = { ...state };
+    delete finished.restoring;
+    if (recovered.length) finished.tokens = [encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: recovered })];
+    await write(finished);
     return recovered.length;
   }
 
-  const restoreSeed = (mintUrl, phrase) => locked(() => restoreSeedUnlocked(mintUrl, phrase));
+  const restoreSeed = (mintUrl, phrase, opts) => locked(
+    () => restoreSeedUnlocked(mintUrl, phrase, opts || {}),
+  );
 
   async function exportBackup() {
     const state = await read();
@@ -1219,7 +1413,8 @@
   );
 
   root.NutFTWallet = {
-    buyBooster, claimBooster, snapshot, snapshotMany, tradeProof, importToken,
+    buyBooster, claimBooster, snapshot, snapshotMany, snapshotReadOnly, snapshotManyReadOnly,
+    tradeProof, importToken,
     destination, recoverPending, outgoing, forgetOutgoing, exportBackup,
     restoreBackup, replaceBackup, recoveryPhrase, restoreSeed, provePossession, read, cashu, hex, bytes,
   };
