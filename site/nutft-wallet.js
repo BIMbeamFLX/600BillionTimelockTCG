@@ -899,6 +899,17 @@
        unreadable-token bug, one level up. The recovery is still attempted, and
        the page has its own route to retry it. */
     try { await locked(recoverPending); } catch { /* reported by recoverPending's own caller */ }
+    return snapshotReadOnly(mintUrl);
+  }
+
+  /* COUNTING ONLY READS. snapshot() and snapshotMany() finish an unfinished
+     booster or transfer before they count, which is right for the wallet page
+     and wrong for anything that only wants a number: a count taken in one tab
+     could send, retry or rewrite a pending record that another tab began a
+     moment earlier. These read the wallet once, ask the mint about its proofs,
+     and never touch a pending record. A card whose transfer is unfinished
+     counts as spent until the wallet page finishes it. */
+  async function snapshotReadOnly(mintUrl) {
     const c = await cashu();
     const walletState = await read();
     const keyset = await getKeyset(mintUrl, c);
@@ -938,6 +949,10 @@
    * dead foreign token on the E1 wallet page (and vice versa). */
   async function snapshotMany(mintUrls) {
     try { await locked(recoverPending); } catch { /* the recovery panel owns this error */ }
+    return snapshotManyReadOnly(mintUrls);
+  }
+
+  async function snapshotManyReadOnly(mintUrls) {
     const c = await cashu();
     const walletState = await read();
     const descriptors = [];
@@ -1285,7 +1300,8 @@
   );
 
   root.NutFTWallet = {
-    buyBooster, claimBooster, snapshot, snapshotMany, tradeProof, importToken,
+    buyBooster, claimBooster, snapshot, snapshotMany, snapshotReadOnly, snapshotManyReadOnly,
+    tradeProof, importToken,
     destination, recoverPending, outgoing, forgetOutgoing, exportBackup,
     restoreBackup, replaceBackup, recoveryPhrase, restoreSeed, provePossession, read, cashu, hex, bytes,
   };
