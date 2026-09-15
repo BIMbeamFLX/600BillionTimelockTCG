@@ -1231,7 +1231,14 @@
     let counter = 0;
     let emptyBatches = 0;
     let lastCounterWithSignature = -1;
-    const gapBatches = Math.max(3, Math.ceil(catalog.assets.length / 100));
+    /* HOW FAR PAST THE LAST CARD TO LOOK. Slot c holds only the card at catalog
+       index c mod N, so two cards taken one after the other lie at most N slots
+       apart. A slot reserved and never signed between them -- left by a wallet
+       from before refused operations gave their slots back -- pushes the next
+       card up to 2N slots on, and batch edges cost up to one more batch. So the
+       scan stops only after at least 2N + 100 slots in a row came back unsigned;
+       stopping after three hundred lost every card beyond such a gap. */
+    const gapBatches = Math.ceil((2 * catalog.assets.length + 100) / 100);
 
     while (emptyBatches < gapBatches) {
       const candidates = await Promise.all(Array.from({ length: 100 }, (_, i) => {
