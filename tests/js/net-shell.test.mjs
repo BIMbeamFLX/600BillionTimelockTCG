@@ -293,7 +293,7 @@ function hangarTab(t, label, { bus = relayBus(), sk = keyOf(label), storage = ne
       outbox,
     };
     const client = Object.assign(loadFrame(frame, napplet, scope), { tab, frame, outbox, view: null });
-    const log = { errors: [], states: [], frames: [], overs: [], rejects: [], peers: [], active: [], queued: [] };
+    const log = { errors: [], states: [], frames: [], overs: [], rejects: [], peers: [], active: [], queued: [], nostr: [] };
     client.log = log;
     client.handlers = {
       onError: (e) => log.errors.push(e),
@@ -304,6 +304,7 @@ function hangarTab(t, label, { bus = relayBus(), sk = keyOf(label), storage = ne
       onPeer: (p) => log.peers.push(p),
       onActive: (a) => log.active.push(a),
       onQueued: (q) => log.queued.push(q),
+      onNostr: (n) => log.nostr.push(n),
     };
     client.started = client.net.start(client.handlers);
     tab.clients.push(client);
@@ -863,6 +864,103 @@ test("on the website a ?code= is read once and taken out of the address bar, val
 });
 
 // ------------------------------------------------------------ two shells, one table
+
+const E = require("../../site/engine.js");
+
+/* One legal, uneventful move for `seat`, taken from the engine's own list for the view
+ * this seat holds: pass priority, or declare nothing when the game waits on it. */
+function quietMove(client) {
+  const view = client.view;
+  const seat = client.log.states.at(-1) && client.log.states.at(-1).seat;
+  if (!view || view.result || (seat !== 0 && seat !== 1)) return null;
+  const legal = E.legalActions(view, seat);
+  const pick = legal.find((action) => action.type === "PASS_PRIORITY")
+    || legal.find((action) => ["DECLARE_ATTACKERS", "DECLARE_BLOCKERS"].includes(action.type));
+  return pick ? Object.assign({ at: "" }, pick) : null;
+}
+
+/* Play's own order for a signed moment (site/play.js signAndSend): sign, publish, record. */
+async function signAndSend(client, role, template) {
+  const signed = await client.net.nostr.sign(template);
+  const published = await client.net.nostr.publish(signed);
+  client.net.sendNostr(role, signed);
+  return { signed, published };
+}
+
+test("two Hangar tabs meet by invite, play a table to OVER through their hosts, and survive a reload", async (t) => {
+  const table = await referee(t, "e2e.db");
+  const rejections = unhandled(t);
+  const bus = relayBus();
+  const build = { E1_TABLE_URL: table.wsUrl }; // what scripts/build_napplet.py injects
+  const alice = hangarTab(t, "alice", { bus });
+  const bob = hangarTab(t, "bob", { bus });
+  const a = alice.open({ scope: build });
+  const b = bob.open({ scope: build });
+  await Promise.all([a.started.restoring, b.started.restoring]);
+
+  // Bob listens for invites before there are any; Alice opens a table and invites him.
+  const invites = [];
+  b.net.nostr.subscribeInvites(bob.pubkey, (invite) => invites.push(invite));
+  a.net.create({ name: "alice", affinity: "Power", pubkey: alice.pubkey });
+  const open = await waitFor(() => a.log.states.find((s) => s.status === "open"));
+  const invited = await signAndSend(a, "invite", a.net.nostr.inviteEvent({
+    matchId: open.matchId, code: open.code, table: a.net.publicTable(), name: "alice", affinity: "Power",
+    ruleset: open.ruleset, catalogDigest: open.catalogDigest, stake: open.stake, to: bob.pubkey,
+  }));
+  assert.equal(invited.published.ok, true, invited.published.error);
+  assert.equal(invited.signed.pubkey, alice.pubkey, "Alice's host signed the invite");
+  const invite = await waitFor(() => invites[0]);
+  assert.deepEqual([invite.code, invite.matchId, invite.pubkey, invite.stake], [open.code, open.matchId, alice.pubkey, 0]);
+
+  // He sees the same table in the list over the socket, and joins it by its code.
+  const rows = await b.net.tables();
+  assert.ok(rows.some((row) => row.code === invite.code), "the invited table is listed over TABLES");
+  b.net.join({ code: invite.code, name: "bob", affinity: "Signal", pubkey: bob.pubkey, table: invite.table, stake: invite.stake });
+  const seated = await waitFor(() => b.log.states.find((s) => s.seat === 1 && s.status === "playing"));
+  await waitFor(() => a.log.states.find((s) => s.seat === 0 && s.status === "playing"));
+  assert.equal(seated.matchId, open.matchId);
+
+  // Bob's frame is reloaded mid-game: the mirror hands the seat back.
+  await waitFor(() => bob.mirror()[`${seated.matchId}:1`]);
+  b.frame.kill();
+  const b2 = bob.open({ scope: build });
+  assert.equal((await b2.started.restoring).resuming, true);
+  await waitFor(() => b2.log.states.find((s) => s.matchId === seated.matchId && s.seat === 1 && s.view));
+
+  // A few legal moves from the engine's own list, then Alice concedes.
+  let moved = 0;
+  for (let round = 0; round < 40 && moved < 6; round += 1) {
+    const client = [a, b2].find((c) => quietMove(c));
+    if (!client) break;
+    const move = quietMove(client);
+    assert.ok(client.net.act(move));
+    await waitFor(() => (client.view.seq > move.seq) || client.log.rejects.some((r) => r.seq === move.seq));
+    if (client.view.seq > move.seq) moved += 1;
+    else break;
+    await waitFor(() => [a, b2].every((c) => c.view.seq === client.view.seq));
+  }
+  assert.ok(moved >= 4, `the seats played legal moves over their hosts (${moved})`);
+  assert.ok(a.net.act({ type: "CONCEDE", seat: 0, seq: a.view.seq, at: "", payload: {} }));
+  const [overA, overB] = await Promise.all([waitFor(() => a.log.overs[0]), waitFor(() => b2.log.overs[0])]);
+  assert.deepEqual(overB.result.winners, [1]);
+  assert.equal(overA.resultContent, overB.resultContent, "both seats hold the same bytes to sign");
+
+  // Both results go out through each tab's own outbox, and the referee sees them agree.
+  const results = await Promise.all([
+    signAndSend(a, "result", a.net.nostr.resultEvent(overA)),
+    signAndSend(b2, "result", b2.net.nostr.resultEvent(overB)),
+  ]);
+  for (const { published } of results) assert.equal(published.ok, true, published.error);
+  const onRelays = bus.events.filter((event) => event.kind === 31600);
+  assert.deepEqual(onRelays.map((event) => event.pubkey).sort(), [alice.pubkey, bob.pubkey].sort());
+  assert.equal(onRelays[0].content, onRelays[1].content, "identical content, two signatures");
+  const agreed = await waitFor(() => b2.log.nostr.find((n) => n.agreement === "confirmed"));
+  assert.equal(agreed.events.length, 2);
+
+  assert.deepEqual([...a.sockets, ...b.sockets, ...b2.sockets], [], "no socket or fetch of their own, ever");
+  assert.deepEqual([...a.log.errors, ...b2.log.errors], []);
+  assert.deepEqual(rejections, []);
+});
 
 test("two Hangar tabs find each other in the quick match", async (t) => {
   const table = await referee(t, "quick.db");
