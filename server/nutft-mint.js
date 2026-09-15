@@ -85,8 +85,9 @@ function createNutftMint(options = {}) {
      the referee applies to its environment before it opens anything and that
      `node server/env-check.js` applies as a dry run. `edition: "G"` reads
      G_NUTFT_* and never falls back to an E1 variable. */
-  const { settings, problems } = resolveMint(options, process.env, options.edition);
+  const { settings, problems, warnings } = resolveMint(options, process.env, options.edition);
   if (problems.length) throw new Error(problems.join("; "));
+  for (const warning of warnings) console.warn(`[nutft] warning: ${warning}`);
   const census = JSON.parse(fs.readFileSync(settings.censusPath || CENSUS_PATH, "utf8"));
   const catalog = loadCensus(census);
   /* A MANIFEST census (a starter-set edition: content is listed, not drawn) has

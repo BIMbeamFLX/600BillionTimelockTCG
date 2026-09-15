@@ -322,6 +322,11 @@ function resolveMint(options = {}, env = process.env, editionName = "E1") {
   if (settings.onePerKey && settings.sales !== "allowlist" && settings.sales !== "signed") {
     add(oneVariable, `needs ${salesVariable}=allowlist or signed: without a signed request there is no key to count`);
   }
+  /* A known gap, said out loud rather than advertised as a rule: the buyer is
+     recorded only with a paid issuance, so a free claim is never counted. */
+  if (settings.onePerKey && !paid) {
+    warnings.push(`${oneVariable}: this mint is free, and a free claim records no buyer, so one per key is not enforced`);
+  }
 
   const satsOnly = "must be a whole number of sats (divisible by 1000): phoenixd and Cashu invoice whole sats";
   const priceVariable = name("priceMsat");

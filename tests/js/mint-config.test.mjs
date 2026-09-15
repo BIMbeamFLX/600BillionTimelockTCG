@@ -282,6 +282,20 @@ test("LND settings are required only from a mint or a beacon that selects lnd", 
   assertProblem(problemsWith({ ...unused, LND_MACAROON: "not-hex", NUTFT_FUNDING: "lnd" }), /^LND_MACAROON: must be hex/);
 });
 
+test("a free mint asked for one per key warns at boot that it cannot enforce it", async (t) => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { createMockFunding } = require("../../server/funding.js");
+  const g = { edition: "G", catalogUri: "https://x/g/nutft/catalog", collectionId: "600B-G", censusPath: G_CENSUS, sales: "signed" };
+  const free = await captureLogs(t, () => createNutftMint({ ...g, lnd: null }).stop());
+  assert.match(free, /\[nutft\] warning: G_NUTFT_ONE_PER_KEY: this mint is free, and a free claim records no buyer, so one per key is not enforced/);
+
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const paid = await captureLogs(t, () => createNutftMint({ ...g, db, funding: createMockFunding({}), allowVirtual: "1" }).stop());
+  assert.doesNotMatch(paid, /not enforced/, "a paid mint records the buyer with the issuance");
+  assert.deepEqual(checkEnv({ ...PROD, G_NUTFT_FUNDING: "none" }), [], "a warning, never a refusal");
+});
+
 test("PIN_SEED is announced at boot as testing only, without its value", async (t) => {
   /* G_NUTFT_ENABLED without G_NUTFT_DB refuses before any port is bound. */
   const { code, output } = await bootReferee(t, { PIN_SEED: "424242", G_NUTFT_ENABLED: "1" });
