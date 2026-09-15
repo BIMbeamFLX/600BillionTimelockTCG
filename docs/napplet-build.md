@@ -9,7 +9,7 @@
 - `python scripts/build_napplet.py --report` prints the bytes each inlined script and data URL costs: source, shipped and saved. The source column counts CRLF bytes, which the build also drops.
 - Left out: `nutft-wallet.js` (imports esm.sh at runtime), `qr.js`, `bugreport.js`, `nostr-id.js`, `rail.js` (inside the Hangar the shell draws the side bar), the masthead logo and the four affinity world plates (they would push the file past 3 MB). `play.js` degrades without each of them.
 - Not bundled by design: card faces. `faces.js` keeps fetching them by hash from the Blossom mirrors.
-- Head additions: `window.E1_NAPPLET_BUILD` (sha256 of the source `play.html`) and `<meta name="napplet-requires" content="identity,outbox,resource,storage,intent">`.
+- Head additions: `window.E1_NAPPLET_BUILD` (sha256 of the source `play.html`), `window.E1_TABLE_URL = "wss://tcg.nappelin.com/ws"` (the referee the napplet dials: a srcdoc frame has no origin to derive one from, and `net.js` `tableUrl()` reads it before the page origin) and `<meta name="napplet-requires" content="identity,outbox,resource,storage,intent">`.
 - How the host loads it: the nappelin Hangar injects `window.napplet` and sets the file as `srcdoc` of an `<iframe sandbox="allow-scripts">`. `E1Napplet.embedded()` sees the object, `play.html` adds `html.embedded`: site chrome hidden, nappelin tokens painted, background layers absolute, every link routed to `E1Napplet.escape()`.
 - Local preview without a host: open `site/play.html?embed=1`.
 - Size guard: the script prints the size and exits 1 above 3 MB. The test also holds the artifact at or under 2.6 MB of working headroom (2,594,296 bytes on 2026-09-14). Tests: `tests/test_build_napplet.py`.

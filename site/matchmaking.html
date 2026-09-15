@@ -221,105 +221,9 @@ select option, select optgroup { color: var(--parchment); background: var(--iron
   </header>
 
   <main id="main">
+    <!-- The lobby is site/lobby.js (E1Lobby), the same one the table mounts inside the
+         Hangar. It builds its own markup here, so the two pages cannot drift apart. -->
     <section class="setup online" id="online" aria-labelledby="lobbyHeading">
-      <h1 id="lobbyHeading">Play <span>across the table</span></h1>
-      <p>One referee runs the rules and deals both seats; every play travels over a socket, and only the
-      invite, the accept and the signed result ever touch a relay. NIP-07 sign-in is required for every
-      online seat.</p>
-
-      <div class="netid">
-        <button class="btn ghost tcg-btn" id="nostrLogin">Sign in with nostr</button>
-        <span class="chip tcg-chip" id="nostrWho" hidden></span>
-        <button class="btn ghost tcg-btn" id="nostrLogout" hidden>Sign out</button>
-        <span class="chip tcg-chip" id="netTable"></span>
-      </div>
-
-      <!-- YOUR SEAT FOUND YOU. The referee names every unfinished match this
-           npub is sitting at, so a cleared profile, a private window or a
-           different machine is a click away from the board it left. -->
-      <div class="resumecard" id="resumeCard" hidden>
-        <div class="zlabel">Match in progress</div>
-        <div id="resumeList"></div>
-      </div>
-
-      <!-- WHOSE STACK IS PLAYED. Ready deals a random Stack of the chosen
-           affinity, which is how every online table worked before. My Stack
-           sends one you built in the Stack Builder — the referee checks it
-           against §7 and refuses an illegal one rather than quietly swapping it.
-           The two are matched separately, so a built Stack never faces a pile. -->
-      <div class="deckmode" id="deckMode">
-        <div class="zlabel">Which Stack do you play?</div>
-        <label class="moderow"><input type="radio" name="deckmode" value="ready" checked> <b>Ready</b> — the referee deals you a Stack of your affinity</label>
-        <label class="moderow"><input type="radio" name="deckmode" value="custom"> <b>My Stack</b> — play one you built</label>
-        <div class="stackpick" id="stackPick" hidden>
-          <label for="stackChoice">Your Stacks</label>
-          <select id="stackChoice"></select>
-          <p class="stacknote" id="stackNote"></p>
-        </div>
-      </div>
-
-      <!-- The fast path: no code to read aloud, no invite to publish. -->
-      <div class="findrow" id="findRow">
-        <button class="btn tcg-btn tcg-btn--primary" id="findMatch">Find an opponent</button>
-        <label class="stakelabel" for="stakeSats">Play for
-          <input id="stakeSats" type="number" min="0" step="1" value="0" inputmode="numeric" autocomplete="off">
-          sats
-        </label>
-        <span class="chip tcg-chip" id="queueChip" hidden></span>
-        <button class="btn ghost tcg-btn" id="cancelFind" hidden>Stop looking</button>
-      </div>
-      <p class="stakenote" id="stakeNote">
-        A wager is matched, not merely announced — you are only ever dealt against someone who
-        asked for the same number. Both seats sign it before the first card. Nothing is escrowed:
-        at the end the loser pays the winner from their own wallet, and a refused zap cannot
-        change a signed result. Leave it at 0 for a friendly.
-      </p>
-
-      <div class="seats seats-gap">
-        <div class="seat">
-          <label for="netName">Your name</label>
-          <input id="netName" value="Player" autocomplete="off">
-          <label for="netAffinity">Stack affinity</label>
-          <select id="netAffinity"></select>
-          <label for="netRules">Rules — for a table you open or a match you search</label>
-          <select id="netRules">
-            <option value="E1.0">Classic</option>
-            <option value="F1.0">Fast</option>
-          </select>
-        </div>
-        <div class="seat">
-          <label for="joinCode">Join with a table code</label>
-          <div class="joinrow">
-            <input id="joinCode" placeholder="K7M2QF" maxlength="6" autocomplete="off" spellcheck="false">
-            <button class="btn tcg-btn tcg-btn--primary" id="joinTable">Join</button>
-          </div>
-          <label for="challengeNpub">Challenge an npub (optional)</label>
-          <input id="challengeNpub" placeholder="npub1… — blank makes an open invite" autocomplete="off" spellcheck="false">
-        </div>
-      </div>
-
-      <div class="startrow">
-        <button class="btn tcg-btn tcg-btn--primary" id="createTable">Create table</button>
-        <button class="btn ghost tcg-btn" id="refreshTables">Open tables</button>
-        <button class="btn ghost tcg-btn" id="checkInvites">Check invites</button>
-      </div>
-
-      <div class="prompt" id="netNotice" hidden></div>
-
-      <div class="hostpanel" id="hostPanel" hidden>
-        <div class="zlabel">Table code — read it aloud</div>
-        <div class="tablecode" id="tableCode">------</div>
-        <div class="startrow" style="margin-top:10px">
-          <button class="btn ghost tcg-btn" id="copyCode">Copy join link</button>
-          <button class="btn ghost tcg-btn" id="publishInvite">Publish invite to nostr</button>
-          <span class="chip tcg-chip">waiting for a second seat</span>
-        </div>
-      </div>
-
-      <div id="tableList" class="netlist"></div>
-      <div id="inviteList" class="netlist"></div>
-
-      <p class="localnote">Prefer hotseat on one machine, or an NPC to learn against? <a href="play.html">Play locally →</a></p>
     </section>
   </main>
 
@@ -332,6 +236,7 @@ select option, select optgroup { color: var(--parchment); background: var(--iron
 <script src="schnorr.js"></script>
 <script src="net.js"></script>
 <script src="storage-keys.js"></script>
+<script src="lobby.js"></script>
 <script src="matchmaking.js"></script>
 </body>
 </html>

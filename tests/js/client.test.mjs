@@ -474,6 +474,31 @@ async function waitFor(check, what, turns = 500) {
   assert.fail(`timed out waiting for ${what}`);
 }
 
+const leaveSolo = (byId, game) => {
+  if (game.state && !game.state.result) game.dispatch("CONCEDE", 0, {});
+  byId("endRematch").click();
+};
+
+/* Earlier tests' tables can still be walking on their own timers, and they
+   paint into whatever document is current. So a wait that reads the board
+   first repaints THIS table ("Cancel targeting" is a pure re-render) and then
+   reads it in the same synchronous turn. */
+const paintedNow = (byId, check) => () => {
+  byId("cancelTarget").click();
+  return check();
+};
+
+/** Every value a node's textContent is given, kept so a wait can ask what THIS table painted. */
+function recordText(node) {
+  const written = [];
+  let text = "";
+  Object.defineProperty(node, "textContent", {
+    get: () => text,
+    set: (value) => { text = value; written.push(value); },
+  });
+  return written;
+}
+
 function clientGame(seed = 990000) {
   return globalThis.E1Engine.createGame({
     seats: [{ name: "A", affinity: "Power" }, { name: "B", affinity: "Signal" }],
@@ -508,8 +533,9 @@ function latestUidNode(byId, zoneId, uid) {
   return null;
 }
 
-/* Loads matchmaking.js against the same stub DOM. `nav` records where the
- * lobby tried to send the browser, which is the hand-off itself. */
+/* Loads matchmaking.js — and site/lobby.js, the lobby it mounts — against the
+ * same stub DOM. `nav` records where the lobby tried to send the browser, which
+ * is the hand-off itself. */
 function loadLobby(netStub) {
   const nodes = new Map();
   const byId = (id) => {
@@ -537,6 +563,7 @@ function loadLobby(netStub) {
     assign(url) { nav.push(url); },
   };
   globalThis.E1Net = netStub;
+  new Function(fs.readFileSync(path.join(HERE, "..", "..", "site", "lobby.js"), "utf8"))();
   new Function(fs.readFileSync(path.join(HERE, "..", "..", "site", "matchmaking.js"), "utf8"))();
   for (const fn of fired.DOMContentLoaded || []) fn();
   return { byId, nav, fired };
@@ -1304,21 +1331,23 @@ test("the clash preview promises exactly what the engine then does", () => {
 
 // -------------------------------------------------- nostr as the session root
 
-/* `sessions()` fans two REQs across the relays. Driving the stub sockets by
- * hand is the harness: open them, feed EVENTs, then EOSE so the query resolves
- * on agreement rather than on its deadline. */
-function answerRelays(sockets, from, events) {
-  const three = sockets.slice(from, from + 3);
-  for (const ws of three) {
+/* `sessions()` fans two REQs across the relays it reads, one socket per relay:
+ * the first query's sockets, then the second's. Driving the stub sockets by hand
+ * is the harness: open them, feed EVENTs, then EOSE so the query resolves on
+ * agreement rather than on its deadline. */
+function answerRelays(sockets, query, events) {
+  const fan = sockets.length / 2;
+  const relays = sockets.slice(query * fan, (query + 1) * fan);
+  for (const ws of relays) {
     ws.readyState = 1;
     if (ws.onopen) ws.onopen();
   }
   // One relay carries everything; the others are silent but must still EOSE, or
   // the query waits out its full deadline.
   for (const event of events) {
-    three[0].onmessage({ data: JSON.stringify(["EVENT", "q", event]) });
+    relays[0].onmessage({ data: JSON.stringify(["EVENT", "q", event]) });
   }
-  for (const ws of three) ws.onmessage({ data: JSON.stringify(["EOSE", "q"]) });
+  for (const ws of relays) ws.onmessage({ data: JSON.stringify(["EOSE", "q"]) });
 }
 
 const SK = (label) => Uint8Array.from(createHash("sha256").update(`client:${label}`).digest());
@@ -1371,7 +1400,7 @@ test("an npub alone finds the matches it has not finished", async () => {
   const { net, sockets } = loadNet(HTTP_ENV);
   const pending = net.nostr.sessions(MY_KEY);
   answerRelays(sockets, 0, [startEventFor("m_0000000000a1")]);
-  answerRelays(sockets, 3, []); // no results published: the match is still live
+  answerRelays(sockets, 1, []); // no results published: the match is still live
   const found = await pending;
 
   assert.equal(found.length, 1);
@@ -1386,7 +1415,7 @@ test("a match with a published result is over, not resumable", async () => {
   const { net, sockets } = loadNet(HTTP_ENV);
   const pending = net.nostr.sessions(MY_KEY);
   answerRelays(sockets, 0, [startEventFor("m_0000000000b1"), startEventFor("m_0000000000b2")]);
-  answerRelays(sockets, 3, [resultEventFor("m_0000000000b2")]);
+  answerRelays(sockets, 1, [resultEventFor("m_0000000000b2")]);
   const found = await pending;
 
   assert.deepEqual(found.map((m) => m.matchId), ["m_0000000000b1"]);
@@ -1417,7 +1446,7 @@ test("a start announcement off a relay is untrusted input", async () => {
   const good = startEventFor("m_0000000000c5");
 
   answerRelays(sockets, 0, [notAWebsocket, notMyMatch, junk, wrongShape, good]);
-  answerRelays(sockets, 3, []);
+  answerRelays(sockets, 1, []);
   const found = await pending;
 
   assert.deepEqual(
@@ -1425,6 +1454,22 @@ test("a start announcement off a relay is untrusted input", async () => {
     ["m_0000000000c5"],
     "only the well-formed announcement naming a websocket and seating us survives"
   );
+});
+
+test("the website reads nappelin's relay beside the public three, and publishes to the public three", () => {
+  const { net, opened } = loadNet(HTTP_ENV);
+  const reads = ["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
+  assert.deepEqual(net.nostr.relays(), reads, "what the leaderboard names as the relays it asks");
+  net.nostr.query({ kinds: [0], authors: [MY_KEY] }, 1);
+  assert.deepEqual(opened, reads, "a look or profile published only on nappelin's relay is found there");
+  opened.length = 0;
+  net.nostr.subscribeInvites(MY_KEY, () => {});
+  assert.deepEqual(opened, reads, "and so are the invites a Hangar tab sends there first");
+  opened.length = 0;
+  net.nostr.publish({ id: "e".repeat(64), kind: 4600, tags: [], content: "{}" });
+  assert.deepEqual(opened, reads.slice(1), "a publish still goes to the public three");
+  const pinned = loadNet({ ...HTTP_ENV, location: { ...HTTP_ENV.location, search: "?relay=wss://relay.example" } });
+  assert.deepEqual(pinned.net.nostr.relays(), ["wss://relay.example"], "?relay= still routes every read and write");
 });
 
 test("asking without an identity asks no relay anything", async () => {
@@ -2042,4 +2087,725 @@ test("an arena that cannot be built falls back to the classic table with a notic
   lastCard("youHand", "Power Plant — Hydro").click();
   assert.equal(game.state.zones["0:network"].length, 1);
   assert.equal(game.arena, null);
+  leaveSolo(byId, game);
+});
+
+/* ------------------------------------------------------- the NutFT wallet door
+ *
+ * play.html carries no nutft-wallet.js tag any more: site/collection-stack.js
+ * loads it when this device holds a wallet and something asks. The possession
+ * gate above keeps its word through that door — it still refuses a NutFT Stack
+ * it cannot verify, and it still verifies one it can. */
+const COLLECTION_JS = path.join(HERE, "..", "..", "site", "collection-stack.js");
+const walletTags = (byId) => byId("body").children.filter((node) => node && /nutft-wallet\.js$/.test(String(node.src || "")));
+
+test("a NutFT Stack on a device with no wallet is refused without loading one", async () => {
+  require(COLLECTION_JS);
+  delete globalThis.NutFTWallet;
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-004")] };
+  const storage = new Map([["600b:decks", JSON.stringify(saved)], ["600b:nutft-decks", JSON.stringify({ Owned: true })]]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.location = { origin: "http://table.test" };
+  const { byId, game } = loadPlay(netStub());
+  /* Read what THIS table wrote: under a loaded test run an earlier table can
+     repaint the prompt between two polls and hide the refusal. */
+  const prompts = recordText(byId("prompt"));
+  byId("deckA").value = "custom:Owned";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  await waitFor(() => prompts.some((line) => /needs 3, wallet controls 0/.test(line)), "the possession failure prompt");
+  assert.equal(game.state, null);
+  assert.equal(walletTags(byId).length, 0, "no wallet, no wallet script");
+});
+
+test("a NutFT Stack loads the wallet script on demand and starts once its proofs check out", async () => {
+  require(COLLECTION_JS);
+  delete globalThis.NutFTWallet;
+  const saved = { Owned: [...Array(37).fill("E1-002"), ...Array(3).fill("E1-004")] };
+  const storage = new Map([
+    ["600b:decks", JSON.stringify(saved)],
+    ["600b:nutft-decks", JSON.stringify({ Owned: true })],
+    ["600b:nutft-wallet", JSON.stringify({ privateKey: "k", pubkey: "p", tokens: ["cashuB1"] })],
+  ]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.location = { origin: "http://table.test" };
+  const { byId, game } = loadPlay(netStub());
+  byId("deckA").value = "custom:Owned";
+  byId("deckB").value = "Signal";
+  byId("start").click();
+  await waitFor(() => walletTags(byId).length === 1, "the wallet script tag");
+  assert.equal(byId("start").disabled, true, "Start waits for the check");
+  const origins = [];
+  globalThis.NutFTWallet = {
+    read: async () => ({ tokens: ["cashuB1"] }),
+    snapshotReadOnly: async (origin) => {
+      origins.push(origin);
+      return { owned: Array.from({ length: 3 }, () => ({ tag: ["1", "600B-E1", "E1-004"] })), spent: [], invalid: [], unreadable: [] };
+    },
+  };
+  for (const tag of walletTags(byId)) for (const fn of tag.listeners.load || []) fn();
+  await waitFor(() => game.state, "the verified Stack to start");
+  assert.ok(origins.includes("http://table.test"), "the snapshot asked this site's mint");
+  assert.equal(walletTags(byId).length, 1, "one tag, however many asked");
+  delete globalThis.NutFTWallet;
+  leaveSolo(byId, game);
+});
+
+/* ---------------------------------------------------------------- my collection
+ *
+ * The setup form offers "My collection (n of 40 cards yours)" in both Stack
+ * menus when the player holds cards, and one plain line when they do not —
+ * inside the Hangar through the collection intent, with storage that throws the
+ * way an opaque origin's does, and on the website through a wallet that is only
+ * loaded when this device holds one. */
+const FAST_DATA = path.join(HERE, "..", "..", "site", "play-data-fast.js");
+const FAST_PRECONS = path.join(HERE, "..", "..", "site", "precons-fast.js");
+
+/* The freshest "My collection" option in a menu: the stub's innerHTML = "" keeps
+   old children, so a rebuilt menu is scanned from the end. */
+function collectionOption(byId, id) {
+  const kids = byId(id).children;
+  for (let index = kids.length - 1; index >= 0; index--) {
+    const option = (kids[index].children || []).find((child) => child && child.value === "collection");
+    if (option) return option;
+  }
+  return null;
+}
+
+/* Cards that sit in the same quota under both rules, picked by what they are. */
+function collectionFixture(counts) {
+  const fast = require(FAST_DATA);
+  const classic = Object.fromEntries(require(path.join(HERE, "..", "..", "site", "play-data.js")).map((card) => [card.id, card]));
+  const clean = (card) => !/\bStake\b/.test(card.text || "") && card.rarity !== "genesis" && card.rarity !== "basic"
+    && classic[card.id].type === card.type;
+  const power = (test) => fast.filter((card) => card.affinity.length === 1 && card.affinity[0] === "Power" && clean(card) && test(card));
+  const avatars = power((card) => card.type === "Avatar");
+  const spells = power((card) => card.type === "Zap" || card.type === "Operation");
+  const permanent = fast.find((card) => card.affinity[0] === "Neutral" && card.type === "Hardware" && clean(card));
+  const cards = [
+    ...avatars.slice(0, counts.avatars.length).map((card, index) => ({ asset_id: card.id, count: counts.avatars[index] })),
+    ...spells.slice(0, counts.spells.length).map((card, index) => ({ asset_id: card.id, count: counts.spells[index] })),
+    ...(counts.permanent ? [{ asset_id: permanent.id, count: counts.permanent }] : []),
+  ].sort((a, b) => (a.asset_id < b.asset_id ? -1 : 1));
+  return {
+    v: 1, kind: "nutft/inventory", edition: "600b-e1", collection_id: "600B-E1",
+    catalog_uri: "https://tcg.nappelin.com/nutft/catalog", mint: "https://tcg.nappelin.com", at: 1757900000, cards,
+  };
+}
+
+/* Just enough of a Hangar: the domains it grants, a signed-in key (or none) and
+   the collection intent's answer. */
+function hangar({ identity = "f".repeat(64), inventory = null, intent = true } = {}) {
+  const asked = [];
+  return {
+    asked,
+    present: true,
+    has: (domain) => (domain === "intent" ? intent : ["identity", "storage"].includes(domain)),
+    storage: { json: async () => ({}), get: async () => null, set: async () => true },
+    identity: { current: async () => identity },
+    collection: {
+      inventory: async (edition) => { asked.push(edition); return inventory; },
+      counts: (answer) => new Map(answer.cards.map((card) => [card.asset_id, card.count])),
+    },
+  };
+}
+
+/* An opaque origin: reading `localStorage` at all throws. */
+function opaqueStorage(t) {
+  const denied = () => { throw new Error("SecurityError: storage is not available in an opaque origin"); };
+  Object.defineProperty(globalThis, "localStorage", { get: denied, configurable: true });
+  Object.defineProperty(globalThis, "sessionStorage", { get: denied, configurable: true });
+  t.after(() => {
+    for (const name of ["localStorage", "sessionStorage"]) {
+      Object.defineProperty(globalThis, name, { value: undefined, writable: true, configurable: true });
+    }
+  });
+}
+
+const ownerCards = (state, seat) => Object.values(state.objects).filter((object) => object.owner === seat).map((object) => object.cardId).sort();
+const changeRules = (byId, value) => {
+  byId("rules").value = value;
+  for (const fn of byId("rules").listeners.change || []) fn();
+};
+
+test("inside the Hangar, My collection is in both Stack menus and deals a legal Fast game", async (t) => {
+  require(COLLECTION_JS);
+  globalThis.E1_CARDS_FAST = require(FAST_DATA);
+  globalThis.E1_PRECONS_FAST = require(FAST_PRECONS);
+  opaqueStorage(t);
+  const inventory = collectionFixture({ avatars: [2, 2, 2], spells: [2, 2], permanent: 2 });
+  const shell = hangar({ inventory });
+  globalThis.E1Napplet = shell;
+  let snapshots = 0;
+  globalThis.NutFTWallet = { snapshotReadOnly: async () => { snapshots += 1; throw new Error("a collection Stack asks no wallet"); } };
+  t.after(() => { delete globalThis.E1Napplet; delete globalThis.NutFTWallet; });
+
+  const { byId, game } = loadPlay(netStub());
+  await waitFor(() => collectionOption(byId, "deckA") && collectionOption(byId, "deckB"), "My collection in both menus");
+  assert.deepEqual(shell.asked, ["600b-e1"], "the collection intent was asked once, for Edition One");
+  assert.equal(collectionOption(byId, "deckA").textContent, "My collection (12 of 40 cards yours)");
+  assert.equal(byId("collectionNote").hidden, false);
+  assert.equal(byId("collectionNote").textContent, "Your collection: 12 cards. “My collection” is in both Stack menus.");
+  assert.match(byId("collectionNote").className, /(?:^|\s)has-cards(?:\s|$)/);
+
+  changeRules(byId, "F1.0");
+  assert.equal(collectionOption(byId, "deckB").textContent, "My collection (12 of 40 cards yours)", "relabelled for Fast");
+  byId("deckA").value = "collection";
+  byId("deckB").value = "Signal";
+  byId("seed").value = "my-collection";
+  byId("start").click();
+  assert.ok(game.state, byId("prompt").textContent);
+  assert.equal(game.state.ruleset, "F1.0");
+  assert.equal(snapshots, 0, "no possession check: a collection Stack claims none");
+
+  const owned = new Map(inventory.cards.map((card) => [card.asset_id, card.count]));
+  const expected = globalThis.E1CollectionStack.buildCollectionStack(globalThis.E1_CARDS_FAST, owned, { profile: "F1.0", precons: globalThis.E1_PRECONS_FAST });
+  assert.deepEqual(ownerCards(game.state, 0), expected.ids.slice().sort(), "seat one plays exactly the collection Stack");
+  for (const card of inventory.cards) {
+    assert.ok(ownerCards(game.state, 0).filter((id) => id === card.asset_id).length >= card.count, `${card.asset_id} is in the Stack`);
+  }
+  leaveSolo(byId, game);
+});
+
+test("My collection is counted under the rules chosen, and Classic deals it too", async (t) => {
+  require(COLLECTION_JS);
+  globalThis.E1_CARDS_FAST = require(FAST_DATA);
+  globalThis.E1_PRECONS_FAST = require(FAST_PRECONS);
+  opaqueStorage(t);
+  /* Sixteen Power Avatars: Fast takes up to twenty, Classic only fourteen. */
+  globalThis.E1Napplet = hangar({ inventory: collectionFixture({ avatars: [4, 4, 4, 4], spells: [] }) });
+  t.after(() => { delete globalThis.E1Napplet; });
+  const { byId, game } = loadPlay(netStub());
+  await waitFor(() => collectionOption(byId, "deckA"), "My collection");
+  assert.equal(collectionOption(byId, "deckA").textContent, "My collection (14 of 40 cards yours)", "Classic");
+  changeRules(byId, "F1.0");
+  assert.equal(collectionOption(byId, "deckA").textContent, "My collection (16 of 40 cards yours)", "Fast");
+  changeRules(byId, "E1.0");
+  byId("deckA").value = "Keys";
+  byId("deckB").value = "collection";
+  byId("seed").value = "classic-collection";
+  byId("start").click();
+  assert.ok(game.state, byId("prompt").textContent);
+  assert.equal(game.state.ruleset, "E1.0");
+  assert.equal(ownerCards(game.state, 1).length, 40, "seat two's collection Stack was dealt");
+  leaveSolo(byId, game);
+});
+
+test("a guest and a member without cards each get the line that fits, and no option", async (t) => {
+  require(COLLECTION_JS);
+  opaqueStorage(t);
+  const member = "No cards in your collection yet. A card bought on tcg.nappelin.com is locked to that site's wallet: send it to your collection's address in the wallet there first, then paste the token into the collection.";
+  const noCards = () => Object.assign(collectionFixture({ avatars: [], spells: [] }), { cards: [] });
+  const cases = [
+    [hangar({ identity: "", inventory: null }), "Sign in to use your cards. You can play with a starter stack now."],
+    [hangar({ inventory: null }), member],
+    [hangar({ inventory: noCards() }), member],
+    [hangar({ identity: "", inventory: Object.assign(noCards(), { cards: [{ asset_id: "600B-E1-001", count: 2 }] }) }),
+      "Your collection holds 2 cards this edition does not know. You can play with a starter stack now."],
+    [hangar({ intent: false }), "No card collection is reachable in this shell. You can play with a starter stack now."],
+  ];
+  t.after(() => { delete globalThis.E1Napplet; });
+  for (const [shell, words] of cases) {
+    globalThis.E1Napplet = shell;
+    const { byId, game } = loadPlay(netStub());
+    await waitFor(() => byId("collectionNote").textContent === words, words);
+    assert.equal(byId("collectionNote").hidden, false);
+    assert.doesNotMatch(byId("collectionNote").className, /has-cards/);
+    assert.equal(collectionOption(byId, "deckA"), null, "nothing to offer, so no option");
+    byId("deckA").value = "Power";
+    byId("deckB").value = "Signal";
+    byId("start").click();
+    assert.ok(game.state, "a starter stack plays now");
+  }
+});
+
+test("a cold website table never loads the NutFT wallet, and signing in changes the line", async () => {
+  require(COLLECTION_JS);
+  delete globalThis.E1Napplet;
+  delete globalThis.NutFTWallet;
+  const storage = new Map();
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) };
+  globalThis.location = { origin: "https://tcg.nappelin.com", protocol: "https:", search: "" };
+  const stub = netStub();
+  stub.nostr.savedPubkey = () => null;
+  const { byId, fired } = loadPlay(stub);
+  await waitFor(() => byId("collectionNote").textContent === "Sign in to use your cards. You can play with a starter stack now.", "the guest line");
+  for (const fn of fired["e1:identity"] || []) fn({ detail: { pubkey: "a".repeat(64) } });
+  assert.equal(byId("collectionNote").textContent,
+    "No cards in this browser's wallet yet. Cards you buy or claim in the shop land here. You can play with a starter stack now.", "on the website the cards are this browser's wallet, not a collection to paste into");
+  for (const fn of fired["e1:identity"] || []) fn({ detail: { pubkey: null } });
+  assert.match(byId("collectionNote").textContent, /^Sign in to use your cards\./, "and signing out changes it back");
+  assert.equal(walletTags(byId).length, 0, "no wallet on this device, so no wallet script");
+  assert.equal(collectionOption(byId, "deckA"), null);
+  assert.equal([...storage.keys()].some((key) => /nutft/.test(key)), false, "nothing was written for the wallet");
+});
+
+test("a website wallet with cards is read when the table opens, and offered", async (t) => {
+  require(COLLECTION_JS);
+  delete globalThis.E1Napplet;
+  delete globalThis.NutFTWallet;
+  t.after(() => { delete globalThis.NutFTWallet; });
+  const storage = new Map([["600b:nutft-wallet", JSON.stringify({ privateKey: "k", pubkey: "p", tokens: ["cashuB1", "cashuB2"] })]]);
+  globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem() {} };
+  globalThis.location = { origin: "https://tcg.nappelin.com", protocol: "https:", search: "" };
+  const { byId } = loadPlay(netStub());
+  await waitFor(() => walletTags(byId).length === 1, "the wallet script, loaded because a wallet is here");
+  const inventory = collectionFixture({ avatars: [3, 1], spells: [1], permanent: 0 });
+  const proofs = inventory.cards.flatMap((card) => Array.from({ length: card.count }, () => ({ tag: ["1", "600B-E1", card.asset_id] })));
+  const origins = [];
+  globalThis.NutFTWallet = {
+    read: async () => ({ tokens: ["cashuB1", "cashuB2"] }),
+    snapshotReadOnly: async (origin) => {
+      origins.push(origin);
+      return { owned: [...proofs, { tag: ["1", "600B-E1", "E1-999"] }], spent: [], invalid: [], unreadable: [] };
+    },
+  };
+  for (const fn of walletTags(byId)[0].listeners.load || []) fn();
+  await waitFor(() => collectionOption(byId, "deckA"), "My collection from the wallet");
+  assert.deepEqual(origins, ["https://tcg.nappelin.com"], "this site's mint, asked once");
+  assert.equal(collectionOption(byId, "deckA").textContent, "My collection (5 of 40 cards yours)");
+  assert.equal(byId("collectionNote").textContent,
+    "Your collection: 5 cards. “My collection” is in both Stack menus. 1 more card is not part of this edition.");
+});
+
+/* ------------------------------------------------------------ a member's look
+ *
+ * site/identity-look.js has its own tests for the ladder. These hold play.js to
+ * where it mounts a look: which seat wears one, the name on the bar (as text),
+ * the avatar menu's choice winning, the shell's doors inside the Hangar, and a
+ * late look that must stay off a seat that has changed hands. */
+const LOOK_JS = path.join(HERE, "..", "..", "site", "identity-look.js");
+const OTHER = SK("other");
+const OTHER_KEY = Buffer.from(schnorr.getPublicKey(OTHER)).toString("hex");
+const kindZero = (sk, meta) => signed(sk, { kind: 0, created_at: 1789000000, tags: [], content: JSON.stringify(meta) });
+const portraitOf = (bar) => bar.children.find((child) => child && child.className === "portrait") || null;
+const ticks = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** net.js's relay query, one filter per call, answering per author when the test says so. */
+function lookRelays() {
+  const answers = new Map();
+  const asked = [];
+  const slot = (author) => {
+    if (!answers.has(author)) {
+      let resolve;
+      const promise = new Promise((done) => { resolve = done; });
+      answers.set(author, { promise, resolve });
+    }
+    return answers.get(author);
+  };
+  return {
+    asked,
+    query: (filter) => {
+      asked.push(filter);
+      return slot(filter.authors[0]).promise.then((events) => events.filter((event) => filter.kinds.includes(event.kind)));
+    },
+    send: (author, events) => slot(author).resolve(events),
+  };
+}
+
+/** The resolver on the page, and a count of the signatures it has checked. */
+function withLook(t) {
+  globalThis.E1Look = require(LOOK_JS);
+  const verify = globalThis.E1Schnorr.verifyEvent;
+  const seen = { verified: 0 };
+  globalThis.E1Schnorr.verifyEvent = async (event) => {
+    try {
+      return await verify(event);
+    } finally {
+      seen.verified += 1;
+    }
+  };
+  t.after(() => {
+    delete globalThis.E1Look;
+    globalThis.E1Schnorr.verifyEvent = verify;
+  });
+  return seen;
+}
+
+const startSolo = (byId) => {
+  byId("npcB").checked = true;
+  byId("deckA").value = "Power";
+  byId("deckB").value = "Signal";
+  byId("seed").value = ZAP_SEED;
+  byId("start").click();
+};
+
+/* The NPC keeps moving on a timer, and play.js finds `document` at call time:
+   a solo game left running paints its seats into whichever test runs next. So
+   every solo game here ends with a rugpull and the way back to setup, which
+   clears the bot's timers and the table's state. */
+test("an NPC game dresses the signed-in player's seat in their kind 0 look, and its name stays text", async (t) => {
+  withLook(t);
+  const relays = lookRelays();
+  const stub = netStub();
+  Object.assign(stub.nostr, { savedPubkey: () => MY_KEY, query: relays.query, shortNpub: () => "npub1mine…" });
+  const { byId, game } = loadPlay(stub);
+
+  const menu = byId("avatarA");
+  assert.equal(menu.children[0].textContent, "My Nappelin look");
+  assert.equal(menu.value, menu.children[0].value, "with an identity the look is the default");
+  assert.equal(byId("avatarB").children[0].textContent, "No Avatar - just my name", "seat two is offered nobody's look");
+
+  startSolo(byId);
+  assert.ok(game.state, "the game starts without waiting for a relay");
+  assert.equal(byId("youName").textContent, "Player 1", "the typed name paints first");
+  assert.equal(portraitOf(byId("youBar")), null, "and no picture is waited for");
+
+  const markup = "<img src=x onerror=alert(1)>FLX";
+  const youNames = recordText(byId("youName"));
+  relays.send(MY_KEY, [kindZero(MINE, { display_name: markup, name: "flx", picture: "https://example.com/flx.png" })]);
+  await waitFor(() => youNames.includes(markup), "the landed look to repaint the seat by itself");
+  byId("cancelTarget").click(); // and read the whole board in one synchronous turn
+  assert.equal(byId("youName").textContent, markup);
+  assert.equal(byId("youName").innerHTML, "", "the name never reached an HTML parser");
+  const portrait = portraitOf(byId("youBar"));
+  assert.equal(portrait.getAttribute("src"), "https://example.com/flx.png");
+  assert.equal(portrait.dataset.look, "picture");
+  assert.equal(portrait.getAttribute("referrerpolicy"), "no-referrer");
+  assert.equal(portrait.getAttribute("alt"), `${markup} avatar`);
+  const chip = byId("turnchip").children.map((part) => (typeof part === "string" ? part : part.textContent)).join("");
+  assert.match(chip, /Player 1/, "the turn chip and the log keep the name the seat plays under");
+
+  assert.equal(byId("foeName").textContent, "NPC");
+  assert.equal(portraitOf(byId("foeBar")), null, "the NPC wears nobody's look");
+  byId("continue").click();
+  byId("continue").click();
+  assert.equal(relays.asked.length, 2, "two filters, asked once for the page, not once per render");
+  leaveSolo(byId, game);
+});
+
+test("the avatar the player picks wins over their look", async (t) => {
+  const seen = withLook(t);
+  const relays = lookRelays();
+  const stub = netStub();
+  Object.assign(stub.nostr, { savedPubkey: () => MY_KEY, query: relays.query });
+  const { byId, game } = loadPlay(stub);
+  relays.send(MY_KEY, [kindZero(MINE, { display_name: "FLX", picture: "https://example.com/flx.png" })]);
+
+  const menu = byId("avatarA");
+  const pick = menu.children.find((option) => option.textContent === "Rootzoll");
+  menu.value = pick.value;
+  fire(menu, "change");
+  startSolo(byId);
+  await waitFor(() => seen.verified > 0, "the look to be checked");
+  await ticks();
+  game.dispatch("PASS_PRIORITY", 0); // a render of this table, after the look has landed
+
+  assert.equal(byId("youName").textContent, "Player 1", "a picked avatar keeps the typed name too");
+  const portrait = portraitOf(byId("youBar"));
+  assert.ok(portrait, "the picked character is on the bar");
+  assert.match(String(portrait.src), /node-runner-web\/Rootzoll/, "as its card face, with no portraits.js here");
+  assert.equal(portrait.getAttribute("src"), undefined, "the look's picture was never painted");
+  assert.equal(portrait.dataset.look, "");
+  leaveSolo(byId, game);
+});
+
+test("online, each seat wears the look of the key the referee gives it, and a late look stays off a seat that changed hands", async (t) => {
+  const seen = withLook(t);
+  const relays = lookRelays();
+  const stub = netStub();
+  /* No identity on this page: at a networked table the referee's STATE names
+     every key, and nothing but each seat's own binding may repaint it. */
+  Object.assign(stub.nostr, { savedPubkey: () => null, query: relays.query });
+  const { byId } = loadPlay(stub);
+  const painted = recordText(byId("foeName"));
+  const youNames = recordText(byId("youName"));
+  const deal = (foe) => {
+    const E = globalThis.E1Engine;
+    const full = E.createGame({
+      seats: [{ name: "felix", affinity: "Power" }, { name: foe.name, affinity: "Signal" }],
+      seeds: { public: 4242, hidden: [4243, 4244] },
+      firstPlayer: 0,
+    });
+    stub.lastState = {
+      ...STATE_BASE, seat: 0, role: "seat", status: "playing", view: E.view(full, 0),
+      players: [
+        { seat: 0, name: "felix", pubkey: MY_KEY, affinity: "Power", online: true },
+        { seat: 1, name: foe.name, pubkey: foe.pubkey, affinity: "Signal", online: true },
+      ],
+    };
+    stub.handlers.onState(stub.lastState);
+  };
+
+  deal({ name: "anna", pubkey: FOE_KEY });
+  assert.equal(byId("foeName").textContent, "anna", "the seat's own name paints first");
+  await ticks(0); // the query itself goes out a microtask after the render that wanted it
+  assert.deepEqual(relays.asked.map((filter) => filter.authors[0]).filter((key, i, all) => all.indexOf(key) === i).sort(),
+    [MY_KEY, FOE_KEY].sort(), "both seats' keys are asked for, from the referee's STATE");
+
+  // A rematch against somebody else, before anna's relay has answered.
+  deal({ name: "bob", pubkey: OTHER_KEY });
+  assert.equal(byId("foeName").textContent, "bob");
+  /* Counted by what this table paints: another test's table can still be
+     finishing a timer, and it would never paint "bob". */
+  const bobPaints = () => painted.filter((name) => name === "bob").length;
+  const before = bobPaints();
+  relays.send(FOE_KEY, [kindZero(FOE, { display_name: "Anna", picture: "https://example.com/anna.png" })]);
+  await waitFor(() => seen.verified >= 1, "anna's late look to be checked");
+  await ticks();
+  assert.equal(bobPaints(), before, "anna's late look repainted a seat she no longer holds");
+  assert.equal(painted.includes("Anna"), false);
+  byId("cancelTarget").click(); // repaint THIS table, then read it in the same turn
+  assert.equal(byId("foeName").textContent, "bob");
+  assert.equal(portraitOf(byId("foeBar")), null);
+
+  relays.send(OTHER_KEY, [kindZero(OTHER, { display_name: "Bob", picture: "https://example.com/bob.png" })]);
+  relays.send(MY_KEY, [kindZero(MINE, { name: "flx" })]);
+  await waitFor(() => painted.includes("Bob") && youNames.includes("flx"), "bob's and my looks to repaint our seats");
+  byId("cancelTarget").click(); // then read the board in one synchronous turn
+  assert.equal(byId("foeName").textContent, "Bob");
+  assert.equal(portraitOf(byId("foeBar")).getAttribute("src"), "https://example.com/bob.png");
+  assert.equal(byId("youName").textContent, "flx");
+  assert.equal(portraitOf(byId("youBar")), null, "a look with no picture keeps the seat's default portrait");
+});
+
+test("inside the Hangar the look comes through the shell's outbox and resource NAP, and nothing else", async (t) => {
+  withLook(t);
+  const avatar = Buffer.concat([
+    Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAMAASsJTYQAAAAASUVORK5CYII=", "base64"),
+    Buffer.from("member"),
+  ]);
+  const x = createHash("sha256").update(avatar).digest("hex");
+  const blossom = `https://blossom.bimcvp.com/${x}`;
+  const look = signed(MINE, {
+    kind: 30077, created_at: 1789000100, content: "",
+    tags: [["d", ""], ["imeta", "role avatar", `x ${x}`, "m image/png", `url ${blossom}.png`, "dim 1024x1024"]],
+  });
+  const queried = [];
+  const requested = [];
+  globalThis.E1Napplet = {
+    present: true,
+    has: (domain) => ["identity", "outbox", "resource", "storage"].includes(domain),
+    embedded: () => true,
+    escape: () => false,
+    identity: { current: async () => MY_KEY, source: () => "shell" },
+    outbox: {
+      query: async (filters) => {
+        queried.push(filters);
+        return [{ event: look, sidecar: { relayHints: ["wss://relay.nappelin.com"] } }, { event: kindZero(MINE, { name: "flx" }) }];
+      },
+    },
+    resource: {
+      bytes: async (url) => {
+        requested.push(url);
+        return url === blossom ? new Blob([avatar]) : null;
+      },
+    },
+    storage: { get: async () => null, set: async () => true, json: async (key, fallback) => fallback },
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = () => assert.fail("a napplet opens no network of its own");
+  t.after(() => {
+    delete globalThis.E1Napplet;
+    globalThis.fetch = realFetch;
+  });
+  const stub = netStub();
+  Object.assign(stub.nostr, {
+    savedPubkey: () => null, // the shell's key arrives through E1Napplet.identity, after the first paint
+    query: () => assert.fail("inside the Hangar the relays are the shell's"),
+  });
+  const { byId, game } = loadPlay(stub);
+  /* The menu is built once before the shell's key lands and once after; the
+     stub DOM keeps old options on innerHTML = "", so look for the choice itself. */
+  const offersLook = () => {
+    const menu = byId("avatarA");
+    const mine = menu.children.find((option) => option.textContent === "My Nappelin look");
+    return Boolean(mine) && menu.value === mine.value;
+  };
+  await waitFor(offersLook, "the shell's key to offer the look");
+
+  startSolo(byId);
+  await waitFor(paintedNow(byId, () => {
+    const portrait = portraitOf(byId("youBar"));
+    return Boolean(portrait) && /^blob:/.test(portrait.getAttribute("src") || "");
+  }), "the verified avatar on the seat");
+  assert.equal(portraitOf(byId("youBar")).dataset.look, "avatar");
+  assert.equal(byId("youName").textContent, "flx");
+  assert.deepEqual(queried.map((filters) => filters.map((filter) => filter.kinds[0])), [[30077, 0]], "one query through the shell");
+  assert.deepEqual(requested, [blossom], "the bytes by hash, from the Blossom host the Hangar grants the TCG");
+  leaveSolo(byId, game);
+});
+
+// ------------------------------------------------------------- music cues
+
+/* NAP-CUE (nappelin #107): inside a Hangar that routes cues, the table sends the
+ * music its moments and moods. The adapter's wire and throttles are tested in
+ * napplet.test.mjs; here `send` only records what play.js asked for. */
+function cueHangar({ available = true } = {}) {
+  const shell = hangar();
+  const sent = [];
+  const focus = [];
+  return Object.assign(shell, {
+    sent,
+    focus,
+    embedded: () => true,
+    escape() {},
+    link: { available: () => false, open: async () => ({ ok: false, error: "unavailable" }) },
+    cue: {
+      available: () => available,
+      send(fields) { sent.push(fields.mood ? `mood:${fields.mood}` : `moment:${fields.moment}`); return Promise.resolve({ ok: true, accepted: true }); },
+      onFocus(fn) { focus.push(fn); return () => {}; },
+    },
+  });
+}
+
+function fxRecorder() {
+  const calls = [];
+  return {
+    calls,
+    stub: {
+      emit() {}, init() {}, get: () => ({ motionActive: "reduced" }),
+      duckBed: (depth) => calls.push(["duckBed", depth]),
+      unduckBed: () => calls.push(["unduckBed"]),
+      holdPressure: (on) => calls.push(["holdPressure", on]),
+    },
+  };
+}
+
+/* A hotseat Fast table with one vanilla Avatar on seat one's side. */
+function cueTable(t, shell, fx) {
+  globalThis.E1_CARDS_FAST = require(FAST_DATA);
+  globalThis.E1_PRECONS_FAST = require(FAST_PRECONS);
+  opaqueStorage(t);
+  globalThis.E1Napplet = shell;
+  t.after(() => { delete globalThis.E1Napplet; });
+  const loaded = loadPlay(netStub(), fx && fx.stub);
+  const { byId, game } = loaded;
+  byId("rules").value = "F1.0";
+  byId("deckA").value = "precon:Power Surge";
+  byId("deckB").value = "precon:Key Custody";
+  byId("seed").value = "music";
+  game.startGame();
+  assert.ok(game.state, byId("prompt").textContent);
+  const vanilla = globalThis.E1_CARDS_FAST.find((card) => card.type === "Avatar" && card.abilities.length === 0 && card.keywords.length === 0);
+  const state = game.state;
+  const uid = `o${state.nextUid++}`;
+  state.objects[uid] = {
+    uid, cardId: vanilla.id, owner: 0, controller: 0, zone: "0:network", committed: false,
+    bootDelay: false, damage: 0, counters: {}, attachedTo: null, rebootShields: 0, facedown: false,
+    revealedTo: [0, 1], revealedUntil: null, token: false, entersSeq: 0, prevUid: null,
+  };
+  state.zones["0:network"].push(uid);
+  return { ...loaded, uid, vanilla };
+}
+
+/* Walks the active seat's turn to its end through the table's own dispatch, synchronously
+ * (the table's auto-walk runs on a timer), discarding down to the hand limit on the way. */
+function passTurn(byId, game) {
+  const from = game.state.turn.active;
+  for (let step = 0; step < 40 && game.state.turn.active === from && !game.state.result; step += 1) {
+    const { awaiting, priority } = game.state;
+    if (awaiting && awaiting.kind === "discard") {
+      const hand = game.state.zones[`${awaiting.seat}:wallet`];
+      game.dispatch("DISCARD_TO_LIMIT", awaiting.seat, { uids: hand.slice(0, hand.length - game.state.handLimit) });
+    } else {
+      assert.ok(!awaiting, `an unexpected decision: ${awaiting && awaiting.kind}`);
+      game.dispatch("PASS_PRIORITY", priority.seat);
+    }
+  }
+  assert.notEqual(game.state.turn.active, from, "the turn changed hands");
+}
+
+test("a scripted local game sends turn, attack, lethal, match-end and its moods in order, each once", (t) => {
+  const shell = cueHangar();
+  const { byId, game, uid, vanilla } = cueTable(t, shell);
+  // The first hit leaves seat two at exactly the tension line.
+  assert.ok(vanilla.action <= 6);
+  game.state.seats[1].uptime = 6 + vanilla.action;
+  byId("cancelTarget").click();
+  assert.deepEqual(shell.sent, ["mood:calm"], "the first screen is calm, and the dealt table still is");
+
+  assert.equal(game.dispatch("DECLARE_ATTACK", 0, { attacker: uid, target: { kind: "seat", seat: 1 } }), true);
+  assert.deepEqual(shell.sent.slice(1), ["moment:attack", "mood:battle"]);
+  for (let i = 0; i < 3; i += 1) byId("cancelTarget").click();
+  assert.equal(shell.sent.length, 3, "a render that changes nothing sends nothing");
+
+  passTurn(byId, game);
+  assert.ok(game.state.seats[1].uptime <= 6, "seat two is low");
+  assert.deepEqual(shell.sent.slice(3), ["moment:turn", "mood:tension"]);
+  passTurn(byId, game);
+  assert.deepEqual(shell.sent.slice(5), ["moment:turn"], "tension holds: the mood did not change");
+  game.state.seats[1].uptime = vanilla.action; // the next hit is the last
+
+  assert.equal(game.dispatch("DECLARE_ATTACK", 0, { attacker: uid, target: { kind: "seat", seat: 1 } }), true);
+  assert.ok(game.state.result, "the second hit ends it");
+  assert.deepEqual(shell.sent.slice(6), ["moment:attack", "moment:lethal", "moment:match-end", "mood:victory"], "hotseat hears victory");
+  byId("cancelTarget").click();
+  assert.equal(shell.sent.length, 10, "the ending is sent once");
+  assert.ok(!shell.sent.includes("moment:booster-open"), "the napplet has no shop");
+
+  leaveSolo(byId, game);
+  assert.deepEqual(shell.sent.slice(10), ["mood:calm"], "leaving the table is calm");
+});
+
+test("a concession ends a hotseat table in victory, and without the feature nothing is sent at all", (t) => {
+  const shell = cueHangar();
+  const { byId, game } = cueTable(t, shell);
+  game.dispatch("CONCEDE", 0, {});
+  assert.deepEqual(shell.sent.slice(-2), ["moment:match-end", "mood:victory"], "hotseat: whoever conceded, the screen hears victory");
+  leaveSolo(byId, game);
+
+  const off = cueHangar({ available: false });
+  const table = cueTable(t, off);
+  table.game.dispatch("DECLARE_ATTACK", 0, { attacker: table.uid, target: { kind: "seat", seat: 1 } });
+  leaveSolo(table.byId, table.game);
+  assert.deepEqual(off.sent, [], "no feature, no cue");
+});
+
+test("shell music playing ducks the bed and holds the pressure pulse; idle gives both back", (t) => {
+  const shell = cueHangar();
+  const fx = fxRecorder();
+  const { byId, game } = cueTable(t, shell, fx);
+  assert.equal(shell.focus.length, 1, "one focus subscription");
+  const [focus] = shell.focus;
+  focus("playing");
+  focus("playing");
+  assert.deepEqual(fx.calls, [["duckBed", 0.35], ["holdPressure", true]], "on change only");
+  focus("idle");
+  assert.deepEqual(fx.calls.slice(2), [["unduckBed"], ["holdPressure", false]]);
+  leaveSolo(byId, game);
+});
+
+test("a seat that loses at a referee's table hears defeat, and a finished match seen first is not re-announced", (t) => {
+  const shell = cueHangar();
+  opaqueStorage(t);
+  globalThis.E1Napplet = shell;
+  t.after(() => { delete globalThis.E1Napplet; });
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+  const E = globalThis.E1Engine;
+  const view = E.view(clientGame(990123), 1);
+  stub.handlers.onState({ ...STATE_BASE, seat: 1, role: "seat", status: "playing", claimable: false, view });
+  assert.deepEqual(shell.sent, ["mood:calm"]);
+  const over = structuredClone(view);
+  over.result = { winners: [0], losers: [1], reason: "concede" };
+  stub.handlers.onFrame({ view: over, events: [{ t: "GAME_OVER", winners: [0], reason: "concede" }] });
+  assert.deepEqual(shell.sent.slice(1), ["moment:match-end", "mood:defeat"]);
+  byId("leaveTable").click();
+  assert.deepEqual(shell.sent.slice(3), ["mood:calm"], "leaving the table is calm");
+
+  const reloaded = structuredClone(over);
+  reloaded.gameId = "g_reloaded";
+  stub.handlers.onState({ ...STATE_BASE, seat: 1, role: "seat", status: "over", claimable: false, view: reloaded, result: over.result });
+  assert.deepEqual(shell.sent.slice(4), ["mood:defeat"], "the mood, but no second match-end");
+  byId("leaveTable").click();
+});
+
+test("a draw is calm for every seat: nobody lost, and calm hands the music back", (t) => {
+  const shell = cueHangar();
+  opaqueStorage(t);
+  globalThis.E1Napplet = shell;
+  t.after(() => { delete globalThis.E1Napplet; });
+  const stub = netStub();
+  const { byId } = loadPlay(stub);
+  const view = globalThis.E1Engine.view(clientGame(990456), 1);
+  view.seats[0].uptime = 3; // tension first, so the draw has a mood to change
+  stub.handlers.onState({ ...STATE_BASE, seat: 1, role: "seat", status: "playing", claimable: false, view });
+  assert.deepEqual(shell.sent, ["mood:calm", "mood:tension"]);
+  const over = structuredClone(view);
+  over.result = { winners: [], losers: [0, 1], reason: "draw" };
+  stub.handlers.onFrame({ view: over, events: [{ t: "GAME_OVER", winners: [], reason: "draw" }] });
+  assert.deepEqual(shell.sent.slice(2), ["moment:match-end", "mood:calm"], "not defeat, and not victory");
+  byId("leaveTable").click();
+  assert.equal(shell.sent.length, 4, "leaving a drawn table is already calm");
 });

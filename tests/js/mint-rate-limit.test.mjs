@@ -238,14 +238,14 @@ test("a refused client is logged once a minute, by limit and address and nothing
     assert.equal(logged().length, 4, "a minute later alice can be logged again");
   });
 
-test("a mint budget that is not a positive integer stops the referee at boot", async () => {
+test("a mint budget that is not a positive integer stops the referee at boot, naming no value", async () => {
   const budgets = {
     mintWriteRateMax: "MINT_WRITE_RATE_MAX",
     mintRecoveryRateMax: "MINT_RECOVERY_RATE_MAX",
     mintQuoteRateMax: "MINT_QUOTE_RATE_MAX",
   };
   for (const [option, name] of Object.entries(budgets)) {
-    for (const bad of ["0", "-5", "ten", "2.5"]) {
+    for (const bad of ["0", "-5", "ten", "2.5", "1e2"]) {
       await assert.rejects(
         createTable({
           port: 0, host: "127.0.0.1", dbPath: ":memory:", nutftCatalogUri: CATALOG_URI,
@@ -258,6 +258,19 @@ test("a mint budget that is not a positive integer stops the referee at boot", a
         },
         `${name}=${bad}`,
       );
+    }
+  }
+});
+
+test("the dry run refuses the same mint budgets the boot does, and passes a blank one", () => {
+  const { checkEnv } = require("../../server/mint-env.js");
+  for (const name of ["MINT_WRITE_RATE_MAX", "MINT_RECOVERY_RATE_MAX", "MINT_QUOTE_RATE_MAX"]) {
+    for (const bad of ["0", "ten", "2.5"]) {
+      assert.deepEqual(checkEnv({ [name]: bad }).filter((line) => line.startsWith(name)),
+        [`${name}: must be a whole number of requests per minute, at least 1`], `${name}=${bad}`);
+    }
+    for (const good of ["", " ", "300"]) {
+      assert.deepEqual(checkEnv({ [name]: good }).filter((line) => line.startsWith(name)), [], `${name}=${JSON.stringify(good)}`);
     }
   }
 });

@@ -166,6 +166,10 @@ select option, select optgroup { color: var(--parchment); background: var(--iron
 }
 .seat .seat-check input { accent-color: var(--brass); }
 .setup-note { margin: 2px 0 12px; color: var(--ink-quiet); font-size: 12px; }
+/* The collection line: a status in a well, not a call to action. The edge turns
+   brass when there are cards to play. */
+.collection-note { padding: 9px 11px; background: var(--well); border-left: 2px solid var(--brass-3); line-height: 1.6; }
+.collection-note.has-cards { color: var(--body-ink); border-left-color: var(--brass); }
 .startrow { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
 .startrow label { display: inline-flex; align-items: center; gap: 6px; font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); }
 .startrow .tcg-field { padding: 6px 8px; letter-spacing: 0; text-transform: none; }
@@ -297,6 +301,17 @@ select option, select optgroup { color: var(--parchment); background: var(--iron
   color: var(--brass-3); background: transparent; border-color: rgba(143,106,42,.5); cursor: not-allowed;
 }
 
+/* ---------- the first screen (inside the Hangar) ---------- */
+.first { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--divider); }
+.member { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.member .portrait { width: 56px; height: 56px; object-fit: cover; border: 1px solid var(--emphasis); background: var(--iron-800); }
+.member .portrait[data-look="fullbody"] { object-position: 50% 12%; }
+.member strong { display: block; margin-top: 2px; font: 700 18px/1.2 var(--headline); letter-spacing: .12em; text-transform: uppercase; color: var(--parchment); }
+.modes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+/* The way to play that is open below: switched on, in machine brass. */
+.modes .tcg-btn[aria-pressed="true"] { color: var(--iron); background: var(--brass-2); border-color: var(--brass-2); }
+#shopDoor { margin-top: 8px; padding: 8px 14px; }
+
 /* ---------- the online door ---------- */
 .online { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--divider); }
 .online h2 { font: 700 20px/1.2 var(--headline); letter-spacing: .14em; text-transform: uppercase; color: var(--parchment); margin-bottom: 8px; }
@@ -307,6 +322,32 @@ select option, select optgroup { color: var(--parchment); background: var(--iron
 .netid .chip { text-transform: none; letter-spacing: .02em; }
 .netline { color: var(--ink-quiet); font-size: 12px; padding: 2px 0; word-break: break-word; }
 #netInfo { display: flex; flex-direction: column; gap: 2px; }
+/* The lobby inside the Hangar (site/lobby.js builds it into #lobby): matchmaking.html's
+   components, the same rules. */
+.seats-gap { margin-top: 14px; }
+.joinrow { display: flex; gap: 6px; margin-bottom: 12px; }
+.joinrow input { flex: 1; min-width: 0; margin-bottom: 0 !important; text-transform: uppercase; letter-spacing: .18em; font-weight: 600; }
+.hostpanel { margin-top: 16px; padding: 14px; background: var(--well); border: 1px solid var(--brass-2); }
+.tablecode { font: 600 clamp(30px, 6vw, 54px)/1 var(--mono); letter-spacing: .16em; color: var(--brass); }
+.netlist { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.netrow { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; background: var(--iron-800); border: 1px solid var(--hairline); font-size: 12px; }
+.netrow .btn { padding: 6px 10px; font-size: 10px; }
+.resumecard { margin-top: 14px; padding: 10px 12px; background: var(--well); border: 1px solid var(--brass-2); }
+.resumerow { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; padding: 6px 0; font-size: 12px; }
+.resumerow + .resumerow { border-top: 1px solid var(--divider); }
+.resumewho { color: var(--parchment); }
+.resumewho b { color: var(--brass); }
+.findrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.deckmode { margin-top: 18px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--hairline); }
+.moderow { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; color: var(--ink-quiet); font-size: 12.5px; cursor: pointer; }
+.moderow b { color: var(--parchment); font-weight: 600; }
+.moderow input { accent-color: var(--brass); }
+.stackpick { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--divider); }
+.stackpick label { display: block; font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--brass-2); margin-bottom: 6px; }
+.stackpick select { width: 100%; min-height: 40px; padding: 8px 10px; font: 400 12px/1.3 var(--mono); color: var(--parchment); background: var(--well); border: 1px solid rgba(143,106,42,.6); border-radius: 0; }
+.stackpick select:focus { border-color: var(--brass); }
+.stacknote { margin-top: 7px; color: var(--ink-quiet); font-size: 11.5px; line-height: 1.5; }
+.stacknote.bad { color: var(--rust); }
 
 /* THIS PAGE DOES NOT LOAD 600b.css, so it does not get the shared guard — and
  * without it the `hidden` attribute silently does nothing on anything this
@@ -569,6 +610,10 @@ select option, select optgroup { color: var(--parchment); background: var(--iron
   border: 1px solid var(--emphasis); background: var(--iron-800);
 }
 .playerbar.seat-target .portrait { border-color: var(--brass); }
+/* A member's own look (site/identity-look.js) arrives as an avatar, a full
+   figure or a kind 0 picture. A full figure is cropped to its head, not its
+   middle; the other two are square already and keep the centre. */
+.playerbar .portrait[data-look="fullbody"], .action-burst .shout[data-look="fullbody"] { object-position: 50% 12%; }
 
 /* Kampfansage: the announcement wears the face of whoever made the move. */
 .action-burst { display: inline-flex; align-items: center; gap: 8px; }
@@ -944,12 +989,13 @@ html.embedded * { border-radius: 0; }
 /* The masthead keeps only the turn and net chips. */
 html.embedded .masthead img, html.embedded .brand, html.embedded .skip { display: none; }
 html.embedded .navlinks { display: none; }
+/* The first screen names the ways to play, so the setup form keeps no title of its own,
+   and the collection is said once, on the first screen. */
+html.embedded #localSetup > h1, html.embedded #collectionNote { display: none; }
 /* A fixed layer in a short srcdoc frame paints over the host: anchor both
    background layers to the stage instead. */
 html.embedded .stage::before { position: absolute; }
 html.embedded .stage::after { position: absolute; }
-/* Online play is not part of the napplet in this slice. */
-html.embedded #online { display: none; }
 </style>
 </head>
 <body>
@@ -977,6 +1023,26 @@ html.embedded #online { display: none; }
 
   <!-- ---------------- setup ---------------- -->
   <section class="setup" id="setup">
+    <!-- THE FIRST SCREEN INSIDE THE HANGAR, and from a guild's Play list, which opens
+         the same napplet: who is playing, the three ways to play, what the collection
+         holds, and one line for whatever is not available. play.js shows it only when
+         embedded; the choice stays above the setup form or the lobby it opens. -->
+    <div class="first" id="first" hidden>
+      <div class="member">
+        <img class="portrait" id="firstPortrait" alt="" hidden>
+        <div><span class="tcg-label">Playing as</span><strong id="firstName"></strong></div>
+      </div>
+      <div class="modes" role="group" aria-label="How to play">
+        <button class="btn ghost tcg-btn" id="modeNpc" aria-pressed="false">Against the computer</button>
+        <button class="btn ghost tcg-btn" id="modeHotseat" aria-pressed="false">Hotseat</button>
+        <button class="btn ghost tcg-btn" id="modeOnline" aria-pressed="false">Online</button>
+      </div>
+      <div class="setup-note" id="firstIdentity" hidden></div>
+      <div class="setup-note collection-note" id="firstCollection" role="status" aria-live="polite" hidden></div>
+      <!-- The empty collection's one door: a fixed address the Hangar asks the member about. -->
+      <button class="btn ghost tcg-btn" id="shopDoor" hidden>Open the shop</button>
+    </div>
+    <div id="localSetup">
     <h1>Play <span>locally</span></h1>
     <p id="setupClassic">Two-player hotseat on one machine, with all <b id="cardCount">295</b> Edition One cards.
     Each seat gets a randomised 40-card Stack in the rulebook's recommended prototype shape.
@@ -1016,6 +1082,10 @@ html.embedded #online { display: none; }
       Want your own 40? Build and save Stacks in the <a href="deck.html">Stack Builder</a> —
       they appear in both seat menus here.
     </div>
+    <!-- The player's own cards (site/collection-stack.js): how many, with "My collection"
+         in both Stack menus, or the one line that says why there is nothing to offer yet.
+         play.js fills it once the collection answers; hidden until then. -->
+    <div class="setup-note collection-note" id="collectionNote" role="status" aria-live="polite" hidden></div>
     <div class="startrow">
       <button class="btn tcg-btn tcg-btn--primary" id="start">Start game</button>
       <!-- Classic is Edition One as printed; Fast is the same cards on a pool,
@@ -1044,15 +1114,16 @@ html.embedded #online { display: none; }
       </label>
       <span id="seedHint" class="hint">Any word or number deals the same game every time. Blank deals a new one.</span>
     </div>
+    </div>
 
     <!-- ---------------- the online door ----------------
-         MATCHMAKING IS ITS OWN NAPPLET NOW (site/matchmaking.html). What stays
+         On the website MATCHMAKING IS ITS OWN PAGE (site/matchmaking.html). What stays
          here is only what the TABLE itself needs: an identity, because a seat is
-         resumed and a result is signed with it, and the notice line those
-         actions speak through. The queue, create/join, the invite lists and the
-         host panel all moved — keeping a second copy here is how the two would
-         drift apart. The local game above still needs none of it. -->
-    <div class="online" id="online">
+         resumed and a result is signed with it, and the notice line those actions
+         speak through. The local game above still needs none of it.
+         Inside the Hangar the page is the table and cannot navigate, so play.js mounts
+         site/lobby.js into this section instead: its markup replaces what is here. -->
+    <section class="online" id="lobby" aria-label="Play online">
       <h2>Or play <span>across the table</span></h2>
       <p>One referee runs the rules and deals both seats; every play travels over a socket, and only the
       invite, the accept and the signed result ever touch a relay. NIP-07 sign-in is required for every
@@ -1070,7 +1141,7 @@ html.embedded #online { display: none; }
       </div>
 
       <div class="prompt" id="netNotice" hidden></div>
-    </div>
+    </section>
   </section>
 
   <!-- ---------------- table ---------------- -->
@@ -1338,6 +1409,8 @@ html.embedded #online { display: none; }
 <!-- The precon library: curated Starter and Classic Stacks for the seat menus. -->
 <script src="precons.js"></script>
 <script src="precons-fast.js"></script>
+<!-- The player's own cards as a Stack, and the lazy door to the NutFT wallet. -->
+<script src="collection-stack.js"></script>
 <script src="fx.js"></script>
 <!-- The transport. It opens no socket unless this page already holds a match or
      the player asks for one, so play.html stays a working offline hotseat. -->
@@ -1346,16 +1419,22 @@ html.embedded #online { display: none; }
      goes, so both are claims that must be checked rather than believed. -->
 <script src="schnorr.js"></script>
 <script src="net.js"></script>
+<!-- The online lobby. play.js mounts it only inside the Hangar; the website's is matchmaking.html. -->
+<script src="lobby.js"></script>
 <!-- Only for the settlement screen: a bolt11 invoice the loser can scan with
      the phone in their hand. play.js degrades to copy-and-paste without it. -->
 <script src="qr.js"></script>
-<script src="nutft-wallet.js"></script>
+<!-- No nutft-wallet.js tag: collection-stack.js loads it when this device holds a
+     wallet and something asks for it, so a table with no wallet never fetches it. -->
 <!-- BEFORE play.js, because play.js asks for globalThis.E1Portraits at load
      and degrades to the card face when it is absent. Without this tag the
      resolver was dead code: five call sites, every one falling through to
      null, and the portraits simply never appeared -- nothing broken, nothing
      working either. -->
 <script src="portraits.js"></script>
+<!-- A member's own look at their seat (kinds 30077 and 0). Also before play.js,
+     which keeps the default portraits when globalThis.E1Look is absent. -->
+<script src="identity-look.js"></script>
 <!-- The WebGL table (docs/arena3d.md): three.js, the pure layout, the scene, the
      motion book. Every one is optional -- play.js keeps the classic DOM table when
      any of them is missing, when WebGL2 is unavailable, or under ?arena=dom. -->

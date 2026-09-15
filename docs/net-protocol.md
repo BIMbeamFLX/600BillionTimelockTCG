@@ -82,7 +82,7 @@ two pongs (30 s) is terminated and the seat marked offline. This is the only rel
 notice a slept laptop, whose TCP connection dies silently and would otherwise look alive
 forever.
 
-### 2.1 Client → server (9 types)
+### 2.1 Client → server (10 types)
 
 **`AUTH`** — answer the connection's one-use NIP-42 challenge with a NIP-07 signature.
 The client sends no table intent before `AUTH_OK`.
@@ -114,8 +114,32 @@ present it must match that identity; it is never trusted as proof by itself.
 ```
 The server mints seeds (§5.1), calls `E.createGame(config)`, persists, and sends `STATE` to
 **both** sockets (status `"playing"`, `view` non-null).
-Errors: `NIP07_REQUIRED`, `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `STAKE_MISMATCH`,
-`DECK_BUILD_FAILED`.
+Errors: `NIP07_REQUIRED`, `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `OWN_TABLE`,
+`HOST_AWAY`, `STAKE_MISMATCH`, `BAD_DECK`, `DECK_BUILD_FAILED`.
+
+**A host cannot join their own table.** A `JOIN` from the connection seated at seat 0, or from
+any connection signed in as seat 0's pubkey, is `ERROR{OWN_TABLE}` ("that is your own table"),
+not `MATCH_FULL`: seat 1 is free, and the way back to one's own table is `RESUME`. **Nor a table
+whose host has gone.** When seat 0 of an `open` table has been empty for longer than the host
+grace (60 s; `hostGraceMs` in-process), the `JOIN` is `ERROR{HOST_AWAY}` and the row stays as it
+is. Inside the grace the table is joinable, because a reload or a closed Hangar frame comes
+straight back; the host's own `RESUME`, at any time, makes it listed and joinable again (§2.6).
+
+**A Stack is checked at the message boundary.** `CREATE`, `JOIN` and `QUEUE` may carry `deck`, a
+list of card ids; absent, the referee deals. Before any seat or queue place changes, `cleanDeck`
+refuses with `ERROR{BAD_DECK}` a list that is not 40 to 300 known ids of the table's rules, holds
+a Stake card, or holds more copies of a card than the engine's own `E.copyLimit` allows under
+those rules (one for a genesis card, no limit for a Basic Resource, four for the rest). The message
+names the card, and `E.createGame` checks the same again when the match is dealt.
+
+**The table's rules are its host's.** A guest's `deck` is checked against them, never against
+rules the guest names, and a `BAD_DECK` answer to a `JOIN` names them:
+```json
+{"t":"ERROR","v":1,"code":"BAD_DECK","message":"Timelock Channel — Midnight appears 5 times; 4 is the limit (§7)","ruleset":"F1.0"}
+```
+A lobby builds the Stack it joins with under a listed table's `ruleset` (§2.2 `TABLES`) or an
+invite's; for a bare code it has neither, and a refusal naming other rules than the ones it built
+under is shown as exactly that.
 
 **Nobody is dealt into a wager they did not accept.** A guest that states a `stake` is stating
 the one it was *shown*; if the table's figure has changed since, or the link was passed around
@@ -191,6 +215,18 @@ own bytes and verifies the BIP-340 signature before any row exists; either check
 not the sender's own seat key, and `role:"result"` before `status = 'over'`. On an accepted
 `role:"result"` the server recomputes agreement and broadcasts `NOSTR` to both.
 
+**`TABLES`** — ask for the open-table list over the socket.
+```json
+{"t":"TABLES","v":1}
+```
+Replies `TABLES` (§2.2) with exactly the rows `GET /api/tables` serves (§2.6): same fields, same
+filter, same order. It exists for a client that has a socket and no HTTP to the referee — a
+napplet inside the nappelin Hangar, whose sandboxed frame reaches the table only through the
+host's table channel. Unauthenticated → `ERROR{NIP07_REQUIRED}`. Each connection may ask 10
+times per 10 s window; past that the list is `ERROR{RATE_LIMITED}` and the socket **stays open**,
+because a lobby that refreshes too eagerly must not lose a seat for it. Every `TABLES` also
+counts against the control budget (§2.5), which does close.
+
 ### 2.1a `stake` — the one field that means money
 
 `CREATE`, `JOIN` and `QUEUE` all accept it, and the rules are identical everywhere:
@@ -210,7 +246,7 @@ not the sender's own seat key, and `role:"result"` before `status = 'over'`. On 
 **The referee never holds, escrows, moves or refunds a single sat.** It records a number two
 identities agreed on, and that is the entire extent of its involvement. Settlement is §6.7.
 
-### 2.2 Server → client (10 types)
+### 2.2 Server → client (11 types)
 
 **`AUTH`** — sent immediately after the WebSocket opens.
 ```json
@@ -370,6 +406,22 @@ run `E.verifyMatch` itself.
 ```
 Sent to **both** seats, so a client must match on content rather than on "the next NOSTR".
 
+**`TABLES`** — the answer to `TABLES`, to the asking connection only.
+```json
+{"t":"TABLES","v":1,
+ "tables":[{"matchId":"m_7f3a91c2","code":"K7M2QF","name":"felix","pubkey":"<64-hex>",
+            "affinity":"Power","createdAt":"2026-08-15T18:24:02.117Z","stake":0,
+            "ruleset":"E1.0","hostOnline":true}]}
+```
+The rows are `GET /api/tables`' rows (§2.6), row for row, built by one function: `status = 'open'`,
+a host with a NIP-07 pubkey, a host that is seated or has been away no longer than the grace
+(§2.1 `JOIN`), newest first, at most 50. No seat token and no match already playing is ever in
+it. `tests/js/net.test.mjs` compares the two answers so they cannot drift apart.
+
+`ruleset` is the rules the table plays, which are its host's: `"E1.0"` (Classic) or `"F1.0"`
+(Fast). A guest's Stack is checked against them (§2.1 `JOIN`), so a lobby builds the Stack it
+joins with, "My collection" included, under the row's `ruleset` rather than its own choice.
+
 **`ERROR`** — fatal for the attempted operation.
 ```json
 {"t":"ERROR","v":1,"code":"…","message":"…"}
@@ -395,8 +447,8 @@ Engine codes pass through **verbatim** in `REJECT`: `SEQ_MISMATCH`, `NO_PRIORITY
 
 Transport codes only ever appear in `ERROR`. The complete set the referee emits:
 `BAD_MESSAGE`, `BAD_VERSION`, `AUTH_FAILED`, `NIP07_REQUIRED`, `IDENTITY_MISMATCH`,
-`NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `STAKE_MISMATCH`, `SUPERSEDED`,
-`DECK_BUILD_FAILED`, `RATE_LIMITED`.
+`NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `OWN_TABLE`, `HOST_AWAY`, `STAKE_MISMATCH`,
+`SUPERSEDED`, `BAD_DECK`, `DECK_BUILD_FAILED`, `RATE_LIMITED`.
 
 `BAD_TOKEN` is **not emitted by this server**. `net.js` still treats it — alongside
 `NO_SUCH_MATCH` and `MATCH_OVER` — as "drop the stored credential and stop retrying", so it
@@ -423,8 +475,9 @@ clients with the same source address, such as players behind one NAT or reverse 
 |---|---|---|
 | `RATE_MAX` | 150 | **accepted** actions only, metered *after* `E.apply` agrees |
 | `RATE_MAX_REJECT` | 400 | rejected actions — the runaway-loop guard, nothing more |
-| `CONTROL_RATE_MAX` | 30 | control (`CREATE` `JOIN` `RESUME` `QUEUE` `UNQUEUE` `LEAVE` `NOSTR`), malformed, and unseated action messages per client address, retained across reconnects |
+| `CONTROL_RATE_MAX` | 30 | control (`CREATE` `JOIN` `RESUME` `QUEUE` `UNQUEUE` `LEAVE` `NOSTR` `TABLES`), malformed, and unseated action messages per client address, retained across reconnects |
 | — (auth) | `max(5, CONTROL_RATE_MAX)` | the **first** `AUTH` of a connection, per address, so a signature-guessing loop cannot buy attempts by reconnecting |
+| — (tables) | 10 | `TABLES` per **connection**; exceeding it is `ERROR{RATE_LIMITED}` without a close (§2.1) |
 
 The auth budget has no environment variable of its own on purpose: it is a floor, not a knob.
 The first `AUTH` on a connection is metered there instead of against the control budget,
@@ -454,7 +507,7 @@ human. **Leave it unset for the demo** — the default is what protects the tabl
 GET /                      → site/index.html
 GET /<path>                → static from site/ , and /art/ /cards/ /rules/ from the repo root
 GET /api/health            → {"ok":true,"matches":3,"queued":2,"uptime":1820,"client":"203.0.113.9"}
-GET /api/tables            → [{matchId,code,name,pubkey,affinity,createdAt,stake,hostOnline}]
+GET /api/tables            → [{matchId,code,name,pubkey,affinity,createdAt,stake,ruleset,hostOnline}]
                              (status='open', newest first, max 50)
 GET /api/match/:matchId    → while status ≠ 'over':
                              {matchId, status, headSeq, headHash, publicHash}
@@ -465,7 +518,8 @@ GET /api/match/:matchId    → while status ≠ 'over':
 ```
 
 `/api/tables` is the **relay-free join path**: if every relay dies on stage, players still see
-and join tables. Paths resolving outside the allowed roots are `403`, never read.
+and join tables. A client with a socket and no HTTP (a napplet in the Hangar) reads the same rows
+with `TABLES` (§2.1). Paths resolving outside the allowed roots are `403`, never read.
 
 `health.queued` is the queue depth, so the lobby can say "2 players searching" *before* anyone
 commits to waiting rather than only after. `health.client` is the caller's address as the
@@ -480,6 +534,16 @@ in a bare list, and joining it is a wait with no end. A dropped socket does **no
 row — that would punish a reconnect — it only flips this flag to `false`; explicit `LEAVE` is
 what removes it (§2.1). Rows whose seat 0 has no NIP-07 pubkey (pre-auth builds) are filtered
 out entirely, because nobody can ever authenticate into them.
+
+**An abandoned table is not listed.** A row with `hostOnline: false` is listed only while its host
+has been away for no longer than the host grace (60 s): a reload, a closed Hangar frame or a
+wifi blip comes back inside it. Past the grace the table is left out of `/api/tables` and
+`TABLES` and refused as `HOST_AWAY` (§2.1), until its host `RESUME`s. The rule is "not listed"
+rather than "listed as away" because a list is for joining: a row nobody may join is a line to
+read past, and a code typed from an old invite gets the refusal instead. A referee restart
+starts every recovered table's grace at boot, and the hosts' forever-retrying clients are back
+long before it ends. A host's own row, seen from a reloaded page or a second device, is theirs
+to take back: the lobbies offer it as Rejoin (`E1Net.rejoin(matchId)`), never as Join.
 
 `/api/match/:id` is out-of-band verification, and **verification is a post-match act**.
 While a match is live it returns only the four public chain fields. `config` carries the two
@@ -630,6 +694,13 @@ last resort, so upgrading mid-match does not quietly cost someone their table.
 
 Written on the first `STATE` of a match; cleared on "new match" or "leave table". A spectator
 keeps enough to reconnect and holds **no** credential.
+
+**Inside a napplet shell neither store exists**: a sandboxed frame's storage getters throw. There
+the seat lives in memory and is mirrored to the shell's own storage under the same
+`600b:seats` key and map shape, each entry stamped with the `pubkey` that holds it and no tab id
+or heartbeat (one frame holds one seat). A reloaded frame restores the newest entry of the
+identity signed in now. The mirror answers asynchronously, so `start()` returns
+`{resuming:false, restoring}` until it has — see docs/napplet-spec.md §3c.
 
 ### 4.2 Sequence
 
@@ -1097,12 +1168,19 @@ clears the stored credential and stops, so a stale match against a fresh databas
 
 **A login lasts as long as its key.** The referee binds a socket to the key its `AUTH` proved, and
 every `ACT` on it plays as that key. So `nostr.logout()`, or any other key signed in — through
-`nostr.login()`, or written under `600b:pubkey` by another tab and noticed at the next send — ends
-that login: the socket closes **without `LEAVE`** (the seat stays its owner's), no reconnect timer
+`nostr.login()`, or written under `600b:pubkey` by another tab and heard through that tab's
+`storage` event at once — ends that login: the socket closes **without `LEAVE`** (the seat stays its owner's), no reconnect timer
 stays armed, a waiting `CREATE`/`JOIN`/`QUEUE` intent is dropped, `active` is emptied and the
 status is `idle`. The key `AUTH_OK` named is recorded, so the comparison is exact. The session is
 kept: after signing back in, `resume()` dials again and sends its one `RESUME` only after a fresh
 `AUTH_OK`. `act()` while signed out fails locally with `NIP07_REQUIRED`.
+
+**A play needs a seat on this socket, and only a hello speaks for the stored match.** `act()` and
+`sendNostr()` send nothing on a socket that holds no seat — for instance after another key signed
+in on this tab and its `RESUME` was refused with `IDENTITY_MISMATCH`. And `NO_SUCH_MATCH`,
+`BAD_TOKEN` or `MATCH_OVER` forget the stored match only when they answer a hello (`RESUME`,
+`JOIN`, `CREATE`, `QUEUE`) or close a table this page only watches; the same code answering a play
+(`the match has not started`) leaves it alone, so an owner's seat stays reachable without its link.
 
 `Ctrl+Alt+R` forces a `RESUME` — the panic button the runbook asks for.
 
@@ -1112,9 +1190,9 @@ Everything `play.js` is allowed to touch. `net.js` holds no rules and no DOM.
 
 | Group | Members |
 |---|---|
-| Table | `start(handlers)` · `create` · `join` · `act` · `sendNostr` · `leave` · `resume` · `tables()` |
+| Table | `start(handlers)` · `create` · `join` · `act` · `sendNostr` · `leave` · `resume` · `tables()` · `connect({table?})` |
 | Matchmaking | `queue({name,affinity,pubkey})` · `unqueue()` · `rejoin(matchId)` |
-| Where we are | `tableUrl` · `publicTable` · `publicTableIsLocal` · `savedMatch` · `saveMatch` |
+| Where we are | `tableUrl` · `publicTable` · `publicTableIsLocal` · `savedMatch` · `saveMatch` · `stakesAllowed()` · `launchCode()` |
 | Read-only getters | `status` · `session` · `lastState` · `peers` · `queued` · `active` |
 | `nostr.*` | `hasNip07` `login` `logout` `sign` `publish` `relays` `query` `profile` `savedPubkey` `npub` `npubDecode` `toHexPubkey` `shortNpub` `inviteEvent` `acceptEvent` `startEvent` `resultEvent` `parseStake` `parseInvite` `subscribeInvites` `hasWebln` `payEndpoint` `zapInvoice` `payWithWebln` |
 
@@ -1123,7 +1201,16 @@ Handlers: `onStatus` `onState` `onFrame` `onReject` `onPeer` `onQueued` `onOver`
 socket loop.
 
 `rejoin(matchId)` is the `AUTH_OK.active` path made a one-liner: it validates the id shape
-(`m_` + 12 hex), clears any queue intent, and sends `RESUME` with **no token**. `query(filter,
+(`m_` + 12 hex), clears any queue intent, and sends `RESUME` with **no token**.
+
+`tables()` asks an open, signed-in socket with `TABLES` (§2.1) and otherwise reads
+`GET /api/tables`; a page whose socket a napplet host carries has no HTTP, so it first opens a
+lobby socket with `connect()` — signed in, no table intent, not reopened when it drops. A
+`STATE` clears `queued`: pairing sends no final `QUEUED`. `stakesAllowed()` is false inside a
+shell, where `create`/`queue` send `stake: 0` and `join` an explicit `stake: 0`. `launchCode()`
+hands out the table code the page was opened with once (the shell's launch argument, else
+`?code=`), and `start()` removes `?code=` from the address with `history.replaceState`: a table
+code is an invitation and is never kept in an address. `query(filter,
 ms)` fans one `REQ` across every relay, dedups by event id, and resolves on `EOSE` from all of
 them or a deadline — whichever comes first, in the same fire-and-forget spirit as `publish()`:
 a dead relay shortens the answer, it never fails the call.

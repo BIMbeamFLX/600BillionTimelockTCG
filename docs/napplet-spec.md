@@ -202,7 +202,7 @@ above is closed by it.
 **`requires: [webrtc]` is superseded.** There is no WebRTC NAP and none is needed: the Table
 topology (amended 2026-08-15) plays over a referee socket, and inside the Hangar that socket is a
 *pipe the host opens on the napplet's behalf* — see "the table channel". The artifact declares
-`identity, outbox, resource, storage, intent` (`<meta name="napplet-requires">`); `table` is a
+`identity, outbox, resource, storage, intent, link, x-nappelin-cue` (`<meta name="napplet-requires">`; §5 for the last); `table` is a
 host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
 
 ### 3a. Identity and outbox — what the prelude really offers
@@ -213,17 +213,30 @@ host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
   first" rather than prompting, because signing in is the Hangar's flow.
 - `E1Napplet.identity.sign(event)` has no shell path: it rejects with
   `"the shell signs only through outbox.publish and table.sign"` unless a NIP-07 signer exists.
-- `napplet.outbox.publish(template)` takes an **unsigned** template; the host signs with its
-  identity and fans out to `wss://relay.nappelin.com` + damus/nos.lol/primal. It resolves the raw
-  result message — `error` on failure, never a rejection. `E1Napplet.outbox.publish` returns
-  `{ok, via:"shell", event}` (the signed event, from `msg.event || msg.result`) or
-  `{ok:false, via:"shell", error}`. `E1Napplet.outbox.query(filters)` → `msg.events || []`. On the
-  website the same calls sign with NIP-07 and use `E1Net.nostr`'s own fan-out.
+- `napplet.outbox.publish(template, options)` takes an **unsigned** template; the host signs with
+  its identity, then fans out. It resolves the raw result message
+  `{type, id, ok, event?, eventId?, relays?, error?}` — `error` on failure, never a rejection.
+  **The relays are named** (2026-09-15): the Hangar's relay-pool router (Kehto 0.20) looks up the
+  signer's NIP-65 relay list unless the publish says `toOutbox: false`, finds none for anyone
+  (nappelin's `loadRelayLists` is an empty Map), and refuses with `"relay list unavailable"` —
+  after signing. So `E1Napplet.outbox.publish` passes
+  `{relays: ["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"], toOutbox: false}`
+  (the host drops any relay it does not allow). It returns `{ok, via:"shell", event}` or
+  `{ok:false, via:"shell", error, event}` — a refusal still carries the event the host signed.
+- `napplet.outbox.query(filters, options)` resolves `{type, id, events: [{event, sidecar}], incomplete?, error?}`;
+  `E1Napplet.outbox.query(filters)` passes `{relays: [the same four]}` from the one constant its
+  publish uses (`OUTBOX_RELAYS`), and hands on the bare events. A query with `authors` otherwise
+  asks the router for those authors' relay lists, finds none, and reads only whatever fallback the
+  router keeps (flagged `incomplete`), so a member's kind 0 read by `site/identity-look.js` or by
+  net.js `profile()` and `sessions()` names the relays instead. On the website the same calls sign
+  with NIP-07 and use `E1Net.nostr`'s own fan-out.
 - **net.js consequence.** play.js keeps its `sign → publish → sendNostr` order. Inside a shell
   `E1Net.nostr.sign()` of a kind 4600/31600 template therefore *publishes it through the outbox*
   and returns the signed event (the referee still records it verbatim); `publish()` recognises an
   event the host already fanned out and reports `{ok:true, accepted:["shell"], tried:1}` instead of
-  sending a second copy. A kind 9734 zap request cannot be signed in a shell at all.
+  sending a second copy — or `{ok:false, accepted:[], tried:1, error}` when the host signed it and
+  its relays refused, because signed is not published. Only a host that could not sign makes
+  `sign()` reject. A kind 9734 zap request cannot be signed in a shell at all.
 - The shell's pubkey is cached **in memory** by net.js (`savedPubkey()`); `localStorage` is never
   named at a call site outside a try, because the getter itself throws in the sandbox.
 - Embed detection: `E1Napplet.embedded()` is `window.napplet` (object) OR `window.nappletContext`
@@ -232,8 +245,8 @@ host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
   parchment `#ece3d0`, brass `#e7bf76`, …) is painted; since 2026-09-15 the website's fallback is
   the same Hypershell core token set.
 - `tableUrl()` in a srcdoc frame: `?table=` → the seat's saved table → `globalThis.E1_TABLE_URL`
-  (a `wss?://` constant the build may inject) → the page origin → `wss://tcg.nappelin.com/ws`
-  when embedded → null.
+  (a `wss?://` constant; `scripts/build_napplet.py` injects `wss://tcg.nappelin.com/ws` in `<head>`)
+  → the page origin → `wss://tcg.nappelin.com/ws` when embedded → null.
 
 ### 3b. The table channel (napplet ⇄ Hangar page, over `postMessage`)
 
@@ -272,6 +285,149 @@ Tests: `tests/js/net-shell.test.mjs` (a fake Hangar over real `ws` sockets to an
 referee: open → host-signed AUTH → CREATE → STATE; refusals; foreign `event.source` ignored;
 the website path through the adapter), `tests/js/napplet.test.mjs` (the adapter over a fake parent).
 
+### 3c. Online play from inside the Hangar (2026-09-15)
+
+The plumbing the embedded lobby stands on (napplet-v2 Block A). Everything here is the website
+path unchanged when there is no shell.
+
+**The seat, without storage.** Inside a shell (`E1Napplet.embedded()`) net.js never reaches
+`localStorage` or `sessionStorage` (their getters throw in the frame). The seat lives in memory
+and is mirrored to `E1Napplet.storage` under `600b:seats`, the website's map shape:
+`{"<matchId>:<seat>": {matchId, seat, token, table, code, pubkey, seenAt}}`. Each entry names the
+pubkey that holds it; at most 8 of them are kept; a write re-reads and merges, so a second Hangar
+tab's entries survive. When the frame loads, the newest entry for the identity signed in now
+becomes the session: a Hangar guest (a new key per page) never resumes another key's seat. The
+mirror and the identity both answer asynchronously, so until they have, `E1Net.start(handlers)`
+returns `{resuming:false, restoring}` where `restoring` is a promise of start's usual answer
+(`{resuming, matchId?, seat?, loginRequired?}`), and the seat is resumed then — unless the page
+has created, joined, queued, rejoined or left in the meantime, which wins. A mirror that refuses
+every access costs only the reload's auto-resume: `AUTH_OK.active` still names the seat, and
+`E1Net.rejoin(matchId)` takes it. Seat tokens go to that storage and to the socket, never into an
+address, a log line or an error message.
+
+**Invites through the outbox.** `E1Napplet.outbox.subscribe(filters, onEvent, onClosed) → unsubscribe()`
+wraps the prelude's NAP-OUTBOX handle (`outbox.subscribe(filters, {relays})` → `{on("event" | "closed", fn), close()}`,
+the same four relays a query names): `onEvent` gets bare events, `onClosed(reason)` hears a
+subscription the shell ended, and without a shell outbox it is called once with `"unavailable"`
+(`E1Napplet.outbox.canSubscribe()` asks first). It never throws. Inside a shell
+`E1Net.nostr.subscribeInvites(pubkey, onInvite)` subscribes there with the website's filter
+(`kinds:[4600]`, `#t:["invite"]`, `#p:[pubkey]`, the last hour, 40) and still parses and
+signature-checks every row with `E1Schnorr` before `onInvite` sees it; a shell that cannot
+subscribe, or ends the subscription, is `onError{INVITES_UNAVAILABLE}`.
+
+**The napplet closes its own subscriptions,** because the host keeps them until the frame is
+destroyed. At most 8 are open at once: a ninth closes the oldest, quietly, as that one's own
+`unsubscribe()` would, because the newest is the one a member just asked for and is looking at
+(and the lobby ends its previous invite subscription before it opens another, so an oldest one
+past eight is a leak with nothing on screen). `E1Napplet.outbox.closeAll()` ends every open one,
+also quietly; `site/play.js` calls it, with the lobby's own `close()` (which empties the invite
+list), when the lobby is put away for a local game, when a board takes the lobby's place, when a
+table is left and when a table ends (`OVER`). The adapter itself calls it on `pagehide`. Only a
+subscription the shell ended calls `onClosed`.
+
+**Open tables over the socket.** The frame has no HTTP to the referee. `E1Net.tables()` asks an
+open, signed-in socket with `TABLES` (docs/net-protocol.md §2.1) and resolves the rows
+`/api/tables` serves. When a host carries the socket and none is open it first calls
+`E1Net.connect({table?})`, which opens and signs in a socket with no table in it (it is not reopened
+when it drops). Lists asked for together share one `TABLES`; a list that cannot be had rejects
+with an `Error` whose `code` is the reason (`NIP07_REQUIRED`, `RATE_LIMITED`, `TABLE_CLOSED`,
+`TIMEOUT` after 15 s, `BAD_MESSAGE` from a referee that predates `TABLES`). On the website
+`tables()` keeps reading `/api/tables` until a signed-in socket is open.
+
+**No stakes.** `E1Net.stakesAllowed()` is `false` when embedded. `create` and `queue` then send
+`stake: 0` whatever they are given, and `join` sends an explicit `stake: 0`, so a table that plays
+for sats answers `ERROR{STAKE_MISMATCH}` ("this table plays for N sats") and seats nobody.
+
+**The launch code.** `E1Net.launchCode()` returns `window.nappletContext.args.code` (nappelin #105)
+once, checked again against `^[A-HJ-NP-Z2-9]{6}$`, else the website's `?code=`; every later call
+returns null, and a frozen, absent or throwing context is simply null. On the website `start()`
+reads `?code=` once and removes it from the address with `history.replaceState`, valid or not.
+
+**Host facts this rests on** (nappelin `apps/hangar/src/host.ts`, Kehto shell and services 0.20,
+read 2026-09-15): the outbox router has no NIP-65 relay lists, hence the named relays on every
+publish, query and subscription and `toOutbox: false`; the relays a query or subscription names
+are the ones the router reads when it allows them (a query without authors reads its fallback set
+beside them), and it falls back to that set only when it allows none; subscription and query
+results are `{event, sidecar}`; a subscription is closed
+with `outbox.close {id, subId}` and ended by the host with `outbox.closed {subId, reason?}`; the
+host has no per-frame cap on subscriptions and drops them without `outbox.closed` when the frame
+closes or the identity changes (which closes the frame too). Storage values are strings of at
+most 8 MB per key under 200-character keys; the napplet holds itself to 512 KB.
+
+### 3d. The first screen and the lobby inside the Hangar (2026-09-15)
+
+**One lobby, two pages.** `site/lobby.js` is the online lobby: `E1Lobby.mount(root, NET, hooks)`
+builds its markup into `root` and returns `{handlers, refresh(), notice(text, tone), open(),
+close(), launchCode, invite}`. `matchmaking.html` mounts it into `#online` and, when the referee deals a
+seat, still hands off to `play.html`. Embedded, `play.js` mounts it into `#lobby` (where the
+website keeps its small online door) with `{embedded: true, start: false, onSeat, onLobby,
+collection, stack}` and starts the one `E1Net` itself: while the member sits at a table or watches
+one the board reads the referee's messages, otherwise the lobby does, and an open table is always
+the lobby's. A dealt seat shows the board in place (a local game still on the table is put away
+first); leaving the table, or "Find another opponent" after a match, shows the lobby again and
+never closes the frame. A frame reloaded while its member hosts an open table takes the seat back
+from the mirror (§3c) and opens the lobby on that table's code, over a first screen where nothing
+was chosen yet. In the open-table list a member's own table is offered as Rejoin, never as Join
+(a join to it is `OWN_TABLE`, "That is your own table."), and a table whose host has been away
+past the referee's grace is not listed at all (docs/net-protocol.md §2.6).
+
+**Inside the Hangar the lobby differs from the website's in exactly this.** No sign-in button:
+the shell's key is the identity, read when the frame loads (an identity change closes the frame,
+so a reload is the change), and without one the lobby says "Sign in to Nappelin to play online.
+Hotseat and games against the computer work now." No stake field and no stake note; create, queue
+and join always send `stake: 0`; a table for sats is listed without a Join, and a
+`STAKE_MISMATCH` reads "This table plays for sats; stakes are not available in Nappelin yet."
+The settlement screen never opens. No share link: the host panel shows the code to read aloud
+and "Send an invite", which the host signs through the outbox (as it signs the result). The
+launch code (`E1Net.launchCode()`) is read once at mount, fills Join, opens the online choice,
+and is never joined by itself or written into any address. The open-table list and the invite
+list say in one line why they are empty: the table server cannot be reached (`NO_TABLE`,
+`TABLE_REFUSED`, `TABLE_CLOSED`, `TIMEOUT`), the sign-in could not be confirmed, too many requests,
+a referee too old to list tables, or invites that this shell cannot list.
+
+**My collection online.** The referee takes a Stack in `CREATE`, `JOIN` and `QUEUE` under Classic
+and Fast alike, and checks it twice: `cleanDeck` in `server/table.js` (a list of 40 to 300 known
+ids of the table's ruleset, no Stake card, and each card's own copy limit under those rules, asked
+of the engine's `E.copyLimit`: one for a genesis card, no limit for a Basic Resource, four for the rest)
+and `E.createGame` (the same floor and limits again). A Stack past a limit is refused as `BAD_DECK`
+naming the card, before any seat changes. So the embedded lobby
+offers "My collection" once the member holds a card, labelled "n of 40 cards yours", and sends the
+Stack `buildCollectionStack` deals for the table's rules: the lobby's rules for a table it opens
+or a match it searches, an invite's `ruleset` for a join from an invite, the row's `ruleset` for a
+join from the open-table list or a typed code that is listed there, and the lobby's rules for a
+bare code with no row. A `BAD_DECK` refusal of a join names the table's rules; when they are not
+the ones the Stack was built under, the lobby says "That table plays other rules. Pick Ready for a
+starter Stack, then join again." The quick match pairs a built Stack only with another built Stack.
+A collection Stack claims no possession at the table either.
+
+**The first screen.** Embedded, `play.html` opens on `#first`: "Playing as" with the member's
+look (name and picture through the seat code's `E1Look` book, the short npub until it lands,
+"Not signed in" once the shell has said nobody), the choice Against the computer / Hotseat /
+Online, which stays above the setup form or the lobby it opens, and the collection line. Every
+service the shell does not give says so in one line: no identity, no collection app (the
+collection line), and inside the lobby the table server and the invites.
+
+**The first-game tour** belongs to the local game: it opens with Against the computer or Hotseat,
+never over the first screen or the lobby. Whether it is done is stored under `600b:coach` through
+`E1Napplet.storage` (the shell's storage inside the Hangar, localStorage on the website, and
+localStorage directly on a page without the adapter), so a member who finished or skipped it does
+not meet it again in the next frame. That answer is asynchronous, and the tour stays hidden until
+it is known; storage that refuses to answer counts as a tour not done yet.
+
+**The empty collection's door.** `E1Napplet.link.open(url)` asks NAP-LINK (`napplet.link.open`,
+which resolves `{status: "opened" | "denied"}`) for an https URL only, and resolves `{ok: true}`
+or `{ok: false, error}` on every outcome, a host that never answers included after 30 s, the
+prelude's own deadline. When the collection line is the empty one and the shell grants `link`,
+one button opens the constant `https://tcg.nappelin.com/shop.html`; the Hangar asks the member
+first, and a refusal or 30 s of silence leaves the line as it was.
+
+**For guild admins.** TIMELOCK TCG can sit in a guild's Play list: the Guilds tab opens the same
+`600b-timelock-tcg` napplet, which starts on the first screen above, so a member plays against the
+computer or hotseat at once and online once they are signed in. To gather members for a game
+night, link the event to `https://nappelin.com/hangar/?napplet=600b-timelock-tcg`; the member who
+hosts reads the table code aloud or sends it as an invite, and everyone else joins with it.
+Tables opened from Nappelin never play for sats.
+
 ### 4. The inventory intent (bearlett → nappelin → game)
 
 "INC/intent integration" is no longer out of scope for one purpose: knowing what the player owns
@@ -302,3 +458,65 @@ is floored unix seconds. The validator lives in `site/napplet.js` (`E1Napplet.co
 Readers: `site/deck.html` asks the collection first when `E1Napplet.has("intent")` and says
 "Cards from your Bearlett collection" under the mode buttons; `site/play.js`'s NutFT possession
 check takes the same branch. Both fall back to the page's own NutFT wallet on the website.
+
+### 5. Music cues and audio focus (NAP-CUE, 2026-09-15)
+
+The Hangar's music napplet (DJ David Clanker) follows the table, and the table's own sound bed
+steps back while that music plays. Spec: nappelin `specs/naps/nap-cue.md` (drafted in #107, merged in #128), under the
+interim domain `x-nappelin-cue`. The manifest declares `["requires", "x-nappelin-cue"]`; a catalog
+that does not grant it still launches the napplet, and the check below stays false.
+
+**Nothing is sent until the shell says so.** `E1Napplet.cue.available()` is
+`napplet.shell.supports("x-nappelin-cue") === true`, inside a frame with a parent. That is the only
+probe: no `napplet["x-nappelin-cue"]` object is read, and anything but a plain `true` is a no. On the website, or without the feature, every call is a no-op and
+nothing is posted.
+
+| direction | message | fields |
+| --- | --- | --- |
+| napplet → host | `x-nappelin-cue.send` | `id`, `mood?`, `moment?` |
+| host → napplet | `x-nappelin-cue.send.result` | `id`, `accepted: true` or `error` |
+| host → music handler | `x-nappelin-cue.cue` | `mood?`, `moment?` (DJ David Clanker only; the TCG never receives it) |
+| host → napplet | `x-nappelin-cue.focus` | `music: "playing" \| "idle"` (on change, and once at launch) |
+
+It rides the table channel's pipe (§3b): a fresh `id` per send, replies matched on it, only
+`event.source === parent` heard, and no answer within 8 s is an error.
+
+- **Vocabulary, closed.** `mood`: `calm`, `tension`, `battle`, `victory`, `defeat` (held until the
+  next one). `moment`: `turn`, `attack`, `lethal`, `match-end`, `booster-open`. Anything else
+  resolves `{ok:false, error:"invalid request"}` without posting.
+- **Throttles, the shell's own.** A mood at most once per 8 s: inside the window the latest one
+  waits and is sent when it opens (an earlier waiting mood resolves `superseded`; a wait that ends
+  on the mood already sent sends nothing). Moments at most 4 per second; extras resolve
+  `rate limited` and are dropped.
+- **Results.** `send()` never throws: `{ok:true, accepted:true}` or `{ok:false, error}`. An error
+  (`not permitted`, `invalid request`, `rate limited`) is final and never retried. `accepted`
+  says the shell took the cue, not that anyone listened, so nothing in the game depends on it.
+- `E1Napplet.cue.onFocus(fn)` calls `fn("playing" | "idle")` and returns `unsubscribe()`.
+
+**What the table sends** (`site/play.js`, only when embedded and available; derived from the
+engine events `fx()` already receives and the view `render()` draws, sent on change only):
+
+| cue | when |
+| --- | --- |
+| `turn` | a `TURN` event names a different seat than the turn before |
+| `attack` | an `ATTACKERS` event with at least one attacker (Classic), or an `ATTACK` event (Fast `DECLARE_ATTACK`) |
+| `lethal` | once per match, a seat `DAMAGE` or an `UPTIME` loss leaves that seat at 0 or less; sent before `match-end` |
+| `match-end` | the view's `result` appears for a match first seen unfinished |
+| `calm` | the first screen, setup, the lobby, a table left, `pagehide`, a draw; and in play when nothing below holds |
+| `tension` | either seat at 6 Uptime or less (`CUE_TENSION_UPTIME`: 30% of the 20 start, one big Avatar's hit) |
+| `battle` | an attack was made this turn (`turn.attacked` is not empty) |
+| `victory` / `defeat` | a result with a winner, from the local seat: a referee's seat or the human in solo play; hotseat and spectators hear `victory` |
+
+`booster-open` is never sent: the shop is not in the napplet. A resync (`STATE`) sends moods but no
+moments, and a match first seen finished does not announce `match-end` again.
+
+**Focus ducks the bed.** `playing` → `E1FX.duckBed(0.35)` and `E1FX.holdPressure(true)`; `idle` →
+`E1FX.unduckBed()` and `E1FX.holdPressure(false)`. An untimed public `duckBed(depth)` is that held
+focus level: fx.js's own ducks (a hold tone, a burn, the game-over fanfare) never lift the bed above
+it and release back to it rather than to full, and `unduckBed()` returns the bed to 1. A focus duck
+asked for before audio is armed is applied when the graph is built; holding the pressure pulse
+leaves the saved pressure setting alone.
+
+Tests: `tests/js/napplet.test.mjs` (the adapter over a fake parent and an injected clock),
+`tests/js/client.test.mjs` (a scripted hotseat Fast game, a referee's seat, focus ducking),
+`tests/js/fx-focus.test.mjs` (the bed's releases over a fake Web Audio graph).
