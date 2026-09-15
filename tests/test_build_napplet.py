@@ -383,7 +383,8 @@ def stripped_site(tmp_path_factory: pytest.TempPathFactory) -> Path:
             continue
         target = root / "site" / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(build_napplet.script_source(SITE, name), encoding="utf-8")
+        # Bytes, as the artifact carries them: write_text would add CRLF on Windows.
+        target.write_bytes(build_napplet.script_source(SITE, name).encode("utf-8"))
     return root
 
 
@@ -396,7 +397,9 @@ def test_stripped_scripts_still_parse(stripped_site: Path) -> None:
         result = subprocess.run([NODE, "--check", str(script)], capture_output=True, text=True)
         assert result.returncode == 0, f"{script.name}: {result.stderr}"
     for script in scripts:
-        assert script.stat().st_size < (SITE / script.name).stat().st_size, script.name
+        # Against the LF source, so neither checkout's line endings decide it.
+        source = (SITE / script.name).read_bytes().replace(CRLF, LF)
+        assert script.stat().st_size < len(source), script.name
 
 
 @needs_node
