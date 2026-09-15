@@ -1345,11 +1345,23 @@
        phrase already filled. Finishing it first would hand out slots blind. */
     const resuming = Boolean(current.restoring && current.restoring.key === key
       && current.seedPhrase === seedPhrase && holdsNoSlots(current.pending));
-    if (!resuming && (current.tokens.length || current.pending || (current.outgoing || []).length)) {
+    /* SEARCHING FURTHER. A wallet from before refused operations handed their
+       slots back can hold an unsigned run longer than the normal window, and a
+       recovery stops there with cards still beyond it. A deep scan (a larger
+       gapSlots) on a wallet already holding this phrase continues from the
+       wallet's own counter rather than from slot 0, keeps every card it holds,
+       and adds only cards it does not. */
+    const deeper = !resuming && Number(opts.gapSlots) > 0 && !current.restoring
+      && current.seedPhrase === seedPhrase && holdsNoSlots(current.pending);
+    if (!resuming && !deeper && (current.tokens.length || current.pending || (current.outgoing || []).length)) {
       throw new Error("recovery requires an empty wallet so bearer assets are not overwritten");
     }
     let state = current;
-    if (!resuming) {
+    if (deeper) {
+      const from = Math.floor(Number((current.counters || {})[key] || 0) / 100) * 100;
+      state = { ...current, restoring: { key, next: from, empty: 0, found: 0 } };
+      await write(state);
+    } else if (!resuming) {
       const seed = wc.mnemonicToSeedSync(seedPhrase);
       const privateKey = wc.HDKey.fromMasterSeed(seed).derive("m/129373'/10'/0'/0'/0").privateKey;
       state = {
@@ -1368,8 +1380,13 @@
        from before refused operations gave their slots back -- pushes the next
        card up to 2N slots on, and batch edges cost up to one more batch. So the
        scan stops only after at least 2N + 100 slots in a row came back unsigned;
-       stopping after three hundred lost every card beyond such a gap. */
-    const gapBatches = Math.ceil((2 * catalog.assets.length + 100) / 100);
+       stopping after three hundred lost every card beyond such a gap. A deep scan
+       asks for more (opts.gapSlots), and the checkpoint remembers it, so a deep
+       scan that is resumed without asking again stays deep. */
+    const gapSlots = Math.max(2 * catalog.assets.length + 100, Number(opts.gapSlots) || 0,
+      Number(state.restoring.gapSlots) || 0);
+    const gapBatches = Math.ceil(gapSlots / 100);
+    const held = new Set(readableProofs(state, keyset, c).map((proof) => proof.secret));
 
     while (emptyBatches < gapBatches) {
       const candidates = await Promise.all(Array.from({ length: 100 }, (_, i) => {
@@ -1409,21 +1426,31 @@
         }, opts);
         if (!checked.ok) throw new Error(`restored proof state unavailable (${checked.status})`);
         const states = (await checked.json()).states;
-        batch.forEach((proof, index) => { if (states[index]?.state === "UNSPENT") found.push(proof); });
+        batch.forEach((proof, index) => {
+          if (states[index]?.state === "UNSPENT" && !held.has(proof.secret)) {
+            held.add(proof.secret);
+            found.push(proof);
+          }
+        });
         emptyBatches = 0;
       } else {
         emptyBatches += 1;
       }
       counter += 100;
       /* CHECKPOINT: the cards this batch found, the counter past its last signed
-         slot, and where the next batch starts, before anything else is asked. */
+         slot (never moved back: a deep scan starts below it), and where the next
+         batch starts, before anything else is asked. */
+      const known = Number(state.counters[key] || 0);
       state = {
         ...state,
         tokens: found.length
           ? [...state.tokens, encodeToken(c, { mint: mintUrl, unit: keyset.unit, proofs: found })]
           : state.tokens,
-        counters: lastSigned >= 0 ? { ...state.counters, [key]: lastSigned + 1 } : state.counters,
-        restoring: { key, next: counter, empty: emptyBatches, found: (state.restoring.found || 0) + found.length },
+        counters: { ...state.counters, [key]: Math.max(known, lastSigned + 1) },
+        restoring: {
+          key, next: counter, empty: emptyBatches, gapSlots,
+          found: (state.restoring.found || 0) + found.length,
+        },
       };
       await write(state);
     }
@@ -1506,5 +1533,7 @@
     tradeProof, importToken,
     destination, recoverPending, outgoing, forgetOutgoing, exportBackup,
     restoreBackup, replaceBackup, recoveryPhrase, restoreSeed, provePossession, read, cashu, hex, bytes,
+    /* The window a deep scan asks for: restoreSeed(mint, phrase, { gapSlots: DEEP_SCAN_SLOTS }). */
+    DEEP_SCAN_SLOTS: 25_000,
   };
   root.NutFTWallet.encodeToken = encodeToken;})(globalThis);

@@ -300,6 +300,18 @@ faster client meets short waits and still finishes. The same ceiling holds one
 scripted client to four requests a second, which at the mint's largest requests
 (500-output restores) cost about a quarter of a core on the measuring machine.
 
+**Restore support: a recovery that finds fewer cards than the holder expects.** A
+wallet from before 2026-09-15 that lost a purchase or a move to an error kept that
+operation's counter slots unsigned, and a normal recovery stops at such a run, so
+every card bought after it is missing. Ask the holder to tick "Search further" on
+wallet.html and press "Recover cards" again with the same phrase (in code:
+`restoreSeed(mint, phrase, { gapSlots: NutFTWallet.DEEP_SCAN_SLOTS })`). It continues
+from where the earlier recovery stopped, keeps every card already held, and stops
+only after 25,000 unsigned slots in a row: about 250 extra restore requests, a few
+minutes, inside the recovery budget. A resumed deep scan stays deep. Received cards
+the phrase cannot find yet are a separate case: the wallet page shows them as "not
+yet under your phrase" and retries moving them on every refresh.
+
 **Many wallets on one address share every budget.** A venue wifi or a carrier NAT
 is one client, and so is everyone behind the proxy while `TRUST_PROXY` is wrong.
 Nothing is lost, since the wallet waits, but a room recovering or buying at once

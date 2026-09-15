@@ -279,6 +279,10 @@
         <span style="font:900 10px/1 var(--body);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)">Restore from 12 words</span>
         <textarea id="restorePhrase" rows="2" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
         <button class="btn btn--ghost" id="restoreSeed" type="button">Recover cards</button>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px">
+          <input id="restoreDeep" type="checkbox">
+          Search further (slower). If a recovery found fewer cards than you hold, tick this and recover again.
+        </label>
       </label>
     </div>
     <p class="note mode-off" id="recoveryWords" role="status" aria-live="polite" hidden></p>
@@ -1038,7 +1042,12 @@
     const button = event.currentTarget;
     button.disabled = true;
     try {
+      const deep = $("restoreDeep").checked;
       const count = await root.NutFTWallet.restoreSeed(mint, $("restorePhrase").value, {
+        /* Searching further continues from where the last recovery of this
+         * phrase stopped, past gaps an older wallet left, so it is also how a
+         * short recovery is completed. */
+        ...(deep ? { gapSlots: root.NutFTWallet.DEEP_SCAN_SLOTS } : {}),
         /* A busy mint is waited out, not failed. Say so, or a pause of up to
          * 30 s looks exactly like a page that has hung. */
         onWaiting: ({ waitMs }) => {
