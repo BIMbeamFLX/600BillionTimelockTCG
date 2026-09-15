@@ -2169,7 +2169,17 @@ async function createTable(opts) {
 
 module.exports = { createTable, pruneAddressRates, KIND_HANDSHAKE, KIND_RESULT, WIRE };
 
-if (require.main === module) {
+if (require.main === module && process.argv.includes("--check-env")) {
+  /* `node server/table.js --check-env [--from <file> | --from -]`: the dry run
+   * of server/env-check.js, which needs no node_modules and is what runs on the box. */
+  process.exitCode = require("./env-check.js").run(process.argv.slice(process.argv.indexOf("--check-env") + 1));
+} else if (require.main === module) {
+  /* Refused before a database, a port or a funding backend is touched, by the
+   * same rules `node server/env-check.js` applies as a dry run. A line names a
+   * variable and a reason, never a value. docs/mint-boot-checks.md has the fixes. */
+  const refusals = require("./mint-env.js").checkEnv(process.env);
+  for (const line of refusals) console.error(`[table] refusing to start: ${line}`);
+  if (refusals.length) process.exit(1);
   const port = Number(process.env.PORT || 8777);
   const dbPath = process.env.DB || path.join(__dirname, "matches.db");
   const pinSeed = process.env.PIN_SEED ? Number(process.env.PIN_SEED) : null;

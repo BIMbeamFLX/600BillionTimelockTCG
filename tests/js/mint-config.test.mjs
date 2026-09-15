@@ -297,8 +297,8 @@ test("a free mint asked for one per key warns at boot that it cannot enforce it"
 });
 
 test("PIN_SEED is announced at boot as testing only, without its value", async (t) => {
-  /* G_NUTFT_ENABLED without G_NUTFT_DB refuses before any port is bound. */
-  const { code, output } = await bootReferee(t, { PIN_SEED: "424242", G_NUTFT_ENABLED: "1" });
+  /* A malformed TABLE_ORIGINS stops createTable after the warning and before any port is bound. */
+  const { code, output } = await bootReferee(t, { PIN_SEED: "424242", TABLE_ORIGINS: "not-an-origin" });
   assert.equal(code, 1);
   assert.match(output, /PIN_SEED is set: .*Testing only, never in production/);
   assert.ok(!output.includes("424242"), "the seed stays out of the journal");
