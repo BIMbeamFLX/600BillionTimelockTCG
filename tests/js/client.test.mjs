@@ -2274,7 +2274,7 @@ test("My collection is counted under the rules chosen, and Classic deals it too"
 test("a guest and a member without cards each get the line that fits, and no option", async (t) => {
   require(COLLECTION_JS);
   opaqueStorage(t);
-  const member = "No cards in your collection yet. Cards from the shop on tcg.nappelin.com can be handed to your Bearlett collection.";
+  const member = "No cards in your collection yet. A card bought on tcg.nappelin.com is locked to that site's wallet: send it to your collection's address in the wallet there first, then paste the token into the collection.";
   const noCards = () => Object.assign(collectionFixture({ avatars: [], spells: [] }), { cards: [] });
   const cases = [
     [hangar({ identity: "", inventory: null }), "Sign in to use your cards. You can play with a starter stack now."],
@@ -2312,7 +2312,7 @@ test("a cold website table never loads the NutFT wallet, and signing in changes 
   await waitFor(() => byId("collectionNote").textContent === "Sign in to use your cards. You can play with a starter stack now.", "the guest line");
   for (const fn of fired["e1:identity"] || []) fn({ detail: { pubkey: "a".repeat(64) } });
   assert.equal(byId("collectionNote").textContent,
-    "No cards in your collection yet. Cards from the shop on tcg.nappelin.com can be handed to your Bearlett collection.");
+    "No cards in your collection yet. A card bought on tcg.nappelin.com is locked to that site's wallet: send it to your collection's address in the wallet there first, then paste the token into the collection.");
   for (const fn of fired["e1:identity"] || []) fn({ detail: { pubkey: null } });
   assert.match(byId("collectionNote").textContent, /^Sign in to use your cards\./, "and signing out changes it back");
   assert.equal(walletTags(byId).length, 0, "no wallet on this device, so no wallet script");

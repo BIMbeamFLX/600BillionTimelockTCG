@@ -530,7 +530,7 @@ test("the setup words: a count, or exactly why there is none", () => {
     "Your collection: 1 card. “My collection” is in both Stack menus. 2 more cards are not part of this edition.");
   assert.equal(CS.collectionLine({ status: "empty", cards: 0, identity: null }), "Sign in to use your cards. You can play with a starter stack now.");
   assert.equal(CS.collectionLine({ status: "empty", cards: 0, identity: "a".repeat(64) }),
-    "No cards in your collection yet. Cards from the shop on tcg.nappelin.com can be handed to your Bearlett collection.");
+    "No cards in your collection yet. A card bought on tcg.nappelin.com is locked to that site's wallet: send it to your collection's address in the wallet there first, then paste the token into the collection.");
   assert.equal(CS.collectionLine({ status: "unavailable", source: "shell", cards: 0, identity: "a".repeat(64) }),
     "No card collection is reachable in this shell. You can play with a starter stack now.");
   assert.equal(CS.collectionLine({ status: "unavailable", source: "wallet", reason: "mint down", cards: 0 }),

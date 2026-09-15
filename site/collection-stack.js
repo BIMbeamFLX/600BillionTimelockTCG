@@ -451,9 +451,12 @@
 
   // ------------------------------------------------------------------ words
 
+  /* `empty` carries the sentence agreed with nappelin for the Hangar's empty collection,
+     word for word as bearlett's docs have it: a website card is P2PK-locked to the
+     website's wallet, and pasting it straight into the collection is refused. */
   const WORDS = Object.freeze({
     guest: "Sign in to use your cards. You can play with a starter stack now.",
-    empty: "No cards in your collection yet. Cards from the shop on tcg.nappelin.com can be handed to your Bearlett collection.",
+    empty: "No cards in your collection yet. A card bought on tcg.nappelin.com is locked to that site's wallet: send it to your collection's address in the wallet there first, then paste the token into the collection.",
     noCollection: "No card collection is reachable in this shell. You can play with a starter stack now.",
   });
 
