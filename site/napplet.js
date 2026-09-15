@@ -301,6 +301,7 @@
   const FAMILY = "(?:\"[\\w .-]+\"|'[\\w .-]+'|[a-z][\\w-]*(?: [a-z][\\w-]*)*)";
   const FONT_LIST = new RegExp(`^${FAMILY}(?:\\s*,\\s*${FAMILY})*$`, "i");
   const LENGTH = /^(?:0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em))$/;
+  const CSS_WIDE = /^(?:inherit|initial|unset|revert|revert-layer)$/i;
   const NEVER = /url\(|image-set\(|var\(|env\(|expression\(|[@;{}<\\\n\r\f]/i;
 
   function tokenValue(name, value) {
@@ -308,6 +309,9 @@
     const shape = name === "--r" ? LENGTH : name === "--headline" || name === "--mono" ? FONT_LIST : COLOR;
     const clean = value.trim();
     if (!shape.test(clean)) return null;
+    /* A CSS-wide keyword is a word too, but it names no font or colour: it would
+       hand the token to inheritance or the browser's default instead. */
+    if (CSS_WIDE.test(clean)) return null;
     /* The shape admits `rgb(1 2 3 4)` or `hsl(10%, 20deg, 3turn)`, which a browser
        drops, leaving the property unset instead of the default. Where the page can
        ask, a colour the browser would not paint keeps the default. */

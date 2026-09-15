@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from build_art_prompts import (
     ART_HEIGHT,
     ART_WIDTH,
@@ -32,11 +33,19 @@ def test_prompt_lock_has_one_unique_full_hd_brief_per_card():
     assert all("procedural patterns" in item["prompt"] for item in payload["cards"])
 
 
+REFERENCE_MANIFEST = REPO_ROOT / "art" / "references" / "join-detailed-front" / "manifest.json"
+
+
+@pytest.mark.skipif(
+    not REFERENCE_MANIFEST.exists(),
+    reason=(
+        "needs the gitignored art/references/join-detailed-front/manifest.json, "
+        "which a clean clone does not have"
+    ),
+)
 def test_every_avatar_prompt_uses_detailed_front_identity_reference():
     cards = load_cards()
-    reference_index = load_reference_index(
-        REPO_ROOT / "art" / "references" / "join-detailed-front" / "manifest.json"
-    )
+    reference_index = load_reference_index(REFERENCE_MANIFEST)
     records = build_records(cards, reference_index)
 
     assert validate_records(records, cards) == []
