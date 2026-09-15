@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  ASSETS, PACK, STORE, bootMint, handOver, openWallet, supplier,
+  ASSETS, PACK, STORE, bootMint, copiesOfOneCard, handOver, openWallet, supplier,
 } from "./helpers/wallet-fixture.mjs";
 
 /* What a wallet from before refused operations gave their slots back leaves
@@ -17,15 +17,6 @@ function abandonTurn(wallet) {
   const [key] = Object.keys(saved.counters);
   saved.counters[key] += ASSETS;
   wallet.storage.set(STORE, JSON.stringify(saved));
-}
-
-/* n copies of one card: the same card lands a turn further on each time. */
-function copiesOfOneCard(cards, n) {
-  const byAsset = new Map();
-  for (const item of cards) byAsset.set(item.tag[2], [...(byAsset.get(item.tag[2]) || []), item]);
-  const copies = [...byAsset.values()].find((list) => list.length >= n);
-  assert.ok(copies, `no card appears ${n} times`);
-  return copies.slice(0, n);
 }
 
 async function recover(mint, phrase) {

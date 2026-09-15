@@ -66,6 +66,15 @@ export async function supplier(mint, boosters = 1) {
   return from;
 }
 
+/* n copies of one card, whichever card a supplier happens to hold n of. */
+export function copiesOfOneCard(cards, n) {
+  const byAsset = new Map();
+  for (const item of cards) byAsset.set(item.tag[2], [...(byAsset.get(item.tag[2]) || []), item]);
+  const copies = [...byAsset.values()].find((list) => list.length >= n);
+  if (!copies) throw new Error(`no card appears ${n} times`);
+  return copies.slice(0, n);
+}
+
 /* The token that hands `proof` to the wallet whose destination is `pubkey`. */
 export async function handOver(from, mint, proof, pubkey) {
   return (await from.wallet.tradeProof(mint.url, proof.secret, pubkey)).token;

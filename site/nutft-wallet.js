@@ -608,6 +608,20 @@
     }
   }
 
+  /* Whether the mint already holds a signature for this output. Restore answers
+     for exactly the outputs it has signed, and changes nothing. */
+  async function slotSigned(mintUrl, output) {
+    const { id, B_ } = output.blindedMessage;
+    const response = await patientFetch(`${mintUrl}/v1/restore`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ outputs: [{ amount: 1, id, B_ }] }),
+    }, {});
+    if (!response.ok) throw new Error(`the mint could not check this card's slot (${response.status})`);
+    const restored = await response.json();
+    return Array.isArray(restored.outputs) && restored.outputs.some((item) => item.B_ === B_);
+  }
+
   /* Read the mint's own refusal out of a failed response -- or THROW, because
      anything that is not the mint refusing must not be treated as one.
    *
@@ -1091,9 +1105,18 @@
     const toSelf = Boolean(state.seedPhrase && recipientPubkey === state.pubkey);
     let reserved = null;
     if (toSelf) {
-      const prepared = await outputsFor([{
-        collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3], asset_binding: tag[4],
-      }], mintUrl, state, c, keyset);
+      const card = { collection_id: tag[1], asset_id: tag[2], catalog_uri: tag[3], asset_binding: tag[4] };
+      let prepared = await outputsFor([card], mintUrl, state, c, keyset);
+      /* ANOTHER DEVICE MAY HOLD THIS PHRASE. Counters live in one browser, so a
+         laptop and a phone on the same phrase derive the same output for their
+         next copy of a card, and the mint signs it only once: the second device
+         was refused, and its card stayed where the phrase cannot find it. So ask
+         first. A slot the mint has already signed belongs to the other device;
+         step to this card's next slot, and on past every one already taken. */
+      for (let taken = 0; await slotSigned(mintUrl, prepared.outputs[0]); taken += 1) {
+        if (taken >= 64) throw new Error("every nearby slot for this card is already signed");
+        prepared = await outputsFor([card], mintUrl, { ...state, counters: prepared.counters }, c, keyset);
+      }
       [output] = prepared.outputs;
       counters = prepared.counters;
       reserved = reservation(state, mintUrl, keyset, counters);
