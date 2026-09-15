@@ -294,6 +294,21 @@ test("a colour the browser would not paint keeps the default where the page can 
   assert.deepEqual(asked.map(([property]) => property).filter((p) => p !== "color"), [], "only colours are asked");
 });
 
+test("a CSS-wide keyword never stands in for a font or a colour", async () => {
+  for (const keyword of ["inherit", "initial", "unset", "revert", "revert-layer", "INHERIT"]) {
+    const doc = stubRoot();
+    const N = load({
+      localStorage: memoryStorage().api,
+      document: doc,
+      napplet: { theme: { get: async () => ({ tokens: { "--headline": keyword, "--mono": keyword, "--brass": keyword } }) } },
+    });
+    await N.theme.start();
+    for (const name of ["--headline", "--mono", "--brass"]) {
+      assert.equal(doc.__set.get(name), N.NAPPELIN_THEME.tokens[name], `${name}: ${keyword} keeps the default`);
+    }
+  }
+});
+
 /* The three doors a theme comes through. Each paints `payload` into a fresh page and
  * hands back the adapter and the properties it wrote. */
 const THEME_DOORS = {
