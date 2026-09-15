@@ -2469,7 +2469,17 @@ function browserTab() {
   };
   delete globalThis.E1Napplet;
   delete globalThis.E1Net;
-  new Function(NET_JS)();
+  tab.storageListeners = [];
+  const realAdd = globalThis.addEventListener;
+  globalThis.addEventListener = (type, fn, ...rest) => {
+    if (type === "storage") tab.storageListeners.push(fn);
+    return typeof realAdd === "function" ? realAdd.call(globalThis, type, fn, ...rest) : undefined;
+  };
+  try {
+    new Function(NET_JS)();
+  } finally {
+    globalThis.addEventListener = realAdd;
+  }
   tab.net = globalThis.E1Net;
   tab.net.start({ onError: (e) => tab.errors.push(e), onState: (s) => tab.states.push(s) });
   return tab;
@@ -2529,10 +2539,79 @@ test("signing in as another key plays nothing as the old key", async (t) => {
   assert.equal(tab.sockets.length, 2);
   assert.deepEqual(tab.sockets[1].sent, ["AUTH", "RESUME"], "one fresh AUTH and one RESUME for the new key");
 
-  tab.net.act(endTurn); // the old key's End turn, from the page that still shows its board
-  await waitUntil(() => tab.errors.find((e) => e.code === "NO_SUCH_MATCH"));
-  assert.equal(seqOf(), seq, "the new key's socket holds no seat to play from");
-  assert.equal(tab.sockets[0].sent.includes("ACT"), false, "and the old key's socket carried nothing");
+  // The old key's End turn, from the page that still shows its board.
+  assert.equal(tab.net.act(endTurn), false, "the new key's socket holds no seat to play from");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(seqOf(), seq);
+  assert.equal(tab.sockets[0].sent.includes("ACT"), false, "the old key's socket carried nothing");
+  assert.equal(tab.sockets[1].sent.includes("ACT"), false, "and neither did the new key's");
+});
+
+test("another key's refused resume keeps the owner's stored seat, and the owner comes back without a link", async (t) => {
+  const { tab, dealt, endTurn, seqOf } = await seatedTab(t, "o5.db");
+  const seq = seqOf();
+  const stored = () => tab.net.savedMatch && tab.net.savedMatch();
+
+  tab.net.nostr.logout();
+  tab.key = "tab-other";
+  await tab.net.nostr.login();
+  assert.equal(tab.net.resume(), true);
+  await waitUntil(() => tab.errors.find((e) => e.code === "IDENTITY_MISMATCH"));
+  assert.equal(tab.net.act(endTurn), false);
+  assert.equal(tab.net.sendNostr("result", { kind: 1 }), false, "a seatless socket sends no NOSTR either");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(tab.errors.some((e) => e.code === "NO_SUCH_MATCH"), false, "nothing was sent that could be refused");
+  assert.equal(stored() && stored().matchId, dealt.matchId, "the owner's seat is still stored");
+
+  // The owner signs back in on the same tab, with no ?match= in the address.
+  tab.net.nostr.logout();
+  tab.key = "tab-felix";
+  await tab.net.nostr.login();
+  const before = tab.states.length;
+  assert.equal(tab.net.resume(), true);
+  const back = await waitUntil(() => tab.states.slice(before).find((s) => s.matchId === dealt.matchId));
+  assert.equal(back.seat, 0);
+  assert.equal(tab.net.act(endTurn), true, "and plays again as the key that owns the seat");
+  await waitUntil(() => seqOf() === seq + 1);
+});
+
+test("a sign-out in another tab ends this tab's login at once, before any send", async (t) => {
+  const { tab, foe } = await seatedTab(t, "o6.db");
+  const socket = tab.sockets[0];
+  const statuses = [];
+  const listeners = [];
+  // The storage event another tab's removeItem fires in this one.
+  tab.store.delete("600b:pubkey");
+  for (const fn of tab.storageListeners || []) listeners.push(fn);
+  for (const fn of listeners) fn({ key: "600b:pubkey" });
+  statuses.push(tab.net.status);
+  assert.equal(statuses[0], "idle", "the login ended on the event itself");
+  assert.ok(socket.readyState >= WebSocket.CLOSING, "the socket that spoke for the key is closed");
+  await foe.next((m) => m.t === "PEER" && m.seat === 0 && m.online === false);
+  assert.deepEqual(socket.sent, ["AUTH", "CREATE"], "no LEAVE, no ACT");
+});
+
+test("a play refused at a table that has not started keeps the host's stored match", async (t) => {
+  const table = await boot(t, "o8.db", { publicHost: "127.0.0.1" });
+  const tab = browserTab();
+  t.after(() => tab.net.nostr.logout());
+  tab.key = "tab-felix";
+  const pubkey = await tab.net.nostr.login();
+  assert.ok(tab.net.create({ name: "felix", affinity: "Power", pubkey, table: table.wsUrl }));
+  const open = await waitUntil(() => tab.states.find((s) => s.status === "open"));
+  assert.equal(open.seat, 0, "the host holds seat one of an open table");
+  assert.equal(tab.net.act({ type: "PASS_PRIORITY", seat: 0, seq: 0, at: "", payload: {} }), true);
+  const refused = await waitUntil(() => tab.errors.find((e) => e.code === "NO_SUCH_MATCH"));
+  assert.match(refused.message, /has not started/);
+  assert.equal(tab.net.savedMatch().matchId, open.matchId, "the open table is still the host's");
+  assert.notEqual(tab.net.status, "gone");
+});
+
+test("a storage event for another key or another tab's unrelated write changes nothing", async (t) => {
+  const { tab } = await seatedTab(t, "o7.db");
+  for (const fn of tab.storageListeners || []) fn({ key: "600b:rail" });
+  assert.equal(tab.net.status, "live");
+  assert.equal(tab.sockets[0].readyState, WebSocket.OPEN);
 });
 
 test("a key changed in another tab ends the login before the old key's socket sends again", async (t) => {
