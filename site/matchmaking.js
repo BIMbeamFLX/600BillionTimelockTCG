@@ -56,6 +56,20 @@
     box.className = "prompt " + (tone || "");
   }
 
+  /* The side bar's account dot (site/rail.js) is the one green, and it means the
+   * referee accepted this player's NIP-42 login: net.js reports "live" only from
+   * AUTH_OK, and every way out of it is a status change too. Edges only. */
+  let authShown = null;
+  function announceAuth(ok) {
+    if (authShown === ok) return;
+    authShown = ok;
+    try {
+      window.dispatchEvent(new CustomEvent("e1:auth", { detail: { ok } }));
+    } catch (error) {
+      void error; // no event target (the test DOM): nobody is listening either
+    }
+  }
+
   function renderNetChip() {
     const chip = $("netchip");
     if (!chip) return;
@@ -380,9 +394,10 @@
 
   function renderIdentity() {
     const pubkey = nostr().savedPubkey();
+    shownKey = pubkey || null;
     $("nostrLogin").hidden = Boolean(pubkey);
     $("nostrWho").hidden = !pubkey;
-    $("nostrLogout").hidden = !pubkey;
+    $("nostrLogout").hidden = !pubkey || barAccount();
     if (pubkey) $("nostrWho").textContent = nostr().shortNpub(pubkey);
     renderLobbyButtons();
     renderNetPanel();
@@ -410,12 +425,42 @@
   async function login() {
     try {
       await nostr().login();
-      renderIdentity();
-      netNotice("Signed in with NIP-07. Online tables are now available.", "good");
-      if (NET.session) NET.resume();
+      signedIn();
     } catch (error) {
       netNotice(String(error.message || error), "bad");
     }
+  }
+
+  function signedIn() {
+    renderIdentity();
+    netNotice("Signed in with NIP-07. Online tables are now available.", "good");
+    if (NET.session) NET.resume();
+  }
+
+  /* ONE DOOR FOR SIGNING IN. Where the side bar is drawn (site/rail.js), its
+   * Account panel signs in and out: this panel's button only opens it, and the
+   * bar's e1:identity brings the answer back. Inside a napplet there is no bar,
+   * and the button signs in by itself. */
+  const barAccount = () => Boolean(globalThis.E1Rail && globalThis.E1Rail.slot("account"));
+  let shownKey = null;
+
+  function signIn() {
+    if (barAccount() && globalThis.E1Rail.open("account")) return undefined;
+    return login();
+  }
+
+  /* The bar's word on who is signed in. Its load-time event names the key this
+     page already drew, which changes nothing; a new key is a sign-in, null a
+     sign-out. */
+  function onBarIdentity(event) {
+    const pubkey = (event && event.detail && event.detail.pubkey) || null;
+    if (pubkey === shownKey) return;
+    if (!pubkey) {
+      renderIdentity();
+      announceAuth(false);
+      return;
+    }
+    signedIn();
   }
 
   // ---- the referee's messages ---------------------------------------------
@@ -464,10 +509,11 @@
       renderNetChip();
     },
 
-    onStatus() {
+    onStatus(info) {
       renderNetChip();
       renderQueue();
       renderLobbyButtons();
+      announceAuth(Boolean(info && info.status === "live"));
     },
 
     onQueued() {
@@ -528,8 +574,9 @@
     $("stackChoice").addEventListener("change", renderStackPick);
     loadStackLibrary(renderStackPick);
 
-    $("nostrLogin").addEventListener("click", login);
-    $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); });
+    $("nostrLogin").addEventListener("click", signIn);
+    $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); announceAuth(false); });
+    window.addEventListener("e1:identity", onBarIdentity);
     $("findMatch").addEventListener("click", findMatch);
     $("cancelFind").addEventListener("click", cancelFind);
     $("createTable").addEventListener("click", createTable);

@@ -39,46 +39,66 @@
    * is enforced HERE rather than discovered later. */
   const QUOTA = 512 * 1024;
 
-  const FALLBACK_THEME = {
-    background: "#09080B",
-    text: "#FFF7EC",
-    primary: "#FF6A00",
-    surface: "#19151F",
-    border: "rgba(185,145,228,.27)",
-    muted: "#C7BBCC",
-  };
+  /* CHROME IS HYPERSHELL, THE GAME WORLD IS 600 BILLION (docs/brand-hypershell.md).
+   * These nineteen names are nappelin's own design-system.css names and the ONLY
+   * ones a shell theme can set; the values are the Hypershell defaults that
+   * site/600b.css declares, and tests/js/napplet.test.mjs holds the two files to
+   * each other. The same set is painted on the website (the fallback) and inside
+   * the Hangar when the shell sends no theme: they are one palette now. */
+  const NAPPELIN_THEME = Object.freeze({
+    tokens: Object.freeze({
+      "--iron": "#0f0c08",
+      "--brass": "#e7bf76",
+      "--brass-2": "#c9973f",
+      "--brass-3": "#8f6a2a",
+      "--parchment": "#ece3d0",
+      "--signal": "#6de8a6",
+      "--panel": "rgba(231,191,118,.03)",
+      "--well": "rgba(231,191,118,.05)",
+      "--divider": "rgba(231,191,118,.12)",
+      "--hairline": "rgba(231,191,118,.14)",
+      "--emphasis": "rgba(231,191,118,.25)",
+      "--body-ink": "rgba(236,227,208,.82)",
+      "--headline": "\"Josefin Sans\", Georgia, sans-serif",
+      "--mono": "\"IBM Plex Mono\", ui-monospace, Consolas, monospace",
+      "--r": "0",
+      /* The raised irons dialogs and panels sit on, and the danger colour, are
+         design-system.css tokens too: a guild skin that repaints --iron repaints
+         these, or its dialogs keep the default iron. */
+      "--iron-850": "#14100b",
+      "--iron-800": "#191410",
+      "--iron-750": "#201a13",
+      "--rust": "#d06b45",
+    }),
+  });
 
-  /* nappelin's own tokens (iron, parchment, brass), painted when the game runs
-   * inside the Hangar and the shell offers no theme domain of its own. play.html's
-   * `html.embedded` CSS block carries the same values as the no-JS fallback. */
-  const NAPPELIN_THEME = {
-    background: "#0f0c08",
-    text: "#ece3d0",
-    primary: "#e7bf76",
-    surface: "#1a150e",
-    border: "rgba(231,191,118,.28)",
-    muted: "#c9b48a",
-    tokens: {
-      "--black": "#0f0c08",
-      "--soot": "#15110c",
-      "--panel": "#1a150e",
-      "--panel-2": "#1f1911",
-      "--cream": "#ece3d0",
-      "--muted": "#c9b48a",
-      "--line": "rgba(231,191,118,.28)",
-      "--orange": "#e7bf76",
-      "--orange-soft": "#c9973f",
-      "--gold": "#e7bf76",
-      "--purple": "#c9973f",
-      "--purple-deep": "#8f6a2a",
-      "--good": "#6de8a6",
-    },
-  };
+  /* NAP-THEME's `colors` map is NOT read. Today's Hangar, which has no Hypershell
+   * theme service yet, answers theme.get() with its generic default
+   * `{ colors: { background, text, primary } }`, and mapping that painted every
+   * brass control blue. Only a `tokens` payload that names Hypershell tokens
+   * repaints; that is what the Hypershell theme service sends. */
 
-  /* Brand-fixed and never themed. A shell may repaint the chrome; it may not
-   * repaint what an affinity looks like, because the five Plate colours are how
-   * a player reads the board and they must match the printed cards. */
-  const AFFINITY = { P: "#F3C244", B: "#F7931A", K: "#FFF7EC", S: "#7447B8", T: "#17BEBB" };
+  /* The 600 Billion brand layer: never themed. A shell may repaint the chrome; it
+   * may not repaint what an affinity looks like, because the Plate colours are how
+   * a player reads the board and they must match the printed cards — and the
+   * card world's ember and the wordmark's face belong to the same brand. */
+  const BRAND = {
+    "--display": "Anton600, Impact, sans-serif",
+    "--ember": "#ff6a00",
+    "--aff-power": "#f3c244",
+    "--aff-bitcoin": "#f7931a",
+    "--aff-keys": "#fff7ec",
+    "--aff-signal": "#7447b8",
+    "--aff-timelock": "#17bebb",
+    "--aff-neutral": "#8a8f98",
+  };
+  const AFFINITY = {
+    P: BRAND["--aff-power"],
+    B: BRAND["--aff-bitcoin"],
+    K: BRAND["--aff-keys"],
+    S: BRAND["--aff-signal"],
+    T: BRAND["--aff-timelock"],
+  };
 
   const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -265,60 +285,106 @@
 
   // -------------------------------------------------------------------- theme
 
-  /* The shell's palette is mapped onto the SAME custom properties the site's own
-   * stylesheet already uses, so a themed napplet and the plain website run one
-   * set of rules. The affinity colours are re-asserted afterwards precisely
-   * because a shell theme must not be able to reach them. */
-  function applyTheme(colors, tokens) {
-    const root = globalThis.document && globalThis.document.documentElement;
-    if (!root || !root.style || typeof root.style.setProperty !== "function") return;
-    const palette = Object.assign({}, FALLBACK_THEME, colors || {});
-    /* MAPPED ONTO THE TOKENS THE SITE ACTUALLY USES. An earlier version wrote
-     * `primary` to `--orange`, which is only a legacy alias in 600b.css — the
-     * single action colour is `--ember`, so a shell theme repainted nothing a
-     * player could see. Surfaces are likewise a family, not one token: `--soot`,
-     * `--panel-2` and `--steel` are all panel-coloured and were being left
-     * behind by the shell's background while `--panel` moved. */
-    const map = {
-      "--black": palette.background,
-      "--cream": palette.text,
-      "--ember": palette.primary,
-      "--orange": palette.primary, // the legacy alias, kept in step
-      "--panel": palette.surface,
-      "--panel-2": palette.surface,
-      "--soot": palette.surface,
-      "--steel": palette.surface,
-      "--line": palette.border,
-      "--line-strong": palette.border,
-      "--muted": palette.muted,
-      "--ink-dim": palette.muted,
-    };
-    for (const [name, value] of Object.entries(map)) root.style.setProperty(name, value);
-    // Exact tokens (nappelin's palette names its surfaces individually) win over the family map.
-    for (const [name, value] of Object.entries(tokens || {})) root.style.setProperty(name, value);
-    for (const [symbol, value] of Object.entries(AFFINITY)) {
-      root.style.setProperty(`--plate-${symbol}`, value);
-    }
+  const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  const isValue = (value) => typeof value === "string" && value.trim() !== "";
+
+  /* A THEME VALUE IS CHECKED, NEVER PASSED THROUGH. It lands in a custom property
+   * the page's CSS reads, so a url() or image-set() in it makes every viewer's
+   * browser fetch from wherever the theme points, and whoever controls a theme
+   * logs their addresses. Each token must look like what it is: a colour (hex,
+   * rgb()/hsl() with numbers only, black, white, transparent), a font family list
+   * for --headline and --mono, a length for --r. Anything else keeps the default. */
+  const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:%|deg|rad|grad|turn)?";
+  const COLOR = new RegExp("^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})"
+    + `|(?:rgba?|hsla?)\\(\\s*${NUMBER}(?:\\s*[,/]\\s*${NUMBER}|\\s+${NUMBER}){2,3}\\s*\\)`
+    + "|black|white|transparent)$", "i");
+  const FAMILY = "(?:\"[\\w .-]+\"|'[\\w .-]+'|[a-z][\\w-]*(?: [a-z][\\w-]*)*)";
+  const FONT_LIST = new RegExp(`^${FAMILY}(?:\\s*,\\s*${FAMILY})*$`, "i");
+  const LENGTH = /^(?:0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em))$/;
+  const CSS_WIDE = /^(?:inherit|initial|unset|revert|revert-layer)$/i;
+  const NEVER = /url\(|image-set\(|var\(|env\(|expression\(|[@;{}<\\\n\r\f]/i;
+
+  function tokenValue(name, value) {
+    if (!isValue(value) || value.length > 160 || NEVER.test(value)) return null;
+    const shape = name === "--r" ? LENGTH : name === "--headline" || name === "--mono" ? FONT_LIST : COLOR;
+    const clean = value.trim();
+    if (!shape.test(clean)) return null;
+    /* A CSS-wide keyword is a word too, but it names no font or colour: it would
+       hand the token to inheritance or the browser's default instead. */
+    if (CSS_WIDE.test(clean)) return null;
+    /* The shape admits `rgb(1 2 3 4)` or `hsl(10%, 20deg, 3turn)`, which a browser
+       drops, leaving the property unset instead of the default. Where the page can
+       ask, a colour the browser would not paint keeps the default. */
+    const css = globalThis.CSS;
+    if (shape === COLOR && css && typeof css.supports === "function" && !css.supports("color", clean)) return null;
+    return clean;
   }
 
+  /** The core tokens a `{ tokens }` payload names. A `colors`-only payload names none. */
+  function themeTokens(payload) {
+    const out = {};
+    /* Only the core names are read: `--ember`, `--aff-*` or `--display` in a
+     * payload are simply not looked at. */
+    const tokens = isObject(payload) && isObject(payload.tokens) ? payload.tokens : {};
+    for (const name of Object.keys(NAPPELIN_THEME.tokens)) {
+      const value = tokenValue(name, tokens[name]);
+      if (value !== null) out[name] = value;
+    }
+    return out;
+  }
+  const namesAny = (payload) => Object.keys(themeTokens(payload)).length > 0;
+
+  let painted = Object.assign({}, NAPPELIN_THEME.tokens);
+
+  /* EVERY PAINT STARTS FROM THE DEFAULTS. A guild skin that sets three tokens
+   * and is then taken off must leave nothing of itself behind, so a payload is
+   * laid over the Hypershell set rather than over whatever was painted last.
+   * The legacy names (--black, --cream, --line…) are var() aliases in 600b.css
+   * and follow on their own; the brand layer is written again after the theme,
+   * so no payload and no earlier inline style can reach it. */
+  function applyTheme(payload) {
+    const root = globalThis.document && globalThis.document.documentElement;
+    if (!root || !root.style || typeof root.style.setProperty !== "function") return;
+    const next = Object.assign({}, NAPPELIN_THEME.tokens, themeTokens(payload));
+    for (const [name, value] of Object.entries(next)) root.style.setProperty(name, value);
+    for (const [name, value] of Object.entries(BRAND)) root.style.setProperty(name, value);
+    painted = next;
+  }
+
+  /* What a roster launch was opened with, when it names anything. */
+  const launchTheme = () => {
+    const context = globalThis.nappletContext;
+    return isObject(context) && namesAny(context.theme) ? context.theme : null;
+  };
+
   const theme = {
-    tokens: () => Object.assign({}, FALLBACK_THEME),
+    /** The chrome tokens as last painted. */
+    tokens: () => Object.assign({}, painted),
     affinity: () => Object.assign({}, AFFINITY),
-    /** Paint now and repaint on every shell change. Safe to call on any page. */
+    /**
+     * Paint now and repaint on every shell change. Safe to call on any page.
+     * Sources, first that names a token wins: the theme service (`theme.get()`,
+     * or a static `theme.tokens`), then `nappletContext.theme`, then the defaults.
+     * Returns a promise only when the service answers asynchronously.
+     */
     start() {
-      if (!has("theme")) {
-        /* Inside the Hangar with no theme domain the chrome takes nappelin's
-         * tokens, not 600B's: the frame sits inside someone else's page. */
-        return embedded() ? applyTheme(NAPPELIN_THEME, NAPPELIN_THEME.tokens) : applyTheme(null);
+      applyTheme(launchTheme());
+      if (!has("theme")) return undefined;
+      const service = shell.theme;
+      let changed = false;
+      let subscribe = null;
+      if (typeof service.onChanged === "function") subscribe = (fn) => service.onChanged(fn);
+      else if (typeof shell.themeOnChanged === "function") subscribe = (fn) => shell.themeOnChanged(fn);
+      if (subscribe) {
+        /* theme.changed: guild skins arrive here, and every one is painted. */
+        try { subscribe((next) => { changed = true; applyTheme(next); }); } catch (err) { /* keeps its palette */ }
       }
-      let current = null;
-      try { current = shell.theme.colors ? shell.theme.colors : (shell.theme.get && shell.theme.get()); }
-      catch (err) { current = null; }
-      applyTheme(current);
-      const onChanged = shell.theme.onChanged || shell.themeOnChanged;
-      if (typeof onChanged === "function") {
-        try { onChanged((next) => applyTheme(next && (next.colors || next))); } catch (err) { /* fixed palette */ }
-      }
+      // A get() that answers after a change has already been pushed is stale.
+      const paint = (payload) => { if (!changed && namesAny(payload)) applyTheme(payload); };
+      let first = null;
+      try { first = typeof service.get === "function" ? service.get() : service; } catch (err) { first = null; }
+      if (first && typeof first.then === "function") return first.then(paint, () => undefined);
+      paint(first);
       return undefined;
     },
   };
@@ -753,7 +819,9 @@
         embedded: embedded(),
         identity: identity.source(),
         storage: has("storage") ? "shell" : "localStorage",
-        theme: has("theme") ? "shell" : (embedded() ? "nappelin palette" : "fallback palette"),
+        theme: has("theme") ? "shell"
+          : launchTheme() ? "launch context"
+            : (embedded() ? "nappelin palette" : "fallback palette"),
         outbox: has("outbox") ? "shell" : (globalThis.E1Net ? "relays" : "local only"),
         resource: has("resource") ? "shell" : "urls",
         table: table.available() ? "host channel" : "websocket",

@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#09080b">
+<meta name="theme-color" content="#0f0c08">
 <meta name="description" content="600B Timelock TCG ladder — Elo standings folded from nostr result events, every signature verified in your own browser.">
 <title>600B Timelock TCG — The Ladder</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="../art/fonts/plex-mono-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../art/fonts/josefin-sans-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="600b.css">
 <!-- The napplet adapter, before anything paints. It maps a shell's palette onto
      the same custom properties 600b.css already uses (never onto the five
@@ -15,20 +17,22 @@
      this page is allowed to reach for storage. On the plain website every
      optional domain is absent, which is the fallback path, not a special mode. -->
 <script src="napplet.js"></script>
+<script src="rail.js"></script>
 <script src="bugreport.js" defer></script>
-<script src="nostr-id.js" defer></script>
 <script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
 <style>
 /* Page-local only. Palette, type, nav, footer, buttons, .framed / .banner /
    .chip-num / .terminal-line all come from 600b.css — this page defines no
    colour of its own. Nothing animates here, so there is nothing for
    prefers-reduced-motion to switch off, and every network call lands on a
-   definite sentence rather than an endless spinner. */
+   definite sentence rather than an endless spinner.
+   Chrome is the Hypershell: a won match, a live referee and a verified row
+   read in brass, never green, and a loss or a refusal in rust. */
 
 .ladder-hero {
   position: relative; overflow: hidden; min-height: clamp(300px, 50vh, 540px);
   display: grid; align-content: center; padding: clamp(52px, 8vw, 108px) var(--pad);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--hairline);
 }
 .ladder-hero::before {
   content: ""; position: absolute; inset: 0;
@@ -37,97 +41,95 @@
 }
 .ladder-hero::after {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, rgba(9,8,11,.96), rgba(9,8,11,.72) 46%, rgba(9,8,11,.18) 76%),
-    linear-gradient(180deg, transparent 55%, var(--black));
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--iron) 96%, transparent),
+      color-mix(in srgb, var(--iron) 72%, transparent) 46%,
+      color-mix(in srgb, var(--iron) 18%, transparent) 76%),
+    linear-gradient(180deg, transparent 55%, var(--iron));
 }
 .ladder-hero > * { position: relative; z-index: 1; }
-.ladder-hero .lead { max-width: 720px; color: var(--cream); }
+.ladder-hero .lead { max-width: 720px; color: var(--parchment); }
 
 main { width: min(1240px, calc(100% - 32px)); margin: auto; padding: clamp(46px, 7vw, 88px) 0 60px; }
-h1 { max-width: 950px; margin: 10px 0 16px; }
-.lead { font-size: 17px; }
+/* The page title is the one Anton headline. */
+h1 { max-width: 950px; margin: 10px 0 16px; font: 400 clamp(40px, 7vw, 92px)/1 var(--display); letter-spacing: -.01em; }
+.lead { font-size: 14px; line-height: 1.75; }
 
 /* The trust model wears the card frame: double line, PCB corner pads, a steel
    type banner. It is the product, so it gets the card's own chrome. */
 .trust { margin: 30px 0 8px; }
 .trust .banner { margin-bottom: 12px; }
-.trust p { max-width: 82ch; color: var(--muted); font-size: 14.5px; }
-.trust p + p { margin-top: 9px; }
-.trust b { color: var(--cream); }
-.trust code { color: var(--power); font-family: var(--mono); font-size: 12.5px; }
+.trust p { max-width: 82ch; color: var(--body-ink); font-size: 12px; line-height: 1.75; }
+.trust p + p { margin-top: 10px; }
+.trust b { color: var(--parchment); font-weight: 600; }
+.trust code { color: var(--brass); font-family: var(--mono); font-size: 12px; }
 
-/* Three chip squares, the same square the cards wear for a number. The left
-   edge is a circuit trace, cut at the card's angle. */
+/* Three readouts. The left edge is a circuit trace, cut at the card's angle,
+   drawn in brass·3 like every other idle line. */
 .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 30px 0 20px; }
 .metric {
   position: relative; overflow: hidden; padding: 18px 18px 18px 26px;
-  background: var(--panel); border: 1px solid var(--line);
+  background: var(--panel); border: 1px solid var(--hairline);
 }
 .metric::before {
   content: ""; position: absolute; inset: 0 auto 0 0; width: 8px;
-  background: repeating-linear-gradient(165deg, var(--c) 0 12px, var(--black) 12px 19px);
+  background: repeating-linear-gradient(165deg, var(--brass-3) 0 12px, var(--iron) 12px 19px);
 }
-.metric b { display: block; color: var(--c); font: 36px/1 var(--display); }
-.metric span { color: var(--muted); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.metric b { display: block; color: var(--parchment); font: 700 32px/1.1 var(--headline); letter-spacing: .06em; }
+.metric span { color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
 
 .toolbar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  padding: 12px; background: var(--panel); border: 1px solid var(--line);
+  padding: 12px; background: var(--panel); border: 1px solid var(--hairline);
 }
 .toolbar .grp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .toolbar .grp--pull { flex: 1 1 320px; }
-.toolbar button, .file-label {
-  min-height: 42px; padding: 0 14px; cursor: pointer;
-  color: var(--cream); background: var(--black); border: 1px solid var(--line);
-  font: 900 12px/1 var(--body); letter-spacing: .07em; text-transform: uppercase;
-}
-.toolbar button:hover:not(:disabled) { border-color: var(--line-strong); }
-.toolbar button:disabled { opacity: .45; cursor: not-allowed; }
-.toolbar button.active { color: var(--black); background: var(--ember); border-color: var(--ember); }
-/* Ember means act, everywhere on this site. Left click, one job. */
-.toolbar button.go { color: var(--black); background: var(--ember); border-color: var(--ember); }
-.toolbar input[type="text"] {
-  flex: 1 1 190px; min-width: 0; min-height: 42px; padding: 0 12px;
-  color: var(--cream); background: var(--black); border: 1px solid var(--line);
-  font-family: var(--mono); font-size: 13px;
-}
-.file-label { display: inline-grid; place-items: center; color: var(--black); background: var(--purple); border-color: var(--purple); }
+.toolbar .tcg-btn { min-height: 42px; }
+.toolbar .tcg-btn:disabled { cursor: not-allowed; }
+/* A pressed sort toggle: the rail's active state, a brass line on a well. */
+.toolbar .tcg-btn.active { color: var(--parchment); background: var(--well); border-color: var(--brass); }
+/* The look is .tcg-field's (600b.css); the toolbar only sizes it. */
+.toolbar input[type="text"] { flex: 1 1 190px; min-width: 0; min-height: 42px; padding: 0 12px; }
+.file-label { display: inline-flex; align-items: center; }
 .file-label input { display: none; }
-.toolbar .danger { color: var(--danger); border-color: rgba(255, 77, 61, .4); }
-.source { flex-basis: 100%; color: var(--ink-dim); font-size: 12.5px; }
-.source.bad { color: var(--danger); }
-.source.good { color: var(--good); }
+.toolbar .danger { color: var(--rust); border-color: color-mix(in srgb, var(--rust) 50%, transparent); }
+.toolbar .danger:hover:not(:disabled) { color: var(--parchment); border-color: var(--rust); }
+.source { flex-basis: 100%; color: var(--brass-3); font-size: 12px; }
+.source.bad { color: var(--rust); }
+.source.good { color: var(--brass); }
 
-.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-top: 0; }
-table { width: 100%; border-collapse: collapse; background: rgba(17, 16, 20, .96); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-top: 0; }
+table { width: 100%; border-collapse: collapse; background: var(--panel); }
 th {
-  padding: 14px 12px; color: var(--muted); border-bottom: 1px solid var(--line);
-  font-size: 11px; letter-spacing: .12em; text-align: right; text-transform: uppercase; white-space: nowrap;
+  padding: 14px 12px; color: var(--brass-2); border-bottom: 1px solid var(--hairline);
+  font: 500 10px/1.2 var(--mono); letter-spacing: .16em; text-align: right; text-transform: uppercase; white-space: nowrap;
 }
 th:nth-child(1), th:nth-child(2) { text-align: left; }
-td { padding: 13px 12px; border-bottom: 1px solid rgba(185, 145, 228, .12); text-align: right; }
+td { padding: 13px 12px; border-bottom: 1px solid var(--divider); text-align: right; }
 td:nth-child(1), td:nth-child(2) { text-align: left; }
-tbody tr:hover td { background: rgba(185, 145, 228, .06); }
-.rank { color: var(--ember); font: 24px/1 var(--display); }
+tbody tr:hover td { background: var(--well); }
+.rank { color: var(--brass-2); font: 700 22px/1 var(--headline); letter-spacing: .04em; }
 .player { display: flex; align-items: center; gap: 10px; }
 .player > span:last-child { min-width: 0; }
-.player .nm { display: block; max-width: 30ch; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.player .nm { display: block; max-width: 30ch; overflow: hidden; color: var(--parchment); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+/* The glyph that stands in for a portrait: a square plate, never a circle. */
 .avatar {
   display: grid; flex: none; width: 34px; height: 34px; place-items: center;
-  color: var(--black); background: linear-gradient(135deg, var(--bitcoin), var(--purple));
-  font: 15px/1 var(--display); border-radius: 50%;
+  color: var(--brass); background: var(--well); border: 1px solid var(--emphasis);
+  font: 600 12px/1 var(--mono); letter-spacing: .04em;
 }
-.npub { display: block; max-width: 300px; overflow: hidden; color: var(--ink-dim);
+.npub { display: block; max-width: 300px; overflow: hidden; color: var(--brass-2);
   font: 11px/1.4 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
-.wld { font-weight: 900; white-space: nowrap; }
-.wld .w { color: var(--good); }
-.wld .l { color: var(--danger); }
-.wld .d { color: var(--ink-dim); }
-.wld i { font-style: normal; font-weight: 400; color: var(--ink-dim); }
-.won { color: var(--good); font-weight: 900; }
-.lost { color: var(--danger); font-weight: 900; }
-.net.positive { color: var(--timelock); font-weight: 900; }
-.net.negative { color: var(--danger); font-weight: 900; }
+.wld { font-weight: 600; white-space: nowrap; }
+.wld .w { color: var(--brass); }
+.wld .l { color: var(--rust); }
+.wld .d { color: var(--brass-3); }
+.wld i { font-style: normal; font-weight: 400; color: var(--brass-3); }
+.won { color: var(--brass); font-weight: 600; }
+.lost { color: var(--rust); font-weight: 600; }
+.net.positive { color: var(--brass); font-weight: 600; }
+.net.negative { color: var(--rust); font-weight: 600; }
 
 /* RIGHT CLICK = DETAILS. The full hex key, which is the thing you need to go
    and check this ladder against the relays yourself. A finger has no second
@@ -139,58 +141,59 @@ tbody tr:hover td { background: rgba(185, 145, 228, .06); }
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation;
 }
 tr.detail td {
-  background: rgba(9, 8, 11, .66); border-left: 3px solid var(--purple-deep);
-  color: var(--ink-dim); font: 12px/1.7 var(--mono); text-align: left; word-break: break-all;
+  background: var(--iron-850); border-left: 2px solid var(--brass-3);
+  color: var(--brass-2); font: 12px/1.7 var(--mono); text-align: left; word-break: break-all;
 }
-tr.detail td b { color: var(--muted); font-weight: 400; }
+tr.detail td b { color: var(--ink-quiet); font-weight: 400; }
 
-.hint { margin-top: 10px; color: var(--ink-dim); font-size: 12px; }
+.hint { margin-top: 10px; color: var(--brass-2); font-size: 12px; }
 
 /* The rejected list is not an error box, it is part of the answer. */
 .rejected {
-  margin-top: 14px; background: var(--soot);
-  border: 1px solid var(--line); border-left: 3px solid var(--danger);
+  margin-top: 14px; background: var(--panel);
+  border: 1px solid var(--hairline); border-left: 2px solid var(--rust);
 }
 .rejected > summary {
-  padding: 13px 14px; cursor: pointer; color: var(--cream); list-style: none;
-  font: 900 12px/1.3 var(--body); letter-spacing: .07em; text-transform: uppercase;
+  padding: 13px 14px; cursor: pointer; color: var(--parchment); list-style: none;
+  font: 600 11px/1.3 var(--mono); letter-spacing: .14em; text-transform: uppercase;
 }
 .rejected > summary::marker { content: ""; }
 .rejected > summary::-webkit-details-marker { display: none; }
-.rejected > summary::before { content: "\25B8\00a0"; color: var(--danger); }
+.rejected > summary::before { content: "\25B8\00a0"; color: var(--rust); }
 .rejected[open] > summary::before { content: "\25BE\00a0"; }
-.rejected ul { margin: 0; padding: 0 18px 15px 36px; color: var(--muted); font-size: 13.5px; }
+.rejected ul { margin: 0; padding: 0 18px 15px 36px; color: var(--body-ink); font-size: 12px; line-height: 1.75; }
 .rejected li { margin-bottom: 10px; }
 .rejected li:last-child { margin-bottom: 0; }
-.rejected .mid { display: block; color: var(--ink-dim); font: 11.5px/1.5 var(--mono); letter-spacing: .04em; }
+.rejected .mid { display: block; color: var(--brass-2); font: 11px/1.5 var(--mono); letter-spacing: .04em; }
 
-.empty { padding: 40px 22px; border: 1px dashed var(--line); background: rgba(17, 16, 20, .72); }
-.empty strong { display: block; margin-bottom: 10px; color: var(--cream); font: 28px/1 var(--display); text-transform: uppercase; }
-.empty p { max-width: 66ch; color: var(--muted); font-size: 14px; margin-bottom: 12px; }
-.empty ul { max-width: 66ch; margin: 0 0 4px; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.empty { padding: 40px 22px; border: 1px solid var(--hairline); background: var(--panel); }
+.empty strong { display: block; margin-bottom: 12px; color: var(--parchment); font: 700 22px/1.2 var(--headline); letter-spacing: .1em; text-transform: uppercase; }
+.empty p { max-width: 66ch; color: var(--body-ink); font-size: 12px; line-height: 1.75; margin-bottom: 12px; }
+.empty ul { max-width: 66ch; margin: 0 0 4px; padding-left: 18px; color: var(--body-ink); font-size: 12px; line-height: 1.75; }
 .empty li { margin-bottom: 7px; }
-.empty code, .note code, .secondary code { color: var(--power); font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+.empty code, .note code, .secondary code { color: var(--brass); font-family: var(--mono); font-size: 12px; word-break: break-all; }
 
 /* Everything below the ladder is a tool, not the record. It reads that way. */
-.secondary { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--line); }
-.secondary h2 { color: var(--muted); font-size: clamp(22px, 3vw, 30px); }
-.secondary > p { max-width: 74ch; margin-bottom: 18px; color: var(--ink-dim); font-size: 14px; }
+.secondary { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--divider); }
+.secondary h2 { color: var(--ink-quiet); font-size: clamp(18px, 2.4vw, 24px); }
+.secondary > p { max-width: 74ch; margin-bottom: 18px; color: var(--ink-quiet); font-size: 12px; line-height: 1.75; }
 
-/* The referee line: one sentence, always answered. */
+/* The referee line: one sentence, always answered. A reachable referee is
+   brass — "online" without a signature behind it is never green. */
 .referee {
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
   padding: 12px 14px; margin-bottom: 12px;
-  background: var(--soot); border: 1px solid var(--line); border-left: 3px solid var(--purple-deep);
-  color: var(--muted); font-size: 13px;
+  background: var(--panel); border: 1px solid var(--hairline); border-left: 2px solid var(--brass-3);
+  color: var(--body-ink); font-size: 12px;
 }
-.referee.live { border-left-color: var(--good); }
-.referee.down { border-left-color: var(--danger); }
-.referee b { color: var(--cream); font: 11px/1.3 var(--display); letter-spacing: .2em; text-transform: uppercase; }
-.referee .mono { color: var(--ink-dim); font-size: 12px; word-break: break-all; }
+.referee.live { border-left-color: var(--brass); }
+.referee.down { border-left-color: var(--rust); }
+.referee b { color: var(--brass-2); font: 500 10px/1.3 var(--mono); letter-spacing: .22em; text-transform: uppercase; }
+.referee .mono { color: var(--brass-2); font-size: 11px; word-break: break-all; }
 
-.note { margin-top: 18px; padding: 14px 18px; color: var(--muted);
-  border: 0; border-left: 3px solid var(--ember); background: rgba(255, 106, 0, .06); font-size: 13px; }
-.note b { color: var(--cream); }
+.note { margin-top: 18px; padding: 14px 18px; color: var(--body-ink);
+  border: 1px solid var(--hairline); border-left: 2px solid var(--brass); background: var(--panel); font-size: 12px; line-height: 1.75; }
+.note b { color: var(--parchment); }
 .note p { margin-bottom: 8px; }
 .note p:last-child { margin-bottom: 0; }
 
@@ -204,14 +207,14 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
   .table-wrap { overflow: visible; border: 0; }
   table, thead, tbody, tr, td { display: block; width: 100%; }
   thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); }
-  tbody tr { margin-bottom: 10px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--purple-deep); }
+  tbody tr { margin-bottom: 10px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--hairline); border-left: 2px solid var(--brass-3); }
   tbody tr:hover td { background: none; }
   td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 0; text-align: right; }
   td:nth-child(1), td:nth-child(2) { text-align: left; }
-  td::before { content: attr(data-label); color: var(--ink-dim); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+  td::before { content: attr(data-label); color: var(--brass-2); font: 500 10px/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
   td.cell-rank, td.cell-player, td.cell-detail { display: block; }
   td.cell-rank::before, td.cell-player::before, td.cell-detail::before { content: none; }
-  tr.detail { border-left-color: var(--purple); }
+  tr.detail { border-left-color: var(--brass-2); }
   tr.detail td { border-left: 0; background: none; }
   .npub { max-width: none; }
   .player .nm { max-width: none; }
@@ -223,7 +226,7 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
   main { width: calc(100% - 16px); padding-top: 26px; }
   .trust { padding: 13px; }
   .toolbar { padding: 10px; gap: 6px; }
-  .toolbar button, .file-label { padding: 0 10px; }
+  .toolbar .tcg-btn { padding: 0 10px; }
   .empty { padding: 22px 14px; }
   .rejected ul { padding: 0 14px 14px 26px; }
   tbody tr { padding: 10px 12px; }
@@ -285,14 +288,14 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
   </section>
 
   <section class="metrics" aria-label="Ladder totals">
-    <div class="metric" style="--c:var(--purple)"><b id="playerCount">0</b><span>Ranked players</span></div>
-    <div class="metric" style="--c:var(--ember)"><b id="matchCount">0</b><span>Confirmed matches</span></div>
-    <div class="metric" style="--c:var(--timelock)"><b id="satsCount">0</b><span>Sats staked (agreed, not settled)</span></div>
+    <div class="metric"><b id="playerCount">0</b><span>Ranked players</span></div>
+    <div class="metric"><b id="matchCount">0</b><span>Confirmed matches</span></div>
+    <div class="metric"><b id="satsCount">0</b><span>Sats staked (agreed, not settled)</span></div>
   </section>
 
   <div class="toolbar">
     <div class="grp">
-      <button type="button" class="go" id="refreshBtn">Refresh ladder</button>
+      <button type="button" class="tcg-btn tcg-btn--primary" id="refreshBtn">Refresh ladder</button>
     </div>
     <p class="source" id="ladderStatus" role="status">Starting up…</p>
   </div>
@@ -340,18 +343,18 @@ tr.detail td b { color: var(--muted); font-weight: 400; }
 
     <div class="toolbar">
       <div class="grp" role="group" aria-label="Sort order">
-        <button type="button" class="active" data-sort="won">Most sats won</button>
-        <button type="button" data-sort="lost">Most sats lost</button>
-        <button type="button" data-sort="net">Best net sats</button>
+        <button type="button" class="tcg-btn active" data-sort="won">Most sats won</button>
+        <button type="button" class="tcg-btn" data-sort="lost">Most sats lost</button>
+        <button type="button" class="tcg-btn" data-sort="net">Best net sats</button>
       </div>
       <form class="grp grp--pull" id="pullForm">
-        <input id="matchId" type="text" placeholder="m_0a1b2c3d4e5f" autocomplete="off" spellcheck="false"
+        <input id="matchId" class="tcg-field" type="text" placeholder="m_0a1b2c3d4e5f" autocomplete="off" spellcheck="false"
           aria-label="Finished match id to pull from the referee">
-        <button type="submit" id="pullBtn">Pull match</button>
+        <button type="submit" class="tcg-btn" id="pullBtn">Pull match</button>
       </form>
       <div class="grp">
-        <label class="file-label">Import match JSON<input id="importFile" type="file" accept="application/json"></label>
-        <button type="button" class="danger" id="clearBtn">Clear board</button>
+        <label class="tcg-btn file-label">Import match JSON<input id="importFile" type="file" accept="application/json"></label>
+        <button type="button" class="tcg-btn danger" id="clearBtn">Clear board</button>
       </div>
       <div class="source" id="sourceLabel">Source: this browser's record cache · no records loaded</div>
     </div>

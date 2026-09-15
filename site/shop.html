@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#09080b">
+<meta name="theme-color" content="#0f0c08">
 <meta name="description" content="Open 600B Timelock TCG booster packs. One committed box, published odds, auditable pulls — free demo packs during alpha.">
 <meta property="og:title" content="600B Timelock TCG — Booster Shop">
 <meta property="og:description" content="One box, one committed order, published odds. Open a pack and check the maths yourself.">
@@ -11,10 +11,12 @@
 <title>600B Timelock TCG — Booster Shop</title>
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="preload" href="../art/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="../art/fonts/plex-mono-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../art/fonts/josefin-sans-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="600b.css">
 <script src="napplet.js"></script>
+<script src="rail.js"></script>
 <script src="bugreport.js" defer></script>
-<script src="nostr-id.js" defer></script>
 <script>
 /* Painted before the first frame. Inside a shell this is the shell's palette;
  * on the website there is no shell, so it paints the 600B fallback — which is
@@ -26,6 +28,11 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
  * Shop-local styling only. The palette, the frame, the banner chips, the
  * terminal line and the buttons all come from 600b.css — nothing new is
  * invented here, the page just arranges the card frame's own parts.
+ *
+ * Chrome is the Hypershell: iron, brass, Plex Mono, square, flat, and a live
+ * mint reads in brass, never green. The pack opening is the game world, so
+ * the cards, the die, the burst and the ember charge of a rare keep the 600
+ * Billion brand — outlined, never glowing.
  * ------------------------------------------------------------------------ */
 
 /* Author-sheet display rules outrank the UA's [hidden], so state it once. */
@@ -34,7 +41,7 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 .shop-hero {
   position: relative; overflow: hidden; min-height: clamp(300px, 50vh, 540px);
   display: grid; align-content: center; padding: clamp(52px, 8vw, 108px) var(--pad);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--hairline);
 }
 .shop-hero::before {
   content: ""; position: absolute; inset: 0;
@@ -43,12 +50,17 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 }
 .shop-hero::after {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, rgba(9,8,11,.96), rgba(9,8,11,.72) 46%, rgba(9,8,11,.18) 76%),
-    linear-gradient(180deg, transparent 55%, var(--black));
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--iron) 96%, transparent),
+      color-mix(in srgb, var(--iron) 72%, transparent) 46%,
+      color-mix(in srgb, var(--iron) 18%, transparent) 76%),
+    linear-gradient(180deg, transparent 55%, var(--iron));
 }
 .shop-hero > * { position: relative; z-index: 1; }
-.shop-hero h1 { max-width: 900px; margin: 10px 0 16px; }
-.shop-hero .lead { max-width: 720px; color: var(--cream); }
+/* The page title is the one Anton headline. */
+.shop-hero h1 { max-width: 900px; margin: 10px 0 16px; font: 400 clamp(40px, 7vw, 92px)/1 var(--display); letter-spacing: -.01em; }
+.shop-hero .lead { max-width: 720px; color: var(--parchment); }
 
 /* A napplet is a panel inside somebody else's window, so the head stacks on
    the CONTAINER's width as well as the viewport's. The media query keeps the
@@ -66,22 +78,24 @@ main { container-type: inline-size; }
 @media (max-width: 900px) { .shop-head--split { grid-template-columns: minmax(0, 1fr); } }
 @container (max-width: 900px) { .shop-head--split { grid-template-columns: minmax(0, 1fr); } }
 
-.mode-demo { border-color: var(--power); }
-.mode-mint { border-color: var(--bitcoin); }
-.mode-off { border-color: var(--danger); border-style: solid; }
-.mode-off strong { color: var(--danger); }
+.mode-demo { border-color: var(--brass-3); }
+.mode-mint { border-color: var(--brass); }
+.mode-off { border-color: var(--rust); border-style: solid; }
+.mode-off strong { color: var(--rust); }
 
 /* The banner reads like the card's type banner, with the paid state on it. */
 .bay-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.state { display: inline-block; padding: 4px 10px 5px; border: 1px solid var(--line);
-  font: 10px/1.3 var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-dim); }
-.state--off { color: var(--danger); border-color: var(--danger); }
-.state--live { color: var(--good); border-color: var(--good); }
+.state { display: inline-block; padding: 4px 10px; border: 1px solid var(--emphasis);
+  font: 500 10px/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--brass-2); }
+.state--off { color: var(--rust); border-color: var(--rust); }
+/* A mint that is selling. Brass, not green: "live" without a signature behind
+   it is an ordinary state, and green belongs to the verified seat alone. */
+.state--live { color: var(--brass); border-color: var(--brass); }
 /* A mint that is genuinely in mint mode but is not the real, paying one --
    NUTFT_TEST_MINT, or a dev/staging deployment. Distinct from both "go to the
    mint" (off) and "this is real" (live): it IS a mint, it is just not this
    one. */
-.state--test { color: var(--power); border-color: var(--power); }
+.state--test { color: var(--brass-2); border-color: var(--brass-3); border-style: dashed; }
 
 /* ------------------------------------------------------------- the pack bay */
 
@@ -97,18 +111,22 @@ main { container-type: inline-size; }
    Everything here is additive: remove .bay--stage and the inline layout is
    exactly what it was. */
 .bay--stage {
-  position: fixed; inset: 0; z-index: 90; margin: 0;
+  position: fixed; z-index: 90; margin: 0;
+  /* The whole bay, not the whole window: the side bar stays where it is and
+     stays usable while a pack opens (rail.js publishes its edge as these). */
+  inset: var(--tcg-rail-top, 0px) var(--tcg-rail-right, 0px) var(--tcg-rail-bottom, 0px) var(--tcg-rail-left, 0px);
   display: grid; place-items: center;
   /* OPAQUE. This was rgba(...,.94) over the page, and .94 is not opacity, it is
      a headline and a nav bar showing faintly through the cards you just paid
      for. A colour underneath the gradient rather than inside it: the ember
-     bloom still sits behind the pack, but nothing of the page survives it. */
-  background: radial-gradient(120% 80% at 50% 42%, rgba(255,106,0,.16), rgba(9,8,11,0) 62%) #09080b;
+     bloom — the pack's own light, game world — still sits behind the pack, but
+     nothing of the page survives it. */
+  background: radial-gradient(120% 80% at 50% 42%, color-mix(in srgb, var(--ember) 16%, transparent), transparent 62%) var(--iron);
   padding: 76px 0 138px;   /* the bars own these; cards never slide under them */
-  animation: stageIn .22s ease-out;
+  animation: stageIn var(--t) ease-out;
 }
 @keyframes stageIn { from { opacity: 0 } to { opacity: 1 } }
-.bay--stage::after { display: none; }              /* the little rail is page furniture */
+.bay--stage::after { display: none; }              /* the little trace is page furniture */
 /* ROWS OF FIVE, not one long rank. A 15-card draft booster laid out the way a
    5-card pack was is fifteen slivers -- the tray divides its width by the
    number of cards, so tripling the pack thirds the card. Five to a row is also
@@ -126,7 +144,9 @@ main { container-type: inline-size; }
   grid-template-columns: repeat(var(--cols), 1fr);
   justify-items: center; align-items: end;
   --tray-gap: clamp(8px, 1.4vw, 18px);
-  width: min(1500px, 94vw, calc((100vh - 232px) * 5 / 7 * var(--cols) / var(--rows, 1)));
+  width: min(1500px,
+    calc(94vw - var(--tcg-rail-left, 0px) - var(--tcg-rail-right, 0px)),
+    calc((100vh - 232px - var(--tcg-rail-top, 0px) - var(--tcg-rail-bottom, 0px)) * 5 / 7 * var(--cols) / var(--rows, 1)));
   padding: 0;
 }
 /* The grid track owns the width here; the flex-row calc would fight it. */
@@ -139,18 +159,19 @@ main { container-type: inline-size; }
    now this button, Escape, or the backdrop, and never a click that landed on
    something. */
 .stage-x {
-  position: fixed; top: 18px; right: 18px; z-index: 93;
-  width: 44px; height: 44px; border-radius: 50%;
-  border: 1px solid var(--line); background: rgba(9,8,11,.72); color: var(--ink);
-  font-size: 22px; line-height: 1; cursor: pointer;
+  position: fixed; top: calc(18px + var(--tcg-rail-top, 0px)); right: calc(18px + var(--tcg-rail-right, 0px)); z-index: 93;
+  width: 44px; height: 44px;
+  border: 1px solid var(--brass-2); background: var(--iron); color: var(--brass);
+  font: 400 20px/1 var(--mono); cursor: pointer;
   display: grid; place-items: center;
+  transition: color var(--t) var(--ease), border-color var(--t) var(--ease);
 }
-.stage-x:hover, .stage-x:focus-visible { border-color: var(--ember); color: var(--ember); }
+.stage-x:hover, .stage-x:focus-visible { border-color: var(--parchment); color: var(--parchment); }
 /* Beside the close, not under the buttons -- at the bottom it was a third line
    of text competing with the two that can actually be acted on. */
 .bay--stage-note {
-  position: fixed; top: 32px; right: 76px; z-index: 91;
-  color: var(--ink-dim); font-size: 11px; letter-spacing: .1em;
+  position: fixed; top: calc(32px + var(--tcg-rail-top, 0px)); right: calc(76px + var(--tcg-rail-right, 0px)); z-index: 91;
+  color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .16em;
   text-transform: uppercase; pointer-events: none;
 }
 @media (max-width: 560px) { .bay--stage-note { display: none; } }
@@ -160,36 +181,38 @@ main { container-type: inline-size; }
    not duplicated -- so "open next" keeps every rule about price, allowlist and
    sold-out that the page button already answers to. */
 html:has(.bay--stage) #packCta {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 92;
+  position: fixed; left: var(--tcg-rail-left, 0px); right: var(--tcg-rail-right, 0px); bottom: var(--tcg-rail-bottom, 0px); z-index: 92;
   margin: 0; gap: 14px; justify-content: center;
   padding: 22px 20px calc(26px + env(safe-area-inset-bottom, 0px));
-  /* Fades into the stage rather than drawing a line across it: a hard edge
-     under the pack reads as a second window. */
-  background: linear-gradient(to top, #09080b 62%, rgba(9,8,11,0));
+  /* Flat iron, the stage's own ground below the bloom, so the bar needs no
+     line: a hard edge under the pack reads as a second window. */
+  background: var(--iron);
 }
 /* The pack is the product, so its button is not the same size as a page one. */
-html:has(.bay--stage) #packCta .btn { padding: 13px 26px; font-size: 15px; }
-html:has(.bay--stage) #packCta .btn--small { padding: 10px 18px; font-size: 13px; }
+html:has(.bay--stage) #packCta .tcg-btn { padding: 14px 26px; font-size: 12px; }
+html:has(.bay--stage) #packCta .btn--small { padding: 10px 18px; font-size: 11px; }
 html:has(.bay--stage) #packNote {
-  position: fixed; left: 0; right: 0; bottom: 92px; z-index: 92;
-  margin: 0; padding: 0 16px; font-size: 15px;
+  position: fixed; left: var(--tcg-rail-left, 0px); right: var(--tcg-rail-right, 0px); bottom: calc(92px + var(--tcg-rail-bottom, 0px)); z-index: 92;
+  margin: 0; padding: 0 16px; font-size: 13px;
 }
 /* The pack number belongs to the pack, so it comes onto the stage with it. */
 html:has(.bay--stage) #packSlot {
-  position: fixed; top: 30px; left: 28px; z-index: 92;
+  position: fixed; top: calc(30px + var(--tcg-rail-top, 0px)); left: calc(28px + var(--tcg-rail-left, 0px)); z-index: 92;
   margin: 0; text-align: left;
 }
 
 /* The die. A pack is a settled question you have not read yet, so it arrives as
    something being rolled and then stops being a die. It is decoration with a
    job: it covers the moment the cards are dealt face down, which otherwise
-   reads as the page stuttering. */
+   reads as the page stuttering. Game world: ember edge, Anton pips, its own
+   roll timing — and weight from a drop shadow, not a glow. */
 .pack-die {
   position: absolute; width: clamp(84px, 12vh, 132px); aspect-ratio: 1;
   display: grid; place-items: center; z-index: 92;
-  color: var(--ember); background: linear-gradient(150deg, rgba(38,35,48,.98), rgba(13,12,16,.98));
+  color: var(--ember); background: var(--iron-800);
   border: 2px solid var(--ember);
-  box-shadow: 0 0 0 1px rgba(9,8,11,.9), 0 26px 60px rgba(0,0,0,.6);
+  outline: 1px solid var(--iron);
+  filter: drop-shadow(0 26px 60px rgba(0,0,0,.6));
   font: 700 clamp(26px, 4.4vh, 44px)/1 var(--display);
   animation: dieRoll .82s cubic-bezier(.3,.9,.3,1) forwards;
 }
@@ -207,16 +230,20 @@ html:has(.bay--stage) #packSlot {
   .pack-die { animation: none; opacity: 1; transform: none; }
   .bay--stage { animation: none; }
 }
+/* The trace under the pack: one bus, two stubs. It switches to ember while a
+   rare charges — a colour change, not a glow. */
+.bay { --trace: var(--emphasis); }
+.bay--charged { --trace: var(--ember); }
 .bay::after {
   content: ""; position: absolute; left: 4%; right: 4%; bottom: 12px; height: 9px;
   pointer-events: none;
   background:
-    linear-gradient(90deg, transparent, var(--line-strong) 12%, var(--line-strong) 88%, transparent) 0 100% / 100% 1px no-repeat,
-    linear-gradient(var(--line-strong), var(--line-strong)) 26% 0 / 1px 100% no-repeat,
-    linear-gradient(var(--line-strong), var(--line-strong)) 74% 0 / 1px 100% no-repeat;
-  opacity: .75; transition: opacity .3s ease;
+    linear-gradient(var(--trace), var(--trace)) 0 100% / 100% 1px no-repeat,
+    linear-gradient(var(--trace), var(--trace)) 26% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--trace), var(--trace)) 74% 0 / 1px 100% no-repeat;
+  opacity: .75; transition: opacity var(--t) var(--ease);
 }
-.bay--charged::after { opacity: 1; filter: drop-shadow(0 0 6px rgba(255, 106, 0, .8)); }
+.bay--charged::after { opacity: 1; }
 
 /* Cards sit on an arc — the straight rank is godless. JS writes --rot/--lift
    per card and --n for the row width, exactly as the table does. */
@@ -241,18 +268,20 @@ html:has(.bay--stage) #packSlot {
 .pull:hover, .pull:focus-visible { transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 10px)) scale(1.04); z-index: 4; }
 .pull__inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.2, .8, .25, 1); }
 .pull.flipped .pull__inner { transform: rotateY(180deg); }
-.pull__face { position: absolute; inset: 0; backface-visibility: hidden; border: 1px solid var(--line); background: var(--soot); }
+.pull__face { position: absolute; inset: 0; backface-visibility: hidden; border: 1px solid var(--hairline); background: var(--iron-850); }
 .pull__face img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pull__front { transform: rotateY(180deg); }
 
 /* The escalation: a common turns straight over, better cards charge first.
    The deal uses the INDEPENDENT translate/scale properties, never `transform`
    — the arc owns transform on .pull and the flip owns it on .pull__inner, and
-   a filled keyframe on either would quietly cancel them. */
+   a filled keyframe on either would quietly cancel them. The charge and the
+   reveal are game world, so they stay ember — drawn as an outline that steps
+   out and back, never as a glow. */
 @keyframes pullDeal { from { opacity: 0; translate: 0 30px; scale: .93; } to { opacity: 1; translate: none; scale: none; } }
 @keyframes pullCharge {
-  0%, 100% { box-shadow: 0 0 0 1px var(--line); }
-  50% { box-shadow: 0 0 0 2px var(--ember), 0 0 26px rgba(255, 106, 0, .55); }
+  0%, 100% { outline: 1px solid var(--hairline); outline-offset: 0; }
+  50% { outline: 2px solid var(--ember); outline-offset: 3px; }
 }
 @keyframes pullBurst { from { opacity: .9; transform: translate(-50%, -50%) scale(.4); } to { opacity: 0; transform: translate(-50%, -50%) scale(2.4); } }
 .pull { animation: pullDeal .3s ease-out backwards; animation-delay: calc(var(--i, 0) * .055s); }
@@ -261,32 +290,33 @@ html:has(.bay--stage) #packSlot {
 .pull.rarity-vault.charging .pull__back,
 .pull.rarity-genesis.charging .pull__back { animation-duration: .3s; }
 
+/* The burst is square, like everything else: no radius anywhere. */
 .pull__burst {
-  position: absolute; left: 50%; top: 50%; width: 100%; aspect-ratio: 1; border-radius: 50%;
+  position: absolute; left: 50%; top: 50%; width: 100%; aspect-ratio: 1;
   border: 2px solid var(--ember); opacity: 0; pointer-events: none;
   transform: translate(-50%, -50%) scale(.4);
 }
 .pull.flipped.rarity-rare .pull__burst,
 .pull.flipped.rarity-vault .pull__burst,
 .pull.flipped.rarity-genesis .pull__burst { animation: pullBurst .85s ease-out .2s 1 both; }
-.pull.flipped.rarity-uncommon .pull__burst { border-color: var(--purple); animation: pullBurst .7s ease-out .2s 1 both; }
+.pull.flipped.rarity-uncommon .pull__burst { border-color: var(--brass-2); animation: pullBurst .7s ease-out .2s 1 both; }
 
 .pull__rarity {
   position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%); white-space: nowrap;
-  padding: 3px 8px; background: var(--steel); color: #cfd6dd;
-  font: 9px/1 var(--display); letter-spacing: .16em; opacity: 0; transition: opacity .3s ease .42s;
+  padding: 3px 8px; background: var(--iron-750); color: var(--parchment);
+  font: 500 9px/1 var(--mono); letter-spacing: .16em; opacity: 0; transition: opacity var(--t) ease .42s;
 }
 .pull.flipped .pull__rarity { opacity: 1; }
-.pull.rarity-uncommon.flipped .pull__front { box-shadow: 0 0 0 2px var(--purple), 0 0 22px rgba(185, 145, 228, .5); }
+.pull.rarity-uncommon.flipped .pull__front { outline: 2px solid var(--brass-2); }
 .pull.rarity-rare.flipped .pull__front,
 .pull.rarity-vault.flipped .pull__front,
-.pull.rarity-genesis.flipped .pull__front { box-shadow: 0 0 0 2px var(--ember), 0 0 34px rgba(255, 106, 0, .75); }
+.pull.rarity-genesis.flipped .pull__front { outline: 2px solid var(--ember); }
 .pull.rarity-rare.flipped .pull__rarity,
 .pull.rarity-vault.flipped .pull__rarity,
-.pull.rarity-genesis.flipped .pull__rarity { background: var(--ember); color: var(--black); }
+.pull.rarity-genesis.flipped .pull__rarity { background: var(--ember); color: var(--iron); }
 .pull__new {
-  position: absolute; right: -4px; top: -7px; padding: 2px 5px;
-  background: var(--power); color: var(--black); font: 900 9px/1 var(--body); letter-spacing: .1em;
+  position: absolute; right: -4px; top: -7px; padding: 3px 5px;
+  background: var(--brass); color: var(--iron); font: 600 9px/1 var(--mono); letter-spacing: .12em;
 }
 
 /* Reduced motion: the same information, delivered at once and held still. */
@@ -294,87 +324,96 @@ html:has(.bay--stage) #packSlot {
   .pull, .pull:hover, .pull:focus-visible { transition: none; transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)); }
   .pull { animation: none; }
   .pull__burst { display: none; }
-  .pull.charging .pull__back { animation: none; box-shadow: 0 0 0 2px var(--ember); }
+  .pull.charging .pull__back { animation: none; outline: 2px solid var(--ember); }
   .pull__rarity { transition: none; }
 }
 
-.pack-note { min-height: 24px; margin-top: 4px; text-align: center; color: var(--muted); font-size: 14px; }
-.pack-note.is-rare { color: var(--ember); }
-.pack-note.is-error { color: var(--danger); }
+.pack-note { min-height: 24px; margin-top: 4px; text-align: center; color: var(--ink-quiet); font-size: 13px; }
+.pack-note.is-rare { color: var(--brass); }
+.pack-note.is-error { color: var(--rust); }
 .purchase-error {
   max-width: 720px;
   margin: 12px auto 4px;
   padding: 12px 14px;
   text-align: left;
-  border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--line));
-  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--rust) 55%, var(--hairline));
+  border-left: 2px solid var(--rust);
+  background: var(--panel);
 }
 .purchase-error strong, .purchase-error div, .purchase-error code { display: block; }
-.purchase-error strong { margin-bottom: 4px; }
-.purchase-error__safety { margin-top: 6px; color: var(--muted); }
+.purchase-error strong { margin-bottom: 4px; color: var(--parchment); }
+.purchase-error__safety { margin-top: 6px; color: var(--ink-quiet); }
 .purchase-error__diagnostic {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--line);
-  color: var(--ink-dim);
+  border-top: 1px solid var(--divider);
+  color: var(--brass-2);
   font: 11px/1.45 var(--mono);
   overflow-wrap: anywhere;
 }
-/* The scannable code a phone actually needs. Cream background and real
+/* The scannable code a phone actually needs. Parchment background and real
    padding beyond the encoder's own quiet zone -- contrast is what fails
    first under a bar light or a cracked screen, not resolution. */
-.pack-note .qr { display: block; margin: 10px auto; width: min(220px, 70%); background: var(--cream); padding: 8px; }
+.pack-note .qr { display: block; margin: 10px auto; width: min(220px, 70%); background: var(--parchment); padding: 8px; }
 .pack-cta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 10px; }
 .reveal-pages { display: flex; gap: 10px; align-items: center; justify-content: center; }
 .reveal-pages[hidden] { display: none; }
-.reveal-pages__label { min-width: 92px; text-align: center; color: var(--ink-dim); }
+.reveal-pages__label { min-width: 92px; text-align: center; color: var(--brass-3); }
 html:has(.bay--set-stage) #openPack,
 html:has(.bay--set-stage) #resetBox { display: none; }
-.slot { margin-top: 6px; text-align: right; color: var(--ink-dim); font-family: var(--mono); font-size: 11px; letter-spacing: .06em; }
+.slot { margin-top: 6px; text-align: right; color: var(--brass-2); font-family: var(--mono); font-size: 11px; letter-spacing: .06em; }
 
 /* Box depletion, drawn as a trace filling up. */
-.meter { height: 4px; margin-top: 16px; background: var(--soot); border: 1px solid var(--line); }
-.meter i { display: block; height: 100%; background: var(--ember); transition: width .4s ease; }
+.meter { height: 4px; margin-top: 16px; background: var(--well); border: 1px solid var(--hairline); }
+.meter i { display: block; height: 100%; background: var(--brass-2); transition: width var(--t-slow) var(--ease); }
 
 /* --------------------------------------------------------------- the facts */
 
 .facts { display: grid; gap: 2px; }
-.fact { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
-.fact span { color: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-size: 11px; font-weight: 900; }
-.fact b { font-family: var(--mono); font-weight: 400; font-size: 12px; word-break: break-all; text-align: right; }
+.fact { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--divider); font-size: 12px; }
+.fact span { color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.fact b { color: var(--parchment); font-family: var(--mono); font-weight: 400; font-size: 12px; word-break: break-all; text-align: right; }
 .odds { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 /* Wider than a bare percentage needs, because a tier tile carries the number it
    was COMPUTED from as well: a share with no copy count behind it is exactly
    the thing this page exists not to ask you to take on faith. */
-.odd { flex: 1 1 118px; text-align: center; padding: 8px 10px; background: var(--soot); border: 1px solid var(--line); }
-.odd b { display: block; font: 20px/1 var(--display); color: var(--power); }
-.odd span { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-.odd i { display: block; margin-top: 5px; font-style: normal; font-family: var(--mono); font-size: 10px; color: var(--ink-dim); }
+.odd { flex: 1 1 118px; text-align: center; padding: 8px 10px; background: var(--panel); border: 1px solid var(--hairline); }
+.odd b { display: block; font: 700 20px/1.1 var(--headline); letter-spacing: .04em; color: var(--parchment); }
+.odd span { font: 500 10px/1.4 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--brass-2); }
+.odd i { display: block; margin-top: 5px; font-style: normal; font-family: var(--mono); font-size: 10px; color: var(--brass-2); }
 /* The live figure sits under the print run, quieter than it, because the run is
    the promise and this is only where the box has got to. <u> without the
    underline: it is a distinct kind of statement, not emphasis. */
 .odd__left { display: block; margin-top: 3px; text-decoration: none;
-  font-family: var(--mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-dim); }
-.odd.rarity-uncommon { border-color: var(--purple); }
-.odd.rarity-rare { border-color: var(--ember); }
-.odd.rarity-rare b { color: var(--ember); }
+  font-family: var(--mono); font-size: 10px; letter-spacing: .04em; color: var(--brass-2); }
+.odd.rarity-uncommon { border-color: var(--brass-3); }
+.odd.rarity-rare { border-color: var(--brass); }
+.odd.rarity-rare b { color: var(--brass); }
 
 /* ------------------------------------------------------------- the proof */
 
 .proof-hash {
   display: block; margin: 16px 0 12px; padding: 14px 16px;
-  background: var(--soot); border: 1px solid var(--line); border-left: 3px solid var(--ember);
-  font-family: var(--mono); font-size: clamp(11px, 2.5vw, 14px); line-height: 1.7;
-  word-break: break-all; color: var(--cream);
+  background: var(--well); border: 1px solid var(--hairline); border-left: 2px solid var(--brass);
+  font-family: var(--mono); font-size: clamp(11px, 2.5vw, 13px); line-height: 1.7;
+  word-break: break-all; color: var(--parchment);
 }
-.proof-hash small { display: block; margin-bottom: 6px; color: var(--ink-dim); font: 900 10px/1 var(--body); letter-spacing: .18em; text-transform: uppercase; }
-.verdict { margin-top: 12px; font-family: var(--mono); font-size: 13px; color: var(--muted); }
-.verdict.ok { color: var(--good); }
-.verdict.bad { color: var(--danger); }
+.proof-hash small { display: block; margin-bottom: 8px; color: var(--brass-2); font: 500 10px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; }
+/* A verified box is brass: a checked result is an ordinary fact here, and the
+   one green on the site belongs to the table seat. */
+.verdict { margin-top: 12px; font-family: var(--mono); font-size: 12px; color: var(--ink-quiet); }
+.verdict.ok { color: var(--brass); }
+.verdict.bad { color: var(--rust); }
 
-.muted { color: var(--muted); font-size: 14px; }
+.muted { color: var(--ink-quiet); font-size: 12px; }
 .tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 4px; }
-.tool-note { color: var(--muted); font-size: 13px; min-height: 20px; }
+.tool-note { color: var(--ink-quiet); font-size: 12px; min-height: 20px; }
+/* Panels that are links read as one surface; the headings and copy are the
+   page's own spacing. */
+a.tcg-panel { display: block; text-decoration: none; color: inherit; transition: border-color var(--t) var(--ease); }
+a.tcg-panel:hover { color: inherit; border-color: var(--brass); }
+.tcg-panel h3 { margin-bottom: 8px; }
+.tcg-panel p { color: var(--ink-quiet); font-size: 12px; line-height: 1.75; }
 /* The two answer lines moved into the pack panel with the pulls they describe.
    They hold their line while empty, so a sentence arriving never shunts the
    panel it is attached to. */
@@ -388,8 +427,8 @@ html:has(.bay--set-stage) #resetBox { display: none; }
 /* `.chip` shouts in capitals, and an npub is never written that way. bech32 is
    case-insensitive, so a shouted npub reads as a different string to anyone
    comparing it against what their extension shows them. */
-#nostrWho { font-family: var(--mono); text-transform: none; letter-spacing: .02em; color: var(--cream); }
-.npub-full { margin: 6px 0 0; font-size: 12px; color: var(--cream); word-break: break-all; }
+#nostrWho { font-family: var(--mono); text-transform: none; letter-spacing: .02em; color: var(--parchment); }
+.npub-full { margin: 6px 0 0; font-size: 12px; color: var(--parchment); word-break: break-all; }
 
 /* ------------------------------------------------------------ starter sets */
 
@@ -400,21 +439,21 @@ html:has(.bay--set-stage) #resetBox { display: none; }
 
 /* ------------------------------------------------------------ pull history */
 
-.hists { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
-.hist { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 12px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--line); }
-.hist__n { font: 12px/1 var(--display); letter-spacing: .12em; color: var(--ember); }
-.hist__box { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); letter-spacing: .04em; }
+.hists { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--divider); }
+.hist { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 12px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--divider); }
+.hist__n { font: 600 12px/1 var(--mono); letter-spacing: .12em; color: var(--brass); }
+.hist__box { font-family: var(--mono); font-size: 11px; color: var(--brass-2); letter-spacing: .04em; }
 .hist__cards { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
 /* These are <button> elements so a keyboard can reach them; the reset below is
    what keeps them looking like the chips they replaced. font: inherit matters —
    a button does not inherit the page font, and without it every chip renders in
    the UA's default face at the UA's default size. */
-.hist__c { padding: 2px 7px; border: 1px solid var(--line); background: var(--soot); color: var(--muted); font-size: 12px; cursor: pointer;
+.hist__c { padding: 2px 7px; border: 1px solid var(--hairline); background: var(--panel); color: var(--ink-quiet); font-size: 11px; cursor: pointer;
   font-family: inherit; line-height: inherit; text-align: left; border-radius: 0; appearance: none;
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
-.hist__c.rarity-uncommon { border-color: var(--purple); color: var(--purple); }
-.hist__c.rarity-rare, .hist__c.rarity-vault, .hist__c.rarity-genesis { border-color: var(--ember); color: var(--ember); }
-.hist__c i { font-style: normal; margin-left: 6px; color: var(--power); font-size: 9px; font-weight: 900; letter-spacing: .1em; }
+.hist__c.rarity-uncommon { border-color: var(--brass-3); color: var(--brass-2); }
+.hist__c.rarity-rare, .hist__c.rarity-vault, .hist__c.rarity-genesis { border-color: var(--brass); color: var(--brass); }
+.hist__c i { font-style: normal; margin-left: 6px; color: var(--brass); font-size: 9px; font-weight: 600; letter-spacing: .1em; }
 @media (min-width: 720px) {
   .hist { grid-template-columns: auto auto auto minmax(0, 1fr); }
   .hist__cards { grid-column: auto; }
@@ -428,12 +467,12 @@ html:has(.bay--set-stage) #resetBox { display: none; }
 }
 
 @media (max-width: 420px) {
-  .pack-cta .btn { flex: 1 1 100%; text-align: center; }
-  .pack-cta .reveal-pages .btn { flex: 0 1 auto; }
+  .pack-cta .tcg-btn { flex: 1 1 100%; text-align: center; }
+  .pack-cta .reveal-pages .tcg-btn { flex: 0 1 auto; }
 }
 @container (max-width: 420px) {
-  .pack-cta .btn { flex: 1 1 100%; text-align: center; }
-  .pack-cta .reveal-pages .btn { flex: 0 1 auto; }
+  .pack-cta .tcg-btn { flex: 1 1 100%; text-align: center; }
+  .pack-cta .reveal-pages .tcg-btn { flex: 0 1 auto; }
 }
 
 /* Below ~360px the shop collapses: the arc keeps its shape on smaller cards
@@ -524,11 +563,11 @@ html:has(.bay--set-stage) #resetBox { display: none; }
              to be turned away by. Nothing below it depends on it — the free
              pack opens with no extension and no signature. -->
         <div class="netid" id="mintIdentity" hidden>
-          <button class="btn btn--ghost btn--small" id="nostrLogin" type="button">Sign in with nostr</button>
-          <span class="chip" id="nostrWho" hidden></span>
-          <button class="btn btn--ghost btn--small" id="nostrCheck" type="button" hidden>Check my early access</button>
-          <button class="btn btn--ghost btn--small" id="copyNpub" type="button" hidden>Copy my npub</button>
-          <button class="btn btn--ghost btn--small" id="nostrLogout" type="button" hidden>Forget my key</button>
+          <button class="tcg-btn btn--small" id="nostrLogin" type="button">Sign in with nostr</button>
+          <span class="tcg-chip" id="nostrWho" hidden></span>
+          <button class="tcg-btn btn--small" id="nostrCheck" type="button" hidden>Check my early access</button>
+          <button class="tcg-btn btn--small" id="copyNpub" type="button" hidden>Copy my npub</button>
+          <button class="tcg-btn btn--small" id="nostrLogout" type="button" hidden>Forget my key</button>
         </div>
         <p class="tool-note" id="mintIdentityNote" role="status" aria-live="polite"></p>
         <!-- Shown only when the clipboard is unavailable. The chip above is
@@ -543,14 +582,14 @@ html:has(.bay--set-stage) #resetBox { display: none; }
         <p class="pack-note" id="packNote" role="status" aria-live="polite"></p>
 
         <div class="pack-cta" id="packCta">
-          <button class="btn" id="openPack" type="button">Open a free pack</button>
+          <button class="tcg-btn tcg-btn--primary" id="openPack" type="button">Open a free pack</button>
           <span class="reveal-pages" id="revealPages" hidden>
-            <button class="btn btn--ghost btn--small" id="revealPrev" type="button">Previous page</button>
+            <button class="tcg-btn btn--small" id="revealPrev" type="button">Previous page</button>
             <span class="reveal-pages__label mono" id="revealPageLabel" role="status"></span>
-            <button class="btn btn--ghost btn--small" id="revealNext" type="button">Next page</button>
+            <button class="tcg-btn btn--small" id="revealNext" type="button">Next page</button>
           </span>
-          <button class="btn btn--ghost btn--small" id="revealAll" type="button" hidden>Turn them all over</button>
-          <button class="btn btn--ghost btn--small" id="resetBox" type="button" hidden>Reset demo box</button>
+          <button class="tcg-btn btn--small" id="revealAll" type="button" hidden>Turn them all over</button>
+          <button class="tcg-btn btn--small" id="resetBox" type="button" hidden>Reset demo box</button>
         </div>
 
         <div class="meter" aria-hidden="true"><i id="boxFill" style="width:100%"></i></div>
@@ -612,7 +651,7 @@ html:has(.bay--set-stage) #resetBox { display: none; }
              button follows when the box runs out. A control that looks live and
              does nothing is the thing this page exists not to be. -->
         <div class="pack-cta">
-          <button class="btn" id="buyStarter" type="button" disabled>Checking the G mint…</button>
+          <button class="tcg-btn tcg-btn--primary" id="buyStarter" type="button" disabled>Checking the G mint…</button>
         </div>
 
         <p class="pack-note" id="starterBuyNote" role="status" aria-live="polite"></p>
@@ -620,7 +659,7 @@ html:has(.bay--set-stage) #resetBox { display: none; }
         <div class="note mode-off" id="starterState" style="margin-top:12px">—</div>
       </div>
 
-      <aside class="panel">
+      <aside class="tcg-panel">
         <h3>The promo</h3>
         <p id="starterPromoLine">—</p>
         <div class="starter-promo"><img class="face" id="starterPromoFace" alt=""></div>
@@ -628,11 +667,11 @@ html:has(.bay--set-stage) #resetBox { display: none; }
     </div>
 
     <div class="grid grid--3" style="margin-top:24px">
-      <div class="panel">
+      <div class="tcg-panel">
         <h3>1 · What a set is</h3>
         <p id="starterPanel1">—</p>
       </div>
-      <div class="panel">
+      <div class="tcg-panel">
         <h3>2 · The strong ones</h3>
         <p id="starterPanel2">—</p>
       </div>
@@ -640,7 +679,7 @@ html:has(.bay--set-stage) #resetBox { display: none; }
            against E1's Genesis print run. A heading over an em dash is worse
            than no panel — it promises a third point and delivers a
            placeholder. renderStarter shows it. -->
-      <div class="panel" id="starterPanel3Box" hidden>
+      <div class="tcg-panel" id="starterPanel3Box" hidden>
         <h3>3 · Edition One does not move</h3>
         <p id="starterPanel3">—</p>
       </div>
@@ -655,19 +694,19 @@ html:has(.bay--set-stage) #resetBox { display: none; }
       <p class="lead">Card shops ask you to trust them. This one hands you the receipt instead.</p>
 
       <div class="grid grid--3">
-        <div class="panel">
+        <div class="tcg-panel">
           <h3>1 · The order was fixed first</h3>
           <p>The box was shuffled once, from a published seed, and then fingerprinted with SHA-256.
           That fingerprint went public before the first pack was opened. Move one card and the whole
           fingerprint changes — there is no quiet edit.</p>
         </div>
-        <div class="panel">
+        <div class="tcg-panel">
           <h3>2 · Packs come off the top</h3>
           <p>Every pack takes the next cards in that fixed order. No re-roll when you are lucky, no
           top-up when you are not, no card held back for someone else. The counter above is your place
           in the box.</p>
         </div>
-        <div class="panel">
+        <div class="tcg-panel">
           <h3>3 · You check it, not us</h3>
           <p>Press the button below. Your browser hashes the entire card order itself and compares the
           result with the published fingerprint. If they match, this box is the box that was promised.</p>
@@ -685,19 +724,19 @@ html:has(.bay--set-stage) #resetBox { display: none; }
       <p class="lead">Card shops ask you to trust them. This one hands you the receipt instead.</p>
 
       <div class="grid grid--3">
-        <div class="panel">
+        <div class="tcg-panel">
           <h3>1 · The print run was fixed first</h3>
           <p>Every numbered card's print run went into a census, and the census was fingerprinted with
           SHA-256 before the first pack was sold. Change one copy count and the whole fingerprint
           changes — there is no quiet reprint.</p>
         </div>
-        <div class="panel">
+        <div class="tcg-panel">
           <h3>2 · Supply only runs down</h3>
           <p>Each pack takes fourteen numbered cards out of whatever is left, by a rule that is the same
           rule for everybody, plus one free Basic. Nothing is ever put back. The mint publishes what
           remains, card by card, with a rolling hash over every pack it has sold.</p>
         </div>
-        <div class="panel">
+        <div class="tcg-panel">
           <h3>3 · You check it, not us</h3>
           <p>Press the button below. Your browser fetches the mint's signed catalog, adds up the print
           runs it is actually selling from, and re-hashes them. If that matches the published
@@ -709,8 +748,8 @@ html:has(.bay--set-stage) #resetBox { display: none; }
     <div class="proof-hash"><small id="commitLabel">Published box fingerprint · SHA-256</small><span id="boxCommit">—</span></div>
 
     <div class="btn-row">
-      <button class="btn" id="verifyBox" type="button">Verify this box in my browser</button>
-      <button class="btn btn--ghost btn--small" id="copyCommit" type="button">Copy the fingerprint</button>
+      <button class="tcg-btn tcg-btn--primary" id="verifyBox" type="button">Verify this box in my browser</button>
+      <button class="tcg-btn btn--small" id="copyCommit" type="button">Copy the fingerprint</button>
     </div>
     <!-- The page's central verdict, and the only status node here that was
          never announced. Its three siblings — packNote, storeNote, stackNote —
@@ -730,8 +769,8 @@ html:has(.bay--set-stage) #resetBox { display: none; }
         <div class="fact"><span>Rolling state hash</span><b id="mintRoll">—</b></div>
       </div>
       <div class="tools">
-        <button class="btn btn--ghost btn--small" id="refreshState" type="button">Read the mint's state again</button>
-        <a class="btn btn--ghost btn--small" id="stateLink" href="#" rel="noopener">Open /nutft/state raw</a>
+        <button class="tcg-btn btn--small" id="refreshState" type="button">Read the mint's state again</button>
+        <a class="tcg-btn btn--small" id="stateLink" href="#" rel="noopener">Open /nutft/state raw</a>
       </div>
       <p class="tool-note" id="mintStateNote" role="status" aria-live="polite"></p>
     </div>
@@ -764,12 +803,12 @@ html:has(.bay--set-stage) #resetBox { display: none; }
            is not minted and never reaches it; promising otherwise would send a
            demo player to an empty page looking for the pack they just opened.
            The note below is where that player is answered. -->
-      <a class="panel panel--act" href="wallet.html">
+      <a class="tcg-panel tcg-panel--emph" href="wallet.html">
         <h3>The wallet →</h3>
         <p>Cards the mint has issued you, counted: how many, how many of them different, how many spare.
         A pack bought from the mint lands there the moment the mint issues it.</p>
       </a>
-      <a class="panel" href="deck.html">
+      <a class="tcg-panel" href="deck.html">
         <h3>The Stack Builder →</h3>
         <p>Where cards become a Stack. A left click — or a tap — on any card above adds it to the
         <b>Booster pulls</b> Stack; open the builder and press Load.</p>
@@ -778,7 +817,7 @@ html:has(.bay--set-stage) #resetBox { display: none; }
            (engine.js copyLimit, rulebook §7): three per card, one for a Genesis
            card, uncapped for Basic Resources. Telling collectors otherwise sold
            them a fifth copy the Stack Builder will refuse. -->
-      <div class="panel">
+      <div class="tcg-panel">
         <h3>What a spare is worth</h3>
         <p>A Stack may hold four copies of a card — one of a Genesis card, and as many Basic Resources as
         it needs (§7). Duplicates up to that line are playable rather than dead weight.</p>
@@ -823,9 +862,9 @@ html:has(.bay--set-stage) #resetBox { display: none; }
   <section class="section section--tight">
     <h2>How the <span class="accent">NutFT mint</span> works</h2>
     <div class="grid grid--3">
-      <div class="panel"><h3>1 · Request a pack</h3><p>The store asks the NutFT-aware mint for one output per card. Demo payment is deliberately out of scope.</p></div>
-      <div class="panel"><h3>2 · Verify the proofs</h3><p>The wallet verifies amount 1, the collection unit, the CardBinding inside the secret, P2BK, and the mint's DLEQ proof.</p></div>
-      <div class="panel"><h3>3 · Read the catalog</h3><p>Cards remain bearer proofs. The wallet fetches the Blossom manifest to display artwork and metadata; game rules stay outside the token.</p></div>
+      <div class="tcg-panel"><h3>1 · Request a pack</h3><p>The store asks the NutFT-aware mint for one output per card. Demo payment is deliberately out of scope.</p></div>
+      <div class="tcg-panel"><h3>2 · Verify the proofs</h3><p>The wallet verifies amount 1, the collection unit, the CardBinding inside the secret, P2BK, and the mint's DLEQ proof.</p></div>
+      <div class="tcg-panel"><h3>3 · Read the catalog</h3><p>Cards remain bearer proofs. The wallet fetches the Blossom manifest to display artwork and metadata; game rules stay outside the token.</p></div>
     </div>
     <!-- Was static and unconditional: "Demo mode is free... This demo does not
          move real money" printed even while looking straight at a mint that

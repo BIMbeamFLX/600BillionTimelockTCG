@@ -1,9 +1,15 @@
 """Repository layout contracts for generated website entry points."""
 
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
+NODE = shutil.which("node")
 
 
 def test_static_site_pages_live_together() -> None:
@@ -49,6 +55,39 @@ def test_rulebook_article_does_not_repeat_the_hero_title() -> None:
 
     assert "<article><h1>600B Timelock TCG</h1>" not in rulebook
     assert rulebook.count("<h1>") == 1
+
+
+@pytest.mark.skipif(
+    NODE is None or not (REPO_ROOT / "node_modules" / "marked").is_dir(),
+    reason="node and the npm packages (npm install) build the rulebook",
+)
+def test_rulebook_builds_the_same_page_from_crlf_and_lf_sources(tmp_path: Path) -> None:
+    """A Windows (CRLF) and a Linux (LF) checkout generate site/rules.html byte for byte.
+
+    The title strip used to miss a CRLF blank line, and a Windows build then listed the
+    page's own "Edition One Rules" heading as the first entry of its contents.
+    """
+    source = (REPO_ROOT / "rules" / "600B-Timelock-TCG-Rulebook-E1.md").read_bytes()
+    lf = source.replace(b"\r\n", b"\n")
+    env = {**os.environ, "NODE_PATH": str(REPO_ROOT / "node_modules")}
+    pages = {}
+    for name, body in (("lf", lf), ("crlf", lf.replace(b"\n", b"\r\n"))):
+        root = tmp_path / name
+        (root / "scripts").mkdir(parents=True)
+        (root / "rules").mkdir()
+        shutil.copyfile(
+            REPO_ROOT / "scripts" / "build-rulebook.cjs", root / "scripts" / "build-rulebook.cjs"
+        )
+        (root / "rules" / "600B-Timelock-TCG-Rulebook-E1.md").write_bytes(body)
+        script = str(root / "scripts" / "build-rulebook.cjs")
+        result = subprocess.run([NODE, script], capture_output=True, text=True, env=env)
+        assert result.returncode == 0, result.stderr
+        pages[name] = (root / "site" / "rules.html").read_bytes()
+
+    assert pages["crlf"] == pages["lf"]
+    assert b'href="#edition-one-rules"' not in pages["lf"]
+    committed = (REPO_ROOT / "site" / "rules.html").read_bytes().replace(b"\r\n", b"\n")
+    assert pages["lf"] == committed, "site/rules.html is not what the build writes"
 
 
 def _declared_z_index(css: str, selector: str) -> int:
@@ -129,7 +168,9 @@ def test_stack_builder_rejects_imported_stake_module_cards_before_save() -> None
     """A handoff can bypass the card picker, so Save must enforce the base ruleset too."""
     builder = (REPO_ROOT / "site" / "deck.html").read_text(encoding="utf-8")
 
-    assert 'if (isStake(byId[id])) return `${byId[id].name}: Stake module is not enabled`' in builder
+    assert (
+        "if (isStake(byId[id])) return `${byId[id].name}: Stake module is not enabled`" in builder
+    )
 
 
 def test_shop_uses_the_lnurl_success_action_claim() -> None:

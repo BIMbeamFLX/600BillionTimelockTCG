@@ -184,47 +184,311 @@ test("NIP-44 stays inside the signer and disappears cleanly when unavailable", a
 
 // ------------------------------------------------------------------- theme
 
-test("without a theme domain the fallback palette is painted", () => {
+/* The 600 Billion brand layer as the contract fixes it. No theme may move these. */
+const BRAND = {
+  "--display": "Anton600, Impact, sans-serif",
+  "--ember": "#ff6a00",
+  "--aff-power": "#f3c244",
+  "--aff-bitcoin": "#f7931a",
+  "--aff-keys": "#fff7ec",
+  "--aff-signal": "#7447b8",
+  "--aff-timelock": "#17bebb",
+  "--aff-neutral": "#8a8f98",
+};
+const assertBrand = (doc, why) => {
+  for (const [name, value] of Object.entries(BRAND)) assert.equal(doc.__set.get(name), value, `${name}: ${why}`);
+};
+
+test("without a theme domain the Hypershell defaults are painted, brand layer included", () => {
   const doc = stubRoot();
   const N = load({ localStorage: memoryStorage().api, document: doc });
   N.theme.start();
-  assert.equal(doc.__set.get("--black"), "#09080B");
-  assert.equal(doc.__set.get("--ember"), "#FF6A00");
-  assert.equal(doc.__set.get("--cream"), "#FFF7EC");
+  assert.equal(doc.__set.get("--iron"), "#0f0c08");
+  assert.equal(doc.__set.get("--brass"), "#e7bf76");
+  assert.equal(doc.__set.get("--parchment"), "#ece3d0");
+  assert.equal(doc.__set.get("--signal"), "#6de8a6", "signal is green now");
+  assertBrand(doc, "the website paints the brand layer too");
+  assert.deepEqual(Object.keys(N.theme.tokens()).sort(), Object.keys(N.NAPPELIN_THEME.tokens).sort());
+  assert.equal(N.theme.affinity().S, "#7447b8", "the Signal Plate stays purple");
 });
 
-test("a shell theme repaints the chrome but can never repaint an affinity", () => {
-  /* The five Plate colours are how a player reads the board and they must match
-   * the printed cards, so they are brand-fixed by the spec. A shell that themes
-   * them would make the game unreadable in a way the player cannot fix. */
+/* What today's Hangar answers theme.get() with, verbatim: its own default, sent to
+ * every napplet before a Hypershell theme service exists. Painting it made every
+ * brass control blue. */
+const LIVE_HANGAR_THEME = { colors: { background: "#0a0a0a", text: "#e0e0e0", primary: "#7aa2f7" } };
+const assertDefaults = (N, doc, why) => {
+  for (const [name, value] of Object.entries(N.NAPPELIN_THEME.tokens)) assert.equal(doc.__set.get(name), value, `${name}: ${why}`);
+  assertBrand(doc, why);
+};
+
+test("a colours-only theme, like today's Hangar sends, keeps every Hypershell token", async () => {
+  const sources = [
+    ["an async theme.get()", { napplet: { theme: { get: async () => LIVE_HANGAR_THEME } } }],
+    ["a sync theme.get()", { napplet: { theme: { get: () => LIVE_HANGAR_THEME } } }],
+    ["bare colours", { napplet: { theme: { get: async () => LIVE_HANGAR_THEME.colors } } }],
+    ["a static theme object", { napplet: { theme: LIVE_HANGAR_THEME } }],
+    ["the launch context", { nappletContext: { theme: LIVE_HANGAR_THEME } }],
+  ];
+  for (const [why, env] of sources) {
+    const doc = stubRoot();
+    const N = load(Object.assign({ localStorage: memoryStorage().api, document: doc }, env));
+    await N.theme.start();
+    assertDefaults(N, doc, why);
+    assert.equal(N.theme.tokens()["--brass"], "#e7bf76", `${why}: brass stays brass`);
+    for (const legacy of ["--black", "--cream", "--panel-2", "--muted", "--line"]) {
+      assert.equal(doc.__set.has(legacy), false, `${legacy} is a CSS alias now, never written`);
+    }
+  }
+
+  // Pushed through theme.changed it takes a skin off and paints the defaults, nothing blue.
+  const doc = stubRoot();
+  let handler = null;
+  const N = load({ localStorage: memoryStorage().api, document: doc, napplet: { theme: { onChanged: (fn) => { handler = fn; } } } });
+  N.theme.start();
+  handler({ tokens: { "--brass": "#9fc3ff" } });
+  assert.equal(doc.__set.get("--brass"), "#9fc3ff");
+  handler(LIVE_HANGAR_THEME);
+  assertDefaults(N, doc, "theme.changed with colours only");
+});
+
+test("a tokens payload sets exactly the nineteen core names and nothing of the brand", async () => {
+  const doc = stubRoot();
+  const tokens = {
+    "--iron": "#101010", "--brass": "#b0b0ff", "--brass-2": "#9090ff", "--brass-3": "#7070ff",
+    "--parchment": "#fafafa", "--signal": "#00ff00", "--panel": "rgba(1,1,1,.03)", "--well": "rgba(2,2,2,.05)",
+    "--divider": "rgba(3,3,3,.12)", "--hairline": "rgba(4,4,4,.14)", "--emphasis": "rgba(5,5,5,.25)",
+    "--body-ink": "rgba(6,6,6,.82)", "--headline": "Georgia, serif", "--mono": "monospace", "--r": "0",
+    "--iron-850": "#151515", "--iron-800": "#1a1a1a", "--iron-750": "#202020", "--rust": "#cc4444",
+    // Everything below is outside the core set and must be ignored.
+    "--ember": "#0000ff", "--aff-signal": "#00ff00", "--display": "Comic Sans MS", "--ink-quiet": "#123456",
+    "--soot": "#654321", "--black": "#ffffff",
+  };
+  const N = load({
+    localStorage: memoryStorage().api,
+    document: doc,
+    // The real service answers with a promise (@napplet/core ThemeApi.get).
+    napplet: { theme: { get: async () => ({ colors: { background: "#999999" }, tokens }) } },
+  });
+  await N.theme.start();
+  for (const name of Object.keys(N.NAPPELIN_THEME.tokens)) assert.equal(doc.__set.get(name), tokens[name], name);
+  assert.equal(doc.__set.get("--iron"), "#101010", "the colours beside the tokens are not read");
+  for (const name of ["--ink-quiet", "--soot", "--black"]) assert.equal(doc.__set.has(name), false, name);
+  assertBrand(doc, "a tokens payload cannot name its way into the brand layer");
+  assert.equal(N.theme.tokens()["--brass"], "#b0b0ff", "tokens() reports what was painted");
+  assert.equal(N.report().theme, "shell");
+});
+
+test("a colour the browser would not paint keeps the default where the page can ask", async () => {
+  const doc = stubRoot();
+  const asked = [];
+  const N = load({
+    CSS: { supports: (property, value) => { asked.push([property, value]); return value !== "rgb(1 2 3 4)"; } },
+    localStorage: memoryStorage().api,
+    document: doc,
+    napplet: { theme: { get: async () => ({ tokens: { "--brass": "rgb(1 2 3 4)", "--brass-2": "#9090ff", "--r": "2px" } }) } },
+  });
+  await N.theme.start();
+  assert.equal(doc.__set.get("--brass"), N.NAPPELIN_THEME.tokens["--brass"], "a shape-valid colour the browser refuses keeps the default");
+  assert.equal(doc.__set.get("--brass-2"), "#9090ff", "a colour the browser paints applies");
+  assert.equal(doc.__set.get("--r"), "2px", "lengths are not asked as colours");
+  assert.deepEqual(asked.map(([property]) => property).filter((p) => p !== "color"), [], "only colours are asked");
+});
+
+test("a CSS-wide keyword never stands in for a font or a colour", async () => {
+  for (const keyword of ["inherit", "initial", "unset", "revert", "revert-layer", "INHERIT"]) {
+    const doc = stubRoot();
+    const N = load({
+      localStorage: memoryStorage().api,
+      document: doc,
+      napplet: { theme: { get: async () => ({ tokens: { "--headline": keyword, "--mono": keyword, "--brass": keyword } }) } },
+    });
+    await N.theme.start();
+    for (const name of ["--headline", "--mono", "--brass"]) {
+      assert.equal(doc.__set.get(name), N.NAPPELIN_THEME.tokens[name], `${name}: ${keyword} keeps the default`);
+    }
+  }
+});
+
+/* The three doors a theme comes through. Each paints `payload` into a fresh page and
+ * hands back the adapter and the properties it wrote. */
+const THEME_DOORS = {
+  "theme.get": async (payload) => {
+    const doc = stubRoot();
+    const N = load({ localStorage: memoryStorage().api, document: doc, napplet: { theme: { get: async () => payload } } });
+    await N.theme.start();
+    return { N, doc };
+  },
+  "nappletContext.theme": async (payload) => {
+    const doc = stubRoot();
+    const N = load({ localStorage: memoryStorage().api, document: doc, nappletContext: { theme: payload } });
+    N.theme.start();
+    return { N, doc };
+  },
+  "theme.changed": async (payload) => {
+    const doc = stubRoot();
+    let handler = null;
+    const N = load({ localStorage: memoryStorage().api, document: doc, napplet: { theme: { onChanged: (fn) => { handler = fn; } } } });
+    N.theme.start();
+    handler(payload);
+    return { N, doc };
+  },
+};
+
+const BS = String.fromCharCode(92);
+/* A value in a custom property can make every viewer's browser fetch, and whoever
+ * set it sees who asked. None of these may be written, whatever else is around it. */
+const REFUSED_THEME_VALUES = [
+  "url(http://theme.example/pixel.png)",
+  "URL(http://theme.example/pixel.png)",
+  "image-set(url(http://theme.example/a.png) 1x)",
+  "-webkit-image-set(url(http://theme.example/a.png) 1x)",
+  "var(--brass)",
+  "env(safe-area-inset-top)",
+  "expression(alert(1))",
+  "@import url(http://theme.example/x.css)",
+  "#0f0c08; background: url(http://theme.example/x)",
+  "#0f0c08 }",
+  "{ color: #0f0c08",
+  "<style>",
+  BS + "75rl(http://theme.example/x)",
+  "#0f0c08" + BS,
+  "#0f0c08\nbody { background: #fff }",
+  "#0f0c08\r",
+  "rgb(var(--x), 0, 0)",
+];
+const THEMED = ["--iron", "--brass", "--brass-3", "--panel", "--well", "--headline", "--mono", "--r"];
+
+test("a theme value that could fetch anything keeps the default, through every door", async () => {
+  for (const [door, paint] of Object.entries(THEME_DOORS)) {
+    for (const bad of REFUSED_THEME_VALUES) {
+      const tokens = Object.fromEntries(THEMED.map((name) => [name, bad]));
+      tokens["--divider"] = "#123456"; // one good value, so the payload is known to be read
+      const { N, doc } = await paint({ tokens });
+      const why = `${door} ${JSON.stringify(bad)}`;
+      assert.equal(doc.__set.get("--divider"), "#123456", `${why}: the good value beside it applies`);
+      for (const name of THEMED) {
+        assert.equal(doc.__set.get(name), N.NAPPELIN_THEME.tokens[name], `${why}: ${name} keeps its default`);
+        assert.equal(N.theme.tokens()[name], N.NAPPELIN_THEME.tokens[name], `${why}: tokens() says so too`);
+      }
+      assertBrand(doc, why);
+    }
+  }
+});
+
+test("a theme value of the wrong kind keeps the default", async () => {
+  const wrong = [
+    ["--iron", "\"Josefin Sans\""], ["--brass", "red"], ["--brass-2", "#12345"], ["--well", "rgb(1, 2)"],
+    ["--panel", "calc(1px + 2px)"], ["--mono", "#0f0c08"], ["--headline", "\"Josefin\" Sans"],
+    ["--r", "#fff"], ["--r", "calc(1px)"], ["--r", "10%"], ["--signal", 42],
+  ];
+  for (const [door, paint] of Object.entries(THEME_DOORS)) {
+    for (const [name, value] of wrong) {
+      const { N, doc } = await paint({ tokens: { [name]: value, "--divider": "#123456" } });
+      assert.equal(doc.__set.get(name), N.NAPPELIN_THEME.tokens[name], `${door}: ${name} ${JSON.stringify(value)}`);
+      assert.equal(doc.__set.get("--divider"), "#123456", door);
+    }
+  }
+});
+
+test("every allowed colour, font list and length still applies, through every door", async () => {
+  const allowed = [
+    ["--iron", "#fff"], ["--iron", "#ffff"], ["--iron", "#0a0b0c"], ["--iron", "#0A0B0C80"],
+    ["--brass", "rgb(1, 2, 3)"], ["--brass", "rgba(231,191,118,.03)"], ["--brass", "rgb(10 20 30 / 50%)"],
+    ["--brass-2", "hsl(120deg, 50%, 50%)"], ["--brass-2", "hsla(120, 50%, 50%, 0.5)"],
+    ["--panel", "transparent"], ["--parchment", "white"], ["--signal", "Black"],
+    ["--headline", "\"Josefin Sans\", Georgia, sans-serif"], ["--mono", "'IBM Plex Mono', ui-monospace, monospace"],
+    ["--mono", "monospace"], ["--headline", "Times New Roman, serif"],
+    ["--r", "0"], ["--r", "2px"], ["--r", ".25rem"], ["--r", "1.5em"],
+  ];
+  for (const [door, paint] of Object.entries(THEME_DOORS)) {
+    for (const [name, value] of allowed) {
+      const { N, doc } = await paint({ tokens: { [name]: `  ${value} ` } });
+      assert.equal(doc.__set.get(name), value, `${door}: ${name} ${value}`);
+      assert.equal(N.theme.tokens()[name], value);
+      assertBrand(doc, door);
+    }
+  }
+});
+
+test("theme.changed repaints on every change, from the defaults, and a stale get() loses", async () => {
+  const doc = stubRoot();
+  let handler = null;
+  let answer = null;
+  const N = load({
+    localStorage: memoryStorage().api,
+    document: doc,
+    napplet: {
+      theme: {
+        get: () => new Promise((resolve) => { answer = resolve; }),
+        onChanged: (fn) => { handler = fn; return { close() {} }; },
+      },
+    },
+  });
+  const started = N.theme.start();
+  assert.equal(typeof handler, "function", "a theme change must be subscribed to");
+  assert.equal(doc.__set.get("--iron"), "#0f0c08", "the defaults hold until the service answers");
+
+  // A guild skin ("SEC") arrives, then another change takes it off again.
+  handler({ tokens: { "--iron": "#050a14", "--brass": "#9fc3ff", "--ember": "#00ff00" } });
+  assert.equal(doc.__set.get("--iron"), "#050a14");
+  assert.equal(doc.__set.get("--brass"), "#9fc3ff");
+  assertBrand(doc, "a skin never touches the brand layer");
+  handler({ tokens: { "--iron": "#111111" } });
+  assert.equal(doc.__set.get("--iron"), "#111111", "and repainted when it changes");
+  assert.equal(doc.__set.get("--brass"), "#e7bf76", "the skin's brass is gone: every paint starts from the defaults");
+
+  answer({ tokens: { "--iron": "#222222" } });
+  await started;
+  assert.equal(doc.__set.get("--iron"), "#111111", "a get() that answers after a pushed change is stale");
+  assertBrand(doc, "still never the brand layer");
+});
+
+test("a static tokens object and the older themeOnChanged hook still work", () => {
   const doc = stubRoot();
   let handler = null;
   const N = load({
     localStorage: memoryStorage().api,
     document: doc,
     napplet: {
-      theme: {
-        colors: { background: "#ffffff", text: "#000000", primary: "#0000ff", surface: "#eeeeee" },
-        onChanged: (fn) => { handler = fn; },
-      },
+      theme: { tokens: { "--iron": "#ffffff", "--parchment": "#000000", "--brass": "#0000ff", "--well": "#eeeeee" } },
+      themeOnChanged: (fn) => { handler = fn; },
     },
   });
   N.theme.start();
-  assert.equal(doc.__set.get("--black"), "#ffffff", "the shell owns the chrome");
-  assert.equal(doc.__set.get("--ember"), "#0000ff", "the single ACTION colour, not the legacy alias");
-  assert.equal(doc.__set.get("--orange"), "#0000ff", "and the alias is kept in step");
-  assert.equal(doc.__set.get("--steel"), "#eeeeee", "surfaces are a family, not one token");
-  assert.equal(doc.__set.get("--panel-2"), "#eeeeee");
-  assert.equal(doc.__set.get("--plate-B"), "#F7931A", "and never the affinities");
-  assert.equal(doc.__set.get("--plate-T"), "#17BEBB");
-
-  assert.equal(typeof handler, "function", "a theme change must be subscribed to");
-  handler({ colors: { background: "#111111" } });
-  assert.equal(doc.__set.get("--black"), "#111111", "and repainted when it changes");
-  assert.equal(doc.__set.get("--plate-B"), "#F7931A", "still never the affinities");
+  assert.equal(doc.__set.get("--iron"), "#ffffff", "the shell owns the chrome");
+  assert.equal(doc.__set.get("--brass"), "#0000ff", "brass is the shell's, never the card world's ember");
+  assert.equal(doc.__set.get("--well"), "#eeeeee");
+  assertBrand(doc, "and never the affinities");
+  handler({ tokens: { "--iron": "#333333" } });
+  assert.equal(doc.__set.get("--iron"), "#333333");
 });
 
-test("a shell that offers a broken theme domain still gets a painted page", () => {
+test("the launch context's theme is read when the service has none", async () => {
+  const context = { roster: true, theme: { tokens: { "--iron": "#0a0a0a", "--brass": "#d4a24c" } } };
+  const plain = stubRoot();
+  const N = load({ localStorage: memoryStorage().api, document: plain, nappletContext: context });
+  N.theme.start();
+  assert.equal(plain.__set.get("--iron"), "#0a0a0a");
+  assert.equal(plain.__set.get("--brass"), "#d4a24c");
+  assert.equal(N.report().theme, "launch context");
+
+  // The service comes first when it names something; when it answers empty, the context stays.
+  const served = stubRoot();
+  await load({
+    localStorage: memoryStorage().api, document: served, nappletContext: context,
+    napplet: { theme: { get: async () => ({ tokens: { "--iron": "#1b1b1b" } }) } },
+  }).theme.start();
+  assert.equal(served.__set.get("--iron"), "#1b1b1b");
+  assert.equal(served.__set.get("--brass"), "#e7bf76", "the service's theme replaces the context's, not merges");
+  const empty = stubRoot();
+  await load({
+    localStorage: memoryStorage().api, document: empty, nappletContext: context,
+    napplet: { theme: { get: async () => ({}) } },
+  }).theme.start();
+  assert.equal(empty.__set.get("--iron"), "#0a0a0a");
+});
+
+test("a shell that offers a broken theme domain still gets a painted page", async () => {
   const doc = stubRoot();
   const N = load({
     localStorage: memoryStorage().api,
@@ -232,7 +496,30 @@ test("a shell that offers a broken theme domain still gets a painted page", () =
     napplet: { theme: { get() { throw new Error("no theme"); } } },
   });
   N.theme.start();
-  assert.equal(doc.__set.get("--black"), "#09080B", "a thrown theme falls back, it does not blank");
+  assert.equal(doc.__set.get("--iron"), "#0f0c08", "a thrown theme falls back, it does not blank");
+  const rejected = stubRoot();
+  await load({
+    localStorage: memoryStorage().api,
+    document: rejected,
+    napplet: { theme: { get: async () => { throw new Error("declined"); } } },
+  }).theme.start();
+  assert.equal(rejected.__set.get("--iron"), "#0f0c08", "a rejected theme falls back too");
+});
+
+test("the adapter's defaults are 600b.css's values, and only palette values", () => {
+  /* Two files carry the Hypershell defaults. A comment saying "must match" is
+   * how they drift, so the stylesheet's :root is read here and compared. */
+  const css = fs.readFileSync(path.join(HERE, "../../site/600b.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const N = load({ localStorage: memoryStorage().api, document: stubRoot() });
+  const norm = (v) => v.replace(/\s+/g, "").replace(/(^|[,(])0\./g, "$1.").toLowerCase();
+  for (const [name, value] of Object.entries(N.NAPPELIN_THEME.tokens)) {
+    const declared = css.match(new RegExp(`${name}:\\s*([^;]+);`));
+    assert.ok(declared, `600b.css declares ${name}`);
+    assert.equal(norm(declared[1]), norm(value), name);
+  }
+  const all = JSON.stringify(N.NAPPELIN_THEME) + SOURCE;
+  for (const stray of ["#1a150e", "#c9b48a", "#1f1911", "#15110c"]) assert.equal(all.includes(stray), false, stray);
+  assert.ok(Object.isFrozen(N.NAPPELIN_THEME.tokens), "the defaults cannot be edited from a page");
 });
 
 // ------------------------------------------------------------------ outbox
@@ -368,20 +655,17 @@ test("embedded() is the prelude object, the roster context, or ?embed=1 — and 
   assert.equal(load(base()).escape(), false, "no host, no escape — the page keeps its own links");
 });
 
-test("under embed with no shell theme, nappelin's tokens are painted, not 600B's", () => {
+test("under embed with no shell theme, nappelin's tokens are painted and the brand stays 600B's", () => {
   const doc = stubRoot();
   const N = load({ localStorage: memoryStorage().api, document: doc, napplet: {} });
   N.theme.start();
-  assert.equal(doc.__set.get("--black"), "#0f0c08", "iron");
-  assert.equal(doc.__set.get("--cream"), "#ece3d0", "parchment");
-  assert.equal(doc.__set.get("--ember"), "#e7bf76", "brass is the action colour");
-  assert.equal(doc.__set.get("--panel-2"), "#1f1911", "the exact token beats the surface family");
-  assert.equal(doc.__set.get("--good"), "#6de8a6");
-  assert.equal(doc.__set.get("--plate-B"), "#F7931A", "affinities are still never themed");
+  for (const [name, value] of Object.entries(N.NAPPELIN_THEME.tokens)) assert.equal(doc.__set.get(name), value, name);
+  assert.equal(doc.__set.get("--well"), "rgba(231,191,118,.05)", "the surface is the well, a palette value");
+  assertBrand(doc, "affinities, ember and the display face are still never themed");
   assert.equal(N.report().theme, "nappelin palette");
   const preview = stubRoot();
   load({ localStorage: memoryStorage().api, document: preview, location: { search: "?embed=1" } }).theme.start();
-  assert.equal(preview.__set.get("--black"), "#0f0c08", "the local preview paints the same");
+  assert.equal(preview.__set.get("--iron"), "#0f0c08", "the local preview paints the same");
 });
 
 // ---------------------------------------------------------- outbox (shell)

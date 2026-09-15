@@ -36,7 +36,7 @@
   }
 })();
 </script>
-<meta name="theme-color" content="#09080b">
+<meta name="theme-color" content="#0f0c08">
 <meta name="color-scheme" content="dark">
 <meta name="description" content="Free browser trading card game about Bitcoin, Nostr and open systems. 295 Edition One cards, hotseat or NPC opponent, online duels over nostr. No account, no download.">
 <meta property="og:site_name" content="600B Timelock TCG">
@@ -53,64 +53,73 @@
 <link rel="icon" href="../art/brand/600B-logo-primary.png">
 <link rel="apple-touch-icon" href="../art/brand/600B-logo-primary.png">
 <link rel="stylesheet" href="600b.css">
+<!-- The napplet adapter, then the side bar. They come after the return-visit
+     gate above on purpose: a visitor who is being sent straight on should not
+     wait on either. Inside a shell rail.js does nothing, the shell has a bar. -->
+<script src="napplet.js"></script>
+<script src="rail.js"></script>
+<script>if (globalThis.E1Napplet) E1Napplet.theme.start();</script>
 <style>
 /* A full-screen cinematic gate. The video never autoplays with sound — a
    Play click is the gesture that unlocks audio everywhere — and a Skip is
-   always one press away. When the film ends (or errors), the site opens. */
+   always one press away. When the film ends (or errors), the site opens.
+
+   "Full screen" means the bay: the side bar keeps its edge, and the film, the
+   gate and the HUD all stand clear of it (rail.js publishes the edge as
+   --tcg-rail-top/right/bottom/left, 0 when there is no bar). Chrome here is
+   the Hypershell — mono buttons, square, flat; the title, the mark, the poster
+   and the film are 600 Billion. */
 html, body { height: 100%; }
 body.intro {
-  margin: 0; background: var(--black, #09080b); overflow: hidden;
+  margin: 0; background: var(--iron); overflow: hidden;
   display: grid; place-items: center;
 }
+/* A video is a replaced element: it does not stretch between left and right,
+   so its box is spelled out as a size, not as four insets. */
 .intro__film {
-  position: fixed; inset: 0; width: 100%; height: 100%;
-  object-fit: contain; background: #000;
+  position: fixed;
+  top: var(--tcg-rail-top, 0px); left: var(--tcg-rail-left, 0px);
+  width: calc(100% - var(--tcg-rail-left, 0px) - var(--tcg-rail-right, 0px));
+  height: calc(100% - var(--tcg-rail-top, 0px) - var(--tcg-rail-bottom, 0px));
+  object-fit: contain; background: var(--iron);
 }
 
 /* The gate: logo, title, Enter and Play, over a dimmed poster. The poster is
    also the film's own poster frame, so hiding the gate does not flash black
    while a cold, unbuffered video spins up. */
 .intro__gate {
-  position: fixed; inset: 0; z-index: 2;
+  position: fixed; z-index: 2;
+  inset: var(--tcg-rail-top, 0px) var(--tcg-rail-right, 0px) var(--tcg-rail-bottom, 0px) var(--tcg-rail-left, 0px);
   display: grid; place-content: center; justify-items: center; gap: 20px;
   text-align: center; padding: 24px;
   background:
-    radial-gradient(60% 60% at 50% 42%, rgba(9,8,11,.55), rgba(9,8,11,.9)),
+    radial-gradient(60% 60% at 50% 42%, color-mix(in srgb, var(--iron) 55%, transparent), color-mix(in srgb, var(--iron) 90%, transparent)),
     url("../art/site/intro-poster.webp") center / cover no-repeat;
-  animation: introIn .5s ease-out both;
+  animation: introIn var(--t-slow) ease-out both;
 }
 @keyframes introIn { from { opacity: 0; } to { opacity: 1; } }
-.intro__mark { width: 96px; height: 96px; filter: drop-shadow(0 10px 30px rgba(0,0,0,.7)); }
+.intro__mark { width: 96px; height: 96px; }
+/* The 600 Billion title: Anton, the brand face. */
 .intro__title {
-  margin: 0; font: clamp(28px, 6vw, 56px)/1 var(--display, "Anton", system-ui);
-  letter-spacing: .04em; text-transform: uppercase; color: var(--cream, #fff7ec);
+  margin: 0; font: 400 clamp(28px, 6vw, 56px)/1 var(--display);
+  letter-spacing: .04em; text-transform: uppercase; color: var(--parchment);
 }
-.intro__tagline { margin: -8px 0 6px; color: var(--muted, #b7b0bd); font-size: clamp(13px, 2vw, 16px); letter-spacing: .06em; }
+.intro__tagline { margin: -8px 0 6px; color: var(--body-ink); font: 400 clamp(12px, 1.6vw, 14px)/1.6 var(--mono); letter-spacing: .04em; }
 .intro__buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-/* The shared .btn measures 42px at this size — the two choices on the front
-   door are the targets that matter most on a phone, so they clear 44 like the
-   HUD pills do. Flex only to keep the label centred once a min-height applies. */
-.intro__buttons .btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-height: 44px; font-size: 16px;
-}
+/* The two choices on the front door are the targets that matter most on a
+   phone, so they clear 44px like the HUD controls do. */
+.intro__buttons .tcg-btn { min-height: 44px; }
 
 /* The HUD that rides over the running film: mute, then skip.
    Both are real targets — 44px is the floor, and the old skip pill was 12px of
-   type in about 32px of chrome, a control you had to aim at on a phone. */
+   type in about 32px of chrome, a control you had to aim at on a phone. They
+   are buttons like every other (.tcg-btn), on solid iron so they read over
+   any frame of the film. */
 .intro__hud {
-  position: fixed; top: 18px; right: 18px; z-index: 3;
+  position: fixed; top: calc(18px + var(--tcg-rail-top, 0px)); right: calc(18px + var(--tcg-rail-right, 0px)); z-index: 3;
   display: flex; gap: 10px; align-items: center;
 }
-.intro__ctl {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 44px; min-height: 44px; padding: 0 18px; cursor: pointer;
-  background: rgba(9,8,11,.62); color: var(--cream, #fff7ec);
-  border: 1px solid rgba(255,255,255,.28); border-radius: 999px;
-  font: 13px/1 var(--display, "Anton", system-ui); letter-spacing: .14em; text-transform: uppercase;
-  backdrop-filter: blur(6px); transition: background .2s, border-color .2s;
-}
-.intro__ctl:hover, .intro__ctl:focus-visible { background: rgba(31,26,39,.85); border-color: var(--ember, #ff6a00); }
+.intro__ctl { min-width: 44px; min-height: 44px; padding: 0 18px; background: var(--iron); }
 [hidden] { display: none !important; }
 
 @media (prefers-reduced-motion: reduce) { .intro__gate { animation: none; } }
@@ -149,14 +158,14 @@ body.intro {
          film is the offer beside it, priced honestly at its real runtime — it
          is 72.64 s, and the old copy called it "a one-minute intro". -->
     <div class="intro__buttons">
-      <a class="btn" href="index.html" id="enter">Enter the site</a>
-      <button class="btn btn--ghost" id="start" type="button">▶ Play intro (1:13)</button>
+      <a class="tcg-btn tcg-btn--primary" href="index.html" id="enter">Enter the site</a>
+      <button class="tcg-btn" id="start" type="button">▶ Play intro (1:13)</button>
     </div>
   </section>
 
   <div class="intro__hud" id="hud" hidden>
-    <button class="intro__ctl" id="mute" type="button">Mute</button>
-    <button class="intro__ctl" id="skip" type="button" aria-label="Skip the intro and open the site">Skip ↦</button>
+    <button class="tcg-btn intro__ctl" id="mute" type="button">Mute</button>
+    <button class="tcg-btn intro__ctl" id="skip" type="button" aria-label="Skip the intro and open the site">Skip ↦</button>
   </div>
 
 <script>
