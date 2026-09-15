@@ -49,7 +49,7 @@ motion keeps its timing, but their colours follow the split above.
 
 nappelin has no napplet CSS base yet, so the Hypershell components live under a local prefix and
 can be swapped for the real base later: `.tcg-btn` (`--primary`, `[aria-disabled="true"]`),
-`.tcg-chip` (`--live` is the one green dot), `.tcg-panel` (`--emph`), `.tcg-field`, `.tcg-label`,
+`.tcg-chip`, `.tcg-panel` (`--emph`), `.tcg-field`, `.tcg-label`,
 `hr.tcg-steps` (the stepped divider). The site's older classes use the same rules: `.btn` is the
 primary button, `.btn--ghost` the outline one, `.chip`, `.panel` and `.panel--act`, `.eyebrow` is a
 label. A chip that names an affinity shows its Plate colour in its square dot.
@@ -87,7 +87,8 @@ single-file napplet as a data URL. Anton stays a TTF there, because the repo ven
 ## Guards
 
 `tests/test_hypershell_brand.py` checks `site/600b.css` strictly: tokens and values, aliases,
-fonts, the components, no forbidden face, radius or shadow, green only on the live chip, no ember.
+fonts, the components, no forbidden face, radius or shadow, no green (the one green dot is drawn by
+`site/rail.js`) and no ember.
 It checks each page's own CSS too, as an advisory check. `tests/js/napplet.test.mjs` compares the
 adapter's defaults with the stylesheet and pins the theme reader and its value checks.
 

@@ -223,12 +223,8 @@ button, select, input, textarea { font: inherit; }
 .tcg-chip::before, .chip::before { content: ""; flex: none; width: 7px; height: 7px; background: var(--aff, var(--brass-3)); }
 .chip--on { color: var(--brass); border-color: var(--brass-2); }
 .chip--on::before { background: var(--aff, var(--brass)); }
-/* THE GREEN LAW. --signal means verified, live or on — and in this game only
-   the table seat whose login the referee accepted. One per view, at most. */
-.tcg-chip--live { color: var(--parchment); }
-.tcg-chip--live::before { background: var(--signal); animation: tcg-keel 2.4s ease-in-out infinite; }
-@keyframes tcg-keel { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .tcg-chip--live::before { animation: none; } }
+/* THE GREEN LAW. --signal means verified, live or on, and in this game it marks
+   one thing: the side bar's account dot (site/rail.js). This sheet draws no green. */
 
 /* Panel: the faintest brass wash behind a hairline; emphasized takes the stronger line. */
 .tcg-panel, .panel { padding: 18px; background: var(--panel); border: 1px solid var(--hairline); }
