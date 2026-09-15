@@ -3009,13 +3009,28 @@
    * did the thing. Runs once; "Skip tour" and finishing both end it for good.
    * The tour speaks to the hotseat/solo player in seat 0. */
   const COACH_KEY = "600b:coach";
-  let coachIndex = (() => {
-    try {
-      return localStorage.getItem(COACH_KEY) === "done" ? -1 : 0;
-    } catch (error) {
-      return 0;
+  let coachIndex = 0;
+  /* WHETHER THE TOUR IS DONE lives where the Stack library does: E1Napplet.storage,
+   * which is the shell's storage inside the Hangar (localStorage throws there, so the
+   * tour used to come back in every frame) and localStorage on the website, and
+   * plain localStorage without the adapter. The answer is asynchronous, and the
+   * tour stays hidden until it is known. */
+  let coachKnown = false;
+  function loadCoach() {
+    const known = (value) => {
+      coachKnown = true;
+      if (value === "done") coachIndex = -1;
+      coachStep();
+    };
+    const N = globalThis.E1Napplet;
+    if (N && N.storage && typeof N.storage.get === "function") {
+      Promise.resolve().then(() => N.storage.get(COACH_KEY)).then(known, () => known(null));
+      return;
     }
-  })();
+    let value = null;
+    try { value = localStorage.getItem(COACH_KEY); } catch (error) { value = null; }
+    known(value);
+  }
 
   const COACH_STEPS = [
     {
@@ -3124,10 +3139,12 @@
 
   function finishCoach() {
     coachIndex = -1;
-    try {
-      localStorage.setItem(COACH_KEY, "done");
-    } catch (error) {
-      void error;
+    const N = globalThis.E1Napplet;
+    if (N && N.storage && typeof N.storage.set === "function") {
+      // Refused, the tour only comes back next time.
+      Promise.resolve().then(() => N.storage.set(COACH_KEY, "done")).catch(() => {});
+    } else {
+      try { localStorage.setItem(COACH_KEY, "done"); } catch (error) { void error; }
     }
     coachStep();
   }
@@ -3140,7 +3157,7 @@
     if (!bubble) return;
     const previous = document.querySelector(".coach-target");
     if (previous) previous.classList.remove("coach-target");
-    if (coachIndex < 0) return void (bubble.hidden = true);
+    if (!coachKnown || coachIndex < 0) return void (bubble.hidden = true);
     /* Inside the Hangar the tour is the local game's: it waits on the first screen until
      * one is chosen, and never sits over the lobby or a table code read aloud there. */
     if (embedded() && mode !== "npc" && mode !== "hotseat") return void (bubble.hidden = true);
@@ -6083,7 +6100,7 @@
     });
     document.getElementById("coachSkip").addEventListener("click", finishCoach);
     buildKeywordPanel(); // built once: the glossary does not change mid-match
-    coachStep(); // the lobby step, for a first visit
+    loadCoach(); // the first step, for a first visit, once storage says it is one
 
     /* Rugpull = concede with the setting's own word for it. The win goes to
      * the player who did NOT rugpull (§2.2: concession). It lives with the

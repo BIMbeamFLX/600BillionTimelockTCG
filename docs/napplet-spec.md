@@ -389,6 +389,13 @@ Online, which stays above the setup form or the lobby it opens, and the collecti
 service the shell does not give says so in one line: no identity, no collection app (the
 collection line), and inside the lobby the table server and the invites.
 
+**The first-game tour** belongs to the local game: it opens with Against the computer or Hotseat,
+never over the first screen or the lobby. Whether it is done is stored under `600b:coach` through
+`E1Napplet.storage` (the shell's storage inside the Hangar, localStorage on the website, and
+localStorage directly on a page without the adapter), so a member who finished or skipped it does
+not meet it again in the next frame. That answer is asynchronous, and the tour stays hidden until
+it is known; storage that refuses to answer counts as a tour not done yet.
+
 **The empty collection's door.** `E1Napplet.link.open(url)` asks NAP-LINK (`napplet.link.open`,
 which resolves `{status: "opened" | "denied"}`) for an https URL only, and resolves `{ok: true}`
 or `{ok: false, error}` on every outcome, a host that never answers included after 30 s, the

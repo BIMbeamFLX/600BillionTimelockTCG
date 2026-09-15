@@ -770,11 +770,11 @@ const EMPTY_INVENTORY = {
 
 /* The prelude a Hangar installs, with only the domains a test grants, under the real
  * adapter (site/napplet.js), so the table reads it exactly as it does in the frame. */
-function realAdapter({ key = MEMBER, inventory = EMPTY_INVENTORY, intent = true, link = null, outbox = null, resource = null } = {}) {
+function realAdapter({ key = MEMBER, inventory = EMPTY_INVENTORY, intent = true, link = null, outbox = null, resource = null, storage = null } = {}) {
   const asked = { link: [] };
   const shell = {
     identity: { getPublicKey: async () => key || "" },
-    storage: { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} },
+    storage: storage || { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} },
   };
   if (intent) shell.intent = { invoke: async () => ({ ok: true, inventory }), available: async () => true };
   if (link) shell.link = { open: (url, options) => { asked.link.push([url, options]); return link(url); } };
@@ -848,6 +848,85 @@ test("the first screen inside the Hangar: the member's look, three ways to play,
   for (const fn of fired["e1:identity"] || []) fn({ detail: {} }); // anything that repaints the page
   assert.equal(byId("firstName").textContent, "FLX", "the first screen was painted again");
   assert.equal(byId("netName").value, "flx at the table", "a name the member typed is theirs to keep");
+});
+
+test("inside the Hangar the first-game tour remembers it is done through the shell's storage, and waits for its answer", async (t) => {
+  sandboxStorage(t);
+  const rejections = [];
+  const note = (reason) => rejections.push(reason);
+  process.on("unhandledRejection", note);
+  t.after(() => process.off("unhandledRejection", note));
+  const COACH = "600b:coach";
+  const withStorage = (storage) => Object.assign(tableHangar(), { storage: Object.assign({ json: async (name, fallback) => fallback }, storage) });
+
+  // One app store, two frames: the tour finished in the first never comes back in the next.
+  const store = new Map();
+  const shared = { get: async (key) => (store.has(key) ? store.get(key) : null), set: async (key, value) => { store.set(key, String(value)); return true; } };
+  const first = loadTable(tableNet(), withStorage(shared));
+  first.byId("modeNpc").click();
+  await flush();
+  assert.equal(first.byId("coach").hidden, false, "a first visit is taught");
+  first.byId("coachSkip").click();
+  await flush();
+  assert.deepEqual([first.byId("coach").hidden, store.get(COACH)], [true, "done"], "done, and stored in the shell");
+  const next = loadTable(tableNet(), withStorage(shared));
+  next.byId("modeNpc").click();
+  await flush();
+  assert.equal(next.byId("coach").hidden, true, "the next frame remembers");
+
+  // An answer still on its way: no tour, not even for a local game already chosen.
+  let answer;
+  const slow = loadTable(tableNet(), withStorage({
+    get: (key) => (key === COACH ? new Promise((resolve) => { answer = resolve; }) : Promise.resolve(null)),
+    set: async () => true,
+  }));
+  slow.byId("modeHotseat").click();
+  await flush();
+  assert.equal(slow.byId("coach").hidden, true, "nothing is shown before the stored answer is known");
+  answer(null);
+  await flush();
+  assert.equal(slow.byId("coach").hidden, false, "and a first visit is taught once it is");
+
+  /* Storage that throws on every access, twice over: an adapter whose answers reject,
+   * and the real adapter over a shell storage domain that throws. The tour teaches,
+   * and finishing it throws nothing. */
+  const throwing = () => { throw new Error("storage refused"); };
+  const shellStorage = { getItem: throwing, setItem: throwing, removeItem: throwing };
+  for (const shell of [withStorage({ get: async () => throwing(), set: async () => throwing() }), realAdapter({ storage: shellStorage }).N]) {
+    const refusing = loadTable(shellNet(), shell);
+    refusing.byId("modeNpc").click();
+    await flush();
+    assert.equal(refusing.byId("coach").hidden, false, "an answer that could not be read is a tour not done yet");
+    refusing.byId("coachNext").click();
+    refusing.byId("coachSkip").click();
+    await flush();
+    assert.equal(refusing.byId("coach").hidden, true);
+  }
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.deepEqual(rejections, [], "no refusal escaped");
+});
+
+test("on the website the tour's flag stays in localStorage, which may throw", (t) => {
+  sandboxStorage(t);
+  const page = loadTable(tableNet(), undefined);
+  assert.equal(page.byId("coach").hidden, false, "no adapter and a throwing localStorage: the tour teaches");
+  assert.doesNotThrow(() => page.byId("coachSkip").click(), "and finishing it cannot fail");
+  assert.equal(page.byId("coach").hidden, true);
+
+  const written = [];
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: { getItem: (key) => (key === "600b:coach" ? "done" : null), setItem: (key, value) => written.push([key, value]), removeItem() {} },
+  });
+  const done = loadTable(tableNet(), undefined);
+  assert.equal(done.byId("coach").hidden, true, "a tour done in this browser stays done");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: { getItem: () => null, setItem: (key, value) => written.push([key, value]), removeItem() {} },
+  });
+  const fresh = loadTable(tableNet(), undefined);
+  fresh.byId("coachSkip").click();
+  assert.deepEqual(written.filter(([key]) => key === "600b:coach"), [["600b:coach", "done"]], "and finishing it writes it there");
 });
 
 test("each service the Hangar does not give says so in one line, and the door only opens where it can", async (t) => {
