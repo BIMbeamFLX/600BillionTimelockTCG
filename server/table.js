@@ -1310,7 +1310,7 @@ async function createTable(opts) {
 
   /* A CLIENT-SUPPLIED STACK IS UNTRUSTED INPUT. The engine is the real
    * authority — createGame refuses an unknown card, a Stack under §7's floor and
-   * a fourth copy of anything, and it does that on every topology — but a
+   * a copy past a card's own limit, and it does that on every topology — but a
    * decklist that is going to be refused should be refused HERE, at the message
    * boundary, with a sentence naming what is wrong. Otherwise an illegal Stack
    * spends forty mint attempts failing identically and comes back as "the
@@ -1334,8 +1334,13 @@ async function createTable(opts) {
         throw badDeck(`${card.name} needs the Stake module, which this table does not run`);
       }
       copies[raw] = (copies[raw] || 0) + 1;
-      if (copies[raw] > E.MAX_COPIES && card.type !== "Basic Resource") {
-        throw badDeck(`${card.name} appears ${copies[raw]} times; ${E.MAX_COPIES} is the limit (§7)`);
+      /* The engine's own limit for this card under this table's rules, never a
+       * copy of it: one for a genesis card, no limit for a Basic Resource. A flat
+       * four let two Genesis Lotus through here, and createGame then failed forty
+       * mints and blamed the guest with DECK_BUILD_FAILED. */
+      const limit = E.copyLimit(card);
+      if (copies[raw] > limit) {
+        throw badDeck(`${card.name} appears ${copies[raw]} times; ${limit} is the limit (§7)`);
       }
     }
     return value.slice();

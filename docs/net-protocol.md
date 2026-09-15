@@ -117,6 +117,13 @@ The server mints seeds (§5.1), calls `E.createGame(config)`, persists, and send
 Errors: `NIP07_REQUIRED`, `NO_SUCH_MATCH`, `MATCH_FULL`, `MATCH_OVER`, `STAKE_MISMATCH`,
 `BAD_DECK`, `DECK_BUILD_FAILED`.
 
+**A Stack is checked at the message boundary.** `CREATE`, `JOIN` and `QUEUE` may carry `deck`, a
+list of card ids; absent, the referee deals. Before any seat or queue place changes, `cleanDeck`
+refuses with `ERROR{BAD_DECK}` a list that is not 40 to 300 known ids of the table's rules, holds
+a Stake card, or holds more copies of a card than the engine's own `E.copyLimit` allows under
+those rules (one for a genesis card, no limit for a Basic Resource, four for the rest). The message
+names the card, and `E.createGame` checks the same again when the match is dealt.
+
 **The table's rules are its host's.** A guest's `deck` is checked against them, never against
 rules the guest names, and a `BAD_DECK` answer to a `JOIN` names them:
 ```json

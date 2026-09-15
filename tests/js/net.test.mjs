@@ -2426,6 +2426,49 @@ test("an illegal Stack is refused, never quietly replaced", async (t) => {
   assert.equal((await notAList.type("ERROR")).code, "BAD_DECK", "a string is not a Stack");
 });
 
+test("a second copy of a genesis card is refused up front by CREATE, JOIN and QUEUE, under both rules", async (t) => {
+  /* The engine allows one of each genesis card. The message boundary used to allow
+   * four of anything, so a JOIN with two passed it, failed forty mints inside
+   * createGame and came back as DECK_BUILD_FAILED: the guest blamed for the dealer. */
+  const table = await boot(t, "t-deck-genesis.db");
+  const genesis = CARDS.find((c) => c.rarity === "genesis" && E.copyLimit(c) === 1);
+  const twice = builtStack(38).concat([genesis.id, genesis.id]);
+  const words = `${genesis.name} appears 2 times; 1 is the limit (§7)`;
+  const health = async () => (await (await fetch(`${table.url}/api/health`)).json());
+
+  for (const ruleset of ["E1.0", "F1.0"]) {
+    const host = await table.client({ identity: `genesis-host-${ruleset}` });
+    host.send({ t: "CREATE", ruleset, name: "felix", affinity: "Power", pubkey: host.pubkey });
+    const open = await host.type("STATE");
+
+    // A host opening a second table with it keeps the first one: nothing is closed for a refused Stack.
+    host.send({ t: "CREATE", ruleset, name: "felix", affinity: "Power", pubkey: host.pubkey, deck: twice });
+    const created = await host.type("ERROR");
+    assert.deepEqual([created.code, created.message], ["BAD_DECK", words], `CREATE ${ruleset}`);
+    const listed = await (await fetch(`${table.url}/api/tables`)).json();
+    assert.ok(listed.some((row) => row.matchId === open.matchId && row.hostOnline), `the first ${ruleset} table stays open`);
+
+    const guest = await table.client({ identity: `genesis-guest-${ruleset}` });
+    guest.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", pubkey: guest.pubkey, deck: twice });
+    const joined = await guest.type("ERROR");
+    assert.deepEqual([joined.code, joined.message, joined.ruleset], ["BAD_DECK", words, ruleset], `JOIN ${ruleset}`);
+    const row = table.db.prepare("SELECT status, seat1_pubkey FROM matches WHERE match_id=?").get(open.matchId);
+    assert.deepEqual([row.status, row.seat1_pubkey], ["open", null], "and the guest took no seat");
+
+    const queued = await table.client({ identity: `genesis-queue-${ruleset}` });
+    queued.send({ t: "QUEUE", ruleset, name: "bob", affinity: "Keys", deck: twice });
+    const refused = await queued.type("ERROR");
+    assert.deepEqual([refused.code, refused.message], ["BAD_DECK", words], `QUEUE ${ruleset}`);
+    assert.equal((await health()).queued, 0, "nobody waits in the line with it");
+
+    // One copy is a legal Stack at the same table.
+    const once = builtStack(39).concat([genesis.id]);
+    guest.send({ t: "JOIN", code: open.code, name: "anna", affinity: "Signal", pubkey: guest.pubkey, deck: once });
+    const seated = await guest.type("STATE");
+    assert.deepEqual([seated.seat, seated.status, seated.ruleset], [1, "playing", ruleset]);
+  }
+});
+
 test("a built Stack waits for another built Stack, not for a dealt one", async (t) => {
   const table = await boot(t, "t-deck-3.db");
   const deck = builtStack();

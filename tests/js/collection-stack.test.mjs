@@ -324,6 +324,20 @@ test("every collection Stack is legal under the rules it was built for", () => {
   }
 });
 
+test("a collection holding every genesis card four times plays each of them once, under both rules", () => {
+  /* The referee refuses a second genesis copy at the message boundary (cleanDeck asks
+     E.copyLimit), so a collection Stack must never carry one. */
+  for (const ruleset of RULESETS) {
+    const genesis = CARDS[ruleset].filter((card) => card.rarity === "genesis" && stakeFree(card));
+    assert.ok(genesis.length > 1, `${ruleset}: the fixture holds several genesis cards`);
+    for (const affinity of CS.AFFINITIES) {
+      const stack = build(ruleset, new Map(genesis.map((card) => [card.id, 4])), { affinity });
+      for (const card of genesis) assert.ok((tally(stack.ids).get(card.id) || 0) <= 1, `${ruleset} ${affinity}: ${card.id}`);
+      assertLegal(ruleset, stack.ids, `${ruleset} ${affinity}`);
+    }
+  }
+});
+
 test("the builder refuses rules it does not know and works without the engine global only when handed one", () => {
   assert.throws(() => CS.buildCollectionStack(FAST, new Map(), { profile: "F2.0" }), /unknown rules profile/);
   assert.throws(() => CS.buildCollectionStack(FAST, new Map(), { engine: {} }), /needs site\/engine\.js/);

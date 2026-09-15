@@ -365,8 +365,10 @@ a referee too old to list tables, or invites that this shell cannot list.
 
 **My collection online.** The referee takes a Stack in `CREATE`, `JOIN` and `QUEUE` under Classic
 and Fast alike, and checks it twice: `cleanDeck` in `server/table.js` (a list of 40 to 300 known
-ids of the table's ruleset, no Stake card, at most four copies of anything but a Basic Resource)
-and `E.createGame` (the floor and each card's own copy limit, one for a genesis card). So the embedded lobby
+ids of the table's ruleset, no Stake card, and each card's own copy limit under those rules, asked
+of the engine's `E.copyLimit`: one for a genesis card, no limit for a Basic Resource, four for the rest)
+and `E.createGame` (the same floor and limits again). A Stack past a limit is refused as `BAD_DECK`
+naming the card, before any seat changes. So the embedded lobby
 offers "My collection" once the member holds a card, labelled "n of 40 cards yours", and sends the
 Stack `buildCollectionStack` deals for the table's rules: the lobby's rules for a table it opens
 or a match it searches, an invite's `ruleset` for a join from an invite, the row's `ruleset` for a
