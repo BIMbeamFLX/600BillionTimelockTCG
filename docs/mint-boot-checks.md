@@ -1,0 +1,222 @@
+# Mint boot checks
+
+The referee refuses to start on mint settings that used to boot and then did the wrong
+thing, some of them for good: `NUTFT_CATALOG_URI`, `G_NUTFT_CATALOG_URI` and both collection
+ids are hashed into every issued card. This release **changes defaults** the running box may
+rely on (§2) and **adds refusals** (§3). Run §1 against the running service before you stop
+anything.
+
+The rules live in `server/mint-env.js`. The boot, both mints, the funding backends and the dry
+run below all apply that one module, so the dry run cannot pass what the boot refuses.
+
+---
+
+## 1 · On the box, before anything stops: check the running environment
+
+The check applies the new release's rules to the environment of the process that runs now.
+It prints one line per problem, `VARIABLE: reason`, never a value, and then `ok` or the count.
+It needs no `node_modules`, writes nothing, opens no database, binds no port and contacts no
+funding backend. Exit code 0 is `ok`, 1 is problems, 2 is input it could not read.
+
+**(a)** On Windows, copy the check's three files from the release clone (`$REL` and `$SHA`,
+docs/deploy.md §9.1) to `/home/deploy/tcg-envcheck-<sha12>/`, where `<sha12>` is the value of
+`$SHA12` below. One touch of the key:
+
+```powershell
+$SHA12 = $SHA.Substring(0,12)
+$CHECK = Join-Path $env:TEMP "tcg-envcheck-$SHA12"
+New-Item -ItemType Directory -Force "$CHECK\server" | Out-Null
+Copy-Item "$REL\server\env-check.js", "$REL\server\mint-env.js", "$REL\server\lnurl.js" "$CHECK\server\"
+scp -i $HOME\.ssh\id_ed25519_sk -o IdentitiesOnly=yes -r $CHECK deploy@178.105.93.78:/home/deploy/
+```
+
+**(b)** On the box, find the running service:
+
+```bash
+PID=$(systemctl show -p MainPID --value tcg-table)
+```
+
+**(c)** Check its environment against the release:
+
+```bash
+sudo cat /proc/$PID/environ | node /home/deploy/tcg-envcheck-<sha12>/server/env-check.js --from -
+```
+
+Only `cat` runs as root: the copy sits in a directory the deploy user can write, so `sudo node`
+on it would run as root whatever was swapped in between the copy and the run.
+
+**(d)** Any output other than the single line `ok` means stop. `env-check: the environment
+input is empty` (exit 2) means `$PID` is 0 or stale: the service is not running, so there is
+nothing to compare. For every problem line, fix the environment first, as its own change:
+
+- Read only the keys a line names, with a grep; never print the whole `EnvironmentFile`, it
+  can hold `PHOENIXD_PASSWORD`. For keys that are not secrets:
+  `sudo cat /proc/$PID/environ | tr '\0' '\n' | grep -E '^(G_NUTFT_COLLECTION_ID|G_NUTFT_CENSUS_PATH)='`
+- Record the mints' public answers (§4), change the value in the unit's `EnvironmentFile` or
+  drop-in with the fix from §3, restart the running build, and record them again. For a fix
+  that keeps what the running build does, `diff` must print nothing. §3 names the few fixes
+  that change behaviour, because the old value was already broken; those are sales decisions
+  to settle before the deploy, not during it.
+- Run (b) and (c) again, until the only line is `ok`.
+
+Never start the new release to see whether it refuses.
+
+**(e)** Remove the copy:
+
+```bash
+rm -r /home/deploy/tcg-envcheck-<sha12>
+```
+
+A clean run prints `ok`. An environment with five of the problems this release looks for
+prints:
+
+```text
+NUTFT_FUNDING: unset while PHOENIXD_URL or LND_REST_URL is set: E1 no longer takes its funding from them, so set lnd, phoenixd, cashu, mock or none
+NUTFT_ALLOWLIST: an nsec (private key) was pasted into NUTFT_ALLOWLIST at entry 2; remove it
+G_NUTFT_COLLECTION_ID: required when G_NUTFT_ENABLED is on: it is hashed into every Edition G card for good
+G_NUTFT_CENSUS_PATH: required when G_NUTFT_ENABLED is on: the census it names is signed into the Edition G catalog for good
+G_NUTFT_CLAIM_GRACE_SECONDS: unset while NUTFT_CLAIM_GRACE_SECONDS is set: Edition G does not inherit it, so set G's own value
+5 problems
+```
+
+`node server/table.js --check-env` runs the same check in a full checkout. A refused boot prints
+the same lines, each prefixed `[table] refusing to start: `, before it opens a database.
+
+---
+
+## 2 · Changed defaults
+
+Where the running box relies on an old default, §1 reports it as a problem, except for the
+three rows marked *silent*, which change behaviour without a refusal.
+
+| Variable | Before | Now |
+|---|---|---|
+| `NUTFT_FUNDING` | Unset picked `phoenixd` when `PHOENIXD_URL` was set, else `lnd` when `LND_REST_URL` was set, so a node configured for G or the beacon made E1 a paid mint. | Never guessed. Unset is free only while neither URL is set; otherwise the boot refuses. |
+| `NUTFT_SALES` | `open`, also for a paid mint. | No default for a paid mint. A free E1 still defaults to `open`, so `npm run local` is unchanged. |
+| `G_NUTFT_SALES` | `closed`, also for a paid G. | No default for a paid G. A free G still defaults to `closed`. |
+| `G_NUTFT_CATALOG_URI` | `NUTFT_CATALOG_URI`, then `http://localhost:8777/nutft/catalog`. | No default. |
+| `G_NUTFT_COLLECTION_ID` | `600B-G`. | No default. |
+| `G_NUTFT_CENSUS_PATH` | `cards/g-census.json` in the code directory. | No default. |
+| `G_NUTFT_PRICE_MSAT` | `0` or a non-number took `NUTFT_PRICE_MSAT`, then 21 sat. | Refused. Unset or empty is still 210 sat. |
+| `G_NUTFT_INVOICE_TTL_SECONDS`, `G_NUTFT_CLAIM_GRACE_SECONDS` | Unset, empty, `0` or a non-number took the E1 value. | `0` or a non-number is refused. Unset is G's own 900 and 3600, and refused while the E1 variable is set. |
+| `G_NUTFT_CATALOG_MIRRORS` | Unset took `NUTFT_CATALOG_MIRRORS`. | *Silent:* unset is no mirrors. E1's mirrors hold E1's catalog blob; a wallet reads G's catalog from the mint's own `/g/blossom/` path. |
+| `G_NUTFT_ONE_PER_KEY` | An empty `G_NUTFT_ONE_PER_KEY=` switched the limit off. | *Silent:* empty is unset, and unset is on. |
+| `NUTFT_ONE_PER_KEY` | Only `1` and `true` were on; anything else was off. | *Silent* for `yes`, `on` and capitals, which are now on. The flag grammar is below. |
+| `NUTFT_ONE_PER_KEY`, `G_NUTFT_ONE_PER_KEY`, `NUTFT_PURCHASE_MODE`, `G_NUTFT_PURCHASE_MODE`, `G_NUTFT_ENABLED` | A mistyped value was off. | On is `1`, `true`, `yes`, `on`; off is `0`, `false`, `no`, `off`, in any case; unset or empty is the default. Anything else, a trailing space included, is refused. |
+| `NUTFT_BEACON_SOURCE` | Anything but exactly `lnd` was off. | Unset or empty is off, `lnd` is on, anything else is refused. |
+| `LND_*` | Read, and the macaroon demanded, on every boot while `LND_REST_URL` was set. | Read only when a mint funds through `lnd` or E1's beacon is on. |
+| `NUTFT_FUNDING=lnd`, `G_NUTFT_FUNDING=lnd` | Without `LND_REST_URL` the mint silently became free. | Refused. |
+| `NUTFT_ALLOWLIST`, `G_NUTFT_ALLOWLIST` | An entry that was not a key was printed in full and skipped. | Refused, named by its position only. |
+| `PIN_SEED` | Its value was printed after the start. | A warning without the value, printed at boot. |
+
+---
+
+## 3 · Every new refusal and its fix
+
+A reason names variables, never a value. "E1" is the `NUTFT_*` mint, "G" the `G_NUTFT_*` one;
+G variables are checked only while `G_NUTFT_ENABLED` is on. Read any value you need with the
+grep from §1 (d), and find what a mint does now with §4.
+
+| Line starts with | Refused when | Fix that keeps what the running build does |
+|---|---|---|
+| `G_NUTFT_CATALOG_URI: required` | G is enabled and it is unset or empty. | Set it to exactly the `catalog_uri` that `/g/nutft/catalog` reports, even if that is E1's URI or a localhost one: another value stops the boot with `mint database belongs to a different NutFT census, collection, or catalog URI`. |
+| `G_NUTFT_COLLECTION_ID: required` | As above. | Set it to the `unit` that `/g/nutft/state` reports (`600B-G`). |
+| `G_NUTFT_CENSUS_PATH: required` | As above. | Set it to the absolute path of `cards/g-census.json` in the code directory the unit runs (`ExecStart`, docs/deploy.md §9.2), on the box `/home/deploy/bimCVP/infra/site-root/tcg600/cards/g-census.json`; `census_sha256` in `/g/nutft/state` must not move. |
+| `G_NUTFT_DB: required` / `names the same file as DB` | G is enabled without its own database file. | Unchanged from before: the running build refused this too. |
+| `G_NUTFT_INVOICE_TTL_SECONDS: unset while NUTFT_INVOICE_TTL_SECONDS is set` | E1 sets its quote window and G does not. | Set G's to the E1 value the grep shows, which is what G uses now. |
+| `G_NUTFT_CLAIM_GRACE_SECONDS: unset while NUTFT_CLAIM_GRACE_SECONDS is set` | E1 sets its claim grace and G does not. | As above. A shorter G grace would pass a paid, unclaimed set to the next buyer. |
+| `NUTFT_FUNDING: unset while PHOENIXD_URL or LND_REST_URL is set` | E1 has no named backend but a node URL is set. | Set it to the `funding` that `/v1/info` reports: `phoenixd`, `lnd`, or `none` if `paid` is false. |
+| `NUTFT_SALES: required for a paid mint`, `G_NUTFT_SALES: required for a paid mint` | A mint with a backend other than `none` has no sales mode. | Set the `sales` that `/v1/info` (or `/g/v1/info`) reports. For the alpha that is `allowlist` with `NUTFT_ALLOWLIST` (CLAUDE.md, ADR 0002); moving to it is a sales decision of its own. |
+| `NUTFT_FUNDING: must be`, `G_NUTFT_FUNDING: must be` | Not one of `lnd`, `phoenixd`, `cashu`, `mock`, `none` (any capitalisation, no spaces). | Unchanged: the running build refused this too. |
+| `LND_REST_URL: required when NUTFT_FUNDING=lnd`, `… G_NUTFT_FUNDING=lnd` | A mint funds through `lnd` without `LND_REST_URL`. | Changes behaviour: the running build gave every booster away here. `…_FUNDING=none` keeps that; configuring the node is a sales decision. |
+| `LND_REST_URL: required when NUTFT_BEACON_SOURCE=lnd` | The beacon is on without `LND_REST_URL`. | Unchanged: the running build refused this too. |
+| `LND_MACAROON_PATH: required`, `LND_MACAROON: must be hex`, `LND_TLS_CERT_PATH: required`, `LND_REST_URL: must be` | `lnd` is selected and its settings are incomplete. | Unchanged: the running build refused these whenever `LND_REST_URL` was set. |
+| `PHOENIXD_URL: required`, `PHOENIXD_URL: must be`, `PHOENIXD_URL: names a host that is not loopback`, `PHOENIXD_PASSWORD_PATH: required` | `phoenixd` is selected and its settings are incomplete. | Unchanged: the running build refused these too. |
+| `NUTFT_CASHU_MINT: required`, `must be https` | `cashu` is selected without an https mint. | Unchanged. |
+| `NUTFT_PRICE_MSAT: must be a whole number of millisatoshis`, same for `G_NUTFT_PRICE_MSAT` | Set, and not a whole number above 0. | Set the `price_msat` that `/v1/info` (`/g/v1/info` for G) reports, or remove the variable to take the default (21 sat for E1, 210 sat for G). |
+| `…_PRICE_MSAT: must be a whole number of sats`, `…_PRICE_SCHEDULE: entry N must be a whole number of sats` | The mint funds through `phoenixd` or `cashu` and a price is not divisible by 1000. | Changes behaviour: every quote failed with this price. Set a whole-sat price; that is what the shop will sell at. |
+| `…_PRICE_SCHEDULE: entry N is not "packs:msat"`, `thresholds must increase` | An entry is not exactly two whole numbers above 0, or a threshold does not rise. | The running build refused most malformed ladders too; fix entry N. |
+| `…_ALLOWLIST: an nsec (private key) was pasted into … at entry N; remove it` | Entry N starts with `nsec1`. | Remove entry N, and treat that key as exposed: it has sat in the environment. |
+| `…_ALLOWLIST: entry N is not an npub or a 64-character hex public key` | Entry N is neither. | The running build skipped it; remove or correct entry N. |
+| `…_ALLOWLIST: holds no key, so …=allowlist would sell to nobody` | `allowlist` mode with no valid entry. | Unchanged, except that invalid entries no longer count. |
+| `…_ONE_PER_KEY: needs …=allowlist or signed` | One per key is on and sales is `open` or `closed`. | Unchanged, except that an empty `G_NUTFT_ONE_PER_KEY=`, or `NUTFT_ONE_PER_KEY=yes` or `on`, now counts as on: set `0` to keep a mint that ran without the limit. |
+| `…: must be on or off` | A flag from §2 holds another word. | The running build read it as off: set `0`. |
+| `NUTFT_BEACON_SOURCE: must be lnd, or unset` | Anything but `lnd` or empty. | The running build had the beacon off: remove the variable. |
+| `NUTFT_BEACON_CONFIRMATIONS: must be a whole number of blocks` | Set, and not a whole number of at least 1. | With the beacon off, remove it. With it on, changes behaviour: sealed sales under this value could not be claimed; set `1`. |
+| `NUTFT_RECONCILE_MS: must be a number of milliseconds` | Set, and not a number. | Changes behaviour on `cashu`, where the sweep ran every millisecond: set `120000`, or remove it. |
+| `NUTFT_PUBLIC_BASE: must be an absolute`, `G_NUTFT_PUBLIC_BASE: must be an absolute` | Set, and not `http(s)://host` without user, password, query or fragment. | Changes behaviour: quotes and eligibility checks answered 400 with a value without a scheme. Set `https://` and the site's host, or remove it to derive the base from `PUBLIC_URL`. |
+| `PUBLIC_URL: must be a ws:// or wss:// URL` | No public base is set and `PUBLIC_URL` is not `ws(s)://`. | Unchanged: the running build refused this. |
+| `…_CATALOG_URI: must be an absolute http:// or https:// URL` | Not an absolute `http(s)` URL, or surrounded by spaces. | The running build refused the first; the second it hashed into cards as written. A URI in issued cards cannot change, so stop and decide before deploying. |
+| `…_COLLECTION_ID: must be 1 to 64 letters, digits, dots, dashes or underscores` | Any other collection id. | Wallets refused a mint with such a unit; no identity-keeping fix exists, and none is expected: production is `600B-E1` and `600B-G`. |
+| `…_CATALOG_MIRRORS: entry N is not an absolute http:// or https:// URL` | Entry N is not. | Unchanged: the running build refused this. |
+| `NUTFT_SUPPLY_RELAYS: entry N is not a ws:// or wss:// URL`, `NUTFT_SUPPLY_INTERVAL_SECONDS: must be 0 (no timer) or …` | As the line says. | Unchanged, except that decimal notation such as `60.0` is refused. |
+| `NUTFT_MOCK_SETTLE_MS: must be a whole number of milliseconds` | A mint funds through `mock` and the delay is not a whole number. | Staging only; the mock never settled with it. |
+
+---
+
+## 4 · What the mints report, before and after an environment fix
+
+Public answers only; nothing here prints the environment. Run the loop with `STAGE=before`,
+change the environment and restart the running build, run it again with `STAGE=after`, then
+compare:
+
+```bash
+STAGE=before
+for P in /v1/info /g/v1/info /nutft/state /g/nutft/state /nutft/catalog /g/nutft/catalog; do
+  curl -s "https://tcg.nappelin.com$P" \
+    | grep -oE '"(paid|price_msat|funding|sales|one_per_key|virtual_sats|test_mint|unit|collection_id|census_sha256|catalog_uri|catalog_issuer)":("[^"]*"|[a-z0-9]+)' \
+    | sort -u | sed "s|^|$P |"
+done > /home/deploy/tcg-mints-$STAGE.txt
+```
+
+```bash
+diff /home/deploy/tcg-mints-before.txt /home/deploy/tcg-mints-after.txt && echo "mints unchanged"
+```
+
+---
+
+## 5 · Decisions: what Edition G may take from E1
+
+ADR 0003 gives G its own identity and supply. One row is shared, by design:
+
+- **Shared:** the public base. `G_NUTFT_PUBLIC_BASE` falls back to `NUTFT_PUBLIC_BASE`, then to
+  `PUBLIC_URL`. It names the site both mints are served from by one referee, not an edition;
+  G's own routes add `/g` separately.
+- **Never shared:** catalog URI, collection id, census path and database (permanent), mirrors
+  (E1's hold E1's blob), price and schedule, sales mode and allowlist, one per key, purchase
+  mode, virtual sats, quote window and claim grace, beacon.
+- **Process-wide by nature:** the funding connection settings (`PHOENIXD_*`, `LND_*`,
+  `NUTFT_CASHU_MINT`, `NUTFT_TEST_MINT`, `NUTFT_MOCK_SETTLE_MS`), `NUTFT_RECONCILE_MS` and the
+  supply ledger rows (`NUTFT_SUPPLY_RELAYS`, `NUTFT_SUPPLY_INTERVAL_SECONDS`). There is one node
+  and one ledger timer per process; each mint still names its own backend.
+
+Connection settings are checked only when a mint selects that backend. Every other mint
+variable is checked whenever it is set, even when nothing reads it yet.
+
+---
+
+## 6 · Warnings that do not refuse
+
+- **A free mint cannot keep one per key.** The buyer is recorded only with a paid issuance
+  (`nutft_buyers` in `signBoosterOnce`), so a free claim is never counted and a key can claim
+  again. A free G, whose one per key is on by default, boots with
+  `[nutft] warning: G_NUTFT_ONE_PER_KEY: this mint is free, and a free claim records no buyer, so one per key is not enforced`.
+  Production G is paid; do not run G free where the limit matters.
+- **`PIN_SEED` is set.** New matches try pinned seeds first. Testing only, never in production.
+
+The dry run prints problems only; these warnings appear in the journal of a boot.
+
+---
+
+## 7 · What the check cannot see
+
+- **File contents.** It reads no file named by a variable: a missing census, an empty
+  `PHOENIXD_PASSWORD_PATH` or an unreadable macaroon still stops the boot with its own message.
+- **The database.** A catalog URI, collection id or census that differs from the one a mint
+  database was created with stops the boot (`mint database belongs to a different …`). Only
+  the database knows, and the check never opens it.
+- **Paths.** It compares `G_NUTFT_DB` with `DB` only when both are set. The default `DB` and
+  relative paths are resolved by the boot, against the service's code and working directory,
+  and the boot still refuses a shared file.
+- **The table's own network variables** (`PORT`, `PUBLIC_HOST`, `TABLE_ORIGINS`, `TRUST_PROXY`,
+  `TCG_WALLET_BACKUP_ALLOWLIST`, rate limits) keep their meaning and their own startup checks.

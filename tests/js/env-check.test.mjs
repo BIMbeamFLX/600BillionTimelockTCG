@@ -223,6 +223,18 @@ test("unreadable, empty or non-environ input exits 2 without echoing it", (t) =>
   }
 });
 
+test("the operator doc copies exactly those files and never runs the copy as root", () => {
+  const doc = readFileSync(join(REPO, "docs", "mint-boot-checks.md"), "utf8");
+  const copy = /^Copy-Item (.+)$/m.exec(doc);
+  assert.ok(copy, "step (a) copies the files");
+  assert.deepEqual([...copy[1].matchAll(/\\server\\([\w.-]+\.js)/g)].map((match) => `server/${match[1]}`).sort(),
+    [...CHECK_FILES].sort());
+  assert.match(doc, /^sudo cat \/proc\/\$PID\/environ \| node \/home\/deploy\/tcg-envcheck-<sha12>\/server\/env-check\.js --from -$/m);
+  for (const [, block] of doc.matchAll(/```(?:bash|powershell)\r?\n([\s\S]*?)```/g)) {
+    assert.doesNotMatch(block, /sudo\s+node/, "only the environ read runs as root");
+  }
+});
+
 test("the check runs from a bare copy of its three files, without node_modules, and writes nothing", (t) => {
   const dir = tempDir(t, "600b-envcheck-copy-");
   const builtins = new Set(builtinModules.flatMap((name) => [name, `node:${name}`]));
