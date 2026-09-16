@@ -95,10 +95,14 @@ def test_the_side_bar_stays_out_of_the_napplet(tmp_path: Path) -> None:
 
 
 HYPERSHELL_FACES = {
-    "../art/fonts/josefin-sans-var.woff2": "font/woff2",
-    "../art/fonts/plex-mono-400.woff2": "font/woff2",
-    "../art/fonts/plex-mono-500.woff2": "font/woff2",
-    "../art/fonts/plex-mono-600.woff2": "font/woff2",
+    "../art/fonts/josefin-sans-latin-wght.woff2": "font/woff2",
+    "../art/fonts/josefin-sans-latin-ext-wght.woff2": "font/woff2",
+    "../art/fonts/plex-mono-latin-400.woff2": "font/woff2",
+    "../art/fonts/plex-mono-latin-ext-400.woff2": "font/woff2",
+    "../art/fonts/plex-mono-latin-500.woff2": "font/woff2",
+    "../art/fonts/plex-mono-latin-ext-500.woff2": "font/woff2",
+    "../art/fonts/plex-mono-latin-600.woff2": "font/woff2",
+    "../art/fonts/plex-mono-latin-ext-600.woff2": "font/woff2",
     "../art/fonts/Anton-Regular.ttf": "font/ttf",
 }
 
@@ -262,7 +266,11 @@ def test_page_carries_the_3d_table(artifact: tuple[bytes, dict]) -> None:
 
 
 def test_page_stays_under_the_size_limit(artifact: tuple[bytes, dict]) -> None:
-    """The host pins one file; three MiB is the ceiling, 2.65 MiB the working headroom.
+    """The host pins one file; three MiB is the ceiling, 2.8 MiB the working headroom.
+
+    Raised from 2.65 MiB (2026-09-16): the Hypershell faces were Latin Extended files only,
+    which drew every "a" with a macron in the Hangar. Their basic Latin files ride along
+    now, about 100 KB inlined.
 
     Raised from 2.6 MiB (2026-09-15) for online play inside the Hangar. The lobby
     (site/lobby.js), the first screen and their CSS ship about 36 KB, and the artifact
@@ -273,7 +281,7 @@ def test_page_stays_under_the_size_limit(artifact: tuple[bytes, dict]) -> None:
     """
     assert build_napplet.SIZE_LIMIT == 3 * 1024 * 1024
     assert len(artifact[0]) < build_napplet.SIZE_LIMIT
-    assert len(artifact[0]) <= 2.65 * 1024 * 1024
+    assert len(artifact[0]) <= 2.8 * 1024 * 1024
 
 
 def test_site_keeps_the_hero_file() -> None:

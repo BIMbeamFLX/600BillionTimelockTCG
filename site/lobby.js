@@ -39,6 +39,7 @@
   /* The Hangar's words: plain English, and never "NIP-07", which is the website's. */
   const WORDS = Object.freeze({
     noIdentity: "Sign in to Nappelin to play online. Hotseat and games against the computer work now.",
+    signInForTables: "Sign in first to see open tables.",
     stakes: "This table plays for sats; stakes are not available in Nappelin yet.",
     unreachable: "The table server cannot be reached right now. Hotseat and games against the computer work now.",
     invites: "Invites cannot be listed here right now. You can still join with a table code.",
@@ -465,6 +466,8 @@
       if (!list) return;
       list.innerHTML = "";
       listed.clear();
+      /* Inside the Hangar the button stays pressable without a key, and answers here. */
+      if (embed && !myKey()) return void list.append(el("div", "netline", WORDS.signInForTables));
       try {
         const rows = await NET.tables();
         for (const row of rows) listed.set(row.code, row);
@@ -582,8 +585,10 @@
       if (embed) {
         const line = $("lobbyIdentity");
         if (line) {
-          line.hidden = Boolean(pubkey);
-          line.textContent = pubkey ? "" : WORDS.noIdentity;
+          /* Where the table's first panel already says it, the lobby does not repeat it. */
+          const say = !pubkey && opts.identityLine !== false;
+          line.hidden = !say;
+          line.textContent = say ? WORDS.noIdentity : "";
         }
       } else {
         $("nostrLogin").hidden = Boolean(pubkey);
@@ -612,8 +617,9 @@
       };
       set("createTable", !url || !identified || hosting || needsStack);
       set("joinTable", !url || !identified || hosting || needsStack);
-      set("refreshTables", !url || !identified);
-      set("checkInvites", !url || !identified);
+      /* Signed out in the Hangar these stay pressable: each answers in its own list. */
+      set("refreshTables", !url || (!identified && !embed));
+      set("checkInvites", !url || (!identified && !embed));
       set("findMatch", !url || !identified || hosting || needsStack);
     }
 

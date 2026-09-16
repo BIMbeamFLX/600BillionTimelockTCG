@@ -75,8 +75,8 @@ The brand layer is written again after each theme, so no payload can reach it.
 
 | File | Face | Used at | Licence |
 | --- | --- | --- | --- |
-| `art/fonts/josefin-sans-var.woff2` | Josefin Sans, variable 400–700 | headings, 600 and 700 only | SIL OFL 1.1, `art/fonts/JOSEFIN-OFL.txt` |
-| `art/fonts/plex-mono-{400,500,600}.woff2` | IBM Plex Mono | body 400, labels 500, controls 600 | SIL OFL 1.1, `art/fonts/PLEX-OFL.txt` |
+| `art/fonts/josefin-sans-{latin,latin-ext}-wght.woff2` | Josefin Sans, variable 400–700 | headings, 600 and 700 only | SIL OFL 1.1, `art/fonts/JOSEFIN-OFL.txt` |
+| `art/fonts/plex-mono-{latin,latin-ext}-{400,500,600}.woff2` | IBM Plex Mono | body 400, labels 500, controls 600 | SIL OFL 1.1, `art/fonts/PLEX-OFL.txt` |
 | `art/fonts/Anton-Regular.ttf` | Anton600 | the brand layer only | SIL OFL 1.1, licence text not yet in the repo |
 
 The woff2 files are byte-for-byte copies of the Hangar's own fonts. The site serves them itself, with

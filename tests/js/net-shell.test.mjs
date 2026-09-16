@@ -1079,7 +1079,7 @@ test("two Hangar tabs open a table and join it by its code in their table pages'
   const b = bob.openTable({ scope: build });
   for (const page of [a, b]) {
     assert.equal(page.byId("first").hidden, false, "each frame opens on its first screen");
-    await waitFor(() => page.byId("lobbyIdentity").hidden === true, 5000);
+    await waitFor(() => !["", "Not signed in"].includes(page.byId("firstName").textContent), 5000);
     page.byId("modeOnline").click();
   }
 
@@ -1107,7 +1107,7 @@ test("a host who reloads the table page is back at their own open table, offered
   const build = { E1_TABLE_URL: table.wsUrl };
   const alice = hangarTab(t, "alice");
   const a = alice.openTable({ scope: build });
-  await waitFor(() => a.byId("lobbyIdentity").hidden === true);
+  await waitFor(() => !["", "Not signed in"].includes(a.byId("firstName").textContent));
   a.byId("modeOnline").click();
   a.byId("netName").value = "alice";
   a.byId("createTable").click();
