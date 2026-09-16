@@ -468,6 +468,7 @@
 
   function fx(event) {
     showActionFx(event);
+    cueEvent(event);
     if (!globalThis.E1FX) return; // the game must run with fx.js absent
     const card = event.cardId ? CARD_BY_ID[event.cardId] : null;
     const affinity = card && card.affinity ? card.affinity[0] : undefined;
@@ -577,6 +578,154 @@
       }
       default: return undefined;
     }
+  }
+
+  // ----------------------------------------------------------- music cues
+
+  /* THE HANGAR'S MUSIC FOLLOWS THE TABLE (nappelin NAP-CUE draft, #107). Inside a
+   * shell that routes cues, the table tells whatever music plays there what the
+   * game feels like (a mood, which holds) and when something big just happened
+   * (a moment). site/napplet.js (E1Napplet.cue) owns the wire and the shell's
+   * throttles; this is only the translation, and like fx() it reads nothing but
+   * what the table already renders: the engine's events and the view.
+   *
+   * On the website, or in a Hangar without the domain, nothing here sends. The
+   * shop is not in the napplet, so `booster-open` is never sent. */
+
+  /* TENSION: either player at 6 Uptime or less. Everyone starts at 20
+   * (START_UPTIME, rules §2.3), and one Clash deals a few Avatars' Action: the
+   * median Avatar hits for 2 in Classic and 3 in Fast, and one in ten hits for 5
+   * (Classic) or 6 (Fast). At 6 a single big attacker, or two ordinary ones and a
+   * burn, ends the game this turn: the point where a player has to start
+   * defending, which is what tension should sound like. Higher and most of a
+   * Classic game would be "tense"; lower and it arrives a turn after the danger. */
+  const CUE_TENSION_UPTIME = 6;
+  const cueTrack = { game: null, mood: null, turnSeat: null, lethal: false, ended: false, music: null };
+
+  const cueLink = () => {
+    const N = globalThis.E1Napplet;
+    if (!embedded() || !N || !N.cue || typeof N.cue.available !== "function") return null;
+    try { return N.cue.available() ? N.cue : null; } catch (error) { return null; }
+  };
+  /* The answer is never read: `accepted` does not mean anyone listened, and a
+   * refusal is final. */
+  const cueSend = (fields) => {
+    const link = cueLink();
+    if (!link) return false;
+    try { Promise.resolve(link.send(fields)).catch(() => undefined); } catch (error) { /* music is never load-bearing */ }
+    return true;
+  };
+  /* A mood is sent when it CHANGES, never per render. */
+  const cueMood = (mood) => {
+    if (cueTrack.mood === mood) return;
+    if (cueSend({ mood })) cueTrack.mood = mood;
+  };
+
+  /* The per-match memory, started over whenever a different game is on the table.
+   * A match first seen already finished (a reload, a late spectator) has had its
+   * killing blow and its ending: neither is announced again. */
+  function cueGame(state) {
+    if (!state || state.gameId === cueTrack.game) return;
+    cueTrack.game = state.gameId;
+    cueTrack.turnSeat = state.turn ? state.turn.active : null;
+    cueTrack.ended = Boolean(state.result);
+    cueTrack.lethal = Boolean(state.result);
+  }
+
+  /* Moments, from the engine's events as fx() receives them: a local dispatch
+   * and a referee FRAME both pass through here; a STATE (a resync) does not. */
+  function cueEvent(event) {
+    const full = session.full;
+    if (!full || !event || !cueLink()) return;
+    cueGame(full);
+    switch (event.t) {
+      case "TURN":
+        if (cueTrack.turnSeat !== null && event.seat !== cueTrack.turnSeat) cueSend({ moment: "turn" });
+        cueTrack.turnSeat = event.seat;
+        return;
+      // Classic declares every attacker at once, and a turn with none still emits ATTACKERS.
+      case "ATTACKERS":
+        if ((event.attackers || []).length) cueSend({ moment: "attack" });
+        return;
+      case "ATTACK": // a Fast DECLARE_ATTACK, applied
+        cueSend({ moment: "attack" });
+        return;
+      case "DAMAGE":
+      case "UPTIME": {
+        const hit = event.t === "DAMAGE" ? event.to === "seat" : event.delta < 0;
+        const seat = full.seats && full.seats[event.seat];
+        // Events are handed over before the frame renders, so this lands before match-end.
+        if (hit && seat && seat.uptime <= 0 && !cueTrack.lethal) {
+          cueTrack.lethal = true;
+          cueSend({ moment: "lethal" });
+        }
+        return;
+      }
+      default:
+        return;
+    }
+  }
+
+  /* Whose ending this screen hears: the seat a referee gave us, or the human in
+   * solo play. Hotseat and spectators hear victory. A draw is calm for everyone:
+   * nobody lost, and calm hands the music back. */
+  function cueOutcome(v) {
+    if (v.result.reason === "draw" || !(v.result.winners || []).length) return "calm";
+    const mine = session.role === "seat" ? session.seat : session.npc !== null ? 1 - session.npc : null;
+    if (mine === null || session.role === "spectator") return "victory";
+    return (v.result.winners || []).includes(mine) ? "victory" : "defeat";
+  }
+
+  /* Moods and match-end, from the view render() is drawing. */
+  function cueBoard(v) {
+    if (!v || !cueLink()) return;
+    cueGame(v);
+    if (v.result && !cueTrack.ended) {
+      cueTrack.ended = true;
+      cueSend({ moment: "match-end" });
+    }
+    const low = (v.seats || []).some((seat) => seat && seat.uptime <= CUE_TENSION_UPTIME);
+    /* A Clash with no attacker declared is a step, not a fight: `battle` starts at
+     * the first attack (Classic's declaration or a Fast attack) and holds for the
+     * rest of that turn, which covers the Clash still resolving. */
+    const fighting = Boolean(v.turn && (v.turn.attacked || []).length);
+    cueMood(v.result ? cueOutcome(v) : fighting ? "battle" : low ? "tension" : "calm");
+  }
+
+  /* Off the table (setup, the lobby, the first screen, a table left) is calm. */
+  function cueCalm() {
+    cueTrack.game = null;
+    cueMood("calm");
+  }
+
+  /* Shell music playing: the room tone steps back and the pressure pulse holds;
+   * idle gives both back. fx.js's own per-hit ducking is left alone. */
+  function cueFocus(music) {
+    if (music === cueTrack.music) return;
+    cueTrack.music = music;
+    const FX = globalThis.E1FX;
+    if (!FX) return;
+    try {
+      if (music === "playing") {
+        if (typeof FX.duckBed === "function") FX.duckBed(0.35);
+        if (typeof FX.holdPressure === "function") FX.holdPressure(true);
+      } else {
+        if (typeof FX.unduckBed === "function") FX.unduckBed();
+        if (typeof FX.holdPressure === "function") FX.holdPressure(false);
+      }
+    } catch (error) {
+      void error; // sound is never load-bearing
+    }
+  }
+
+  function initCues() {
+    const N = globalThis.E1Napplet;
+    if (!embedded() || !N || !N.cue) return;
+    if (typeof N.cue.onFocus === "function") {
+      try { N.cue.onFocus(cueFocus); } catch (error) { void error; }
+    }
+    if (typeof window.addEventListener === "function") window.addEventListener("pagehide", cueCalm);
+    if (!session.full) cueCalm();
   }
 
   /* Damage that did not land. The ring is the shield holding; the chip says by
@@ -1271,6 +1420,8 @@
       const face = seatFace(event.seat, seatMeta ? seatMeta.name : "", seatMeta ? seatMeta.pubkey : null);
       if ((face.url || face.card) && node.prepend) {
         const img = el("img", "shout");
+        if (img.dataset) img.dataset.look = face.via || "";
+        if (img.setAttribute) img.setAttribute("referrerpolicy", "no-referrer");
         paintFace(img, face, "");
         node.prepend(img);
       }
@@ -1398,26 +1549,91 @@
    * sandboxed napplet may have no relay, a build without portraits.js has no
    * index, and the test DOM has no Image and no network at all. In every one of
    * those cases the bar simply keeps the name it has always had. */
-  const PORTRAITS = new Map();   // pubkey -> url | null (null = looked up, none)
 
-  function portraitFor(pubkey) {
-    if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) return null;
-    if (PORTRAITS.has(pubkey)) return PORTRAITS.get(pubkey);
-    PORTRAITS.set(pubkey, null);            // claim it, so one miss is one lookup
-    const NETW = globalThis.E1Net;
-    if (!NETW || !NETW.nostr || typeof NETW.nostr.profile !== "function") return null;
-    Promise.resolve()
-      .then(() => NETW.nostr.profile(pubkey))
-      .then((meta) => {
-        const url = meta && typeof meta.picture === "string" ? meta.picture : "";
-        /* Only http(s). A data: or javascript: picture field is attacker-supplied
-         * text from a relay, and this one goes straight into an img src. */
-        if (/^https?:\/\//i.test(url)) {
-          PORTRAITS.set(pubkey, url);
-          if (session.full) render();
-        }
-      })
-      .catch(() => { /* no relay, no profile, no portrait — the name still stands */ });
+  /* A MEMBER'S OWN LOOK (site/identity-look.js). A seat that belongs to a key
+   * wears what that key publishes, its NIP-3D look or else its kind 0 picture
+   * and name, ahead of the portrait its name would give it. At a networked
+   * table that is every seat the referee names a key for; at a local table it
+   * is seat one, with the member's own key, while its avatar menu says "My
+   * Nappelin look". Nothing waits for it: the bar paints its default and the
+   * look repaints the seat when it lands. Inside a shell the query and the bytes
+   * go through the shell, and a preview with no shell asks nobody. */
+  const LOOK = "@look";   // the avatar menu's value for "My Nappelin look"
+  const HEX_KEY = /^[0-9a-f]{64}$/;
+  /* Read once, at load, like E1Faces: play.html loads identity-look.js before
+   * this file, and a page that came up without it keeps its default portraits
+   * for its whole life rather than growing looks halfway through a match. */
+  const LOOK_API = globalThis.E1Look || null;
+  let LOOKS = null;
+  let shellKey = null;    // the shell's answer to "who is signed in", once it lands
+  let shellAnswered = false;
+
+  function looks() {
+    if (LOOKS || !LOOK_API || typeof LOOK_API.book !== "function") return LOOKS;
+    const N = globalThis.E1Napplet;
+    const has = (domain) => Boolean(N && typeof N.has === "function" && N.has(domain));
+    const relays = NET && NET.nostr ? NET.nostr : null;
+    const S = globalThis.E1Schnorr;
+    const site = !embedded();
+    LOOKS = LOOK_API.book({
+      /* One request through a shell's outbox; net.js sends one filter per REQ. */
+      query: has("outbox") ? (filters) => N.outbox.query(filters)
+        : site && relays && typeof relays.query === "function"
+          ? (filters) => Promise.all(filters.map((filter) => relays.query(filter, 2500))).then((lists) => [].concat(...lists))
+          : null,
+      bytes: has("resource") ? (url) => N.resource.bytes(url) : null,
+      fetch: site && typeof globalThis.fetch === "function" ? (url, init) => globalThis.fetch(url, init) : null,
+      hotlink: site,
+      verify: S && typeof S.verifyEvent === "function" ? (event) => S.verifyEvent(event) : null,
+      npub: relays && typeof relays.shortNpub === "function" ? (key) => relays.shortNpub(key) : null,
+    });
+    return LOOKS;
+  }
+
+  /* The member's own key as this page knows it: the website's NIP-07 sign-in,
+   * or the shell's. Null for a guest. */
+  function lookIdentity() {
+    let key = null;
+    try {
+      key = NET && NET.nostr && typeof NET.nostr.savedPubkey === "function" ? NET.nostr.savedPubkey() : null;
+    } catch (error) {
+      key = null;
+    }
+    key = key || shellKey;
+    return typeof key === "string" && HEX_KEY.test(key) ? key : null;
+  }
+
+  /* Whose look a seat wears, or null. Online the key is the one the referee's
+   * STATE gives the seat; a local table has only the member's own. */
+  function lookKey(seatIndex, pubkey) {
+    if (session.role === "hotseat") return seatIndex === 0 && SEAT_AVATARS[0] === LOOK ? lookIdentity() : null;
+    const players = NET && NET.lastState && Array.isArray(NET.lastState.players) ? NET.lastState.players : [];
+    const player = players.find((entry) => entry && entry.seat === seatIndex);
+    const key = player ? player.pubkey : pubkey;
+    return typeof key === "string" && HEX_KEY.test(key) ? key : null;
+  }
+
+  /* The look a seat wears as far as it is known now, or null. Binding the seat
+   * to its key is what keeps a late answer about somebody else off this bar. */
+  function seatLook(seatIndex, pubkey) {
+    const book = looks();
+    return book ? book.seat(`seat${seatIndex}`, lookKey(seatIndex, pubkey), repaint) : null;
+  }
+
+  /* The name on a seat's bar: the look's own name (display_name, then name)
+   * where it has one, else the name the seat plays under. Only ever text. */
+  function barName(seatIndex, seat) {
+    const look = seatLook(seatIndex, seat.pubkey);
+    return look && look.nameVia !== "npub" && look.name ? look.name : seat.name;
+  }
+
+  /* A look's picture as a face, unless the browser already refused to draw it,
+   * in which case the book lets it go (and revokes it, when it was ours). */
+  function lookFace(look) {
+    const url = look && look.image.url;
+    if (!url) return null;
+    if (!BROKEN.has(url)) return { url, card: null, via: look.image.via };
+    if (LOOKS) LOOKS.broken(url);
     return null;
   }
 
@@ -1511,32 +1727,30 @@
     return url && !BROKEN.has(url) ? { url, card: null } : { url: null, card: entry.card || null };
   }
 
-  /* Last resort: the seat's own kind-0 picture. Not a character, but it is
-   * still this person's face, and it is the only one a stranger playing under
-   * their own name will ever have here. */
-  function relayFace(pubkey) {
-    const url = portraitFor(pubkey);
-    return { url: url && !BROKEN.has(url) ? url : null, card: null };
-  }
-
   /* One question, one answer, three render sites, because the same person
    * wearing three different faces is the drift this replaced.
+   *
+   * A member's own look comes first wherever a seat wears one (lookKey says
+   * where); both clients of a networked table ask for the same key's look.
    *
    * The picked character decides only in hotseat. A pick is local — it is
    * deliberately not in the seat config, so it never crosses the wire — and
    * honouring it at a networked table would paint one face on this screen and
-   * a different one on the opponent's. Online the seat NAME is the only key
-   * both clients hold, and it resolves to the same portrait on both. */
+   * a different one on the opponent's. Online the seat NAME is the only other
+   * key both clients hold, and it resolves to the same portrait on both. Seat
+   * one wearing a look that has no picture falls back the same way. */
   function seatFace(seatIndex, name, pubkey) {
-    if (session.role === "hotseat") {
+    const own = lookFace(seatLook(seatIndex, pubkey));
+    if (own) return own;
+    if (session.role === "hotseat" && SEAT_AVATARS[seatIndex] !== LOOK) {
       /* This screen holds both seats, so the picker's answer is the whole
        * answer — including "no Avatar", which is a choice and not a gap. */
       const entry = seatCharacter(seatIndex);
-      return entry ? characterFace(entry) : relayFace(pubkey);
+      return entry ? characterFace(entry) : { url: null, card: null };
     }
     const P = globalThis.E1Portraits || null;
     const url = P && name ? P.urlFor(name) : null;
-    return url && !BROKEN.has(url) ? { url, card: null } : relayFace(pubkey);
+    return url && !BROKEN.has(url) ? { url, card: null } : { url: null, card: null };
   }
 
   /* Paint one <img>. A portrait that 404s must not leave a broken image on the
@@ -1563,6 +1777,7 @@
    * reach whatever is on screen, and that is either the table or the picker. */
   const AVATAR_SYNC = [];
   function repaint() {
+    renderFirst();
     if (session.full) render();
     for (const sync of AVATAR_SYNC) sync();
   }
@@ -1578,10 +1793,16 @@
     if (!face.url && !face.card) { if (img && img.remove) img.remove(); return; }
     if (!img) {
       img = el("img", "portrait");
-      if (img.setAttribute) img.setAttribute("loading", "lazy");
+      if (img.setAttribute) {
+        img.setAttribute("loading", "lazy");
+        // A kind 0 picture is hotlinked from its owner's host; that host learns nothing about this page.
+        img.setAttribute("referrerpolicy", "no-referrer");
+      }
       if (bar.prepend) bar.prepend(img); else bar.append(img);
     }
-    paintFace(img, face, `${name || "Player"} avatar`);
+    // Which rung of a look this is, so play.html can crop a full figure to its head.
+    if (img.dataset) img.dataset.look = face.via || "";
+    paintFace(img, face, `${barName(seatIndex, { name, pubkey }) || "Player"} avatar`);
   }
 
   const faceUrl = (card) => "../art/cards/node-runner-web/" + encodeURIComponent(card.face);
@@ -2937,13 +3158,28 @@
    * did the thing. Runs once; "Skip tour" and finishing both end it for good.
    * The tour speaks to the hotseat/solo player in seat 0. */
   const COACH_KEY = "600b:coach";
-  let coachIndex = (() => {
-    try {
-      return localStorage.getItem(COACH_KEY) === "done" ? -1 : 0;
-    } catch (error) {
-      return 0;
+  let coachIndex = 0;
+  /* WHETHER THE TOUR IS DONE lives where the Stack library does: E1Napplet.storage,
+   * which is the shell's storage inside the Hangar (localStorage throws there, so the
+   * tour used to come back in every frame) and localStorage on the website, and
+   * plain localStorage without the adapter. The answer is asynchronous, and the
+   * tour stays hidden until it is known. */
+  let coachKnown = false;
+  function loadCoach() {
+    const known = (value) => {
+      coachKnown = true;
+      if (value === "done") coachIndex = -1;
+      coachStep();
+    };
+    const N = globalThis.E1Napplet;
+    if (N && N.storage && typeof N.storage.get === "function") {
+      Promise.resolve().then(() => N.storage.get(COACH_KEY)).then(known, () => known(null));
+      return;
     }
-  })();
+    let value = null;
+    try { value = localStorage.getItem(COACH_KEY); } catch (error) { value = null; }
+    known(value);
+  }
 
   const COACH_STEPS = [
     {
@@ -3052,10 +3288,12 @@
 
   function finishCoach() {
     coachIndex = -1;
-    try {
-      localStorage.setItem(COACH_KEY, "done");
-    } catch (error) {
-      void error;
+    const N = globalThis.E1Napplet;
+    if (N && N.storage && typeof N.storage.set === "function") {
+      // Refused, the tour only comes back next time.
+      Promise.resolve().then(() => N.storage.set(COACH_KEY, "done")).catch(() => {});
+    } else {
+      try { localStorage.setItem(COACH_KEY, "done"); } catch (error) { void error; }
     }
     coachStep();
   }
@@ -3068,7 +3306,10 @@
     if (!bubble) return;
     const previous = document.querySelector(".coach-target");
     if (previous) previous.classList.remove("coach-target");
-    if (coachIndex < 0) return void (bubble.hidden = true);
+    if (!coachKnown || coachIndex < 0) return void (bubble.hidden = true);
+    /* Inside the Hangar the tour is the local game's: it waits on the first screen until
+     * one is chosen, and never sits over the lobby or a table code read aloud there. */
+    if (embedded() && mode !== "npc" && mode !== "hotseat") return void (bubble.hidden = true);
     while (coachIndex < COACH_STEPS.length && COACH_STEPS[coachIndex].done()) coachIndex += 1;
     if (coachIndex >= COACH_STEPS.length) return void finishCoach();
     const step = COACH_STEPS[coachIndex];
@@ -3241,6 +3482,7 @@
     const seat = uiSeat(full);
     const v = viewNow();               // the table renders the redacted view
     const foe = 1 - seat;
+    cueBoard(v);
 
     /* The name is whoever the table is speaking to, which in remote play is
      * always you — so the turn owner is named separately whenever it is not the
@@ -3276,7 +3518,8 @@
       document.getElementById(`${side}Bar`).classList.toggle(
         "seat-target", wantsSeatTarget() && !(attackPick && side === "you")
       );
-      document.getElementById(`${side}Name`).textContent = v.seats[who].name;
+      // A member's look may name the seat; the log and the turn chip keep the name it plays under.
+      document.getElementById(`${side}Name`).textContent = barName(who, v.seats[who]);
       /* The playerbar IS the player — so give it the player's face. */
       mountPortrait(document.getElementById(`${side}Bar`), v.seats[who].pubkey, v.seats[who].name, who);
       const uptime = v.seats[who].uptime;
@@ -4620,6 +4863,7 @@
     },
 
     onOver(msg) {
+      closeSubscriptions();
       remote.over = msg;
       renderNetPanel();
       renderNetChip();
@@ -4905,7 +5149,9 @@
     const box = $("endStake");
     box.hidden = true;
     box.innerHTML = "";
-    if (!ctx.stake || ctx.drew || session.seat === null) return;
+    /* Never inside the Hangar: a table there plays for no stake, and a seat taken
+     * back from a website match for sats is settled on the website. */
+    if (!ctx.stake || ctx.drew || session.seat === null || embedded()) return;
     box.hidden = false;
 
     if (ctx.won) {
@@ -5063,6 +5309,11 @@
   // ---- identity -----------------------------------------------------------
 
   function renderIdentity() {
+    /* Inside the Hangar the lobby replaced the website's sign-in row with its own. */
+    if (lobby) {
+      lobby.refresh();
+      return void renderNetPanel();
+    }
     const pubkey = nostr().savedPubkey();
     shownKey = pubkey || null;
     $("nostrLogin").hidden = Boolean(pubkey);
@@ -5119,9 +5370,160 @@
    * dropped first, so the lobby opens as a lobby and not as a resume prompt for
    * a match this player just walked away from. */
   function toLobby() {
+    if (lobby) return void showLobby();
     if (embedded()) return escapeFrame();
     location.href = "matchmaking.html";
     return undefined;
+  }
+
+  /* ONE PAGE INSIDE THE HANGAR. The frame cannot navigate, so the lobby lives on
+   * this page (site/lobby.js in #lobby) beside the board, over one E1Net: a STATE
+   * that seats this player shows the board, and leaving the table shows the
+   * lobby again. A local game still on the table when a seat is dealt (a table
+   * this player opened found its guest) is put away first, bot timers and all. */
+  let lobby = null;
+  const atBoard = () => session.role !== "hotseat";
+
+  /* A SUBSCRIPTION LIVES AS LONG AS THE LOBBY THAT ASKED FOR IT IS IN VIEW. Every one
+   * the frame holds is closed when the lobby is put away for a local game or a board,
+   * and when a table is left or ends; napplet.js closes them on pagehide as well. */
+  function closeSubscriptions() {
+    if (lobby) lobby.close();
+    const N = globalThis.E1Napplet;
+    if (N && N.outbox && typeof N.outbox.closeAll === "function") N.outbox.closeAll();
+  }
+
+  function showLobby() {
+    session.seat = null;
+    session.role = "hotseat";
+    session.full = null;
+    $("table").hidden = true;
+    $("setup").hidden = false;
+    cueCalm();
+    renderNetChip();
+    showMode("online");
+  }
+
+  /* THE FIRST SCREEN INSIDE THE HANGAR (a guild's Play list opens the same napplet):
+   * who plays, the three ways to play, the collection line and a line for every
+   * service that is not there. The choice stays above what it opens: the setup
+   * form for a local game, the lobby for an online one. */
+  const SHOP_URL = "https://tcg.nappelin.com/shop.html";
+  const lobbyWords = () => (globalThis.E1Lobby && globalThis.E1Lobby.WORDS) || {};
+  let mode = null;
+
+  function showMode(next) {
+    mode = next;
+    for (const [id, name] of [["modeNpc", "npc"], ["modeHotseat", "hotseat"], ["modeOnline", "online"]]) {
+      const button = $(id);
+      if (button) button.setAttribute("aria-pressed", String(mode === name));
+    }
+    const local = $("localSetup");
+    if (local) local.hidden = !(mode === "npc" || mode === "hotseat");
+    const panel = $("lobby");
+    if (panel) panel.hidden = mode !== "online";
+    if (mode !== "online") closeSubscriptions();
+    const npc = $("npcB");
+    if (npc && mode !== "online" && mode !== null) npc.checked = mode === "npc";
+    if (mode === "online" && lobby) lobby.open();
+    coachStep();
+  }
+
+  /* The member as the shell knows them: their look's name and picture (the seat
+   * code's own book), the short npub until it lands, and one line without a key.
+   * Nothing is said before the shell has answered who is signed in. */
+  function renderFirst() {
+    if (!embedded()) return;
+    const key = lookIdentity();
+    const book = key ? looks() : null;
+    const look = book ? book.seat("first", key, repaint) : null;
+    const known = Boolean(key) || shellAnswered;
+    const short = NET && NET.nostr ? NET.nostr.shortNpub(key) : "";
+    const name = !key ? (known ? "Not signed in" : "") : look && look.name ? look.name : short;
+    $("firstName").textContent = name;
+    const face = lookFace(look);
+    const img = $("firstPortrait");
+    img.hidden = !face;
+    if (face) {
+      if (img.dataset) img.dataset.look = face.via || "";
+      paintFace(img, face, `${name} avatar`);
+    }
+    const line = $("firstIdentity");
+    line.hidden = !known || Boolean(key);
+    line.textContent = line.hidden ? "" : lobbyWords().noIdentity || "";
+    /* The lobby's name field starts as the member's own name once their look has one:
+     * the seat plays under it, and a table of two "Player"s says nothing. A name the
+     * member typed is theirs to keep. */
+    const field = lobby ? $("netName") : null;
+    if (field && look && look.nameVia !== "npub" && look.name && (field.value === "Player" || field.value === namedAs)) {
+      field.value = look.name;
+      namedAs = look.name;
+    }
+  }
+  let namedAs = null;
+
+  /* The empty collection's one door, to a fixed address and never one built from
+   * input. The Hangar asks the member first; a refusal, or 30 s of silence
+   * (E1Napplet.link), leaves the line as it was. */
+  function openShop() {
+    const N = globalThis.E1Napplet;
+    const door = $("shopDoor");
+    if (door.disabled || !N || !N.link) return;
+    door.disabled = true;
+    Promise.resolve()
+      .then(() => N.link.open(SHOP_URL))
+      .catch(() => null)
+      .then(() => { door.disabled = false; });
+  }
+
+  function initFirst() {
+    $("first").hidden = false;
+    $("modeNpc").addEventListener("click", () => showMode("npc"));
+    $("modeHotseat").addEventListener("click", () => showMode("hotseat"));
+    $("modeOnline").addEventListener("click", () => showMode("online"));
+    $("shopDoor").addEventListener("click", openShop);
+    showMode(null);
+    renderFirst();
+  }
+
+  function mountLobby() {
+    lobby = globalThis.E1Lobby.mount($("lobby"), NET, {
+      embedded: true,
+      start: false,
+      onSeat(msg, invite) {
+        if (!atBoard() && session.full) backToSetup();
+        closeSubscriptions(); // the board takes the lobby's place
+        remote.invite = invite || null;
+        adoptState(msg);
+      },
+      onLobby() {
+        if (atBoard()) showLobby();
+        /* A reloaded frame that took its own open table back shows it, over the
+         * first screen where no way to play has been chosen yet. */
+        else if (mode === null) showMode("online");
+      },
+      collection: () => collection,
+      stack: (ruleset) => (collection && collection.cards > 0 ? collectionStack(ruleset) : null),
+    });
+    const rules = $("rules");
+    if (rules && $("netRules")) $("netRules").value = rules.value;
+    renderFirst();
+    /* Every message has one reader: the board while this player sits at a table
+     * or watches one, the lobby otherwise. An open table is always the lobby's. */
+    const L = lobby.handlers;
+    const either = (name) => (msg) => (atBoard() ? NET_HANDLERS : L)[name](msg);
+    return {
+      onState: (msg) => (atBoard() && msg.status !== "open" ? adoptState(msg) : L.onState(msg)),
+      onFrame: NET_HANDLERS.onFrame,
+      onReject: NET_HANDLERS.onReject,
+      onOver: NET_HANDLERS.onOver,
+      onNostr: NET_HANDLERS.onNostr,
+      onQueued: L.onQueued,
+      onActive: L.onActive,
+      onPeer: either("onPeer"),
+      onStatus: either("onStatus"),
+      onError: either("onError"),
+    };
   }
 
   /* THE WAY BACK FROM A FINISHED LOCAL GAME. There was none: the closing screen
@@ -5148,6 +5550,7 @@
     blocks = {};
     $("table").hidden = true;
     $("setup").hidden = false;
+    cueCalm();
     const start = $("start");
     if (start && typeof start.focus === "function") start.focus();
   }
@@ -5170,6 +5573,7 @@
      * seat or a viewing to give up and a lobby to be sent back to. */
     if (!(remote.endWasNetworked || atNetworkTable())) return void backToSetup();
     closeEndgame();
+    closeSubscriptions();
     if (NET) NET.leave();
     session.seat = null;
     session.role = "hotseat";
@@ -5179,6 +5583,7 @@
     remote.endShown = null;
     $("table").hidden = true;
     $("setup").hidden = false;
+    cueCalm();
     renderNetChip();
     renderIdentity();
     toLobby();
@@ -5197,9 +5602,12 @@
   }
 
   function initNet() {
-    $("nostrLogin").addEventListener("click", signIn);
-    window.addEventListener("e1:identity", onBarIdentity);
-    $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); announceAuth(false); });
+    const routed = embedded() && globalThis.E1Lobby && $("lobby") ? mountLobby() : null;
+    if (!routed) {
+      $("nostrLogin").addEventListener("click", signIn);
+      window.addEventListener("e1:identity", onBarIdentity);
+      $("nostrLogout").addEventListener("click", () => { nostr().logout(); renderIdentity(); announceAuth(false); });
+    }
     /* Disabled only while the signer is open, and re-enabled if it was refused:
      * declining a popup by accident must not permanently cost a player their
      * place on the ladder. */
@@ -5215,6 +5623,7 @@
       netNotice("Resynced from the referee.", "");
     });
     $("leaveTable").addEventListener("click", () => {
+      closeSubscriptions();
       NET.leave();
       session.seat = null;
       session.role = "hotseat";
@@ -5223,8 +5632,10 @@
       remote.agreement = null;
       $("table").hidden = true;
       $("setup").hidden = false;
+      cueCalm();
       renderNetChip();
       renderIdentity();
+      if (lobby) showLobby();
     });
 
     /* The panic button the runbook asks for: a forced RESUME without hunting
@@ -5238,8 +5649,16 @@
 
     renderIdentity();
     /* Auto-open only if this page already holds a match (localStorage or a
-     * ?match= link). A cold play.html opens no socket at all. */
-    const started = NET.start(NET_HANDLERS);
+     * ?match= link). A cold play.html opens no socket at all. Inside the Hangar
+     * the seat mirror answers later (started.restoring), and the lobby says so. */
+    const started = NET.start(routed || NET_HANDLERS);
+    if (lobby) {
+      lobby.told(started);
+      if (started.restoring && typeof started.restoring.then === "function") started.restoring.then(lobby.told, () => {});
+      /* A frame opened with a table code shows the lobby it is prefilled in. */
+      if (lobby.launchCode) showMode("online");
+      return;
+    }
     if (started.resuming) netNotice("Rejoining your table…", "");
     else if (started.loginRequired) netNotice("Sign in with NIP-07 to open this table.", "bad");
   }
@@ -5262,7 +5681,15 @@
       for (const card of inventory.cards) available.set(card.asset_id, card.count);
       return available;
     }
-    const wallet = globalThis.NutFTWallet;
+    /* The wallet script is not on this page until something needs it
+     * (site/collection-stack.js loadWallet), and a device that holds no wallet
+     * holds no cards: nothing is loaded to be told so, and a cold table stays cold. */
+    let wallet = globalThis.NutFTWallet;
+    const CS = globalThis.E1CollectionStack;
+    if (!wallet && CS) {
+      if (!CS.walletExists()) return available;
+      wallet = await CS.loadWallet({ document });
+    }
     if (!wallet || typeof wallet.snapshotReadOnly !== "function") throw new Error("the NutFT wallet is not loaded on this page");
     // Only counting: a possession check must never finish or rewrite a pending transfer.
     const view = await wallet.snapshotReadOnly(location.origin);
@@ -5293,6 +5720,85 @@
         return false;
       }
     })();
+  }
+
+  /* MY COLLECTION. The cards this player holds, read once for the setup form
+   * (site/collection-stack.js: Bearlett's inventory inside a shell, the site's
+   * NutFT wallet on the website), offered in both Stack menus as "My collection
+   * (n of 40 cards yours)" — or one line that says why there is nothing to offer.
+   *
+   * A COLLECTION STACK PROVES NO POSSESSION, AND CLAIMS NONE. Its owned part is
+   * counts, not proofs (the inventory carries none, and a wallet snapshot is a
+   * read, not a certificate), and its filler is Starter and pool copies nobody
+   * owns. So it is never marked in 600b:nutft-decks, never wears "· NutFT", and
+   * never reaches verifyNutftSetup above, which goes on gating exactly the saved
+   * Stacks marked NutFT. "n of 40 cards yours" is a count shown honestly. */
+  let collection = null;               // loadCollection's answer + ownedFromInventory's counts
+  const collectionOptions = new Map(); // select id -> its "My collection" option, while it is in the menu
+
+  /* Dealt under the rules chosen now, from the counts read at setup. */
+  function collectionStack(ruleset) {
+    const fast = ruleset === "F1.0";
+    const cards = fast && Array.isArray(globalThis.E1_CARDS_FAST) ? globalThis.E1_CARDS_FAST : globalThis.E1_CARDS || [];
+    const precons = (fast ? globalThis.E1_PRECONS_FAST : globalThis.E1_PRECONS) || {};
+    const owned = collection ? collection.owned : new Map();
+    return globalThis.E1CollectionStack.buildCollectionStack(cards, owned, { profile: fast ? "F1.0" : "E1.0", precons });
+  }
+
+  /* The option joins a menu the first time there is something to offer and is
+   * relabelled after that, so a late answer never resets a seat's choice. */
+  function renderCollection() {
+    const CS = globalThis.E1CollectionStack;
+    if (!CS || !collection) return;
+    if (collection.cards > 0) {
+      const rulesSelect = document.getElementById("rules");
+      const stack = collectionStack(rulesSelect && rulesSelect.value === "F1.0" ? "F1.0" : "E1.0");
+      for (const id of ["deckA", "deckB"]) {
+        const select = document.getElementById(id);
+        if (!select) continue;
+        let option = collectionOptions.get(id);
+        if (!option) {
+          const group = document.createElement("optgroup");
+          group.label = "Your cards";
+          option = el("option", null, "");
+          option.value = "collection";
+          group.append(option);
+          select.append(group);
+          collectionOptions.set(id, option);
+        }
+        option.textContent = CS.optionLabel(stack.fromCollection, stack.ids.length);
+      }
+    }
+    const note = document.getElementById("collectionNote");
+    if (!note) return;
+    note.textContent = CS.collectionLine(collection);
+    note.classList.toggle("has-cards", collection.cards > 0);
+    note.hidden = false;
+    if (lobby) lobby.refresh();
+    if (!embedded()) return;
+    /* The first screen says the same line, and offers the shop when it is the empty one. */
+    const line = CS.collectionLine(collection);
+    const first = $("firstCollection");
+    first.textContent = line;
+    first.classList.toggle("has-cards", collection.cards > 0);
+    first.hidden = false;
+    const N = globalThis.E1Napplet;
+    const door = Boolean(N && N.link && typeof N.link.available === "function" && N.link.available());
+    $("shopDoor").hidden = !(door && line === CS.WORDS.empty);
+  }
+
+  function loadCollection() {
+    const CS = globalThis.E1CollectionStack;
+    if (!CS) return; // a page built without it keeps the presets and the saved Stacks
+    CS.loadCollection({
+      napplet: globalThis.E1Napplet,
+      net: NET,
+      document,
+      origin: globalThis.location && globalThis.location.origin,
+    }).then((answer) => {
+      collection = Object.assign(answer, CS.ownedFromInventory(answer.counts, globalThis.E1_CARDS || CARDS));
+      renderCollection();
+    });
   }
 
   /* ANY WORD IS A SEED. The field used to compute `Number(text) | 0`, and
@@ -5362,6 +5868,7 @@
       if (value && value.startsWith("custom:") && Array.isArray(stacks[value.slice(7)])) {
         return { deck: stacks[value.slice(7)].slice() };
       }
+      if (value === "collection") return { deck: collectionStack(ruleset).ids };
       return { affinity: value };
     };
     const config = {
@@ -5458,6 +5965,14 @@
       const select = document.getElementById(id);
       if (!select) continue;
       select.innerHTML = "";
+      /* Seat one can wear the member's own look, and does unless the player
+       * picks something else. Offered only while a key is known. */
+      const self = seatIndex === 0 ? lookIdentity() : null;
+      if (self) {
+        const mine = el("option", null, "My Nappelin look");
+        mine.value = LOOK;
+        select.append(mine);
+      }
       const none = el("option", null, "No Avatar - just my name");
       none.value = "";
       select.append(none);
@@ -5469,9 +5984,15 @@
       const preview = document.getElementById(seatIndex === 0 ? "avatarPreviewA" : "avatarPreviewB");
       const sync = () => {
         SEAT_AVATARS[seatIndex] = select.value || null;
+        const wearing = select.value === LOOK;
+        /* The preview holds its own key in the book, so the hidden setup screen
+         * never takes seat one away from the table it is dressing. */
+        const book = seatIndex === 0 ? looks() : null;
+        const look = book ? book.seat("setup", wearing ? lookIdentity() : null, repaint) : null;
         if (!preview) return;
         const entry = seatCharacter(seatIndex);
-        const face = entry ? characterFace(entry) : { url: null, card: null };
+        const face = wearing ? lookFace(look) || { url: null, card: null }
+          : entry ? characterFace(entry) : { url: null, card: null };
         if (!face.url && !face.card) { preview.hidden = true; return; }
         /* .avatar-preview in play.html is card-shaped from when this preview WAS
          * a card face. A portrait is square, and cropping a square into a tall
@@ -5481,12 +6002,16 @@
          * crop to keep in step and no link between them. */
         if (preview.style) {
           preview.style.aspectRatio = face.url ? "1 / 1" : "";
-          preview.style.objectPosition = face.url ? "50% 50%" : "";
+          // A look's full figure is cropped to its head, like the bar crops it.
+          preview.style.objectPosition = face.url ? (face.via === "fullbody" ? "50% 12%" : "50% 50%") : "";
         }
         paintFace(preview, face, "");
         preview.hidden = false;
       };
-      select.addEventListener("change", sync);
+      select.addEventListener("change", () => {
+        AVATAR_PICKED[seatIndex] = true;
+        sync();
+      });
       AVATAR_SYNC.push(sync);
       /* Default to the character that carries the seat's own name where the set
        * has one - a player called FLX starts as FLX - otherwise stay on
@@ -5497,9 +6022,62 @@
       const wanted = !seatName ? null
         : (P ? P.slugFor(seatName) : seatName.trim().toLowerCase());
       const match = wanted && choices.find((entry) => entry.key === wanted);
-      if (match) select.value = match.key;
+      if (self) select.value = LOOK;
+      else if (match) select.value = match.key;
       sync();
     }
+  }
+
+  /* A rebuilt menu keeps what the player PICKED and works out every default
+     again, so a key that becomes known late still lands seat one on its look.
+     The picks are synced once more at the end: setting a select's value does not
+     fire its change event, and a menu showing one pick while SEAT_AVATARS holds
+     another would dress the seat in the wrong face. */
+  const AVATAR_PICKED = [false, false];
+  function rebuildAvatarMenus() {
+    const before = ["avatarA", "avatarB"].map((id) => {
+      const select = document.getElementById(id);
+      return select ? select.value : "";
+    });
+    buildAvatarMenus();
+    before.forEach((value, index) => {
+      const select = document.getElementById(index === 0 ? "avatarA" : "avatarB");
+      const offered = select && Array.prototype.some.call(select.children || [], (option) => option.value === value);
+      if (AVATAR_PICKED[index] && offered) select.value = value;
+    });
+    for (const sync of AVATAR_SYNC) sync();
+  }
+
+  /* Seat one's menu follows the member's key: inside a shell it is an answer
+     that lands after the first paint (and the shell reloads the napplet when it
+     changes); on the website the side bar says who signed in or out. */
+  function watchLookIdentity() {
+    const offered = () => {
+      const select = document.getElementById("avatarA");
+      return Boolean(select && Array.prototype.some.call(select.children || [], (option) => option.value === LOOK));
+    };
+    const follow = () => {
+      if (Boolean(lookIdentity()) !== offered()) rebuildAvatarMenus();
+      repaint();
+    };
+    const N = globalThis.E1Napplet;
+    if (N && typeof N.has === "function" && N.has("identity") && N.identity && typeof N.identity.current === "function") {
+      Promise.resolve()
+        .then(() => N.identity.current())
+        .then((key) => {
+          shellKey = key || null;
+          shellAnswered = true;
+          follow();
+        })
+        .catch(() => {
+          /* no key from the shell: seat one keeps the menu it has */
+          shellAnswered = true;
+          repaint();
+        });
+    } else {
+      shellAnswered = true;
+    }
+    window.addEventListener("e1:identity", follow);
   }
 
   /* The picker is built before the portrait index has arrived — the index is a
@@ -5517,16 +6095,8 @@
     if (avatarMenusRefreshed || !P || !P.ready || typeof P.ready.then !== "function") return;
     avatarMenusRefreshed = true;
     P.ready.then(() => {
-      const before = ["avatarA", "avatarB"].map((id) => {
-        const select = document.getElementById(id);
-        return select ? select.value : "";
-      });
       CHARACTERS = null;
-      buildAvatarMenus();
-      before.forEach((value, index) => {
-        const select = document.getElementById(index === 0 ? "avatarA" : "avatarB");
-        if (select && value) select.value = value;
-      });
+      rebuildAvatarMenus();
     }).catch(() => { /* no index, thirty characters, and the game plays */ });
   }
 
@@ -5537,6 +6107,7 @@
       const select = document.getElementById(id);
       if (!select) return;
       select.innerHTML = "";
+      collectionOptions.delete(id);
     }
     const affinities = ["All", "Power", "Bitcoin", "Keys", "Signal", "Timelock"];
     // Stacks saved by the Stack Builder (site/deck.html) join the affinity
@@ -5579,6 +6150,7 @@
       }
       select.value = id === "deckA" ? "Power" : "Signal";
     }
+    renderCollection(); // the menus were rebuilt, and "My collection" is counted under these rules
   }
 
   function init() {
@@ -5628,6 +6200,7 @@
     if (portraits && portraits.ready && typeof portraits.ready.then === "function") {
       portraits.ready.then(repaint, () => { /* no index, and the derived name stands */ });
     }
+    watchLookIdentity(); // a member's own look: seat one's avatar menu follows the key
     // The local Fast faces arrive after the first paint; redraw so their art crops apply.
     if (FACES && FACES.fastFaces && FACES.fastFaces.then) {
       FACES.fastFaces.then((manifest) => { if (manifest && session.full) render(); });
@@ -5671,6 +6244,13 @@
     };
     describeRules();
     loadStackLibrary(() => { buildSeatMenus(); start.disabled = false; });
+    loadCollection();
+    /* Signing in through the side bar changes which empty line is true. */
+    window.addEventListener("e1:identity", (event) => {
+      if (!collection) return;
+      collection.identity = (event && event.detail && event.detail.pubkey) || null;
+      renderCollection();
+    });
     if (rulesSelect && rulesSelect.addEventListener) {
       // The precon shelf differs per rules: rebuild the seat menus, keeping plain affinities.
       rulesSelect.addEventListener("change", () => {
@@ -5688,7 +6268,7 @@
     });
     document.getElementById("coachSkip").addEventListener("click", finishCoach);
     buildKeywordPanel(); // built once: the glossary does not change mid-match
-    coachStep(); // the lobby step, for a first visit
+    loadCoach(); // the first step, for a first visit, once storage says it is one
 
     /* Rugpull = concede with the setting's own word for it. The win goes to
      * the player who did NOT rugpull (§2.2: concession). It lives with the
@@ -5821,6 +6401,8 @@
     }
 
     initEndgame(); // before initNet, and unconditionally: see the note there.
+    initCues();    // after fx.js is mounted, so a focus push at launch finds the bed
+    if (embedded()) initFirst();
 
     // Last, and guarded: a missing net.js must not take the hotseat down with it.
     if (globalThis.E1Net) {

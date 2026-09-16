@@ -5,7 +5,8 @@ Writes dist/napplet/600b-timelock-tcg/index.html and its .nip5a-manifest.json (k
 Every `<script src>` is inlined -- vendor/three.js and the arena3d-*.js scripts of the
 3D table included (docs/arena3d.md; three.js carries no `</script` and no `<!--`, but
 the escaping below covers them anyway) -- with its comments stripped (not three.js,
-which ships minified). Every font play.html's @font-face names under ../art/fonts/ (the
+which ships minified), as the page's CSS and markup ship without theirs. Every font
+play.html's @font-face names under ../art/fonts/ (the
 Hypershell faces and Anton, docs/brand-hypershell.md) becomes a data URL; the hero image
 ships once, as window.E1_BACKDROP_URL, which play.html copies into the stage's `--hero`
 property and the 3D cyclorama reads directly. The wallet/QR/bug-report scripts and the
@@ -30,7 +31,13 @@ OUT_DIR = REPO_ROOT / "dist" / "napplet" / "600b-timelock-tcg"
 NAPPLET_ID = "600b-timelock-tcg"
 TITLE = "TIMELOCK TCG"
 DESCRIPTION = "Two-player card game on one screen, or against the built-in opponent. All 295 cards."
-REQUIRES = ("identity", "outbox", "resource", "storage", "intent")
+# `link` is the NAP-LINK door: the one fixed shop URL the empty collection opens (site/play.js).
+# `x-nappelin-cue` is the interim NAP-CUE domain (nappelin #107): the table cues the Hangar's
+# music. A catalog that does not grant it still launches the napplet; the cues simply stay off.
+REQUIRES = ("identity", "outbox", "resource", "storage", "intent", "link", "x-nappelin-cue")
+# The referee the napplet dials. A srcdoc frame has no origin to derive one from, so
+# site/net.js tableUrl() reads window.E1_TABLE_URL, set in <head> before net.js runs.
+TABLE_URL = "wss://tcg.nappelin.com/ws"
 MANIFEST_KIND = 35129
 SIZE_LIMIT = 3 * 1024 * 1024
 
@@ -51,6 +58,11 @@ STYLE_BLOCK = re.compile(r"(<style[^>]*>)(.*?)(</style>)", re.S)
 CSS_STRING_OR_COMMENT = re.compile(r"""("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|/\*.*?\*/""", re.S)
 TRAILING_SPACE = re.compile(r"[ \t]+$", re.M)
 BLANK_LINE = re.compile(r"(?<=\n)\n")
+# The markup's comments go the same way: prose for the people reading play.html. A script
+# or style block is left to its own stripper, and a comment alone on its lines takes them.
+RAW_TEXT = re.compile(r"(<script\b[^>]*>.*?</script>|<style\b[^>]*>.*?</style>)", re.S)
+HTML_COMMENT_LINE = re.compile(r"^[ \t]*<!--(?:(?!-->).)*-->[ \t]*\n", re.S | re.M)
+HTML_COMMENT = re.compile(r"<!--(?:(?!-->).)*-->", re.S)
 # The hero reaches the stage (`--hero`) and the 3D cyclorama (site/arena3d-env.js) as
 # window.E1_BACKDROP_URL; the website's CSS fallback to the file becomes `none` here.
 BACKDROP = "../art/site/hero-play.webp"
@@ -74,8 +86,8 @@ LEFTOVERS = (
 # --- the comment stripper -----------------------------------------------------------
 # A tokenizer, not a regex replace: it walks strings, template literals (with `${}`
 # nesting) and regex literals, so a `//` or `/*` inside one is never touched. It removes
-# block comments and whole-line `//` comments; `/*!` and `@license` blocks and trailing
-# `//` comments stay. Anything it cannot follow raises StripError rather than guessing.
+# block comments and `//` comments, whole-line or trailing; `/*!` and `@license` blocks
+# stay. Anything it cannot follow raises StripError rather than guessing.
 WORD = re.compile(r"[A-Za-z0-9_$\u0080-\uffff]+")
 SPACE = re.compile(r"[ \t\r\n\f\v]+")
 # After one of these words a `/` opens a regex literal; after any other word it divides.
@@ -157,7 +169,7 @@ def _regex_allowed(code: str, prev: str, prev_at: int) -> bool:
 
 
 def strip_js_comments(code: str) -> str:
-    """The code without block comments and whole-line `//` comments; literals untouched."""
+    """The code without its block and `//` comments; literals and line breaks untouched."""
     cuts: list[tuple[int, int, str]] = []  # (start, end, replacement) on the original
     braces: list[bool] = []  # True where the matching `}` closes a template `${`
     prev, prev_at = "", 0  # last significant token: "", "word", "value" or a punctuator
@@ -208,6 +220,12 @@ def strip_js_comments(code: str) -> str:
             line_end = n if line_end < 0 else line_end
             if not code[line_start:i].strip():
                 cuts.append((line_start, min(line_end + 1, n), ""))
+            else:
+                # One that trails code goes with the spaces before it; the line break stays.
+                start = i
+                while start > line_start and code[start - 1] in " \t":
+                    start -= 1
+                cuts.append((start, line_end, ""))
             i = line_end
             continue
         if ch == "/" and _regex_allowed(code, prev, prev_at):
@@ -310,6 +328,14 @@ def inline_assets(html: str, site: Path) -> str:
     return FONT_URL.sub(replace, html).replace(HERO_FALLBACK, "var(--hero, none)")
 
 
+def strip_html_comments(html: str) -> str:
+    """The page without its HTML comments; script and style blocks untouched."""
+    parts = RAW_TEXT.split(html)
+    for index in range(0, len(parts), 2):
+        parts[index] = HTML_COMMENT.sub("", HTML_COMMENT_LINE.sub("", parts[index]))
+    return "".join(parts)
+
+
 def strip_site_only(html: str) -> str:
     """Drop the masthead logo and the affinity plate backgrounds (site files, not bundled)."""
     return PLATE_RULE.sub("", LOGO_TAG.sub("", html))
@@ -322,9 +348,10 @@ def backdrop_data_url(site: Path) -> str:
 
 
 def add_head(html: str, source_sha: str, backdrop: str = "") -> str:
-    """Insert the build marker, the backdrop URL and the requires meta at the top of <head>."""
+    """Insert the build marker, the referee, the backdrop URL and the requires meta into <head>."""
     head = (
         f'<script>window.E1_NAPPLET_BUILD = "{source_sha}";</script>\n'
+        + f'<script>window.E1_TABLE_URL = "{TABLE_URL}";</script>\n'
         + (f'<script>window.E1_BACKDROP_URL = "{backdrop}";</script>\n' if backdrop else "")
         + f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
     )
@@ -343,7 +370,7 @@ def build_html(site: Path, sizes: dict[str, tuple[int, int]] | None = None) -> s
     # Hash the LF text, not the checkout's bytes: Git hands Windows a CRLF copy, and a
     # marker taken before normalising made one commit build two different artifacts.
     html = add_head(html, sha256_hex(html.encode("utf-8")), backdrop_data_url(site))
-    html = strip_site_only(html)
+    html = strip_html_comments(strip_site_only(html))
     html = inline_assets(html, site)
     html = inline_scripts(html, site, sizes)
     leftover = next((marker for marker in LEFTOVERS if marker in html), None)

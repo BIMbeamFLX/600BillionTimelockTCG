@@ -396,18 +396,44 @@
    * that carries `error` on failure (it never rejects on a relay refusal). On
    * the website it is site/net.js's own relay fan-out. The spec's fallback for a
    * missing outbox is "results stay local", so a refusal here is reported, never
-   * thrown — a match that cannot be announced is still a match that was played. */
+   * thrown — a match that cannot be announced is still a match that was played.
+   *
+   * THE RELAYS ARE NAMED. The Hangar's outbox router looks up the signer's NIP-65
+   * relay list for a publish that does not say `toOutbox: false`, finds none for
+   * anyone, and refuses with "relay list unavailable" after signing. So a publish
+   * names the four relays the website reads (site/net.js READ_RELAYS: nappelin's
+   * and the public three), which is also what lets a Hangar player and a website
+   * player see the same invites; the host still drops any relay it does not allow.
+   * A query and a subscription name the same four, so reading a member's kind 0
+   * (site/identity-look.js, net.js profile and sessions) or an invite never rests
+   * on the router finding that member's relay list. */
+  const OUTBOX_RELAYS = Object.freeze(["wss://relay.nappelin.com", "wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"]);
+  const relayOptions = () => ({ relays: OUTBOX_RELAYS.slice() });
+  /* NAP-OUTBOX delivers query and subscription results as `{ event, sidecar }`;
+   * a bare event is read as itself. */
+  const eventOf = (item) => (isObject(item) && isObject(item.event) ? item.event : item);
+  /* AT MOST EIGHT SUBSCRIPTIONS ARE OPEN AT ONCE, and the napplet closes its own:
+   * the host keeps a frame's subscriptions until the frame is destroyed. A ninth
+   * closes the oldest, and its owner hears onClosed("subscription limit") so it can
+   * say the list stopped updating: the newest is the one a player just asked for. closeAll() ends every one (play.js:
+   * the lobby put away, a board shown, a table left or ended), and so does the
+   * frame unloading (pagehide). Only a subscription the shell ends is told why. */
+  const SUBSCRIPTIONS_MAX = 8;
+  const subscriptions = new Map(); // unsubscribe -> evict (tells its owner), oldest first
   const outbox = {
     available: () => has("outbox") || Boolean(globalThis.E1Net && globalThis.E1Net.nostr),
     async publish(template) {
       if (has("outbox")) {
         try {
-          const msg = await shell.outbox.publish(template);
-          if (msg && msg.error) {
+          const msg = await shell.outbox.publish(template, { relays: OUTBOX_RELAYS.slice(), toOutbox: false });
+          /* A refusal may still carry the event the host signed before its relays
+           * said no: handed back, because signed is not the same as published. */
+          const signed = (msg && (msg.event || msg.result)) || null;
+          if (msg && (msg.error || msg.ok === false)) {
             const error = msg.error;
-            return { ok: false, via: "shell", error: String((error && error.message) || error) };
+            return { ok: false, via: "shell", error: String((error && error.message) || error || "no relay accepted it"), event: signed };
           }
-          const event = (msg && (msg.event || msg.result)) || msg || null;
+          const event = signed || msg || null;
           return { ok: true, via: "shell", event };
         } catch (err) {
           return { ok: false, via: "shell", error: String(err && err.message) };
@@ -427,8 +453,8 @@
     async query(filters, ms) {
       if (has("outbox") && typeof shell.outbox.query === "function") {
         try {
-          const msg = await shell.outbox.query(filters);
-          return msg && Array.isArray(msg.events) ? msg.events : [];
+          const msg = await shell.outbox.query(filters, relayOptions());
+          return msg && Array.isArray(msg.events) ? msg.events.map(eventOf).filter(isObject) : [];
         } catch (err) {
           return [];
         }
@@ -438,7 +464,68 @@
       }
       return [];
     },
+    /** Whether live subscriptions exist here. Only a shell outbox has them. */
+    canSubscribe: () => has("outbox") && typeof shell.outbox.subscribe === "function",
+    /**
+     * Live events matching `filters`, through the shell's outbox. `onEvent(event)` gets each
+     * event bare; `onClosed(reason)` hears a subscription the shell ended, or "unavailable"
+     * when there is no shell outbox (the website has none: site/net.js keeps its own relays).
+     * Returns `unsubscribe()`, which ends it quietly. Never throws.
+     */
+    subscribe(filters, onEvent, onClosed) {
+      let handle = null;
+      let open = true;
+      const stop = () => {
+        try { if (handle && typeof handle.close === "function") handle.close(); } catch (err) { /* already closed */ }
+      };
+      const unsubscribe = () => {
+        if (!open) return;
+        open = false;
+        subscriptions.delete(unsubscribe);
+        stop();
+      };
+      const end = (reason) => {
+        if (!open) return;
+        open = false;
+        subscriptions.delete(unsubscribe);
+        call(onClosed, reason);
+      };
+      const endLater = (reason) => { Promise.resolve().then(() => end(reason)); };
+      if (!outbox.canSubscribe()) {
+        endLater("unavailable");
+        return unsubscribe;
+      }
+      try {
+        /* The prelude's handle (NAP-OUTBOX): `on("event" | "closed", fn)` and `close()`. */
+        handle = shell.outbox.subscribe(Array.isArray(filters) ? filters : [filters], relayOptions());
+        if (!handle || typeof handle.on !== "function") throw new Error("unavailable");
+        handle.on("event", (result) => {
+          const event = eventOf(result);
+          if (open && isObject(event)) call(onEvent, event);
+        });
+        handle.on("closed", (reason) => end(reason === undefined ? "closed" : String(reason)));
+        if (open) {
+          subscriptions.set(unsubscribe, () => {
+            if (!open) return;
+            stop();
+            end("subscription limit");
+          });
+          if (subscriptions.size > SUBSCRIPTIONS_MAX) subscriptions.values().next().value();
+        }
+      } catch (err) {
+        stop();
+        endLater(String((err && err.message) || "unavailable"));
+      }
+      return unsubscribe;
+    },
+    /** Ends every open subscription quietly, as each one's own unsubscribe would. */
+    closeAll() {
+      for (const close of Array.from(subscriptions.keys())) close();
+    },
   };
+  /* A frame that unloads closes what it opened: a reload may keep its window, and
+   * with it every subscription the host still holds for that window. */
+  if (typeof win().addEventListener === "function") win().addEventListener("pagehide", () => outbox.closeAll());
 
   // ----------------------------------------------------------------- resource
 
@@ -492,6 +579,37 @@
     },
   };
 
+  // --------------------------------------------------------------------- link
+
+  /* A LINK OUT IS THE HOST'S TO OPEN (NAP-LINK). A sandboxed frame cannot
+   * navigate anywhere, so it asks: the Hangar shows the member the destination,
+   * opens it only on their yes, and answers `{ status: "opened" | "denied" }`.
+   * Its own prelude gives up after 30 s, and so does this door. A refusal, a
+   * rejection, a host that never answers or a shell with no link domain all
+   * resolve `{ ok: false, error }` — never a rejection — so the page keeps what it
+   * was showing. Only an https URL is ever asked for. */
+  const LINK_MS = 30000;
+  const link = {
+    available: () => has("link") && typeof shell.link.open === "function",
+    /** `{ ok: true }` once the host opened `url`, else `{ ok: false, error }`. Never rejects. */
+    open(url) {
+      let target = null;
+      try { target = new globalThis.URL(url); } catch (err) { target = null; }
+      if (!target || target.protocol !== "https:") return Promise.resolve({ ok: false, error: "https only" });
+      if (!link.available()) return Promise.resolve({ ok: false, error: "unavailable" });
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => resolve({ ok: false, error: "timeout" }), LINK_MS);
+        const done = (answer) => { clearTimeout(timer); resolve(answer); };
+        Promise.resolve()
+          .then(() => shell.link.open(target.href))
+          .then(
+            (answer) => done(answer && answer.status === "opened" ? { ok: true } : { ok: false, error: String((answer && answer.status) || "denied") }),
+            (err) => done({ ok: false, error: String((err && err.message) || err) })
+          );
+      });
+    },
+  };
+
   // -------------------------------------------------------------------- table
 
   /* THE TRANSPORT SEAM. A napplet has a pipe, not a network: the table socket is
@@ -521,7 +639,8 @@
     if (!event || event.source !== globalThis.parent) return;
     const msg = event.data;
     if (!msg || typeof msg !== "object" || typeof msg.type !== "string") return;
-    if (msg.type === "table.open.result" || msg.type === "table.sign.result") {
+    if (msg.type === CUE_FOCUS) return void cueFocus(msg);
+    if (msg.type === "table.open.result" || msg.type === "table.sign.result" || msg.type === CUE_RESULT) {
       const reply = replies.get(msg.id);
       if (!reply) return;
       replies.delete(msg.id);
@@ -676,6 +795,135 @@
     },
   };
 
+  // ---------------------------------------------------------------------- cue
+
+  /* MUSIC CUES (nappelin NAP-CUE draft, nappelin.com #107; interim domain
+   * `x-nappelin-cue`). The game tells whatever music the shell plays what the
+   * table feels like, in a closed vocabulary, and hears one bit back: whether that
+   * music is audible, so its own bed can step back. It rides the same postMessage
+   * pipe as the table channel, request ids and all.
+   *
+   * NOTHING HAPPENS UNTIL THE SHELL SAYS SO. Unless `napplet.shell.supports("x-nappelin-cue")`
+   * answers `true`, every call is a no-op and nothing is posted —
+   * which is every website visit and every Hangar that does not route cues yet.
+   *
+   * The shell rate-limits and answers `rate limited`, and an error is final: this
+   * side never retries. So the throttles live here too, and they are the shell's:
+   * a mood at most once per 8 s, the latest one winning the wait; moments at most
+   * 4 per second, the extras dropped. `accepted: true` says the shell took the cue,
+   * never that anyone listened, so no caller may depend on it. */
+  const CUE = "x-nappelin-cue";
+  const CUE_SEND = `${CUE}.send`;
+  const CUE_RESULT = `${CUE}.send.result`;
+  const CUE_FOCUS = `${CUE}.focus`;
+  const CUE_MOODS = Object.freeze(["calm", "tension", "battle", "victory", "defeat"]);
+  const CUE_MOMENTS = Object.freeze(["turn", "attack", "lethal", "match-end", "booster-open"]);
+  const CUE_MOOD_MS = 8000;
+  const CUE_MOMENTS_PER_S = 4;
+  const CUE_REPLY_MS = 8000;
+  const cueNow = () => (globalThis.Date || Date).now();
+  const cueTimer = (fn, ms) => (globalThis.setTimeout || setTimeout)(fn, ms);
+  const cueLog = { moodAt: null, mood: null, pending: null, moments: [] };
+  const focusListeners = new Set();
+
+  /** The one shape a result takes: `{ ok: true, accepted: true }` or `{ ok: false, error }`. */
+  const cueAnswer = (msg) => (msg && msg.accepted === true && msg.error === undefined
+    ? { ok: true, accepted: true }
+    : { ok: false, error: String((msg && msg.error) || "the shell refused the cue") });
+
+  function cuePost(fields) {
+    listen();
+    return new Promise((resolve) => {
+      try {
+        ask(CUE_SEND, fields, CUE_REPLY_MS, (msg) => resolve(cueAnswer(msg)));
+      } catch (err) {
+        resolve({ ok: false, error: String((err && err.message) || "no host") });
+      }
+    });
+  }
+
+  function cueFocus(msg) {
+    if (msg.music !== "playing" && msg.music !== "idle") return;
+    if (!cue.available()) return;
+    for (const fn of Array.from(focusListeners)) call(fn, msg.music);
+  }
+
+  /* The latest mood waits for the window to open. One timer, however many moods
+   * arrive while it runs; each one it replaces is told so. */
+  function cueMood(mood) {
+    const now = cueNow();
+    const waiting = cueLog.pending;
+    if (waiting) {
+      waiting.resolve({ ok: false, error: "superseded" });
+      return new Promise((resolve) => { waiting.mood = mood; waiting.resolve = resolve; });
+    }
+    if (cueLog.moodAt === null || now - cueLog.moodAt >= CUE_MOOD_MS) {
+      cueLog.moodAt = now;
+      cueLog.mood = mood;
+      return cuePost({ mood });
+    }
+    return new Promise((resolve) => {
+      cueLog.pending = { mood, resolve };
+      cueTimer(() => {
+        const { mood: latest, resolve: done } = cueLog.pending;
+        cueLog.pending = null;
+        // Back where the window started: the mood the shell holds is already this one.
+        if (latest === cueLog.mood) return void done({ ok: true });
+        cueLog.moodAt = cueNow();
+        cueLog.mood = latest;
+        cuePost({ mood: latest }).then(done);
+      }, Math.max(0, cueLog.moodAt + CUE_MOOD_MS - now));
+    });
+  }
+
+  function cueMoment(moment) {
+    const now = cueNow();
+    cueLog.moments = cueLog.moments.filter((at) => now - at < 1000);
+    if (cueLog.moments.length >= CUE_MOMENTS_PER_S) return Promise.resolve({ ok: false, error: "rate limited" });
+    cueLog.moments.push(now);
+    return cuePost({ moment });
+  }
+
+  const cue = {
+    MOODS: CUE_MOODS,
+    MOMENTS: CUE_MOMENTS,
+    /** Whether the shell routes cues. False on the website and in a Hangar without the domain. */
+    available() {
+      if (!shell || !embedded() || !hostWindow()) return false;
+      /* The one probe (nappelin #128): the host may never expose a
+       * `napplet["x-nappelin-cue"]` object, and only a plain `true` is a yes. */
+      try {
+        return Boolean(shell.shell) && typeof shell.shell.supports === "function" && shell.shell.supports(CUE) === true;
+      } catch (err) {
+        return false; // a supports() that throws supports nothing
+      }
+    },
+    /**
+     * Offer `{ mood }` or `{ moment }` (both is two cues) to the shell's music. Resolves
+     * `{ ok: true, accepted: true }` or `{ ok: false, error }`; never rejects, never retries.
+     */
+    send(fields) {
+      if (!cue.available()) return Promise.resolve({ ok: false, error: "unavailable" });
+      const { mood, moment } = isObject(fields) ? fields : {};
+      const moodOk = mood === undefined || CUE_MOODS.includes(mood);
+      const momentOk = moment === undefined || CUE_MOMENTS.includes(moment);
+      if (!moodOk || !momentOk || (mood === undefined && moment === undefined)) {
+        return Promise.resolve({ ok: false, error: "invalid request" });
+      }
+      if (mood === undefined) return cueMoment(moment);
+      if (moment === undefined) return cueMood(mood);
+      const held = cueMood(mood);
+      return cueMoment(moment).then((answer) => (answer.ok ? held : answer));
+    },
+    /** `fn("playing" | "idle")` on every focus push. Returns `unsubscribe()`. */
+    onFocus(fn) {
+      if (typeof fn !== "function" || !embedded() || !hostWindow()) return () => {};
+      listen();
+      focusListeners.add(fn);
+      return () => { focusListeners.delete(fn); };
+    },
+  };
+
   // --------------------------------------------------------------- collection
 
   /* WHAT THE PLAYER OWNS, asked of the shell rather than of a wallet. Bearlett
@@ -807,7 +1055,9 @@
     theme,
     outbox,
     resource,
+    link,
     table,
+    cue,
     collection,
     canReachInternet,
     shape,
@@ -825,6 +1075,7 @@
         outbox: has("outbox") ? "shell" : (globalThis.E1Net ? "relays" : "local only"),
         resource: has("resource") ? "shell" : "urls",
         table: table.available() ? "host channel" : "websocket",
+        cue: cue.available() ? "host channel" : "off",
         collection: has("intent") ? "intent" : "wallet",
         shape: shape(),
       };

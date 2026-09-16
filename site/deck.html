@@ -375,6 +375,8 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
 <script src="precons-fast.js"></script>
 <script src="storage-keys.js"></script>
 <script src="nutft-wallet.js"></script>
+<!-- The wallet read the table shares (readOwned); needs no engine. -->
+<script src="collection-stack.js"></script>
 <script>
 (() => {
   "use strict";
@@ -1502,53 +1504,19 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
    * only, validated in napplet.js); an answer replaces the wallet read. No
    * answer, or no shell, and the page's own NutFT wallet is read as before. A
    * missing wallet script is a fallback too, never a thrown page. */
-  const NAP = globalThis.E1Napplet;
-  const askCollection = NAP && typeof NAP.has === "function" && NAP.has("intent") && NAP.collection
-    ? NAP.collection.inventory("600b-e1").catch(() => null)
-    : Promise.resolve(null);
-  askCollection.then((inventory) => {
-    if (inventory) {
-      verified = NAP.collection.counts(inventory);
-      opened = inventory.cards.reduce((sum, card) => sum + card.count, 0);
-      unreadable = 0;
-      source = "bearlett";
-      walletReady = true;
-      applyMode(wish, { save: false });
-      return;
-    }
-    if (!globalThis.NutFTWallet) throw new Error("no wallet script on this page");
-    return verifyFromWallet();
-  }).catch((error) => {
-    verified = new Map();
-    walletReady = true;
-    applyMode("freestyle", { save: false });
-    ownershipNote.textContent = `Wallet verification failed, so Freestyle is active: ${error.message}`;
-  });
-
-  function verifyFromWallet() { return globalThis.NutFTWallet.read().then(async (wallet) => {
-    if (!wallet.tokens.length) {
-      verified = new Map();
-      walletReady = true;
-      applyMode(wish, { save: false });
-      return;
-    }
-    /* Only counting, so the read-only view: verifying a deck must never finish
-     * or rewrite a transfer the wallet page has open in another tab. */
-    const view = await globalThis.NutFTWallet.snapshotReadOnly(location.origin);
-    verified = new Map();
-    for (const item of view.owned) verified.set(item.tag[2], (verified.get(item.tag[2]) || 0) + 1);
-    /* snapshot() no longer throws on a token this mint cannot read, so a wallet
-     * full of them now arrives here as zero owned cards instead of as an error.
-     * That is a new way to reach OG with an empty pool: the mode guard above
-     * still catches it — no proofs, no OG — but the note has to say which of the
-     * two silences this is. */
-    unreadable = view.unreadable.length;
-    /* Proofs this mint DID open, whatever it then thought of them. "Nothing
-       could be read" must not be said over a wallet holding spent or rejected
-       proofs: those were read, and the mint has an opinion about them. That is
-       the exact distinction the unreadable bucket exists to preserve, and
-       counting only view.owned would have inverted it. */
-    opened = view.owned.length + view.spent.length + view.invalid.length;
+  /* The read itself is site/collection-stack.js (readOwned), shared with the
+   * table's "My collection", so the two pages count one wallet one way: an
+   * empty wallet answered without the mint, unspent proofs counted by their
+   * nutft tag, `opened` and `unreadable` kept apart for the notes above. */
+  const COLLECTION = globalThis.E1CollectionStack;
+  (COLLECTION
+    ? COLLECTION.readOwned({ napplet: globalThis.E1Napplet, wallet: globalThis.NutFTWallet, origin: location.origin })
+    : Promise.reject(new Error("no collection script on this page"))
+  ).then((read) => {
+    verified = read.counts;
+    opened = read.opened;
+    unreadable = read.unreadable;
+    source = read.source;
     walletReady = true;
     applyMode(wish, { save: false });
   }).catch((error) => {
@@ -1559,7 +1527,7 @@ if (globalThis.E1Napplet) globalThis.E1Napplet.theme.start();
     walletReady = true;
     applyMode("freestyle", { save: false });
     ownershipNote.textContent = `Wallet verification failed, so Freestyle is active: ${error.message}`;
-  }); }
+  });
   /* The doors open only once the library is in hand, and they open either way:
    * a handoff still has to be consumed and cleared even if the library failed
    * to read, or it would sit there re-firing on every visit. */

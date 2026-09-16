@@ -143,7 +143,7 @@ window.addEventListener("e1:identity", (event) => {
 ```
 
 **`e1:auth` — the page tells the bar whether the table accepted the login.** `detail: { ok: true | false }`,
-sent by play.js and matchmaking.js when the referee's answer flips: `ok: true` on AUTH_OK, `ok: false`
+sent by play.js and by the lobby (site/lobby.js, which matchmaking.html mounts) when the referee's answer flips: `ok: true` on AUTH_OK, `ok: false`
 when the seat closes, retries, is superseded or is left, or the player signs out (which ends the
 table's session).
 

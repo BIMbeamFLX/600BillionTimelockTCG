@@ -49,12 +49,24 @@ def test_page_is_self_contained(artifact: tuple[bytes, dict]) -> None:
 def test_page_carries_the_napplet_head(artifact: tuple[bytes, dict]) -> None:
     """The build marker and the requires meta sit in <head>."""
     html = artifact[0].decode("utf-8")
-    source_sha = hashlib.sha256((SITE / "play.html").read_bytes()).hexdigest()
+    # The marker hashes the LF text, as the build does: a Windows checkout hands over CRLF.
+    source_sha = hashlib.sha256((SITE / "play.html").read_bytes().replace(CRLF, LF)).hexdigest()
 
     assert f'window.E1_NAPPLET_BUILD = "{source_sha}";' in html
-    assert (
-        '<meta name="napplet-requires" content="identity,outbox,resource,storage,intent">' in html
-    )
+    requires = "identity,outbox,resource,storage,intent,link,x-nappelin-cue"
+    assert f'<meta name="napplet-requires" content="{requires}">' in html
+
+
+def test_page_names_the_referee_before_net_js_runs(artifact: tuple[bytes, dict]) -> None:
+    """A srcdoc frame has no origin to derive a referee from: the build names nappelin's."""
+    html = artifact[0].decode("utf-8")
+    marker = '<script>window.E1_TABLE_URL = "wss://tcg.nappelin.com/ws";</script>'
+
+    assert build_napplet.TABLE_URL == "wss://tcg.nappelin.com/ws"
+    assert html.count(marker) == 1
+    assert html.index(marker) < html.index("</head>")
+    assert html.index(marker) < html.index("globalThis.E1Net = {"), "set before net.js runs"
+    assert "globalThis.E1_TABLE_URL" in html, "and net.js still reads it"
 
 
 def test_page_leaves_the_website_only_scripts_out(artifact: tuple[bytes, dict]) -> None:
@@ -161,6 +173,39 @@ def test_style_comments_go_and_strings_stay(tmp_path: Path) -> None:
     assert build_napplet.inline_assets(page, tmp_path) == stripped
 
 
+def test_html_comments_go_and_scripts_stay() -> None:
+    """Markup comments go, and whole lines with them; `<!--` inside a script or a style stays."""
+    page = (
+        "<head>\n"
+        "  <!-- a note\n       on two lines -->\n"
+        '<script>var s = "<!-- kept -->";</script>\n'
+        "<style>.a { content: '<!-- kept -->'; }</style>\n"
+        "</head>\n<body>\n"
+        "<p>one <!-- inline --> two</p>\n"
+        "<!-- a --> <b>kept</b> <!-- c -->\n"
+        "  <!-- b -->\n"
+        "</body>\n"
+    )
+
+    assert build_napplet.strip_html_comments(page) == (
+        "<head>\n"
+        '<script>var s = "<!-- kept -->";</script>\n'
+        "<style>.a { content: '<!-- kept -->'; }</style>\n"
+        "</head>\n<body>\n"
+        "<p>one  two</p>\n"
+        " <b>kept</b> \n"
+        "</body>\n"
+    )
+
+
+def test_the_page_ships_without_html_comments(artifact: tuple[bytes, dict]) -> None:
+    """Every `<!--` left in the artifact would be inside a script, and those are escaped."""
+    html = artifact[0].decode("utf-8")
+
+    assert "<!--" not in html
+    assert "<!--" in (SITE / "play.html").read_text(encoding="utf-8"), "the source keeps them"
+
+
 @needs_node
 def test_stripped_style_is_the_same_stylesheet() -> None:
     """esbuild minifies play.html's <style> before and after stripping to identical CSS."""
@@ -217,10 +262,18 @@ def test_page_carries_the_3d_table(artifact: tuple[bytes, dict]) -> None:
 
 
 def test_page_stays_under_the_size_limit(artifact: tuple[bytes, dict]) -> None:
-    """The host pins one file; three MiB is the ceiling, 2.6 MiB the working headroom."""
+    """The host pins one file; three MiB is the ceiling, 2.65 MiB the working headroom.
+
+    Raised from 2.6 MiB (2026-09-15) for online play inside the Hangar. The lobby
+    (site/lobby.js), the first screen and their CSS ship about 36 KB, and the artifact
+    carried 2,709,815 bytes before them. The build shed 17 KB of comments it still
+    shipped (the markup's own, and `//` comments trailing code) to pay for most of it;
+    the rest fits under 2.6 MiB only by moving the website's half of the lobby out of
+    the one module both pages share, which is how the two copies would drift apart.
+    """
     assert build_napplet.SIZE_LIMIT == 3 * 1024 * 1024
     assert len(artifact[0]) < build_napplet.SIZE_LIMIT
-    assert len(artifact[0]) <= 2.6 * 1024 * 1024
+    assert len(artifact[0]) <= 2.65 * 1024 * 1024
 
 
 def test_site_keeps_the_hero_file() -> None:
@@ -261,6 +314,8 @@ def test_manifest_pins_the_page(artifact: tuple[bytes, dict]) -> None:
         "resource",
         "storage",
         "intent",
+        "link",
+        "x-nappelin-cue",
     ]
     assert not [tag for tag in tags if tag[0] == "archetype"]
 
@@ -345,7 +400,9 @@ BS = "\\"  # one backslash, to keep the JS cases below readable
 @pytest.mark.parametrize(
     ("source", "expected"),
     [
-        ("a = 1; // trailing stays\n", "a = 1; // trailing stays\n"),
+        ("a = 1; // trailing goes too\n", "a = 1;\n"),
+        ("a = 1; /* c */ // and this\nb();\n", "a = 1;  \nb();\n"),
+        ("return x // ASI keeps its line break\n+ y;\n", "return x\n+ y;\n"),
         ("  // whole line\nb();\n", "b();\n"),
         ("/* block\n   on lines */\nc();\n", "c();\n"),
         ("x = a/**/b;\n", "x = a b;\n"),
@@ -356,11 +413,12 @@ BS = "\\"  # one backslash, to keep the JS cases below readable
         (f"s = '{BS}' /* c */' + 1;\n", f"s = '{BS}' /* c */' + 1;\n"),
         (f"s = '{BS}{BS}' /* c */ + 1;\n", f"s = '{BS}{BS}'   + 1;\n"),
         ("t = `// ${a /* c */ + `/* ${b} */`} //`;\n", "t = `// ${a   + `/* ${b} */`} //`;\n"),
-        (f"r = /[/*]{BS}/{BS}//g.test(s); // keep\n", f"r = /[/*]{BS}/{BS}//g.test(s); // keep\n"),
+        (f"r = /[/*]{BS}/{BS}//g.test(s); // gone\n", f"r = /[/*]{BS}/{BS}//g.test(s);\n"),
         ("q = x / 2 / y; /* gone */\n", "q = x / 2 / y;  \n"),
         ("if (ok) return /'\"`/.test(s);\n", "if (ok) return /'\"`/.test(s);\n"),
         ("n = i++ / 2; m = (a) / 'b'.length;\n", "n = i++ / 2; m = (a) / 'b'.length;\n"),
-        ("o = { a: 1 }.a / 2; // x\n", "o = { a: 1 }.a / 2; // x\n"),
+        ("o = { a: 1 }.a / 2; // x\n", "o = { a: 1 }.a / 2;\n"),
+        ('u = "https://x"; // a URL in a string is not a comment\n', 'u = "https://x";\n'),
         ("/*! licence */\nkeep();\n", "/*! licence */\nkeep();\n"),
     ],
 )
