@@ -701,6 +701,12 @@
 
   /* The messages whose refusal can mean the stored match itself is gone. */
   const HELLOS = new Set(["RESUME", "JOIN", "CREATE", "QUEUE"]);
+  /* The referee's answers that refuse a hello. RATE_LIMITED is not one: it asks
+     for the same message again. */
+  const HELLO_REFUSALS = new Set([
+    "NO_SUCH_MATCH", "BAD_TOKEN", "MATCH_OVER", "IDENTITY_MISMATCH", "AUTH_FAILED", "HOST_AWAY",
+    "OWN_TABLE", "MATCH_FULL", "BAD_DECK", "STAKE_MISMATCH", "DECK_BUILD_FAILED", "NIP07_REQUIRED",
+  ]);
 
   function receive(msg) {
     switch (msg.t) {
@@ -777,8 +783,10 @@
      * went out again after the next reconnect, where it could quietly succeed
      * later (a host back from HOST_AWAY) behind the player's back. Only a
      * rate-limit refusal asks for the same message again. */
-    if (net.helloPending && net.intent && msg.code !== "RATE_LIMITED") net.intent = null;
-    if (gone || msg.code === "IDENTITY_MISMATCH" || msg.code === "AUTH_FAILED") net.helloPending = false;
+    const answersHello = net.helloPending && HELLO_REFUSALS.has(msg.code);
+    if (answersHello && net.intent) net.intent = null;
+    /* Answered: a later NO_SUCH_MATCH on this socket no longer speaks for the stored match. */
+    if (answersHello) net.helloPending = false;
     H("onError", msg);
   }
 
@@ -1433,7 +1441,8 @@
     if (!/^[A-HJ-NP-Z2-9]{6}$/.test(body.code || "")) return null;
     // A table URL out of a stranger's event decides where our socket goes: the
     // scheme is checked before the row is ever offered.
-    if (!/^wss?:\/\//.test(body.table || "")) return null;
+    const table = String(body.table || "");
+    if (!/^wss:\/\//.test(table) && !/^ws:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//.test(table)) return null;
     return {
       id: event.id,
       pubkey: event.pubkey,

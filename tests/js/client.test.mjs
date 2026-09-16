@@ -261,13 +261,17 @@ test("an invite from a relay is untrusted input", () => {
   const { net } = loadNet(FILE_ENV);
   const hex = "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d";
   const invite = (body, tags) => ({ id: "e1", pubkey: hex, kind: 4600, created_at: 1, tags, content: JSON.stringify(body) });
-  const ok = { v: 1, kind: "invite", matchId: "m_0123456789ab", code: "K7M2QF", table: "ws://host:8777/ws" };
+  const ok = { v: 1, kind: "invite", matchId: "m_0123456789ab", code: "K7M2QF", table: "wss://host/ws" };
 
   assert.ok(net.nostr.parseInvite(invite(ok)), "a well-formed invite parses");
   assert.ok(net.nostr.parseInvite(invite(ok, [["expiration", String(Math.floor(Date.now() / 1000) + 60)]])), "a live NIP-40 invite parses");
   assert.equal(net.nostr.parseInvite(invite(ok, [["expiration", String(Math.floor(Date.now() / 1000) - 1)]])), null, "an expired NIP-40 invite is not offered");
   assert.equal(net.nostr.parseInvite(invite({ ...ok, table: "javascript:alert(1)" })), null);
   assert.equal(net.nostr.parseInvite(invite({ ...ok, table: "http://host/" })), null, "the scheme must be ws or wss");
+  assert.equal(net.nostr.parseInvite(invite({ ...ok, table: "ws://host:8777/ws" })), null, "plain ws only on loopback");
+  assert.ok(net.nostr.parseInvite(invite({ ...ok, table: "ws://127.0.0.1:8777/ws" })), "a loopback table may be ws");
+  assert.ok(net.nostr.parseInvite(invite({ ...ok, table: "ws://localhost:8777/ws" })));
+  assert.equal(net.nostr.parseInvite(invite({ ...ok, table: "ws://localhost.evil.com/ws" })), null, "loopback means exactly loopback");
   assert.equal(net.nostr.parseInvite(invite({ ...ok, matchId: "../../etc" })), null);
   assert.equal(net.nostr.parseInvite(invite({ ...ok, code: "0O1I23" })), null, "the code alphabet excludes 0/O/1/I");
   assert.equal(net.nostr.parseInvite(invite({ ...ok, v: 2 })), null, "an unknown payload version is refused");
