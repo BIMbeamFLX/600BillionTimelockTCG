@@ -414,12 +414,12 @@
   const eventOf = (item) => (isObject(item) && isObject(item.event) ? item.event : item);
   /* AT MOST EIGHT SUBSCRIPTIONS ARE OPEN AT ONCE, and the napplet closes its own:
    * the host keeps a frame's subscriptions until the frame is destroyed. A ninth
-   * closes the oldest, quietly, as its own unsubscribe would: the newest is the one
-   * a player just asked for and is looking at. closeAll() ends every one (play.js:
+   * closes the oldest, and its owner hears onClosed("subscription limit") so it can
+   * say the list stopped updating: the newest is the one a player just asked for. closeAll() ends every one (play.js:
    * the lobby put away, a board shown, a table left or ended), and so does the
    * frame unloading (pagehide). Only a subscription the shell ends is told why. */
   const SUBSCRIPTIONS_MAX = 8;
-  const subscriptions = new Set(); // each open one's quiet close, oldest first
+  const subscriptions = new Map(); // unsubscribe -> evict (tells its owner), oldest first
   const outbox = {
     available: () => has("outbox") || Boolean(globalThis.E1Net && globalThis.E1Net.nostr),
     async publish(template) {
@@ -505,7 +505,11 @@
         });
         handle.on("closed", (reason) => end(reason === undefined ? "closed" : String(reason)));
         if (open) {
-          subscriptions.add(unsubscribe);
+          subscriptions.set(unsubscribe, () => {
+            if (!open) return;
+            stop();
+            end("subscription limit");
+          });
           if (subscriptions.size > SUBSCRIPTIONS_MAX) subscriptions.values().next().value();
         }
       } catch (err) {
@@ -516,7 +520,7 @@
     },
     /** Ends every open subscription quietly, as each one's own unsubscribe would. */
     closeAll() {
-      for (const close of Array.from(subscriptions)) close();
+      for (const close of Array.from(subscriptions.keys())) close();
     },
   };
   /* A frame that unloads closes what it opened: a reload may keep its window, and

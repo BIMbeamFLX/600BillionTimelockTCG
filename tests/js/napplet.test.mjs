@@ -738,7 +738,7 @@ test("a query and a subscription through the shell's outbox name the relays its 
   assert.deepEqual(outbox.seen.subscribe, [{ relays: RELAYS }]);
 });
 
-test("at most eight subscriptions are open at once: a ninth closes the oldest, quietly", () => {
+test("at most eight subscriptions are open at once: a ninth closes the oldest and tells its owner", () => {
   const outbox = recordingOutbox();
   const N = load(Object.assign(base(), { napplet: { outbox } }));
   const heard = [];
@@ -748,7 +748,7 @@ test("at most eight subscriptions are open at once: a ninth closes the oldest, q
   outbox.handles[0].emit({ id: "late" });
   outbox.handles[8].emit({ id: "new" });
   assert.deepEqual(heard, [[8, "new"]], "the oldest hears nothing more; the newest does");
-  assert.deepEqual(ended, [], "and nobody is told: closing it was the napplet's own decision");
+  assert.deepEqual(ended, [[0, "subscription limit"]], "its owner is told why, so the lobby can say so");
   offs[0]();
   assert.equal(outbox.handles[0].closed, 1, "its own unsubscribe afterwards closes nothing twice");
 
@@ -758,7 +758,7 @@ test("at most eight subscriptions are open at once: a ninth closes the oldest, q
 
   // A subscription the shell ended frees its place too, and its owner is told why.
   outbox.handles[1].listeners.closed[0]("relay list unavailable");
-  assert.deepEqual(ended, [[1, "relay list unavailable"]]);
+  assert.deepEqual(ended, [[0, "subscription limit"], [1, "relay list unavailable"]]);
   N.outbox.subscribe([{ kinds: [4600] }], () => {});
   assert.equal(outbox.handles.filter((handle) => handle.closed).length, 2, "eight open, none closed for the ninth");
 });
