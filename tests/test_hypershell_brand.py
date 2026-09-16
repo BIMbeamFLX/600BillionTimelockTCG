@@ -187,16 +187,28 @@ def test_the_stylesheet_draws_no_green_and_no_ember() -> None:
 
 
 def test_the_faces_are_the_vendored_files() -> None:
-    """Josefin (variable) and Plex Mono 400/500/600 beside Anton, every url() a real file."""
+    """Josefin (variable) and Plex Mono 400/500/600 beside Anton, every url() a real file.
+
+    Each Hypershell face is a pair, basic Latin and Latin Extended, and basic Latin comes from
+    the latin file: a Latin Extended file alone drew every "a" with a macron in the Hangar."""
     css = stylesheet()
     faces = [decls for selectors, decls in rules(css) if selectors == ["@font-face"]]
-    by_face = {(d["font-family"].strip('"'), d.get("font-weight", "")): d["src"] for d in faces}
+    by_face: dict[tuple[str, str], list[str]] = {}
+    ranges: dict[str, str] = {}
+    for d in faces:
+        by_face.setdefault((d["font-family"].strip('"'), d.get("font-weight", "")), []).append(d["src"])
+        for url in re.findall(r'url\("([^"]+)"\)', d["src"]):
+            ranges[url.rsplit("/", 1)[-1]] = d.get("unicode-range", "")
 
-    assert "josefin-sans-var.woff2" in by_face[("Josefin Sans", "400 700")]
+    josefin = "".join(by_face[("Josefin Sans", "400 700")])
+    assert "josefin-sans-latin-wght.woff2" in josefin and "josefin-sans-latin-ext-wght.woff2" in josefin
+    assert ranges["josefin-sans-latin-wght.woff2"].startswith("U+0000-00FF")
     for weight in ("400", "500", "600"):
-        assert f"plex-mono-{weight}.woff2" in by_face[("IBM Plex Mono", weight)]
-    assert "Anton-Regular.ttf" in by_face[("Anton600", "")]
-    for src in by_face.values():
+        plex = "".join(by_face[("IBM Plex Mono", weight)])
+        assert f"plex-mono-latin-{weight}.woff2" in plex and f"plex-mono-latin-ext-{weight}.woff2" in plex
+        assert ranges[f"plex-mono-latin-{weight}.woff2"].startswith("U+0000-00FF")
+    assert "Anton-Regular.ttf" in "".join(by_face[("Anton600", "")])
+    for src in [s for srcs in by_face.values() for s in srcs]:
         for url in re.findall(r'url\("([^"]+)"\)', src):
             assert (SITE / url).is_file(), url
     for licence in ("JOSEFIN-OFL.txt", "PLEX-OFL.txt"):

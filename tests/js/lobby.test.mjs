@@ -26,6 +26,7 @@ const WORDS = {
   unreachable: "The table server cannot be reached right now. Hotseat and games against the computer work now.",
   invites: "Invites cannot be listed here right now. You can still join with a table code.",
   otherRules: "That table plays other rules. Pick Ready for a starter Stack, then join again.",
+  signInForTables: "Sign in first to see open tables.",
 };
 
 /* client.test.mjs's stub element, which play.js runs in too. */
@@ -176,9 +177,15 @@ test("inside the Hangar there is no sign-in button, and without the shell's key 
   assert.equal(fired["e1:identity"], undefined, "nor to the website's side bar");
   assert.equal(byId("lobbyIdentity").hidden, false);
   assert.equal(byId("lobbyIdentity").textContent, WORDS.noIdentity);
-  for (const id of ["createTable", "joinTable", "findMatch", "refreshTables", "checkInvites"]) {
+  for (const id of ["createTable", "joinTable", "findMatch"]) {
     assert.equal(byId(id).disabled, true, `${id} waits for an identity`);
   }
+  for (const id of ["refreshTables", "checkInvites"]) {
+    assert.equal(byId(id).disabled, false, `${id} stays pressable, and answers in its list`);
+  }
+  byId("refreshTables").click();
+  await settle();
+  assert.equal(said(lastRow(byId("tableList"))), WORDS.signInForTables, "open tables, signed out: sign in first");
   byId("createTable").click();
   assert.equal(byId("netNotice").textContent, WORDS.noIdentity, "an action tried anyway gets the same line");
   byId("checkInvites").click();
@@ -949,7 +956,7 @@ test("inside the Hangar a subscription is closed when the lobby is put away, a b
   const { byId } = loadTable(net, N);
   const open = () => handles.filter((handle) => !handle.closed).length;
   const subscribeAnything = () => N.outbox.subscribe([{ kinds: [31600] }], () => {});
-  await waitFor(() => byId("lobbyIdentity").hidden === true, "the member's key");
+  await waitFor(() => !["", "Not signed in"].includes(byId("firstName").textContent), "the member's key");
 
   byId("modeOnline").click();
   byId("checkInvites").click();
@@ -1003,10 +1010,12 @@ test("each service the Hangar does not give says so in one line, and the door on
     assert.equal(byId("shopDoor").hidden, !door, `door for ${line} with${grants.link ? "" : "out"} a link domain`);
     if (name) {
       await waitFor(() => byId("firstName").textContent === name, name);
+      assert.equal(byId("bootNote").hidden, true, "the shell answered: the loading line is gone");
       assert.equal(byId("firstIdentity").hidden, false);
       assert.equal(byId("firstIdentity").textContent, WORDS.noIdentity, "no key: one line, and local play still offered");
       byId("modeOnline").click();
-      assert.equal(byId("lobbyIdentity").textContent, WORDS.noIdentity, "and the lobby says the same");
+      assert.equal(byId("lobbyIdentity").hidden, true, "and the lobby below it does not say it twice");
+      assert.equal(byId("firstIdentity").hidden, false, "the one line stays in view with the lobby");
       assert.equal(called(net, "tables").length, 0, "nobody to seat, so no table is asked");
     } else {
       await waitFor(() => byId("firstName").textContent !== "", "the member's short npub");

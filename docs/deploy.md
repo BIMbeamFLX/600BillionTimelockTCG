@@ -54,7 +54,7 @@ session this document was written).
 |---|---|---|---|
 | 26 | 1.64 MB | `/` | every tracked file in `site/` |
 | 1 | 0.06 MB | `art/brand/` | the logo in every page's nav and favicon |
-| 5 | 0.19 MB | `art/fonts/` | Anton for the 600 Billion headlines, plus (from PR #70) Josefin Sans and IBM Plex Mono in four `.woff2` files for the Hypershell chrome, byte-identical with nappelin's. Alfa Slab One is no longer referenced by a page and stays out of the set. |
+| 5 | 0.19 MB | `art/fonts/` | Anton for the 600 Billion headlines, plus (from PR #70) Josefin Sans and IBM Plex Mono in eight `.woff2` files (a basic Latin and a Latin Extended file per face) for the Hypershell chrome, byte-identical with nappelin's `site/assets/fonts/`. Alfa Slab One is no longer referenced by a page and stays out of the set. |
 | 5 | 0.00 MB | `art/resources/` | the five affinity pips, built by concatenation |
 | 6 | 0.69 MB | `art/rulebook/` | the six rulebook banners |
 | 5 | 1.13 MB | `art/world-plates/` | board and page backgrounds (`neutral.png` is unreferenced and excluded) |
@@ -918,7 +918,8 @@ curl -s -o /dev/null -w "%{http_code} play.html\n" https://tcg.nappelin.com/play
 curl -s -o /dev/null -w "%{http_code} arena3d.js\n" https://tcg.nappelin.com/arena3d.js
 curl -s -o /dev/null -w "%{http_code} three.js\n" https://tcg.nappelin.com/vendor/three.js
 curl -s -o /dev/null -w "%{http_code} %{content_type} rail.js\n" https://tcg.nappelin.com/rail.js
-for FONT in josefin-sans-var plex-mono-400 plex-mono-500 plex-mono-600; do
+for FONT in josefin-sans-latin-wght josefin-sans-latin-ext-wght plex-mono-latin-400 plex-mono-latin-ext-400 \
+    plex-mono-latin-500 plex-mono-latin-ext-500 plex-mono-latin-600 plex-mono-latin-ext-600; do
   curl -s -o /dev/null -w "%{http_code} %{content_type} $FONT.woff2\n" \
     "https://tcg.nappelin.com/art/fonts/$FONT.woff2"
 done

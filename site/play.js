@@ -5448,6 +5448,9 @@
       if (img.dataset) img.dataset.look = face.via || "";
       paintFace(img, face, `${name} avatar`);
     }
+    /* Until the shell has answered the frame would be empty: one line says it is coming. */
+    const boot = $("bootNote");
+    if (boot) boot.hidden = known;
     const line = $("firstIdentity");
     line.hidden = !known || Boolean(key);
     line.textContent = line.hidden ? "" : lobbyWords().noIdentity || "";
@@ -5490,6 +5493,7 @@
     lobby = globalThis.E1Lobby.mount($("lobby"), NET, {
       embedded: true,
       start: false,
+      identityLine: false, // the first panel above already says who is not signed in
       onSeat(msg, invite) {
         if (!atBoard() && session.full) backToSetup();
         closeSubscriptions(); // the board takes the lobby's place
