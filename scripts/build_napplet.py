@@ -366,18 +366,24 @@ def backdrop_data_url(site: Path) -> str:
     return f"data:{BACKDROP_MIME};base64,{data}"
 
 
+# The additions go right after <meta charset>, metas first: the HTML charset prescan and a
+# shell that reads only the start of the file look at the first 1024 bytes, and the backdrop
+# script is a ~260 KB data URL.
+HEAD_ANCHOR = '<head>\n<meta charset="utf-8">\n'
+
+
 def add_head(html: str, source_sha: str, backdrop: str = "") -> str:
-    """Insert the build marker, the referee, the backdrop URL and the napplet metas into <head>."""
+    """Insert the napplet metas, the build marker, the referee and the backdrop URL into <head>."""
     head = (
-        f'<script>window.E1_NAPPLET_BUILD = "{source_sha}";</script>\n'
+        f'<meta name="napplet-type" content="{NAPPLET_ID}">\n'
+        + f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
+        + f'<script>window.E1_NAPPLET_BUILD = "{source_sha}";</script>\n'
         + f'<script>window.E1_TABLE_URL = "{TABLE_URL}";</script>\n'
         + (f'<script>window.E1_BACKDROP_URL = "{backdrop}";</script>\n' if backdrop else "")
-        + f'<meta name="napplet-type" content="{NAPPLET_ID}">\n'
-        + f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
     )
-    if "<head>\n" not in html:
-        raise SystemExit("play.html has no <head> line to extend")
-    return html.replace("<head>\n", "<head>\n" + head, 1)
+    if HEAD_ANCHOR not in html:
+        raise SystemExit('play.html has no <meta charset="utf-8"> line right after <head>')
+    return html.replace(HEAD_ANCHOR, HEAD_ANCHOR + head, 1)
 
 
 def build_html(site: Path, sizes: dict[str, tuple[int, int]] | None = None) -> str:

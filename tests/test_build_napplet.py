@@ -59,6 +59,16 @@ def test_page_carries_the_napplet_head(artifact: tuple[bytes, dict]) -> None:
     assert head.count(f'<meta name="napplet-requires" content="{requires}">') == 1
 
 
+def test_head_metas_sit_in_the_first_kilobyte(artifact: tuple[bytes, dict]) -> None:
+    """Charset, type and requires come first, ahead of the ~260 KB backdrop script."""
+    start = artifact[0][:1024]
+    tags = (b"<meta charset=", b'<meta name="napplet-type"', b'<meta name="napplet-requires"')
+    offsets = [start.find(tag) for tag in tags]
+    assert -1 not in offsets
+    assert offsets == sorted(offsets)
+    assert start.find(b">", offsets[-1]) != -1
+
+
 def test_requires_names_what_the_seam_asks_the_shell_for() -> None:
     """The requires list is every domain site/napplet.js probes, no more and no less."""
     seam = (SITE / "napplet.js").read_text(encoding="utf-8")
