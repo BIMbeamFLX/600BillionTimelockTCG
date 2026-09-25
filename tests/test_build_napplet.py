@@ -47,14 +47,26 @@ def test_page_is_self_contained(artifact: tuple[bytes, dict]) -> None:
 
 
 def test_page_carries_the_napplet_head(artifact: tuple[bytes, dict]) -> None:
-    """The build marker and the requires meta sit in <head>."""
+    """The build marker, the type meta and the requires meta sit in <head>."""
     html = artifact[0].decode("utf-8")
     # The marker hashes the LF text, as the build does: a Windows checkout hands over CRLF.
     source_sha = hashlib.sha256((SITE / "play.html").read_bytes().replace(CRLF, LF)).hexdigest()
+    head = html[: html.index("</head>")]
 
     assert f'window.E1_NAPPLET_BUILD = "{source_sha}";' in html
-    requires = "identity,outbox,resource,storage,intent,link,x-nappelin-cue"
-    assert f'<meta name="napplet-requires" content="{requires}">' in html
+    assert head.count('<meta name="napplet-type" content="600b-timelock-tcg">') == 1
+    requires = "identity,outbox,resource,storage,intent,table,link,theme,x-nappelin-cue"
+    assert head.count(f'<meta name="napplet-requires" content="{requires}">') == 1
+
+
+def test_requires_names_what_the_seam_asks_the_shell_for() -> None:
+    """The requires list is every domain site/napplet.js probes, no more and no less."""
+    seam = (SITE / "napplet.js").read_text(encoding="utf-8")
+    probed = set(re.findall(r'\bhas\("([a-z-]+)"\)', seam))
+    probed |= set(re.findall(r'supports\("([a-z-]+)"\)', seam))
+    probed |= set(re.findall(r'const CUE = "([a-z-]+)"', seam))
+    # `sandbox` is probed to learn a restriction (canReachInternet), not asked for.
+    assert probed - {"sandbox"} == set(build_napplet.REQUIRES)
 
 
 def test_page_names_the_referee_before_net_js_runs(artifact: tuple[bytes, dict]) -> None:
@@ -322,7 +334,9 @@ def test_manifest_pins_the_page(artifact: tuple[bytes, dict]) -> None:
         "resource",
         "storage",
         "intent",
+        "table",
         "link",
+        "theme",
         "x-nappelin-cue",
     ]
     assert not [tag for tag in tags if tag[0] == "archetype"]

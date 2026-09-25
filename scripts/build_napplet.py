@@ -31,10 +31,24 @@ OUT_DIR = REPO_ROOT / "dist" / "napplet" / "600b-timelock-tcg"
 NAPPLET_ID = "600b-timelock-tcg"
 TITLE = "TIMELOCK TCG"
 DESCRIPTION = "Two-player card game on one screen, or against the built-in opponent. All 295 cards."
-# `link` is the NAP-LINK door: the one fixed shop URL the empty collection opens (site/play.js).
-# `x-nappelin-cue` is the interim NAP-CUE domain (nappelin #107): the table cues the Hangar's
-# music. A catalog that does not grant it still launches the napplet; the cues simply stay off.
-REQUIRES = ("identity", "outbox", "resource", "storage", "intent", "link", "x-nappelin-cue")
+# What site/napplet.js asks the shell for, and nothing else (the napplet baseline: the meta
+# names what the code uses). `table` is the Hangar's host channel for the referee socket
+# (E1Napplet.table), not a NAP domain. `link` is the NAP-LINK door: the one fixed shop URL the
+# empty collection opens (site/play.js). `theme` is NAP-THEME: E1Napplet.theme.start() paints
+# the shell's tokens and follows theme.changed. `x-nappelin-cue` is the interim NAP-CUE domain
+# (nappelin #107): the table cues the Hangar's music. A catalog that does not grant it still
+# launches the napplet; the cues simply stay off.
+REQUIRES = (
+    "identity",
+    "outbox",
+    "resource",
+    "storage",
+    "intent",
+    "table",
+    "link",
+    "theme",
+    "x-nappelin-cue",
+)
 # The referee the napplet dials. A srcdoc frame has no origin to derive one from, so
 # site/net.js tableUrl() reads window.E1_TABLE_URL, set in <head> before net.js runs.
 TABLE_URL = "wss://tcg.nappelin.com/ws"
@@ -348,11 +362,12 @@ def backdrop_data_url(site: Path) -> str:
 
 
 def add_head(html: str, source_sha: str, backdrop: str = "") -> str:
-    """Insert the build marker, the referee, the backdrop URL and the requires meta into <head>."""
+    """Insert the build marker, the referee, the backdrop URL and the napplet metas into <head>."""
     head = (
         f'<script>window.E1_NAPPLET_BUILD = "{source_sha}";</script>\n'
         + f'<script>window.E1_TABLE_URL = "{TABLE_URL}";</script>\n'
         + (f'<script>window.E1_BACKDROP_URL = "{backdrop}";</script>\n' if backdrop else "")
+        + f'<meta name="napplet-type" content="{NAPPLET_ID}">\n'
         + f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
     )
     if "<head>\n" not in html:
