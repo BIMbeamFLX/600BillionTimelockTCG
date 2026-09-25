@@ -12,7 +12,8 @@
     "recover:plebeian": "node scripts/recover-plebeian-cashu.mjs",
     "table": "node server/table.js",
     "local": "node scripts/local-test.mjs",
-    "test:js": "node --test tests/js/*.test.mjs"
+    "test:js": "node --test tests/js/*.test.mjs",
+    "test:conformance": "npm run build:napplet && napplet-conformance dist/napplet/600b-timelock-tcg"
   },
   "dependencies": {
     "@cashu/cashu-ts": "^4.7.2",
@@ -24,6 +25,7 @@
     "ws": "^8.21.1"
   },
   "devDependencies": {
+    "@napplet/conformance-cli": "^0.2.19",
     "esbuild": "^0.25.10",
     "jsqr": "^1.4.0",
     "three": "^0.186.0"

@@ -31,10 +31,29 @@ OUT_DIR = REPO_ROOT / "dist" / "napplet" / "600b-timelock-tcg"
 NAPPLET_ID = "600b-timelock-tcg"
 TITLE = "TIMELOCK TCG"
 DESCRIPTION = "Two-player card game on one screen, or against the built-in opponent. All 295 cards."
-# `link` is the NAP-LINK door: the one fixed shop URL the empty collection opens (site/play.js).
-# `x-nappelin-cue` is the interim NAP-CUE domain (nappelin #107): the table cues the Hangar's
-# music. A catalog that does not grant it still launches the napplet; the cues simply stay off.
-REQUIRES = ("identity", "outbox", "resource", "storage", "intent", "link", "x-nappelin-cue")
+# What site/napplet.js asks the shell for, and nothing else (the napplet baseline: the meta
+# names what the code uses). `table` is the Hangar's host channel for the referee socket
+# (E1Napplet.table), not a NAP domain. `link` is the NAP-LINK door: the one fixed shop URL the
+# empty collection opens (site/play.js). `theme` is NAP-THEME: E1Napplet.theme.start() paints
+# the shell's tokens and follows theme.changed. `x-nappelin-cue` is the interim NAP-CUE domain
+# (nappelin #107): the table cues the Hangar's music. A catalog that does not grant it still
+# launches the napplet; the cues simply stay off.
+REQUIRES = (
+    "identity",
+    "outbox",
+    "resource",
+    "storage",
+    "intent",
+    "table",
+    "link",
+    "theme",
+    "x-nappelin-cue",
+)
+# Nappelin host channels stay in the meta (the Hangar grants only what a napplet declares)
+# but out of the kind-35129 manifest: another shell would read `table` as an unknown
+# requirement. NAP domains and the interim x-nappelin-* domains go into both.
+HOST_CHANNELS = frozenset({"table"})
+MANIFEST_REQUIRES = tuple(domain for domain in REQUIRES if domain not in HOST_CHANNELS)
 # The referee the napplet dials. A srcdoc frame has no origin to derive one from, so
 # site/net.js tableUrl() reads window.E1_TABLE_URL, set in <head> before net.js runs.
 TABLE_URL = "wss://tcg.nappelin.com/ws"
@@ -347,17 +366,24 @@ def backdrop_data_url(site: Path) -> str:
     return f"data:{BACKDROP_MIME};base64,{data}"
 
 
+# The additions go right after <meta charset>, metas first: the HTML charset prescan and a
+# shell that reads only the start of the file look at the first 1024 bytes, and the backdrop
+# script is a ~260 KB data URL.
+HEAD_ANCHOR = '<head>\n<meta charset="utf-8">\n'
+
+
 def add_head(html: str, source_sha: str, backdrop: str = "") -> str:
-    """Insert the build marker, the referee, the backdrop URL and the requires meta into <head>."""
+    """Insert the napplet metas, the build marker, the referee and the backdrop URL into <head>."""
     head = (
-        f'<script>window.E1_NAPPLET_BUILD = "{source_sha}";</script>\n'
+        f'<meta name="napplet-type" content="{NAPPLET_ID}">\n'
+        + f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
+        + f'<script>window.E1_NAPPLET_BUILD = "{source_sha}";</script>\n'
         + f'<script>window.E1_TABLE_URL = "{TABLE_URL}";</script>\n'
         + (f'<script>window.E1_BACKDROP_URL = "{backdrop}";</script>\n' if backdrop else "")
-        + f'<meta name="napplet-requires" content="{",".join(REQUIRES)}">\n'
     )
-    if "<head>\n" not in html:
-        raise SystemExit("play.html has no <head> line to extend")
-    return html.replace("<head>\n", "<head>\n" + head, 1)
+    if HEAD_ANCHOR not in html:
+        raise SystemExit('play.html has no <meta charset="utf-8"> line right after <head>')
+    return html.replace(HEAD_ANCHOR, HEAD_ANCHOR + head, 1)
 
 
 def build_html(site: Path, sizes: dict[str, tuple[int, int]] | None = None) -> str:
@@ -397,7 +423,7 @@ def build_manifest(index: bytes) -> dict:
         ["description", DESCRIPTION],
         *[["path", path, digest] for digest, path in pairs],
         ["x", aggregate, "aggregate"],
-        *[["requires", domain] for domain in REQUIRES],
+        *[["requires", domain] for domain in MANIFEST_REQUIRES],
     ]
     return {
         "kind": MANIFEST_KIND,

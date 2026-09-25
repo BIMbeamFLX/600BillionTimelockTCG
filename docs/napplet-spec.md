@@ -202,8 +202,11 @@ above is closed by it.
 **`requires: [webrtc]` is superseded.** There is no WebRTC NAP and none is needed: the Table
 topology (amended 2026-08-15) plays over a referee socket, and inside the Hangar that socket is a
 *pipe the host opens on the napplet's behalf* — see "the table channel". The artifact declares
-`identity, outbox, resource, storage, intent, link, x-nappelin-cue` (`<meta name="napplet-requires">`; §5 for the last); `table` is a
-host channel, not a NAP domain. `dm`, `common`, `notify` are not used.
+`identity, outbox, resource, storage, intent, table, link, theme, x-nappelin-cue`
+(`<meta name="napplet-requires">`, next to `<meta name="napplet-type" content="600b-timelock-tcg">`;
+§5 for the last): every domain `site/napplet.js` asks the shell for. `table` is the Hangar's host
+channel, not a NAP domain; it is declared because the napplet baseline (2026-09-24) names host
+channels a napplet uses. `dm`, `common`, `notify` are not used.
 
 ### 3a. Identity and outbox — what the prelude really offers
 

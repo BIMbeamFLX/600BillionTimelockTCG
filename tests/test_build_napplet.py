@@ -47,14 +47,36 @@ def test_page_is_self_contained(artifact: tuple[bytes, dict]) -> None:
 
 
 def test_page_carries_the_napplet_head(artifact: tuple[bytes, dict]) -> None:
-    """The build marker and the requires meta sit in <head>."""
+    """The build marker, the type meta and the requires meta sit in <head>."""
     html = artifact[0].decode("utf-8")
     # The marker hashes the LF text, as the build does: a Windows checkout hands over CRLF.
     source_sha = hashlib.sha256((SITE / "play.html").read_bytes().replace(CRLF, LF)).hexdigest()
+    head = html[: html.index("</head>")]
 
     assert f'window.E1_NAPPLET_BUILD = "{source_sha}";' in html
-    requires = "identity,outbox,resource,storage,intent,link,x-nappelin-cue"
-    assert f'<meta name="napplet-requires" content="{requires}">' in html
+    assert head.count('<meta name="napplet-type" content="600b-timelock-tcg">') == 1
+    requires = "identity,outbox,resource,storage,intent,table,link,theme,x-nappelin-cue"
+    assert head.count(f'<meta name="napplet-requires" content="{requires}">') == 1
+
+
+def test_head_metas_sit_in_the_first_kilobyte(artifact: tuple[bytes, dict]) -> None:
+    """Charset, type and requires come first, ahead of the ~260 KB backdrop script."""
+    start = artifact[0][:1024]
+    tags = (b"<meta charset=", b'<meta name="napplet-type"', b'<meta name="napplet-requires"')
+    offsets = [start.find(tag) for tag in tags]
+    assert -1 not in offsets
+    assert offsets == sorted(offsets)
+    assert start.find(b">", offsets[-1]) != -1
+
+
+def test_requires_names_what_the_seam_asks_the_shell_for() -> None:
+    """The requires list is every domain site/napplet.js probes, no more and no less."""
+    seam = (SITE / "napplet.js").read_text(encoding="utf-8")
+    probed = set(re.findall(r'\bhas\("([a-z-]+)"\)', seam))
+    probed |= set(re.findall(r'supports\("([a-z-]+)"\)', seam))
+    probed |= set(re.findall(r'const CUE = "([a-z-]+)"', seam))
+    # `sandbox` is probed to learn a restriction (canReachInternet), not asked for.
+    assert probed - {"sandbox"} == set(build_napplet.REQUIRES)
 
 
 def test_page_names_the_referee_before_net_js_runs(artifact: tuple[bytes, dict]) -> None:
@@ -323,9 +345,32 @@ def test_manifest_pins_the_page(artifact: tuple[bytes, dict]) -> None:
         "storage",
         "intent",
         "link",
+        "theme",
         "x-nappelin-cue",
     ]
     assert not [tag for tag in tags if tag[0] == "archetype"]
+
+
+def test_manifest_keeps_the_host_channel_in_the_meta_only(artifact: tuple[bytes, dict]) -> None:
+    """`table` is a Nappelin host channel: in the requires meta, never a manifest requires tag.
+
+    Another shell would read it as an unknown requirement. NAP domains and the interim
+    `x-nappelin-cue` sit in both places (the requires rule, leitstand CONSOLIDATION.md).
+    """
+    page, manifest = artifact
+    head = page.decode("utf-8")
+    head = head[: head.index("</head>")]
+    meta = re.search(r'<meta name="napplet-requires" content="([^"]+)">', head)
+    assert meta is not None
+    in_meta = meta.group(1).split(",")
+    in_manifest = [tag[1] for tag in manifest["tags"] if tag[0] == "requires"]
+
+    assert build_napplet.HOST_CHANNELS == {"table"}
+    assert "table" in in_meta and "table" not in in_manifest
+    assert "x-nappelin-cue" in in_meta and "x-nappelin-cue" in in_manifest
+    host_channels = build_napplet.HOST_CHANNELS
+    assert in_manifest == [domain for domain in in_meta if domain not in host_channels]
+    assert tuple(in_manifest) == build_napplet.MANIFEST_REQUIRES
 
 
 def test_aggregate_sorts_the_path_lines() -> None:

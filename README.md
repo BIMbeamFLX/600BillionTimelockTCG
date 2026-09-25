@@ -330,11 +330,25 @@ The generated website has no runtime dependency and uses only local assets. The 
 (`npm run table`) is the one part that has any: `ws` for the socket and `@noble/curves` for
 BIP-340 signature verification.
 
+## Napplet
+
+`npm run build:napplet` builds the game as one self-contained nappelin napplet,
+`dist/napplet/600b-timelock-tcg/index.html` (docs/napplet-build.md). Its
+`<meta name="napplet-requires">` names only what `site/napplet.js` asks the shell for:
+`identity, outbox, resource, storage, intent, table, link, theme, x-nappelin-cue` (`table` is
+the Hangar's host channel, `x-nappelin-cue` the interim music-cue domain). The manifest's
+`requires` tags carry the same list without `table`: a host channel is not a requirement
+another shell could read. Outside that list it
+posts one host message, `nappelin.escape` (the host closes the napplet when a link leaves the
+game), and reads `napplet.sandbox` only to learn whether it may reach the internet. It uses no
+guild, NutFT, zap or palace channel of the shell.
+
 ## Tests
 
 ```bash
-npm run test:js     # every JS test: engine, client, transport, NutFT, ladder, card waves, 3D table
-uv run pytest       # the Python generators
+npm run test:js            # every JS test: engine, client, transport, NutFT, ladder, card waves, 3D table
+uv run pytest              # the Python generators
+npm run test:conformance   # builds the napplet, runs @napplet/conformance-cli on it (headless Chromium)
 ```
 
 `npm run test:js` is `node --test tests/js/*.test.mjs` — use the file/glob form, because the
