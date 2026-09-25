@@ -334,12 +334,33 @@ def test_manifest_pins_the_page(artifact: tuple[bytes, dict]) -> None:
         "resource",
         "storage",
         "intent",
-        "table",
         "link",
         "theme",
         "x-nappelin-cue",
     ]
     assert not [tag for tag in tags if tag[0] == "archetype"]
+
+
+def test_manifest_keeps_the_host_channel_in_the_meta_only(artifact: tuple[bytes, dict]) -> None:
+    """`table` is a Nappelin host channel: in the requires meta, never a manifest requires tag.
+
+    Another shell would read it as an unknown requirement. NAP domains and the interim
+    `x-nappelin-cue` sit in both places (the requires rule, leitstand CONSOLIDATION.md).
+    """
+    page, manifest = artifact
+    head = page.decode("utf-8")
+    head = head[: head.index("</head>")]
+    meta = re.search(r'<meta name="napplet-requires" content="([^"]+)">', head)
+    assert meta is not None
+    in_meta = meta.group(1).split(",")
+    in_manifest = [tag[1] for tag in manifest["tags"] if tag[0] == "requires"]
+
+    assert build_napplet.HOST_CHANNELS == {"table"}
+    assert "table" in in_meta and "table" not in in_manifest
+    assert "x-nappelin-cue" in in_meta and "x-nappelin-cue" in in_manifest
+    host_channels = build_napplet.HOST_CHANNELS
+    assert in_manifest == [domain for domain in in_meta if domain not in host_channels]
+    assert tuple(in_manifest) == build_napplet.MANIFEST_REQUIRES
 
 
 def test_aggregate_sorts_the_path_lines() -> None:

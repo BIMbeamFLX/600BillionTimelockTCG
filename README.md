@@ -336,7 +336,9 @@ BIP-340 signature verification.
 `dist/napplet/600b-timelock-tcg/index.html` (docs/napplet-build.md). Its
 `<meta name="napplet-requires">` names only what `site/napplet.js` asks the shell for:
 `identity, outbox, resource, storage, intent, table, link, theme, x-nappelin-cue` (`table` is
-the Hangar's host channel, `x-nappelin-cue` the interim music-cue domain). Outside that list it
+the Hangar's host channel, `x-nappelin-cue` the interim music-cue domain). The manifest's
+`requires` tags carry the same list without `table`: a host channel is not a requirement
+another shell could read. Outside that list it
 posts one host message, `nappelin.escape` (the host closes the napplet when a link leaves the
 game), and reads `napplet.sandbox` only to learn whether it may reach the internet. It uses no
 guild, NutFT, zap or palace channel of the shell.

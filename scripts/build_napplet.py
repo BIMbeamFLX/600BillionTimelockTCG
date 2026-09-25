@@ -49,6 +49,11 @@ REQUIRES = (
     "theme",
     "x-nappelin-cue",
 )
+# Nappelin host channels stay in the meta (the Hangar grants only what a napplet declares)
+# but out of the kind-35129 manifest: another shell would read `table` as an unknown
+# requirement. NAP domains and the interim x-nappelin-* domains go into both.
+HOST_CHANNELS = frozenset({"table"})
+MANIFEST_REQUIRES = tuple(domain for domain in REQUIRES if domain not in HOST_CHANNELS)
 # The referee the napplet dials. A srcdoc frame has no origin to derive one from, so
 # site/net.js tableUrl() reads window.E1_TABLE_URL, set in <head> before net.js runs.
 TABLE_URL = "wss://tcg.nappelin.com/ws"
@@ -412,7 +417,7 @@ def build_manifest(index: bytes) -> dict:
         ["description", DESCRIPTION],
         *[["path", path, digest] for digest, path in pairs],
         ["x", aggregate, "aggregate"],
-        *[["requires", domain] for domain in REQUIRES],
+        *[["requires", domain] for domain in MANIFEST_REQUIRES],
     ]
     return {
         "kind": MANIFEST_KIND,
