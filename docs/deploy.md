@@ -1114,20 +1114,26 @@ funding is in §10.4 and its beacon in §10.5. *Also G* marks a value the G mint
   times here (`CARD_STATES` in `card-mint.js`), so one card costs at most about 4 s at the
   start, 420 KB per move and 420 KB in a lookup of its owner.
 - **Off with a paid pack waiting holds the shop.** A paid card pack is issued by the card
-  mint only. While it is off (switched off, or `THE CARD MINT IS OFF` after an origin
-  change), a paid pack not yet issued keeps its pack, and every quote answers that the card
+  mint only. While it is off (switched off, or `THE CARD MINT IS OFF` after any refused
+  start: an origin change, another issuer key, or a record naming another withdraw URL or
+  issuer), a paid pack not yet issued keeps its pack, and every quote answers that the card
   mint is off. Switch it back on, and the next sweep issues the pack. Before switching it
   off on purpose, check that none is waiting:
   `SELECT payment_hash FROM nutft_invoices WHERE card_owner IS NOT NULL AND claimed = 0 AND card_closed IS NULL`.
-- **Refunds.** An unpaid card pack holds its pack for 600 s past its invoice's expiry, so a
-  payment in flight at the expiry is not sold twice. Should one settle later anyway, the
-  invoice is closed and the log says `[nutft] REFUND DUE` once. The lasting record is the
-  row: `SELECT payment_hash, amount_msat, card_owner FROM nutft_invoices WHERE card_closed = 'stale'`.
+- **Refunds.** Where cards are on either side, an unpaid invoice (a booster's too) holds its
+  pack for 600 s past its expiry, so a payment in flight at the expiry is not sold twice.
+  Should a card payment settle later anyway, the invoice is closed and the log says
+  `[nutft] REFUND DUE` once. The lasting record is the row:
+  `SELECT payment_hash, amount_msat, card_owner FROM nutft_invoices WHERE card_closed = 'stale'`.
+  A paid booster not claimed within its grace whose pack then went to cards cannot be
+  claimed any more; its row is the record too:
+  `SELECT payment_hash, amount_msat FROM nutft_invoices WHERE released_at IS NOT NULL AND claimed = 0`.
   A Lightning payment has no return address: the buyer is told to come forward with the
   payment hash, and the refund is paid to an invoice they give.
 - **A pack whose issue fails** (a full disk) is held not at all: nothing is kept in memory
   that is not on disk. The sweep tries it again after 30 s, then waits twice as long each
-  time, up to an hour, and logs each try.
+  time, up to five minutes, and logs each try; any card written in the meantime ends every
+  wait, since the paid pack holds the whole shop.
 
 ### 10.3 · Edition G mint (`G_NUTFT_*`)
 

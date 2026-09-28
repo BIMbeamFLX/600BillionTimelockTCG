@@ -69,21 +69,30 @@ The format is Bearlett's draft `docs/CARDS-LNURLCASH.md`.
   holder's next lookup.
 - Committed purchases (`NUTFT_PURCHASE_MODE`) are not offered as cards yet.
 - A paid pack holds the shop until its cards are issued, at most one sweep
-  while the card mint runs. An unpaid pack holds its pack for 600 s past
-  its invoice's expiry, so a payment in flight at the expiry lands on a
-  pack nobody else was sold. Should a payment still settle after its pack
-  was sold again, it is closed (`card_closed = 'stale'`) and logged as
-  `REFUND DUE`. A Lightning payment has no return address, so the buyer
-  has to come forward with its payment hash.
+  while the card mint runs.
+- No card payment is left behind a pack sold twice. Where cards are on
+  either side, an unpaid invoice (a booster's too) holds its pack for 600 s
+  past its expiry, so a payment in flight at the expiry lands on a pack
+  nobody else was sold. A paid booster past its claim grace that gives its
+  pack up to cards can no longer be claimed (`released_at`); its buyer is
+  told to come forward for a refund, as a booster's buyer losing a pack
+  past the grace always was.
+- Should a card payment still settle after its pack was sold again, it is
+  closed (`card_closed = 'stale'`) and logged as `REFUND DUE`. A Lightning
+  payment has no return address, so the buyer has to come forward with its
+  payment hash.
 - Every card names the public origin for good: the card mint keeps the
   first one and stays off under another, as under another issuer key. The
   referee goes on without it. So does the NutFT sale, unless a paid card
   pack is waiting: that pack holds the shop, and a quote says the card mint
-  is off, until it is on again.
+  is off, until it is on again. A start refused for any reason holds it the
+  same way.
 - A card moves at most 999 times here (`CARD_STATES`, where the rules
   allow 9,999): a history is rewritten on every move and checked in full at
-  every start. A card that no longer checks out is quarantined at the
-  start, not fatal. A pack whose issue fails is held not at all and tried
-  again later, waiting longer each time, up to an hour.
+  every start. A damaged card is quarantined at the start, not fatal; a
+  record that names another issuer key or withdraw URL refuses the start,
+  since the card mint's own table never holds one. A pack whose issue fails
+  is held not at all and tried again later, waiting longer each time, up to
+  five minutes, and at once after any card is written.
 - One process owns the card tables; a write never replaces a card's history
   with one that is not longer.
