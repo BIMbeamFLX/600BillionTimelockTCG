@@ -34,6 +34,7 @@ const { WebSocketServer } = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
 const { createNutftMint } = require("./nutft-mint.js");
 const { createCardMint } = require("./card-mint.js");
+const mintEnv = require("./mint-env.js");
 const { createRelayWalletAllowlist } = require("./relay-wallet-allowlist.js");
 const { createRateLimiter } = require("./rate-limit.js");
 
@@ -182,6 +183,9 @@ function mintRouteLimit(method, localPath) {
   if (method === "POST") return MINT_RECOVERY_PATHS.has(localPath) ? "mint-recovery" : "mint-write";
   /* LNURLcash cards move over GET (LUD-25), so a move is a write here. */
   if (method === "GET" && localPath === "/cards/w/cb") return "mint-write";
+  /* A wallet asks for its cards key by key when it restores from its words,
+     as a NutFT wallet restores, so the lookup shares that budget. */
+  if (method === "GET" && localPath === "/cards") return "mint-recovery";
   if (method === "GET" && (MINT_QUOTE_PATHS.has(localPath) || /^\/cards\/verify\//.test(localPath))) return "mint-quote";
   return null;
 }
@@ -484,6 +488,11 @@ async function createTable(opts) {
       beacon: options.nutftBeacon,
       /* NUTFT_PUBLIC_BASE when not given here, as before. */
       publicBase: options.nutftPublicBase,
+      /* NUTFT_FUNDING, NUTFT_SALES and NUTFT_ALLOW_VIRTUAL when not given here,
+         as G takes its own: a test can boot a paid E1 without the environment. */
+      funding: options.nutftFunding,
+      sales: options.nutftSales,
+      allowVirtual: options.nutftAllowVirtual,
       db,
       onWalletBackupBuyer: authorizeWalletBackup,
     });
@@ -493,16 +502,25 @@ async function createTable(opts) {
   }
 
   /* LNURLcash cards (server/card-mint.js): the E1 sale, delivered as seal notes
-   * a holder's own key moves instead of NutFT proofs. Off unless NUTFT_CARDS=1;
-   * it needs the mint's public URL, because every card names its withdraw
-   * endpoint for good. */
+   * a holder's own key moves instead of NutFT proofs. Off unless NUTFT_CARDS is
+   * on (server/mint-env.js reads it as every switch is read). A card mint that
+   * cannot start (its origin or issuer changed under cards it issued) stays
+   * off and says so: the referee and the NutFT sale go on without it. */
   let cardMint = null;
-  if (String(options.nutftCards || "") === "1") {
-    if (!nutft.publicBase) {
-      db.close();
-      throw new Error("NUTFT_CARDS=1 needs NUTFT_PUBLIC_BASE: every card names the mint's public URL");
+  let cardsOn;
+  try {
+    cardsOn = mintEnv.orThrow((add) => mintEnv.flag(add, "NUTFT_CARDS", options.nutftCards, false));
+  } catch (error) {
+    nutft.stop();
+    db.close();
+    throw error;
+  }
+  if (cardsOn) {
+    try {
+      cardMint = createCardMint({ nutft, db, publicBase: nutft.publicBase });
+    } catch (error) {
+      console.error(`[cards] THE CARD MINT IS OFF: ${error && error.message}`);
     }
-    cardMint = createCardMint({ nutft, db, publicBase: nutft.publicBase });
   }
 
   /* Edition G is a second issuer, not a mode of the E1 issuer. It therefore
@@ -2250,8 +2268,10 @@ async function createTable(opts) {
       if (mintLimited(req, res, url.pathname)) return;
       return nutft.handle(req, res, url);
     }
-    /* The card mint answers every origin itself, as LNURL services do. */
+    /* The card mint answers every origin itself, as LNURL services do, and so
+     * does its 429: a wallet page elsewhere must be able to read the wait. */
     if (cardMint && (pathname === "/.well-known/lnurlcash-cards" || pathname === "/cards" || pathname.startsWith("/cards/"))) {
+      res.setHeader("access-control-allow-origin", "*");
       if (mintLimited(req, res, url.pathname)) return;
       return cardMint.handle(req, res, url);
     }
@@ -2484,6 +2504,7 @@ async function createTable(opts) {
       }
       await new Promise((resolve) => wss.close(resolve));
       await new Promise((resolve) => server.close(resolve));
+      if (cardMint) cardMint.stop();
       nutft.stop();
       if (gNutft) gNutft.stop();
       db.close();

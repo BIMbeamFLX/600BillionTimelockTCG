@@ -15,27 +15,38 @@
  *   GET /cards/lnurlp                  LUD-06: a pack, for the key in the comment
  *   GET /cards/lnurlp/callback         the invoice
  *   GET /cards/verify/<hash>           LUD-21; a paid pack is issued here
- *   GET /cards?owner=<x-only hex>      the cards a key holds, paid packs first
+ *   GET /cards?owner=<x-only hex>      a key's live cards, and whether it ever held one
  *   GET /cards/w                       LUD-25 informational GET, ?p= or ?k1=
  *   GET /cards/w/cb                    a move: k1, p1 and the next state
  *
  * Every answer is JSON a browser may read from any origin, as LNURL wants,
- * and every refusal is LUD-01's {"status": "ERROR", "reason"}.
+ * and every refusal is LUD-01's {"status": "ERROR", "reason"}. A paid pack
+ * never waits for its buyer: a sweep issues it, whoever asks or not.
+ *
+ * One process owns the card tables: every write refuses to replace a card's
+ * history with one no longer than it, so a second process moving the same
+ * card fails instead of forking it.
  */
 
 const crypto = require("node:crypto");
 const lnurl = require("./lnurl.js");
+const { cardOrigin, cardsProblems, orThrow } = require("./mint-env.js");
 const cards = require("./vendor/lnurlcash-cards.js");
 
 const X_ONLY = /^[0-9a-f]{64}$/;
 const HASH = /^[0-9a-f]{64}$/;
 const DISCOVERY = "/.well-known/lnurlcash-cards";
 
-function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "/cards" }) {
-  if (!nutft || !db || !publicBase) {
-    throw new Error("a card mint needs its NutFT mint, that mint's database and a public URL");
-  }
-  const base = String(publicBase).replace(/\/+$/, "");
+function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "/cards", sweepEveryMs = 30_000 }) {
+  if (!nutft || !db) throw new Error("a card mint needs its NutFT mint and that mint's database");
+  /* The same rules the boot check applies (server/mint-env.js), for a card
+     mint made without it. */
+  orThrow((add) => cardsProblems(add, "1", {
+    backend: nutft.saleNow().paid ? "paid" : "none",
+    purchaseMode: nutft.purchaseMode,
+    publicBase,
+  }));
+  const base = cardOrigin(publicBase);
   db.exec(`
     CREATE TABLE IF NOT EXISTS card_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS card_ledger (asset_id TEXT PRIMARY KEY, consignment TEXT NOT NULL);
@@ -47,13 +58,28 @@ function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "
   const q = {
     meta: db.prepare("SELECT value FROM card_meta WHERE key = ?"),
     putMeta: db.prepare("INSERT INTO card_meta (key, value) VALUES (?, ?)"),
-    cards: db.prepare("SELECT consignment FROM card_ledger ORDER BY asset_id"),
-    putCard: db.prepare("INSERT OR REPLACE INTO card_ledger (asset_id, consignment) VALUES (?, ?)"),
+    cards: db.prepare("SELECT asset_id, consignment FROM card_ledger ORDER BY asset_id"),
+    /* Compare-and-swap: a new card, or a longer history than the one on disk. */
+    putCard: db.prepare(`
+      INSERT INTO card_ledger (asset_id, consignment) VALUES (?, ?)
+      ON CONFLICT(asset_id) DO UPDATE SET consignment = excluded.consignment
+      WHERE json_array_length(card_ledger.consignment, '$.states')
+        < json_array_length(excluded.consignment, '$.states')
+    `),
     serial: db.prepare("SELECT issued FROM card_serials WHERE name = ?"),
     putSerial: db.prepare("INSERT OR REPLACE INTO card_serials (name, issued) VALUES (?, ?)"),
     invoice: db.prepare("SELECT * FROM card_invoices WHERE payment_hash = ?"),
     putInvoice: db.prepare("INSERT OR REPLACE INTO card_invoices (payment_hash, pr, amount_msat) VALUES (?, ?, ?)"),
   };
+
+  /* Every card names this origin for good: the first one a card mint ran
+     under is kept, and another refuses the start rather than strand them. */
+  const pinned = q.meta.get("public_origin");
+  if (!pinned) q.putMeta.run("public_origin", base);
+  else if (pinned.value !== base) {
+    throw new Error(`the card mint ran under ${pinned.value}, and every card it issued names that origin for good; `
+      + `it will not start under ${base}`);
+  }
 
   /* Two keys. The catalog key is the issuer: it signs every genesis and every
      move, and it is the key the signed catalog names. The mint key only signs
@@ -72,11 +98,30 @@ function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "
     /* Written before the ledger holds it: a move this mint vouched for is on
        disk before its receipt leaves, so a restart can never make it movable
        twice. Inside a pack's claim this runs in the claim's transaction. */
-    persist: (consignment) => q.putCard.run(assetIdOf(consignment), JSON.stringify(consignment)),
+    persist: (consignment) => {
+      const written = q.putCard.run(assetIdOf(consignment), JSON.stringify(consignment));
+      if (Number(written.changes) !== 1) throw new Error("another process changed this card first");
+    },
   };
-  /* Every card rebuilt from disk and checked in full on boot: a database that
-     was tampered with or damaged stops the mint rather than serving it. */
-  const load = () => cards.CardLedger.restore(options, q.cards.all().map((row) => JSON.parse(row.consignment)));
+  /* Every card rebuilt from disk and checked in full on boot. A card that does
+     not check out is quarantined: left out, its row kept for the operator,
+     said out loud. A changed issuer key or withdraw URL refuses the start. */
+  const load = () => {
+    const rows = q.cards.all();
+    const saved = [];
+    const ids = [];
+    for (const row of rows) {
+      try {
+        saved.push(JSON.parse(row.consignment));
+        ids.push(row.asset_id);
+      } catch {
+        console.error(`[cards] QUARANTINED card ${row.asset_id}: its record is not JSON`);
+      }
+    }
+    return cards.CardLedger.restore(options, saved, (problem, at) => {
+      console.error(`[cards] QUARANTINED card ${ids[at]}: ${problem}`);
+    });
+  };
   let ledger = load();
 
   const nextSerial = (name) => {
@@ -104,6 +149,26 @@ function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "
       delivering = false;
     }
   }
+
+  /* Every open pack, oldest first: a paid one is issued, an expired unpaid
+     one closed (nutft-mint.js claimCardsOnce). One sweep at a time; a node
+     that cannot answer ends this round, and the next one tries again. */
+  let sweeping = null;
+  function sweep() {
+    sweeping ??= (async () => {
+      for (const paymentHash of nutft.openCardInvoices()) {
+        try {
+          await collect(paymentHash);
+        } catch (error) {
+          if (error && error.unavailable) break;
+          if (!(error && error.stale)) console.error("[cards] pack", paymentHash.slice(0, 16), error && error.message);
+        }
+      }
+    })().finally(() => { sweeping = null; });
+    return sweeping;
+  }
+  const timer = sweepEveryMs > 0 ? setInterval(() => { void sweep(); }, sweepEveryMs) : null;
+  if (timer && timer.unref) timer.unref();
 
   const metadata = lnurl.metadataFor(`A pack of 600B cards (${edition}), as LNURLcash notes only your key moves`);
   const discovery = () => ({
@@ -195,14 +260,23 @@ function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "
         if (!row) return send(res, lnurl.error("no pack was sold for this payment"));
         const settled = await nutft.funding.isSettled(row.payment_hash, row.amount_msat);
         /* Paid is enough to issue: the owner was named before paying. */
-        if (settled) await collect(row.payment_hash);
+        if (settled) {
+          try {
+            await collect(row.payment_hash);
+          } catch (error) {
+            /* Definitive: asking again changes nothing. */
+            if (error && error.stale) return send(res, lnurl.error(error.message));
+            throw error;
+          }
+        }
         return send(res, { status: "OK", settled: Boolean(settled), preimage: null, pr: row.pr });
       }
       if (path === prefix) {
         const owner = String(params.get("owner") || "");
         if (!X_ONLY.test(owner)) return send(res, lnurl.error("name an owner key: 64 hex digits"));
-        /* Packs paid for this key are issued now: asking is how a wallet collects. */
-        for (const paymentHash of nutft.openCardInvoices(owner)) {
+        /* A key's newest packs that may be paid right now are issued as it
+           asks; everything older is the sweep's, so asking stays cheap. */
+        for (const paymentHash of nutft.freshCardInvoices(owner)) {
           if (!HASH.test(paymentHash)) continue;
           try {
             await collect(paymentHash);
@@ -210,10 +284,10 @@ function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "
             /* One pack that cannot be issued must not hide the cards a key
                already holds; a node that cannot answer is worth saying. */
             if (error && error.unavailable) throw error;
-            console.error("[cards] pack", paymentHash.slice(0, 16), error && error.message);
+            if (!(error && error.stale)) console.error("[cards] pack", paymentHash.slice(0, 16), error && error.message);
           }
         }
-        return send(res, { cards: ledger.byOwner(cards.hexToBytes(owner)) });
+        return send(res, ledger.lookupOwner(cards.hexToBytes(owner)));
       }
       if (path === `${prefix}/w`) {
         const k1 = params.get("k1");
@@ -247,7 +321,10 @@ function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "
     }
   }
 
-  return { handle, discovery, get ledger() { return ledger; } };
+  /* Stops the sweep; the database stays open, it is the NutFT mint's. */
+  const stop = () => { if (timer) clearInterval(timer); };
+
+  return { handle, discovery, sweep, stop, get ledger() { return ledger; } };
 }
 
 module.exports = { createCardMint };
