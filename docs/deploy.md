@@ -579,6 +579,9 @@ Why so strict:
 Run everything in a visible window, one SSH session at a time. The referee is stopped for
 a few minutes (9.4 to 9.6).
 
+The LNURLcash card launch runs these steps, and its switch, from
+[`deploy-runbook-cards.md`](deploy-runbook-cards.md).
+
 ### 9.1 · On Windows: one clean release at one commit
 
 Find any asset the site may need that git does not carry, in exactly the paths the payload
@@ -596,6 +599,7 @@ Expected hits, all local-only: `site/fast-faces.js`, `art/world-plates/original/
 Then clone the commit into a release directory and test it there:
 
 ```powershell
+git -C G:\Github\TCG600nap fetch origin
 $SHA = git -C G:\Github\TCG600nap rev-parse origin/main
 $REL = "G:\projekte\tcg-release-$($SHA.Substring(0,12))"
 git clone --no-local G:\Github\TCG600nap $REL
@@ -830,12 +834,32 @@ release will start with.
 cd G:\projekte\HetzerDeploy
 .\deploy-tcg.ps1 -StageOnly -RepoDir $REL
 Remove-Item -Recurse -Force .\site\tcg600\deploy
+Copy-Item -Recurse -Force "$REL\server\vendor" .\site\tcg600\server\
+$FILES = git -C $REL ls-files server
+$LINES = foreach ($F in $FILES) { "$((Get-FileHash -Algorithm SHA256 (Join-Path $REL $F)).Hash.ToLower())  $F" }
+[IO.File]::WriteAllText("$PWD\site\tcg600\release-$SHA12.sha256", (($LINES -join "`n") + "`n"))
+$MISSING = foreach ($F in $FILES) {
+  $STAGED = Join-Path .\site\tcg600 $F
+  if (-not (Test-Path $STAGED) -or (Get-FileHash -Algorithm SHA256 $STAGED).Hash -ne (Get-FileHash -Algorithm SHA256 (Join-Path $REL $F)).Hash) { $F }
+}
+if ($MISSING) { "NOT STAGED: $MISSING" } else { "staged: all $($FILES.Count) server files" }
+$PROV = Get-Content "$REL\server\vendor\lnurlcash-cards.provenance.json" -Raw | ConvertFrom-Json
+$VENDOR = (Get-FileHash -Algorithm SHA256 .\site\tcg600\server\vendor\lnurlcash-cards.js).Hash.ToLower()
+if ($VENDOR -eq $PROV.sha256) { "card library $VENDOR from bearlett $($PROV.commit)" } else { "CARD LIBRARY MISMATCH" }
 Get-ChildItem .\site\tcg600 | Select-Object Name
 ```
 
 The staged payload is site, cards, rules, the shipped `art/` folders, `server/*.js`,
 `package.json` and `package-lock.json`, taken from the clean clone. Removing `deploy\` keeps the
 unit and the installer on this machine.
+
+`deploy-tcg.ps1` copies `server\*.js` and no folder under it, but `card-mint.js` requires
+`server/vendor/lnurlcash-cards.js`. Without that file the referee does not start (`Cannot find
+module './vendor/lnurlcash-cards.js'`), whether cards are on or not. So the folder is copied by
+hand. `release-<sha12>.sha256` lists every file git holds under `server/` with its SHA-256; it
+travels with the payload, and 9.6 checks it on the box before the start. Stop unless the check
+prints `staged: all N server files` and the card library's hash is the one its provenance
+file names.
 
 ### 9.4 · On the box: stop, then back up both databases
 
@@ -894,13 +918,21 @@ One touch. The upload overwrites and adds files; it deletes nothing.
 ```bash
 cd /home/deploy/bimCVP/infra/site-root/tcg600
 [ -f deploy/install-tcg.sh ] && mv deploy/install-tcg.sh deploy/install-tcg.sh.do-not-run
+sha256sum --quiet --strict -c release-<sha12>.sha256 && echo "server files: all as released"
+comm -13 <(cut -c67- release-<sha12>.sha256 | sort) <(find server -type f | sort)
 npm ci --omit=dev
+node -e 'require("./server/card-mint.js"); console.log("card mint modules load")'
 sudo systemctl start tcg-table
 systemctl is-active tcg-table
 ```
 
 The rename fences an installer left from an earlier deploy. No `daemon-reload`: the unit did
 not change.
+
+Start only after `server files: all as released`; a `FAILED` line is a file the upload did not
+bring, so upload again. `comm` lists the files the box has and the release does not, left from
+earlier deploys; they do no harm and are written down. `card mint modules load` proves the
+card mint's modules resolve with the installed dependencies.
 
 ### 9.7 · On the box: prove nothing but the code changed
 
