@@ -316,11 +316,23 @@ function createNutftMint(options = {}) {
       closeCardInvoice: db.prepare(
         "UPDATE nutft_invoices SET card_closed = ? WHERE payment_hash = ? AND claimed = 0 AND card_closed IS NULL",
       ),
-      restoreBoosters: db.prepare(
-        "UPDATE nutft_invoices SET released_at = NULL, released_by = NULL WHERE released_by = ? AND claimed = 0",
-      ),
+      /* A booster comes back only while its pack is unsold: no invoice has
+         claimed it, and no other card invoice is open on it (the lapsing one
+         is closed first, in the same transaction). */
+      restoreBoosters: db.prepare(`
+        UPDATE nutft_invoices SET released_at = NULL, released_by = NULL
+        WHERE released_by = ? AND claimed = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM nutft_invoices AS other
+            WHERE other.pack_id = nutft_invoices.pack_id
+              AND (other.claimed = 1
+                OR (other.card_owner IS NOT NULL AND other.claimed = 0 AND other.card_closed IS NULL))
+          )
+      `),
+      /* Released to the latest card invoice on its pack, since the time of
+         its first release: an earlier one lapsing gives nothing back. */
       releaseBooster: db.prepare(
-        "UPDATE nutft_invoices SET released_at = ?, released_by = ? WHERE payment_hash = ? AND claimed = 0 AND released_at IS NULL",
+        "UPDATE nutft_invoices SET released_at = COALESCE(released_at, ?), released_by = ? WHERE payment_hash = ? AND claimed = 0",
       ),
       buyerOf: db.prepare("SELECT pubkey FROM nutft_buyers WHERE pubkey = ?"),
       /* Plain INSERT, not INSERT OR IGNORE: a second row for the same key is
