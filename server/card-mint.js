@@ -36,8 +36,20 @@ const cards = require("./vendor/lnurlcash-cards.js");
 const X_ONLY = /^[0-9a-f]{64}$/;
 const HASH = /^[0-9a-f]{64}$/;
 const DISCOVERY = "/.well-known/lnurlcash-cards";
+/* The most states a card reaches here: 999 moves, far more than a card sees
+   in play, where the rules allow 10,000. A history is rewritten on every move
+   and checked in full at every start, so this bounds what one card's owner
+   can make a move (about 420 KB), a lookup and a start (about 4 s) cost. */
+const CARD_STATES = 1000;
+/* A pack whose issue keeps failing is tried again after 30 s, then twice as
+   long each time, up to an hour. */
+const RETRY_MS = 30_000;
+const RETRY_MAX_MS = 3_600_000;
 
-function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "/cards", sweepEveryMs = 30_000 }) {
+function createCardMint({
+  nutft, db, publicBase, edition = "600b-e1", prefix = "/cards", sweepEveryMs = 30_000,
+  maxStates = CARD_STATES, now = Date.now,
+}) {
   if (!nutft || !db) throw new Error("a card mint needs its NutFT mint and that mint's database");
   /* The same rules the boot check applies (server/mint-env.js), for a card
      mint made without it. */
@@ -95,6 +107,7 @@ function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "
     withdraw: `${base}${prefix}/w`,
     issuerKey: new Uint8Array(nutft.catalogKey),
     mintKey: cards.hexToBytes(mintKey.value),
+    maxStates,
     /* Written before the ledger holds it: a move this mint vouched for is on
        disk before its receipt leaves, so a restart can never make it movable
        twice. Inside a pack's claim this runs in the claim's transaction. */
@@ -130,38 +143,62 @@ function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "
     q.putSerial.run(name, issued);
     return issued;
   };
-  /* Runs inside nutft's claim transaction: serials, cards and the claimed
-     invoice commit together or not at all. */
-  let delivering = false;
-  const deliver = (assetIds, ownerHex) => {
-    delivering = true;
-    const owner = cards.hexToBytes(ownerHex);
-    return assetIds.map((name) => ledger.issue(name, `${nutft.collectionId}#${nextSerial(name)}`, owner));
-  };
+  /* Issues a paid pack. deliver() runs inside nutft's claim transaction, so
+     serials, cards and the claimed invoice commit together or not at all; the
+     ledger writes each card down there and holds the pack only after the
+     COMMIT (issuePending, keep). A rollback leaves the ledger as it was and
+     gives the pack's ids back (abandon), and each call keeps its own pack,
+     whatever the sale queue runs next. */
   async function collect(paymentHash) {
+    let pending = null;
+    const deliver = (assetIds, ownerHex) => {
+      const owner = cards.hexToBytes(ownerHex);
+      pending = ledger.issuePending(assetIds.map((name) => ({
+        name, description: `${nutft.collectionId}#${nextSerial(name)}`, owner,
+      })));
+      return pending.consignments;
+    };
+    let delivered;
     try {
-      return await nutft.claimCards(paymentHash, deliver);
+      delivered = await nutft.claimCards(paymentHash, deliver);
     } catch (error) {
-      /* The transaction rolled back; the ledger may hold cards it did not keep. */
-      if (delivering) ledger = load();
+      /* Rolled back: the pack's cards are on no disk, and their ids go back. */
+      if (pending) pending.abandon();
       throw error;
-    } finally {
-      delivering = false;
     }
+    if (pending) {
+      try {
+        pending.keep();
+      } catch (error) {
+        /* On disk but not held: the ledger is rebuilt from disk, once. */
+        console.error("[cards] pack", paymentHash.slice(0, 16), "committed but not held:", error && error.message);
+        ledger = load();
+      }
+    }
+    return delivered;
   }
 
   /* Every open pack, oldest first: a paid one is issued, an expired unpaid
      one closed (nutft-mint.js claimCardsOnce). One sweep at a time; a node
-     that cannot answer ends this round, and the next one tries again. */
+     that cannot answer ends this round, and the next one tries again. A pack
+     whose issue fails waits before it is tried again, longer each time. */
   let sweeping = null;
+  const retries = new Map();
   function sweep() {
     sweeping ??= (async () => {
       for (const paymentHash of nutft.openCardInvoices()) {
+        const retry = retries.get(paymentHash);
+        if (retry && retry.at > now()) continue;
         try {
           await collect(paymentHash);
+          retries.delete(paymentHash);
         } catch (error) {
           if (error && error.unavailable) break;
-          if (!(error && error.stale)) console.error("[cards] pack", paymentHash.slice(0, 16), error && error.message);
+          if (error && error.stale) continue;
+          const wait = Math.min(retry ? retry.wait * 2 : RETRY_MS, RETRY_MAX_MS);
+          retries.set(paymentHash, { wait, at: now() + wait });
+          console.error("[cards] pack", paymentHash.slice(0, 16), error && error.message,
+            `(tried again in ${Math.round(wait / 1000)} s)`);
         }
       }
     })().finally(() => { sweeping = null; });
@@ -321,10 +358,16 @@ function createCardMint({ nutft, db, publicBase, edition = "600b-e1", prefix = "
     }
   }
 
+  /* Paid packs are issued from here on: the shop waits for none of them. */
+  nutft.setCardDelivery(true);
+
   /* Stops the sweep; the database stays open, it is the NutFT mint's. */
-  const stop = () => { if (timer) clearInterval(timer); };
+  const stop = () => {
+    if (timer) clearInterval(timer);
+    nutft.setCardDelivery(false);
+  };
 
   return { handle, discovery, sweep, stop, get ledger() { return ledger; } };
 }
 
-module.exports = { createCardMint };
+module.exports = { createCardMint, CARD_STATES };
