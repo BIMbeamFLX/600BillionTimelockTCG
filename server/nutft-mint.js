@@ -248,6 +248,9 @@ function createNutftMint(options = {}) {
        it, which would otherwise fail at startup rather than at use. */
     const invoiceColumns = new Set(db.prepare("PRAGMA table_info(nutft_invoices)").all().map((r) => r.name));
     if (!invoiceColumns.has("buyer")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN buyer TEXT");
+    /* The key an LNURLcash pack is issued to (server/card-mint.js), named by the
+       buyer's wallet when it asked for the invoice. Null for a booster. */
+    if (!invoiceColumns.has("card_owner")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN card_owner TEXT");
     q = {
       meta: db.prepare("SELECT value FROM nutft_meta WHERE key = ?"),
       putMeta: db.prepare("INSERT OR REPLACE INTO nutft_meta (key, value) VALUES (?, ?)"),
@@ -265,6 +268,8 @@ function createNutftMint(options = {}) {
         VALUES (?, ?, ?, ?, 0, ?, ?, ?)
       `),
       claimInvoice: db.prepare("UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0"),
+      setCardOwner: db.prepare("UPDATE nutft_invoices SET card_owner = ? WHERE payment_hash = ?"),
+      openCardInvoices: db.prepare("SELECT payment_hash FROM nutft_invoices WHERE card_owner = ? AND claimed = 0 ORDER BY created_at"),
       buyerOf: db.prepare("SELECT pubkey FROM nutft_buyers WHERE pubkey = ?"),
       /* Plain INSERT, not INSERT OR IGNORE: a second row for the same key is
          not a duplicate to smooth over, it is a second allocation, and it has
@@ -858,6 +863,7 @@ function createNutftMint(options = {}) {
         commitment ? commitment.targetHeight : null,
         buyer || null,
       );
+      if (opts.cardOwner) q.setCardOwner.run(opts.cardOwner, paymentHash);
     }
     const head = {
       paid: true, price_msat: priceNow,
@@ -1292,6 +1298,57 @@ function createNutftMint(options = {}) {
 
   const signBooster = (body, proof) => serializeSale(() => signBoosterOnce(body, proof));
 
+  /* THE SAME PAID PACK, DELIVERED AS LNURLcash CARDS (server/card-mint.js).
+     The draw, the state chain, the invoice claim and the supply are exactly
+     the booster's above -- only the delivery differs: `deliver(assetIds, owner,
+     quote)` issues the pack to the key the invoice was quoted for, inside the
+     claim's own transaction, so a failed issuance claims nothing and a claimed
+     invoice always has its cards. Unlike a booster, whoever holds the settled
+     invoice cannot collect it: the cards go to the key named before paying.
+
+     Null while there is nothing to deliver yet: not paid, or a sealed pack
+     whose block is not mined. Also null once delivered, for the caller reads
+     the cards from its own ledger then. */
+  async function claimCardsOnce(paymentHash, deliver) {
+    if (!paidMint) throw new Error("LNURLcash cards are sold on a paid mint only");
+    if (purchaseMode) throw new Error("this mint takes committed purchases, which LNURLcash cards do not use");
+    const row = q.invoice.get(paymentHash);
+    if (!row || !row.card_owner) throw new Error("no LNURLcash pack was quoted for this payment");
+    if (row.claimed) return null;
+    let saleBeacon;
+    if (chain) {
+      if (!row.target_height) throw new Error("this LNURLcash pack has no committed block");
+      saleBeacon = await saleBlock(row.target_height);
+      if (!saleBeacon) return null;
+    }
+    const expected = await quote(saleBeacon);
+    if (row.pack_id !== expected.pack_id || row.state !== expected.state) throw new Error("stale booster quote");
+    let settled;
+    try { settled = await funding.isSettled(paymentHash, row.amount_msat); }
+    catch (error) {
+      console.error("[nutft] isSettled failed:", error && error.message);
+      throw unavailable("the mint cannot confirm payment right now — try again shortly");
+    }
+    if (!settled) return null;
+    const nextCounts = { ...state.counts };
+    drawPaidCards(nextCounts, expected.pack_id, saleBeacon || beacon);
+    const nextState = { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
+    let delivered;
+    atomic(() => {
+      const claim = q.claimInvoice.run(paymentHash);
+      if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
+      putMeta("state", JSON.stringify(nextState));
+      delivered = deliver(expected.cards.map((card) => card.asset_id), row.card_owner, expected);
+    });
+    Object.assign(state, nextState);
+    return delivered;
+  }
+  const claimCards = (paymentHash, deliver) => serializeSale(() => claimCardsOnce(paymentHash, deliver));
+  /* Packs quoted for an owner key and not delivered yet, oldest first. */
+  const openCardInvoices = (owner) => (q ? q.openCardInvoices.all(owner).map((row) => row.payment_hash) : []);
+  /* What a pack costs right now, and whether a wallet may buy one. */
+  const saleNow = () => ({ paid: paidMint, open: salesMode === "open", priceMsat: priceFor(state.nextPack - 1) });
+
   async function trade(body) {
     const keyset = await ready;
     if (typeof body.idempotency_key !== "string" || !body.idempotency_key) throw new Error("trade idempotency_key is required");
@@ -1611,6 +1668,9 @@ function createNutftMint(options = {}) {
     payableQuote, revealFor, walletBackupBuyers, paidMint, funding, stop: stopAll, supply,
     purchase, possession, releaseExpiredPurchases, purchaseMode,
     sealed: Boolean(chain),
+    /* For server/card-mint.js: the same sale, delivered as LNURLcash cards,
+       signed by the collection's catalog key, the issuer the catalog names. */
+    claimCards, openCardInvoices, saleNow, catalogKey: catalogPrivateKey, publicBase,
   };
 }
 
