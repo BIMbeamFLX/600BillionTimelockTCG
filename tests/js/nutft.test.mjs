@@ -2092,6 +2092,34 @@ test("the phoenixd funding source refuses to leak its own password", async (t) =
     "and a private hop can be declared deliberately");
 });
 
+test("phoenixd gets an LNURL-pay description hash as hex", async (t) => {
+  // lnurl.descriptionHash() is raw bytes; phoenixd reads the field as hex. A
+  // Buffer in URLSearchParams became mangled UTF-8, so the invoice committed to
+  // a hash no metadata has and an LNURL wallet was right to refuse it.
+  const http = require("node:http");
+  const phoenixd = require("../../server/phoenixd.js");
+  const lnurl = require("../../server/lnurl.js");
+  let form = null;
+  const server = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", () => {
+      form = new URLSearchParams(body);
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ serialized: "lnbc210n1test", paymentHash: "ab".repeat(32) }));
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const config = phoenixd.readConfig({ url: `http://127.0.0.1:${server.address().port}`, password: "x" });
+  const metadata = lnurl.metadataFor("600B booster");
+  const hash = lnurl.descriptionHash(metadata);
+  await phoenixd.createInvoice(config, { amountMsat: 21000, descriptionHash: hash, externalId: "tcg:test" });
+  assert.equal(form.get("descriptionHash"), hash.toString("hex"));
+  assert.match(form.get("descriptionHash"), /^[0-9a-f]{64}$/);
+  assert.equal(form.get("description"), null, "a hash, never a description as well");
+});
+
 test("a phoenixd mint prices in whole sats or says why not", async (t) => {
   // phoenixd invoices in sats. Rounding a fractional price would quietly charge
   // something other than the number on the page, so it is a configuration error

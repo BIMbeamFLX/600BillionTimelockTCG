@@ -127,8 +127,12 @@ async function createInvoice(config, { amountMsat, memo, descriptionHash, expiry
   /* LUD-06 commits the metadata's hash into the invoice, so when a
      descriptionHash is supplied it MUST be used -- a memo instead would produce
      an invoice a LNURL-pay wallet is right to reject. */
-  if (descriptionHash) form.set("descriptionHash", descriptionHash);
-  else form.set("description", memo || "600B booster");
+  /* phoenixd reads the hash as hex. lnurl.descriptionHash() hands over the raw
+     32 bytes, and a Buffer in URLSearchParams becomes mangled UTF-8, not hex:
+     the invoice then committed to a hash nobody's metadata has. */
+  if (descriptionHash) {
+    form.set("descriptionHash", Buffer.isBuffer(descriptionHash) ? descriptionHash.toString("hex") : String(descriptionHash));
+  } else form.set("description", memo || "600B booster");
   if (expirySeconds) form.set("expirySeconds", String(Math.floor(expirySeconds)));
 
   const res = await request(config, { method: "POST", path: "/createinvoice", body: form.toString() });

@@ -161,6 +161,63 @@ test("reading the mint is never limited, even by a client with no budget left", 
   assert.equal((await call(table, "HEAD", "/nutft/catalog")).status, 200);
 });
 
+/* A paid E1 with LNURLcash cards on, as far as a test needs one. */
+const CARDS = {
+  nutftCards: "1", nutftPublicBase: "http://127.0.0.1",
+  nutftFunding: createMockFunding({ settleAfterMs: 60_000 }), nutftAllowVirtual: "1", nutftSales: "open",
+};
+
+test("LNURLcash cards: a move is a write, an invoice or a payment check draws, a lookup recovers", async (t) => {
+  const table = await boot(t, { ...CARDS, mintWriteRateMax: "1", mintQuoteRateMax: "1", mintRecoveryRateMax: "2" });
+  // a move (refused here, but answered) spends the write budget
+  assert.equal((await call(table, "GET", "/cards/w/cb?k1=00")).status, 200);
+  const refused = await call(table, "GET", "/cards/w/cb?k1=00");
+  assert.equal(refused.status, 429);
+  // a wallet page on another origin must be able to read the wait
+  assert.equal(refused.headers["access-control-allow-origin"], "*");
+  // an invoice and a payment check share the drawing budget
+  assert.equal((await call(table, "GET", "/cards/lnurlp/callback?amount=1")).status, 200);
+  assert.equal((await call(table, "GET", `/cards/verify/${"0".repeat(64)}`)).status, 429);
+  // a lookup is how a wallet restores its cards: the recovery budget
+  const lookup = `/cards?owner=${"1".repeat(64)}`;
+  for (let i = 0; i < 2; i++) assert.equal((await call(table, "GET", lookup)).status, 200);
+  assert.equal((await call(table, "GET", lookup)).status, 429);
+  // discovery and the pay request are reads
+  for (let round = 0; round < 3; round++) {
+    for (const path of ["/.well-known/lnurlcash-cards", "/cards/lnurlp"]) {
+      assert.equal((await call(table, "GET", path)).status, 200, `GET ${path}`);
+    }
+  }
+});
+
+test("a card mint that cannot start stays off, and the referee does not", async (t) => {
+  const logged = console.error;
+  const errors = [];
+  console.error = (...line) => errors.push(line.join(" "));
+  let table;
+  try {
+    // cards are sold for sats: on a free mint the card mint cannot start
+    table = await boot(t, { nutftCards: "1", nutftPublicBase: "http://127.0.0.1" });
+  } finally {
+    console.error = logged;
+  }
+  assert.ok(errors.some((line) => line.includes("THE CARD MINT IS OFF")), errors.join("\n"));
+  assert.equal((await call(table, "GET", "/.well-known/lnurlcash-cards")).status, 404);
+  assert.equal((await call(table, "GET", "/api/health")).status, 200);
+});
+
+test("NUTFT_CARDS takes the words every switch takes", async (t) => {
+  const table = await boot(t, { ...CARDS, nutftCards: "yes" });
+  assert.equal((await call(table, "GET", "/.well-known/lnurlcash-cards")).status, 200);
+  await assert.rejects(boot(t, { ...CARDS, nutftCards: "maybe" }), /NUTFT_CARDS: must be on or off/);
+});
+
+test("the card mint stays off without NUTFT_CARDS", async (t) => {
+  const table = await boot(t);
+  assert.equal((await call(table, "GET", "/.well-known/lnurlcash-cards")).status, 404);
+  assert.equal((await call(table, "GET", "/cards/w/cb?k1=00")).status, 404);
+});
+
 test("a spent budget comes back: one write after retry_after, all twenty after a minute",
   async (t) => {
     const table = await boot(t);

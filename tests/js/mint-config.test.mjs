@@ -282,6 +282,21 @@ test("an empty or mistyped flag never switches a protection off", () => {
   assertProblem(problemsWith({ NUTFT_BEACON_SOURCE: "LND" }), /^NUTFT_BEACON_SOURCE: must be lnd, or unset/);
 });
 
+test("LNURLcash cards refuse the boot wherever their cards could not work", () => {
+  assert.deepEqual(problemsWith({ NUTFT_CARDS: "1" }), [], "a paid E1 at an https origin sells cards");
+  assertProblem(problemsWith({ NUTFT_CARDS: "maybe" }), /^NUTFT_CARDS: must be on or off/);
+  assertProblem(problemsWith({ NUTFT_CARDS: "on", NUTFT_PURCHASE_MODE: "1" }),
+    /^NUTFT_CARDS: cannot be on while NUTFT_PURCHASE_MODE is on/);
+  assertProblem(problemsWith({ NUTFT_CARDS: "1", NUTFT_FUNDING: "none", NUTFT_SALES: undefined, PHOENIXD_URL: undefined }),
+    /^NUTFT_CARDS: needs a paid mint/);
+  for (const base of ["http://192.168.1.5:8787", "https://tcg.example.com/tcg"]) {
+    assertProblem(problemsWith({ NUTFT_CARDS: "1", NUTFT_PUBLIC_BASE: base }), /^NUTFT_CARDS: needs an https public origin/);
+  }
+  assertProblem(problemsWith({ NUTFT_CARDS: "1", PUBLIC_URL: undefined }), /^NUTFT_CARDS: needs NUTFT_PUBLIC_BASE or PUBLIC_URL/);
+  // off, nothing about cards is checked
+  assert.deepEqual(problemsWith({ NUTFT_CARDS: "0", NUTFT_PUBLIC_BASE: "http://192.168.1.5:8787" }), []);
+});
+
 test("LND settings are required only from a mint or a beacon that selects lnd", () => {
   const unused = { LND_REST_URL: "https://node.example:8080" };
   assert.deepEqual(problemsWith(unused), [], "phoenixd mints never ask for a macaroon");

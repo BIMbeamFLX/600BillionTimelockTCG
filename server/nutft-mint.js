@@ -127,6 +127,18 @@ function isCensus(census) {
     .every((tier) => object(tier) && (tier.share_of_mint == null || Number.isFinite(tier.share_of_mint)));
 }
 
+/* The one answer every NutFT route gives an LNURLcash pack's invoice. */
+const CARD_INVOICE = "this invoice buys LNURLcash cards, which go to the key its buyer named: the card mint issues them";
+/* How long past its expiry an unpaid LNURLcash pack stays open, for a payment
+   that was in flight when it expired. */
+const CARD_LAPSE_MARGIN_SECONDS = 600;
+/* A paid LNURLcash pack whose pack was sold again. Definitive: asking again
+   changes nothing, so the card mint says so instead of "try again". */
+const staleCards = () => Object.assign(
+  new Error("this payment arrived after its pack was sold to someone else: the operator refunds it"),
+  { stale: true },
+);
+
 function createNutftMint(options = {}) {
   /* Every configured setting is decided by server/mint-env.js, the same rules
      the referee applies to its environment before it opens anything and that
@@ -248,6 +260,13 @@ function createNutftMint(options = {}) {
        it, which would otherwise fail at startup rather than at use. */
     const invoiceColumns = new Set(db.prepare("PRAGMA table_info(nutft_invoices)").all().map((r) => r.name));
     if (!invoiceColumns.has("buyer")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN buyer TEXT");
+    /* The key an LNURLcash pack is issued to (server/card-mint.js), named by the
+       buyer's wallet when it asked for the invoice. Null for a booster. */
+    if (!invoiceColumns.has("card_owner")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN card_owner TEXT");
+    /* Why an LNURLcash pack's invoice closed without its cards: "lapsed", it
+       expired unpaid; "stale", it was paid after its pack was sold again, and
+       the operator refunds it. Null while it is open. Nothing is deleted. */
+    if (!invoiceColumns.has("card_closed")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN card_closed TEXT");
     q = {
       meta: db.prepare("SELECT value FROM nutft_meta WHERE key = ?"),
       putMeta: db.prepare("INSERT OR REPLACE INTO nutft_meta (key, value) VALUES (?, ?)"),
@@ -258,13 +277,30 @@ function createNutftMint(options = {}) {
       signature: db.prepare("SELECT output_json, signature_json FROM nutft_signatures WHERE b_ = ?"),
       putSignature: db.prepare("INSERT INTO nutft_signatures (b_, output_json, signature_json) VALUES (?, ?, ?)"),
       invoice: db.prepare("SELECT * FROM nutft_invoices WHERE payment_hash = ?"),
-      activeInvoices: db.prepare("SELECT * FROM nutft_invoices WHERE pack_id = ? AND claimed = 0 ORDER BY created_at DESC"),
+      activeInvoices: db.prepare("SELECT * FROM nutft_invoices WHERE pack_id = ? AND claimed = 0 AND card_closed IS NULL ORDER BY created_at DESC"),
+      /* card_owner is written with the row, never after it: a card invoice
+         without its owner would be a booster invoice anyone holding the
+         payment hash could collect. */
       putInvoice: db.prepare(`
         INSERT OR REPLACE INTO nutft_invoices
-          (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height, buyer)
-        VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+          (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height, buyer, card_owner)
+        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)
       `),
       claimInvoice: db.prepare("UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0"),
+      /* A key's newest open packs that may be paid right now; older ones are the sweep's. */
+      freshCardInvoices: db.prepare(`
+        SELECT payment_hash FROM nutft_invoices
+        WHERE card_owner = ? AND claimed = 0 AND card_closed IS NULL AND created_at > ?
+        ORDER BY created_at DESC LIMIT 3
+      `),
+      openCardInvoices: db.prepare(`
+        SELECT payment_hash FROM nutft_invoices
+        WHERE card_owner IS NOT NULL AND claimed = 0 AND card_closed IS NULL
+        ORDER BY created_at
+      `),
+      closeCardInvoice: db.prepare(
+        "UPDATE nutft_invoices SET card_closed = ? WHERE payment_hash = ? AND claimed = 0 AND card_closed IS NULL",
+      ),
       buyerOf: db.prepare("SELECT pubkey FROM nutft_buyers WHERE pubkey = ?"),
       /* Plain INSERT, not INSERT OR IGNORE: a second row for the same key is
          not a duplicate to smooth over, it is a second allocation, and it has
@@ -801,10 +837,16 @@ function createNutftMint(options = {}) {
          Both cases age now. A settled invoice simply gets longer. */
       const unknownAge = !Number.isFinite(created);
       const quoteHeld = unknownAge || created + invoiceTtlSeconds * 1000 > now;
-      const paidHeld = settled && (unknownAge || created + claimGraceSeconds * 1000 > now);
+      /* An LNURLcash pack is never released: its cards go to the key named
+         before paying, and delivering them needs nothing from the buyer
+         (server/card-mint.js sweeps), so a pack held past the grace is the
+         mint's own delay, never a reason to sell it again. */
+      const paidHeld = settled && (Boolean(row.card_owner) || unknownAge || created + claimGraceSeconds * 1000 > now);
       if (settled ? paidHeld : quoteHeld) {
         throw new Error(settled
-          ? "this booster is paid for and is being collected — it becomes available again if it is not claimed"
+          ? row.card_owner
+            ? "this pack is paid for and its cards are being issued — try again shortly"
+            : "this booster is paid for and is being collected — it becomes available again if it is not claimed"
           : "this booster already has an active invoice — pay or claim it, or try again after it expires");
       }
     }
@@ -835,8 +877,11 @@ function createNutftMint(options = {}) {
          gone and the node is not: the pack it was for, and the state hash that
          made it unique. A random nonce would prove nothing to anyone reading
          the node's own records later. The `acct:` prefix is taken by another
-         service on the same node, so ours is `tcg:`. */
-      const externalId = `tcg:booster:${base.pack_id}:${String(base.state).slice(0, 16)}`;
+         service on the same node, so ours is `tcg:`. An LNURLcash pack also
+         names the key its cards go to, which is all a rebuild would need. */
+      const externalId = opts.cardOwner
+        ? `tcg:cards:${base.pack_id}:${String(base.state).slice(0, 16)}:${opts.cardOwner}`
+        : `tcg:booster:${base.pack_id}:${String(base.state).slice(0, 16)}`;
       invoice = await funding.createInvoice(opts.descriptionHash
         ? { amountMsat: priceNow, descriptionHash: opts.descriptionHash, expirySeconds: invoiceTtlSeconds, externalId }
         : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}`, expirySeconds: invoiceTtlSeconds, externalId });
@@ -857,6 +902,7 @@ function createNutftMint(options = {}) {
         new Date().toISOString(),
         commitment ? commitment.targetHeight : null,
         buyer || null,
+        opts.cardOwner || null,
       );
     }
     const head = {
@@ -1032,6 +1078,7 @@ function createNutftMint(options = {}) {
     if (!isPaymentRef(paymentHash)) throw new Error("payment_hash is not a valid payment reference");
     const row = q ? q.invoice.get(paymentHash) : null;
     if (!row) throw new Error("unknown payment_hash: quote the booster first");
+    if (row.card_owner) throw new Error(CARD_INVOICE);
     if (!chain) {
       await requireSettled({ pack_id: row.pack_id }, paymentHash);
       const resolved = await quote();
@@ -1065,6 +1112,10 @@ function createNutftMint(options = {}) {
     if (!isPaymentRef(paymentHash)) throw new Error("payment_hash is not a valid payment reference");
     const row = q ? q.invoice.get(paymentHash) : null;
     if (!row) throw new Error("unknown payment_hash: quote the booster first");
+    /* Checked before anything is revealed or signed: an LNURLcash pack goes to
+       the key its buyer named before paying, so holding its payment hash (in
+       the bolt11, the verify URL, at any routing hop) collects nothing. */
+    if (row.card_owner) throw new Error(CARD_INVOICE);
     if (row.pack_id !== expected.pack_id) throw new Error("this invoice was quoted for a different pack");
     if (row.claimed) throw new Error("this invoice has already been claimed");
     let settledNow;
@@ -1291,6 +1342,82 @@ function createNutftMint(options = {}) {
   }
 
   const signBooster = (body, proof) => serializeSale(() => signBoosterOnce(body, proof));
+
+  /* THE SAME PAID PACK, DELIVERED AS LNURLcash CARDS (server/card-mint.js).
+     The draw, the state chain, the invoice claim and the supply are exactly
+     the booster's above -- only the delivery differs: `deliver(assetIds, owner,
+     quote)` issues the pack to the key the invoice was quoted for, inside the
+     claim's own transaction, so a failed issuance claims nothing and a claimed
+     invoice always has its cards. Unlike a booster, whoever holds the settled
+     invoice cannot collect it: the cards go to the key named before paying.
+
+     Null while there is nothing to deliver yet: not paid, or a sealed pack
+     whose block is not mined. Also null once delivered, for the caller reads
+     the cards from its own ledger then. */
+  async function claimCardsOnce(paymentHash, deliver) {
+    if (!paidMint) throw new Error("LNURLcash cards are sold on a paid mint only");
+    if (purchaseMode) throw new Error("this mint takes committed purchases, which LNURLcash cards do not use");
+    const row = q.invoice.get(paymentHash);
+    if (!row || !row.card_owner) throw new Error("no LNURLcash pack was quoted for this payment");
+    if (row.claimed || row.card_closed === "lapsed") return null;
+    if (row.card_closed === "stale") throw staleCards();
+    let settled;
+    try { settled = await funding.isSettled(paymentHash, row.amount_msat); }
+    catch (error) {
+      console.error("[nutft] isSettled failed:", error && error.message);
+      throw unavailable("the mint cannot confirm payment right now — try again shortly");
+    }
+    if (!settled) {
+      /* Expired unpaid, it can never be paid: closed, so nothing asks the node
+         about it again. The margin covers a payment that was in flight when
+         the invoice expired. */
+      const created = Date.parse(row.created_at);
+      if (Number.isFinite(created) && created + (invoiceTtlSeconds + CARD_LAPSE_MARGIN_SECONDS) * 1000 < Date.now()) {
+        q.closeCardInvoice.run("lapsed", paymentHash);
+      }
+      return null;
+    }
+    let saleBeacon;
+    if (chain) {
+      if (!row.target_height) throw new Error("this LNURLcash pack has no committed block");
+      saleBeacon = await saleBlock(row.target_height);
+      if (!saleBeacon) return null;
+    }
+    const expected = await quote(saleBeacon);
+    if (row.pack_id !== expected.pack_id || row.state !== expected.state) {
+      /* Paid, and its pack sold to someone else meanwhile: only a payment that
+         settled after its invoice counted as expired gets here. It is closed
+         for good and said out loud, because someone has to refund it. */
+      q.closeCardInvoice.run("stale", paymentHash);
+      console.error(`[nutft] REFUND DUE: LNURLcash pack invoice ${paymentHash} (${row.amount_msat} msat, `
+        + `pack ${row.pack_id}) was paid after its pack was sold again`);
+      throw staleCards();
+    }
+    const nextCounts = { ...state.counts };
+    drawPaidCards(nextCounts, expected.pack_id, saleBeacon || beacon);
+    const nextState = { counts: nextCounts, state: expected.next_state, nextPack: state.nextPack + 1 };
+    let delivered;
+    atomic(() => {
+      const claim = q.claimInvoice.run(paymentHash);
+      if (!claim || claim.changes !== 1) throw new Error("this invoice has already been claimed");
+      putMeta("state", JSON.stringify(nextState));
+      delivered = deliver(expected.cards.map((card) => card.asset_id), row.card_owner, expected);
+    });
+    Object.assign(state, nextState);
+    return delivered;
+  }
+  const claimCards = (paymentHash, deliver) => serializeSale(() => claimCardsOnce(paymentHash, deliver));
+  /* Packs quoted for an owner key that may be paid right now, newest first:
+     asking for a key's cards collects these. */
+  const freshCardInvoices = (owner) => {
+    if (!q) return [];
+    const since = new Date(Date.now() - invoiceTtlSeconds * 1000).toISOString();
+    return q.freshCardInvoices.all(owner, since).map((row) => row.payment_hash);
+  };
+  /* Every pack not delivered and not closed, oldest first: the sweep's list. */
+  const openCardInvoices = () => (q ? q.openCardInvoices.all().map((row) => row.payment_hash) : []);
+  /* What a pack costs right now, and whether a wallet may buy one. */
+  const saleNow = () => ({ paid: paidMint, open: salesMode === "open", priceMsat: priceFor(state.nextPack - 1) });
 
   async function trade(body) {
     const keyset = await ready;
@@ -1611,6 +1738,9 @@ function createNutftMint(options = {}) {
     payableQuote, revealFor, walletBackupBuyers, paidMint, funding, stop: stopAll, supply,
     purchase, possession, releaseExpiredPurchases, purchaseMode,
     sealed: Boolean(chain),
+    /* For server/card-mint.js: the same sale, delivered as LNURLcash cards,
+       signed by the collection's catalog key, the issuer the catalog names. */
+    claimCards, freshCardInvoices, openCardInvoices, saleNow, catalogKey: catalogPrivateKey, publicBase,
   };
 }
 

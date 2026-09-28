@@ -147,6 +147,8 @@ time, where docs/deploy.md §9.2a says, and find what a mint publishes now with 
 | `…_CATALOG_MIRRORS: entry N is not an absolute http:// or https:// URL` | Entry N is not. | Unchanged: the running build refused this. |
 | `NUTFT_SUPPLY_RELAYS: entry N is not a ws:// or wss:// URL`, `NUTFT_SUPPLY_INTERVAL_SECONDS: must be 0 (no timer) or a whole number of seconds, at least 60 and at most 2147483` | As the line says; 2147483 seconds is Node's longest timer, and a longer one would sign a snapshot every millisecond. | The running build has no supply ledger and ignores both (§3.2): remove them before the deploy. |
 | `NUTFT_MOCK_SETTLE_MS: must be a whole number of milliseconds` | A mint funds through `mock` and the delay is not a whole number. | Staging only; the mock never settled with it. |
+| `NUTFT_CARDS: must be on or off` | A value other than the words in §2. | The running build has no card mint (§3.2): remove the variable. |
+| `NUTFT_CARDS: needs a paid mint`, `cannot be on while NUTFT_PURCHASE_MODE is on`, `needs NUTFT_PUBLIC_BASE or PUBLIC_URL`, `needs an https public origin` | Cards are on where they could not work: a free E1, committed purchases, no public base, or a base that is not an https origin without a path (plain http only on this machine). | The running build has no card mint (§3.2): remove the variable, and switch cards on later as a decision of its own (docs/deploy.md §10.2a). |
 
 ### 3.1 · Meaning changes and their fix
 
@@ -179,8 +181,8 @@ one.
 > These rows describe `d753505`, the build running on 2026-09-15. Rebuild them against the
 > running build before every release (the tables at the top of `server/env-check.js`).
 
-`d753505` has no catalog mirrors, no committed purchases, no supply ledger and no ruleset choice
-for tables, so it never reads the variables below. Set on the box, they do nothing today and act the moment the release
+`d753505` has no catalog mirrors, no committed purchases, no supply ledger, no ruleset choice
+for tables and no LNURLcash cards, so it never reads the variables below. Set on the box, they do nothing today and act the moment the release
 starts. The row prints for any value other than empty or blanks, G's only while
 `G_NUTFT_ENABLED` is on, and stops the deploy like a refusal, so the choice is deliberate. The
 fix that keeps the shop as it is: remove the variable before the deploy (the running build does
@@ -193,6 +195,7 @@ not notice), and set it after the release runs, as its own change with its own c
 | `NUTFT_PURCHASE_MODE: set, but the running build ignores it`, and the same for `G_NUTFT_PURCHASE_MODE` | On: every quote answers `cards: null, purchase_required: true`, and a buyer must commit with `POST /nutft/purchase` first. A value that reads as off still prints the row. | Switch it on only after the shop and the wallet have passed the committed-purchase path (docs/nutft-purchase-and-possession.md §2.1). |
 | `NUTFT_SUPPLY_RELAYS: set, but the running build ignores it` | Publish signed supply snapshots to these relays. | Set it once the relays are chosen. |
 | `NUTFT_SUPPLY_INTERVAL_SECONDS: set, but the running build ignores it` | Sign a snapshot at that interval, or never for `0`. Unset, the release signs one every 86400 seconds. | Set it if another interval is wanted. |
+| `NUTFT_CARDS: set, but the running build ignores it` | On: sell E1 packs as LNURLcash cards at `/cards/...`, issued to the key the buyer names. A value that reads as off still prints the row. | Switch it on only as its own change, after docs/deploy.md §10.2a. |
 | `TABLE_RULESETS: set, but the running build ignores it` | Decide which rulesets public tables and quick match may open; anything not listed opens as Classic `E1.0`. Unset, the release allows `E1.0,F1.0`. | Set it once the ruleset decision is made. |
 
 ---
