@@ -182,3 +182,21 @@ test("every other burn of a card is refused", async (t) => {
   const theft = new URLSearchParams({ k1: stolen.k1, p1: stolen.p1, state: stolen.state });
   assert.match((await get(mint.cardMint, `/cards/w/cb?${theft}`)).body.reason, /does not open/);
 });
+
+test("a card pack's invoice collects nothing through the NutFT routes", async (t) => {
+  const mint = setup(t);
+  const alice = holder();
+  const { hash } = await buyPack(mint, alice.pub);
+  // the owner is on the invoice's row from the start, not written after it
+  const row = mint.db.prepare("SELECT pack_id, state, card_owner FROM nutft_invoices WHERE payment_hash = ?").get(hash);
+  assert.equal(row.card_owner, hex(alice.pub));
+  // whoever knows the payment hash: no reveal, no booster
+  await assert.rejects(mint.nutft.revealFor(hash), /LNURLcash cards/);
+  await assert.rejects(
+    mint.nutft.signBooster({ idempotency_key: "mallory", pack_id: row.pack_id, state: row.state, payment_hash: hash, outputs: [] }),
+    /LNURLcash cards/,
+  );
+  // and the pack still goes to alice's key
+  assert.equal((await get(mint.cardMint, `/cards/verify/${hash}`)).body.settled, true);
+  assert.equal((await held(mint.cardMint, alice.pub)).length, CENSUS.mint.cards_per_pack);
+});

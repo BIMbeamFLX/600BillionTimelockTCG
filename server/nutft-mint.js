@@ -127,6 +127,9 @@ function isCensus(census) {
     .every((tier) => object(tier) && (tier.share_of_mint == null || Number.isFinite(tier.share_of_mint)));
 }
 
+/* The one answer every NutFT route gives an LNURLcash pack's invoice. */
+const CARD_INVOICE = "this invoice buys LNURLcash cards, which go to the key its buyer named: the card mint issues them";
+
 function createNutftMint(options = {}) {
   /* Every configured setting is decided by server/mint-env.js, the same rules
      the referee applies to its environment before it opens anything and that
@@ -262,13 +265,15 @@ function createNutftMint(options = {}) {
       putSignature: db.prepare("INSERT INTO nutft_signatures (b_, output_json, signature_json) VALUES (?, ?, ?)"),
       invoice: db.prepare("SELECT * FROM nutft_invoices WHERE payment_hash = ?"),
       activeInvoices: db.prepare("SELECT * FROM nutft_invoices WHERE pack_id = ? AND claimed = 0 ORDER BY created_at DESC"),
+      /* card_owner is written with the row, never after it: a card invoice
+         without its owner would be a booster invoice anyone holding the
+         payment hash could collect. */
       putInvoice: db.prepare(`
         INSERT OR REPLACE INTO nutft_invoices
-          (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height, buyer)
-        VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+          (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height, buyer, card_owner)
+        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)
       `),
       claimInvoice: db.prepare("UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0"),
-      setCardOwner: db.prepare("UPDATE nutft_invoices SET card_owner = ? WHERE payment_hash = ?"),
       openCardInvoices: db.prepare("SELECT payment_hash FROM nutft_invoices WHERE card_owner = ? AND claimed = 0 ORDER BY created_at"),
       buyerOf: db.prepare("SELECT pubkey FROM nutft_buyers WHERE pubkey = ?"),
       /* Plain INSERT, not INSERT OR IGNORE: a second row for the same key is
@@ -840,8 +845,11 @@ function createNutftMint(options = {}) {
          gone and the node is not: the pack it was for, and the state hash that
          made it unique. A random nonce would prove nothing to anyone reading
          the node's own records later. The `acct:` prefix is taken by another
-         service on the same node, so ours is `tcg:`. */
-      const externalId = `tcg:booster:${base.pack_id}:${String(base.state).slice(0, 16)}`;
+         service on the same node, so ours is `tcg:`. An LNURLcash pack also
+         names the key its cards go to, which is all a rebuild would need. */
+      const externalId = opts.cardOwner
+        ? `tcg:cards:${base.pack_id}:${String(base.state).slice(0, 16)}:${opts.cardOwner}`
+        : `tcg:booster:${base.pack_id}:${String(base.state).slice(0, 16)}`;
       invoice = await funding.createInvoice(opts.descriptionHash
         ? { amountMsat: priceNow, descriptionHash: opts.descriptionHash, expirySeconds: invoiceTtlSeconds, externalId }
         : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}`, expirySeconds: invoiceTtlSeconds, externalId });
@@ -862,8 +870,8 @@ function createNutftMint(options = {}) {
         new Date().toISOString(),
         commitment ? commitment.targetHeight : null,
         buyer || null,
+        opts.cardOwner || null,
       );
-      if (opts.cardOwner) q.setCardOwner.run(opts.cardOwner, paymentHash);
     }
     const head = {
       paid: true, price_msat: priceNow,
@@ -1038,6 +1046,7 @@ function createNutftMint(options = {}) {
     if (!isPaymentRef(paymentHash)) throw new Error("payment_hash is not a valid payment reference");
     const row = q ? q.invoice.get(paymentHash) : null;
     if (!row) throw new Error("unknown payment_hash: quote the booster first");
+    if (row.card_owner) throw new Error(CARD_INVOICE);
     if (!chain) {
       await requireSettled({ pack_id: row.pack_id }, paymentHash);
       const resolved = await quote();
@@ -1071,6 +1080,10 @@ function createNutftMint(options = {}) {
     if (!isPaymentRef(paymentHash)) throw new Error("payment_hash is not a valid payment reference");
     const row = q ? q.invoice.get(paymentHash) : null;
     if (!row) throw new Error("unknown payment_hash: quote the booster first");
+    /* Checked before anything is revealed or signed: an LNURLcash pack goes to
+       the key its buyer named before paying, so holding its payment hash (in
+       the bolt11, the verify URL, at any routing hop) collects nothing. */
+    if (row.card_owner) throw new Error(CARD_INVOICE);
     if (row.pack_id !== expected.pack_id) throw new Error("this invoice was quoted for a different pack");
     if (row.claimed) throw new Error("this invoice has already been claimed");
     let settledNow;
