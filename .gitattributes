@@ -1,1 +1,2 @@
 site/vendor/* text eol=lf
+server/vendor/* -text
