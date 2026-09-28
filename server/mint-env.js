@@ -118,6 +118,41 @@ const publicOrigin = (raw) => {
   return Boolean(url && !url.username && !url.password && !url.search && !url.hash);
 };
 
+/* Hosts a wallet reaches over plain http: this machine, and onion services
+   (LUD-01's exception, as Bearlett's plainHttpHost has it). */
+const PLAIN_HTTP_HOST = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$|\.localhost$|\.onion$/i;
+
+/* The origin LNURLcash cards name for good, or null: https, or plain http on
+   this machine, with no path, user, password, query or fragment. A wallet
+   refuses a card mint anywhere else, and its discovery document lives at the
+   origin's root, so a card sold under another base could never move. */
+function cardOrigin(raw) {
+  const url = httpUrl(String(raw ?? "").replace(/\/+$/, ""));
+  if (!url || url.username || url.password || url.search || url.hash || url.pathname !== "/") return null;
+  if (url.protocol !== "https:" && !PLAIN_HTTP_HOST.test(url.hostname)) return null;
+  return url.origin;
+}
+
+/* LNURLcash cards (server/card-mint.js): E1 packs sold for sats as notes that
+   name the site's public origin for good. `e1` is the E1 mint's settings.
+   Returns whether cards are on. */
+function cardsProblems(add, raw, e1) {
+  if (!flag(add, "NUTFT_CARDS", raw, false)) return false;
+  if (e1.backend === "none") {
+    add("NUTFT_CARDS", "needs a paid mint: LNURLcash cards are sold for sats, so set NUTFT_FUNDING");
+  }
+  if (e1.purchaseMode) {
+    add("NUTFT_CARDS", "cannot be on while NUTFT_PURCHASE_MODE is on: LNURLcash cards are not sold as committed purchases");
+  }
+  if (!e1.publicBase) {
+    add("NUTFT_CARDS", "needs NUTFT_PUBLIC_BASE or PUBLIC_URL: every card names the mint's public origin for good");
+  } else if (!cardOrigin(e1.publicBase)) {
+    add("NUTFT_CARDS", "needs an https public origin without a path (plain http only on this machine): "
+      + "wallets refuse a card mint anywhere else");
+  }
+  return true;
+}
+
 function supplyRelays(add, raw) {
   if (blank(raw)) return [];
   const list = entries(raw);
@@ -417,7 +452,9 @@ function resolveMint(options = {}, env = process.env, editionName = "E1") {
  */
 function checkEnv(env) {
   const { problems, add, absorb } = problemList();
-  absorb(resolveMint({}, env, "E1").problems);
+  const e1 = resolveMint({}, env, "E1");
+  absorb(e1.problems);
+  cardsProblems(add, env.NUTFT_CARDS, e1.settings);
   if (flag(add, "G_NUTFT_ENABLED", env.G_NUTFT_ENABLED, false)) {
     if (blank(env.G_NUTFT_DB)) {
       add("G_NUTFT_DB", "required when G_NUTFT_ENABLED is on: the file holds the Edition G signing keys");
@@ -441,5 +478,6 @@ function rateBudget(add, variable, raw, fallback) {
 
 module.exports = {
   checkEnv, resolveMint, orThrow, flag, whole, supplyRelays, supplyInterval, rateBudget, RATE_BUDGETS,
+  cardOrigin, cardsProblems,
   lndSettings, lndProblems, phoenixdSettings, phoenixdProblems, cashuProblems,
 };

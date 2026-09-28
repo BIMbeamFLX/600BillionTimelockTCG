@@ -298,6 +298,8 @@ test("a variable only the release reads stops the deploy while it is set", () =>
     [{ NUTFT_SUPPLY_RELAYS: `wss://${MARKER}.example` }, "NUTFT_SUPPLY_RELAYS"],
     [{ NUTFT_SUPPLY_INTERVAL_SECONDS: "3600" }, "NUTFT_SUPPLY_INTERVAL_SECONDS"],
     [{ TABLE_RULESETS: "E1.0" }, "TABLE_RULESETS"],
+    [{ NUTFT_CARDS: "1" }, "NUTFT_CARDS"],
+    [{ NUTFT_CARDS: "0" }, "NUTFT_CARDS"],
   ];
   for (const [changes, variable] of cases) {
     const result = node(ENV_CHECK, ["--from", "-"], { input: environ({ ...CLEAN, ...changes }) });

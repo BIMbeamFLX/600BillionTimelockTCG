@@ -137,8 +137,9 @@ const MEANING_CHANGES = [
  * Describes d753505, the build running on 2026-09-15; rebuild it against the
  * running build before every release.
  *
- * d753505 has no catalog mirrors, no committed purchases, no supply ledger and
- * no ruleset choice for tables: its server/ has no nutft-supply.js, and neither
+ * d753505 has no catalog mirrors, no committed purchases, no supply ledger, no
+ * ruleset choice for tables and no LNURLcash cards: its server/ has no
+ * nutft-supply.js and no card-mint.js, and neither
  * its nutft-mint.js nor its table.js reads any of these names. Set on the box, they do
  * nothing today and act the moment the release starts, so each one set to more
  * than blanks stops the deploy until someone decides. The second field says
@@ -151,6 +152,7 @@ const IGNORED_BY_RUNNING_BUILD = [
   ["NUTFT_SUPPLY_RELAYS", false],
   ["NUTFT_SUPPLY_INTERVAL_SECONDS", false],
   ["TABLE_RULESETS", false],
+  ["NUTFT_CARDS", false],
 ];
 
 /** One "VARIABLE: set, but the running build ignores it" line per such variable that is set. */
