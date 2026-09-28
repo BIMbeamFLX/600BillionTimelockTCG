@@ -617,3 +617,53 @@ test("a failing pack waits at most five minutes, and any card written ends the w
   assert.equal(issued(), true);
   assert.equal((await held(mint.cardMint, bob.pub)).length, CENSUS.mint.cards_per_pack);
 });
+
+test("a booster released to a card pack that lapses unpaid can be claimed again", async (t) => {
+  const mint = setup(t);
+  const stranger = holder();
+  const booster = await mint.nutft.payableQuote({});
+  mint.funding.settle(booster.payment_hash);
+  age(mint.db, booster.payment_hash, 3600 + 60);
+  // a card pack is quoted on its pack, and never paid
+  const card = await quotePack(mint.cardMint, stranger.pub);
+  const released = () => mint.db.prepare("SELECT released_at, released_by FROM nutft_invoices WHERE payment_hash = ?")
+    .get(booster.payment_hash);
+  assert.equal(released().released_by, card);
+  await assert.rejects(mint.nutft.revealFor(booster.payment_hash), /went to someone else/);
+  // it lapses: the pack was never sold, so the booster's buyer may still have it
+  age(mint.db, card, 900 + 600 + 30);
+  await mint.cardMint.sweep();
+  assert.deepEqual({ ...released() }, { released_at: null, released_by: null });
+  const revealed = await mint.nutft.revealFor(booster.payment_hash);
+  assert.equal(revealed.pack_id, booster.pack_id);
+});
+
+test("a card invoice and the boosters it releases are written together, or neither", async (t) => {
+  const real = new DatabaseSync(":memory:");
+  let failRelease = false;
+  const db = new Proxy(real, {
+    get(target, name) {
+      if (name !== "prepare") return typeof target[name] === "function" ? target[name].bind(target) : target[name];
+      return (sql) => {
+        const statement = target.prepare(sql);
+        if (!/SET released_at = \?, released_by = \?/.test(sql)) return statement;
+        return {
+          run: (...args) => {
+            if (failRelease) throw new Error("the disk failed mid-way");
+            return statement.run(...args);
+          },
+        };
+      };
+    },
+  });
+  const mint = setup(t, db);
+  const booster = await mint.nutft.payableQuote({});
+  mint.funding.settle(booster.payment_hash);
+  age(real, booster.payment_hash, 3600 + 60);
+  failRelease = true;
+  const answer = (await get(mint.cardMint, `/cards/lnurlp/callback?amount=21000&comment=${cards.encodeCp1(holder().pub)}`)).body;
+  assert.equal(answer.status, "ERROR");
+  // neither the card invoice nor the release: the booster keeps its claim
+  assert.equal(real.prepare("SELECT COUNT(*) AS n FROM nutft_invoices WHERE card_owner IS NOT NULL").get().n, 0);
+  assert.equal(real.prepare("SELECT released_at FROM nutft_invoices WHERE payment_hash = ?").get(booster.payment_hash).released_at, null);
+});

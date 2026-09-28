@@ -1126,8 +1126,9 @@ funding is in §10.4 and its beacon in §10.5. *Also G* marks a value the G mint
   `[nutft] REFUND DUE` once. The lasting record is the row:
   `SELECT payment_hash, amount_msat, card_owner FROM nutft_invoices WHERE card_closed = 'stale'`.
   A paid booster not claimed within its grace whose pack then went to cards cannot be
-  claimed any more; its row is the record too:
-  `SELECT payment_hash, amount_msat FROM nutft_invoices WHERE released_at IS NOT NULL AND claimed = 0`.
+  claimed any more, unless that card pack lapses unpaid (then it can again); its row is the
+  record too:
+  `SELECT payment_hash, amount_msat, released_by FROM nutft_invoices WHERE released_at IS NOT NULL AND claimed = 0`.
   A Lightning payment has no return address: the buyer is told to come forward with the
   payment hash, and the refund is paid to an invoice they give.
 - **A pack whose issue fails** (a full disk) is held not at all: nothing is kept in memory
