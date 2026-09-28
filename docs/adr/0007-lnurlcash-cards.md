@@ -74,9 +74,11 @@ The format is Bearlett's draft `docs/CARDS-LNURLCASH.md`.
   either side, an unpaid invoice (a booster's too) holds its pack for 600 s
   past its expiry, so a payment in flight at the expiry lands on a pack
   nobody else was sold. A paid booster past its claim grace that gives its
-  pack up to cards can no longer be claimed (`released_at`); its buyer is
-  told to come forward for a refund, as a booster's buyer losing a pack
-  past the grace always was.
+  pack up to cards can no longer be claimed (`released_at`, written in one
+  transaction with the card invoice); its buyer is told to come forward for
+  a refund, as a booster's buyer losing a pack past the grace always was.
+  Should that card pack lapse unpaid, the pack was never sold, and the
+  booster can be claimed again.
 - Should a card payment still settle after its pack was sold again, it is
   closed (`card_closed = 'stale'`) and logged as `REFUND DUE`. A Lightning
   payment has no return address, so the buyer has to come forward with its

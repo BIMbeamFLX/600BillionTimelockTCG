@@ -275,6 +275,9 @@ function createNutftMint(options = {}) {
        LNURLcash pack: from then on it can no longer be claimed, so the cards
        can never go stale behind it. Null for every other invoice. */
     if (!invoiceColumns.has("released_at")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN released_at TEXT");
+    /* The card invoice a booster was released to: if it lapses unpaid, the
+       pack was never sold, and the booster is claimable again. */
+    if (!invoiceColumns.has("released_by")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN released_by TEXT");
     q = {
       meta: db.prepare("SELECT value FROM nutft_meta WHERE key = ?"),
       putMeta: db.prepare("INSERT OR REPLACE INTO nutft_meta (key, value) VALUES (?, ?)"),
@@ -294,7 +297,11 @@ function createNutftMint(options = {}) {
           (payment_hash, pack_id, state, amount_msat, claimed, created_at, target_height, buyer, card_owner)
         VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)
       `),
-      claimInvoice: db.prepare("UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0"),
+      /* A released booster is never claimed: requireSettled refuses it first,
+         and this holds even if something did not. */
+      claimInvoice: db.prepare(
+        "UPDATE nutft_invoices SET claimed = 1 WHERE payment_hash = ? AND claimed = 0 AND released_at IS NULL",
+      ),
       /* A key's newest open packs that may be paid right now; older ones are the sweep's. */
       freshCardInvoices: db.prepare(`
         SELECT payment_hash FROM nutft_invoices
@@ -309,8 +316,28 @@ function createNutftMint(options = {}) {
       closeCardInvoice: db.prepare(
         "UPDATE nutft_invoices SET card_closed = ? WHERE payment_hash = ? AND claimed = 0 AND card_closed IS NULL",
       ),
+      /* A booster comes back only while its pack is unsold and nobody else
+         set out to buy it: no invoice has claimed it, no other card invoice
+         is open on it (the lapsing one is closed first, in the same
+         transaction), and no other checkout, paid or not, started on it
+         after the lapsing card invoice did. ?1 is that card invoice. */
+      restoreBoosters: db.prepare(`
+        UPDATE nutft_invoices SET released_at = NULL, released_by = NULL
+        WHERE released_by = ?1 AND claimed = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM nutft_invoices AS other
+            WHERE other.pack_id = nutft_invoices.pack_id
+              AND other.payment_hash != nutft_invoices.payment_hash
+              AND (other.claimed = 1
+                OR (other.card_owner IS NOT NULL AND other.claimed = 0 AND other.card_closed IS NULL)
+                OR (other.card_owner IS NULL AND other.claimed = 0 AND other.released_at IS NULL
+                  AND other.created_at > (SELECT created_at FROM nutft_invoices WHERE payment_hash = ?1)))
+          )
+      `),
+      /* Released to the latest card invoice on its pack, since the time of
+         its first release: an earlier one lapsing gives nothing back. */
       releaseBooster: db.prepare(
-        "UPDATE nutft_invoices SET released_at = ? WHERE payment_hash = ? AND claimed = 0 AND released_at IS NULL",
+        "UPDATE nutft_invoices SET released_at = COALESCE(released_at, ?), released_by = ? WHERE payment_hash = ? AND claimed = 0",
       ),
       buyerOf: db.prepare("SELECT pubkey FROM nutft_buyers WHERE pubkey = ?"),
       /* Plain INSERT, not INSERT OR IGNORE: a second row for the same key is
@@ -917,18 +944,21 @@ function createNutftMint(options = {}) {
        can grant wallet-backup transport without re-identifying the claimant.
        Anonymous open/LNURL sales still have no buyer and gain no relay access. */
     if (q) {
-      q.putInvoice.run(
-        paymentHash,
-        base.pack_id,
-        base.state,
-        priceNow,
-        new Date().toISOString(),
-        commitment ? commitment.targetHeight : null,
-        buyer || null,
-        opts.cardOwner || null,
-      );
-      /* Only now that the cards hold the pack do the released boosters lose it. */
-      for (const released of releasing) q.releaseBooster.run(new Date().toISOString(), released);
+      /* The card invoice and the boosters it releases are one write: no card
+         invoice is open while a booster could still take its pack. */
+      atomic(() => {
+        q.putInvoice.run(
+          paymentHash,
+          base.pack_id,
+          base.state,
+          priceNow,
+          new Date().toISOString(),
+          commitment ? commitment.targetHeight : null,
+          buyer || null,
+          opts.cardOwner || null,
+        );
+        for (const released of releasing) q.releaseBooster.run(new Date().toISOString(), paymentHash, released);
+      });
     }
     const head = {
       paid: true, price_msat: priceNow,
@@ -1402,7 +1432,12 @@ function createNutftMint(options = {}) {
          the invoice expired. */
       const created = Date.parse(row.created_at);
       if (Number.isFinite(created) && created + (invoiceTtlSeconds + CARD_LAPSE_MARGIN_SECONDS) * 1000 < Date.now()) {
-        q.closeCardInvoice.run("lapsed", paymentHash);
+        /* Unpaid for good, so its pack was never sold: a booster released to
+           it may be claimed again. */
+        atomic(() => {
+          q.closeCardInvoice.run("lapsed", paymentHash);
+          q.restoreBoosters.run(paymentHash);
+        });
       }
       return null;
     }

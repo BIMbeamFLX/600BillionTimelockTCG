@@ -617,3 +617,177 @@ test("a failing pack waits at most five minutes, and any card written ends the w
   assert.equal(issued(), true);
   assert.equal((await held(mint.cardMint, bob.pub)).length, CENSUS.mint.cards_per_pack);
 });
+
+test("a booster released to a card pack that lapses unpaid can be claimed again", async (t) => {
+  const mint = setup(t);
+  const stranger = holder();
+  const booster = await mint.nutft.payableQuote({});
+  mint.funding.settle(booster.payment_hash);
+  age(mint.db, booster.payment_hash, 3600 + 60);
+  // a card pack is quoted on its pack, and never paid
+  const card = await quotePack(mint.cardMint, stranger.pub);
+  const released = () => mint.db.prepare("SELECT released_at, released_by FROM nutft_invoices WHERE payment_hash = ?")
+    .get(booster.payment_hash);
+  assert.equal(released().released_by, card);
+  await assert.rejects(mint.nutft.revealFor(booster.payment_hash), /went to someone else/);
+  // it lapses: the pack was never sold, so the booster's buyer may still have it
+  age(mint.db, card, 900 + 600 + 30);
+  await mint.cardMint.sweep();
+  assert.deepEqual({ ...released() }, { released_at: null, released_by: null });
+  const revealed = await mint.nutft.revealFor(booster.payment_hash);
+  assert.equal(revealed.pack_id, booster.pack_id);
+});
+
+test("a card invoice and the boosters it releases are written together, or neither", async (t) => {
+  const real = new DatabaseSync(":memory:");
+  let failRelease = false;
+  const db = new Proxy(real, {
+    get(target, name) {
+      if (name !== "prepare") return typeof target[name] === "function" ? target[name].bind(target) : target[name];
+      return (sql) => {
+        const statement = target.prepare(sql);
+        if (!/released_by = \? WHERE payment_hash/.test(sql)) return statement;
+        return {
+          run: (...args) => {
+            if (failRelease) throw new Error("the disk failed mid-way");
+            return statement.run(...args);
+          },
+        };
+      };
+    },
+  });
+  const mint = setup(t, db);
+  const booster = await mint.nutft.payableQuote({});
+  mint.funding.settle(booster.payment_hash);
+  age(real, booster.payment_hash, 3600 + 60);
+  failRelease = true;
+  const answer = (await get(mint.cardMint, `/cards/lnurlp/callback?amount=21000&comment=${cards.encodeCp1(holder().pub)}`)).body;
+  assert.equal(answer.status, "ERROR");
+  // neither the card invoice nor the release: the booster keeps its claim
+  assert.equal(real.prepare("SELECT COUNT(*) AS n FROM nutft_invoices WHERE card_owner IS NOT NULL").get().n, 0);
+  assert.equal(real.prepare("SELECT released_at FROM nutft_invoices WHERE payment_hash = ?").get(booster.payment_hash).released_at, null);
+});
+
+/* Fifteen blinded outputs for a booster's cards, as a NutFT wallet makes them. */
+async function boosterOutputs(nutft, drawn) {
+  const cashu = await import("@cashu/cashu-ts");
+  const answer = { writeHead() { return answer; }, setHeader() {}, end(body) { answer.body = JSON.parse(body); } };
+  await nutft.handle({ method: "GET", headers: {} }, answer, new URL(`${BASE}/v1/keys`));
+  const keys = answer.body.keysets[0];
+  const pubkey = hex(cashu.getPubKeyFromPrivKey(cashu.createRandomSecretKey()));
+  return drawn.map((card) => cashu.OutputData.createSingleP2PKData({
+    pubkey, blindKeys: true,
+    additionalTags: [["nutft", "1", card.collection_id, card.asset_id, card.catalog_uri, card.asset_binding]],
+  }, 1, keys.id)).map((o) => ({
+    amount: 1, id: o.blindedMessage.id, B_: o.blindedMessage.B_,
+    nutft: {
+      secret: new TextDecoder().decode(o.secret),
+      blinding_factor: o.blindingFactor.toString(16).padStart(64, "0"),
+      p2pk_e: o.ephemeralE,
+    },
+  }));
+}
+
+/* A paid booster past its grace, released to a card quote C1 that is past its
+   margin but not closed yet, and a second card quote C2 on the same pack. */
+async function releasedTwice(t) {
+  const mint = setup(t);
+  const booster = await mint.nutft.payableQuote({});
+  mint.funding.settle(booster.payment_hash);
+  age(mint.db, booster.payment_hash, 3600 + 60);
+  const c1 = await quotePack(mint.cardMint, holder().pub);
+  age(mint.db, c1, 900 + 600 + 5);
+  const bob = holder();
+  const c2 = await quotePack(mint.cardMint, bob.pub);
+  const row = () => mint.db.prepare("SELECT released_at, released_by FROM nutft_invoices WHERE payment_hash = ?")
+    .get(booster.payment_hash);
+  return { mint, booster, c1, c2, bob, row };
+}
+const refunds = (db) => db.prepare("SELECT payment_hash FROM nutft_invoices WHERE released_at IS NOT NULL AND claimed = 0")
+  .all().map((r) => r.payment_hash);
+
+test("a booster released again follows the later card quote, so the earlier one lapsing gives nothing back", async (t) => {
+  const { mint, booster, c2, bob, row } = await releasedTwice(t);
+  const first = row().released_at;
+  assert.equal(row().released_by, c2);
+  const errors = [];
+  const logged = console.error;
+  console.error = (...line) => errors.push(line.join(" "));
+  try {
+    await mint.cardMint.sweep(); // C1 lapses
+    assert.deepEqual({ ...row() }, { released_at: first, released_by: c2 });
+    await assert.rejects(mint.nutft.revealFor(booster.payment_hash), /went to someone else/);
+    mint.funding.settle(c2);
+    await mint.cardMint.sweep();
+  } finally {
+    console.error = logged;
+  }
+  assert.equal(errors.filter((line) => line.includes("REFUND DUE")).length, 0);
+  assert.equal((await held(mint.cardMint, bob.pub)).length, CENSUS.mint.cards_per_pack);
+});
+
+test("a card quote paid in that window gets the pack, and the booster stays a refund", async (t) => {
+  const { mint, booster, c2, bob } = await releasedTwice(t);
+  mint.funding.settle(c2);
+  await mint.cardMint.sweep(); // C1 lapses, C2 is issued
+  assert.equal((await held(mint.cardMint, bob.pub)).length, CENSUS.mint.cards_per_pack);
+  assert.ok(refunds(mint.db).includes(booster.payment_hash));
+});
+
+test("a booster that takes the pack in that window leaves the released one a refund", async (t) => {
+  const mint = setup(t);
+  const a = await mint.nutft.payableQuote({});
+  mint.funding.settle(a.payment_hash);
+  age(mint.db, a.payment_hash, 3600 + 60);
+  const c1 = await quotePack(mint.cardMint, holder().pub);
+  age(mint.db, c1, 900 + 600 + 5);
+  const b = await mint.nutft.payableQuote({});
+  mint.funding.settle(b.payment_hash);
+  const got = await mint.nutft.signBooster({
+    idempotency_key: "b", pack_id: b.pack_id, state: b.state, payment_hash: b.payment_hash,
+    outputs: await boosterOutputs(mint.nutft, b.cards),
+  });
+  assert.equal(got.pack_id, a.pack_id);
+  const logged = console.error;
+  console.error = () => {};
+  try {
+    await mint.cardMint.sweep(); // C1 lapses: the pack is sold, so A is not given back
+  } finally {
+    console.error = logged;
+  }
+  assert.ok(refunds(mint.db).includes(a.payment_hash));
+  await assert.rejects(mint.nutft.revealFor(a.payment_hash), /went to someone else/);
+});
+
+for (const state of ["unpaid, within its lifetime", "paid, not claimed yet", "claimed"]) {
+  test(`a booster started on the pack before the card quote lapses keeps it: ${state}`, async (t) => {
+    const mint = setup(t);
+    const a = await mint.nutft.payableQuote({});
+    mint.funding.settle(a.payment_hash);
+    age(mint.db, a.payment_hash, 3600 + 60);
+    const c1 = await quotePack(mint.cardMint, holder().pub);
+    age(mint.db, c1, 900 + 600 + 5);
+    // B sets out to buy the pack before the sweep closes C1
+    const b = await mint.nutft.payableQuote({});
+    const claim = async (quote, key) => mint.nutft.signBooster({
+      idempotency_key: key, pack_id: quote.pack_id, state: quote.state, payment_hash: quote.payment_hash,
+      outputs: await boosterOutputs(mint.nutft, quote.cards),
+    });
+    if (state !== "unpaid, within its lifetime") mint.funding.settle(b.payment_hash);
+    if (state === "claimed") await claim(b, "b");
+    const logged = console.error;
+    console.error = () => {};
+    try {
+      await mint.cardMint.sweep(); // C1 lapses
+    } finally {
+      console.error = logged;
+    }
+    // A is not given back: B gets the pack, and A stays a refund
+    await assert.rejects(mint.nutft.revealFor(a.payment_hash), /went to someone else/);
+    assert.ok(refunds(mint.db).includes(a.payment_hash));
+    if (state !== "claimed") {
+      mint.funding.settle(b.payment_hash);
+      assert.equal((await claim(b, "b")).pack_id, b.pack_id);
+    }
+  });
+}
