@@ -1888,6 +1888,12 @@
         ? "<strong>NutFT mint mode.</strong> This is the mint's own box — a census of print runs, not the free alpha box the rest of the site counts. The mint issues one Cashu proof per card into the browser wallet. The mint validates the disclosed output opening and CardBinding; the wallet verifies P2BK, DLEQ, proof state, and catalog data."
         : "<strong>Alpha — free demo packs.</strong> The box, the order, the odds and the fingerprint below are the real ones; only the payment is skipped. Your collection lives in this browser. When the mint goes live the same packs cost sats and the cards become yours on Nostr.";
 
+    /* Wherever this page can take a payment, it says first that the mints
+       behind it are an experiment. Guarded, as below: a cached shop.html from
+       before this id existed must not throw. */
+    const experimentNote = $("experimentNote");
+    if (experimentNote) experimentNote.hidden = !(PAID_LIVE && ONLINE);
+
     /* Two different truths, and the page must not tell the wrong one: there is
      * no mint, or there is a mint this sandbox cannot reach. */
     const paidNote = $("paidNote");
