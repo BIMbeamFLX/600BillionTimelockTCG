@@ -129,13 +129,16 @@ function isCensus(census) {
 
 /* The one answer every NutFT route gives an LNURLcash pack's invoice. */
 const CARD_INVOICE = "this invoice buys LNURLcash cards, which go to the key its buyer named: the card mint issues them";
-/* How long past its expiry an unpaid LNURLcash pack stays open, for a payment
-   that was in flight when it expired. */
+/* How long past its expiry an unpaid LNURLcash pack stays open, and holds its
+   pack, for a payment that was in flight when it expired. */
 const CARD_LAPSE_MARGIN_SECONDS = 600;
-/* A paid LNURLcash pack whose pack was sold again. Definitive: asking again
-   changes nothing, so the card mint says so instead of "try again". */
+/* A paid LNURLcash pack whose pack was sold again. Holding an unpaid pack for
+   the margin makes this unreachable; should it happen anyway, the answer is
+   definitive, since asking again changes nothing. A Lightning payment has no
+   return address, so the buyer has to come forward. */
 const staleCards = () => Object.assign(
-  new Error("this payment arrived after its pack was sold to someone else: the operator refunds it"),
+  new Error("this payment arrived after its pack was sold to someone else: "
+    + "ask the operator for a refund, naming this payment's hash"),
   { stale: true },
 );
 
@@ -836,7 +839,11 @@ function createNutftMint(options = {}) {
 
          Both cases age now. A settled invoice simply gets longer. */
       const unknownAge = !Number.isFinite(created);
-      const quoteHeld = unknownAge || created + invoiceTtlSeconds * 1000 > now;
+      /* An unpaid LNURLcash pack holds its pack past the invoice's expiry, for
+         the margin its lapse waits: a payment in flight at the expiry then
+         lands on a pack nobody else was sold. */
+      const heldSeconds = invoiceTtlSeconds + (row.card_owner ? CARD_LAPSE_MARGIN_SECONDS : 0);
+      const quoteHeld = unknownAge || created + heldSeconds * 1000 > now;
       /* An LNURLcash pack is never released: its cards go to the key named
          before paying, and delivering them needs nothing from the buyer
          (server/card-mint.js sweeps), so a pack held past the grace is the
@@ -845,7 +852,9 @@ function createNutftMint(options = {}) {
       if (settled ? paidHeld : quoteHeld) {
         throw new Error(settled
           ? row.card_owner
-            ? "this pack is paid for and its cards are being issued — try again shortly"
+            ? cardDelivery
+              ? "this pack is paid for and its cards are being issued — try again shortly"
+              : "this pack is paid for as LNURLcash cards, and the card mint is off: the shop waits until it is on again"
             : "this booster is paid for and is being collected — it becomes available again if it is not claimed"
           : "this booster already has an active invoice — pay or claim it, or try again after it expires");
       }
@@ -1416,6 +1425,10 @@ function createNutftMint(options = {}) {
   };
   /* Every pack not delivered and not closed, oldest first: the sweep's list. */
   const openCardInvoices = () => (q ? q.openCardInvoices.all().map((row) => row.payment_hash) : []);
+  /* Whether a card mint issues paid LNURLcash packs: server/card-mint.js says
+     so once it started. Off, a paid pack waits, and holds the shop with it. */
+  let cardDelivery = false;
+  const setCardDelivery = (on) => { cardDelivery = Boolean(on); };
   /* What a pack costs right now, and whether a wallet may buy one. */
   const saleNow = () => ({ paid: paidMint, open: salesMode === "open", priceMsat: priceFor(state.nextPack - 1) });
 
@@ -1740,7 +1753,8 @@ function createNutftMint(options = {}) {
     sealed: Boolean(chain),
     /* For server/card-mint.js: the same sale, delivered as LNURLcash cards,
        signed by the collection's catalog key, the issuer the catalog names. */
-    claimCards, freshCardInvoices, openCardInvoices, saleNow, catalogKey: catalogPrivateKey, publicBase,
+    claimCards, freshCardInvoices, openCardInvoices, setCardDelivery, saleNow, catalogKey: catalogPrivateKey,
+    publicBase,
   };
 }
 

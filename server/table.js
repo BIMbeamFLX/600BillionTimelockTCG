@@ -177,7 +177,8 @@ function pruneAddressRates(rates, now, windowMs) {
 const MINT_RECOVERY_PATHS = new Set(["/v1/restore", "/v1/checkstate"]);
 const MINT_QUOTE_PATHS = new Set([
   "/nutft/quote", "/nutft/reveal", "/nutft/eligibility", "/nutft/lnurlp/callback",
-  "/cards/lnurlp/callback",
+  /* a card's informational GET checks a spend's signature or signs a certificate */
+  "/cards/lnurlp/callback", "/cards/w",
 ]);
 function mintRouteLimit(method, localPath) {
   if (method === "POST") return MINT_RECOVERY_PATHS.has(localPath) ? "mint-recovery" : "mint-write";

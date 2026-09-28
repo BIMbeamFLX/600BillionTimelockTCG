@@ -16,7 +16,7 @@ import { readFileSync } from "node:fs";
 const require = createRequire(import.meta.url);
 const { createNutftMint } = require("../../server/nutft-mint.js");
 const { createMockFunding } = require("../../server/funding.js");
-const { createCardMint } = require("../../server/card-mint.js");
+const { createCardMint, CARD_STATES } = require("../../server/card-mint.js");
 const cards = require("../../server/vendor/lnurlcash-cards.js");
 const { schnorr } = await import("@noble/curves/secp256k1");
 const { DatabaseSync } = await import("node:sqlite");
@@ -264,13 +264,33 @@ test("a pack that expired unpaid is closed, and asking for a key's cards stays c
   assert.deepEqual(mint.nutft.openCardInvoices(), []);
 });
 
+test("an unpaid pack holds its pack past the invoice's expiry, for a payment in flight", async (t) => {
+  const mint = setup(t);
+  const alice = holder();
+  const bob = holder();
+  const hash = await quotePack(mint.cardMint, alice.pub);
+  // expired, but a payment may still be landing: nobody else is sold the pack
+  age(mint.db, hash, 900 + 30);
+  const refused = (await get(mint.cardMint, `/cards/lnurlp/callback?amount=21000&comment=${cards.encodeCp1(bob.pub)}`)).body;
+  assert.match(refused.reason, /already has an active invoice/);
+  // it landed after all: alice gets the pack she paid for
+  mint.funding.settle(hash);
+  assert.equal((await get(mint.cardMint, `/cards/verify/${hash}`)).body.settled, true);
+  assert.equal((await held(mint.cardMint, alice.pub)).length, CENSUS.mint.cards_per_pack);
+  // past the margin an unpaid pack holds nothing
+  const next = await quotePack(mint.cardMint, alice.pub);
+  age(mint.db, next, 900 + 600 + 30);
+  await quotePack(mint.cardMint, bob.pub);
+});
+
 test("a payment that came after its pack was sold again is refunded, not retried", async (t) => {
   const mint = setup(t);
   const alice = holder();
   const bob = holder();
   const late = await quotePack(mint.cardMint, alice.pub);
-  // alice's invoice counts as expired, so bob is sold the same pack and collects it
-  age(mint.db, late, 900 + 30);
+  // past even the margin, so bob is sold the same pack and collects it;
+  // no payment settles that late, but should one, it is not lost in a retry
+  age(mint.db, late, 900 + 600 + 30);
   const { hash } = await buyPack(mint, bob.pub);
   assert.equal((await get(mint.cardMint, `/cards/verify/${hash}`)).body.settled, true);
   assert.equal((await held(mint.cardMint, bob.pub)).length, CENSUS.mint.cards_per_pack);
@@ -283,7 +303,7 @@ test("a payment that came after its pack was sold again is refunded, not retried
     for (let ask = 0; ask < 2; ask++) {
       const answer = (await get(mint.cardMint, `/cards/verify/${late}`)).body;
       assert.equal(answer.status, "ERROR");
-      assert.match(answer.reason, /sold to someone else: the operator refunds it/);
+      assert.match(answer.reason, /sold to someone else: ask the operator for a refund/);
     }
     await mint.cardMint.sweep();
   } finally {
@@ -388,4 +408,102 @@ test("a second process cannot fork a card", async (t) => {
   assert.equal(forked.status, 500);
   assert.deepEqual((await get(mint.cardMint, `/cards?owner=${hex(carol.pub)}`)).body.cards, []);
   assert.equal((await held(mint.cardMint, bob.pub)).length, 1);
+});
+
+test("a pack whose issue fails is held not at all, and tried again later, not every sweep", async (t) => {
+  const db = new DatabaseSync(":memory:");
+  const funding = createMockFunding({ settleAfterMs: 60_000 });
+  const nutft = createNutftMint({
+    db, catalogUri: `${BASE}/nutft/catalog`, funding, priceMsat: 21000,
+    allowVirtual: "1", sales: "open", publicBase: BASE,
+  });
+  t.after(() => nutft.stop());
+  // the card mint's own writes fail while the disk is "full"
+  let full = false;
+  const cardDb = new Proxy(db, {
+    get(target, name) {
+      if (name !== "prepare") return typeof target[name] === "function" ? target[name].bind(target) : target[name];
+      return (sql) => {
+        const statement = target.prepare(sql);
+        if (!/INSERT INTO card_ledger/.test(sql)) return statement;
+        return {
+          run: (...args) => {
+            if (full) throw new Error("database or disk is full");
+            return statement.run(...args);
+          },
+        };
+      };
+    },
+  });
+  let clock = 1_000_000;
+  const cardMint = createCardMint({ nutft, db: cardDb, publicBase: BASE, sweepEveryMs: 0, now: () => clock });
+  const alice = holder();
+  const { hash } = await buyPack({ cardMint, funding }, alice.pub);
+  const checks = countSettleChecks(funding);
+  const ledger = cardMint.ledger;
+  full = true;
+  const logged = console.error;
+  console.error = () => {};
+  try {
+    assert.equal((await get(cardMint, `/cards/verify/${hash}`)).status, 500);
+    await cardMint.sweep();
+    // nothing held that is not on disk, and nothing reloaded to find that out
+    assert.equal(cardMint.ledger, ledger);
+    assert.deepEqual(await held(cardMint, alice.pub), []);
+    // the next sweeps leave the pack be until its wait is over
+    const tried = checks.calls;
+    await cardMint.sweep();
+    assert.equal(checks.calls, tried);
+    full = false;
+    clock += 30_000;
+    await cardMint.sweep();
+  } finally {
+    console.error = logged;
+  }
+  assert.equal((await held(cardMint, alice.pub)).length, CENSUS.mint.cards_per_pack);
+  assert.equal(cardMint.ledger, ledger);
+});
+
+test("with the card mint off, a paid pack waiting for it says so", async (t) => {
+  const db = new DatabaseSync(":memory:");
+  const funding = createMockFunding({ settleAfterMs: 60_000 });
+  const nutft = createNutftMint({
+    db, catalogUri: `${BASE}/nutft/catalog`, funding, priceMsat: 21000,
+    allowVirtual: "1", sales: "open", publicBase: BASE,
+  });
+  t.after(() => nutft.stop());
+  const cardMint = createCardMint({ nutft, db, publicBase: BASE, sweepEveryMs: 0 });
+  const alice = holder();
+  const hash = await quotePack(cardMint, alice.pub);
+  funding.settle(hash);
+  // switched off before it issued the pack: the shop waits, and says why
+  cardMint.stop();
+  await assert.rejects(nutft.payableQuote({}), /the card mint is off: the shop waits until it is on again/);
+  // on again, it issues the pack, and the shop goes on
+  const again = createCardMint({ nutft, db, publicBase: BASE, sweepEveryMs: 0 });
+  await again.sweep();
+  assert.equal((await held(again, alice.pub)).length, CENSUS.mint.cards_per_pack);
+  await quotePack(again, holder().pub);
+});
+
+test("a card moves at most CARD_STATES - 1 times here, and says so after that", async (t) => {
+  assert.equal(CARD_STATES, 1000);
+  const db = new DatabaseSync(":memory:");
+  const funding = createMockFunding({ settleAfterMs: 60_000 });
+  const nutft = createNutftMint({
+    db, catalogUri: `${BASE}/nutft/catalog`, funding, priceMsat: 21000,
+    allowVirtual: "1", sales: "open", publicBase: BASE,
+  });
+  t.after(() => nutft.stop());
+  const cardMint = createCardMint({ nutft, db, publicBase: BASE, sweepEveryMs: 0, maxStates: 2 });
+  const alice = holder();
+  const bob = holder();
+  await buyPack({ cardMint, funding }, alice.pub);
+  const [first] = await held(cardMint, alice.pub);
+  const issuer = cards.hexToBytes((await get(cardMint, "/.well-known/lnurlcash-cards")).body.issuer);
+  const toBob = cards.makeMove(cards.verifyConsignment(first, issuer).head, alice.key, bob.pub, DOMAIN);
+  assert.equal((await get(cardMint, `/cards/w/cb?${new URLSearchParams({ k1: toBob.k1, p1: toBob.p1, state: toBob.state })}`)).body.status, "OK");
+  const back = cards.makeMove(toBob.next, bob.key, alice.pub, DOMAIN);
+  const refused = (await get(cardMint, `/cards/w/cb?${new URLSearchParams({ k1: back.k1, p1: back.p1, state: back.state })}`)).body;
+  assert.equal(refused.reason, cards.MOVED_OUT);
 });

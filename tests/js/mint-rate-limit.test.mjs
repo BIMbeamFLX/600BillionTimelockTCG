@@ -175,9 +175,10 @@ test("LNURLcash cards: a move is a write, an invoice or a payment check draws, a
   assert.equal(refused.status, 429);
   // a wallet page on another origin must be able to read the wait
   assert.equal(refused.headers["access-control-allow-origin"], "*");
-  // an invoice and a payment check share the drawing budget
+  // an invoice, a payment check and a card's informational GET share the drawing budget
   assert.equal((await call(table, "GET", "/cards/lnurlp/callback?amount=1")).status, 200);
   assert.equal((await call(table, "GET", `/cards/verify/${"0".repeat(64)}`)).status, 429);
+  assert.equal((await call(table, "GET", "/cards/w?p=cp1")).status, 429);
   // a lookup is how a wallet restores its cards: the recovery budget
   const lookup = `/cards?owner=${"1".repeat(64)}`;
   for (let i = 0; i < 2; i++) assert.equal((await call(table, "GET", lookup)).status, 200);

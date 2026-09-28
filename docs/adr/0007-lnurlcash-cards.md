@@ -61,21 +61,29 @@ The format is Bearlett's draft `docs/CARDS-LNURLCASH.md`.
 - NutFT and LNURLcash deliveries draw from one supply and one pack sequence;
   the supply ledger keeps balancing.
 - The mint sees each owner key and state on every move (NutFT kept owner
-  keys blind); a fresh key per pack keeps a holder's cards apart.
+  keys blind); a new key once cards arrived keeps a holder's packs apart.
 - The catalog key signs online, on every move.
 - Card serials count LNURLcash copies per card (`card_serials`), not NutFT
   copies.
 - Sealed packs (the beacon) are issued once their block is mined, on the
   holder's next lookup.
 - Committed purchases (`NUTFT_PURCHASE_MODE`) are not offered as cards yet.
-- A paid pack holds the shop until its cards are issued, at most one sweep.
-  A payment that settles after its pack was sold again (only at the
-  invoice's expiry) is closed and logged as `REFUND DUE`: the operator
-  refunds it by hand.
+- A paid pack holds the shop until its cards are issued, at most one sweep
+  while the card mint runs. An unpaid pack holds its pack for 600 s past
+  its invoice's expiry, so a payment in flight at the expiry lands on a
+  pack nobody else was sold. Should a payment still settle after its pack
+  was sold again, it is closed (`card_closed = 'stale'`) and logged as
+  `REFUND DUE`. A Lightning payment has no return address, so the buyer
+  has to come forward with its payment hash.
 - Every card names the public origin for good: the card mint keeps the
   first one and stays off under another, as under another issuer key. The
-  referee and the NutFT sale go on without it.
-- A card moves at most 9,999 times (the rules' cap). A card that no longer
-  checks out is quarantined at the start, not fatal.
+  referee goes on without it. So does the NutFT sale, unless a paid card
+  pack is waiting: that pack holds the shop, and a quote says the card mint
+  is off, until it is on again.
+- A card moves at most 999 times here (`CARD_STATES`, where the rules
+  allow 9,999): a history is rewritten on every move and checked in full at
+  every start. A card that no longer checks out is quarantined at the
+  start, not fatal. A pack whose issue fails is held not at all and tried
+  again later, waiting longer each time, up to an hour.
 - One process owns the card tables; a write never replaces a card's history
   with one that is not longer.
