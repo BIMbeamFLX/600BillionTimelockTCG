@@ -34,8 +34,9 @@ mint to equal packs sold times cards per pack.
   seal notes instead of blind signatures, issued inside the claim's own
   transaction.
 - The buyer's wallet names its key before paying (LNURL-pay comment
-  `cp1<key>`), so the cards go to that key. Unlike a booster, holding the
-  settled invoice collects nothing.
+  `cp1<key>`), written with the invoice, so the cards go to that key.
+  Unlike a booster, holding the settled invoice collects nothing: every
+  NutFT route refuses a card pack's invoice.
 - The catalog key is the issuer: it signs every genesis and every move, and
   it is the key the signed catalog already names. A holder checks a card's
   whole history offline; the mint answers whether it is still live.
@@ -46,8 +47,12 @@ mint to equal packs sold times cards per pack.
   pinned bundle (`server/vendor/lnurlcash-cards.js`,
   `scripts/vendor-lnurlcash.mjs`), so they exist once.
 - `server/card-mint.js` serves them at `/.well-known/lnurlcash-cards` and
-  `/cards/...` with the LNURL wire format, and is off unless `NUTFT_CARDS=1`
-  (it also needs `NUTFT_PUBLIC_BASE`).
+  `/cards/...` with the LNURL wire format, and is off unless `NUTFT_CARDS`
+  is on. The boot refuses it on a free mint, with committed purchases, and
+  without an https public origin (docs/deploy.md §10.2).
+- A paid card pack is never released to another buyer. A sweep issues it
+  within 30 s whether its buyer asks or not, and closes a pack that expired
+  unpaid.
 
 The format is Bearlett's draft `docs/CARDS-LNURLCASH.md`.
 
@@ -63,3 +68,14 @@ The format is Bearlett's draft `docs/CARDS-LNURLCASH.md`.
 - Sealed packs (the beacon) are issued once their block is mined, on the
   holder's next lookup.
 - Committed purchases (`NUTFT_PURCHASE_MODE`) are not offered as cards yet.
+- A paid pack holds the shop until its cards are issued, at most one sweep.
+  A payment that settles after its pack was sold again (only at the
+  invoice's expiry) is closed and logged as `REFUND DUE`: the operator
+  refunds it by hand.
+- Every card names the public origin for good: the card mint keeps the
+  first one and stays off under another, as under another issuer key. The
+  referee and the NutFT sale go on without it.
+- A card moves at most 9,999 times (the rules' cap). A card that no longer
+  checks out is quarantined at the start, not fatal.
+- One process owns the card tables; a write never replaces a card's history
+  with one that is not longer.
