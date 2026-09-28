@@ -33,6 +33,7 @@ const { DatabaseSync } = require("node:sqlite");
 const { WebSocketServer } = require("ws");
 const { schnorr } = require("@noble/curves/secp256k1");
 const { createNutftMint } = require("./nutft-mint.js");
+const { createCardMint } = require("./card-mint.js");
 const { createRelayWalletAllowlist } = require("./relay-wallet-allowlist.js");
 const { createRateLimiter } = require("./rate-limit.js");
 
@@ -175,10 +176,13 @@ function pruneAddressRates(rates, now, windowMs) {
 const MINT_RECOVERY_PATHS = new Set(["/v1/restore", "/v1/checkstate"]);
 const MINT_QUOTE_PATHS = new Set([
   "/nutft/quote", "/nutft/reveal", "/nutft/eligibility", "/nutft/lnurlp/callback",
+  "/cards/lnurlp/callback",
 ]);
 function mintRouteLimit(method, localPath) {
   if (method === "POST") return MINT_RECOVERY_PATHS.has(localPath) ? "mint-recovery" : "mint-write";
-  if (method === "GET" && MINT_QUOTE_PATHS.has(localPath)) return "mint-quote";
+  /* LNURLcash cards move over GET (LUD-25), so a move is a write here. */
+  if (method === "GET" && localPath === "/cards/w/cb") return "mint-write";
+  if (method === "GET" && (MINT_QUOTE_PATHS.has(localPath) || /^\/cards\/verify\//.test(localPath))) return "mint-quote";
   return null;
 }
 
@@ -478,12 +482,27 @@ async function createTable(opts) {
       catalogMirrors: options.nutftCatalogMirrors,
       purchaseMode: options.nutftPurchaseMode,
       beacon: options.nutftBeacon,
+      /* NUTFT_PUBLIC_BASE when not given here, as before. */
+      publicBase: options.nutftPublicBase,
       db,
       onWalletBackupBuyer: authorizeWalletBackup,
     });
   } catch (error) {
     db.close();
     throw error;
+  }
+
+  /* LNURLcash cards (server/card-mint.js): the E1 sale, delivered as seal notes
+   * a holder's own key moves instead of NutFT proofs. Off unless NUTFT_CARDS=1;
+   * it needs the mint's public URL, because every card names its withdraw
+   * endpoint for good. */
+  let cardMint = null;
+  if (String(options.nutftCards || "") === "1") {
+    if (!nutft.publicBase) {
+      db.close();
+      throw new Error("NUTFT_CARDS=1 needs NUTFT_PUBLIC_BASE: every card names the mint's public URL");
+    }
+    cardMint = createCardMint({ nutft, db, publicBase: nutft.publicBase });
   }
 
   /* Edition G is a second issuer, not a mode of the E1 issuer. It therefore
@@ -2231,6 +2250,11 @@ async function createTable(opts) {
       if (mintLimited(req, res, url.pathname)) return;
       return nutft.handle(req, res, url);
     }
+    /* The card mint answers every origin itself, as LNURL services do. */
+    if (cardMint && (pathname === "/.well-known/lnurlcash-cards" || pathname === "/cards" || pathname.startsWith("/cards/"))) {
+      if (mintLimited(req, res, url.pathname)) return;
+      return cardMint.handle(req, res, url);
+    }
 
     if (pathname === "/api/health") {
       /* It echoes the caller's own address, so no shared cache may keep it and
@@ -2517,6 +2541,7 @@ if (require.main === module && process.argv.includes("--check-env")) {
      * scheme and port stop being guesses. PUBLIC_HOST alone still covers a LAN
      * or Tailscale table on the bound port. */
     publicUrl: process.env.PUBLIC_URL,
+    nutftCards: process.env.NUTFT_CARDS,
     publicScheme: process.env.PUBLIC_SCHEME,
     nutftCatalogUri: process.env.NUTFT_CATALOG_URI,
     nutftCatalogMirrors: process.env.NUTFT_CATALOG_MIRRORS,

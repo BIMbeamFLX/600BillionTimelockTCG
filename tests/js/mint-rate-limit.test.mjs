@@ -161,6 +161,29 @@ test("reading the mint is never limited, even by a client with no budget left", 
   assert.equal((await call(table, "HEAD", "/nutft/catalog")).status, 200);
 });
 
+test("LNURLcash cards: a move is a write, an invoice or a payment check draws, a lookup is free", async (t) => {
+  const table = await boot(t, {
+    nutftCards: "1", nutftPublicBase: "http://127.0.0.1", mintWriteRateMax: "1", mintQuoteRateMax: "1",
+  });
+  // a move (refused here, but answered) spends the write budget
+  assert.equal((await call(table, "GET", "/cards/w/cb?k1=00")).status, 200);
+  assert.equal((await call(table, "GET", "/cards/w/cb?k1=00")).status, 429);
+  // an invoice and a payment check share the drawing budget
+  assert.equal((await call(table, "GET", "/cards/lnurlp/callback?amount=1")).status, 200);
+  assert.equal((await call(table, "GET", `/cards/verify/${"0".repeat(64)}`)).status, 429);
+  // discovery, the pay request and a lookup are reads
+  const reads = ["/.well-known/lnurlcash-cards", "/cards/lnurlp", `/cards?owner=${"1".repeat(64)}`];
+  for (let round = 0; round < 3; round++) {
+    for (const path of reads) assert.equal((await call(table, "GET", path)).status, 200, `GET ${path}`);
+  }
+});
+
+test("the card mint stays off without NUTFT_CARDS", async (t) => {
+  const table = await boot(t);
+  assert.equal((await call(table, "GET", "/.well-known/lnurlcash-cards")).status, 404);
+  assert.equal((await call(table, "GET", "/cards/w/cb?k1=00")).status, 404);
+});
+
 test("a spent budget comes back: one write after retry_after, all twenty after a minute",
   async (t) => {
     const table = await boot(t);
