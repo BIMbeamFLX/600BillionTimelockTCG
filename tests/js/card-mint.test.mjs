@@ -758,3 +758,36 @@ test("a booster that takes the pack in that window leaves the released one a ref
   assert.ok(refunds(mint.db).includes(a.payment_hash));
   await assert.rejects(mint.nutft.revealFor(a.payment_hash), /went to someone else/);
 });
+
+for (const state of ["unpaid, within its lifetime", "paid, not claimed yet", "claimed"]) {
+  test(`a booster started on the pack before the card quote lapses keeps it: ${state}`, async (t) => {
+    const mint = setup(t);
+    const a = await mint.nutft.payableQuote({});
+    mint.funding.settle(a.payment_hash);
+    age(mint.db, a.payment_hash, 3600 + 60);
+    const c1 = await quotePack(mint.cardMint, holder().pub);
+    age(mint.db, c1, 900 + 600 + 5);
+    // B sets out to buy the pack before the sweep closes C1
+    const b = await mint.nutft.payableQuote({});
+    const claim = async (quote, key) => mint.nutft.signBooster({
+      idempotency_key: key, pack_id: quote.pack_id, state: quote.state, payment_hash: quote.payment_hash,
+      outputs: await boosterOutputs(mint.nutft, quote.cards),
+    });
+    if (state !== "unpaid, within its lifetime") mint.funding.settle(b.payment_hash);
+    if (state === "claimed") await claim(b, "b");
+    const logged = console.error;
+    console.error = () => {};
+    try {
+      await mint.cardMint.sweep(); // C1 lapses
+    } finally {
+      console.error = logged;
+    }
+    // A is not given back: B gets the pack, and A stays a refund
+    await assert.rejects(mint.nutft.revealFor(a.payment_hash), /went to someone else/);
+    assert.ok(refunds(mint.db).includes(a.payment_hash));
+    if (state !== "claimed") {
+      mint.funding.settle(b.payment_hash);
+      assert.equal((await claim(b, "b")).pack_id, b.pack_id);
+    }
+  });
+}

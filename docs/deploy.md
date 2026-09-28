@@ -1127,7 +1127,7 @@ funding is in §10.4 and its beacon in §10.5. *Also G* marks a value the G mint
   `SELECT payment_hash, amount_msat, card_owner FROM nutft_invoices WHERE card_closed = 'stale'`.
   A paid booster not claimed within its grace whose pack then went to cards cannot be
   claimed any more, unless the last card pack quoted on it lapses unpaid while the pack is
-  still unsold (then it can again). A release from before `released_by` existed keeps it
+  still unsold and nobody else has set out to buy it since (then it can again). A release from before `released_by` existed keeps it
   empty: it is never given back and stays a refund. The row is the record too:
   `SELECT payment_hash, amount_msat, released_by FROM nutft_invoices WHERE released_at IS NOT NULL AND claimed = 0`.
   A Lightning payment has no return address: the buyer is told to come forward with the

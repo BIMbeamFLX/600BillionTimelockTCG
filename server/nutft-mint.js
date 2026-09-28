@@ -316,17 +316,22 @@ function createNutftMint(options = {}) {
       closeCardInvoice: db.prepare(
         "UPDATE nutft_invoices SET card_closed = ? WHERE payment_hash = ? AND claimed = 0 AND card_closed IS NULL",
       ),
-      /* A booster comes back only while its pack is unsold: no invoice has
-         claimed it, and no other card invoice is open on it (the lapsing one
-         is closed first, in the same transaction). */
+      /* A booster comes back only while its pack is unsold and nobody else
+         set out to buy it: no invoice has claimed it, no other card invoice
+         is open on it (the lapsing one is closed first, in the same
+         transaction), and no other checkout, paid or not, started on it
+         after the lapsing card invoice did. ?1 is that card invoice. */
       restoreBoosters: db.prepare(`
         UPDATE nutft_invoices SET released_at = NULL, released_by = NULL
-        WHERE released_by = ? AND claimed = 0
+        WHERE released_by = ?1 AND claimed = 0
           AND NOT EXISTS (
             SELECT 1 FROM nutft_invoices AS other
             WHERE other.pack_id = nutft_invoices.pack_id
+              AND other.payment_hash != nutft_invoices.payment_hash
               AND (other.claimed = 1
-                OR (other.card_owner IS NOT NULL AND other.claimed = 0 AND other.card_closed IS NULL))
+                OR (other.card_owner IS NOT NULL AND other.claimed = 0 AND other.card_closed IS NULL)
+                OR (other.card_owner IS NULL AND other.claimed = 0 AND other.released_at IS NULL
+                  AND other.created_at > (SELECT created_at FROM nutft_invoices WHERE payment_hash = ?1)))
           )
       `),
       /* Released to the latest card invoice on its pack, since the time of
