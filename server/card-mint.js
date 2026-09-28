@@ -42,9 +42,11 @@ const DISCOVERY = "/.well-known/lnurlcash-cards";
    can make a move (about 420 KB), a lookup and a start (about 4 s) cost. */
 const CARD_STATES = 1000;
 /* A pack whose issue keeps failing is tried again after 30 s, then twice as
-   long each time, up to an hour. */
+   long each time, up to five minutes: a paid pack holds the whole shop, so a
+   longer wait would keep it shut long after the fault is gone. Any card
+   written in the meantime ends every wait at once. */
 const RETRY_MS = 30_000;
-const RETRY_MAX_MS = 3_600_000;
+const RETRY_MAX_MS = 300_000;
 
 function createCardMint({
   nutft, db, publicBase, edition = "600b-e1", prefix = "/cards", sweepEveryMs = 30_000,
@@ -149,6 +151,8 @@ function createCardMint({
      COMMIT (issuePending, keep). A rollback leaves the ledger as it was and
      gives the pack's ids back (abandon), and each call keeps its own pack,
      whatever the sale queue runs next. */
+  /* Packs whose issue failed, by payment hash: when the sweep may try again. */
+  const retries = new Map();
   async function collect(paymentHash) {
     let pending = null;
     const deliver = (assetIds, ownerHex) => {
@@ -174,6 +178,8 @@ function createCardMint({
         console.error("[cards] pack", paymentHash.slice(0, 16), "committed but not held:", error && error.message);
         ledger = load();
       }
+      /* Cards were written: whatever failed before may work now. */
+      retries.clear();
     }
     return delivered;
   }
@@ -183,7 +189,6 @@ function createCardMint({
      that cannot answer ends this round, and the next one tries again. A pack
      whose issue fails waits before it is tried again, longer each time. */
   let sweeping = null;
-  const retries = new Map();
   function sweep() {
     sweeping ??= (async () => {
       for (const paymentHash of nutft.openCardInvoices()) {
@@ -346,6 +351,8 @@ function createCardMint({
           pr: one("pr"),
         });
         if (answer.refused) return send(res, lnurl.error(answer.refused));
+        /* A card was written (or a move answered again): the packs waiting may go now. */
+        retries.clear();
         return send(res, { status: "OK", c: answer.c, receipt: cards.bytesToHex(answer.receipt) });
       }
       return send(res, lnurl.error("not found"), 404);

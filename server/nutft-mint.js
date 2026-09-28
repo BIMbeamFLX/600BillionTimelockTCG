@@ -129,13 +129,14 @@ function isCensus(census) {
 
 /* The one answer every NutFT route gives an LNURLcash pack's invoice. */
 const CARD_INVOICE = "this invoice buys LNURLcash cards, which go to the key its buyer named: the card mint issues them";
-/* How long past its expiry an unpaid LNURLcash pack stays open, and holds its
-   pack, for a payment that was in flight when it expired. */
+/* How long past its expiry an unpaid invoice holds its pack against an
+   LNURLcash pack, for a payment that was in flight when it expired. */
 const CARD_LAPSE_MARGIN_SECONDS = 600;
-/* A paid LNURLcash pack whose pack was sold again. Holding an unpaid pack for
-   the margin makes this unreachable; should it happen anyway, the answer is
-   definitive, since asking again changes nothing. A Lightning payment has no
-   return address, so the buyer has to come forward. */
+/* A paid LNURLcash pack whose pack was sold again. The margin, and a paid
+   booster made unclaimable once its pack goes to cards, keep this from
+   happening; should it happen anyway, the answer is definitive, since asking
+   again changes nothing. A Lightning payment has no return address, so the
+   buyer has to come forward. */
 const staleCards = () => Object.assign(
   new Error("this payment arrived after its pack was sold to someone else: "
     + "ask the operator for a refund, naming this payment's hash"),
@@ -270,6 +271,10 @@ function createNutftMint(options = {}) {
        expired unpaid; "stale", it was paid after its pack was sold again, and
        the operator refunds it. Null while it is open. Nothing is deleted. */
     if (!invoiceColumns.has("card_closed")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN card_closed TEXT");
+    /* When a paid booster, past its claim grace, gave its pack up to an
+       LNURLcash pack: from then on it can no longer be claimed, so the cards
+       can never go stale behind it. Null for every other invoice. */
+    if (!invoiceColumns.has("released_at")) db.exec("ALTER TABLE nutft_invoices ADD COLUMN released_at TEXT");
     q = {
       meta: db.prepare("SELECT value FROM nutft_meta WHERE key = ?"),
       putMeta: db.prepare("INSERT OR REPLACE INTO nutft_meta (key, value) VALUES (?, ?)"),
@@ -303,6 +308,9 @@ function createNutftMint(options = {}) {
       `),
       closeCardInvoice: db.prepare(
         "UPDATE nutft_invoices SET card_closed = ? WHERE payment_hash = ? AND claimed = 0 AND card_closed IS NULL",
+      ),
+      releaseBooster: db.prepare(
+        "UPDATE nutft_invoices SET released_at = ? WHERE payment_hash = ? AND claimed = 0 AND released_at IS NULL",
       ),
       buyerOf: db.prepare("SELECT pubkey FROM nutft_buyers WHERE pubkey = ?"),
       /* Plain INSERT, not INSERT OR IGNORE: a second row for the same key is
@@ -824,6 +832,7 @@ function createNutftMint(options = {}) {
        the three can never disagree about what this booster costs. */
     const priceNow = priceFor(state.nextPack - 1);
     if (!paidMint) return { ...base, price_msat: 0, paid: false };
+    const releasing = [];
     for (const row of q ? q.activeInvoices.all(base.pack_id) : []) {
       let settled;
       try { settled = await funding.isSettled(row.payment_hash, row.amount_msat); }
@@ -839,10 +848,12 @@ function createNutftMint(options = {}) {
 
          Both cases age now. A settled invoice simply gets longer. */
       const unknownAge = !Number.isFinite(created);
-      /* An unpaid LNURLcash pack holds its pack past the invoice's expiry, for
-         the margin its lapse waits: a payment in flight at the expiry then
-         lands on a pack nobody else was sold. */
-      const heldSeconds = invoiceTtlSeconds + (row.card_owner ? CARD_LAPSE_MARGIN_SECONDS : 0);
+      /* Where LNURLcash cards are on either side, an unpaid invoice holds its
+         pack past its expiry for the margin a card pack's lapse waits: a
+         payment in flight at the expiry then lands on a pack nobody else was
+         sold. Between boosters it holds for the invoice lifetime, as before. */
+      const cards = Boolean(row.card_owner || opts.cardOwner);
+      const heldSeconds = invoiceTtlSeconds + (cards ? CARD_LAPSE_MARGIN_SECONDS : 0);
       const quoteHeld = unknownAge || created + heldSeconds * 1000 > now;
       /* An LNURLcash pack is never released: its cards go to the key named
          before paying, and delivering them needs nothing from the buyer
@@ -858,6 +869,9 @@ function createNutftMint(options = {}) {
             : "this booster is paid for and is being collected — it becomes available again if it is not claimed"
           : "this booster already has an active invoice — pay or claim it, or try again after it expires");
       }
+      /* A paid booster past its grace gives its pack up; to cards for good,
+         since its buyer coming back later would leave the cards stale. */
+      if (settled && !row.card_owner && opts.cardOwner) releasing.push(row.payment_hash);
     }
     /* A funding-source failure is ours, not the buyer's, and its message names
        the node's address and port. Log the detail, hand back a plain sentence:
@@ -913,6 +927,8 @@ function createNutftMint(options = {}) {
         buyer || null,
         opts.cardOwner || null,
       );
+      /* Only now that the cards hold the pack do the released boosters lose it. */
+      for (const released of releasing) q.releaseBooster.run(new Date().toISOString(), released);
     }
     const head = {
       paid: true, price_msat: priceNow,
@@ -1125,6 +1141,10 @@ function createNutftMint(options = {}) {
        the key its buyer named before paying, so holding its payment hash (in
        the bolt11, the verify URL, at any routing hop) collects nothing. */
     if (row.card_owner) throw new Error(CARD_INVOICE);
+    if (row.released_at) {
+      throw new Error("this booster was not claimed within its grace, and its pack went to someone else: "
+        + "ask the operator for a refund, naming this payment's hash");
+    }
     if (row.pack_id !== expected.pack_id) throw new Error("this invoice was quoted for a different pack");
     if (row.claimed) throw new Error("this invoice has already been claimed");
     let settledNow;
