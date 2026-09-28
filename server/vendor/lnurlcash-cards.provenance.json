@@ -1,6 +1,6 @@
 {
   "source": "https://github.com/BIMbeamFLX/bearlett",
   "entry": "src/cards/mint.ts",
-  "commit": "83bb07d785896ebf78bc607fa7c24d344213f968",
-  "sha256": "869837251109258a5235a9ca55de32a6e4365c90556cb3d8ebca18bd0e4d3b03"
+  "commit": "f8930605d8e3dc71b7123d301e2be11bf9ca733b",
+  "sha256": "b2d9b6f5ddb50564ba75976fc5c648d1e6326994d1192738d1ad5ea9ceba73a5"
 }
