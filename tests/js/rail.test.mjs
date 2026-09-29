@@ -316,8 +316,8 @@ test("storage that refuses everything costs the bar its memory, not the page", (
 test("a shared link keeps rules and arena and drops everything else", () => {
   const cases = [
     [
-      `http://bitbeam:8777/play.html?match=m_0123456789ab&code=K7M2QF&table=ws://elsewhere:9000/ws&relay=wss://relay.example&pubkey=${KEY}&rules=fast&arena=3d#seat-1`,
-      "http://bitbeam:8777/play.html?rules=fast&arena=3d",
+      `http://laptop:8777/play.html?match=m_0123456789ab&code=K7M2QF&table=ws://elsewhere:9000/ws&relay=wss://relay.example&pubkey=${KEY}&rules=fast&arena=3d#seat-1`,
+      "http://laptop:8777/play.html?rules=fast&arena=3d",
     ],
     ["https://tcg.zapburg.com/matchmaking.html?code=K7M2QF&match=m_0123456789ab", "https://tcg.zapburg.com/matchmaking.html"],
     ["http://localhost:8790/play.html?rules=%3Cscript%3E&arena=dom", "http://localhost:8790/play.html?arena=dom"],

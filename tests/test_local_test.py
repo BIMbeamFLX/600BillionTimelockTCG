@@ -80,16 +80,16 @@ def _launcher(expression: str) -> str:
 def test_lan_lists_non_internal_ipv4_best_first():
     interfaces = {
         "Loopback": [{"family": "IPv4", "address": "127.0.0.1", "internal": True}],
-        "Tailscale": [{"family": "IPv4", "address": "100.65.85.26", "internal": False}],
-        "FIPS": [{"family": "IPv4", "address": "169.254.222.29", "internal": False}],
+        "Tailscale": [{"family": "IPv4", "address": "100.64.0.7", "internal": False}],
+        "FIPS": [{"family": "IPv4", "address": "169.254.0.9", "internal": False}],
         "WLAN": [
             {"family": "IPv6", "address": "fe80::1", "internal": False},
-            {"family": "IPv4", "address": "192.168.37.118", "internal": False},
+            {"family": "IPv4", "address": "192.168.1.23", "internal": False},
         ],
         "Docker": [{"family": 4, "address": "172.17.0.1", "internal": False}],
     }
     found = json.loads(_launcher(f"m.lanAddresses({json.dumps(interfaces)})"))
-    assert [entry["address"] for entry in found] == ["192.168.37.118", "172.17.0.1", "100.65.85.26"]
+    assert [entry["address"] for entry in found] == ["192.168.1.23", "172.17.0.1", "100.64.0.7"]
     assert found[0]["name"] == "WLAN"
 
 
