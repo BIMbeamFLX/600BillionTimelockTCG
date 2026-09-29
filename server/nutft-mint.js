@@ -143,6 +143,10 @@ const staleCards = () => Object.assign(
   { stale: true },
 );
 
+/* Said wherever a buyer pays, in every invoice text and on the shop page
+   (site/shop.html): these mints are new software. */
+const EXPERIMENT = "An experiment: funds here are not safe.";
+
 function createNutftMint(options = {}) {
   /* Every configured setting is decided by server/mint-env.js, the same rules
      the referee applies to its environment before it opens anything and that
@@ -573,10 +577,12 @@ function createNutftMint(options = {}) {
      request, and LUD-06 commits its hash into the invoice. It said "7 cards"
      while the census had been printing 15 for some time, so every LNURL payer
      was shown a smaller pack than the one they were buying. Reading the number
-     from the census is the only version of this that cannot drift again. */
+     from the census is the only version of this that cannot drift again.
+     The experiment notice travels with it, so every wallet shows it before
+     the buyer pays. */
   const productName = catalog.issuance === "manifest" ? "starter set" : "booster";
   const payMetadata = lnurl.metadataFor(
-    `600B Timelock TCG — one ${productName}, ${census.mint.cards_per_pack} cards`);
+    `600B Timelock TCG — one ${productName}, ${census.mint.cards_per_pack} cards. ${EXPERIMENT}`);
 
   const { beaconLive } = settings;
   /* The beacon reads the chain; the funding source takes the money. They are
@@ -934,7 +940,7 @@ function createNutftMint(options = {}) {
         : `tcg:booster:${base.pack_id}:${String(base.state).slice(0, 16)}`;
       invoice = await funding.createInvoice(opts.descriptionHash
         ? { amountMsat: priceNow, descriptionHash: opts.descriptionHash, expirySeconds: invoiceTtlSeconds, externalId }
-        : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}`, expirySeconds: invoiceTtlSeconds, externalId });
+        : { amountMsat: priceNow, memo: `600B booster ${base.pack_id}. ${EXPERIMENT}`, expirySeconds: invoiceTtlSeconds, externalId });
     } catch (error) {
       console.error("[nutft] lnd createInvoice failed:", error && error.message);
       throw unavailable("the mint cannot reach its funding source right now — try again shortly");
@@ -1813,4 +1819,4 @@ function createNutftMint(options = {}) {
   };
 }
 
-module.exports = { assetBinding, canonical, createNutftMint };
+module.exports = { assetBinding, canonical, createNutftMint, EXPERIMENT };

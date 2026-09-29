@@ -30,6 +30,7 @@
 
 const crypto = require("node:crypto");
 const lnurl = require("./lnurl.js");
+const { EXPERIMENT } = require("./nutft-mint.js");
 const { cardOrigin, cardsProblems, orThrow } = require("./mint-env.js");
 const cards = require("./vendor/lnurlcash-cards.js");
 
@@ -212,7 +213,8 @@ function createCardMint({
   const timer = sweepEveryMs > 0 ? setInterval(() => { void sweep(); }, sweepEveryMs) : null;
   if (timer && timer.unref) timer.unref();
 
-  const metadata = lnurl.metadataFor(`A pack of 600B cards (${edition}), as LNURLcash notes only your key moves`);
+  const metadata = lnurl.metadataFor(
+    `A pack of 600B cards (${edition}), as LNURLcash notes only your key moves. ${EXPERIMENT}`);
   const discovery = () => ({
     v: 0,
     issuer: cards.bytesToHex(ledger.issuer),
