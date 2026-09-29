@@ -19,6 +19,9 @@
  *   GET /cards/w                       LUD-25 informational GET, ?p= or ?k1=
  *   GET /cards/w/cb                    a move: k1, p1 and the next state
  *
+ * These paths and no others are the card mint's (owns): every other file under
+ * /cards/ is the site's static cards/ folder.
+ *
  * Every answer is JSON a browser may read from any origin, as LNURL wants,
  * and every refusal is LUD-01's {"status": "ERROR", "reason"}. A paid pack
  * never waits for its buyer: a sweep issues it, whoever asks or not.
@@ -252,11 +255,18 @@ function createCardMint({
     return true;
   }
 
+  /* The endpoints the header lists, spelled as sent (url.pathname): the
+     referee hands over these and nothing else. */
+  const routes = new Set([
+    DISCOVERY, prefix, `${prefix}/lnurlp`, `${prefix}/lnurlp/callback`, `${prefix}/w`, `${prefix}/w/cb`,
+  ]);
+  const verifyPath = new RegExp(`^${prefix}/verify/([0-9a-f]{64})$`);
+  const owns = (path) => routes.has(path) || verifyPath.test(path);
+
   /* True if the request was this card mint's to answer. */
   async function handle(req, res, url) {
     const path = url.pathname;
-    const mine = path === DISCOVERY || path === prefix || path.startsWith(`${prefix}/`);
-    if (!mine) return false;
+    if (!owns(path)) return false;
     if (req.method !== "GET") return send(res, lnurl.error("a card mint answers GET only"), 405);
     const params = url.searchParams;
     try {
@@ -298,7 +308,7 @@ function createCardMint({
           verify: `${base}${prefix}/verify/${quoted.payment_hash}`,
         });
       }
-      const verify = new RegExp(`^${prefix}/verify/([0-9a-f]{64})$`).exec(path);
+      const verify = verifyPath.exec(path);
       if (verify) {
         const row = q.invoice.get(verify[1]);
         if (!row) return send(res, lnurl.error("no pack was sold for this payment"));
@@ -376,7 +386,7 @@ function createCardMint({
     nutft.setCardDelivery(false);
   };
 
-  return { handle, discovery, sweep, stop, get ledger() { return ledger; } };
+  return { handle, owns, discovery, sweep, stop, get ledger() { return ledger; } };
 }
 
 module.exports = { createCardMint, CARD_STATES };
