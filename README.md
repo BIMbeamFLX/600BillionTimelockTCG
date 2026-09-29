@@ -173,7 +173,7 @@ machine can sit back down.
 
 ```bash
 PUBLIC_URL=wss://tcg.example/ws npm run table            # behind a TLS reverse proxy
-PUBLIC_HOST=bitbeam.tail1a2b.ts.net npm run table        # over Tailscale
+PUBLIC_HOST=laptop.your-tailnet.ts.net npm run table     # over Tailscale
 ```
 
 Set one of them. Left unset behind a proxy, every published invite advertises `ws://` on the

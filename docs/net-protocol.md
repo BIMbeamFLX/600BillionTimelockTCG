@@ -282,7 +282,7 @@ message carrying whole history.
  "status":"open"|"playing"|"over",
  "createdAt":"2026-08-15T18:24:02.117Z","stake":2100,
  "role":"seat"|"spectator","downgraded":false,"downgradeReason":null,
- "table":"ws://bitbeam.tail1a2b.ts.net:8777/ws",
+ "table":"ws://laptop.your-tailnet.ts.net:8777/ws",
  "ruleset":"E1.0","catalogDigest":"sha256:…",
  "players":[
    {"seat":0,"name":"felix","pubkey":"<64-hex>","affinity":"Power","online":true},
@@ -1292,7 +1292,7 @@ deployment facts, not process facts, so a deployment states them.
 
 ```bash
 PUBLIC_URL=wss://tcg.example/ws node server/table.js   # one variable, TLS done
-PUBLIC_HOST=bitbeam.tail1a2b.ts.net node server/table.js  # LAN / Tailscale, unchanged
+PUBLIC_HOST=laptop.your-tailnet.ts.net node server/table.js  # LAN / Tailscale, unchanged
 ```
 
 `PUBLIC_URL` wins outright when set; otherwise the URL is `${PUBLIC_SCHEME||ws}://${PUBLIC_HOST||localhost}:${boundPort}/ws`.

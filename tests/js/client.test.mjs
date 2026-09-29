@@ -69,7 +69,7 @@ const FILE_ENV = {
   failOnSocket: true,
 };
 const HTTP_ENV = {
-  location: { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/play.html", search: "" },
+  location: { protocol: "http:", host: "laptop:8777", href: "http://laptop:8777/play.html", search: "" },
 };
 const NIP07_PUBKEY = "a".repeat(64);
 
@@ -125,7 +125,7 @@ test("create() with no table fails with a code, not a stack trace", () => {
 test("a saved match auto-resumes, and only then — the reload path", () => {
   const saved = {
     matchId: "m_0123456789ab", seat: 1, token: "a".repeat(32),
-    table: "ws://bitbeam:8777/ws", code: "K7M2QF",
+    table: "ws://laptop:8777/ws", code: "K7M2QF",
   };
   const cold = loadNet(HTTP_ENV);
   cold.net.start({});
@@ -138,7 +138,7 @@ test("a saved match auto-resumes, and only then — the reload path", () => {
   const started = warm.net.start({});
   assert.equal(started.resuming, true);
   assert.equal(started.seat, 1);
-  assert.deepEqual(warm.opened, ["ws://bitbeam:8777/ws"], "it reconnects to the table it was seated at");
+  assert.deepEqual(warm.opened, ["ws://laptop:8777/ws"], "it reconnects to the table it was seated at");
 });
 
 /* Playing both sides on one machine — the demo. localStorage belongs to the
@@ -149,7 +149,7 @@ test("a saved match auto-resumes, and only then — the reload path", () => {
 test("two tabs at one table keep two separate seats", () => {
   const shared = new Map([["600b:pubkey", NIP07_PUBKEY]]);
   const HOST = { matchId: "m_0123456789ab", seat: 0, token: "a".repeat(32),
-    table: "ws://bitbeam:8777/ws", code: "K7M2QF" };
+    table: "ws://laptop:8777/ws", code: "K7M2QF" };
   const GUEST = { ...HOST, seat: 1, token: "b".repeat(32) };
   const link = { ...HTTP_ENV.location, search: "?match=m_0123456789ab&code=K7M2QF" };
 
@@ -199,7 +199,7 @@ test("two tabs at one table keep two separate seats", () => {
 test("a seat saved by the previous single-key build still resumes", () => {
   const legacy = {
     matchId: "m_0123456789ab", seat: 1, token: "a".repeat(32),
-    table: "ws://bitbeam:8777/ws", code: "K7M2QF",
+    table: "ws://laptop:8777/ws", code: "K7M2QF",
   };
   const warm = loadNet({ ...HTTP_ENV, storage: {
     "600b:match": JSON.stringify(legacy),
@@ -208,12 +208,12 @@ test("a seat saved by the previous single-key build still resumes", () => {
   const started = warm.net.start({});
   assert.equal(started.resuming, true);
   assert.equal(started.seat, 1);
-  assert.deepEqual(warm.opened, ["ws://bitbeam:8777/ws"]);
+  assert.deepEqual(warm.opened, ["ws://laptop:8777/ws"]);
 });
 
 test("the table URL is derived from the page, and ?table= overrides it", () => {
   const derived = loadNet(HTTP_ENV);
-  assert.equal(derived.net.tableUrl(), "ws://bitbeam:8777/ws");
+  assert.equal(derived.net.tableUrl(), "ws://laptop:8777/ws");
 
   const https = loadNet({ location: { protocol: "https:", host: "t.example:8777", href: "", search: "" } });
   assert.equal(https.net.tableUrl(), "wss://t.example:8777/ws");
@@ -228,18 +228,18 @@ test("the table URL is derived from the page, and ?table= overrides it", () => {
  * machine, silently — the exact failure that eats a demo slot. */
 test("publicTable never advertises a loopback address if it can avoid it", () => {
   const { net } = loadNet({
-    location: { protocol: "http:", host: "bitbeam.tail1a2b.ts.net:8777", href: "", search: "" },
+    location: { protocol: "http:", host: "laptop.your-tailnet.ts.net:8777", href: "", search: "" },
     storage: {
       "600b:match": JSON.stringify({ matchId: "m_0123456789ab", seat: 0, token: "b".repeat(32) }),
       "600b:pubkey": NIP07_PUBKEY,
     },
   });
   net.start({});
-  assert.equal(net.publicTable(), "ws://bitbeam.tail1a2b.ts.net:8777/ws");
+  assert.equal(net.publicTable(), "ws://laptop.your-tailnet.ts.net:8777/ws");
   assert.equal(net.publicTableIsLocal(), false);
 
   const local = loadNet(HTTP_ENV);
-  assert.equal(local.net.tableUrl(), "ws://bitbeam:8777/ws");
+  assert.equal(local.net.tableUrl(), "ws://laptop:8777/ws");
   const loop = loadNet({ location: { protocol: "http:", host: "localhost:8777", href: "", search: "" } });
   loop.net.start({});
   assert.equal(loop.net.publicTableIsLocal(), true, "and it must SAY so rather than publish it");
@@ -432,8 +432,8 @@ function netStub(extra) {
     act(action) { calls.push(["act", action]); return true; },
     sendNostr(role, ev) { calls.push(["nostr", role, ev]); return true; },
     leave() {}, resume() {}, tables: async () => [],
-    tableUrl: () => "ws://bitbeam:8777/ws",
-    publicTable: () => "ws://bitbeam:8777/ws",
+    tableUrl: () => "ws://laptop:8777/ws",
+    publicTable: () => "ws://laptop:8777/ws",
     publicTableIsLocal: () => false,
     savedMatch: () => null,
     nostr: {
@@ -562,8 +562,8 @@ function loadLobby(netStub) {
     E1Net: netStub,
   };
   globalThis.location = {
-    protocol: "http:", host: "bitbeam:8777", search: "",
-    href: "http://bitbeam:8777/matchmaking.html",
+    protocol: "http:", host: "laptop:8777", search: "",
+    href: "http://laptop:8777/matchmaking.html",
     assign(url) { nav.push(url); },
   };
   globalThis.E1Net = netStub;
@@ -694,7 +694,7 @@ test("a relay invite shows and acknowledges its stake before joining", () => {
   const { byId } = loadLobby(stub);
   byId("checkInvites").click();
   offer({
-    code: "K7M2QF", table: "ws://bitbeam:8777/ws", pubkey: "b".repeat(64),
+    code: "K7M2QF", table: "ws://laptop:8777/ws", pubkey: "b".repeat(64),
     host: { name: "Anna", affinity: "Signal" }, stake: 750,
   });
   const row = byId("inviteList").children.at(-1);
@@ -1185,13 +1185,13 @@ test("online intents wait for a signed NIP-42 challenge", async () => {
   assert.deepEqual(socket.sent, [], "CREATE was sent before identity proof");
 
   socket.onmessage({ data: JSON.stringify({
-    t: "AUTH", v: 1, challenge: "c".repeat(64), relay: "ws://bitbeam:8777/ws", kind: 22242,
+    t: "AUTH", v: 1, challenge: "c".repeat(64), relay: "ws://laptop:8777/ws", kind: 22242,
   }) });
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(signed.length, 1);
   assert.equal(signed[0].kind, 22242);
   assert.deepEqual(signed[0].tags, [
-    ["relay", "ws://bitbeam:8777/ws"],
+    ["relay", "ws://laptop:8777/ws"],
     ["challenge", "c".repeat(64)],
   ]);
   assert.equal(socket.sent[0].t, "AUTH");
@@ -1382,7 +1382,7 @@ const startEventFor = (matchId, over) =>
         v: 1,
         kind: "start",
         matchId,
-        table: "ws://bitbeam:8777/ws",
+        table: "ws://laptop:8777/ws",
         players: [
           { seat: 0, pubkey: MY_KEY, name: "felix", affinity: "Power" },
           { seat: 1, pubkey: FOE_KEY, name: "anna", affinity: "Signal" },
@@ -1409,7 +1409,7 @@ test("an npub alone finds the matches it has not finished", async () => {
 
   assert.equal(found.length, 1);
   assert.equal(found[0].matchId, "m_0000000000a1");
-  assert.equal(found[0].table, "ws://bitbeam:8777/ws", "and it names the referee to return to");
+  assert.equal(found[0].table, "ws://laptop:8777/ws", "and it names the referee to return to");
   assert.equal(found[0].seat, 0);
   assert.equal(found[0].opponent, "anna");
   assert.equal(found[0].stake, 500);
@@ -1439,7 +1439,7 @@ test("a start announcement off a relay is untrusted input", async () => {
   });
   const notMyMatch = startEventFor("m_0000000000c2", {
     content: JSON.stringify({
-      v: 1, kind: "start", matchId: "m_0000000000c2", table: "ws://bitbeam:8777/ws",
+      v: 1, kind: "start", matchId: "m_0000000000c2", table: "ws://laptop:8777/ws",
       players: [{ seat: 0, pubkey: FOE_KEY }, { seat: 1, pubkey: "c".repeat(64) }],
     }),
   });
@@ -1492,10 +1492,10 @@ test("rejoining refuses a table URL that is not a websocket", () => {
   const { net, opened } = loadNet(signedIn);
   net.rejoin("m_0000000000d1", "https://evil.example/steal");
   assert.equal(opened.length, 1);
-  assert.equal(opened[0], "ws://bitbeam:8777/ws", "it fell back to this page's own table");
+  assert.equal(opened[0], "ws://laptop:8777/ws", "it fell back to this page's own table");
 
   const later = loadNet(signedIn);
-  assert.equal(later.net.rejoin("not-a-match-id", "ws://bitbeam:8777/ws"), false);
+  assert.equal(later.net.rejoin("not-a-match-id", "ws://laptop:8777/ws"), false);
   assert.deepEqual(later.opened, [], "a malformed match id opens nothing");
 });
 
@@ -1509,7 +1509,7 @@ function signedInTab(overrides) {
     storage: { "600b:pubkey": NIP07_PUBKEY },
     session: new Map([["600b:match", JSON.stringify({
       matchId: "m_0000000000f1", seat: 0, token: "t".repeat(32),
-      table: "ws://bitbeam:8777/ws", code: "K7M2QF",
+      table: "ws://laptop:8777/ws", code: "K7M2QF",
     })]]),
     nostr: {
       getPublicKey: async () => NIP07_PUBKEY,
@@ -1547,20 +1547,20 @@ test("a login challenge naming another table is refused, not signed", async () =
   const failure = tab.errors.find((e) => e.code === "AUTH_FAILED");
   assert.ok(failure, "the player is told, rather than silently left unauthenticated");
   assert.match(failure.message, /evil\.example/, "and the message names what it refused");
-  assert.match(failure.message, /bitbeam/, "alongside who actually answered");
+  assert.match(failure.message, /laptop/, "alongside who actually answered");
 });
 
 test("a login challenge from the table we dialled is signed", async () => {
   const tab = signedInTab();
   tab.sockets[0].readyState = 1;
-  tab.sockets[0].onmessage(authFrom("ws://bitbeam:8777/ws"));
+  tab.sockets[0].onmessage(authFrom("ws://laptop:8777/ws"));
   await new Promise((resolve) => setTimeout(resolve, 5));
 
   assert.equal(tab.signed.length, 1, "the honest case still works");
   assert.equal(tab.signed[0].kind, 22242);
   const relayTag = tab.signed[0].tags.find((t) => t[0] === "relay");
   const challengeTag = tab.signed[0].tags.find((t) => t[0] === "challenge");
-  assert.equal(relayTag[1], "ws://bitbeam:8777/ws");
+  assert.equal(relayTag[1], "ws://laptop:8777/ws");
   assert.equal(challengeTag[1], "c".repeat(64));
   assert.equal(tab.sockets[0].sent[0].t, "AUTH");
 });
@@ -1571,20 +1571,20 @@ test("a table that renames itself between reconnects cannot slip a proof past us
    * proof is for a different machine. */
   const tab = signedInTab();
   tab.sockets[0].readyState = 1;
-  tab.sockets[0].onmessage(authFrom("wss://bitbeam:8777/ws")); // same host, other scheme
+  tab.sockets[0].onmessage(authFrom("wss://laptop:8777/ws")); // same host, other scheme
   await new Promise((resolve) => setTimeout(resolve, 5));
   assert.equal(tab.signed.length, 1, "a scheme difference is a proxy, not an impostor");
 
   const other = signedInTab();
   other.sockets[0].readyState = 1;
-  other.sockets[0].onmessage(authFrom("ws://bitbeam.evil.example:8777/ws"));
+  other.sockets[0].onmessage(authFrom("ws://laptop.evil.example:8777/ws"));
   await new Promise((resolve) => setTimeout(resolve, 5));
   assert.deepEqual(other.signed, [], "a lookalike hostname is still a different machine");
 });
 
 test("a malformed challenge is refused before the signer is ever asked", async () => {
   const tab = signedInTab();
-  tab.sockets[0].onmessage({ data: JSON.stringify({ t: "AUTH", v: 1, challenge: "nope", relay: "ws://bitbeam:8777/ws" }) });
+  tab.sockets[0].onmessage({ data: JSON.stringify({ t: "AUTH", v: 1, challenge: "nope", relay: "ws://laptop:8777/ws" }) });
   await new Promise((resolve) => setTimeout(resolve, 5));
   assert.deepEqual(tab.signed, []);
   assert.ok(tab.errors.some((e) => e.code === "AUTH_FAILED"));
@@ -1664,10 +1664,10 @@ test("the Network's two rails are drawn, and cards stay direct children", () => 
  * together — if it breaks, a found match drops the player at an empty table.
  */
 const LOBBY_ENV = {
-  location: { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/matchmaking.html", search: "" },
+  location: { protocol: "http:", host: "laptop:8777", href: "http://laptop:8777/matchmaking.html", search: "" },
 };
 const TABLE_ENV = {
-  location: { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/play.html", search: "" },
+  location: { protocol: "http:", host: "laptop:8777", href: "http://laptop:8777/play.html", search: "" },
 };
 const SEATING_STATE = {
   t: "STATE", v: 1, matchId: "m_0123456789ab", seat: 1, token: "b".repeat(32),
@@ -1686,7 +1686,7 @@ test("a seat dealt in the lobby survives the navigation to the table", () => {
   assert.deepEqual(lobby.opened, [], "a cold lobby opens no socket until it is asked to");
 
   lobby.net.queue({ name: "felix", affinity: "Power", pubkey: NIP07_PUBKEY, stake: 0 });
-  assert.deepEqual(lobby.opened, ["ws://bitbeam:8777/ws"], "asking for a match dials the referee");
+  assert.deepEqual(lobby.opened, ["ws://laptop:8777/ws"], "asking for a match dials the referee");
   lobby.sockets[0].onmessage({ data: JSON.stringify(SEATING_STATE) });
 
   assert.equal(lobby.net.session.seat, 1, "the lobby holds the seat the referee dealt");
@@ -1698,13 +1698,13 @@ test("a seat dealt in the lobby survives the navigation to the table", () => {
   const started = table.net.start({});
   assert.equal(started.resuming, true, "the table resumes the match the lobby handed it");
   assert.equal(started.seat, 1, "and at the same seat");
-  assert.deepEqual(table.opened, ["ws://bitbeam:8777/ws"], "it reconnects to the table it was seated at");
+  assert.deepEqual(table.opened, ["ws://laptop:8777/ws"], "it reconnects to the table it was seated at");
 });
 
 test("the table claims the handed-off seat with the signed identity", async () => {
   const store = new Map([["600b:pubkey", NIP07_PUBKEY]]);
   const session = new Map([["600b:match", JSON.stringify({
-    matchId: "m_0123456789ab", seat: 1, token: null, table: "ws://bitbeam:8777/ws", code: "K7M2QF",
+    matchId: "m_0123456789ab", seat: 1, token: null, table: "ws://laptop:8777/ws", code: "K7M2QF",
   })]]);
   const nostr = {
     getPublicKey: async () => NIP07_PUBKEY,
@@ -1719,7 +1719,7 @@ test("the table claims the handed-off seat with the signed identity", async () =
   assert.deepEqual(socket.sent, [], "nothing is claimed before the identity is proven");
 
   socket.onmessage({ data: JSON.stringify({
-    t: "AUTH", v: 1, challenge: "c".repeat(64), relay: "ws://bitbeam:8777/ws", kind: 22242,
+    t: "AUTH", v: 1, challenge: "c".repeat(64), relay: "ws://laptop:8777/ws", kind: 22242,
   }) });
   await new Promise((resolve) => setTimeout(resolve, 0));
   socket.onmessage({ data: JSON.stringify({ t: "AUTH_OK", v: 1, pubkey: NIP07_PUBKEY }) });
@@ -1871,7 +1871,7 @@ function loadPlayWith3D(t, search, options) {
     },
   };
   globalThis.THREE = { REVISION: "186" };
-  globalThis.location = { protocol: "http:", host: "bitbeam:8777", href: "http://bitbeam:8777/play.html", search };
+  globalThis.location = { protocol: "http:", host: "laptop:8777", href: "http://laptop:8777/play.html", search };
   t.after(() => { delete globalThis.E1Arena3D; delete globalThis.THREE; });
   const loaded = loadPlay(netStub(), { emit() {}, get: () => ({ motionActive: "full" }) });
   const zones = ["youHand", "youNetwork", "foeHand", "foeNetwork", "queue"];

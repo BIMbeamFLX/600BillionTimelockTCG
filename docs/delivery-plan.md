@@ -380,7 +380,7 @@ broken ambitious one.
 
 Pre-flight (Thursday night + Friday morning, 30 min):
 
-- Both machines (alflx Linux workstation, bitbeam Windows laptop) charged, on the
+- Both machines (the Linux workstation and the Windows laptop) charged, on the
   phone hotspot **and** Tailscale — do not depend on venue wifi.
 - Local relay running on the laptop (dockerized strfry or nostr-rs-relay);
   `net.js` relay list = `[local relay, two public relays]` so either works.

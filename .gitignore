@@ -50,3 +50,12 @@ archive/
 # Publishing them means new Blossom blobs, a manifest and a blob map: later.
 art/cards/fast-web/
 site/fast-faces.js
+
+# Our own infrastructure stays out of this public repository: where and how we
+# deploy, the runbooks and the operator notes. They are kept outside git.
+docs/deploy.md
+docs/deploy-runbook-*.md
+docs/mint-security-and-deploy.md
+docs/mint-boot-checks.md
+docs/handover/breno-mint-and-infra.md
+docs/infra/
