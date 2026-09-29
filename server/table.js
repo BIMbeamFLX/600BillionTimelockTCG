@@ -2270,8 +2270,10 @@ async function createTable(opts) {
       return nutft.handle(req, res, url);
     }
     /* The card mint answers every origin itself, as LNURL services do, and so
-     * does its 429: a wallet page elsewhere must be able to read the wait. */
-    if (cardMint && (pathname === "/.well-known/lnurlcash-cards" || pathname === "/cards" || pathname.startsWith("/cards/"))) {
+     * does its 429: a wallet page elsewhere must be able to read the wait. It
+     * gets its own paths only, as sent (the string it routes on): every other
+     * file under /cards/ is static. */
+    if (cardMint && cardMint.owns(url.pathname)) {
       res.setHeader("access-control-allow-origin", "*");
       if (mintLimited(req, res, url.pathname)) return;
       return cardMint.handle(req, res, url);

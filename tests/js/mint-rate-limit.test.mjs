@@ -26,7 +26,7 @@ async function boot(t, extra) {
 }
 
 /** A raw request, so any header can be sent and every header read back. */
-function call(table, method, path, { headers = {}, body } = {}) {
+function call(table, method, path, { headers = {}, body, timeoutMs } = {}) {
   const payload = body === undefined ? null : JSON.stringify(body);
   const length = payload ? Buffer.byteLength(payload) : 0;
   const sent = payload
@@ -44,6 +44,10 @@ function call(table, method, path, { headers = {}, body } = {}) {
       });
     });
     req.on("error", reject);
+    // a request nobody answers fails its test instead of hanging the suite
+    if (timeoutMs) {
+      req.setTimeout(timeoutMs, () => req.destroy(new Error(`${path}: no answer in ${timeoutMs} ms`)));
+    }
     req.end(payload);
   });
 }
@@ -188,6 +192,52 @@ test("LNURLcash cards: a move is a write, an invoice or a payment check draws, a
     for (const path of ["/.well-known/lnurlcash-cards", "/cards/lnurlp"]) {
       assert.equal((await call(table, "GET", path)).status, 200, `GET ${path}`);
     }
+  }
+});
+
+test("with cards on, the files under /cards/ are still served, and the card mint answers its own paths",
+  async (t) => {
+    const table = await boot(t, { ...CARDS, mintQuoteRateMax: "1" });
+    for (const file of ["nutft-census.json", "g-census.json", "e1-cards.json"]) {
+      const served = await call(table, "GET", `/cards/${file}`);
+      assert.equal(served.status, 200, file);
+      assert.match(served.headers["content-type"], /^application\/json/, file);
+      assert.deepEqual(served.json, require(`../../cards/${file}`), file);
+    }
+    const missing = await call(table, "GET", "/cards/no-such-file.json");
+    assert.equal(missing.status, 404);
+    assert.equal(missing.headers["content-type"], "text/plain", "the site's 404, not the card mint's");
+
+    const answers = {
+      discovery: await call(table, "GET", "/.well-known/lnurlcash-cards"),
+      payRequest: await call(table, "GET", "/cards/lnurlp"),
+      lookup: await call(table, "GET", `/cards?owner=${"1".repeat(64)}`),
+      note: await call(table, "GET", "/cards/w?p=x"),
+      move: await call(table, "GET", "/cards/w/cb?k1=00"),
+    };
+    for (const [name, answer] of Object.entries(answers)) {
+      assert.equal(answer.status, 200, name);
+      assert.equal(answer.headers["access-control-allow-origin"], "*", name);
+    }
+    assert.equal(answers.discovery.json.lookup, "http://127.0.0.1/cards");
+    assert.equal(answers.payRequest.json.tag, "payRequest");
+    assert.deepEqual(answers.lookup.json, { cards: [], used: false });
+    assert.equal(answers.note.json.status, "ERROR");
+    assert.equal(answers.move.json.status, "ERROR");
+    // /cards/w spent the one quote a minute: the invoice and the payment check wait with it
+    for (const path of ["/cards/w?p=x", "/cards/lnurlp/callback?amount=1", `/cards/verify/${"0".repeat(64)}`]) {
+      const refused = await call(table, "GET", path);
+      assert.equal(refused.status, 429, path);
+      assert.equal(refused.headers["access-control-allow-origin"], "*", path);
+    }
+  });
+
+test("with cards on, a card path spelled with escapes is answered, not left open", async (t) => {
+  const table = await boot(t, CARDS);
+  /* The card mint routes on the path as sent. Picked by the decoded path, these
+     reached it, it found no route of its own, and nobody ever answered. */
+  for (const path of ["/.well-known/lnurlcash%2Dcards", "/cards%2Fw"]) {
+    assert.equal((await call(table, "GET", path, { timeoutMs: 5000 })).status, 404, path);
   }
 });
 
