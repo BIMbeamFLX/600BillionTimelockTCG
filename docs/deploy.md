@@ -898,10 +898,17 @@ for KEY in DB G_NUTFT_DB; do
 done
 ls -la "$BACKUPS" | tail -5
 echo "STAMP=$STAMP"
+set +euo pipefail
 ```
 
 Write `STAMP` down; the rollback names it. The node form needs no `sqlite3` CLI; the box
 already runs Node 22.5 or newer for `node:sqlite`.
+
+`set -euo pipefail` is for the backup only. A failure in it ends this shell before `STAMP` is
+printed, and before anything is uploaded: reconnect, and `sudo systemctl start tcg-table` brings
+the running build back. The last line turns it off again. Left on in an interactive shell, it
+would end the session at the first expected non-zero exit later on: a `diff` that finds a
+difference, a `grep` that finds nothing, a unit that is not active yet.
 
 ### 9.5 · On Windows: upload with the key
 
@@ -918,24 +925,24 @@ One touch. The upload overwrites and adds files; it deletes nothing.
 ```bash
 cd /home/deploy/bimCVP/infra/site-root/tcg600
 [ -f deploy/install-tcg.sh ] && mv deploy/install-tcg.sh deploy/install-tcg.sh.do-not-run || true
-sha256sum --quiet --strict -c release-<sha12>.sha256 && echo "server files: all as released"
 comm -13 <(cut -c67- release-<sha12>.sha256 | sort) <(find server -type f | sort)
-npm ci --omit=dev
-node -e 'require("./server/table.js"); console.log("the referee loads")'
-sudo systemctl start tcg-table
-systemctl is-active tcg-table
+sha256sum --quiet --strict -c release-<sha12>.sha256 && echo "server files: all as released" \
+  && npm ci --omit=dev \
+  && node -e 'require("./server/table.js"); console.log("the referee loads")' \
+  && sudo systemctl start tcg-table && systemctl is-active tcg-table
 ```
 
-The rename fences an installer left from an earlier deploy; `|| true` keeps `set -e` (9.4) from
-ending the session when there is no installer to rename. No `daemon-reload`: the unit did not
-change.
+The rename fences an installer left from an earlier deploy; `|| true` keeps the line from
+failing when there is no installer to rename. No `daemon-reload`: the unit did not change.
 
-Start only after `server files: all as released`; a `FAILED` line is a file the upload did not
-bring, so upload again. `comm` lists the files the box has and the release does not, left from
-earlier deploys; they do no harm and are written down. `the referee loads` proves that every
-module the unit needs resolves with the installed dependencies: the card mint and its card
-library, `site/engine.js`, both card catalogs and `ws`. Loading `table.js` starts nothing and
-leaves no handle open, so the command returns by itself.
+`comm` lists the files the box has and the release does not, left from earlier deploys; they do
+no harm and are written down. The start is chained behind the checks, because `set -e` is off
+again (9.4) and a failed line no longer stops the block. The referee starts only after
+`server files: all as released`, a clean `npm ci` and `the referee loads`. A `FAILED` line is a
+file the upload did not bring, so upload again. `the referee loads` proves that every module the
+unit needs resolves with the installed dependencies: the card mint and its card library,
+`site/engine.js`, both card catalogs and `ws`. Loading `table.js` starts nothing and leaves no
+handle open, so the command returns by itself.
 
 ### 9.7 · On the box: prove nothing but the code changed
 
