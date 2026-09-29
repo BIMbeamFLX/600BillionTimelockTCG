@@ -7,7 +7,7 @@
 >   hard-coded `ws://` and the bound port, which meant that behind TLS every
 >   published invite was both blocked as mixed content and aimed at
 >   an unreachable port — silently. `PUBLIC_URL` now names both
->   explicitly. Deployment and an external test are still pending (`docs/deploy.md`).
+>   explicitly. Deployment and an external test are still pending.
 > - **B-02 done** — invite, accept and result events are checked before they are
 >   stored: event ID recomputed from its own bytes, BIP-340 signature
 >   verified, rejection instead of a row. `sig_checked` is `1`. The reasoning at

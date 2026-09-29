@@ -49,7 +49,7 @@ mint to equal packs sold times cards per pack.
 - `server/card-mint.js` serves them at `/.well-known/lnurlcash-cards` and
   `/cards/...` with the LNURL wire format, and is off unless `NUTFT_CARDS`
   is on. The boot refuses it on a free mint, with committed purchases, and
-  without an https public origin (docs/deploy.md §10.2).
+  without an https public origin (`cardsProblems` in `server/mint-env.js`).
 - A paid card pack is never released to another buyer. A sweep issues it
   within 30 s whether its buyer asks or not, and closes a pack that expired
   unpaid.

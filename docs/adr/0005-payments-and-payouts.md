@@ -55,9 +55,8 @@ Match zaps remain wallet-to-wallet through NIP-57.
 
 ## What blocks payouts today
 
-**The node has no channel.** As of 2026-08-20: `balanceSat 0`,
-`feeCreditSat 25,210`, cap `50,000`. With no channel, an incoming payment is
-added to the fee credit rather than the balance — it counts towards opening a
+**The node had no channel when this was written.** With no channel, an incoming
+payment is added to the fee credit rather than the balance — it counts towards opening a
 channel later, it cannot be spent or withdrawn, and ACINQ do not refund it.
 
 So the mint can sell and pay nobody. Two consequences follow, and neither is
@@ -66,7 +65,5 @@ optional:
 - **ADR 0006's payout step cannot run until a channel exists.** Card-for-sats
   has to wait for it; card-for-card does not.
 - **There is a wall.** At the fee-credit cap incoming payments are *refused*, with
-  nothing on our side to explain it. About 24,790 sat of headroom remains — some
-  1,180 boosters at 21 sat, and far fewer once the price ladder turns over at
-  pack 2,101. `balance()` reports both numbers so the wall can be watched rather
-  than hit.
+  nothing on our side to explain it. `balance()` reports both numbers so the
+  wall can be watched rather than hit.

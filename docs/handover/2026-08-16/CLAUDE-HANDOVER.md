@@ -54,8 +54,7 @@ Identity/world references used:
 
 The uncropped world plates under `art/world-plates/original/` were available. There was
 no fallback to the softer web proxies. The raw model outputs are located
-outside the repository at
-`C:\Users\FLX\.codex\generated_images\01a004e0-fa6f-7292-b9ef-d3d570999c7d\`.
+outside the repository, on the machine that generated them.
 The scratch runner used only for this processing,
 `art/generated/process_website_art.py`, is gitignored and does not automatically belong in
 a commit.
