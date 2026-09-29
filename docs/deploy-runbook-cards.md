@@ -466,7 +466,7 @@ How to read it:
   At the cap, phoenixd refuses payments and the shop stops taking money, with nothing in our logs
   to say why. The cap is 50,000 sat by default for 2m auto-liquidity. At 5 sat a pack, the headroom
   is `(50000 - feeCreditSat) / 5` packs.
-- **A channel in state `NORMAL`:** `inboundLiquiditySat` is how much can still come in before
+- **A channel in state `Normal`:** `inboundLiquiditySat` is how much can still come in before
   phoenixd buys liquidity again, paid from the next payment or the fee credit.
 - **`channelFor2mSat`:** what a channel with 2,000,000 sat inbound would cost now.
 - **`channelFor2mSat: "not answered (…)"`**, with `not reached (…)` inside it: the LSP's rate, not
@@ -692,8 +692,8 @@ waiting   # again every few minutes, until the list is empty
 the card mint goes off, with the file exactly as it was before D:
 
 ```bash
-sudo mv "$ENVFILE.bak-$STAMP" "$ENVFILE"
-restart && snapc "$SNAP/rollback" && diff "$SNAP/before.json" "$SNAP/rollback.json" && echo "as before D"
+sudo mv "$ENVFILE.bak-$STAMP" "$ENVFILE" \
+  && restart && snapc "$SNAP/rollback" && diff "$SNAP/before.json" "$SNAP/rollback.json" && echo "as before D"
 ```
 
 `active`, then `as before D`: everything the mints publish is as it was, and `mv` leaves no copy of
