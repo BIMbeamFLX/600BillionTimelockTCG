@@ -21,6 +21,17 @@ check prints names, counts or public values: an environment file is never printe
 phoenixd password never leaves the node process that uses it. **Stop at the first output that
 differs from what is written here.** Nothing is tried a second time in the same window.
 
+**`set -e` is on from A5.** §9.4 turns on `set -euo pipefail` in this shell and it stays on, so a
+count of `0`, or a `diff` that finds the very change it is meant to find, would end the session —
+right after a secret-bearing backup is written, or right after the referee restarts with cards on,
+with `STAMP` and `SNAP` lost. After A7, before C, turn it off again:
+
+```bash
+set +euo pipefail
+```
+
+Every block below is written to survive `set -e` on its own as well.
+
 | What | Value |
 |---|---|
 | Box | `deploy@178.105.93.78`, `tcg.nappelin.com`, unit `tcg-table`, webroot `/home/deploy/bimCVP/infra/site-root/tcg600`, key `$HOME\.ssh\id_ed25519_sk` |
@@ -100,7 +111,7 @@ snapc() {  # snapc <dir>: snap, plus the card mint's discovery document (null wh
 }
 setkey() {  # setkey KEY value: the one KEY= line in $ENVFILE gets value, or is added; prints no value
   local n
-  n=$(sudo grep -c "^$1=" "$ENVFILE")
+  n=$(sudo grep -c "^$1=" "$ENVFILE" || true)  # grep -c exits 1 at zero: never end the session here
   if [ "$n" = 0 ]; then
     [ -n "$(sudo tail -c1 "$ENVFILE")" ] && echo | sudo tee -a "$ENVFILE" > /dev/null
     printf '%s=%s\n' "$1" "$2" | sudo tee -a "$ENVFILE" > /dev/null
@@ -109,7 +120,7 @@ setkey() {  # setkey KEY value: the one KEY= line in $ENVFILE gets value, or is 
   else
     echo "$1: $n lines in $ENVFILE, stop"; return 1
   fi
-  [ "$(sudo grep -cxF "$1=$2" "$ENVFILE")" = 1 ] && echo "$1: set" || { echo "$1: NOT set, stop"; return 1; }
+  [ "$(sudo grep -cxF "$1=$2" "$ENVFILE" || true)" = 1 ] && echo "$1: set" || { echo "$1: NOT set, stop"; return 1; }
 }
 intended() {  # intended <before.json> <after.json> [g5]: after is before with exactly the intended changes
   node -e '
@@ -129,7 +140,7 @@ intended() {  # intended <before.json> <after.json> [g5]: after is before with e
     const ok = JSON.stringify(canon(want)) === JSON.stringify(canon(after));
     console.log(ok ? "exactly the intended changes" : "NOT the intended changes: roll back");
     process.exitCode = ok ? 0 : 1;
-  ' "$1" "$2" "$3"
+  ' "$1" "$2" "${3:-}"  # unset without g5, which `set -u` would otherwise call an error
 }
 waiting() {  # waiting: card packs quoted and not yet issued or closed, read only
   node -e '
@@ -202,7 +213,7 @@ for F in $(systemctl show -p EnvironmentFiles --value tcg-table | tr ' ' '\n' | 
   done
 done
 systemctl show tcg-table -p Environment | tr ' ' '\n' | sed 's/^Environment=//' \
-  | grep -oE '^(NUTFT_CARDS|NUTFT_SALES|NUTFT_PRICE_SCHEDULE|G_NUTFT_PRICE_MSAT|TRUST_PROXY)='
+  | grep -oE '^(NUTFT_CARDS|NUTFT_SALES|NUTFT_PRICE_SCHEDULE|G_NUTFT_PRICE_MSAT|TRUST_PROXY)=' || true
 ```
 
 Gate:
@@ -311,11 +322,11 @@ Exactly §9.5: one `scp`, one touch. The manifest travels with the payload.
 
 ```bash
 cd $TCG
-[ -f deploy/install-tcg.sh ] && mv deploy/install-tcg.sh deploy/install-tcg.sh.do-not-run
+[ -f deploy/install-tcg.sh ] && mv deploy/install-tcg.sh deploy/install-tcg.sh.do-not-run || true
 sha256sum --quiet --strict -c release-<sha12>.sha256 && echo "server files: all as released"
 comm -13 <(cut -c67- release-<sha12>.sha256 | sort) <(find server -type f | sort)
 npm ci --omit=dev
-node -e 'require("./server/card-mint.js"); console.log("card mint modules load")'
+node -e 'require("./server/table.js"); console.log("the referee loads")'
 sudo systemctl start tcg-table
 systemctl is-active tcg-table
 ```
@@ -325,7 +336,9 @@ Gate:
   start, and upload again.
 - `comm` lists the files the box has and the release does not, left over from earlier deploys.
   They are harmless, and are written down for the record.
-- `card mint modules load`, then `active`.
+- `the referee loads`, then `active`. Then, before C: `set +euo pipefail`. Loading `table.js` covers the card mint, the
+  engine, both card catalogs and `ws` in one go, and it leaves no handle open, so it returns by
+  itself.
 
 ### A8 · Box: prove nothing but the code changed (§9.7)
 
@@ -333,7 +346,7 @@ Gate:
 
 ```bash
 snapc /home/deploy/tcg-release-after
-diff /home/deploy/tcg-release-before.json /home/deploy/tcg-release-after.json && echo "mints unchanged"
+diff /home/deploy/tcg-release-before.json /home/deploy/tcg-release-after.json && echo "mints unchanged" || true
 curl -s -o /dev/null -w '%{http_code} card discovery (404 while cards are off)\n' \
   https://tcg.nappelin.com/.well-known/lnurlcash-cards
 ```
@@ -386,7 +399,10 @@ sudo cat /proc/$PID/environ | node -e '
       console.log(`phoenixd answered getinfo ${info.status} and getbalance ${balance.status}: nothing read`);
       process.exit(1);
     }
-    const fees = await get("/estimateliquidityfees?amountSat=2000000");
+    /* The LSP's rates, not phoenixd's own state: a slow answer or a timeout here
+       must not throw away getinfo and getbalance, which are the gate's numbers. */
+    const fees = await get("/estimateliquidityfees?amountSat=2000000")
+      .catch((error) => ({ status: `not reached (${error.message})`, json: null }));
     const channels = info.json.channels || [];
     console.log(JSON.stringify({
       version: info.json.version,
@@ -413,7 +429,11 @@ How to read it:
 - **A channel in state `NORMAL`:** `inboundLiquiditySat` is how much can still come in before
   phoenixd buys liquidity again, paid from the next payment or the fee credit.
 - **`channelFor2mSat`:** what a channel with 2,000,000 sat inbound would cost now.
-- `nothing read`, a refusal or a timeout: stop. The gate has no numbers.
+- **`channelFor2mSat: "not answered (…)"` or `"not reached (…)"`:** the LSP's rate, not
+  phoenixd's own state. The channel and balance numbers above it still stand, and Felix can decide
+  on them; only the price of new liquidity is unknown.
+- `nothing read` from `getinfo` or `getbalance`, a refusal or a timeout there: stop. The gate has
+  no numbers.
 
 **Gate: Felix decides with these numbers whether sales open.** Go on only with his explicit yes.
 
@@ -441,21 +461,38 @@ sudo ss -tn '( sport = :8777 )'
 STAMP=$(date -u +%Y%m%dT%H%M%SZ); SNAP=/home/deploy/tcg-trustproxy-$STAMP
 snapc "$SNAP/before"
 sudo cp -a "$ENVFILE" "$ENVFILE.bak-$STAMP"
-setkey TRUST_PROXY "$PEER,::ffff:$PEER"
+setkey TRUST_PROXY "$PEER"
 curl -s https://tcg.nappelin.com/api/health
 sudo systemctl restart tcg-table && systemctl is-active tcg-table
 snapc "$SNAP/after"
-diff "$SNAP/before.json" "$SNAP/after.json" && echo "mints unchanged"
+diff "$SNAP/before.json" "$SNAP/after.json" && echo "mints unchanged" || true
 ```
 
+`$PEER` alone is enough: every address is compared as one canonical form, and an IPv4-mapped
+address is compared as plain IPv4 (`canonicalAddress`, table.js).
+
 `ss` must list `$PEER` as the peer of the connections to `:8777`. Restart only at `"queued":0`.
-Then from Windows, `curl.exe -s https://tcg.nappelin.com/api/health` must show your own public
-address.
+Then from Windows, two checks:
+
+```powershell
+curl.exe -s https://tcg.nappelin.com/api/health
+curl.exe -s -H "X-Forwarded-For: 203.0.113.9" https://tcg.nappelin.com/api/health
+```
+
+The first must show your own public address. The second must show it too: only the rightmost hop
+counts (table.js), which is the address Caddy connected from, so a header a client sends ahead of
+it cannot take over somebody else's budget. If the second shows `203.0.113.9`, roll C back at
+once — anyone could then spend another buyer's budget.
 
 Gate:
 - `mints unchanged` and your own address: `sudo shred -u "$ENVFILE.bak-$STAMP"`.
 - Anything else: `sudo mv "$ENVFILE.bak-$STAMP" "$ENVFILE"`, restart, `snapc "$SNAP/rollback"`,
   and leave C for another day. D does not depend on C, but E5 does.
+
+`172.18.0.5` is a Docker-assigned address: recreating `gw-caddy` can give it another one, and
+`TRUST_PROXY` then names a stranger, which silently puts every buyer back on one budget. Either
+pin `gw-caddy`'s `ipv4_address` in its compose file (a nappelin box change, not this launch), or
+run C's `/api/health` check again after any Caddy change.
 
 ---
 
@@ -487,11 +524,11 @@ curl -s https://tcg.nappelin.com/api/health
 SINCE=$(date '+%Y-%m-%d %H:%M:%S')
 sudo systemctl restart tcg-table && systemctl is-active tcg-table
 snapc "$SNAP/after"
-diff "$SNAP/before.json" "$SNAP/after.json"
+diff "$SNAP/before.json" "$SNAP/after.json" || true  # the diff IS the expected result here
 intended "$SNAP/before.json" "$SNAP/after.json"
 sudo cat /proc/$(systemctl show -p MainPID --value tcg-table)/environ | tr '\0' '\n' \
   | grep -E '^(NUTFT_CARDS|NUTFT_SALES|NUTFT_PRICE_SCHEDULE)='
-sudo journalctl -u tcg-table --since "$SINCE" --no-pager | grep -c 'THE CARD MINT IS OFF'
+sudo journalctl -u tcg-table --since "$SINCE" --no-pager | grep -c 'THE CARD MINT IS OFF' || true
 ```
 
 The `diff` must be exactly this: e1's price and first tier at 5 sat, e1's sales open, and the card
@@ -542,9 +579,16 @@ Gate:
   sudo ls -l "$(dirname "$ENVFILE")"
   ```
 
-- Anything else: `sudo mv "$ENVFILE.bak-$STAMP" "$ENVFILE"`, restart, `snapc "$SNAP/rollback"`
-  and stop for the day. A `THE CARD MINT IS OFF` line names its reason; the card mint stays off and
-  the NutFT sale goes on.
+- Anything else: the card mint has been reachable since the restart, so a buyer may already
+  hold a quote. Run `waiting` first.
+  - `card packs waiting: []`: `sudo mv "$ENVFILE.bak-$STAMP" "$ENVFILE"`, restart,
+    `snapc "$SNAP/rollback"` and stop for the day.
+  - Any row: roll back in F1's order instead — sales closed first, then wait for the list to
+    empty, then cards off — or a paid pack holds the shop while cards are off, and an invoice
+    quoted now stays payable for about 15 minutes.
+
+  A `THE CARD MINT IS OFF` line names its reason; the card mint stays off and the NutFT sale goes
+  on.
 
 **Edition G at 5 sat as well** (only if Felix decided it):
 - add `G_NUTFT_PRICE_MSAT=5000\0` to the `printf`;
@@ -590,7 +634,12 @@ curl -s -D - "https://tcg.nappelin.com/cards?owner=$(node -e 'console.log(requir
    `/cards/w?p=x` does nothing but answer an LNURL error, on the quote budget of 60 a minute. The
    counts show about 60 `200` and the rest `429`. The last request answers `429` with
    `access-control-allow-origin: *` and a `retry-after`. The journal gets one `rate limited:` line.
-6. **The first real pack**, with the nappelin half: after the website release, Bearlett buys one
+6. **`/cards/*` is the card mint's while cards are on.** It is matched before the static
+   `cards/` folder, so `https://tcg.nappelin.com/cards/nutft-census.json` answers an LNURL 404
+   instead of the census file. Nothing on the site or in the Hangar fetches it over HTTP — the
+   referee reads the census from disk (`server/nutft-mint.js`) — so this costs nothing today. Do
+   not add a page that fetches a file under `/cards/` while cards are on.
+7. **The first real pack**, with the nappelin half: after the website release, Bearlett buys one
    card pack for 5 sat and its cards arrive. `waiting` shows it only until it is issued, which the
    sweep does within 30 s.
 
@@ -606,7 +655,7 @@ First, the packs in flight:
 waiting
 ```
 
-An empty list means cards can go off at once.
+An empty list means the steps below run straight through.
 
 Each row is a card pack quoted and not yet issued:
 - An unpaid one lapses by itself at the invoice lifetime plus 600 s after its `created_at`
@@ -614,26 +663,37 @@ Each row is a card pack quoted and not yet issued:
 - A paid one is issued by the sweep within 30 s while cards are on.
 
 **A paid pack waiting holds the shop while cards are off**: every quote answers that the card mint
-is off, until cards are on again and the sweep issues it (§10.2a). So wait for an empty list,
-unless the shop must stop now.
+is off, until cards are on again and the sweep issues it (§10.2a). The list only empties while the
+card mint runs, so cards go off **last**, in this order:
 
 ```bash
 STAMP=$(date -u +%Y%m%dT%H%M%SZ); SNAP=/home/deploy/tcg-cards-off-$STAMP
 snapc "$SNAP/before"
 sudo cp -a "$ENVFILE" "$ENVFILE.bak-$STAMP"
-setkey NUTFT_CARDS 0
+setkey NUTFT_SALES allowlist                       # 1 · no new pack is quoted
+sudo systemctl restart tcg-table && systemctl is-active tcg-table   # 2 · still with cards on
+waiting                                            # 3 · repeat until the list is empty
+setkey NUTFT_CARDS 0                               # 4 · only then
 sudo systemctl restart tcg-table && systemctl is-active tcg-table
 snapc "$SNAP/after"
-diff "$SNAP/before.json" "$SNAP/after.json"
+diff "$SNAP/before.json" "$SNAP/after.json" || true
 ```
 
-Only `cards` goes back to `null`. Then `sudo shred -u "$ENVFILE.bak-$STAMP"`.
+Step 3 takes up to about 25 minutes: an unpaid quote lapses by itself, and a paid one is issued by
+the sweep within 30 s while cards are on. Watch it with `waiting` and do not go on while a row
+stands, unless the shop must stop now — then step 4 at once, and read "after a hard off" below.
 
-Sales and the price are separate decisions, each one `setkey` in the same step:
-- `setkey NUTFT_SALES allowlist`;
-- `setkey NUTFT_PRICE_SCHEDULE 6300:21000,31500:420000,59775:2100000,62775:10000000`.
+The diff shows `sales` back at `allowlist` and `cards` back at `null`. Then
+`sudo shred -u "$ENVFILE.bak-$STAMP"`.
 
-The diff then shows those fields going back too.
+The price is a separate decision, one more `setkey` before the last restart:
+`setkey NUTFT_PRICE_SCHEDULE 6300:21000,31500:420000,59775:2100000,62775:10000000`. The diff then
+shows the price and its first tier going back too.
+
+**After a hard off**, with a row still waiting: the list never empties while cards are off, and the
+shop stays held. Turning cards on again lets the sweep finish the pack within 30 s, which is the
+way out. Refunding instead costs about 9 sat to return 5 (4 sat + 0.4 % per payout, B), so the
+refund costs more than the pack.
 
 Issued cards stay in `DB` and are served again when cards are on again. While cards are off,
 holders cannot move them, and `/cards` answers 404.
@@ -642,6 +702,11 @@ holders cannot move them, and `/cards` answers 404.
 
 §9.8 with the `STAMP` from A5. If cards have been on, switch them off first (F1), then roll the
 code back.
+
+**`waiting` must print `[]` first.** The build before this release has no `card_owner` guard, so
+under it any unclaimed row can be claimed on `/nutft/booster` with its payment hash: a card pack
+someone paid for would be handed out as a booster to whoever knows that hash. Empty the list
+through F1 (cards on, sales closed) before the code goes back.
 
 Never restore a database copy because of the launch. An older `DB` reopens moved cards (§10.2a), so
 treat that as an incident, not a rollback.

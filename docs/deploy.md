@@ -917,22 +917,25 @@ One touch. The upload overwrites and adds files; it deletes nothing.
 
 ```bash
 cd /home/deploy/bimCVP/infra/site-root/tcg600
-[ -f deploy/install-tcg.sh ] && mv deploy/install-tcg.sh deploy/install-tcg.sh.do-not-run
+[ -f deploy/install-tcg.sh ] && mv deploy/install-tcg.sh deploy/install-tcg.sh.do-not-run || true
 sha256sum --quiet --strict -c release-<sha12>.sha256 && echo "server files: all as released"
 comm -13 <(cut -c67- release-<sha12>.sha256 | sort) <(find server -type f | sort)
 npm ci --omit=dev
-node -e 'require("./server/card-mint.js"); console.log("card mint modules load")'
+node -e 'require("./server/table.js"); console.log("the referee loads")'
 sudo systemctl start tcg-table
 systemctl is-active tcg-table
 ```
 
-The rename fences an installer left from an earlier deploy. No `daemon-reload`: the unit did
-not change.
+The rename fences an installer left from an earlier deploy; `|| true` keeps `set -e` (9.4) from
+ending the session when there is no installer to rename. No `daemon-reload`: the unit did not
+change.
 
 Start only after `server files: all as released`; a `FAILED` line is a file the upload did not
 bring, so upload again. `comm` lists the files the box has and the release does not, left from
-earlier deploys; they do no harm and are written down. `card mint modules load` proves the
-card mint's modules resolve with the installed dependencies.
+earlier deploys; they do no harm and are written down. `the referee loads` proves that every
+module the unit needs resolves with the installed dependencies: the card mint and its card
+library, `site/engine.js`, both card catalogs and `ws`. Loading `table.js` starts nothing and
+leaves no handle open, so the command returns by itself.
 
 ### 9.7 · On the box: prove nothing but the code changed
 
