@@ -22,11 +22,19 @@ commands: the launch from A2 to E, both ways of rolling D back, F1 with and with
 and the failures the gates name.
 
 **Rules.** Run everything in Felix's visible window, one SSH session at a time. The referee
-stops for a few minutes, from A5 to A7. C and D each restart it once, which takes seconds, and
-only through `restart`, which refuses while somebody waits in quick match. Every check prints
-names, counts or public values: an environment file is never printed, and the phoenixd password
-never leaves the node process that uses it. **Stop at the first output that differs from what is
-written here.** Nothing is tried a second time in the same window.
+stops for a few minutes, from A5 to A7. C and D each restart it once, which takes seconds. Every
+check prints names, counts or public values: an environment file is never printed, and the
+phoenixd password never leaves the node process that uses it. **Stop at the first output that
+differs from what is written here.** Nothing is tried a second time in the same window.
+
+**`restart`.** C, D and the rollbacks restart the referee only through `restart` (defined below).
+It restarts while nobody waits in quick match (`"queued":0`), and at once while the unit is down,
+where nobody can wait. Otherwise it prints `not restarted` and changes nothing: run the same line
+again in a minute. In a rollback, if the queue has not emptied after a few minutes, or the unit
+runs but `/api/health` never answers, put `restart now` in that line. A player waiting for a
+match then loses the place in the queue; matches and seats survive (§9.4). A written change that
+never gets its restart is taken back before you stop, with `sudo mv "$ENVFILE.bak-$STAMP"
+"$ENVFILE"`: otherwise the next restart, whenever it comes, applies it.
 
 **`set -e` is off from A5 on.** §9.4 turns on `set -euo pipefail` for its backup and off again
 at its end, and A5 repeats that last line. Left on in an interactive shell, it would end the
@@ -35,8 +43,8 @@ is not active yet — right after a secret-bearing backup is written, or right a
 restarts with cards on, with `STAMP` and `SNAP` lost. Without `set -e`, a failing command no
 longer stops a pasted block either. So every step that must not run after a failure is chained to
 it with `&&`, and every block that changes something ends where its gate is read. The expected
-non-zero exits carry `|| true` as well, so none of them ends the session even where `set -e` is
-still on.
+non-zero exits, and every chain whose last step can fail, carry `|| true` as well, so none of
+them ends the session even where `set -e` is still on.
 
 | What | Value |
 |---|---|
@@ -132,13 +140,16 @@ setkey() {  # setkey KEY value: the one KEY= line in $ENVFILE gets value, or is 
   fi
   [ "$(sudo grep -cxF "$1=$2" "$ENVFILE" || true)" = 1 ] && echo "$1: set" || { echo "$1: NOT set, stop"; return 1; }
 }
-restart() {  # restart: the referee, only while nobody waits in quick match; then the unit's state
+restart() {  # restart [now]: at "queued":0; at once while the unit is down, or with now; then its state
   local health
-  health=$(curl -s --max-time 10 https://tcg.nappelin.com/api/health || true)
-  case "$health" in
-    *'"queued":0,'*) sudo systemctl restart tcg-table && systemctl is-active tcg-table ;;
-    *) echo "not restarted: ${health:-/api/health did not answer}; again at \"queued\":0"; return 1 ;;
-  esac
+  if [ "${1:-}" != now ] && systemctl is-active --quiet tcg-table; then
+    health=$(curl -s --max-time 10 https://tcg.nappelin.com/api/health || true)
+    case "$health" in
+      *'"queued":0,'*) ;;
+      *) echo "not restarted: ${health:-/api/health did not answer}; again in a minute"; return 1 ;;
+    esac
+  fi
+  sudo systemctl restart tcg-table && systemctl is-active tcg-table
 }
 intended() {  # intended <before.json> <after.json> [g5]: after is before with exactly the intended changes
   node -e '
@@ -355,7 +366,7 @@ comm -13 <(cut -c67- release-<sha12>.sha256 | sort) <(find server -type f | sort
 sha256sum --quiet --strict -c release-<sha12>.sha256 && echo "server files: all as released" \
   && npm ci --omit=dev \
   && node -e 'require("./server/table.js"); console.log("the referee loads")' \
-  && sudo systemctl start tcg-table && systemctl is-active tcg-table
+  && sudo systemctl start tcg-table && systemctl is-active tcg-table || true
 ```
 
 Gate:
@@ -495,7 +506,7 @@ the backup first:
 ```bash
 PEER=<the client address /api/health printed>
 STAMP=$(date -u +%Y%m%dT%H%M%SZ); SNAP=/home/deploy/tcg-trustproxy-$STAMP
-snapc "$SNAP/before" && sudo cp -a "$ENVFILE" "$ENVFILE.bak-$STAMP" && setkey TRUST_PROXY "$PEER"
+snapc "$SNAP/before" && sudo cp -a "$ENVFILE" "$ENVFILE.bak-$STAMP" && setkey TRUST_PROXY "$PEER" || true
 ```
 
 `TRUST_PROXY: set`. `$PEER` alone is enough: every address is compared as one canonical form, and
@@ -506,7 +517,8 @@ restart && snapc "$SNAP/after" && diff "$SNAP/before.json" "$SNAP/after.json" &&
 ```
 
 `active`, then `mints unchanged`. `not restarted` means somebody waits in quick match, and the
-referee still runs as before: run the same line again in a minute. Then from Windows, two checks:
+referee still runs as before: run the same line again in a minute. If you stop instead, move the
+backup back first (`restart`, above). Then from Windows, two checks:
 
 ```powershell
 curl.exe -s https://tcg.nappelin.com/api/health
@@ -565,7 +577,7 @@ STAMP=$(date -u +%Y%m%dT%H%M%SZ); SNAP=/home/deploy/tcg-cards-on-$STAMP
 snapc "$SNAP/before" && sudo cp -a "$ENVFILE" "$ENVFILE.bak-$STAMP" \
   && setkey NUTFT_CARDS 1 && setkey NUTFT_SALES open \
   && setkey NUTFT_PRICE_SCHEDULE 6300:5000,31500:420000,59775:2100000,62775:10000000 \
-  && setkey G_NUTFT_PRICE_MSAT 5000
+  && setkey G_NUTFT_PRICE_MSAT 5000 || true
 ```
 
 Four lines, `NUTFT_CARDS: set` to `G_NUTFT_PRICE_MSAT: set`. The chain stops at the first key
@@ -580,8 +592,11 @@ restart && snapc "$SNAP/after" && echo "after-snapshot taken"
 ```
 
 `active`, then `after-snapshot taken`. `not restarted` means somebody waits in quick match, and
-nothing runs differently yet: run the two lines again in a minute. From `active` on, the card mint
-is public.
+nothing runs differently yet: run the two lines again in a minute. If it keeps refusing and you
+stop, move the backup back first, `sudo mv "$ENVFILE.bak-$STAMP" "$ENVFILE"`: nothing ran with
+D's values, so that is the whole rollback, and no later restart picks them up. From `active` on,
+the card mint is public. `failed`, or an `activating` that stays: the referee does not come up
+with D's values; roll D back.
 
 Then the checks:
 
@@ -655,44 +670,34 @@ values.
 
 ### Rolling D back
 
-The card mint's discovery document has been public since the restart, so a buyer may already
-hold a quote. First:
+The card mint has been public since D's restart. A buyer may hold a quote from any moment up to
+the restart that switches it off, and a quote stays payable for about 15 minutes; only the card
+mint issues a paid pack, and switched off it would hold the shop (F1). So D always goes back in
+two steps, whatever `waiting` shows now. First everything but the card mint:
 
 ```bash
-waiting
+sudo cp -a "$ENVFILE.bak-$STAMP" "$ENVFILE" && setkey NUTFT_CARDS 1 && restart || true
 ```
 
-**`card packs waiting: []`:** the file goes back as it was, and so does everything the mints
-publish:
+`NUTFT_CARDS: set`, then `active`. The file is the one from before D plus `NUTFT_CARDS=1`: sales
+are closed to wallets again, and both prices are back. `failed`, or an `activating` that stays,
+means the referee does not come up with cards on at all: go straight to the last step, and read a
+row in `waiting` as a hard off (F1). Then:
 
 ```bash
-sudo mv "$ENVFILE.bak-$STAMP" "$ENVFILE"
-restart && snapc "$SNAP/rollback" && diff "$SNAP/before.json" "$SNAP/rollback.json" && echo "as before D"
+waiting   # again every few minutes, until the list is empty
 ```
 
-`active`, then `as before D`. Stop for the day. On `not restarted`, run the second line again in
-a minute.
-
-**Any row:** an invoice quoted since the restart stays payable for about 15 minutes, and only the
-card mint issues a paid pack. Switched off now, that pack would hold the shop (F1). So everything
-else goes back first, and the card mint stays on until nothing waits:
-
-```bash
-sudo cp -a "$ENVFILE.bak-$STAMP" "$ENVFILE" && setkey NUTFT_CARDS 1 && restart
-```
-
-`NUTFT_CARDS: set`, then `active`; on `not restarted`, run `restart` alone again in a minute. The
-file is the one from before D plus `NUTFT_CARDS=1`: sales are closed to wallets again, and both
-prices are back. Run `waiting` every few minutes until it prints `card packs waiting: []`, up to
-about 25 minutes (F1). Then:
+`card packs waiting: []` at once when nobody quoted a pack, else within about 25 minutes (F1). Then
+the card mint goes off, with the file exactly as it was before D:
 
 ```bash
 sudo mv "$ENVFILE.bak-$STAMP" "$ENVFILE"
 restart && snapc "$SNAP/rollback" && diff "$SNAP/before.json" "$SNAP/rollback.json" && echo "as before D"
 ```
 
-`active`, then `as before D`. Stop for the day. On `not restarted`, run the second line again in
-a minute. `mv` leaves no copy of the file behind.
+`active`, then `as before D`: everything the mints publish is as it was, and `mv` leaves no copy of
+the file behind. Stop for the day. On `not restarted`, run the second line again in a minute.
 
 ---
 
@@ -769,7 +774,7 @@ card mint runs, so sales close first and cards go off **last**:
 ```bash
 STAMP=$(date -u +%Y%m%dT%H%M%SZ); SNAP=/home/deploy/tcg-cards-off-$STAMP
 snapc "$SNAP/before" && sudo cp -a "$ENVFILE" "$ENVFILE.bak-$STAMP" \
-  && setkey NUTFT_SALES allowlist && restart   # 1 · no new pack is quoted; cards stay on
+  && setkey NUTFT_SALES allowlist && restart || true   # 1 · no new pack is quoted; cards stay on
 ```
 
 `NUTFT_SALES: set`, then `active`; on `not restarted`, run `restart` alone again in a minute. Then:
@@ -782,7 +787,7 @@ This takes up to about 25 minutes. Do not go on while a row stands, unless the s
 then step 3 at once, and read "after a hard off" below.
 
 ```bash
-setkey NUTFT_CARDS 0 && restart && snapc "$SNAP/after"   # 3 · only then
+setkey NUTFT_CARDS 0 && restart && snapc "$SNAP/after" || true   # 3 · only then
 diff "$SNAP/before.json" "$SNAP/after.json" || true
 ```
 
@@ -795,7 +800,7 @@ The prices are a separate decision. To put them back as well, step 3 sets two mo
 
 ```bash
 setkey NUTFT_CARDS 0 && setkey NUTFT_PRICE_SCHEDULE 6300:21000,31500:420000,59775:2100000,62775:10000000 \
-  && setkey G_NUTFT_PRICE_MSAT 210000 && restart && snapc "$SNAP/after"   # 3 · with the prices
+  && setkey G_NUTFT_PRICE_MSAT 210000 && restart && snapc "$SNAP/after" || true   # 3 · with the prices
 diff "$SNAP/before.json" "$SNAP/after.json" || true
 ```
 
@@ -818,7 +823,7 @@ that hash. So if cards have been on, F1 comes first. Then:
 
 ```bash
 waiting
-ls -l /home/deploy/tcg-backups/tcg600-<A5's STAMP>.tgz
+ls -l /home/deploy/tcg-backups/tcg600-<the STAMP from A5>.tgz
 ```
 
 `card packs waiting: []`, and the code backup from A5 is there. Then §9.8, at `"queued":0`.

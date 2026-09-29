@@ -929,7 +929,7 @@ comm -13 <(cut -c67- release-<sha12>.sha256 | sort) <(find server -type f | sort
 sha256sum --quiet --strict -c release-<sha12>.sha256 && echo "server files: all as released" \
   && npm ci --omit=dev \
   && node -e 'require("./server/table.js"); console.log("the referee loads")' \
-  && sudo systemctl start tcg-table && systemctl is-active tcg-table
+  && sudo systemctl start tcg-table && systemctl is-active tcg-table || true
 ```
 
 The rename fences an installer left from an earlier deploy; `|| true` keeps the line from
@@ -938,11 +938,12 @@ failing when there is no installer to rename. No `daemon-reload`: the unit did n
 `comm` lists the files the box has and the release does not, left from earlier deploys; they do
 no harm and are written down. The start is chained behind the checks, because `set -e` is off
 again (9.4) and a failed line no longer stops the block. The referee starts only after
-`server files: all as released`, a clean `npm ci` and `the referee loads`. A `FAILED` line is a
-file the upload did not bring, so upload again. `the referee loads` proves that every module the
-unit needs resolves with the installed dependencies: the card mint and its card library,
-`site/engine.js`, both card catalogs and `ws`. Loading `table.js` starts nothing and leaves no
-handle open, so the command returns by itself.
+`server files: all as released`, a clean `npm ci` and `the referee loads`. The chain ends with
+`|| true`, so a stop anywhere in it would not end the session even with `set -e` on. A `FAILED`
+line is a file the upload did not bring, so upload again. `the referee loads` proves that every
+module the unit needs resolves with the installed dependencies: the card mint and its card
+library, `site/engine.js`, both card catalogs and `ws`. Loading `table.js` starts nothing and
+leaves no handle open, so the command returns by itself.
 
 ### 9.7 · On the box: prove nothing but the code changed
 
